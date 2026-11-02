@@ -8,6 +8,7 @@ import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_JOB;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_JOB;
 import static io.openaev.scheduler.jobs.notification.NotificationDigestJob.NOTIFICATION_DIGEST_JOB;
 import static io.openaev.scheduler.jobs.notification.NotificationEventRetentionJob.NOTIFICATION_EVENT_RETENTION_JOB;
+import static io.openaev.scheduler.jobs.notification.PayloadApprovalNotificationJob.PAYLOAD_APPROVAL_NOTIFICATION_JOB;
 import static io.openaev.scheduler.jobs.reporting.ReportingScheduleJob.REPORTING_SCHEDULE_JOB;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_JOB;
 import static org.quartz.JobKey.jobKey;
@@ -15,6 +16,7 @@ import static org.quartz.JobKey.jobKey;
 import io.openaev.scheduler.jobs.*;
 import io.openaev.scheduler.jobs.notification.NotificationDigestJob;
 import io.openaev.scheduler.jobs.notification.NotificationEventRetentionJob;
+import io.openaev.scheduler.jobs.notification.PayloadApprovalNotificationJob;
 import io.openaev.scheduler.jobs.reporting.ReportingScheduleJob;
 import io.openaev.scheduler.jobs.user_event.UserEventRetentionJob;
 import org.quartz.JobBuilder;
@@ -154,6 +156,14 @@ public class PlatformJobDefinitions {
   public JobDetail autonomousTimeoutJobDetail() {
     return JobBuilder.newJob(AutonomousTimeoutJob.class)
         .withIdentity("AutonomousTimeoutJob")
+        .storeDurably()
+        .build();
+  }
+
+  @Bean
+  public JobDetail payloadApprovalNotificationJobDetail() {
+    return JobBuilder.newJob(PayloadApprovalNotificationJob.class)
+        .withIdentity(PAYLOAD_APPROVAL_NOTIFICATION_JOB)
         .storeDurably()
         .build();
   }

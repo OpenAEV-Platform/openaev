@@ -16,6 +16,8 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalExpectationDetail;
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.helper.ObjectMapperHelper;
+import io.openaev.service.payload_approval.PayloadApprovalService;
+import io.openaev.service.payload_approval.PayloadPendingVersionService;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -34,6 +36,8 @@ class ThreatArsenalMapperTest {
 
   @Mock private PayloadMapper payloadMapper;
   @Mock private EntityManager entityManager;
+  @Mock private PayloadApprovalService payloadApprovalService;
+  @Mock private PayloadPendingVersionService payloadVersionService;
 
   private ThreatArsenalMapper buildMapper() {
     // Real content utils: the predefined-expectation readers only walk the contract's
@@ -41,7 +45,9 @@ class ThreatArsenalMapperTest {
     return new ThreatArsenalMapper(
         payloadMapper,
         new InjectorContractContentUtils(ObjectMapperHelper.openAEVJsonMapper()),
-        entityManager);
+        entityManager,
+        payloadApprovalService,
+        payloadVersionService);
   }
 
   /** One predefined expectation node as the contract content serializes it. */

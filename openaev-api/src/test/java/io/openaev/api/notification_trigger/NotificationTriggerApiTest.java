@@ -130,6 +130,29 @@ public class NotificationTriggerApiTest extends IntegrationTest {
 
   @Test
   @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @DisplayName(
+      "A live trigger on payload approval events is rejected: they are sent by the platform only")
+  void liveTriggerRefusesPayloadApprovalEvents() throws Exception {
+    NotificationTriggerInput input =
+        NotificationTriggerInput.builder()
+            .name("Approval trigger")
+            .type(NotificationTriggerType.LIVE)
+            .resourceType(ResourceType.PAYLOAD)
+            .eventTypes(List.of(NotificationTriggerEventType.APPROVAL_PENDING))
+            .notifierIds(List.of(uiNotifierId()))
+            .build();
+
+    mvc.perform(
+            post(NOTIFICATION_TRIGGER_URI)
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is4xxClientError());
+  }
+
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("A live trigger without event types is rejected")
   void liveTriggerRequiresEventTypes() throws Exception {
     NotificationTriggerInput input =

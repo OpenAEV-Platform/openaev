@@ -87,6 +87,16 @@ public class Payload implements GrantableBase, TenantBase, Auditable, JsonApiExt
     REVOKED
   }
 
+  /**
+   * Whether the content of a payload is trusted to be used. Set by the server on every write, never
+   * by the client: an author without "Approve content" gets PENDING, a holder of it APPROVED.
+   */
+  public enum PAYLOAD_APPROVAL_STATUS {
+    PENDING,
+    APPROVED,
+    REJECTED
+  }
+
   public enum PAYLOAD_EXECUTION_ARCH {
     x86_64,
     arm64,
@@ -236,6 +246,53 @@ public class Payload implements GrantableBase, TenantBase, Auditable, JsonApiExt
   @Queryable(dynamicValues = true, filterable = true, path = "authorOrganization.id")
   @Schema(description = "Organization author of the payload", type = "string")
   private Organization authorOrganization;
+
+  // -- LAST MODIFIED BY --
+  // The user whose create, update, duplicate or import last wrote the payload. Null for
+  // collector and system writes, and for payloads written before it was recorded. Environment-local
+  // like the author, so it never travels with exports.
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_last_modified_by")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
+  @JsonProperty("payload_last_modified_by")
+  @IncludeOption(key = "exclude from payload export")
+  @Queryable(dynamicValues = true, filterable = true, path = "lastModifiedBy.id")
+  @Schema(description = "User who last modified the payload", type = "string")
+  private User lastModifiedBy;
+
+  // -- APPROVAL --
+  // Fail-closed default: a payload written by a path that never decided its status is not trusted.
+  // Environment-local, never exported: an imported payload is approved in its target environment.
+  @Column(name = "payload_approval_status", nullable = false)
+  @Enumerated(EnumType.STRING)
+  @JsonProperty("payload_approval_status")
+  @IncludeOption(key = "exclude from payload export")
+  @Queryable(filterable = true, sortable = true)
+  @NotNull
+  private PAYLOAD_APPROVAL_STATUS approvalStatus = PAYLOAD_APPROVAL_STATUS.PENDING;
+
+  // Fingerprint of the executable content when it was last approved (null when not approved, or
+  // approved before fingerprints were recorded).
+  @Column(name = "payload_approved_fingerprint")
+  @JsonIgnore
+  private String approvedFingerprint;
+
+  // A new version of the executable content waits for approval (see PayloadVersion); the payload
+  // keeps running its approved content meanwhile. Kept here so lists and filters need no join.
+  @Queryable(filterable = true)
+  @Column(name = "payload_pending_version", nullable = false)
+  @JsonProperty("payload_pending_version")
+  private boolean pendingVersion;
+
+  // The status lists and filters display: PENDING while a new version waits for approval, the
+  // stored status otherwise. Read-only and computed by the database; the stored status (what
+  // runs) is not affected.
+  @Formula("CASE WHEN payload_pending_version THEN 'PENDING' ELSE payload_approval_status END")
+  @Enumerated(EnumType.STRING)
+  @JsonIgnore
+  @Setter(NONE)
+  private PAYLOAD_APPROVAL_STATUS displayApprovalStatus;
 
   @OneToMany(
       mappedBy = "payload",

@@ -23,6 +23,7 @@ import io.openaev.service.UserService;
 import io.openaev.service.catalog.CatalogService;
 import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.content.PayloadFieldChanges;
+import io.openaev.service.payload_approval.PayloadFingerprint;
 import io.openaev.service.scenario.revision.ScenarioRevisionService;
 import io.openaev.utils.SemanticVersion;
 import java.util.*;
@@ -106,7 +107,20 @@ public class PayloadVersionChangeService {
         contractId == null
             ? 0
             : usagesOf(injectorContractService.injectorContract(contractId)).size(),
-        payload == null ? null : payload.getCreatedAt());
+        payload == null ? null : payload.getCreatedAt(),
+        payload == null ? null : payload.getApprovalStatus(),
+        payload != null ? payload.isManaged() : item != null,
+        payload == null ? null : authorName(payload),
+        payload == null ? null : PayloadFingerprint.of(payload),
+        payload == null ? null : PayloadExecutableContent.of(payload));
+  }
+
+  // Who wrote this version: its last modifier, else its author; null for a collector or the
+  // catalogue.
+  private static String authorName(Payload payload) {
+    User author =
+        payload.getLastModifiedBy() != null ? payload.getLastModifiedBy() : payload.getAuthorUser();
+    return author == null ? null : author.getNameOrEmail();
   }
 
   private static Payload.PAYLOAD_STATUS catalogStatus(CatalogItem item) {

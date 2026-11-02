@@ -55,7 +55,8 @@
     "Webhook",
     "x86_64",
     "XTM One AI",
-    "YYYY"
+    "YYYY",
+    "Filigran v{version}"
   ],
   "de": [
     "Revision",
@@ -191,7 +192,8 @@
     "Video",
     "Vision",
     "Website",
-    "Workstation"
+    "Workstation",
+    "Version {number}"
   ],
   "es": [
     "Variable {key}",
@@ -373,7 +375,10 @@
     "Variables",
     "Version",
     "Vision",
-    "~{count} injects"
+    "~{count} injects",
+    "{count, plural, one {# simulation} other {# simulations}}",
+    "Version {number}",
+    "Payloads"
   ],
   "it": [
     "Audio",

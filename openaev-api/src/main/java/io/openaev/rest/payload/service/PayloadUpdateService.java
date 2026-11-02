@@ -20,9 +20,11 @@ import io.openaev.rest.exception.ManagedPayloadReadOnlyException;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
 import io.openaev.service.GrantService;
+import io.openaev.service.UserService;
 import io.openaev.service.content.ContentHistoryService;
 import io.openaev.service.payload.PayloadVersionNumbering;
 import io.openaev.service.payload.PayloadVersionService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -55,6 +57,8 @@ public class PayloadUpdateService {
   private final PayloadVersionService payloadVersionService;
   private final PayloadVersionNumbering payloadVersionNumbering;
   private final GrantService grantService;
+  private final UserService userService;
+  private final PayloadApprovalService payloadApprovalService;
 
   /**
    * @param previous the version saved over, when a new one was created; null otherwise
@@ -110,7 +114,10 @@ public class PayloadUpdateService {
         injectorContractRepository.findInjectorContractByPayload(current);
 
     Payload candidate = payloadService.copyForNewVersion(current);
+    // Null outside an authenticated request (system flows): an unknown modifier, never a stale one.
+    User actor = userService.currentUserOrNull();
     payloadUtils.copyProperties(input, candidate);
+    candidate.setLastModifiedBy(actor);
     if (candidate instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));
     } else if (candidate instanceof FileDrop fileDrop) {
@@ -135,6 +142,9 @@ public class PayloadUpdateService {
             current.getIdentity(),
             candidate,
             highest -> PayloadVersionNumbering.bump(highest.getVersion(), change.get()));
+    // Each version is its own payload (combined demo): the new one needs approval unless its
+    // author may approve, while the previous version keeps its status and keeps running meanwhile.
+    payloadApprovalService.onWrite(saved, actor, PayloadApproval.ORIGIN.UPDATE, null);
     InjectorContract contract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             saved, attackPatterns, domains, tags);

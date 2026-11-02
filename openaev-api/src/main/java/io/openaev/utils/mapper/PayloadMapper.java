@@ -20,6 +20,7 @@ import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.rest.payload.output_parser.OutputParserSimple;
 import io.openaev.rest.payload.regex_group.RegexGroupSimple;
 import jakarta.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -79,8 +80,12 @@ public class PayloadMapper {
     Optional<InjectStatus> injectStatusOpt = injectObj.getStatus();
     Payload payload = injectorContract.getPayload();
 
-    // Handle the case when inject has not been executed yet or no payload output exists
-    if (injectStatusOpt.isEmpty() || injectStatusOpt.get().getPayloadOutput() == null) {
+    // Show the payload's current (approved) content when the inject has not run yet, when no
+    // payload output was kept, or when the payload changed after the last run (for example a new
+    // version was approved): the next run uses that content. The execution traces keep what ran.
+    if (injectStatusOpt.isEmpty()
+        || injectStatusOpt.get().getPayloadOutput() == null
+        || changedSinceLastRun(payload, injectStatusOpt.get())) {
       if (payload != null) {
         populatePayloadDetails(statusPayloadOutputBuilder, payload, injectorContract);
 
@@ -100,6 +105,13 @@ public class PayloadMapper {
                 populateExecutedPayload(
                     statusPayloadOutputBuilder, statusPayload, injectorContract))
         .orElse(null);
+  }
+
+  private static boolean changedSinceLastRun(Payload payload, InjectStatus injectStatus) {
+    Instant lastRun = injectStatus.getTrackingSentDate();
+    return payload != null
+        && payload.getUpdatedAt() != null
+        && (lastRun == null || payload.getUpdatedAt().isAfter(lastRun));
   }
 
   private Set<RegexGroupSimple> toRegexGroupSimple(Set<RegexGroup> regexGroups) {
@@ -257,6 +269,8 @@ public class PayloadMapper {
                     .type(payloadToSimple.getType())
                     .collectorType(payloadToSimple.getCollectorTypeValue())
                     .status(payloadToSimple.getStatus())
+                    .approvalStatus(payloadToSimple.getApprovalStatus())
+                    .pendingVersion(payloadToSimple.isPendingVersion())
                     .build())
         .orElse(null);
   }
@@ -370,7 +384,10 @@ public class PayloadMapper {
             .detectionRemediations(payload.getDetectionRemediations())
             .outputParsers(payload.getOutputParsers())
             .createdAt(payload.getCreatedAt())
-            .updatedAt(payload.getUpdatedAt());
+            .updatedAt(payload.getUpdatedAt())
+            .lastModifiedBy(
+                payload.getLastModifiedBy() != null ? payload.getLastModifiedBy().getId() : null)
+            .approvalStatus(payload.getApprovalStatus());
 
     switch (Hibernate.unproxy(payload)) {
       case Command command ->

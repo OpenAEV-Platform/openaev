@@ -14,6 +14,8 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import InjectIcon from '../common/injects/InjectIcon';
 import { isBuiltinConnector } from '../integrations/common/builtinConnectorDescriptions';
+import ApprovalStatusChip from './approval/ApprovalStatusChip';
+import { displayedApprovalStatus } from './approval/approvalStatusUtils';
 import { PAYLOAD_ORIGIN_LABELS, payloadOrigin } from './payloadOrigin';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { actionDomains } from './threatArsenalDomainSections';
@@ -68,6 +70,11 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
   const status = action.action_payload?.payload_revoked ? 'REVOKED' : action.action_payload?.payload_status;
   const statusLabel = getStatusLabel(status);
+  // Approval and Verified / Unverified / Deprecated are two different things (is it trusted by a
+  // second person, does it work): each keeps its own slot so neither masks the other. The approval
+  // chip only shows when it needs attention; a new version waiting shows as Pending approval.
+  const approvalStatus = displayedApprovalStatus(action.action_payload?.payload_approval_status, action.action_payload?.payload_pending_version);
+  const approvalNeedsAttention = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED';
   const name = tPick(action.action_labels);
   // Trust line (idea A): version and source together, as in the drawer.
   const origin = payloadOrigin(action.action_payload);
@@ -163,6 +170,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         }}
         >
           {statusLabel && <Chip label={t(statusLabel)} severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]} />}
+          {approvalNeedsAttention && <ApprovalStatusChip status={approvalStatus} />}
         </div>
       )}
       action={canRunTest && !action.action_payload?.payload_revoked && (

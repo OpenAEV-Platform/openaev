@@ -1,32 +1,14 @@
 import { Box } from '@mui/material';
 import { useLocation } from 'react-router';
 
-import MarketplaceTabs from '../../../components/common/marketplace/MarketplaceTabs';
-import { useFormatter } from '../../../components/i18n';
 import ThreatArsenalAvailable from './catalog/ThreatArsenalAvailable';
 import ThreatArsenalInstalled from './ThreatArsenalInstalled';
+import ThreatArsenalTabs from './ThreatArsenalTabs';
 
 const ThreatArsenal = () => {
-  const { t } = useFormatter();
   const isAvailableTab = useLocation().pathname.endsWith('/available');
 
-  const tabs = (
-    <MarketplaceTabs
-      active={isAvailableTab ? 'available' : 'installed'}
-      tabs={[
-        {
-          value: 'installed',
-          label: t('Active'),
-          to: '/admin/threat-arsenal',
-        },
-        {
-          value: 'available',
-          label: t('Available'),
-          to: '/admin/threat-arsenal/available',
-        },
-      ]}
-    />
-  );
+  const tabs = <ThreatArsenalTabs active={isAvailableTab ? 'available' : 'installed'} />;
 
   return (
     <Box sx={{

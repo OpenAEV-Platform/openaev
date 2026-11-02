@@ -25,6 +25,8 @@ export const INSTALLED_FILTER_NAMES = [
   'action_domains',
   'action_tags',
   'action_payload_status',
+  // Approval status of the payload (Pending / Approved / Rejected), like the sidebar Approval facet.
+  'action_payload_approval_status',
   'action_updated_at',
   'action_author',
   MITRE_FILTER_KEY,

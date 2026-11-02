@@ -1,10 +1,10 @@
-import { AlarmOnOutlined, NotificationsOutlined } from '@mui/icons-material';
+import { AlarmOnOutlined, NotificationsOutlined, TuneOutlined } from '@mui/icons-material';
 import { Tab, Tabs } from '@mui/material';
 import { Link } from 'react-router';
 
 import { useFormatter } from '../../../components/i18n';
 
-interface Props { current: 'alerts' | 'triggers' }
+interface Props { current: 'alerts' | 'triggers' | 'preferences' }
 
 /**
  * Notification center tabs: alerts and triggers are two views of the same
@@ -49,6 +49,22 @@ const NotificationCenterTabs = ({ current }: Props) => {
         value="triggers"
         label={t('Triggers')}
         icon={<AlarmOnOutlined fontSize="small" />}
+        iconPosition="start"
+        sx={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          textTransform: 'none',
+          minHeight: 48,
+          fontSize: 13,
+        }}
+      />
+      <Tab
+        component={Link}
+        to="/admin/profile/notification-preferences"
+        value="preferences"
+        label={t('Preferences')}
+        icon={<TuneOutlined fontSize="small" />}
         iconPosition="start"
         sx={{
           display: 'flex',

@@ -16,6 +16,7 @@ import {
   type ThreatArsenalAction,
 } from '../../../../utils/api-types';
 import ScenarioForm from '../../scenarios/ScenarioForm';
+import notifySkippedActions from './notifySkippedActions';
 
 interface Props {
   isExclusionMode: boolean;
@@ -44,6 +45,7 @@ const ThreatArsenalScenarioCreationComponent = ({ isExclusionMode, selectedEleme
       },
     };
     const result: AxiosResponse<ScenarioSimple> = await addScenarioWithInjectorContracts(inputs);
+    notifySkippedActions(result, t);
     navigate(`/admin/scenarios/${result.data.scenario_id}/injects`);
   };
 

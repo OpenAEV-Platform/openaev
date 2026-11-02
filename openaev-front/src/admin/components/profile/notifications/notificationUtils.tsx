@@ -1,5 +1,5 @@
 import { deepPurple, green, indigo, orange, red } from '@mui/material/colors';
-import { BellAlertOutline, BellCogOutline, BellOutline, BellPlusOutline, BellRemoveOutline, FileTableBoxMultipleOutline } from 'mdi-material-ui';
+import { BellAlertOutline, BellCancelOutline, BellCheckOutline, BellCogOutline, BellOutline, BellPlusOutline, BellRemoveOutline, FileTableBoxMultipleOutline } from 'mdi-material-ui';
 import { type ReactNode } from 'react';
 
 import {
@@ -14,6 +14,7 @@ import {
   TEAM_BASE_URL,
 } from '../../../../constants/BaseUrls';
 import { type NotificationOutput } from '../../../../utils/api-types';
+import { ACTION_PARAM, THREAT_ARSENAL_TO_REVIEW_PATH } from '../../threat_arsenal/threatArsenalDeepLink';
 
 /** A single matched event inside a notification content group. */
 export interface NotificationEvent {
@@ -62,6 +63,10 @@ export const OPERATION_COLORS: Record<string, string> = {
   BASE_UPDATE_AVAILABLE: orange[500],
   INSTALLED_AUTOMATICALLY: green[500],
   RELEASE_RECEIVED: deepPurple[500],
+  APPROVAL_PENDING: orange[500],
+  APPROVED: green[500],
+  REJECTED: red[500],
+  SUPERSEDED: deepPurple[500],
   MULTIPLE: indigo[500],
 };
 
@@ -82,6 +87,10 @@ export const OPERATION_LABELS: Record<string, string> = {
   INSTALLED_AUTOMATICALLY: 'Installed automatically',
   RELEASE_RECEIVED: 'Release received',
   SYNC_BLOCKED: 'Catalog sync blocked',
+  APPROVAL_PENDING: 'Pending approval',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  SUPERSEDED: 'Superseded',
   MULTIPLE: 'Multiple',
 };
 
@@ -101,7 +110,14 @@ export const operationIcon = (operation: string): ReactNode => {
     case 'PAYLOAD_REVOKED':
     case 'REVOKED':
     case 'SYNC_BLOCKED':
+    case 'APPROVAL_PENDING':
       return <BellAlertOutline style={{ color }} />;
+    case 'APPROVED':
+      return <BellCheckOutline style={{ color }} />;
+    case 'REJECTED':
+      return <BellCancelOutline style={{ color }} />;
+    case 'SUPERSEDED':
+      return <BellCogOutline style={{ color }} />;
     case 'MULTIPLE':
       return <FileTableBoxMultipleOutline style={{ color }} />;
     default:
@@ -124,6 +140,8 @@ const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
   PAYLOAD: () => '/admin/threat-arsenal',
   CATALOG: () => '/admin/threat-arsenal/available',
   CATALOG_SYNC: () => '/admin/threat-arsenal/available',
+  // Payload approval notifications open the action's drawer in the Threat Arsenal.
+  THREAT_ARSENAL: id => `/admin/threat-arsenal?${ACTION_PARAM}=${encodeURIComponent(id)}`,
 };
 
 /** Router state the page needs to open the entity: the Threat Arsenal opens a payload's action. */
@@ -138,6 +156,11 @@ export const eventLinkState = (event?: NotificationEvent) => (
 export const eventUrl = (event?: NotificationEvent): string | undefined => {
   if (!event?.resource_id || !event.resource_type || event.operation === 'DELETE') {
     return undefined;
+  }
+  // Something waits for a decision: open it inside the approver's review queue, where the next
+  // pending item is one click away, instead of the whole arsenal.
+  if (event.resource_type === 'THREAT_ARSENAL' && event.operation === 'APPROVAL_PENDING') {
+    return `${THREAT_ARSENAL_TO_REVIEW_PATH}?${ACTION_PARAM}=${encodeURIComponent(event.resource_id)}`;
   }
   return RESOURCE_TYPE_URLS[event.resource_type]?.(event.resource_id);
 };

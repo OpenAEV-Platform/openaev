@@ -21,6 +21,7 @@ import {
   type ThreatArsenalAction,
 } from '../../../../utils/api-types';
 import { SCENARIO_TYPE_TIME_BASED } from '../../scenarios/scenario/ScenarioType';
+import notifySkippedActions from './notifySkippedActions';
 
 interface Props {
   isExclusionMode: boolean;
@@ -135,6 +136,7 @@ const ThreatArsenalScenarioUpdateComponent = ({
       },
     };
     updateScenariosWithInjectorContracts(inputs).then((result: AxiosResponse<ScenarioSimple[]>) => {
+      notifySkippedActions(result, t);
       navigate(`/admin/scenarios/${result.data[0].scenario_id}/injects`);
     }).finally(() => setSubmitting(false));
   };

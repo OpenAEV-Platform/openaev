@@ -203,6 +203,24 @@ public interface UserRepository
   @Query("SELECT DISTINCT u FROM User u JOIN u.tenants t WHERE t.id = :tenantId AND u.admin = true")
   List<User> findAdminsByTenantId(@Param("tenantId") String tenantId);
 
+  /**
+   * Ids of the members of a tenant who hold a capability through a role of one of that tenant's own
+   * groups. Explicit grants only: platform admins, Bypass and platform-wide groups do not count.
+   * Used to notify approvers (payload approval): the tenant is an argument, never the ambient one.
+   */
+  @Query(
+      value =
+          "SELECT DISTINCT u.user_id FROM users u"
+              + " JOIN users_tenants ut ON ut.user_id = u.user_id AND ut.tenant_id = :tenantId"
+              + " JOIN users_groups ug ON ug.user_id = u.user_id"
+              + " JOIN groups g ON g.group_id = ug.group_id AND g.tenant_id = :tenantId"
+              + " JOIN groups_roles gr ON gr.group_id = g.group_id"
+              + " JOIN roles_capabilities rc ON rc.role_id = gr.role_id"
+              + " WHERE rc.capability = :capability",
+      nativeQuery = true)
+  List<String> findIdsOfTenantMembersExplicitlyHolding(
+      @Param("tenantId") String tenantId, @Param("capability") String capability);
+
   // -- Tenant-scoped --
 
   @Query("SELECT u FROM User u JOIN u.tenants t WHERE u.id IN :ids AND t.id = :tenantId")

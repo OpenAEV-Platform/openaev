@@ -105,4 +105,36 @@ public record ThreatArsenalActionFullOutput(
         // Omitted (not an explicit JSON null) when absent, so the generated optional TypeScript
         // type (action_expectation_details?: ...) is exactly what clients observe on the wire.
         @JsonInclude(JsonInclude.Include.NON_NULL)
-        List<ThreatArsenalExpectationDetail> expectationDetails) {}
+        List<ThreatArsenalExpectationDetail> expectationDetails,
+    @Schema(description = "Id of the user who last modified the action payload")
+        @JsonProperty("action_last_modified_by")
+        String lastModifiedById,
+    @Schema(description = "Display name of the user who last modified the action payload")
+        @JsonProperty("action_last_modified_by_name")
+        String lastModifiedByName,
+    @Schema(description = "Approval status of the action payload, null for payload-less actions")
+        @JsonProperty("action_approval_status")
+        Payload.PAYLOAD_APPROVAL_STATUS approvalStatus,
+    @Schema(
+            description =
+                "Fingerprint of the current executable content, to send back when approving")
+        @JsonProperty("action_approval_fingerprint")
+        String approvalFingerprint,
+    @Schema(description = "Latest entry of the approval history")
+        @JsonProperty("action_approval_latest")
+        PayloadApprovalOutput approvalLatest,
+    @Schema(
+            description =
+                "Number of the version the action runs (1 until a later version is approved),"
+                    + " null for payload-less actions")
+        @JsonProperty("action_active_version")
+        Integer activeVersion,
+    @Schema(
+            description =
+                "Executable content the action runs, as a version content; only set when a"
+                    + " version is pending, to compare them")
+        @JsonProperty("action_active_content")
+        PayloadExecutableContent activeContent,
+    @Schema(description = "Version waiting for approval; the action keeps running the active one")
+        @JsonProperty("action_pending_version")
+        PayloadPendingVersionOutput pendingVersion) {}

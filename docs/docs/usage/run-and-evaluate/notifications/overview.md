@@ -2,9 +2,10 @@
 
 OpenAEV keeps you informed about what happens on the platform without requiring you to constantly check every
 Scenario, Simulation, or Asset yourself. A single bell icon in the top navigation bar gives you access to this
-system: it opens the **Notification Center**, a two-tab page with an **Alerts** tab, where you review what happened,
-and a **Triggers** tab, where you define what you want to be notified about, and how. The bell stays highlighted
-while either tab is open.
+system: it opens the **Notification Center**, with an **Alerts** tab, where you review what happened, a **Triggers** tab,
+where you define what you want to be notified about, and how, and a **Preferences** tab, where you choose how you
+receive the notifications the platform sends you itself (payload approval). The bell stays highlighted while any
+tab is open.
 
 ## What Are Notifications & Triggers?
 

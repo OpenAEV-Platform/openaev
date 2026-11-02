@@ -354,6 +354,32 @@ class CapabilityTreeBuilderTest {
   }
 
   @Test
+  @DisplayName(
+      "Approve content should be a checkable sibling of manage under access threat arsenal, tenant only")
+  void given_tenantScope_should_placeApproveContentUnderAccessThreatArsenal() {
+    // -- ACT --
+    List<CapabilityOutput> tree = CapabilityTreeBuilder.buildTree(TENANT);
+
+    // -- ASSERT --
+    CapabilityOutput threatArsenal =
+        tree.stream()
+            .filter(n -> THREAT_ARSENALS.name().equals(n.value()))
+            .findFirst()
+            .orElseThrow();
+    CapabilityOutput access =
+        threatArsenal.children().stream()
+            .filter(n -> ACCESS_THREAT_ARSENALS.name().equals(n.value()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(access.children())
+        .anyMatch(n -> APPROVE_THREAT_ARSENALS.name().equals(n.value()) && n.checkable())
+        .anyMatch(n -> MANAGE_THREAT_ARSENALS.name().equals(n.value()));
+    assertThat(APPROVE_THREAT_ARSENALS.getScopes()).containsExactly(TENANT);
+    assertThat(flattenValues(CapabilityTreeBuilder.buildTree(PLATFORM)))
+        .doesNotContain(APPROVE_THREAT_ARSENALS.name());
+  }
+
+  @Test
   @DisplayName("Tenant tree should start with bypass then the analytics groups")
   void given_tenantScope_should_startTreeWithBypassThenAnalyticsGroups() {
     // -- ACT --

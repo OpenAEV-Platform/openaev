@@ -33,6 +33,9 @@ const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
     payload_platforms: action.action_platforms ?? [],
     payload_source: action.action_source,
     payload_status: action.action_status,
+    // Always set for payload-based actions, the only ones converted here.
+    payload_approval_status: action.action_approval_status ?? 'PENDING',
+    payload_pending_version: !!action.action_pending_version,
     payload_type: action.action_type,
     payload_external_id: action.action_external_id,
     payload_arguments: action.action_arguments,
@@ -52,11 +55,17 @@ const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
   } as Payload;
 };
 
+type DrawerTab = 'overview' | 'versions' | 'history';
+
 interface Props {
   open: boolean;
   onClose: () => void;
   threatArsenalAction: ThreatArsenalAction | null;
-  onRunTest: (action: ThreatArsenalAction) => void;
+  onRunTest?: (action: ThreatArsenalAction) => void;
+  /** Called after an approve / reject decision, so the list can refresh the row. */
+  onApprovalChanged?: (actionId: string, status: ThreatArsenalActionFullOutput['action_approval_status'], pendingVersion: boolean) => void;
+  /** The tab shown first: the review queues open on Versions, where a pending version is decided. */
+  initialTab?: DrawerTab;
 }
 
 const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
@@ -64,6 +73,8 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   onClose,
   threatArsenalAction,
   onRunTest,
+  onApprovalChanged,
+  initialTab = 'overview',
 }) => {
   const { t } = useFormatter();
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
@@ -71,7 +82,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
 
   const [loading, setLoading] = useState(false);
   const [fullOutput, setFullOutput] = useState<ThreatArsenalActionFullOutput | null>(null);
-  const [tab, setTab] = useState<'overview' | 'versions' | 'history'>('overview');
+  const [tab, setTab] = useState<DrawerTab>(initialTab);
   // Every version of the payload, installed or only in the catalogue, and the one shown.
   const [versions, setVersions] = useState<PayloadVersionOutput[]>([]);
   const [catalogVersions, setCatalogVersions] = useState<CatalogItemOutput[]>([]);
@@ -88,7 +99,9 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   }
 
   const loadVersions = () => {
-    if (!threatArsenalAction || !payload?.payload_version) {
+    // An action opened from a link (notification, review queue) has no version on its row yet: the
+    // versions say which one it is.
+    if (!threatArsenalAction || !payload) {
       setVersions([]);
       return Promise.resolve([] as PayloadVersionOutput[]);
     }
@@ -96,6 +109,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
     return fetchThreatArsenalVersions(threatArsenalAction.injector_contract_id).then((response) => {
       const loaded = response.data as PayloadVersionOutput[];
       setVersions(loaded);
+      setShownVersion(shown => shown ?? loaded.find(v => v.payload_current)?.payload_version ?? null);
       return loaded;
     }).finally(() => setVersionsLoading(false));
   };
@@ -107,7 +121,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       setShownVersion(null);
       return;
     }
-    setTab('overview');
+    setTab(initialTab);
     setCatalogVersions([]);
     setShownVersion(payload?.payload_version ?? null);
     loadVersions();
@@ -206,6 +220,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
         expectationDetails={fullOutput?.action_expectation_details}
         expectedSecurityPlatforms={fullOutput?.action_expected_security_platforms}
         providing={fullOutput?.action_providing}
+        lastModifiedByName={fullOutput ? (fullOutput.action_last_modified_by_name ?? null) : undefined}
         loading={loading}
       />
     );
@@ -216,14 +231,14 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       open={open}
       handleClose={onClose}
       title={t('Action information')}
-      headerActions={canRunTest && shownActionId && shownAction && !shownRow?.payload_revoked && (
+      headerActions={onRunTest && canRunTest && shownActionId && shownAction && !shownRow?.payload_revoked && (
         <Button startIcon={<PlayArrowOutlined fontSize="small" />} onClick={() => onRunTest(shownAction)}>{t('Run a test')}</Button>
       )}
     >
       {threatArsenalAction == null ? <></> : (
         <>
           {payload && (
-            <Tabs value={tab} onValueChange={value => setTab(value as 'overview' | 'versions' | 'history')} panels="external">
+            <Tabs value={tab} onValueChange={value => setTab(value as DrawerTab)} panels="external">
               <TabsList actions={tab === 'overview' && shownVersion && (
                 <PayloadVersionSelect
                   value={shownVersion}
@@ -247,7 +262,13 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
             </Tabs>
           )}
           <div style={{ marginTop: payload ? 16 : 0 }}>
-            {tab === 'versions' && payload && <PayloadVersionsTab actionId={threatArsenalAction.injector_contract_id} onChanged={loadVersions} />}
+            {tab === 'versions' && payload && (
+              <PayloadVersionsTab
+                actionId={threatArsenalAction.injector_contract_id}
+                onChanged={loadVersions}
+                onApprovalChanged={onApprovalChanged}
+              />
+            )}
             {tab === 'history' && payload && <PayloadHistoryTab actionId={threatArsenalAction.injector_contract_id} />}
             {(tab === 'overview' || !payload) && renderOverview()}
           </div>

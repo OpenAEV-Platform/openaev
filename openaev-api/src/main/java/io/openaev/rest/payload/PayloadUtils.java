@@ -187,6 +187,8 @@ public class PayloadUtils {
         "createdAt",
         "updatedAt");
     duplicate.setId(null);
+    // The copy starts from the active version only: a pending version stays with the origin.
+    duplicate.setPendingVersion(false);
     duplicate.setName(duplicateString(origin.getName()));
     // A duplicate is a new local payload, linked to the version it comes from.
     duplicate.setIdentity(null);

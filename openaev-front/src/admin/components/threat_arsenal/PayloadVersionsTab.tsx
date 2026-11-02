@@ -15,9 +15,12 @@ import {
   type PayloadUsageOutput,
   type PayloadVersionChangeOutput,
   type PayloadVersionOutput,
+  type ThreatArsenalActionFullOutput,
 } from '../../../utils/api-types';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import ApprovalStatusChip from './approval/ApprovalStatusChip';
+import VersionApprovalPanel from './approval/VersionApprovalPanel';
 import PayloadVersionSelect from './PayloadVersionSelect';
 
 const VERSIONS_PER_PAGE = 5;
@@ -26,6 +29,8 @@ const USAGES_PER_PAGE_OPTIONS = [10, 25, 50];
 interface Props {
   actionId: string;
   onChanged?: () => void;
+  /** Called after an approve / reject decision on a version, so the list can refresh the row. */
+  onApprovalChanged?: (actionId: string, status: ThreatArsenalActionFullOutput['action_approval_status'], pendingVersion: boolean) => void;
 }
 
 interface UsagesProps {
@@ -35,6 +40,9 @@ interface UsagesProps {
   canMigrate: boolean;
   loading: boolean;
   installAction?: ReactNode;
+  /** The newest approved version older than this one, which a pending version is compared with. */
+  baseline?: PayloadVersionOutput;
+  onDecided: (updated: ThreatArsenalActionFullOutput) => void;
   onMigrate: (source: PayloadVersionOutput, target: PayloadVersionOutput, usages: PayloadUsageOutput[]) => Promise<PayloadVersionChangeOutput | null>;
 }
 
@@ -45,10 +53,12 @@ const USAGE_TYPE_LABELS: Record<string, string> = {
 };
 
 // The injects, atomic tests and chained steps on one version, moved together to another version (F30).
-const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets, canMigrate, loading, installAction, onMigrate }) => {
+const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets, canMigrate, loading, installAction, baseline, onDecided, onMigrate }) => {
   const { t } = useFormatter();
   const usageCount = source.payload_usage_count ?? 0;
-  const [expanded, setExpanded] = useState(!!source.payload_is_latest);
+  const pending = source.payload_approval_status === 'PENDING';
+  // The latest version, and a version waiting for a decision, open on what to do with them.
+  const [expanded, setExpanded] = useState(!!source.payload_is_latest || pending);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(USAGES_PER_PAGE_OPTIONS[0]);
@@ -126,6 +136,9 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
         <Text variant="content-base-bold">{`v${source.payload_version ?? '-'}`}</Text>
         {!source.payload_installed && <Chip label={t('Not installed')} />}
         {source.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
+        {source.payload_installed && source.payload_managed && <Chip label={t('Verified by Filigran')} severity="low" />}
+        {source.payload_installed && !source.payload_managed && (pending || source.payload_approval_status === 'REJECTED')
+          && <ApprovalStatusChip status={source.payload_approval_status} />}
         <Box sx={{ flex: 1 }} />
         {source.payload_installed
           ? (
@@ -136,6 +149,11 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
           : <span onClick={event => event.stopPropagation()}>{installAction}</span>}
       </Box>
       <Collapse in={expanded} unmountOnExit>
+        {source.payload_installed && pending && !source.payload_managed && (
+          <Box sx={sectionSx}>
+            <VersionApprovalPanel version={source} baseline={baseline} onDecided={onDecided} />
+          </Box>
+        )}
         {source.payload_changelog && (
           <Box sx={sectionSx}>
             <Text variant="content-compact" className="text-default-secondary">{source.payload_changelog}</Text>
@@ -257,7 +275,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
 };
 
 // F7: every version of the payload, installed or only in the catalogue, with the injects on each one.
-const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged }) => {
+const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onApprovalChanged }) => {
   const { t } = useFormatter();
   // Installing and moving usages both need to manage the arsenal, as the API requires.
   const canManage = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
@@ -358,10 +376,15 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged }) =
           key={source.payload_version}
           source={source}
           usages={source.payload_action_id ? usages[source.payload_action_id] ?? [] : []}
-          targets={versions.filter(v => v.payload_version && v.payload_version !== source.payload_version && !v.payload_revoked)}
+          targets={versions.filter(v => v.payload_version && v.payload_version !== source.payload_version && !v.payload_revoked && v.payload_approval_status !== 'PENDING' && v.payload_approval_status !== 'REJECTED')}
           canMigrate={canManage}
           loading={!!source.payload_action_id && (loadingUsages.has(source.payload_action_id) || (!usages[source.payload_action_id] && (source.payload_usage_count ?? 0) > 0))}
           installAction={installButton(source)}
+          baseline={listed.slice(listed.indexOf(source) + 1).find(v => v.payload_installed && v.payload_approval_status === 'APPROVED')}
+          onDecided={(updated) => {
+            reload();
+            onApprovalChanged?.(updated.action_id, updated.action_approval_status, !!updated.action_pending_version);
+          }}
           onMigrate={migrate}
         />
       ))}

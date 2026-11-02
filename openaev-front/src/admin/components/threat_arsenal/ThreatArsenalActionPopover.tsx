@@ -1,6 +1,7 @@
-import { Button, IconButton } from '@filigran/design-system';
+import { Alert, Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu, MenuItem } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { type MouseEvent, useEffect, useState } from 'react';
 
 import { uninstallCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
@@ -33,6 +34,7 @@ import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import { buildInitialValues, handleCleanupCommandValue, handleCleanupExecutorValue } from './actionFormValues';
+import notifySubmittedForApproval from './approval/notifySubmittedForApproval';
 import PayloadNewVersionDialog from './PayloadNewVersionDialog';
 import payloadRevocationChoices from './payloadRevocationChoices';
 import PayloadRevocationDialog from './PayloadRevocationDialog';
@@ -87,6 +89,7 @@ const ThreatArsenalActionPopover = ({
 
   const { t, tPick } = useFormatter();
   const ability = useAbility();
+  const theme = useTheme();
 
   // -- Popover --
   const handlePopoverOpen = (event: MouseEvent<HTMLButtonElement>) => {
@@ -109,6 +112,17 @@ const ThreatArsenalActionPopover = ({
   };
 
   const [newVersion, setNewVersion] = useState<ThreatArsenalAction | null>(null);
+  // A save that added a version offers to move what runs any older version, not only the one just
+  // edited: shown when at least one older version is still used.
+  const offerToMoveUsages = (saved: ThreatArsenalAction) => {
+    if (!saved.action_previous_version_id) return;
+    fetchThreatArsenalVersions(saved.action_previous_version_id).then((response: { data: PayloadVersionOutput[] }) => {
+      const used = response.data.some(v => v.payload_installed
+        && v.payload_id !== saved.action_payload?.payload_id
+        && (v.payload_usage_count ?? 0) > 0);
+      if (used) setNewVersion(saved);
+    });
+  };
 
   const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
     const inputValues: ThreatArsenalActionUpdateInput = {
@@ -136,9 +150,12 @@ const ThreatArsenalActionPopover = ({
     if (saved && onUpdate) {
       onUpdate(saved);
     }
+    if (!ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS)) {
+      notifySubmittedForApproval(t, response.data as ThreatArsenalAction | undefined);
+    }
     handleCloseEdit();
-    if (saved?.action_previous_version_id && (saved.action_previous_version_usages ?? 0) > 0) {
-      setNewVersion(saved);
+    if (saved?.action_previous_version_id) {
+      offerToMoveUsages(saved);
     }
   };
 
@@ -236,6 +253,20 @@ const ThreatArsenalActionPopover = ({
   };
 
   const hasDuplicateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
+
+  // Editing an approved action: what changes in what it runs waits for approval as a new version.
+  const versionNote = (action: ThreatArsenalActionFullOutput): string | null => {
+    if (action.action_approval_status !== 'APPROVED') return null;
+    const canApprove = ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS);
+    if (action.action_pending_version) {
+      return canApprove
+        ? t('This action has a pending version: the form shows it. Saving applies it directly as a new approved version.')
+        : t('This action has a pending version: the form shows it. Saving replaces it; the approved version keeps running until a version is approved.');
+    }
+    return canApprove
+      ? null
+      : t('Changes to what this action runs wait for approval as a new version; the approved version keeps running meanwhile. Other changes apply now.');
+  };
   const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
   const hasRevokeCapability = ability.can(ACTIONS.REVOKE, SUBJECTS.THREAT_ARSENALS);
@@ -339,8 +370,8 @@ const ThreatArsenalActionPopover = ({
                 action_previous_version_id: output.previous_action_id ?? output.action.action_previous_version_id,
               });
             }
-            if (output.new_version && output.previous_action_id && output.previous_version_usages > 0 && output.action) {
-              setNewVersion({
+            if (output.new_version && output.previous_action_id && output.action) {
+              offerToMoveUsages({
                 ...output.action,
                 action_previous_version_id: output.previous_action_id,
                 action_previous_version_usages: output.previous_version_usages,
@@ -409,6 +440,11 @@ const ThreatArsenalActionPopover = ({
         title={`${t('Update the action :')} ${name}`}
       >
         <>
+          {fetchedAction && !!payloadId && versionNote(fetchedAction) && (
+            <div style={{ marginBottom: theme.spacing(2) }}>
+              <Alert severity="info" title={versionNote(fetchedAction)} />
+            </div>
+          )}
           {fetchedAction && !!payloadId && (
             <SnapshotRemediationProvider>
               <ThreatArsenalActionForm

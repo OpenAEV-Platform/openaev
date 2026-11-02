@@ -10,6 +10,8 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.inject.output.InjectSimple;
+import io.openaev.rest.payload.output.LaunchBlockerOutput;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
@@ -36,6 +38,7 @@ public class InjectMapper {
   private final InjectExpectationMapper injectExpectationMapper;
   private final InjectUtils injectUtils;
   private final HealthCheckUtils healthCheckUtils;
+  private final PayloadApprovalGate payloadApprovalGate;
 
   /**
    * Converts an inject to a result overview output containing full execution details.
@@ -88,6 +91,9 @@ public class InjectMapper {
         .recurrence(inject.getRecurrence())
         .recurrenceStart(inject.getRecurrenceStart())
         .recurrenceEnd(inject.getRecurrenceEnd())
+        .recurrencePausedAt(inject.getRecurrencePausedAt())
+        .launchBlockedBy(
+            LaunchBlockerOutput.from(payloadApprovalGate.blockedPayloads(List.of(inject))))
         .build();
   }
 

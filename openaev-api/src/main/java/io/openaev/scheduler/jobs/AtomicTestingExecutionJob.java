@@ -12,6 +12,7 @@ import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.service.AtomicTestingService;
+import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.service.period.RecurrenceService;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -51,6 +52,7 @@ public class AtomicTestingExecutionJob implements Job {
   private final AtomicTestingService atomicTestingService;
   private final RecurrenceService recurrenceService;
   private final InjectRepository injectRepository;
+  private final PayloadApprovalGate payloadApprovalGate;
   private final TenantScopedTransaction tenantTx;
 
   /** A due occurrence, reduced to the ids needed to reopen a tenant-scoped transaction. */
@@ -94,8 +96,19 @@ public class AtomicTestingExecutionJob implements Job {
             })
         // Dedup: skip when a run is already queued or in progress for this inject
         .filter(inject -> !isRunInProgress(inject))
+        // A relaunch deletes the last results first: skip an atomic testing whose payload is not
+        // approved, so its last run stays visible (its launch would be refused anyway).
+        .filter(this::isNotBlockedByApproval)
         .map(inject -> new DueRelaunch(inject.getId(), inject.getTenant().getId()))
         .toList();
+  }
+
+  private boolean isNotBlockedByApproval(Inject inject) {
+    if (payloadApprovalGate.blockedPayloads(List.of(inject)).isEmpty()) {
+      return true;
+    }
+    log.info("Recurring atomic testing {} skipped: its payload is not approved", inject.getId());
+    return false;
   }
 
   private void relaunchInTenant(DueRelaunch due) {

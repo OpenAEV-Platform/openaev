@@ -17,6 +17,7 @@ public enum Action {
   AGENT_DOCUMENT_READ,
   CREATE,
   DUPLICATE,
+  APPROVE,
 
   // Special actions for specific use cases
   SKIP_RBAC, // Used to skip RBAC checks in specific cases

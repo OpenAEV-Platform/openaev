@@ -8,6 +8,7 @@ import static io.openaev.scheduler.jobs.TenantPurgeJob.TENANT_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.UrlAccessTokenPurgeJob.URL_ACCESS_TOKEN_PURGE_TRIGGER;
 import static io.openaev.scheduler.jobs.notification.NotificationDigestJob.NOTIFICATION_DIGEST_TRIGGER;
 import static io.openaev.scheduler.jobs.notification.NotificationEventRetentionJob.NOTIFICATION_EVENT_RETENTION_TRIGGER;
+import static io.openaev.scheduler.jobs.notification.PayloadApprovalNotificationJob.PAYLOAD_APPROVAL_NOTIFICATION_TRIGGER;
 import static io.openaev.scheduler.jobs.reporting.ReportingScheduleJob.REPORTING_SCHEDULE_TRIGGER;
 import static io.openaev.scheduler.jobs.user_event.UserEventRetentionJob.USER_EVENT_RETENTION_TRIGGER;
 import static org.quartz.CronScheduleBuilder.cronSchedule;
@@ -218,6 +219,17 @@ public class PlatformTriggers {
         .forJob(this.platformJobs.tenantPurgeJobDetail())
         .withIdentity(TENANT_PURGE_TRIGGER)
         .withSchedule(cronSchedule("0 0 2 * * ?")) // Daily at 2:00 AM
+        .build();
+  }
+
+  // Batching window of the payload approval notifications (60 s).
+  @Bean
+  @Profile("!test")
+  public Trigger payloadApprovalNotificationTrigger() {
+    return newTrigger()
+        .forJob(this.platformJobs.payloadApprovalNotificationJobDetail())
+        .withIdentity(PAYLOAD_APPROVAL_NOTIFICATION_TRIGGER)
+        .withSchedule(cronSchedule("0 0/1 * * * ?")) // Every minute align on clock
         .build();
   }
 

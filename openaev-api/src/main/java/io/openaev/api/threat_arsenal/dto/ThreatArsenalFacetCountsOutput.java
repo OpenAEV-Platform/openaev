@@ -15,4 +15,10 @@ public record ThreatArsenalFacetCountsOutput(
         Map<String, Long> platforms,
     @Schema(description = "Number of contracts per payload status under the current filters")
         @JsonProperty("statuses")
-        Map<String, Long> statuses) {}
+        Map<String, Long> statuses,
+    @Schema(
+            description =
+                "Number of contracts per payload approval status under the current filters"
+                    + " (payload-less contracts are not counted)")
+        @JsonProperty("approvals")
+        Map<String, Long> approvals) {}

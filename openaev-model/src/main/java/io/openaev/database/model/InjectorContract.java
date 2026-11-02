@@ -151,6 +151,24 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     return ofNullable(getPayload()).map(Payload::getStatus).orElse(null);
   }
 
+  @Queryable(filterable = true, path = "payload.pendingVersion")
+  @JsonProperty("injector_contract_payload_pending_version")
+  public boolean getPayloadPendingVersion() {
+    return ofNullable(getPayload()).map(Payload::isPendingVersion).orElse(false);
+  }
+
+  // Filtered on the displayed status: an approved payload with a new version waiting matches
+  // PENDING, like the list shows it. The value returned is the stored status.
+  @Queryable(
+      filterable = true,
+      path = "payload.displayApprovalStatus",
+      refEnumClazz = Payload.PAYLOAD_APPROVAL_STATUS.class)
+  @JsonProperty("injector_contract_payload_approval_status")
+  @Enumerated(EnumType.STRING)
+  public Payload.PAYLOAD_APPROVAL_STATUS getPayloadApprovalStatus() {
+    return ofNullable(getPayload()).map(Payload::getApprovalStatus).orElse(null);
+  }
+
   // -- Author (user / team / organization) --
   // Every injector contract has an author. It is stored directly on the contract
   // (payload-less built-in contracts are authored by Filigran, custom contracts

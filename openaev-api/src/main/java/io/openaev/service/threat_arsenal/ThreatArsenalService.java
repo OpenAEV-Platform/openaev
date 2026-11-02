@@ -13,6 +13,7 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.model.User;
 import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -30,9 +31,14 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpdateService;
 import io.openaev.schema.SchemaUtils;
 import io.openaev.schema.model.PropertySchemaDTO;
+import io.openaev.service.UserService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.payload.PayloadVersionService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
+import io.openaev.service.payload_approval.PayloadPendingVersionService;
+import io.openaev.service.payload_approval.PayloadUsage;
+import io.openaev.service.payload_approval.PayloadUsageService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
@@ -64,6 +70,9 @@ public class ThreatArsenalService {
   private static final String ALL_VERSIONS_FILTER_KEY = "action_all_versions";
   private static final String PAYLOAD_STATUS_FILTER_KEY = "injector_contract_payload_status";
 
+  /** The Threat Arsenal counts every action, approved or not (unlike the inject pickers). */
+  private static final Specification<InjectorContract> ALL_ACTIONS = Specification.unrestricted();
+
   private final PayloadCreationService payloadCreationService;
   private final PayloadUpdateService payloadUpdateService;
   private final PayloadService payloadService;
@@ -76,6 +85,10 @@ public class ThreatArsenalService {
   @PersistenceContext private EntityManager entityManager;
   private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
   private final PayloadVersionService payloadVersionService;
+  private final PayloadApprovalService payloadApprovalService;
+  private final UserService userService;
+  private final PayloadUsageService payloadUsageService;
+  private final PayloadPendingVersionService payloadPendingVersionService;
 
   /** Injector types considered "tabletop" (email, SMS, challenges, media pressure). */
   public static final List<String> TABLETOP_INJECTOR_TYPES =
@@ -183,7 +196,8 @@ public class ThreatArsenalService {
     // Status counts ignore the scope, so the "Revoked" row still shows how many are hidden.
     return new ThreatArsenalFacetCountsOutput(
         injectorContractService.getPlatformCounts(filtered, scope),
-        injectorContractService.getStatusCounts(filtered));
+        injectorContractService.getStatusCounts(filtered, scope),
+        injectorContractService.getApprovalStatusCounts(filtered, scope));
   }
 
   /**
@@ -376,6 +390,86 @@ public class ThreatArsenalService {
     return input;
   }
 
+  // -- APPROVAL --
+
+  /**
+   * Approves the pending version of an action payload, or a pending payload, provided its content
+   * is still the one the approver saw. An approved version is applied to the payload and its
+   * contract, and the next run uses it.
+   */
+  public ThreatArsenalActionFullOutput approve(String actionId, ThreatArsenalApproveInput input) {
+    Payload payload = payloadForDecision(actionId);
+    if (payload.isPendingVersion()) {
+      payloadPendingVersionService.approve(
+          payload, userService.currentUser(), input.fingerprint(), input.comment());
+      payloadService.resynchroniseInjectorContract(payload);
+    } else {
+      User decider = userService.currentUser();
+      payloadApprovalService.approve(payload, decider, input.fingerprint(), input.comment());
+      // A pending payload approved before (e.g. edited before versions existed) gets a new number.
+      payloadPendingVersionService.onReapproved(payload, decider);
+    }
+    return findById(actionId);
+  }
+
+  /**
+   * Rejects the pending version of an action payload (the active version stays in use), or a
+   * pending payload.
+   */
+  public ThreatArsenalActionFullOutput reject(String actionId, ThreatArsenalRejectInput input) {
+    Payload payload = payloadForDecision(actionId);
+    if (payload.isPendingVersion()) {
+      payloadPendingVersionService.reject(payload, userService.currentUser(), input.reason());
+    } else {
+      payloadApprovalService.reject(payload, userService.currentUser(), input.reason());
+    }
+    return findById(actionId);
+  }
+
+  /** Stored versions of the payload of an action, newest first; empty for payload-less actions. */
+  public List<PayloadPendingVersionOutput> versions(String actionId) {
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+    if (injectorContract.getPayload() == null) {
+      return List.of();
+    }
+    return payloadPendingVersionService.versions(injectorContract.getPayload().getId()).stream()
+        .map(PayloadPendingVersionOutput::from)
+        .toList();
+  }
+
+  /** Approval history of the payload of an action, newest first; empty for payload-less actions. */
+  public List<PayloadApprovalOutput> approvals(String actionId) {
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+    if (injectorContract.getPayload() == null) {
+      return List.of();
+    }
+    return payloadApprovalService.history(injectorContract.getPayload().getId()).stream()
+        .map(PayloadApprovalOutput::from)
+        .toList();
+  }
+
+  /**
+   * Where the payload of an action is used (empty for a payload-less action). Names only for the
+   * resource types the current user can read.
+   */
+  public PayloadUsage usage(String actionId) {
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+    if (injectorContract.getPayload() == null) {
+      return new PayloadUsage(0, 0, 0, null, null, null);
+    }
+    return payloadUsageService.usage(
+        injectorContract.getPayload().getId(), userService.currentUserOrNull());
+  }
+
+  private Payload payloadForDecision(String actionId) {
+    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
+    if (injectorContract.getPayload() == null) {
+      throw new BadRequestException(
+          "This action has no payload: built-in actions are always usable and need no approval.");
+    }
+    return payloadService.payloadForDecision(injectorContract.getPayload().getId());
+  }
+
   /**
    * Duplicates an existing threat arsenal action.
    *
@@ -427,9 +521,13 @@ public class ThreatArsenalService {
             (spec, specCount, pageable) ->
                 this.injectorContractService.getSinglePage(
                     combineWithProvidingSpec(
-                        spec.and(scope), providingFilterContext, searchSpecification),
+                        input.restrictToPickable(spec.and(scope)),
+                        providingFilterContext,
+                        searchSpecification),
                     combineWithProvidingSpec(
-                        specCount.and(scope), providingFilterContext, searchSpecification),
+                        input.restrictToPickable(specCount.and(scope)),
+                        providingFilterContext,
+                        searchSpecification),
                     pageable,
                     mode,
                     input.getInjectorContractIdsToIgnore(),
@@ -468,11 +566,11 @@ public class ThreatArsenalService {
             (spec, specCount, pageable) ->
                 this.injectorContractService.getSinglePage(
                     combineWithProvidingSpec(
-                        spec.and(excludeTabletop).and(scope),
+                        input.restrictToPickable(spec.and(excludeTabletop).and(scope)),
                         providingFilterContext,
                         searchSpecification),
                     combineWithProvidingSpec(
-                        specCount.and(excludeTabletop).and(scope),
+                        input.restrictToPickable(specCount.and(excludeTabletop).and(scope)),
                         providingFilterContext,
                         searchSpecification),
                     pageable,

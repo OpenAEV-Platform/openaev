@@ -24,6 +24,8 @@ import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import SchedulingDialog from '../../common/scheduling/SchedulingDialog';
+import LaunchBlockedTooltip from '../../payloads/LaunchBlockedTooltip';
+import { isLaunchBlocked } from '../../payloads/payloadApprovalDisplay';
 import EntityReportsPanel from '../../reporting/EntityReportsPanel';
 import AtomicTestingPopover from './AtomicTestingPopover';
 import AtomicTestingUpdate from './AtomicTestingUpdate';
@@ -112,7 +114,12 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
   const handleCloseDialog = () => setOpenDialog(false);
   const handleCanLaunch = () => setCanLaunch(true);
   const handleCannotLaunch = () => setCanLaunch(false);
+  // An action that is not approved blocks the launch: the button is disabled and no confirm
+  // dialog opens (the server refuses it anyway).
+  const launchBlockers = injectResultOverview.inject_launch_blocked_by;
+  const launchBlocked = isLaunchBlocked(launchBlockers);
   const handleOpenDialog = () => {
+    if (launchBlocked) return;
     setRealignOnRelaunch(true);
     setOpenDialog(true);
   };
@@ -180,9 +187,11 @@ const AtomicTestingHeaderActions = ({ injectResultOverview, setInjectResultOverv
     if (injectResultOverviewOutput.inject_ready && hasLaunchAbility) {
       const launchOrRelaunchKey = !injectResultOverviewOutput.inject_status?.status_id ? 'Launch now' : 'Relaunch now';
       return (
-        <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleOpenDialog} disabled={!canLaunch} style={{ whiteSpace: 'nowrap' }}>
-          {t(launchOrRelaunchKey)}
-        </Button>
+        <LaunchBlockedTooltip blockers={launchBlockers}>
+          <Button type="button" startIcon={<PlayArrowOutlined fontSize="small" />} onClick={handleOpenDialog} disabled={!canLaunch || launchBlocked} style={{ whiteSpace: 'nowrap' }}>
+            {t(launchOrRelaunchKey)}
+          </Button>
+        </LaunchBlockedTooltip>
       );
     } else if (hasManageAbility) {
       return (

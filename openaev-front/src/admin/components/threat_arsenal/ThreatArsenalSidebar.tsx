@@ -13,12 +13,15 @@ import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type SearchPaginationInput } from '../../../utils/api-types';
 import { type IconBarElement } from '../common/domains/IconBar-model';
+import { APPROVAL_STATUSES, approvalStatusLabel } from './approval/approvalStatusUtils';
 import { type ThreatArsenalFacetCounts } from './useThreatArsenalFacetCounts';
 
 const PLATFORM_FILTER_KEY = 'action_platforms';
 const STATUS_FILTER_KEY = 'action_payload_status';
 const AUTHOR_FILTER_KEY = 'action_author';
 // Lifts the default "latest version only" view (F11).
+const APPROVAL_FILTER_KEY = 'action_payload_approval_status';
+const PENDING_VERSION_FILTER_KEY = 'action_payload_pending_version';
 const PLATFORMS = ['Windows', 'Linux', 'MacOS'];
 
 interface Props {
@@ -28,6 +31,8 @@ interface Props {
   authorOptions: AuthorOption[];
   /** Platform + status counts under the current filters (null until loaded). */
   facetCounts: ThreatArsenalFacetCounts | null;
+  /** Approved actions with a new version waiting, under the current filters (undefined until loaded). */
+  newVersionCount?: number;
   searchPaginationInput: SearchPaginationInput;
   filterHelpers: FilterHelpers;
 }
@@ -36,12 +41,14 @@ interface Props {
 // integrations marketplace CatalogSidebar) whose rows toggle REAL backend
 // filters through `filterHelpers`. The generic "Add filter" bar still handles
 // every other property (injectors, tags, dates...).
-const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, searchPaginationInput, filterHelpers }: Props) => {
+const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, newVersionCount, searchPaginationInput, filterHelpers }: Props) => {
   const { t } = useFormatter();
 
   const { filters, valuesOf, toggleValue } = useFacetFilterValues(searchPaginationInput, filterHelpers);
   const platformValues = valuesOf(PLATFORM_FILTER_KEY);
   const statusValues = valuesOf(STATUS_FILTER_KEY);
+  const approvalValues = valuesOf(APPROVAL_FILTER_KEY);
+  const pendingVersionValues = valuesOf(PENDING_VERSION_FILTER_KEY);
   const {
     authorValues,
     noAuthorActive,
@@ -77,6 +84,24 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
       toggle: value => toggleValue(STATUS_FILTER_KEY, value),
     });
 
+    // Payload-less built-in actions carry no approval status, so they never match these rows.
+    const approvalRows: FacetRow[] = APPROVAL_STATUSES.map(status => ({
+      value: status,
+      label: t(approvalStatusLabel(status)),
+      count: facetCounts ? facetCounts.approvals?.[status] ?? 0 : undefined,
+      checked: approvalValues.includes(status),
+      onToggle: () => toggleValue(APPROVAL_FILTER_KEY, status),
+    }));
+    // Approved actions whose new version waits: the version in use keeps running, so an approver
+    // may want them apart from never-approved actions (both count as Pending approval above).
+    approvalRows.push({
+      value: 'NEW_VERSION',
+      label: t('New version pending'),
+      count: newVersionCount,
+      checked: pendingVersionValues.includes('true'),
+      onToggle: () => toggleValue(PENDING_VERSION_FILTER_KEY, 'true'),
+    });
+
     const authorRows = buildAuthorRows({
       authorOptions,
       authorValues,
@@ -103,12 +128,20 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, sear
         rows: statusRows,
       },
       {
+        id: 'approval',
+        label: t('Approval'),
+        rows: approvalRows,
+      },
+      {
         id: 'author',
         label: t('Provider'),
         rows: authorRows,
       },
     ].filter(section => section.rows.length > 0);
-  }, [domainElements, authorOptions, facetCounts, platformValues, statusValues, authorValues, noAuthorActive, toggleValue, toggleAuthorValue, toggleNoAuthor, t]);
+  }, [
+    domainElements, authorOptions, facetCounts, platformValues, statusValues, approvalValues, authorValues, noAuthorActive,
+    toggleValue, toggleAuthorValue, toggleNoAuthor, t, newVersionCount, pendingVersionValues,
+  ]);
 
   return <FacetSidebar title={t('Filters')} sections={sections} />;
 };

@@ -18,8 +18,10 @@ import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.payload.service.PayloadUpsertService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
+import io.openaev.service.UserService;
 import io.openaev.service.ZipJsonService;
 import io.openaev.service.payload.PayloadVersionService;
+import io.openaev.service.payload_approval.PayloadApprovalService;
 import jakarta.annotation.Resource;
 import java.time.Instant;
 import java.util.*;
@@ -47,6 +49,8 @@ public class PayloadImportService {
   private final AmbientTenantBridge ambientTenantBridge;
   private final PayloadVersionService payloadVersionService;
   private final PayloadUpsertService payloadUpsertService;
+  private final UserService userService;
+  private final PayloadApprovalService payloadApprovalService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -94,15 +98,21 @@ public class PayloadImportService {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     return ambientTenantBridge.callInTenantChecked(
         tenantId,
-        () ->
-            synchronise(
-                ctx,
-                zipJsonApi.handleImportAsExported(
-                    archive,
-                    "payload_name",
-                    IMPORT_OPTIONS,
-                    payload -> asCatalogVersion(payload, identity, version),
-                    tenantId)));
+        () -> {
+          PayloadImportResult result =
+              synchronise(
+                  ctx,
+                  zipJsonApi.handleImportAsExported(
+                      archive,
+                      "payload_name",
+                      IMPORT_OPTIONS,
+                      payload -> asCatalogVersion(payload, identity, version),
+                      tenantId));
+          // Verified by Filigran: approved by the platform, never waits for a person.
+          payloadApprovalService.onWrite(
+              result.payloadOutput().persistedData(), null, PayloadApproval.ORIGIN.SYSTEM, null);
+          return result;
+        });
   }
 
   /** Same, from the JSON version file a release carries next to its archives. */
@@ -144,10 +154,24 @@ public class PayloadImportService {
 
   private PayloadImportResult importPayloadInTenant(TxCtx ctx, MultipartFile file, String tenantId)
       throws Exception {
-    return synchronise(
-        ctx,
-        zipJsonApi.handleImport(
-            file, "payload_name", IMPORT_OPTIONS, PayloadImportService::asLocalImport, tenantId));
+    // The imported payload is a write of the importing user; the export never carries it.
+    User importingUser = userService.currentUserOrNull();
+    PayloadImportResult result =
+        synchronise(
+            ctx,
+            zipJsonApi.handleImport(
+                file,
+                "payload_name",
+                IMPORT_OPTIONS,
+                payload -> {
+                  asLocalImport(payload);
+                  payload.setLastModifiedBy(importingUser);
+                  return payload;
+                },
+                tenantId));
+    payloadApprovalService.onWrite(
+        result.payloadOutput().persistedData(), importingUser, PayloadApproval.ORIGIN.IMPORT, null);
+    return result;
   }
 
   private PayloadImportResult synchronise(

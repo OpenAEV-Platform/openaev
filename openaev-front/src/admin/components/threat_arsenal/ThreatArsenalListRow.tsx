@@ -11,6 +11,8 @@ import PlatformIcon from '../../../components/PlatformIcon';
 import { type ThreatArsenalAction } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
+import ApprovalStatusChip from './approval/ApprovalStatusChip';
+import { displayedApprovalStatus } from './approval/approvalStatusUtils';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
 
@@ -156,6 +158,15 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
                 {action.action_payload?.payload_revoked
                   ? <Chip label={t('Revoked')} severity="critical" />
                   : <PayloadStatusComponent status={action.action_payload?.payload_status} />}
+              </div>
+              <div style={{
+                ...bodyItemsStyles.bodyItem,
+                ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_approval,
+              }}
+              >
+                {/* Payload-less built-in actions need no approval: they show a dash. */}
+                {/* A new version waiting shows as Pending (the latest version's status). */}
+                <ApprovalStatusChip status={displayedApprovalStatus(action.action_payload?.payload_approval_status, action.action_payload?.payload_pending_version)} />
               </div>
               <Typography
                 component="div"

@@ -37,6 +37,7 @@ const InjectIndex = lazy(() => import('./components/simulations/simulation/injec
 const IndexProfile = lazy(() => import('./components/profile/Index'));
 const ProfileNotifications = lazy(() => import('./components/profile/notifications/Notifications'));
 const ProfileTriggers = lazy(() => import('./components/profile/triggers/Triggers'));
+const ProfileNotificationPreferences = lazy(() => import('./components/profile/notification_preferences/NotificationPreferences'));
 const FullTextSearch = lazy(() => import('./components/search/FullTextSearch'));
 const Findings = lazy(() => import('./components/findings/Findings'));
 const FindingOverview = lazy(() => import('./components/findings/FindingOverview'));
@@ -68,6 +69,8 @@ const IndexCustomDashboard = lazy(() => import('./components/workspaces/custom_d
 const IndexReporting = lazy(() => import('./components/reporting/Index'));
 const IndexSettings = lazy(() => import('./components/settings/Index'));
 const ThreatArsenal = lazy(() => import('./components/threat_arsenal/ThreatArsenal'));
+const ThreatArsenalToReview = lazy(() => import('./components/threat_arsenal/ThreatArsenalToReview'));
+const ThreatArsenalMyChanges = lazy(() => import('./components/threat_arsenal/ThreatArsenalMyChanges'));
 const Credentials = lazy(() => import('./components/assets/credentials/Credentials'));
 const CredentialDetail = lazy(() => import('./components/assets/credentials/CredentialDetailPage'));
 
@@ -175,6 +178,7 @@ const Index = () => {
             {/* Static segments rank above the profile wildcard in React Router */}
             <Route path="profile/notifications" element={errorWrapper(ProfileNotifications)()} />
             <Route path="profile/triggers" element={errorWrapper(ProfileTriggers)()} />
+            <Route path="profile/notification-preferences" element={errorWrapper(ProfileNotificationPreferences)()} />
             <Route path="profile/*" element={errorWrapper(IndexProfile)()} />
             <Route path="" element={errorWrapper(Home)()} />
             <Route path="results" element={errorWrapper(DashboardResults)()} />
@@ -526,6 +530,30 @@ const Index = () => {
             <Route
               path="threat-arsenal/available"
               element={errorWrapper(ThreatArsenal)()}
+            />
+            <Route
+              path="threat-arsenal/to-review"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.APPROVE,
+                    subject: SUBJECTS.THREAT_ARSENALS,
+                  }]}
+                  Component={errorWrapper(ThreatArsenalToReview)()}
+                />
+              )}
+            />
+            <Route
+              path="threat-arsenal/my-changes"
+              element={(
+                <ProtectedRoute
+                  checks={[{
+                    action: ACTIONS.MANAGE,
+                    subject: SUBJECTS.THREAT_ARSENALS,
+                  }]}
+                  Component={errorWrapper(ThreatArsenalMyChanges)()}
+                />
+              )}
             />
             <Route
               path="integrations/*"

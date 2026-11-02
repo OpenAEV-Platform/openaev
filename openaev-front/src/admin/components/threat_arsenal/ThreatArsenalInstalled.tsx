@@ -1,6 +1,6 @@
 import { Box } from '@mui/material';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useSearchParams } from 'react-router';
 
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import { fetchAttackPatterns } from '../../../actions/AttackPattern';
@@ -12,6 +12,7 @@ import MarketplaceLoadMore from '../../../components/common/marketplace/Marketpl
 import MarketplaceSortSelect from '../../../components/common/marketplace/MarketplaceSortSelect';
 import MarketplaceViewToggle from '../../../components/common/marketplace/MarketplaceViewToggle';
 import useMarketplaceView from '../../../components/common/marketplace/useMarketplaceView';
+import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
@@ -20,13 +21,16 @@ import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import ApprovalRolesNote from './approval/ApprovalRolesNote';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import ThreatArsenalCardGrid, { type ThreatArsenalItemsProps } from './ThreatArsenalCardGrid';
+import { ACTION_PARAM, toThreatArsenalAction } from './threatArsenalDeepLink';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
 import ThreatArsenalHeaderActions from './ThreatArsenalHeaderActions';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 import ThreatArsenalList from './ThreatArsenalList';
 import { THREAT_ARSENAL_SORT_OPTIONS } from './threatArsenalListConfig';
+import { ThreatArsenalApprovalStats } from './ThreatArsenalPageHeader';
 import ThreatArsenalSelectAll from './ThreatArsenalSelectAll';
 import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
@@ -76,6 +80,40 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
       setOpenedAction(found);
     }
   }, [installed.threatArsenalActions]);
+  // Deep link (e.g. from an approval notification): ?action=<id> opens that action's drawer.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedActionId = searchParams.get(ACTION_PARAM);
+  useEffect(() => {
+    if (!linkedActionId) return undefined;
+    let cancelled = false;
+    fetchThreatArsenalAction(linkedActionId)
+      .then((result: { data: ThreatArsenalActionFullOutput }) => {
+        if (!cancelled) setOpenedAction(toThreatArsenalAction(result.data));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedActionId]);
+  const closeOpenedAction = () => {
+    setOpenedAction(null);
+    if (linkedActionId) {
+      searchParams.delete(ACTION_PARAM);
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
+  // Same as ticking the sidebar Approval row: one approval value.
+  const filterApproval = (status: string) => {
+    const { filterHelpers } = installed.queryableHelpers;
+    filterHelpers.handleRemoveFilterByKey('action_payload_approval_status');
+    filterHelpers.handleAddFilterWithEmptyValue({
+      id: generateFilterId(),
+      key: 'action_payload_approval_status',
+      operator: 'eq',
+      values: [status],
+      mode: 'and',
+    });
+  };
   const { selection } = installed;
   const selectionCount = selection.numberOfSelectedElements;
 
@@ -107,11 +145,17 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
     }}
     >
       <MarketplaceBrowser
-        tabs={tabs}
+        tabs={(
+          <>
+            {tabs}
+            <ApprovalRolesNote />
+          </>
+        )}
         hero={(
           <MarketplaceHero
             title={t('Threat Arsenal')}
             subtitle={t('Browse, install and version the actions your simulations run.')}
+            bottomSlot={<ThreatArsenalApprovalStats onFilterApproval={filterApproval} />}
             rightSlot={(
               <ThreatArsenalHeaderActions
                 totalElements={installed.totalElements}
@@ -176,9 +220,10 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
       {openedAction !== null && (
         <ThreatArsenalInformationDrawer
           open
-          onClose={() => setOpenedAction(null)}
+          onClose={closeOpenedAction}
           threatArsenalAction={openedAction}
           onRunTest={setRunTestAction}
+          onApprovalChanged={() => installed.queryableHelpers.paginationHelpers.handleChangePage(0)}
         />
       )}
 
