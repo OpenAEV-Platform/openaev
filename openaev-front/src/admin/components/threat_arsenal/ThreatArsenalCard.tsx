@@ -179,7 +179,8 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       title={name}
       overline={primaryDomain ? t(primaryDomain.domain_name) : undefined}
       subtitle={action.action_author_name ? `${t('by')} ${action.action_author_name}` : undefined}
-      description={action.action_payload?.payload_description ?? undefined}
+      // Not on review cards: what a reviewer needs is what changed, which the Versions tab shows.
+      description={review ? undefined : action.action_payload?.payload_description ?? undefined}
       selected={selected}
       onClick={onSelect}
       banner={banner}

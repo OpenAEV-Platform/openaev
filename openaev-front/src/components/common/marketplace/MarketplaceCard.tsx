@@ -155,9 +155,10 @@ const MarketplaceCard: FunctionComponent<Props> = ({
     );
   }
 
-  // Fewer description lines when a banner and info rows take the room.
+  // The description takes the room the other parts leave: three lines beside the info row, one
+  // less for a banner and one less for a tags row, never under one, so cards of a grid stay level.
   let descriptionLines = subtitle || caption ? 3 : 4;
-  if (info?.length) descriptionLines = 2;
+  if (info?.length) descriptionLines = Math.max(1, 3 - (banner ? 1 : 0) - (tags ? 1 : 0));
   const interaction = linkTo
     ? { href }
     : onClick && { onClick: () => onClick() };
