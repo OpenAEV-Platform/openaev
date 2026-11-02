@@ -5,17 +5,16 @@ import { Link } from 'react-router';
 
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
-import { type Scenario } from '../../../../utils/api-types';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import useScenarioPermissions from '../../../../utils/permissions/useScenarioPermissions';
 import healthcheckFixLink from '../../common/healthchecks/healthcheckFixLink';
 import ScenarioLaunchTargetsDrawer from '../catalog/ScenarioLaunchTargetsDrawer';
 import RevokedPayloadFix from './RevokedPayloadFix';
-import loadScenarioLaunchBlockers, { hardBlockerCount, type RevokedInject, type ScenarioLaunchBlockers } from './scenarioLaunchBlockers';
+import loadScenarioLaunchBlockers, { hardBlockerCount, type LaunchTarget, type RevokedInject, type ScenarioLaunchBlockers } from './scenarioLaunchBlockers';
 
 interface Props {
-  scenario: Scenario;
+  scenario: LaunchTarget;
   open: boolean;
   onClose: () => void;
   // Starts the simulation; the caller decides where to go next.
@@ -72,7 +71,9 @@ const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, open, o
     return groups;
   }, new Map<string, RevokedInject[]>()).entries());
   const hard = blockers ? hardBlockerCount(blockers) : 0;
-  const soft = blockers?.healthchecks.length ?? 0;
+  // A revoked payload no longer blocks the launch: its injects are skipped and fail when the simulation runs.
+  const revoked = (blockers?.revokedInjects.length ?? 0) > 0;
+  const soft = (blockers?.healthchecks.length ?? 0) + (revoked ? 1 : 0) + (blockers?.prerequisitesUnchecked ? 1 : 0);
   let summary = t('Ready to launch');
   if (hard > 0) {
     summary = hard === 1 ? t('1 thing to fix before this scenario can launch') : t('{count} things to fix before this scenario can launch', { count: String(hard) });
@@ -101,7 +102,7 @@ const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, open, o
               <Text variant="content-base-bold">{summary}</Text>
               {blockers.revokedInjects.length > 0 && (
                 <Alert
-                  severity="error"
+                  severity="warning"
                   title={blockers.revokedInjects.length === 1
                     ? t('1 inject runs a revoked payload')
                     : t('{count} injects run a revoked payload', { count: String(blockers.revokedInjects.length) })}
@@ -112,7 +113,7 @@ const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, open, o
                       gap: 8,
                     }}
                     >
-                      <span>{`${names(blockers.revokedInjects.map(inject => inject.title))}. ${t('Move them to a payload version that is not revoked, or remove them.')}`}</span>
+                      <span>{`${names(blockers.revokedInjects.map(inject => inject.title))}. ${t('They are skipped and fail when the simulation runs.')} ${t('Move them to a payload version that is not revoked, or remove them.')}`}</span>
                       {/* One version picker per revoked payload version, right in the check (F18). */}
                       {canManage && revokedGroups.map(([contractId, injects]) => (
                         <RevokedPayloadFix key={contractId} contractId={contractId} injects={injects} onMoved={check} />
@@ -157,6 +158,13 @@ const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, open, o
                     : undefined}
                 />
               ))}
+              {blockers.prerequisitesUnchecked && (
+                <Alert
+                  severity="warning"
+                  title={t('Integrations not checked')}
+                  description={t('Your role cannot see what this scenario needs from the platform. Injects whose integration is missing will fail.')}
+                />
+              )}
               {blockers.healthchecks.map((healthcheck, index) => {
                 const link = healthcheckFixLink(healthcheck.type, { scenarioId: scenario.scenario_id });
                 const label = t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`);
@@ -184,7 +192,7 @@ const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, open, o
                   />
                 );
               })}
-              {!canManage && hard > 0 && (
+              {!canManage && (hard > 0 || revoked) && (
                 <Alert
                   severity="info"
                   title={t('Only someone who can edit this scenario can fix these')}

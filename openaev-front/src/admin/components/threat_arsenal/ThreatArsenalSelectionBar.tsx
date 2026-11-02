@@ -5,6 +5,8 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import { useAbility } from '../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 
 interface Props {
   count: number;
@@ -25,6 +27,7 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
   onRunTest,
   onDelete,
 }) => {
+  const canRunTest = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const { t } = useFormatter();
   const theme = useTheme();
   const open = count > 0 && !hidden;
@@ -76,9 +79,11 @@ const ThreatArsenalSelectionBar: FunctionComponent<Props> = ({
           gap: 1,
         }}
         >
-          <Button type="button" startIcon={<MovieFilterOutlined fontSize="small" />} onClick={onRunTest}>
-            {t('Run a test')}
-          </Button>
+          {canRunTest && (
+            <Button type="button" startIcon={<MovieFilterOutlined fontSize="small" />} onClick={onRunTest}>
+              {t('Run a test')}
+            </Button>
+          )}
 
           {onDelete && (
             <Button type="button" variant="destructive" priority="secondary" startIcon={<DeleteOutlined fontSize="small" />} onClick={onDelete}>

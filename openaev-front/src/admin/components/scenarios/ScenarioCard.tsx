@@ -30,8 +30,8 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
   const navigate = useNavigate();
   const [updating, setUpdating] = useState(false);
   const { canLaunch, canManage } = useScenarioPermissions(scenario.scenario_id);
-  const { launch: launchScenario, targetsDrawer } = useScenarioLaunch();
-  const launch = () => launchScenario(scenario.scenario_id, scenario.scenario_name);
+  const { launch: launchScenario, launchDrawer } = useScenarioLaunch();
+  const launch = () => launchScenario(scenario);
   const {
     scenario_workflow_id: workflowId,
     scenario_author_name: authorName,
@@ -57,7 +57,7 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
           onApplied={() => navigate(`/admin/scenarios/${scenario.scenario_id}`)}
         />
       )}
-      {targetsDrawer}
+      {launchDrawer}
       <MarketplaceCard
         accent={primaryDomain?.domain_color ?? theme.palette.primary.main}
         testId="scenario-card"

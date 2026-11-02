@@ -81,7 +81,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
         <DialogContentText style={{ marginBottom: 12 }}>
           {lift
             ? t(inherited ? 'Revoked through its Filigran base. Lifting it lets this version run again in this tenant.' : 'The chosen version runs again in this tenant.')
-            : t('A revoked payload no longer runs in this tenant: injects using it are skipped and their scenarios cannot launch until it is lifted.')}
+            : t('A revoked payload no longer runs in this tenant: until it is lifted, injects using it are skipped and fail when their scenario runs.')}
         </DialogContentText>
         {versions?.length === 0 ? (
           <Text variant="content-base">{lift ? t('No version is revoked in this tenant.') : t('No version left to revoke.')}</Text>
@@ -113,7 +113,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
         )}
         {scenarios.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <Text variant="content-base-bold">{lift ? t('These scenarios can launch again:') : t('These scenarios will not launch until it is lifted:')}</Text>
+            <Text variant="content-base-bold">{lift ? t('Injects in these scenarios run again:') : t('Injects in these scenarios will fail until it is lifted:')}</Text>
             <ul style={{
               margin: '4px 0 0',
               paddingLeft: 20,
