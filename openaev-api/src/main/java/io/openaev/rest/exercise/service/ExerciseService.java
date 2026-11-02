@@ -207,7 +207,6 @@ public class ExerciseService {
   // -- READ --
 
   /** Validates that the exercise exists for the current tenant. Throws if not found. */
-  @Transactional(readOnly = true)
   public void existsByIdAndTenantId(@NotBlank final String exerciseId) {
     if (!this.exerciseRepository.existsByIdAndTenantId(
         exerciseId, TenantContext.getCurrentTenant())) {

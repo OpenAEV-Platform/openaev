@@ -3,7 +3,6 @@ package io.openaev.rest.scenario;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 
-import io.openaev.annotation.NoTenantScope;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -28,7 +27,6 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -50,17 +48,13 @@ public class ScenarioImportApi extends RestBehavior {
       resourceId = "#scenarioId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
-  // Checked on the scenario, not on the mapper: a user who can edit the scenario can upload
-  // the file without the tenant settings capability. No transaction and no TxCtx here, so no
-  // connection is held while the file is parsed and written to disk: the access check and the
-  // existence check each commit in their own short transaction. The endpoint @Transactional rule
-  // still requires the annotation, hence NOT_SUPPORTED. NoTenantScope: a TxCtx would make the
-  // tenant scope aspect query outside any transaction; the scenario table is not v2-scoped and the
-  // existence check binds the tenant itself.
-  @Transactional(propagation = Propagation.NOT_SUPPORTED)
-  @NoTenantScope
+  @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Store an xls file to import injects into a scenario")
+  // Checked on the scenario, not on the mapper: a user who can edit the scenario can upload the
+  // file without the tenant settings capability. Same tenant scope and transaction as the dry run
+  // and the import. TxCtx is not used directly.
   public ImportPostSummary storeXlsFile(
+      TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestPart("file") @NotNull MultipartFile file) {
     // A capability passes the access check for any id: refuse a scenario that is unknown or in

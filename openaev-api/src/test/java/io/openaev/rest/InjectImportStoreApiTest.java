@@ -21,12 +21,9 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -35,7 +32,6 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,9 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
  * The xls import of injects is checked on the scenario or simulation the injects go into, not on
  * the mapper (#5347). A user who can edit that scenario or simulation can upload the file and run
  * the import without the tenant settings capability; a user who cannot edit it is refused.
- *
- * <p>The upload runs outside any transaction ({@code NOT_SUPPORTED}), so its access and existence
- * checks only see committed rows: the arrange step is committed, then deleted after each test.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -61,101 +54,10 @@ class InjectImportStoreApiTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
 
-  private final List<String> committedResourceIds = new ArrayList<>();
-  private String committedUserId;
-
   @BeforeEach
   void setUp() {
     scenarioComposer.reset();
     exerciseComposer.reset();
-  }
-
-  @AfterEach
-  void deleteCommittedRows() {
-    if (committedResourceIds.isEmpty()) {
-      return;
-    }
-    // Roll back what the act step wrote (mapper, import), then delete the committed arrange rows.
-    TestTransaction.end();
-    TestTransaction.start();
-    for (String id : committedResourceIds) {
-      entityManager
-          .createNativeQuery("DELETE FROM grants WHERE grant_resource = :id")
-          .setParameter("id", id)
-          .executeUpdate();
-      entityManager
-          .createNativeQuery("DELETE FROM scenarios WHERE scenario_id = :id")
-          .setParameter("id", id)
-          .executeUpdate();
-      entityManager
-          .createNativeQuery("DELETE FROM exercises WHERE exercise_id = :id")
-          .setParameter("id", id)
-          .executeUpdate();
-    }
-    committedResourceIds.clear();
-    if (committedUserId != null) {
-      deleteCommittedMockUser(committedUserId);
-      committedUserId = null;
-    }
-    TestTransaction.flagForCommit();
-    TestTransaction.end();
-    TestTransaction.start();
-  }
-
-  /**
-   * Deletes what the commit made permanent for the {@code @WithMockUser} user: its tenant
-   * membership, groups, roles and their grants. Ids are compared as text so the cleanup does not
-   * depend on the column types.
-   */
-  @SuppressWarnings("unchecked")
-  private void deleteCommittedMockUser(String userId) {
-    List<String> groupIds =
-        entityManager
-            .createNativeQuery(
-                "SELECT CAST(group_id AS varchar) FROM users_groups WHERE user_id = :user")
-            .setParameter("user", userId)
-            .getResultList();
-    List<String> roleIds =
-        groupIds.isEmpty()
-            ? List.of()
-            : entityManager
-                .createNativeQuery(
-                    "SELECT CAST(role_id AS varchar) FROM groups_roles"
-                        + " WHERE CAST(group_id AS varchar) IN (:groups)")
-                .setParameter("groups", groupIds)
-                .getResultList();
-    deleteWhere("DELETE FROM users_tenants WHERE user_id = :ids", List.of(userId));
-    deleteWhere("DELETE FROM users_groups WHERE user_id = :ids", List.of(userId));
-    deleteWhere("DELETE FROM grants WHERE CAST(grant_group AS varchar) IN (:ids)", groupIds);
-    deleteWhere("DELETE FROM groups_roles WHERE CAST(group_id AS varchar) IN (:ids)", groupIds);
-    deleteWhere("DELETE FROM roles_capabilities WHERE CAST(role_id AS varchar) IN (:ids)", roleIds);
-    deleteWhere("DELETE FROM roles WHERE CAST(role_id AS varchar) IN (:ids)", roleIds);
-    deleteWhere("DELETE FROM groups WHERE CAST(group_id AS varchar) IN (:ids)", groupIds);
-    deleteWhere("DELETE FROM users WHERE user_id = :ids", List.of(userId));
-  }
-
-  private void deleteWhere(String sql, List<String> ids) {
-    if (ids.isEmpty()) {
-      return;
-    }
-    entityManager
-        .createNativeQuery(sql)
-        .setParameter("ids", ids.size() == 1 ? ids.getFirst() : ids)
-        .executeUpdate();
-  }
-
-  /**
-   * Commits the arrange step so the upload, which runs outside this transaction, can see it. This
-   * also commits the mock user, so it is deleted after the test too.
-   */
-  private void commitArrange(String resourceId) {
-    committedResourceIds.add(resourceId);
-    committedUserId = testUserHolder.get().getId();
-    entityManager.flush();
-    entityManager.clear();
-    TestTransaction.flagForCommit();
-    TestTransaction.end();
-    TestTransaction.start();
   }
 
   private ResultActions upload(String xlsUri, String resourceId) throws Exception {
@@ -198,10 +100,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
     }
   }
 
-  /**
-   * A mapper with no importers, in the default tenant the test user belongs to. Seeded after the
-   * commit: the dry run and the import join the test transaction, so it is rolled back with it.
-   */
+  /** A mapper with no importers, in the default tenant the test user belongs to. */
   private String seedMapper() {
     String id = UUID.randomUUID().toString();
     entityManager
@@ -232,7 +131,6 @@ class InjectImportStoreApiTest extends IntegrationTest {
       String scenarioId = persistScenario();
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SCENARIO, Grant.GRANT_TYPE.PLANNER, scenarioId);
-      commitArrange(scenarioId);
 
       // Act & Assert
       uploadAndImport(SCENARIO_XLS_URI, scenarioId);
@@ -246,7 +144,6 @@ class InjectImportStoreApiTest extends IntegrationTest {
     void given_manageAssessmentCapability_should_uploadAndImport() throws Exception {
       // Arrange
       String scenarioId = persistScenario();
-      commitArrange(scenarioId);
 
       // Act & Assert
       uploadAndImport(SCENARIO_XLS_URI, scenarioId);
@@ -270,7 +167,6 @@ class InjectImportStoreApiTest extends IntegrationTest {
       String scenarioId = persistScenario();
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SCENARIO, Grant.GRANT_TYPE.OBSERVER, scenarioId);
-      commitArrange(scenarioId);
 
       // Act & Assert
       upload(SCENARIO_XLS_URI, scenarioId).andExpect(status().isForbidden());
@@ -282,7 +178,6 @@ class InjectImportStoreApiTest extends IntegrationTest {
     void given_noAccess_should_beForbidden() throws Exception {
       // Arrange
       String scenarioId = persistScenario();
-      commitArrange(scenarioId);
 
       // Act & Assert
       upload(SCENARIO_XLS_URI, scenarioId).andExpect(status().isForbidden());
@@ -296,7 +191,6 @@ class InjectImportStoreApiTest extends IntegrationTest {
     void given_tenantSettingsOnly_should_beForbidden() throws Exception {
       // Arrange
       String scenarioId = persistScenario();
-      commitArrange(scenarioId);
 
       // Act & Assert
       upload(SCENARIO_XLS_URI, scenarioId).andExpect(status().isForbidden());
@@ -319,7 +213,6 @@ class InjectImportStoreApiTest extends IntegrationTest {
       String exerciseId = persistSimulation();
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.PLANNER, exerciseId);
-      commitArrange(exerciseId);
 
       // Act & Assert
       uploadAndImport(SIMULATION_XLS_URI, exerciseId);
@@ -343,7 +236,6 @@ class InjectImportStoreApiTest extends IntegrationTest {
       String exerciseId = persistSimulation();
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, exerciseId);
-      commitArrange(exerciseId);
 
       // Act & Assert
       upload(SIMULATION_XLS_URI, exerciseId).andExpect(status().isForbidden());
@@ -355,7 +247,6 @@ class InjectImportStoreApiTest extends IntegrationTest {
     void given_noAccess_should_beForbidden() throws Exception {
       // Arrange
       String exerciseId = persistSimulation();
-      commitArrange(exerciseId);
 
       // Act & Assert
       upload(SIMULATION_XLS_URI, exerciseId).andExpect(status().isForbidden());

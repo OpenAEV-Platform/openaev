@@ -3,7 +3,6 @@ package io.openaev.rest.exercise;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 
-import io.openaev.annotation.NoTenantScope;
 import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -28,7 +27,6 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -50,18 +48,13 @@ public class ExerciseImportApi extends RestBehavior {
       resourceId = "#exerciseId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SIMULATION)
-  // Checked on the simulation, not on the mapper: a user who can edit the simulation can upload
-  // the file without the tenant settings capability. No transaction and no TxCtx here, so no
-  // connection is held while the file is parsed and written to disk: the access check and the
-  // existence check each commit in their own short transaction. The endpoint @Transactional rule
-  // still requires the annotation, hence NOT_SUPPORTED. NoTenantScope: a TxCtx would make the
-  // tenant scope aspect query outside any transaction; the simulation table is not v2-scoped and
-  // the
-  // existence check binds the tenant itself.
-  @Transactional(propagation = Propagation.NOT_SUPPORTED)
-  @NoTenantScope
+  @Transactional(rollbackFor = Exception.class)
   @Operation(summary = "Store an xls file to import injects into a simulation")
+  // Checked on the simulation, not on the mapper: a user who can edit the simulation can upload the
+  // file without the tenant settings capability. Same tenant scope and transaction as the dry run
+  // and the import. TxCtx is not used directly.
   public ImportPostSummary storeXlsFile(
+      TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @RequestPart("file") @NotNull MultipartFile file) {
     // A capability passes the access check for any id: refuse a simulation that is unknown or in

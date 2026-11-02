@@ -632,7 +632,6 @@ public class ScenarioService {
   }
 
   /** Validates that the scenario exists for the current tenant. Throws if not found. */
-  @Transactional(readOnly = true)
   public void existsByIdAndTenantId(@NotBlank final String scenarioId) {
     if (!this.scenarioRepository.existsByIdAndTenantId(
         scenarioId, TenantContext.getCurrentTenant())) {
