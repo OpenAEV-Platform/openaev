@@ -560,7 +560,13 @@ public class ReportingService {
             anyOf.add(cb.isNull(root.get("contextId")));
           }
           if (!visibleTypes.isEmpty()) {
-            anyOf.add(root.get("contextType").in(visibleTypes));
+            // A subject-less row (no contextId) of an otherwise-visible type is not a real
+            // subject the type's own visibility decides: subjectReadable decides it like a
+            // platform-wide reporting instead, on platformWideVisible above, so it must not also
+            // match here through an open or capability-visible subject type.
+            anyOf.add(
+                cb.and(
+                    root.get("contextType").in(visibleTypes), cb.isNotNull(root.get("contextId"))));
           }
           if (!grantFilteredTypes.isEmpty() && !grantedIds.isEmpty()) {
             anyOf.add(

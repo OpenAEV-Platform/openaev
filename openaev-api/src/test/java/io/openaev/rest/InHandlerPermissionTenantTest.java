@@ -358,6 +358,36 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
           .andExpect(jsonPath("$[?(@.reporting_id == '" + reportingId + "')]").exists());
     }
 
+    @Test
+    @DisplayName(
+        "given the reportings right only outside B should not search B's subject-less player"
+            + " reporting")
+    void given_reportingsRightOnlyOutsideB_should_notSearchBSubjectlessPlayerReporting()
+        throws Exception {
+      // -- ARRANGE --
+      // No grant in B: PLAYER is an open resource, but a subject-less row of that type is
+      // decided like a platform-wide reporting, on the REPORTINGS capability alone.
+      String reportingId = seedPlayerReporting(tenantB);
+
+      // -- ACT & ASSERT --
+      mvc.perform(inB(post(REPORTINGS_URI + "/search")).content(defaultSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(reportingPath(reportingId)).doesNotExist());
+    }
+
+    @Test
+    @DisplayName("given the reportings right in B should search B's subject-less player reporting")
+    void given_reportingsRightInB_should_searchBSubjectlessPlayerReporting() throws Exception {
+      // -- ARRANGE --
+      grantInB(Capability.ACCESS_REPORTINGS);
+      String reportingId = seedPlayerReporting(tenantB);
+
+      // -- ACT & ASSERT --
+      mvc.perform(inB(post(REPORTINGS_URI + "/search")).content(defaultSearch()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath(reportingPath(reportingId)).exists());
+    }
+
     private String reportingPath(String reportingId) {
       return "$.content[?(@.reporting_id == '" + reportingId + "')]";
     }
@@ -661,6 +691,21 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
     Reporting reporting =
         ReportingFixture.createReporting(
             "in-handler-" + UUID.randomUUID(), ReportingContextType.PLATFORM, null);
+    reporting.setTenant(new Tenant(tenantId));
+    String reportingId = reportingComposer.forReporting(reporting).persist().get().getId();
+    entityManager.flush();
+    return reportingId;
+  }
+
+  /**
+   * A reporting of an open subject type (PLAYER) with no contextId: a subject-less row, not a real
+   * per-player reporting. {@code subjectReadable} decides it like a platform-wide reporting, on the
+   * REPORTINGS capability alone, regardless of PLAYER being open for READ.
+   */
+  private String seedPlayerReporting(String tenantId) {
+    Reporting reporting =
+        ReportingFixture.createReporting(
+            "in-handler-" + UUID.randomUUID(), ReportingContextType.PLAYER, null);
     reporting.setTenant(new Tenant(tenantId));
     String reportingId = reportingComposer.forReporting(reporting).persist().get().getId();
     entityManager.flush();
