@@ -33,6 +33,8 @@ interface Props {
   disableDuplicate: boolean;
   disableJsonExport: boolean;
   disableDelete: boolean;
+  /** Off on the review pages: a reviewer decides on a version, they do not run it from there. */
+  showRunTest?: boolean;
 }
 
 const ThreatArsenalCard: FunctionComponent<Props> = ({
@@ -47,6 +49,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   disableDuplicate,
   disableJsonExport,
   disableDelete,
+  showRunTest = true,
 }) => {
   const { t, tPick, nsd } = useFormatter();
   const theme = useTheme();
@@ -72,7 +75,8 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const statusLabel = getStatusLabel(status);
   // Approval and Verified / Unverified / Deprecated are two different things (is it trusted by a
   // second person, does it work): each keeps its own slot so neither masks the other. The approval
-  // chip only shows when it needs attention; a new version waiting shows as Pending approval.
+  // chip only shows when it needs attention, on top with the other "to do" chips; the lifecycle
+  // status stays in the footer. Same card on every Threat Arsenal tab.
   const approvalStatus = displayedApprovalStatus(action.action_payload?.payload_approval_status, action.action_payload?.payload_pending_version);
   const approvalNeedsAttention = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED';
   const name = tPick(action.action_labels);
@@ -130,11 +134,21 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       )}
       chips={(
         <>
+          {/* What needs someone first: the approval, then injects left on an older version. */}
+          {approvalNeedsAttention && <ApprovalStatusChip status={approvalStatus} />}
           {olderInUse > 0 && (
-            <Chip
-              label={olderInUse === 1 ? t('1 older version still in use') : t('{count} older versions still in use', { count: String(olderInUse) })}
-              severity="medium"
-            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Chip label={t('{count} to migrate', { count: String(olderInUse) })} severity="medium" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {olderInUse === 1
+                  ? t('1 inject still runs an older version. Move it from the Versions tab.')
+                  : t('{count} injects still run an older version. Move them from the Versions tab.', { count: String(olderInUse) })}
+              </TooltipContent>
+            </Tooltip>
           )}
           {techniques.length > 0 && (
             <Tooltip>
@@ -170,10 +184,9 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         }}
         >
           {statusLabel && <Chip label={t(statusLabel)} severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]} />}
-          {approvalNeedsAttention && <ApprovalStatusChip status={approvalStatus} />}
         </div>
       )}
-      action={canRunTest && !action.action_payload?.payload_revoked && (
+      action={showRunTest && canRunTest && !action.action_payload?.payload_revoked && (
         <span onClick={event => event.stopPropagation()}>
           <Button size="sm" onClick={onRunTest}>{t('Run a test')}</Button>
         </span>

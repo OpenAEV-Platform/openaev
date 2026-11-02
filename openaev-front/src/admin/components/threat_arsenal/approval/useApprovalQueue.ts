@@ -25,7 +25,18 @@ export const isFromCollector = (item: QueueItem) => item.full?.action_pending_ve
  * new version waiting), oldest first, each with its detail: who submitted the version and from where
  * are on the detail, and the queue stays small.
  */
-export const useApprovalQueue = (statuses: ApprovalStatus[], keep: (item: QueueItem) => boolean = () => true) => {
+interface QueueOptions {
+  /** Load each action's detail (who submitted the version, from where); off for long lists. */
+  details?: boolean;
+  newestFirst?: boolean;
+  size?: number;
+}
+
+export const useApprovalQueue = (
+  statuses: ApprovalStatus[],
+  keep: (item: QueueItem) => boolean = () => true,
+  { details = true, newestFirst = false, size = QUEUE_SIZE }: QueueOptions = {},
+) => {
   const [items, setItems] = useState<QueueItem[] | null>(null);
   const statusKey = statuses.join(',');
   // The filter may be a new function on every render; read the latest one when loading.
@@ -34,7 +45,7 @@ export const useApprovalQueue = (statuses: ApprovalStatus[], keep: (item: QueueI
 
   const load = useCallback(() => {
     searchThreatArsenalActions(buildSearchPagination({
-      size: QUEUE_SIZE,
+      size,
       filterGroup: {
         mode: 'and',
         filters: [{
@@ -47,21 +58,23 @@ export const useApprovalQueue = (statuses: ApprovalStatus[], keep: (item: QueueI
       },
       sorts: [{
         property: 'action_updated_at',
-        direction: 'ASC',
+        direction: newestFirst ? 'DESC' : 'ASC',
       }],
     }))
       .then(async (response) => {
         const actions = (response.data?.content ?? []) as ThreatArsenalAction[];
-        const details = await Promise.all(actions.map(action => fetchThreatArsenalAction(action.injector_contract_id)
-          .then(detail => detail.data as ThreatArsenalActionFullOutput)
-          .catch(() => undefined)));
+        const fulls = details
+          ? await Promise.all(actions.map(action => fetchThreatArsenalAction(action.injector_contract_id)
+              .then(detail => detail.data as ThreatArsenalActionFullOutput)
+              .catch(() => undefined)))
+          : [];
         setItems(actions.map((action, index) => ({
           action,
-          full: details[index],
+          full: fulls[index],
         })).filter(item => keepRef.current(item)));
       })
       .catch(() => setItems([]));
-  }, [statusKey]);
+  }, [statusKey, details, newestFirst, size]);
 
   useEffect(() => {
     load();

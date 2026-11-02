@@ -74,7 +74,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   threatArsenalAction,
   onRunTest,
   onApprovalChanged,
-  initialTab = 'overview',
+  initialTab,
 }) => {
   const { t } = useFormatter();
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
@@ -82,7 +82,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
 
   const [loading, setLoading] = useState(false);
   const [fullOutput, setFullOutput] = useState<ThreatArsenalActionFullOutput | null>(null);
-  const [tab, setTab] = useState<DrawerTab>(initialTab);
+  const [tab, setTab] = useState<DrawerTab>(initialTab ?? 'overview');
   // Every version of the payload, installed or only in the catalogue, and the one shown.
   const [versions, setVersions] = useState<PayloadVersionOutput[]>([]);
   const [catalogVersions, setCatalogVersions] = useState<CatalogItemOutput[]>([]);
@@ -121,7 +121,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       setShownVersion(null);
       return;
     }
-    setTab(initialTab);
+    setTab(initialTab ?? 'overview');
     setCatalogVersions([]);
     setShownVersion(payload?.payload_version ?? null);
     loadVersions();

@@ -10,7 +10,6 @@ import { buildSearchPagination } from '../../../components/common/queryable/Quer
 import { useFormatter } from '../../../components/i18n';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import ApprovalRolesNote from './approval/ApprovalRolesNote';
 import useApprovalDesignVariant from './approval/useApprovalDesignVariant';
 import { THREAT_ARSENAL_MY_CHANGES_PATH, THREAT_ARSENAL_TO_REVIEW_PATH } from './threatArsenalDeepLink';
 import ThreatArsenalTabs from './ThreatArsenalTabs';
@@ -145,7 +144,6 @@ const ThreatArsenalPageHeader: FunctionComponent<Props> = ({ active }) => {
         bottomSlot={<ThreatArsenalApprovalStats />}
       />
       <ThreatArsenalTabs active={active} />
-      <ApprovalRolesNote />
     </div>
   );
 };

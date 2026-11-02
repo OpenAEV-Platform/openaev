@@ -21,6 +21,7 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import VersionApprovalPanel from './approval/VersionApprovalPanel';
+import PayloadOriginChip from './PayloadOriginChip';
 import PayloadVersionSelect from './PayloadVersionSelect';
 
 const VERSIONS_PER_PAGE = 5;
@@ -136,7 +137,8 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
         <Text variant="content-base-bold">{`v${source.payload_version ?? '-'}`}</Text>
         {!source.payload_installed && <Chip label={t('Not installed')} />}
         {source.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
-        {source.payload_installed && source.payload_managed && <Chip label={t('Verified by Filigran')} severity="low" />}
+        {/* Where the version comes from, not a second "Verified" (the lifecycle status): Filigran versions need no approval. */}
+        {source.payload_installed && source.payload_managed && <PayloadOriginChip origin="CATALOG" />}
         {source.payload_installed && !source.payload_managed && (pending || source.payload_approval_status === 'REJECTED')
           && <ApprovalStatusChip status={source.payload_approval_status} />}
         <Box sx={{ flex: 1 }} />

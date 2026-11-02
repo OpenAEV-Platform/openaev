@@ -21,7 +21,6 @@ import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import ApprovalRolesNote from './approval/ApprovalRolesNote';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import ThreatArsenalCardGrid, { type ThreatArsenalItemsProps } from './ThreatArsenalCardGrid';
 import { ACTION_PARAM, toThreatArsenalAction } from './threatArsenalDeepLink';
@@ -145,12 +144,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
     }}
     >
       <MarketplaceBrowser
-        tabs={(
-          <>
-            {tabs}
-            <ApprovalRolesNote />
-          </>
-        )}
+        tabs={tabs}
         hero={(
           <MarketplaceHero
             title={t('Threat Arsenal')}
@@ -222,6 +216,8 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           open
           onClose={closeOpenedAction}
           threatArsenalAction={openedAction}
+          // "See where it is used" (revoke dialog) opens the Versions tab, which lists every usage.
+          initialTab={linkedActionId && searchParams.get('tab') === 'versions' ? 'versions' : undefined}
           onRunTest={setRunTestAction}
           onApprovalChanged={() => installed.queryableHelpers.paginationHelpers.handleChangePage(0)}
         />
