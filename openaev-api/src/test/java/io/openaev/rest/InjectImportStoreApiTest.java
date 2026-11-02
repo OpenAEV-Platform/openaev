@@ -3,6 +3,7 @@ package io.openaev.rest;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -15,15 +16,21 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.scenario.form.InjectsImportInput;
+import io.openaev.service.InjectImportService;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -32,6 +39,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +48,9 @@ import org.springframework.transaction.annotation.Transactional;
  * The xls import of injects is checked on the scenario or simulation the injects go into, not on
  * the mapper (#5347). A user who can edit that scenario or simulation can upload the file and run
  * the import without the tenant settings capability; a user who cannot edit it is refused.
+ *
+ * <p>The upload runs outside any transaction ({@code NOT_SUPPORTED}), so its access and existence
+ * checks only see committed rows: the arrange step is committed, then deleted after each test.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -54,10 +65,47 @@ class InjectImportStoreApiTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
 
+  private final List<String> committedResourceIds = new ArrayList<>();
+
   @BeforeEach
   void setUp() {
     scenarioComposer.reset();
     exerciseComposer.reset();
+  }
+
+  @AfterEach
+  void deleteCommittedRows() {
+    if (committedResourceIds.isEmpty()) {
+      return;
+    }
+    for (String id : committedResourceIds) {
+      entityManager
+          .createNativeQuery("DELETE FROM grants WHERE grant_resource = :id")
+          .setParameter("id", id)
+          .executeUpdate();
+      entityManager
+          .createNativeQuery("DELETE FROM scenarios WHERE scenario_id = :id")
+          .setParameter("id", id)
+          .executeUpdate();
+      entityManager
+          .createNativeQuery("DELETE FROM exercises WHERE exercise_id = :id")
+          .setParameter("id", id)
+          .executeUpdate();
+    }
+    committedResourceIds.clear();
+    TestTransaction.flagForCommit();
+    TestTransaction.end();
+    TestTransaction.start();
+  }
+
+  /** Commits the arrange step so the upload, which runs outside this transaction, can see it. */
+  private void commitArrange(String resourceId) {
+    committedResourceIds.add(resourceId);
+    entityManager.flush();
+    entityManager.clear();
+    TestTransaction.flagForCommit();
+    TestTransaction.end();
+    TestTransaction.start();
   }
 
   private ResultActions upload(String xlsUri, String resourceId) throws Exception {
@@ -66,7 +114,10 @@ class InjectImportStoreApiTest extends IntegrationTest {
     return mvc.perform(multipart(xlsUri + "/store", resourceId).file(file).with(csrf()));
   }
 
-  /** Uploads the file, then runs the dry run and the import with a mapper of the same tenant. */
+  /**
+   * Uploads the file, then runs the dry run and the import with a mapper of the same tenant. The
+   * file is deleted once the import is done.
+   */
   private void uploadAndImport(String xlsUri, String resourceId) throws Exception {
     String stored =
         upload(xlsUri, resourceId)
@@ -88,6 +139,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().isOk());
     }
+    assertFalse(Files.exists(Path.of(InjectImportService.BASE_DIR, importId)));
   }
 
   /** An xlsx file with one empty sheet: enough to go through the whole import. */
@@ -100,7 +152,10 @@ class InjectImportStoreApiTest extends IntegrationTest {
     }
   }
 
-  /** A mapper with no importers, in the default tenant the test user belongs to. */
+  /**
+   * A mapper with no importers, in the default tenant the test user belongs to. Seeded after the
+   * commit: the dry run and the import join the test transaction, so it is rolled back with it.
+   */
   private String seedMapper() {
     String id = UUID.randomUUID().toString();
     entityManager
@@ -131,6 +186,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
       String scenarioId = persistScenario();
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SCENARIO, Grant.GRANT_TYPE.PLANNER, scenarioId);
+      commitArrange(scenarioId);
 
       // Act & Assert
       uploadAndImport(SCENARIO_XLS_URI, scenarioId);
@@ -144,9 +200,20 @@ class InjectImportStoreApiTest extends IntegrationTest {
     void given_manageAssessmentCapability_should_uploadAndImport() throws Exception {
       // Arrange
       String scenarioId = persistScenario();
+      commitArrange(scenarioId);
 
       // Act & Assert
       uploadAndImport(SCENARIO_XLS_URI, scenarioId);
+    }
+
+    @Test
+    @DisplayName("Uploading into an unknown scenario is refused before the file is stored")
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_ASSESSMENT},
+        autoJoinDefaultTenant = true)
+    void given_unknownScenario_should_returnNotFound() throws Exception {
+      // Act & Assert
+      upload(SCENARIO_XLS_URI, UUID.randomUUID().toString()).andExpect(status().isNotFound());
     }
 
     @Test
@@ -157,6 +224,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
       String scenarioId = persistScenario();
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SCENARIO, Grant.GRANT_TYPE.OBSERVER, scenarioId);
+      commitArrange(scenarioId);
 
       // Act & Assert
       upload(SCENARIO_XLS_URI, scenarioId).andExpect(status().isForbidden());
@@ -168,6 +236,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
     void given_noAccess_should_beForbidden() throws Exception {
       // Arrange
       String scenarioId = persistScenario();
+      commitArrange(scenarioId);
 
       // Act & Assert
       upload(SCENARIO_XLS_URI, scenarioId).andExpect(status().isForbidden());
@@ -181,6 +250,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
     void given_tenantSettingsOnly_should_beForbidden() throws Exception {
       // Arrange
       String scenarioId = persistScenario();
+      commitArrange(scenarioId);
 
       // Act & Assert
       upload(SCENARIO_XLS_URI, scenarioId).andExpect(status().isForbidden());
@@ -203,9 +273,20 @@ class InjectImportStoreApiTest extends IntegrationTest {
       String exerciseId = persistSimulation();
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.PLANNER, exerciseId);
+      commitArrange(exerciseId);
 
       // Act & Assert
       uploadAndImport(SIMULATION_XLS_URI, exerciseId);
+    }
+
+    @Test
+    @DisplayName("Uploading into an unknown simulation is refused before the file is stored")
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_ASSESSMENT},
+        autoJoinDefaultTenant = true)
+    void given_unknownSimulation_should_returnNotFound() throws Exception {
+      // Act & Assert
+      upload(SIMULATION_XLS_URI, UUID.randomUUID().toString()).andExpect(status().isNotFound());
     }
 
     @Test
@@ -216,6 +297,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
       String exerciseId = persistSimulation();
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, exerciseId);
+      commitArrange(exerciseId);
 
       // Act & Assert
       upload(SIMULATION_XLS_URI, exerciseId).andExpect(status().isForbidden());
@@ -227,6 +309,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
     void given_noAccess_should_beForbidden() throws Exception {
       // Arrange
       String exerciseId = persistSimulation();
+      commitArrange(exerciseId);
 
       // Act & Assert
       upload(SIMULATION_XLS_URI, exerciseId).andExpect(status().isForbidden());
