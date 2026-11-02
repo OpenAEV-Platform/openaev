@@ -29,7 +29,6 @@ import { useSearchParams } from 'react-router';
 
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import { type UserHelper } from '../../../actions/helper';
-import Breadcrumbs from '../../../components/Breadcrumbs';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceGrid from '../../../components/common/marketplace/MarketplaceGrid';
 import { useFormatter } from '../../../components/i18n';
@@ -386,16 +385,7 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
       paddingBottom: theme.spacing(4),
     }}
     >
-      <Breadcrumbs
-        variant="list"
-        elements={[{
-          label: t('Threat Arsenal'),
-          link: '/admin/threat-arsenal',
-        }, {
-          label: t(mode === 'to-review' ? 'To review' : 'My changes'),
-          current: true,
-        }]}
-      />
+      {/* No breadcrumb: To review and My changes are tabs of the Threat Arsenal, like Active and Available. */}
       <MarketplaceBrowser
         hero={<ThreatArsenalPageHeader active={mode} onCreate={() => waiting.reload()} />}
         tabs={viewTabs}

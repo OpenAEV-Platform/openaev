@@ -19,20 +19,6 @@ import PlatformIcon from '../../PlatformIcon';
 import MarketplaceListRow from './MarketplaceListRow';
 import { useMarketplaceViewMode } from './MarketplaceViewContext';
 
-/**
- * One fact of the card's meta row, drawn like the meta items of the detail heroes (icon + value):
- * the label is on hover and in the accessible name, not printed, so the row stays on one line.
- */
-export interface MarketplaceCardInfo {
-  label: string;
-  value: string;
-  icon: ReactNode;
-  /** Longer text for the tooltip (e.g. the full date and time); the value when absent. */
-  hint?: string;
-  /** The one fact that gives way when the row is too long (e.g. a name); the others stay whole. */
-  truncate?: boolean;
-}
-
 interface Props {
   /** Kept for the callers; the cards follow the OpenCTI integrations cards, which have no accent colour. */
   accent?: string;
@@ -48,11 +34,14 @@ interface Props {
   /**
    * Figma Card (8467:4560) parts the code library does not ship yet (DS 1.3.0): a full-bleed
    * CardBanner at the top for the one thing to act on, a tags row under the header, and CardInfo
-   * meta row (icon + value) under the description. Optional: cards without them are unchanged.
+   * label / value pairs under the description. Optional: cards without them are unchanged.
    */
   banner?: ReactNode;
   tags?: ReactNode;
-  info?: MarketplaceCardInfo[];
+  info?: {
+    label: string;
+    value: string;
+  }[];
   /** Fixed card height in the grid (cards of one grid align); taller when the extra parts are used. */
   height?: number | '100%';
   /** A row of its own just above the footer (e.g. an approval state), so every footer reads the same. */
@@ -168,8 +157,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
 
   // Fewer description lines when a banner and info rows take the room.
   let descriptionLines = subtitle || caption ? 3 : 4;
-  // The meta row is one line: room for three lines of description.
-  if (info?.length) descriptionLines = 3;
+  if (info?.length) descriptionLines = 2;
   const interaction = linkTo
     ? { href }
     : onClick && { onClick: () => onClick() };
@@ -348,56 +336,31 @@ const MarketplaceCard: FunctionComponent<Props> = ({
             </Tooltip>
           )}
           {info && info.length > 0 && (
-            <ul style={{
-              listStyle: 'none',
-              padding: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              minWidth: 0,
+            <dl style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${info.length}, minmax(0, 1fr))`,
+              gap: 8,
               margin: description ? '16px 0 0' : 0,
             }}
             >
               {info.map(item => (
-                <Tooltip key={item.label}>
-                  <TooltipTrigger asChild>
-                    <li
-                      aria-label={`${item.label}: ${item.hint ?? item.value}`}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        minWidth: 0,
-                        flexShrink: item.truncate ? 1 : 0,
-                      }}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className="text-default-secondary"
-                        style={{
-                          display: 'inline-flex',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {item.icon}
-                      </span>
-                      <Text
-                        variant="content-compact"
-                        className="text-default-secondary"
-                        style={{
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {item.value}
-                      </Text>
-                    </li>
-                  </TooltipTrigger>
-                  <TooltipContent>{`${item.label}: ${item.hint ?? item.value}`}</TooltipContent>
-                </Tooltip>
+                <div key={item.label} style={{ minWidth: 0 }}>
+                  <Text as="dt" variant="content-caption" className="text-default-secondary">{item.label}</Text>
+                  <Text
+                    as="dd"
+                    variant="content-compact"
+                    style={{
+                      margin: 0,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {item.value}
+                  </Text>
+                </div>
               ))}
-            </ul>
+            </dl>
           )}
         </Box>
         {statusRow && (
