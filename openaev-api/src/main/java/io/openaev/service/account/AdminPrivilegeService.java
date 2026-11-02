@@ -83,6 +83,11 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
     return ADMIN_ACCESS;
   }
 
+  @Override
+  protected boolean receivesEveryMarking() {
+    return true;
+  }
+
   /**
    * Idempotently ensures the given tenant owns the admin group (with the BYPASS role), that the
    * given user belongs to that tenant, and that the user is a member of the group. Safe to call on

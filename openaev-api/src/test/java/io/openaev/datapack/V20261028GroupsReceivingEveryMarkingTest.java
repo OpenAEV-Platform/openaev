@@ -1,8 +1,6 @@
 package io.openaev.datapack;
 
-import static io.openaev.opencti.connectors.Constants.PROCESS_STIX_GROUP_ID;
-import static io.openaev.service.AbstractPrivilegeService.getUUIDFromName;
-import static io.openaev.service.account.Constants.SERVICE_GROUP_ID;
+import static io.openaev.service.account.AbstractPrivilegeService.getUUIDFromName;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -11,9 +9,11 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
+import io.openaev.processor.datapack.PresetTenantData;
 import io.openaev.processor.datapack.V20261028_Groups_receiving_every_marking;
 import io.openaev.service.DataPackService;
 import io.openaev.service.TenantGroupService;
+import io.openaev.service.account.ReservedServiceAccount;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,15 +34,24 @@ class V20261028GroupsReceivingEveryMarkingTest {
   @InjectMocks private V20261028_Groups_receiving_every_marking dataPack;
 
   @Test
-  @DisplayName("given the agent and OpenCTI groups, should make both receive every marking")
-  void given_agentAndOpenCtiGroups_should_makeBothReceiveEveryMarking() {
+  @DisplayName(
+      "given the agent, OpenCTI and Admin groups, should make all three receive every marking")
+  void given_agentOpenCtiAndAdminGroups_should_makeAllThreeReceiveEveryMarking() {
     // Arrange
-    Group agentGroup = groupWithId(getUUIDFromName(SERVICE_GROUP_ID, TENANT.getId()));
-    Group openCtiGroup = groupWithId(getUUIDFromName(PROCESS_STIX_GROUP_ID, TENANT.getId()));
+    Group agentGroup =
+        groupWithId(
+            getUUIDFromName(ReservedServiceAccount.AGENT.access().groupId(), TENANT.getId()));
+    Group openCtiGroup =
+        groupWithId(
+            getUUIDFromName(
+                ReservedServiceAccount.OPENCTI_CONNECTOR.access().groupId(), TENANT.getId()));
+    Group adminGroup = groupWithId("admin-group");
     when(tenantGroupService.findByIdAndTenant(agentGroup.getId(), TENANT.getId()))
         .thenReturn(Optional.of(agentGroup));
     when(tenantGroupService.findByIdAndTenant(openCtiGroup.getId(), TENANT.getId()))
         .thenReturn(Optional.of(openCtiGroup));
+    when(tenantGroupService.findByNameAndTenantId(PresetTenantData.ADMIN, TENANT.getId()))
+        .thenReturn(Optional.of(adminGroup));
 
     // Act
     dataPack.process(TENANT);
@@ -50,6 +59,7 @@ class V20261028GroupsReceivingEveryMarkingTest {
     // Assert
     verify(tenantGroupService).receiveEveryMarking(agentGroup, TENANT.getId());
     verify(tenantGroupService).receiveEveryMarking(openCtiGroup, TENANT.getId());
+    verify(tenantGroupService).receiveEveryMarking(adminGroup, TENANT.getId());
     verify(dataPackService).registerDataPack(dataPack.getPackId(), TENANT);
   }
 
