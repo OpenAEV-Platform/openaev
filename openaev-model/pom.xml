@@ -82,7 +82,7 @@
         </dependency>
         <dependency>
             <groupId>io.hypersistence</groupId>
-            <artifactId>hypersistence-utils-hibernate-73</artifactId>
+            <artifactId>hypersistence-utils-hibernate-71</artifactId>
             <version>3.16.0</version>
         </dependency>
         <dependency>
