@@ -579,6 +579,46 @@ public class InjectImportServiceTest {
       assertFalse(uploadExists(importId));
     }
 
+    @Test
+    @DisplayName("Keeps the imported file until the import commits")
+    void given_activeTransaction_should_deleteFileOnlyAfterCommit() throws Exception {
+      // -------- Prepare --------
+      InjectImportService service =
+          new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
+      String importId = service.storeXlsFileForImport(xlsxFile(), "user-1").getImportId();
+      org.springframework.transaction.support.TransactionSynchronizationManager
+          .initSynchronization();
+      try {
+        // -------- Act --------
+        service.deleteStoredFileAfterCommit(importId);
+
+        // -------- Assert --------
+        assertTrue(uploadExists(importId));
+        org.springframework.transaction.support.TransactionSynchronizationManager
+            .getSynchronizations()
+            .forEach(
+                org.springframework.transaction.support.TransactionSynchronization::afterCommit);
+        assertFalse(uploadExists(importId));
+      } finally {
+        org.springframework.transaction.support.TransactionSynchronizationManager
+            .clearSynchronization();
+        service.deleteStoredFile(importId);
+      }
+    }
+
+    @Test
+    @DisplayName("Refuses to delete anything that is not an upload id")
+    void given_pathInsteadOfUploadId_should_refuseToDelete() {
+      // -------- Prepare --------
+      InjectImportService service =
+          new InjectImportService(null, null, null, null, null, null, null, null, null, null, null);
+
+      // -------- Act & Assert --------
+      assertThrows(
+          io.openaev.rest.exception.BadRequestException.class, () -> service.deleteStoredFile("."));
+      assertTrue(java.nio.file.Files.exists(java.nio.file.Path.of(InjectImportService.BASE_DIR)));
+    }
+
     private MultipartFile xlsxFile() throws Exception {
       Workbook wb = new XSSFWorkbook();
       wb.createSheet("Sheet1");

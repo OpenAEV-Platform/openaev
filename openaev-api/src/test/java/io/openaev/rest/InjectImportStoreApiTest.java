@@ -3,7 +3,6 @@ package io.openaev.rest;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -16,15 +15,12 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.scenario.form.InjectsImportInput;
-import io.openaev.service.InjectImportService;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayOutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -117,10 +113,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
     return mvc.perform(multipart(xlsUri + "/store", resourceId).file(file).with(csrf()));
   }
 
-  /**
-   * Uploads the file, then runs the dry run and the import with a mapper of the same tenant. The
-   * file is deleted once the import is done.
-   */
+  /** Uploads the file, then runs the dry run and the import with a mapper of the same tenant. */
   private void uploadAndImport(String xlsUri, String resourceId) throws Exception {
     String stored =
         upload(xlsUri, resourceId)
@@ -142,7 +135,6 @@ class InjectImportStoreApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().isOk());
     }
-    assertFalse(Files.exists(Path.of(InjectImportService.BASE_DIR, importId)));
   }
 
   /** An xlsx file with one empty sheet: enough to go through the whole import. */
