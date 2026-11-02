@@ -45,7 +45,9 @@ interface Props {
     value: string;
   }[];
   /** Fixed card height in the grid (cards of one grid align); taller when the extra parts are used. */
-  height?: number;
+  height?: number | '100%';
+  /** A row of its own just above the footer (e.g. an approval state), so every footer reads the same. */
+  statusRow?: ReactNode;
   platforms: string[];
   /** Shown with the platforms, e.g. a team target. */
   target?: ReactNode;
@@ -83,6 +85,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
   tags,
   info,
   height = 280,
+  statusRow,
   platforms,
   target,
   caption,
@@ -154,7 +157,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
 
   // Fewer description lines when a banner and info rows take the room.
   let descriptionLines = subtitle || caption ? 3 : 4;
-  if (info?.length) descriptionLines = banner ? 1 : 2;
+  if (info?.length) descriptionLines = 2;
   const interaction = linkTo
     ? { href }
     : onClick && { onClick: () => onClick() };
@@ -351,33 +354,44 @@ const MarketplaceCard: FunctionComponent<Props> = ({
               <TooltipContent>{description}</TooltipContent>
             </Tooltip>
           )}
+          {info && info.length > 0 && (
+            <dl style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${info.length}, minmax(0, 1fr))`,
+              gap: 8,
+              margin: description ? '16px 0 0' : 0,
+            }}
+            >
+              {info.map(item => (
+                <div key={item.label} style={{ minWidth: 0 }}>
+                  <Text as="dt" variant="content-caption" className="text-default-secondary">{item.label}</Text>
+                  <Text
+                    as="dd"
+                    variant="content-compact"
+                    style={{
+                      margin: 0,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {item.value}
+                  </Text>
+                </div>
+              ))}
+            </dl>
+          )}
         </Box>
-        {info && info.length > 0 && (
-          <dl style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${info.length}, minmax(0, 1fr))`,
-            gap: 8,
-            margin: 0,
+        {statusRow && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            minWidth: 0,
           }}
           >
-            {info.map(item => (
-              <div key={item.label} style={{ minWidth: 0 }}>
-                <Text as="dt" variant="content-caption" className="text-default-secondary">{item.label}</Text>
-                <Text
-                  as="dd"
-                  variant="content-compact"
-                  style={{
-                    margin: 0,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {item.value}
-                </Text>
-              </div>
-            ))}
-          </dl>
+            {statusRow}
+          </div>
         )}
         <Box sx={{
           display: 'flex',

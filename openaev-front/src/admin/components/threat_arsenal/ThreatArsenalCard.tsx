@@ -128,7 +128,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
     banner = (
       <ThreatArsenalCardBanner
         tone="critical"
-        message={t('Revoked: injects using it are skipped')}
+        message={t('Injects using it are skipped')}
         link={{
           label: t('Versions'),
           to: versionsLink,
@@ -178,33 +178,9 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       description={action.action_payload?.payload_description ?? undefined}
       selected={selected}
       onClick={onSelect}
-      topRight={(
-        <ThreatArsenalActionPopover
-          actionId={action.injector_contract_id}
-          payloadId={action.action_payload?.payload_id ?? ''}
-          name={name}
-          onUpdate={onUpdate}
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
-          disableUpdate={disableUpdate}
-          disableDuplicate={disableDuplicate}
-          disableJsonExport={disableJsonExport}
-          disableDelete={disableDelete}
-          revoked={action.action_payload?.payload_revoked}
-          managed={!!action.action_payload?.payload_managed}
-          variantIdentityId={action.action_payload?.payload_variant ? action.action_payload.payload_identity_id : undefined}
-          onRevocationChange={(revoked, status) => action.action_payload && onUpdate({
-            ...action,
-            action_payload: {
-              ...action.action_payload,
-              payload_revoked: revoked,
-              payload_status: status ?? action.action_payload.payload_status,
-            },
-          })}
-        />
-      )}
       banner={banner}
-      height={320}
+      // The grid sets the height (DS Card rule): cards of a row align, no fixed gap.
+      height="100%"
       tags={techniques.length > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -236,7 +212,8 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         label: string;
         value: string;
       } => item !== null)}
-      chips={approvalNeedsAttention && (
+      chips={null}
+      statusRow={approvalNeedsAttention && (
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="inline-flex" style={{ gap: 4 }}>
@@ -261,9 +238,43 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           <TooltipContent>{t('Targets teams')}</TooltipContent>
         </Tooltip>
       )}
-      footerRight={showRunTest && canRunTest && !action.action_payload?.payload_revoked && (
-        <span onClick={event => event.stopPropagation()}>
-          <Button size="sm" onClick={onRunTest}>{t('Run a test')}</Button>
+      // Figma footerEnd: the card's action, then its menu. Outlined so a grid of cards does not
+      // shout; the banner keeps the strongest contrast.
+      footerRight={(
+        <span
+          onClick={event => event.stopPropagation()}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          {showRunTest && canRunTest && !action.action_payload?.payload_revoked && (
+            <Button size="sm" priority="secondary" onClick={onRunTest}>{t('Run a test')}</Button>
+          )}
+          <ThreatArsenalActionPopover
+            actionId={action.injector_contract_id}
+            payloadId={action.action_payload?.payload_id ?? ''}
+            name={name}
+            onUpdate={onUpdate}
+            onDuplicate={onDuplicate}
+            onDelete={onDelete}
+            disableUpdate={disableUpdate}
+            disableDuplicate={disableDuplicate}
+            disableJsonExport={disableJsonExport}
+            disableDelete={disableDelete}
+            revoked={action.action_payload?.payload_revoked}
+            managed={!!action.action_payload?.payload_managed}
+            variantIdentityId={action.action_payload?.payload_variant ? action.action_payload.payload_identity_id : undefined}
+            onRevocationChange={(revoked, status) => action.action_payload && onUpdate({
+              ...action,
+              action_payload: {
+                ...action.action_payload,
+                payload_revoked: revoked,
+                payload_status: status ?? action.action_payload.payload_status,
+              },
+            })}
+          />
         </span>
       )}
     />
