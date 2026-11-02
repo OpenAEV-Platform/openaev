@@ -33,6 +33,7 @@ import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
 import io.openaev.exception.AnalyticsEngineException;
+import io.openaev.exception.UnknownEngineFieldException;
 import io.openaev.schema.PropertySchema;
 import io.openaev.service.CommonSearchService;
 import io.openaev.service.EsIndexingUtils;
@@ -89,7 +90,7 @@ public class ElasticService implements EngineService {
       // (e.g. the asset expectation list search box) works. Any other unknown field stays a hard
       // error.
       if (!BASE_FIELDS.contains(field)) {
-        throw new AnalyticsEngineException("Unknown field: " + field);
+        throw new UnknownEngineFieldException(field);
       }
       builder.stringValue(target);
       return builder.build();
@@ -1456,7 +1457,7 @@ public class ElasticService implements EngineService {
       // throwing a NullPointerException that 500s the whole search request. Other unknown fields
       // stay a hard error.
       if (!BASE_FIELDS.contains(field)) {
-        throw new AnalyticsEngineException("Unknown field: " + field);
+        throw new UnknownEngineFieldException(field);
       }
       return field;
     }
