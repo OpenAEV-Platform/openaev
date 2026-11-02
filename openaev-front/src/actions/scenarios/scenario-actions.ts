@@ -214,6 +214,13 @@ export const fetchScenarioStatistic = (scenarioId: Scenario['scenario_id']) => {
 
 // -- IMPORT --
 
+export const storeXlsForScenario = (scenarioId: Scenario['scenario_id'], file: File) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}/xls/store`;
+  const formData = new FormData();
+  formData.append('file', file);
+  return simplePostCall(uri, formData);
+};
+
 export const importXlsForScenario = (scenarioId: Scenario['scenario_id'], importId: string, input: InjectsImportInput) => {
   const uri = `${SCENARIO_URI}/${scenarioId}/xls/${importId}/import`;
   return simplePostCall(uri, input)
