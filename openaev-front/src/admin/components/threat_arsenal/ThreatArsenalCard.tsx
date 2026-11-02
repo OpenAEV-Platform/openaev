@@ -8,6 +8,7 @@ import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import MarketplaceCard from '../../../components/common/marketplace/MarketplaceCard';
 import usePlatformVersion from '../../../components/common/marketplace/usePlatformVersion';
 import { useFormatter } from '../../../components/i18n';
+import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import { type AttackPattern, type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
@@ -166,15 +167,6 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       )}
       title={name}
       overline={primaryDomain ? t(primaryDomain.domain_name) : undefined}
-      // Does it work (Verified...): on the domain line, so the title keeps its width; approval sits at the bottom.
-      overlineEnd={statusLabel && (
-        <HintChip
-          label={t(statusLabel)}
-          hint={t(statusHint ?? statusLabel)}
-          severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]}
-          maxWidth={104}
-        />
-      )}
       subtitle={action.action_author_name ? `${t('by')} ${action.action_author_name}` : undefined}
       description={action.action_payload?.payload_description ?? undefined}
       selected={selected}
@@ -208,34 +200,44 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         },
       ]}
       chips={null}
+      // Approval just above the strip, bottom left, only when it needs attention: the strip keeps
+      // the DS layout (one status and the platforms), so nothing truncates.
       statusRow={approvalNeedsAttention && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-flex" style={{ gap: 4 }}>
-              <Chip label={approvalKind} />
-              <Chip label={approvalState} severity={approvalStatusSeverity(approvalStatus)} />
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>{approvalHint}</TooltipContent>
-        </Tooltip>
+        <>
+          <HintChip label={approvalKind} hint={approvalHint} maxWidth={140} />
+          <HintChip label={approvalState} hint={approvalHint} severity={approvalStatusSeverity(approvalStatus)} maxWidth={120} />
+        </>
       )}
-      // A team target says more than the Internal / Service platforms of these contracts.
-      platforms={action.action_targets_teams ? [] : action.action_platforms ?? []}
-      target={action.action_targets_teams && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <GroupsOutlined sx={{
-              fontSize: 18,
-              color: 'text.secondary',
-            }}
+      platforms={[]}
+      // Figma Card footer (DS "Threat arsenal" in situ): statuses and platforms bottom left, the action
+      // and the menu bottom right, on the full-bleed strip.
+      metaStart={(
+        <>
+          {statusLabel && (
+            <HintChip
+              label={t(statusLabel)}
+              hint={t(statusHint ?? statusLabel)}
+              severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]}
+              maxWidth={96}
             />
-          </TooltipTrigger>
-          <TooltipContent>{t('Targets teams')}</TooltipContent>
-        </Tooltip>
+          )}
+          {action.action_targets_teams
+            ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <GroupsOutlined sx={{
+                      fontSize: 18,
+                      color: 'text.secondary',
+                    }}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Targets teams')}</TooltipContent>
+                </Tooltip>
+              )
+            : (action.action_platforms ?? []).slice(0, 3).map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
+        </>
       )}
-      // Figma footerEnd: the card's action, then its menu. Outlined so a grid of cards does not
-      // shout; the banner keeps the strongest contrast.
-      footerRight={(
+      action={(
         <span
           onClick={event => event.stopPropagation()}
           style={{
