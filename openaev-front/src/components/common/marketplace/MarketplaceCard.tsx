@@ -267,7 +267,8 @@ const MarketplaceCard: FunctionComponent<Props> = ({
               </Box>
             </Box>
           )}
-          action={(
+          // No empty slot: without a top-right control the header text runs to the card's edge.
+          action={topRight && (
             <Box
               sx={{
                 display: 'flex',

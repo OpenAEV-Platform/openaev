@@ -15,7 +15,7 @@ import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import InjectIcon from '../common/injects/InjectIcon';
 import { isBuiltinConnector } from '../integrations/common/builtinConnectorDescriptions';
 import { approvalStatusSeverity, displayedApprovalStatus } from './approval/approvalStatusUtils';
-import { PAYLOAD_ORIGIN_LABELS, type PayloadOrigin, payloadOrigin } from './payloadOrigin';
+import { PAYLOAD_ORIGIN_LABELS, payloadOrigin } from './payloadOrigin';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import ThreatArsenalCardBanner from './ThreatArsenalCardBanner';
 import { actionDomains } from './threatArsenalDomainSections';
@@ -192,27 +192,21 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           <TooltipContent>{techniques.join(', ')}</TooltipContent>
         </Tooltip>
       )}
+      // Always the same three columns, so Version, Source and Updated line up across the grid.
       info={[
-        version
-          ? {
-              label: t('Version'),
-              value: `v${version}`,
-            }
-          : null,
-        origin || builtIn
-          ? {
-              label: t('Source'),
-              value: builtIn ? `${t('Built-in')}${platformVersion ? ` · v${platformVersion}` : ''}` : t(PAYLOAD_ORIGIN_LABELS[origin as PayloadOrigin]),
-            }
-          : null,
+        {
+          label: t('Version'),
+          value: (version && `v${version}`) || (builtIn && platformVersion ? `v${platformVersion}` : '–'),
+        },
+        {
+          label: t('Source'),
+          value: builtIn ? t('Built-in') : (origin && t(PAYLOAD_ORIGIN_LABELS[origin])) || '–',
+        },
         {
           label: t('Updated'),
           value: nsd(action.injector_contract_updated_at),
         },
-      ].filter((item): item is {
-        label: string;
-        value: string;
-      } => item !== null)}
+      ]}
       chips={null}
       statusRow={approvalNeedsAttention && (
         <Tooltip>
