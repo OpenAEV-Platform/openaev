@@ -162,7 +162,7 @@ POST /api/tenants/{tenantId}/scenarios/{scenarioId}/xls/{importId}/dry
 POST /api/tenants/{tenantId}/scenarios/{scenarioId}/xls/{importId}/import
 ```
 
-1. `store`, available only under the Tenant prefix, uploads the file as `multipart/form-data` in a `file` field (`.xls` or `.xlsx`, under 25 MB). It returns the `import_id` and the `available_sheets`. The file is kept until a successful `import`, for at most 60 minutes, and each user keeps at most 3 uploaded files: a new upload replaces the oldest one.
+1. `store`, available only under the Tenant prefix, uploads the file as `multipart/form-data` in a `file` field (`.xls` or `.xlsx`, under 25 MB). It returns the `import_id` and the `available_sheets`. The file is kept until a successful `import`, for at most 60 minutes.
 2. `dry` previews the Injects without saving them. `import` creates them. Both take the same body:
 
 ```json
