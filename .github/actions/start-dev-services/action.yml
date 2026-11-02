@@ -81,6 +81,7 @@ runs:
           -e RUSTFS_ACCESS_KEY=minioadmin \
           -e RUSTFS_SECRET_KEY=minioadmin \
           -e RUSTFS_OBS_LOG_DIRECTORY= \
+          -e RUSTFS_CHECK_UPDATE=false \
           "$MINIO_IMAGE"
 
         echo "🔍 Verifying containers started..."
