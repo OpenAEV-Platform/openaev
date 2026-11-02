@@ -1,7 +1,9 @@
 package io.openaev.rest.scenario;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.ScenarioSpecification.byName;
+import static io.openaev.healthcheck.utils.HealthCheckUtils.READINESS_CHECK_TIMEOUT_SECONDS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static java.time.Instant.now;
@@ -34,6 +36,7 @@ import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.helper.RestBehavior;
@@ -238,7 +241,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/healthchecks",
     TENANT_SCENARIO_URI + "/{scenarioId}/healthchecks"
   })
-  @Transactional(readOnly = true)
+  @Transactional(readOnly = true, timeout = READINESS_CHECK_TIMEOUT_SECONDS)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -259,7 +262,7 @@ public class ScenarioApi extends RestBehavior {
     SCENARIO_URI + "/{scenarioId}/expectations-drift",
     TENANT_SCENARIO_URI + "/{scenarioId}/expectations-drift"
   })
-  @Transactional(readOnly = true)
+  @Transactional(readOnly = true, timeout = READINESS_CHECK_TIMEOUT_SECONDS)
   @AccessControl(
       resourceId = "#scenarioId",
       actionPerformed = Action.READ,
@@ -594,6 +597,10 @@ public class ScenarioApi extends RestBehavior {
             || (input.getRecurrence() != null && !input.getRecurrence().isBlank());
     if (schedules) {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
+      scenario.setScheduledBy(
+          this.userRepository
+              .findById(currentUser().getId())
+              .orElseThrow(ElementNotFoundException::new));
     }
     scenario.setUpdateAttributes(input);
     return hydrateForResponse(this.scenarioService.updateScenario(scenario));
@@ -672,6 +679,10 @@ public class ScenarioApi extends RestBehavior {
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Exercise simulation;
+    User launchedBy =
+        this.userRepository
+            .findById(currentUser().getId())
+            .orElseThrow(ElementNotFoundException::new);
 
     if (workflowService.isScenarioChaining(scenarioId)) {
       // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
@@ -681,14 +692,14 @@ public class ScenarioApi extends RestBehavior {
       autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId);
       simulation =
           scenarioToExerciseService.toExercise(
-              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, launchedBy);
       workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
 
     } else {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
       simulation =
           scenarioToExerciseService.toExercise(
-              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, launchedBy);
     }
 
     return simulation;

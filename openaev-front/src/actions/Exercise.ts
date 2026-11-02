@@ -18,8 +18,8 @@ import type {
   ExerciseUpdateStartDateInput,
   ExerciseUpdateStatusInput,
   ExerciseUpdateTagsInput,
-  ExpectationUpdateInput,
   GetExercisesInput,
+  InjectExpectationUpdateFromUIInput,
   LessonsInput,
   SearchPaginationInput,
   UpdateExerciseInput,
@@ -111,7 +111,7 @@ export const updateExerciseStatus = (exerciseId: string, status: ExerciseUpdateS
   status,
 )(dispatch);
 
-export const updateInjectExpectation = (injectExpectationId: string, data: ExpectationUpdateInput) => (dispatch: AppDispatch) => putReferential(
+export const updateInjectExpectation = (injectExpectationId: string, data: InjectExpectationUpdateFromUIInput) => (dispatch: AppDispatch) => putReferential(
   schema.injectexpectation,
   `/api/expectations/${injectExpectationId}`,
   data,

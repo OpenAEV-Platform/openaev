@@ -8,9 +8,38 @@ To set up a new Collector project (template, `pyoaev` dependency, local developm
 
 1. **Register.** The Collector registers through `POST /api/collectors` and appears under **Integrations > Deployed**.
 2. **Read the expectations.** At each run, it fetches the expectations it has not answered yet. Answer them quickly to measure how fast the product responds.
-3. **Match and report.** It compares each expectation's signatures with the product's alerts, then updates the expectation with the result: prevented, detected, or not.
+3. **Match and report.** It compares each expectation's signatures with the product's alerts, then tells OpenAEV whether the attack was prevented or detected (see [Report a result](#report-a-result)).
 
 You do not need to fail late expectations yourself: the expectation expiration job of OpenAEV marks unanswered expectations as expired after a timeout (see [Platform managers](../deployment/platform/managers.md#scheduled-jobs)).
+
+## Report a result
+
+The Collector reports its result through `PUT /api/injects/expectations/{expectation_id}`, or through `PUT /api/injects/expectations/bulk` to answer several expectations in one call. The body carries the following fields:
+
+| Field | Required | Description |
+|---|---|---|
+| `collector_id` | Yes | ID of the Collector that answers. |
+| `is_success` | Yes | `true` if the product prevented or detected the attack, `false` otherwise. |
+| `metadata` | No | Key-value pairs kept on the result, such as the ID or the link of the matching alert. If the Collector answers the same expectation again without `metadata`, OpenAEV keeps the previous ones. |
+| `result` | No | **Deprecated** and ignored. |
+
+OpenAEV derives the result label from `is_success` and the expectation type: **Prevented** or **Not Prevented** for a prevention expectation, **Detected** or **Not Detected** for a detection expectation.
+
+When the Collector answers an Asset or an asset group expectation, OpenAEV applies the result to each agent expectation below it (or to the Asset itself when it has no agent), then recomputes the Asset and the asset group from their agents (see [Expectations](../usage/run-and-evaluate/expectations/expectations.md)).
+
+!!! example "Bulk call"
+
+    ```json
+    {
+      "inputs": {
+        "<expectation_id>": {
+          "collector_id": "<collector_id>",
+          "is_success": true,
+          "metadata": { "alert_id": "<alert_id>" }
+        }
+      }
+    }
+    ```
 
 ## Signatures
 

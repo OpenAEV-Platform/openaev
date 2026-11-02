@@ -13,7 +13,6 @@ import io.openaev.aop.AccessControl;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
-import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -38,17 +37,11 @@ import org.springframework.web.multipart.MultipartFile;
  *
  * <p>Covers the Nuclei injector registration OOM: {@code InjectorApi.registerInjector} passes its
  * DTO via {@code @RequestPart} (multipart, because the endpoint also accepts an icon). The aspect
- * used to only recognise {@code @RequestBody}, so the payload fell through to the {@code signature}
- * node — which, unlike {@code input}, was not size-capped by {@code ObjectNormalizationUtils} at
- * the time (it now is). The full, uncapped contract payload was then deep-copied several times and
- * queued on the bounded audit executor, exhausting the heap.
+ * used to only recognise {@code @RequestBody}, so the payload was not captured as {@code input}.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AccessControlAuditLogAspect — request payload resolution")
 class AccessControlAuditLogAspectPayloadTest {
-
-  /** Marker written into the signature node in place of the (already captured) payload. */
-  private static final String PAYLOAD_PLACEHOLDER = "@RequestBody";
 
   private static final String PAYLOAD_NAME = "Nuclei";
 
@@ -59,7 +52,6 @@ class AccessControlAuditLogAspectPayloadTest {
   private AccessControlAuditLogAspect aspect;
 
   private ArgumentCaptor<JsonNode> inputCaptor;
-  private ArgumentCaptor<JsonNode> signatureCaptor;
 
   /** Payload DTO standing in for {@code InjectorCreateInput}. */
   record PayloadInput(String name, String type) {}
@@ -83,9 +75,6 @@ class AccessControlAuditLogAspectPayloadTest {
     @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)
     void createWithFileOnly(@RequestPart("icon") MultipartFile file) {}
 
-    @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.INJECTOR)
-    void createWithServletRequest(@RequestBody PayloadInput input, HttpServletRequest request) {}
-
     @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.INJECTOR)
     void deleteWithRequestBody(@RequestBody PayloadInput input) {}
   }
@@ -98,20 +87,19 @@ class AccessControlAuditLogAspectPayloadTest {
             auditLogger, objectMapper, new AuditObjectMapper(objectMapper));
 
     inputCaptor = ArgumentCaptor.forClass(JsonNode.class);
-    signatureCaptor = ArgumentCaptor.forClass(JsonNode.class);
 
     lenient().when(auditLogger.isAuditLoggingEnabled()).thenReturn(true);
     lenient().when(auditLogger.isAuditLoggingValid(any())).thenReturn(true);
     lenient()
         .when(
             auditLogger.logAccessControlEvent(
-                any(), any(), any(), anyString(), any(), any(), any(), any()))
+                any(), any(), any(), anyString(), any(), any(), any()))
         .thenReturn(CompletableFuture.completedFuture(true));
   }
 
   /**
    * Wires the mocked join point onto the given fixture method and runs the aspect, then captures
-   * the {@code input} and {@code signature} nodes handed to the audit logger.
+   * the {@code input} node handed to the audit logger.
    */
   private void invokeAspect(String methodName, String[] paramNames, Object... args)
       throws Throwable {
@@ -124,8 +112,6 @@ class AccessControlAuditLogAspectPayloadTest {
     when(joinPoint.getSignature()).thenReturn(methodSignature);
     when(methodSignature.getMethod()).thenReturn(method);
     lenient().when(methodSignature.getParameterNames()).thenReturn(paramNames);
-    lenient().when(methodSignature.getDeclaringTypeName()).thenReturn(SampleApi.class.getName());
-    lenient().when(methodSignature.getName()).thenReturn(methodName);
     when(joinPoint.getArgs()).thenReturn(args);
     when(joinPoint.proceed()).thenReturn("ok");
 
@@ -139,12 +125,7 @@ class AccessControlAuditLogAspectPayloadTest {
             anyString(),
             inputCaptor.capture(),
             any(),
-            signatureCaptor.capture(),
             any());
-  }
-
-  private JsonNode signatureParam(String paramName) {
-    return signatureCaptor.getValue().path("parameters").path(paramName);
   }
 
   @Nested
@@ -152,8 +133,8 @@ class AccessControlAuditLogAspectPayloadTest {
   class PayloadAnnotationDetection {
 
     @Test
-    @DisplayName("@RequestPart payload is captured as input, not duplicated into signature")
-    void given_requestPartPayload_should_captureInputAndPlaceholderInSignature() throws Throwable {
+    @DisplayName("@RequestPart payload is captured as input")
+    void given_requestPartPayload_should_captureInput() throws Throwable {
       // Arrange
       PayloadInput payload = new PayloadInput(PAYLOAD_NAME, "openaev_nuclei");
 
@@ -164,18 +145,14 @@ class AccessControlAuditLogAspectPayloadTest {
           payload,
           Optional.<MultipartFile>empty());
 
-      // Assert — the payload lands in `input` (which IS size-capped downstream)
+      // Assert
       assertThat(inputCaptor.getValue()).isNotNull();
       assertThat(inputCaptor.getValue().path("name").asText()).isEqualTo(PAYLOAD_NAME);
-
-      // Assert — and is NOT re-serialized into the (uncapped) signature node
-      assertThat(signatureParam("input").asText()).isEqualTo(PAYLOAD_PLACEHOLDER);
-      assertThat(signatureCaptor.getValue().toString()).doesNotContain("openaev_nuclei");
     }
 
     @Test
     @DisplayName("@RequestBody payload is still captured as input (non-regression)")
-    void given_requestBodyPayload_should_captureInputAndPlaceholderInSignature() throws Throwable {
+    void given_requestBodyPayload_should_captureInput() throws Throwable {
       // Arrange
       PayloadInput payload = new PayloadInput(PAYLOAD_NAME, "openaev_nuclei");
 
@@ -184,7 +161,6 @@ class AccessControlAuditLogAspectPayloadTest {
 
       // Assert
       assertThat(inputCaptor.getValue().path("name").asText()).isEqualTo(PAYLOAD_NAME);
-      assertThat(signatureParam("input").asText()).isEqualTo(PAYLOAD_PLACEHOLDER);
     }
 
     @Test
@@ -198,7 +174,6 @@ class AccessControlAuditLogAspectPayloadTest {
 
       // Assert
       assertThat(inputCaptor.getValue().path("name").asText()).isEqualTo(PAYLOAD_NAME);
-      assertThat(signatureParam("input").asText()).isEqualTo(PAYLOAD_PLACEHOLDER);
     }
 
     @Test
@@ -217,64 +192,6 @@ class AccessControlAuditLogAspectPayloadTest {
   }
 
   @Nested
-  @DisplayName("Non-serializable arguments")
-  class NonSerializableArguments {
-
-    @Test
-    @DisplayName("a MultipartFile is logged by class name, never as a base64 blob")
-    void given_multipartFileArgument_should_logClassNameOnly() throws Throwable {
-      // Arrange — a payload big enough that base64-serializing it would be visible
-      byte[] content = new byte[4096];
-      java.util.Arrays.fill(content, (byte) 'A');
-      MultipartFile icon = new MockMultipartFile("icon", "icon.png", "image/png", content);
-
-      // Act
-      invokeAspect(
-          "createWithRequestPart",
-          new String[] {"input", "file"},
-          new PayloadInput(PAYLOAD_NAME, "openaev_nuclei"),
-          Optional.of(icon));
-
-      // Assert
-      assertThat(signatureParam("file").asText())
-          .isEqualTo(MockMultipartFile.class.getSimpleName());
-      assertThat(signatureCaptor.getValue().toString()).doesNotContain("AAAA");
-    }
-
-    @Test
-    @DisplayName("an empty Optional does not break signature serialization")
-    void given_emptyOptionalFile_should_serializeSignatureWithoutError() throws Throwable {
-      // Arrange / Act
-      invokeAspect(
-          "createWithRequestPart",
-          new String[] {"input", "file"},
-          new PayloadInput(PAYLOAD_NAME, "openaev_nuclei"),
-          Optional.<MultipartFile>empty());
-
-      // Assert
-      assertThat(signatureCaptor.getValue()).isNotNull();
-      assertThat(signatureCaptor.getValue().path("parameters").has("file")).isTrue();
-    }
-
-    @Test
-    @DisplayName("an HttpServletRequest argument is logged by class name")
-    void given_httpServletRequestArgument_should_logClassNameOnly() throws Throwable {
-      // Arrange
-      HttpServletRequest request = new org.springframework.mock.web.MockHttpServletRequest();
-
-      // Act
-      invokeAspect(
-          "createWithServletRequest",
-          new String[] {"input", "request"},
-          new PayloadInput(PAYLOAD_NAME, "openaev_nuclei"),
-          request);
-
-      // Assert
-      assertThat(signatureParam("request").asText()).isEqualTo("MockHttpServletRequest");
-    }
-  }
-
-  @Nested
   @DisplayName("Event scope filtering")
   class EventScopeFiltering {
 
@@ -289,36 +206,6 @@ class AccessControlAuditLogAspectPayloadTest {
 
       // Assert
       assertThat(inputCaptor.getValue()).isNull();
-    }
-  }
-
-  @Nested
-  @DisplayName("Signature node shape")
-  class SignatureNodeShape {
-
-    @Test
-    @DisplayName("the signature always carries the fully qualified method name")
-    void given_anyAuditedMethod_should_includeMethodName() throws Throwable {
-      // Arrange / Act
-      invokeAspect(
-          "createWithRequestBody",
-          new String[] {"input"},
-          new PayloadInput(PAYLOAD_NAME, "openaev_nuclei"));
-
-      // Assert
-      assertThat(signatureCaptor.getValue().path("method").asText())
-          .isEqualTo(SampleApi.class.getName() + ".createWithRequestBody");
-    }
-
-    @Test
-    @DisplayName("a null parameter name array yields an empty parameters node")
-    void given_missingParameterNames_should_produceEmptyParameters() throws Throwable {
-      // Arrange / Act
-      invokeAspect("createWithRequestBody", null, new PayloadInput(PAYLOAD_NAME, "openaev_nuclei"));
-
-      // Assert
-      assertThat(signatureCaptor.getValue().path("parameters"))
-          .isEqualTo(new ObjectMapper().createObjectNode());
     }
   }
 }

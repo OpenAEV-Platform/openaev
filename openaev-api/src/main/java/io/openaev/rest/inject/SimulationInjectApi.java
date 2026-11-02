@@ -9,6 +9,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.comparator.InjectExecutionComparator;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -40,6 +41,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -145,7 +147,7 @@ public class SimulationInjectApi extends RestBehavior {
       TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
     List<Inject> injects =
         injectRepository.findByExerciseId(exerciseId).stream()
-            .sorted(Inject.executionComparator)
+            .sorted(new InjectExecutionComparator(Instant.now()))
             .toList();
     KillChainPhaseInitializer.initializeFromInjects(injects);
     InjectLinksInitializer.initialize(injects);

@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Inject;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -264,10 +263,12 @@ public class InjectUtils {
     return inject.getExpectations().stream()
         .filter(
             expectation -> {
+              // A player targeted outside of any team (chaining scope player) is its own leaf
               boolean teamMatch =
                   expectation instanceof TableTopInjectExpectation tableTopInjectExpectation
-                      && tableTopInjectExpectation.getTeam() != null
-                      && firstIds.contains(tableTopInjectExpectation.getTeam().getId());
+                      && (tableTopInjectExpectation.getTeam() != null
+                          ? firstIds.contains(tableTopInjectExpectation.getTeam().getId())
+                          : tableTopInjectExpectation.getUser() != null);
               boolean assetMatch =
                   expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
                       && isAssetExpectation(technicalInjectExpectation)
@@ -362,11 +363,17 @@ public class InjectUtils {
 
     duplicatedInject.setExercise(injectOrigin.getExercise());
     duplicatedInject.setScenario(injectOrigin.getScenario());
+    duplicatedInject.setSecretReferences(new ArrayList<>(injectOrigin.getSecretReferences()));
     // Carry the recurrence schedule forward so a scheduled atomic testing keeps relaunching after
     // each occurrence (relaunch = duplicate + delete old).
     duplicatedInject.setRecurrence(injectOrigin.getRecurrence());
     duplicatedInject.setRecurrenceStart(injectOrigin.getRecurrenceStart());
     duplicatedInject.setRecurrenceEnd(injectOrigin.getRecurrenceEnd());
+    duplicatedInject.setScheduledBy(injectOrigin.getScheduledBy());
+    // launchedBy is deliberately NOT copied here: it must reflect whoever is relaunching THIS
+    // occurrence, not the previous launcher. The caller (InjectService.doRelaunch) stamps it
+    // explicitly right after duplication - never let it fall through as a silent copy the way
+    // `user` and the recurrence fields above intentionally do.
     return duplicatedInject;
   }
 

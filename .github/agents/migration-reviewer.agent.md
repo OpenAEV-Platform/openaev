@@ -39,8 +39,8 @@ Additional migration-specific levels:
 | Severity | Migration-specific criteria |
 |---|---|
 | 🔴 **CRITICAL** | `DROP TABLE` / `DROP COLUMN` without deprecation migration, `NOT NULL` without `DEFAULT` on populated table, modified existing migration (Flyway checksum break), missing `tenant_id` on new tenant-scoped table |
-| 🟠 **HIGH** | Missing `IF NOT EXISTS` / `IF EXISTS` guards, unique constraint without `tenant_id` on tenant-scoped table, missing FK `ON DELETE CASCADE` on tenant FK, missing index on `tenant_id` |
-| 🟡 **MEDIUM** | Large data migration not batched (>1000 rows), missing `DELETE FROM indexing_status` after ES-indexed entity change, invalid migration naming format |
+| 🟠 **HIGH** | Missing `IF NOT EXISTS` / `IF EXISTS` guards, unique constraint without `tenant_id` on tenant-scoped table, missing FK `ON DELETE CASCADE` on tenant FK, missing index on `tenant_id`, `DELETE FROM indexing_status` used to rebuild a search index (lost on a rolling deploy) |
+| 🟡 **MEDIUM** | Large data migration not batched (>1000 rows), missing search index rebuild (re-feed or reset) after a change to an indexed model's data, invalid migration naming format |
 | 🟢 **LOW** | Non-descriptive migration name, minor style inconsistency |
 
 ## What NOT to Flag
@@ -48,7 +48,8 @@ Additional migration-specific levels:
 In addition to **Shared Exceptions** in `AGENTS.md`:
 
 - `DEFAULT` on a new column with no existing rows — idempotency concern applies to populated tables only
-- `DELETE FROM indexing_status` absence when the entity is NOT indexed in Elasticsearch
+- A missing search index rebuild when the entity is NOT indexed (no `@Indexable` model reads it), or when the change only adds a field to an indexed model (the drivers add it at boot)
+- `DELETE FROM indexing_status` in migrations released before this PR — only flag new ones
 - Numeric gaps in migration sequence that predate this PR — only flag gaps introduced by this PR
 - SQL style differences (single vs double quotes, uppercase vs lowercase SQL keywords)
 
@@ -62,7 +63,7 @@ The SKILL covers:
 3. **Idempotency** — `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `DROP TABLE IF EXISTS`, `CREATE INDEX IF NOT EXISTS`
 4. **Tenant isolation** — `tenant_id NOT NULL`, FK with `ON DELETE CASCADE`, index on `tenant_id`, composite unique constraints
 5. **Data safety** — `NOT NULL` with `DEFAULT`, large migrations batched in chunks of 1000, no `DROP` without prior deprecation migration
-6. **Elasticsearch reindex** — `DELETE FROM indexing_status` present when the modified table is ES-indexed
+6. **Search index rebuild** — re-feed in place or reset with the sentinel when the modified data is indexed, matching the need, and never `DELETE FROM indexing_status`
 
 ## Output Format
 

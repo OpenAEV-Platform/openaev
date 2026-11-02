@@ -1,6 +1,7 @@
 package io.openaev.utils.fixtures.composers;
 
 import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.TableTopInjectExpectation;
 import io.openaev.database.model.TechnicalInjectExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -53,6 +54,12 @@ public class InjectExpectationComposer extends ComposerBase<BaseInjectExpectatio
       TechnicalInjectExpectation technical = asTechnical();
       technical.setAgent(agentComposer.get());
       technical.setAsset(agentComposer.get().getAsset());
+      return this;
+    }
+
+    // FIXME: make this persistable
+    public Composer withResult(InjectExpectationResult result) {
+      this.baseInjectExpectation.addResult(result);
       return this;
     }
 

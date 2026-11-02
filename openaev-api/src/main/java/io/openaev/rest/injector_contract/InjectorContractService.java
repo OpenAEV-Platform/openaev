@@ -67,6 +67,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -113,16 +114,28 @@ public class InjectorContractService implements DependenciesManager {
   private final StepRepository stepRepository;
   private final ChainingStepCleanupService chainingStepCleanupService;
 
-  private final List<String> listDefaultInjectorContract =
+  /**
+   * Built-in contracts whose injectors start with the platform through an autostart instance, so
+   * the default tenant always holds them.
+   */
+  private static final List<String> REQUIRED_DEFAULT_CONTRACTS =
       List.of(
           EmailContract.EMAIL_GLOBAL,
           EmailContract.EMAIL_DEFAULT,
           ChallengeContract.CHALLENGE_PUBLISH,
-          OvhSmsContract.OVH_DEFAULT,
           ManualContract.MANUAL_DEFAULT,
-          ChannelContract.CHANNEL_PUBLISH,
+          ChannelContract.CHANNEL_PUBLISH);
+
+  /** Built-in contracts the default tenant holds only once their connector is configured there. */
+  private static final List<String> OPTIONAL_DEFAULT_CONTRACTS =
+      List.of(
+          OvhSmsContract.OVH_DEFAULT,
           OpenCTIContract.OPENCTI_CREATE_CASE,
           OpenCTIContract.OPENCTI_CREATE_REPORT);
+
+  private final List<String> listDefaultInjectorContract =
+      Stream.concat(REQUIRED_DEFAULT_CONTRACTS.stream(), OPTIONAL_DEFAULT_CONTRACTS.stream())
+          .toList();
 
   /** Configuration flag for enabling email import from XLS files. */
   @Value("${openaev.xls.import.mail.enable}")
@@ -596,11 +609,11 @@ public class InjectorContractService implements DependenciesManager {
    * pass-through for {@code InjectorContractRepository#findContractTenantPairsByPayloadId} so
    * consumers outside this service (the payload-delete path) never touch the repository directly.
    *
-   * <p>The result deliberately spans all tenants so the payload-delete path sweeps exactly what the
-   * database cascade removes, each tenant with its own tenant-scoped call. {@code
-   * injector_contract_payload_unique} allows one contract per payload per tenant, so the map
-   * normally holds one entry; the grouped shape keeps the delete path correct when a contract of
-   * another tenant references the same payload, which the schema does not prevent.
+   * <p>The result covers the tenants the caller's scope can read, each swept with its own
+   * tenant-scoped call. {@code injector_contract_payload_unique} allows one contract per payload
+   * per tenant, so the map normally holds one entry. A contract of another tenant referencing the
+   * same payload, which the schema does not prevent yet, is removed by the database cascade but its
+   * steps are not swept.
    *
    * @param payloadId the payload whose contract ids are resolved
    * @return contract ids grouped by tenant id, empty when the payload backs no contract
@@ -1318,43 +1331,26 @@ public class InjectorContractService implements DependenciesManager {
     return counts;
   }
 
+  /**
+   * The built-in contracts are NOT copied from the default tenant. A tenant's own built-in
+   * injectors register them from their code declarations later in the same onboarding, through
+   * {@code ManagerFactory}, which declares this manager as a prerequisite. The optional ones (OVH,
+   * OpenCTI) appear once their connector is configured for that tenant, which is what they mean.
+   *
+   * <p>Copying them instead read the default tenant's rows across the tenant boundary and carried
+   * its link ids into the new tenant. No data pack consumes a contract between the two steps, so
+   * there is nothing to bridge.
+   */
   @Override
-  public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
-    try {
-      int copied = 0;
-      for (String injectorContractId : listDefaultInjectorContract) {
-        InjectorContractId compositeId =
-            new InjectorContractId(injectorContractId, Tenant.DEFAULT_TENANT_UUID);
-        InjectorContract source = entityManager.find(InjectorContract.class, compositeId);
-        if (source == null) {
-          continue; // contract does not exist for the current tenant — skip
-        }
-        entityManager.detach(source);
-        source.setTenant(tenant);
-        // Provision the default contracts only. The injector rows for this tenant do not exist yet
-        // (built-in injectors register later, in the ManagerFactory round), so cascading the join
-        // rows here would reference a missing injector and violate the composite foreign key
-        // injectors_injector_contracts_injector_fk. Injector registration recreates the links
-        // FK-safely once its own injector row is in place. Replace the collection with a fresh list
-        // (instead of clearing it) so orphanRemoval does not schedule a delete of the detached
-        // default-tenant links loaded with the source.
-        source.setInjectorLinks(new ArrayList<>());
-        entityManager.persist(source);
-        copied++;
-      }
-      log.info(
-          "Provisioned {} default injector contract(s) for tenant {}; their join rows are "
-              + "(re)created during builtin injector registration",
-          copied,
-          tenant.getId());
-    } catch (Exception e) {
-      log.error(
-          "Failed to create default injector contracts for tenant {}: {}",
-          tenant.getId(),
-          e.getMessage());
-      throw new DependenciesManagerException(
-          "Failed to create default injector contracts for tenant " + tenant.getName(), e);
-    }
+  public void createDependencyForTenant(Tenant tenant) {
+    // Nothing to provision: see the javadoc above.
+  }
+
+  @Override
+  public List<Class<? extends DependenciesManager>> getPrerequisite() {
+    // Nothing to order against: this manager provisions no contract. The dependency on
+    // DomainService existed only so the copies could relink to the new tenant's domains.
+    return List.of();
   }
 
   @Override

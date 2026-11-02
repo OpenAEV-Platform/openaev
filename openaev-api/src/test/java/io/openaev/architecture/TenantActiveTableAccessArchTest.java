@@ -242,6 +242,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.custom_domain.CustomDomainPublicLookupService;
 import io.openaev.service.expectation.ChallengeBehavior;
+import io.openaev.service.finding.FindingValueDisplayBackfill;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
 import io.openaev.service.notification.NotificationService;
@@ -576,13 +577,14 @@ class TenantActiveTableAccessArchTest {
               // to another tenant does not come back, and the size mismatch becomes a 404 rather
               // than a silent partial assignment.
               //
-              // 🔴 The inspector is NOT relied on alone here, and the reason is worth knowing: it
-              // can only rewrite a query that is actually issued, so an entity already in the
-              // persistence context is served from Hibernate's first-level cache and never
-              // filtered (TenantGroupMarkingsApiTest demonstrates exactly this). The independent
-              // guarantee is MarkingEscalationValidator — a clearance is per tenant, so nobody
-              // holds another tenant's marking and the assignment is refused regardless. Pinned by
-              // TenantGroupMarkingsApiTest:
+              // 🔴 The inspector is NOT relied on alone here. In the configuration
+              // TenantGroupMarkingsApiTest actually exercises, marking_definitions is left ungated
+              // and the escalation guard alone refuses the foreign marking; under the table's real,
+              // unconditionally-active configuration the inspector also rewrites this same
+              // findAllById, and the foreign row never comes back before the escalation guard is
+              // reached. Either way the assignment is refused, since a clearance is per tenant. See
+              // that test's own comment for the confirmed behavior under both configurations.
+              // Pinned by TenantGroupMarkingsApiTest:
               TenantGroupService.class,
               // Resolves the markings an asset is being labelled with. Same shape as
               // TenantGroupService above: HTTP path, inside a @Transactional method taking a TxCtx,
@@ -1470,7 +1472,10 @@ class TenantActiveTableAccessArchTest {
               FindingHandler.class,
               VulnerableEndpointHandler.class,
               // Telemetry gauge, explicitly TxCtx.allTenants() (ProductInventoryTenantScopeTest).
-              ProductInventoryMetricCollector.class)
+              ProductInventoryMetricCollector.class,
+              // One pass after an upgrade over every tenant's findings, each batch in
+              // TxCtx.allTenants() (FindingValueDisplayBackfillTest).
+              FindingValueDisplayBackfill.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(FindingRepository.class)
@@ -1581,6 +1586,7 @@ class TenantActiveTableAccessArchTest {
                   + " silently sees zero rows. New callers must run inside a scoped transaction"
                   + " and be allowlisted here");
 
+  @ArchTest
   static final ArchRule autonomous_runs_repository_access_is_reviewed =
       noClasses()
           .that()
@@ -2250,7 +2256,8 @@ class TenantActiveTableAccessArchTest {
               // fail-closed on an empty one:
               io.openaev.service.TeamService.class,
               // Services behind the entrypoints above; their team reads run in the scoped
-              // transaction the entrypoint opened:
+              // transaction the entrypoint opened, except ExerciseService's isolated team
+              // enablement, which opens its own and is scoped by the TxCtx its caller passes:
               io.openaev.rest.exercise.service.ExerciseService.class,
               io.openaev.rest.finding.FindingService.class,
               io.openaev.rest.inject.service.InjectService.class,
@@ -2287,6 +2294,7 @@ class TenantActiveTableAccessArchTest {
               "teams is tenant-active: an accessor without a tenant scope silently reads zero rows."
                   + " New accessors must carry a scope and be allowlisted here");
 
+  @ArchTest
   static final ArchRule autonomous_objective_templates_repository_access_is_reviewed =
       noClasses()
           .that()

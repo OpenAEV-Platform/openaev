@@ -17,6 +17,7 @@ package io.openaev.ee;
 
 import static io.openaev.database.model.SettingKeys.PLATFORM_ENTERPRISE_LICENSE;
 import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE;
+import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE_CREATION;
 import static io.openaev.ee.Pem.*;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_NAME;
 import static io.openaev.integration.impl.executors.crowdstrike.CrowdStrikeExecutorIntegration.CROWDSTRIKE_EXECUTOR_TYPE;
@@ -33,6 +34,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.rest.exception.LicenseRestrictionException;
+import io.openaev.utils.InstanceCreationDate;
 import jakarta.annotation.Resource;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.*;
@@ -96,8 +98,7 @@ public class EnterpriseEditionService {
     throw new UnsupportedOperationException("No attribute found for " + variable);
   }
 
-  public static boolean verifyCertificate(
-      X509Certificate certToVerify, X509Certificate trustedCaCert) {
+  public boolean verifyCertificate(X509Certificate certToVerify, X509Certificate trustedCaCert) {
     try {
       TrustAnchor trustAnchor = new TrustAnchor(trustedCaCert, null);
       Set<TrustAnchor> trustAnchors = Collections.singleton(trustAnchor);
@@ -130,10 +131,18 @@ public class EnterpriseEditionService {
     }
     X509Certificate caCert = getCaCert();
     boolean verifyCertificate = verifyCertificate(x509License, caCert);
+    if (!verifyCertificate) {
+      // Not an OpenAEV license: a Filigran license installed as this platform's own license
+      Optional<License> filigranLicense =
+          filigranLicense(certificatePem, instanceId, isLicenseByConfig, Instant.now());
+      if (filigranLicense.isPresent()) {
+        return filigranLicense.get();
+      }
+    }
     License license = new License();
     license.setLicenseByConfiguration(isLicenseByConfig);
     license.setLicenseEnterprise(true);
-    license.setValidCert(true);
+    license.setValidCert(verifyCertificate);
     String licenseType = getExtension(x509License, LICENSE_OPTION_TYPE);
     license.setType(LicenseTypeEnum.valueOf(licenseType));
     boolean isValidProduct =
@@ -170,6 +179,36 @@ public class EnterpriseEditionService {
       }
     }
     return license;
+  }
+
+  /**
+   * A Filigran license installed as this platform's own license, verified as XTM One verifies it
+   * ({@link XtmLicenseVerifier}: the XTM CA pinned in this build, the {@code filigran xtm} product,
+   * {@code global} or this platform's id in the OpenAEV sub-license, XTM One's validity rule).
+   *
+   * @return the license it stands for, or empty when the certificate is not a Filigran license that
+   *     covers this platform
+   */
+  Optional<License> filigranLicense(
+      String certificatePem, String instanceId, boolean isLicenseByConfig, Instant now) {
+    try {
+      XtmLicense verified =
+          XtmLicenseVerifier.verify(
+              certificatePem, instanceId, findInstanceCreationDate().orElse(null), now);
+      License license = verified.toLicense(now, LicenseSource.filigran);
+      license.setLicenseByConfiguration(isLicenseByConfig);
+      return Optional.of(license);
+    } catch (XtmLicenseException e) {
+      log.debug("The license is not a Filigran license covering this platform: {}", e.getMessage());
+      return Optional.empty();
+    }
+  }
+
+  private Optional<Instant> findInstanceCreationDate() {
+    return this.settingRepository
+        .findByKeyAndTenantIsNull(PLATFORM_INSTANCE_CREATION.key())
+        .map(Setting::getValue)
+        .flatMap(InstanceCreationDate::parse);
   }
 
   public boolean isLicenseActive(License license) {

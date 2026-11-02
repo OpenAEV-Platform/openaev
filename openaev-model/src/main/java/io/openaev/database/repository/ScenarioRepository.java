@@ -220,9 +220,9 @@ public interface ScenarioRepository
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
 
-  // Keep the tag aggregation CTE name distinct from the real `tags` table: once `tags` became a
-  // v2-active tenant-scoped table, reusing `tags` as a CTE name in this native query collided with
-  // the tenant SQL inspector's relation-name matching and broke tenant-path scenario reads.
+  // Keep every CTE name distinct from a real table name (hence `exercises_agg` and
+  // `scenario_tags_agg`): the tenant SQL inspector matches relations by name, so a CTE named
+  // after a v2-active table is rewritten as that table and PostgreSQL refuses the statement.
   @Query(
       value =
           "WITH "
@@ -241,7 +241,7 @@ public interface ScenarioRepository
               + "  WHERE scenario_id = :scenarioId "
               + "  GROUP BY scenario_id "
               + "), "
-              + "exercises AS ( "
+              + "exercises_agg AS ( "
               + "  SELECT scenario_id, "
               + "         array_agg(DISTINCT exercise_id) FILTER (WHERE exercise_id IS NOT NULL) AS scenario_exercises "
               + "  FROM scenarios_exercises "
@@ -316,7 +316,7 @@ public interface ScenarioRepository
               + "FROM scenarios s "
               + "LEFT JOIN all_users au ON au.scenario_id = s.scenario_id "
               + "LEFT JOIN scenario_users su ON su.scenario_id = s.scenario_id "
-              + "LEFT JOIN exercises ex ON ex.scenario_id = s.scenario_id "
+              + "LEFT JOIN exercises_agg ex ON ex.scenario_id = s.scenario_id "
               + "LEFT JOIN kill_chain kc ON kc.scenario_id = s.scenario_id "
               + "LEFT JOIN platforms pf ON pf.scenario_id = s.scenario_id "
               + "LEFT JOIN workflow_platforms wpf ON wpf.scenario_id = s.scenario_id "

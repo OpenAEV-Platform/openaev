@@ -35,7 +35,7 @@ description: "Database conventions: schema naming, Flyway migrations, PostgreSQL
 - Use `context.getConnection().createStatement()` for raw SQL
 - Batch: `statement.addBatch(...)` then `statement.executeBatch()`
 - Default tenant UUID: `2cffad3a-0001-4078-b0e2-ef74274022c3`
-- For ES reindex: add a migration that deletes from `indexing_status`
+- For a search index rebuild: re-feed in place or reset with the sentinel, never `DELETE FROM indexing_status` (see rule 6 of `migration.instructions.md`)
 
 ## Multi-tenancy
 

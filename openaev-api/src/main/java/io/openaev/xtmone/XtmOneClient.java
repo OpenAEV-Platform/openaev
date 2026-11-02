@@ -282,8 +282,18 @@ public class XtmOneClient {
     };
   }
 
-  @SuppressWarnings("unchecked")
   public Map<String, Object> createChatSession(String agentSlug, String conversationId) {
+    return createChatSession(agentSlug, conversationId, false);
+  }
+
+  /**
+   * Creates or restores a chat session. {@code supportsArtifacts} says the chatbot renders the
+   * decks, reports and videos of the restored answers itself: XTM One then keeps their markers and
+   * describes them ({@code artifacts}); otherwise it turns the markers into links.
+   */
+  @SuppressWarnings("unchecked")
+  public Map<String, Object> createChatSession(
+      String agentSlug, String conversationId, boolean supportsArtifacts) {
     if (!config.isConfigured()) {
       return null;
     }
@@ -292,6 +302,7 @@ public class XtmOneClient {
       Map<String, Object> body = new HashMap<>();
       if (agentSlug != null) body.put("agent_slug", agentSlug);
       if (conversationId != null) body.put("conversation_id", conversationId);
+      if (supportsArtifacts) body.put("supports_artifacts", true);
       String json = objectMapper.writeValueAsString(body);
 
       HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/sessions", jwt, json);
@@ -946,6 +957,110 @@ public class XtmOneClient {
   }
 
   /**
+   * Describes a deck, report or video an answer made, as of now (the chatbot follows a video whose
+   * render was still running). Upstream status codes are propagated as {@link
+   * ResponseStatusException}: XTM One answers 404 for anything the user may not read.
+   *
+   * @param kind {@code presentation}, {@code report} or {@code video} (validated by the caller)
+   * @param artifactId the artifact id (validated as a UUID by the caller)
+   */
+  public JsonNode getChatArtifact(String kind, String artifactId) {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      HttpGet httpGet =
+          chatGetBuilder("/api/v1/platform/chat/artifacts/" + kind + "/" + artifactId, jwt);
+      httpGet.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofSeconds(10)).build());
+
+      return httpClient.execute(
+          httpGet,
+          response -> {
+            if (response.getCode() == 200) {
+              return objectMapper.readTree(EntityUtils.toString(response.getEntity()));
+            }
+            throw mapUpstreamErrorPreservingStatus(response);
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      if (e.getCause() instanceof ResponseStatusException rse) {
+        throw rse;
+      }
+      log.warn("[XTM One] Chat artifact read error, kind={}, id={}.", kind, artifactId, e);
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE,
+          "[XTM One] Unexpected error while reading the artifact",
+          e);
+    }
+  }
+
+  /** Receives the file of an artifact: its content headers, then its body to copy. */
+  @FunctionalInterface
+  public interface ArtifactSink {
+    void accept(String contentType, String contentDisposition, long contentLength, InputStream body)
+        throws IOException;
+  }
+
+  /**
+   * Downloads the file of a deck ({@code pdf}, {@code pptx}, {@code pptx_native}), a report ({@code
+   * pdf}) or a video ({@code mp4}) an answer made, on behalf of the current user. XTM One exports a
+   * deck or a report on the spot; a video's current render can be large, so the body is handed to
+   * {@code sink} as a stream rather than buffered. Upstream status codes are propagated as {@link
+   * ResponseStatusException} before {@code sink} is called.
+   *
+   * @param kind {@code presentation}, {@code report} or {@code video} (validated by the caller)
+   * @param artifactId the artifact id (validated as a UUID by the caller)
+   * @param format one of the formats the artifact's descriptor lists (validated by the caller)
+   */
+  public void downloadChatArtifact(
+      String kind, String artifactId, String format, ArtifactSink sink) {
+    if (!config.isConfigured()) {
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Service is not configured");
+    }
+    try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
+      String jwt = issueJwtForCurrentUser();
+      String json = objectMapper.writeValueAsString(Map.of("format", format));
+      HttpPost httpPost =
+          chatPostBuilder(
+              "/api/v1/platform/chat/artifacts/" + kind + "/" + artifactId + "/download",
+              jwt,
+              json);
+      // A deck export renders in a headless browser before the first byte arrives.
+      httpPost.setConfig(RequestConfig.custom().setResponseTimeout(Timeout.ofMinutes(5)).build());
+
+      httpClient.execute(
+          httpPost,
+          response -> {
+            if (response.getCode() != 200 || response.getEntity() == null) {
+              throw mapUpstreamErrorPreservingStatus(response);
+            }
+            var disposition = response.getFirstHeader("Content-Disposition");
+            try (InputStream body = response.getEntity().getContent()) {
+              sink.accept(
+                  response.getEntity().getContentType(),
+                  disposition != null ? disposition.getValue() : null,
+                  response.getEntity().getContentLength(),
+                  body);
+            }
+            return null;
+          });
+    } catch (ResponseStatusException e) {
+      throw e;
+    } catch (Exception e) {
+      if (e.getCause() instanceof ResponseStatusException rse) {
+        throw rse;
+      }
+      log.warn("[XTM One] Chat artifact download error, kind={}, id={}.", kind, artifactId, e);
+      throw new ResponseStatusException(
+          HttpStatus.SERVICE_UNAVAILABLE, "[XTM One] Artifact download failed", e);
+    }
+  }
+
+  /**
    * Streams a chat message response from XTM One. The provided consumer receives the SSE input
    * stream and is responsible for reading it. The HTTP client and stream are automatically closed
    * when the consumer returns or throws.
@@ -994,6 +1109,24 @@ public class XtmOneClient {
       Map<String, Object> context,
       boolean supportsToolApproval,
       StreamConsumer streamConsumer) {
+    streamChatMessage(
+        content, conversationId, agentSlug, context, supportsToolApproval, false, streamConsumer);
+  }
+
+  /**
+   * Same as {@link #streamChatMessage(String, String, String, Map, boolean, StreamConsumer)},
+   * forwarding whether the chatbot renders the decks, reports and videos of the answer itself
+   * ({@code supports_artifacts}): XTM One then keeps their markers and describes them in the {@code
+   * done} event; otherwise it streams no marker and turns them into links.
+   */
+  public void streamChatMessage(
+      String content,
+      String conversationId,
+      String agentSlug,
+      Map<String, Object> context,
+      boolean supportsToolApproval,
+      boolean supportsArtifacts,
+      StreamConsumer streamConsumer) {
     if (!config.isConfigured()) {
       log.warn("[XTM One] Chat message skipped: not configured");
       return;
@@ -1006,6 +1139,7 @@ public class XtmOneClient {
       if (agentSlug != null) body.put("agent_slug", agentSlug);
       if (context != null && !context.isEmpty()) body.put("context", context);
       if (supportsToolApproval) body.put("supports_tool_approval", true);
+      if (supportsArtifacts) body.put("supports_artifacts", true);
       String json = objectMapper.writeValueAsString(body);
 
       HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/messages", jwt, json);

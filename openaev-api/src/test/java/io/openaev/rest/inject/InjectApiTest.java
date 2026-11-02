@@ -103,6 +103,7 @@ class InjectApiTest extends IntegrationTest {
   static Team TEAM;
   static Agent AGENT;
   @Resource protected ObjectMapper mapper;
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private EntityManager entityManager;
   @Autowired private ScenarioService scenarioService;
@@ -156,8 +157,10 @@ class InjectApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(Tenant.DEFAULT_TENANT_UUID);
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(Tenant.DEFAULT_TENANT_UUID);
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, Tenant.DEFAULT_TENANT_UUID);
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, Tenant.DEFAULT_TENANT_UUID);
     managerFactory.getManager(Tenant.DEFAULT_TENANT_UUID).monitorIntegrations();
     // The manager bootstrap above joins this test's transaction and pins its scope to the default
     // tenant (ManagerCreator.setScopeOnCurrentTransaction). Inject endpoints carrying a TxCtx then
@@ -170,14 +173,14 @@ class InjectApiTest extends IntegrationTest {
 
     Scenario scenario = new Scenario();
     scenario.setName("Scenario name");
-    scenario.setFrom("test@test.com");
     scenario.setReplyTos(new ArrayList<>(List.of("test@test.com")));
+    scenario.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     SCENARIO = scenarioService.createScenario(scenario);
 
     Exercise exercise = new Exercise();
     exercise.setName("Exercise name");
+    exercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     exercise.setStart(Instant.now());
-    exercise.setFrom("test@test.com");
     exercise.setReplyTos(new ArrayList<>(List.of("test@test.com")));
     exercise.setStatus(RUNNING);
     EXERCISE = exerciseService.createExercise(exercise);

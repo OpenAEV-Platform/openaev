@@ -42,7 +42,8 @@ Collectors connect to security systems such as SIEM (Security Information and Ev
 Please note that while the versions of these dependencies are the recommended ones, OpenAEV may still function with
 earlier versions. However, we will not provide support for versions prior to the recommended ones.
 
-Elasticsearch 9 is also supported: set `engine.engine-selector` to `elk9` (see [Configuration](../../reference/deployment/configuration.md)).
+Elasticsearch 9 and OpenSearch are also supported. The platform detects the engine behind `engine.url` at startup, there is
+nothing to configure (see [Configuration](../../reference/deployment/configuration.md)).
 
 ### Platform
 

@@ -85,13 +85,6 @@ public interface RawScenario {
   boolean getScenario_lessons_enabled();
 
   /**
-   * Returns the email address used as the sender for scenario communications.
-   *
-   * @return the "from" email address
-   */
-  String getScenario_mail_from();
-
-  /**
    * Returns the sender display name for scenario communications.
    *
    * @return the "from" display name

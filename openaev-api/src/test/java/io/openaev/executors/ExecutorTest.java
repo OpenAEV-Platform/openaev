@@ -17,12 +17,14 @@ import io.openaev.execution.ExecutionExecutorService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -93,6 +95,9 @@ class ExecutorTest {
 
     executableInject = mock(ExecutableInject.class);
     when(executableInject.getInjection()).thenReturn(injection);
+    // By default the targets were already resolved by the caller, as scheduled execution does
+    when(executableInject.getResolvedAssetsToExecute())
+        .thenReturn(new ResolvedAssetsToExecute(List.of(), Set.of()));
   }
 
   @Nested
@@ -226,6 +231,123 @@ class ExecutorTest {
           .contains("secret-ref-1");
       assertThat(payload.path("attachments").path("authorisation_code").asText())
           .isEqualTo("auth-code");
+    }
+  }
+
+  @Nested
+  @DisplayName("execute - not targeted trace for assets outside the launcher's clearance")
+  class AssetsWithoutClearanceTraces {
+
+    private void givenStartedExternalInjector() {
+      Injector injector = new Injector();
+      injector.setId("injector-003");
+      injector.setTenantId(TENANT_ID);
+      injector.setType("openaev_test_injector");
+      injector.setExternal(true);
+      when(inject.getInjector()).thenReturn(injector);
+      when(connectorInstanceService.hasStartedConnectorInstanceForInjector("injector-003"))
+          .thenReturn(true);
+      when(injectStatusRepository.findByInjectId(INJECT_ID))
+          .thenReturn(Optional.of(mock(InjectStatus.class)));
+    }
+
+    @Test
+    @DisplayName(
+        "Given an injector without agent routing, execute should trace the restricted targets as"
+            + " not targeted")
+    void given_injectorWithoutAgentRouting_should_traceRestrictedTargets() throws Exception {
+      // -------- Arrange --------
+      givenStartedExternalInjector();
+      InjectStatus status = mock(InjectStatus.class);
+      when(injectStatusService.initializeInjectStatus(INJECT_ID, ExecutionStatus.EXECUTING))
+          .thenReturn(status);
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      ResolvedAssetsToExecute resolved = new ResolvedAssetsToExecute(List.of(), Set.of(assetRed));
+      when(injectService.resolveAssetsToExecuteByClearance(inject)).thenReturn(resolved);
+      // Nothing cached yet (direct execution), then the resolution the executor caches
+      when(executableInject.getResolvedAssetsToExecute()).thenReturn(null, resolved);
+
+      // -------- Act --------
+      executor.execute(executableInject);
+
+      // -------- Assert --------
+      verify(injectService, times(1)).resolveAssetsToExecuteByClearance(inject);
+      verify(executableInject).cacheAssetsToExecute(resolved);
+      verify(executionExecutorService).saveAssetsWithoutClearanceTraces(Set.of(assetRed), status);
+      verify(executionExecutorService, never()).launchExecutorContext(any(), any());
+    }
+
+    @Test
+    @DisplayName(
+        "Given targets already resolved by the caller, execute should trace the cached restricted"
+            + " targets without resolving them again")
+    void given_targetsAlreadyResolved_should_traceCachedRestrictedTargets() throws Exception {
+      // -------- Arrange --------
+      givenStartedExternalInjector();
+      InjectStatus status = mock(InjectStatus.class);
+      when(injectStatusService.initializeInjectStatus(INJECT_ID, ExecutionStatus.EXECUTING))
+          .thenReturn(status);
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      when(executableInject.getResolvedAssetsToExecute())
+          .thenReturn(new ResolvedAssetsToExecute(List.of(), Set.of(assetRed)));
+
+      // -------- Act --------
+      executor.execute(executableInject);
+
+      // -------- Assert --------
+      verify(injectService, never()).resolveAssetsToExecuteByClearance(inject);
+      verify(executionExecutorService).saveAssetsWithoutClearanceTraces(Set.of(assetRed), status);
+    }
+
+    @Test
+    @DisplayName(
+        "Given an injector with agent routing, execute should hand the cached resolution to the"
+            + " executor context without resolving the targets again")
+    void given_injectorWithAgentRouting_should_launchExecutorContextFromCachedResolution()
+        throws Exception {
+      // -------- Arrange --------
+      givenStartedExternalInjector();
+      when(injectorContract.getNeedsExecutor()).thenReturn(true);
+      when(injectStatusService.initializeInjectStatus(INJECT_ID, ExecutionStatus.EXECUTING))
+          .thenReturn(mock(InjectStatus.class));
+      Asset assetRed = new Asset();
+      assetRed.setId("asset-red");
+      ResolvedAssetsToExecute cached = new ResolvedAssetsToExecute(List.of(), Set.of(assetRed));
+      when(executableInject.getResolvedAssetsToExecute()).thenReturn(cached);
+
+      // -------- Act --------
+      executor.execute(executableInject);
+
+      // -------- Assert --------
+      verify(executionExecutorService).launchExecutorContext(inject, cached);
+      verify(executionExecutorService, never()).saveAssetsWithoutClearanceTraces(any(), any());
+      verify(injectService, never()).resolveAssetsToExecuteByClearance(inject);
+    }
+
+    @Test
+    @DisplayName(
+        "Given an injector with agent routing and nothing cached, execute should resolve the"
+            + " targets once and hand that resolution to the executor context")
+    void given_injectorWithAgentRoutingAndNothingCached_should_resolveOnceForExecutorContext()
+        throws Exception {
+      // -------- Arrange --------
+      givenStartedExternalInjector();
+      when(injectorContract.getNeedsExecutor()).thenReturn(true);
+      when(injectStatusService.initializeInjectStatus(INJECT_ID, ExecutionStatus.EXECUTING))
+          .thenReturn(mock(InjectStatus.class));
+      ResolvedAssetsToExecute resolved = new ResolvedAssetsToExecute(List.of(), Set.of());
+      when(injectService.resolveAssetsToExecuteByClearance(inject)).thenReturn(resolved);
+      when(executableInject.getResolvedAssetsToExecute()).thenReturn(null, resolved);
+
+      // -------- Act --------
+      executor.execute(executableInject);
+
+      // -------- Assert --------
+      verify(injectService, times(1)).resolveAssetsToExecuteByClearance(inject);
+      verify(executableInject).cacheAssetsToExecute(resolved);
+      verify(executionExecutorService).launchExecutorContext(inject, resolved);
     }
   }
 }

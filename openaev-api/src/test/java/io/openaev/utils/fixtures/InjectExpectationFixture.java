@@ -1,7 +1,7 @@
 package io.openaev.utils.fixtures;
 
 import io.openaev.database.model.*;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import jakarta.annotation.Nullable;
 import java.util.Map;
 
@@ -25,6 +25,14 @@ public class InjectExpectationFixture {
       case PARTIAL -> expectation.setScore(EXPECTED_SCORE / 2);
       default -> throw new IllegalArgumentException("Invalid status: " + status);
     }
+    return expectation;
+  }
+
+  public static BaseInjectExpectation createExpectationForTypeAndScoreAndExpectedScore(
+      BaseInjectExpectation.EXPECTATION_TYPE type, Double score, Double expectedScore) {
+    BaseInjectExpectation expectation = createExpectationForType(type);
+    expectation.setScore(score);
+    expectation.setExpectedScore(expectedScore);
     return expectation;
   }
 
@@ -107,9 +115,9 @@ public class InjectExpectationFixture {
     return expectation;
   }
 
-  public static InjectExpectationUpdateInput getInjectExpectationUpdateInput(
+  public static InjectExpectationUpdateFromCollectorInput getInjectExpectationUpdateInput(
       String collectorId, String result, boolean isSuccess) {
-    return InjectExpectationUpdateInput.builder()
+    return InjectExpectationUpdateFromCollectorInput.builder()
         .collectorId(collectorId)
         .result(result)
         .isSuccess(isSuccess)
@@ -122,6 +130,7 @@ public class InjectExpectationFixture {
     return switch (type) {
       case DETECTION -> new DetectionInjectExpectation();
       case PREVENTION -> new PreventionInjectExpectation();
+      case LOGGING -> new LoggingInjectExpectation();
       case VULNERABILITY -> new VulnerabilityInjectExpectation();
       case MANUAL -> new ManualInjectExpectation();
       case ARTICLE -> new ArticleInjectExpectation();

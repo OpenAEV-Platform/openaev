@@ -62,6 +62,18 @@ RUN set -eux; \
         libxcb libxkbcommon alsa-lib mesa-libgbm; \
     microdnf clean all
 
+RUN set -eux; \
+    for purpose in server-auth client-auth email code-signing; do \
+      trust extract --format=pem-directory --filter=ca-anchors --purpose="$purpose" "/tmp/ca-anchors-$purpose"; \
+    done; \
+    find /tmp/ca-anchors-* -iname '*emsign*' -exec cp {} /etc/pki/ca-trust/source/blocklist/ \; ; \
+    rm -rf /tmp/ca-anchors-*; \
+    update-ca-trust; \
+    trust list --filter=ca-anchors > /tmp/anchors.txt; \
+    keytool -list -v -cacerts -storepass changeit >> /tmp/anchors.txt; \
+    if grep -iE 'emsign|emudhra' /tmp/anchors.txt; then exit 1; fi; \
+    rm /tmp/anchors.txt
+
 WORKDIR /opt/openaev
 COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-api.jar ./
 # The boot jar uses the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI

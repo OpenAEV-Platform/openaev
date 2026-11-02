@@ -1,5 +1,6 @@
 package io.openaev.service.expectation;
 
+import static io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig.COLLECTOR_ID;
 import static io.openaev.service.InjectExpectationUtils.FAILED_SCORE_VALUE;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_PARENT_PROCESS_NAME;
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_SOURCE_IPV4_ADDRESS;
@@ -8,21 +9,26 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import io.openaev.IntegrationTest;
+import io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.collector.service.CollectorService;
+import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +49,8 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
+  @Autowired private CollectorService collectorService;
+  @Autowired private ExpectationsExpirationManagerJob expectationsExpirationManagerJob;
 
   @BeforeEach
   void setUp() {
@@ -803,7 +811,10 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
       // Act — the injector writes its "Not vulnerable" verdict on the agentless row
       injectExpectationService.updateInjectExpectationFromSecurityPlatform(
           leaf.getId(),
-          InjectExpectationUpdateInput.builder().result("Not vulnerable").isSuccess(true).build(),
+          InjectExpectationUpdateFromCollectorInput.builder()
+              .result("Not vulnerable")
+              .isSuccess(true)
+              .build(),
           scanner);
       entityManager.flush();
       entityManager.clear();
@@ -1183,6 +1194,10 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
                 List.of(
                     InjectExpectationResult.builder()
                         .sourceId(SOURCE_ID)
+                        .sourceType("unit-test")
+                        .sourcePlatform("test-harness")
+                        .sourceName("unit tests")
+                        .date(Instant.now())
                         .result(null)
                         .score(null)
                         .build())));
@@ -1341,12 +1356,10 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
         entityManager.flush();
         entityManager.refresh(h.inject);
 
-        ExpectationUpdateInput input =
-            ExpectationFixture.getExpectationUpdateInput(SOURCE_ID, updateScore);
+        ExpectationVerdict input = ExpectationFixture.getExpectationVerdict(SOURCE_ID, updateScore);
 
         // Act
-        injectExpectationService.updateInjectExpectationUsingBehaviors(
-            resolveTarget(h, target).getId(), input);
+        injectExpectationService.updateInjectExpectation(resolveTarget(h, target).getId(), input);
         entityManager.flush();
         entityManager.clear();
 
@@ -1412,11 +1425,10 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
         entityManager.flush();
         entityManager.refresh(h.inject);
 
-        ExpectationUpdateInput input =
-            ExpectationFixture.getExpectationUpdateInput(SOURCE_ID, updateScore);
+        ExpectationVerdict input = ExpectationFixture.getExpectationVerdict(SOURCE_ID, updateScore);
 
         // Act
-        injectExpectationService.updateInjectExpectationUsingBehaviors(h.assetA.getId(), input);
+        injectExpectationService.updateInjectExpectation(h.assetA.getId(), input);
         entityManager.flush();
         entityManager.clear();
 
@@ -1434,6 +1446,497 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
       }
     }
 
+    // -- Collector verdict (success flag scored on the answered expectation, metadata) --
+
+    @Nested
+    @DisplayName("Collector verdict")
+    class CollectorVerdict {
+
+      private static final String COLLECTOR_RESULT = "Alert raised";
+
+      private Collector persistEdrCollector() {
+        return collectorComposer
+            .forCollector(CollectorFixture.createDefaultCollector("collector-edr"))
+            .persist()
+            .get();
+      }
+
+      private InjectExpectationResult findResult(
+          List<BaseInjectExpectation> saved, String expectationId, String sourceId) {
+        return findById(saved, expectationId).getResults().stream()
+            .filter(result -> sourceId.equals(result.getSourceId()))
+            .findFirst()
+            .orElseThrow();
+      }
+
+      @Test
+      @DisplayName("given collector success on agent should score leaf and keep metadata")
+      void given_collector_success_on_agent_should_score_leaf_and_keep_metadata() {
+        // Arrange
+        Hierarchy h = createHierarchy(false);
+        Collector collector = persistEdrCollector();
+        InjectExpectationUpdateFromCollectorInput input =
+            InjectExpectationFixture.getInjectExpectationUpdateInput(
+                collector.getId(), COLLECTOR_RESULT, true);
+
+        // Act
+        injectExpectationService.updateInjectExpectation(h.agentA1.getId(), input);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Assert
+        List<BaseInjectExpectation> saved =
+            injectExpectationRepository.findAllByInjectId(h.inject.getId());
+        InjectExpectationResult result = findResult(saved, h.agentA1.getId(), collector.getId());
+        assertThat(result.getScore()).isEqualTo(h.agentA1.getExpectedScore());
+        assertThat(result.getResult()).isEqualTo(h.agentA1.getSuccessLabel());
+        assertThat(result.getMetadata()).isEqualTo(input.getMetadata());
+        assertThat(findById(saved, h.agentA1.getId()).getScore())
+            .isEqualTo(h.agentA1.getExpectedScore());
+      }
+
+      @Test
+      @DisplayName("given collector failure on asset should score each agent with failed score")
+      void given_collector_failure_on_asset_should_score_each_agent_with_failed_score() {
+        // Arrange
+        Hierarchy h = createHierarchy(false);
+        Collector collector = persistEdrCollector();
+        InjectExpectationUpdateFromCollectorInput input =
+            InjectExpectationFixture.getInjectExpectationUpdateInput(
+                collector.getId(), COLLECTOR_RESULT, false);
+
+        // Act
+        injectExpectationService.updateInjectExpectation(h.assetA.getId(), input);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Assert
+        List<BaseInjectExpectation> saved =
+            injectExpectationRepository.findAllByInjectId(h.inject.getId());
+        assertThat(findResult(saved, h.agentA1.getId(), collector.getId()).getScore())
+            .isEqualTo(FAILED_SCORE_VALUE);
+        assertThat(findResult(saved, h.agentA2.getId(), collector.getId()).getScore())
+            .isEqualTo(FAILED_SCORE_VALUE);
+      }
+
+      @Test
+      @DisplayName(
+          "given collector answering again without metadata should keep its previous metadata")
+      void given_collector_answering_again_without_metadata_should_keep_its_previous_metadata() {
+        // Arrange
+        Hierarchy h = createHierarchy(false);
+        Collector collector = persistEdrCollector();
+        InjectExpectationUpdateFromCollectorInput firstInput =
+            InjectExpectationFixture.getInjectExpectationUpdateInput(
+                collector.getId(), COLLECTOR_RESULT, true);
+        injectExpectationService.updateInjectExpectation(h.agentA1.getId(), firstInput);
+        entityManager.flush();
+        InjectExpectationUpdateFromCollectorInput secondInput =
+            InjectExpectationFixture.getInjectExpectationUpdateInput(
+                collector.getId(), COLLECTOR_RESULT, false);
+        secondInput.setMetadata(null);
+
+        // Act
+        injectExpectationService.updateInjectExpectation(h.agentA1.getId(), secondInput);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Assert
+        List<BaseInjectExpectation> saved =
+            injectExpectationRepository.findAllByInjectId(h.inject.getId());
+        assertThat(
+                findById(saved, h.agentA1.getId()).getResults().stream()
+                    .filter(result -> collector.getId().equals(result.getSourceId())))
+            .hasSize(1);
+        InjectExpectationResult result = findResult(saved, h.agentA1.getId(), collector.getId());
+        assertThat(result.getScore()).isEqualTo(FAILED_SCORE_VALUE);
+        assertThat(result.getMetadata()).isEqualTo(firstInput.getMetadata());
+      }
+
+      @Test
+      @DisplayName("given collector success on asset group should score every leaf of the group")
+      void given_collector_success_on_asset_group_should_score_every_leaf_of_the_group() {
+        // Arrange
+        Hierarchy h = createHierarchy(false);
+        Collector collector = persistEdrCollector();
+        InjectExpectationUpdateFromCollectorInput input =
+            InjectExpectationFixture.getInjectExpectationUpdateInput(
+                collector.getId(), COLLECTOR_RESULT, true);
+
+        // Act
+        injectExpectationService.updateInjectExpectation(h.assetGroup.getId(), input);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Assert
+        List<BaseInjectExpectation> saved =
+            injectExpectationRepository.findAllByInjectId(h.inject.getId());
+        for (DetectionInjectExpectation leaf : List.of(h.agentA1, h.agentA2, h.assetB)) {
+          assertThat(findResult(saved, leaf.getId(), collector.getId()).getScore())
+              .isEqualTo(leaf.getExpectedScore());
+        }
+        TechnicalInjectExpectation savedGroup = findById(saved, h.assetGroup.getId());
+        assertThat(savedGroup.getResults())
+            .noneMatch(result -> collector.getId().equals(result.getSourceId()));
+        assertThat(savedGroup.getScore()).isEqualTo(savedGroup.getExpectedScore());
+      }
+
+      @Test
+      @DisplayName(
+          "given bulk collector verdicts should score leaves and skip unknown expectations")
+      void given_bulk_collector_verdicts_should_score_leaves_and_skip_unknown_expectations() {
+        // Arrange
+        Hierarchy h = createHierarchy(false);
+        Collector collector = persistEdrCollector();
+        Map<String, InjectExpectationUpdateFromCollectorInput> inputs =
+            Map.of(
+                h.assetA.getId(),
+                InjectExpectationFixture.getInjectExpectationUpdateInput(
+                    collector.getId(), COLLECTOR_RESULT, true),
+                h.assetB.getId(),
+                InjectExpectationFixture.getInjectExpectationUpdateInput(
+                    collector.getId(), COLLECTOR_RESULT, false),
+                "unknown-expectation-id",
+                InjectExpectationFixture.getInjectExpectationUpdateInput(
+                    collector.getId(), COLLECTOR_RESULT, true));
+
+        // Act
+        injectExpectationService.bulkUpdateInjectExpectation(inputs);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Assert
+        List<BaseInjectExpectation> saved =
+            injectExpectationRepository.findAllByInjectId(h.inject.getId());
+        assertThat(findById(saved, h.agentA1.getId()).getScore())
+            .isEqualTo(h.agentA1.getExpectedScore());
+        assertThat(findById(saved, h.agentA2.getId()).getScore())
+            .isEqualTo(h.agentA2.getExpectedScore());
+        assertThat(findById(saved, h.assetA.getId()).getScore())
+            .isEqualTo(h.assetA.getExpectedScore());
+        assertThat(findById(saved, h.assetB.getId()).getScore()).isEqualTo(FAILED_SCORE_VALUE);
+        // All assets must succeed: the failed agentless asset makes the group fail
+        assertThat(findById(saved, h.assetGroup.getId()).getScore()).isEqualTo(FAILED_SCORE_VALUE);
+      }
+    }
+
+    // -- Vulnerability verdicts of agentless assets, rolled up to their asset group --
+
+    @Nested
+    @DisplayName("Vulnerability verdict of an asset group")
+    class VulnerabilityAssetGroupVerdict {
+
+      private static final String SCAN_RESULT = "Scan finished";
+
+      private VulnerabilityInjectExpectation buildVulnerabilityExpectation(
+          Inject inject, Endpoint asset, AssetGroup group, boolean isGroup) {
+        VulnerabilityInjectExpectation expectation =
+            InjectExpectationFixture.createVulnerabilityInjectExpectation(inject, null);
+        expectation.setAsset(asset);
+        expectation.setAssetGroup(group);
+        expectation.setExpectationGroup(isGroup);
+        return expectation;
+      }
+
+      static Stream<Arguments> scenarios() {
+        return Stream.of(
+            Arguments.of(
+                false,
+                true,
+                false,
+                false,
+                "allMustSucceed: one vulnerable asset makes the group vulnerable"),
+            Arguments.of(
+                true,
+                true,
+                false,
+                true,
+                "atLeastOne: the group stays clean while one asset is clean"),
+            Arguments.of(
+                true,
+                true,
+                true,
+                false,
+                "atLeastOne: the group is vulnerable when every asset is vulnerable"));
+      }
+
+      @ParameterizedTest(name = "{4}")
+      @MethodSource("scenarios")
+      void given_collector_verdicts_on_assets_should_derive_group_verdict(
+          boolean isGroup,
+          boolean isAssetOneVulnerable,
+          boolean isAssetTwoVulnerable,
+          boolean isGroupClean,
+          String scenario) {
+        // Arrange
+        Endpoint endpointOne =
+            endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+        Endpoint endpointTwo =
+            endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).persist().get();
+        AssetGroup group =
+            assetGroupComposer
+                .forAssetGroup(AssetGroupFixture.createDefaultAssetGroup("Scanned group"))
+                .withAsset(endpointComposer.forEndpoint(endpointOne))
+                .withAsset(endpointComposer.forEndpoint(endpointTwo))
+                .persist()
+                .get();
+        Inject inject =
+            injectComposer
+                .forInject(InjectFixture.getDefaultInject())
+                .withExercise(exerciseComposer.forExercise(persistDefaultExercise()))
+                .persist()
+                .get();
+        VulnerabilityInjectExpectation assetOne =
+            buildVulnerabilityExpectation(inject, endpointOne, group, isGroup);
+        VulnerabilityInjectExpectation assetTwo =
+            buildVulnerabilityExpectation(inject, endpointTwo, group, isGroup);
+        VulnerabilityInjectExpectation assetGroup =
+            buildVulnerabilityExpectation(inject, null, group, isGroup);
+        injectExpectationRepository.saveAll(List.of(assetOne, assetTwo, assetGroup));
+        entityManager.flush();
+        entityManager.refresh(inject);
+        Collector collector =
+            collectorComposer
+                .forCollector(CollectorFixture.createDefaultCollector("collector-vulnerability"))
+                .persist()
+                .get();
+
+        // Act
+        injectExpectationService.updateInjectExpectation(
+            assetOne.getId(),
+            InjectExpectationFixture.getInjectExpectationUpdateInput(
+                collector.getId(), SCAN_RESULT, !isAssetOneVulnerable));
+        injectExpectationService.updateInjectExpectation(
+            assetTwo.getId(),
+            InjectExpectationFixture.getInjectExpectationUpdateInput(
+                collector.getId(), SCAN_RESULT, !isAssetTwoVulnerable));
+        entityManager.flush();
+        entityManager.clear();
+
+        // Assert
+        List<BaseInjectExpectation> saved =
+            injectExpectationRepository.findAllByInjectId(inject.getId());
+        TechnicalInjectExpectation savedGroup = findById(saved, assetGroup.getId());
+        assertThat(savedGroup.getScore())
+            .isEqualTo(isGroupClean ? savedGroup.getExpectedScore() : FAILED_SCORE_VALUE);
+        // A group is derived from its assets, never answered directly
+        assertThat(savedGroup.getResults())
+            .noneMatch(result -> collector.getId().equals(result.getSourceId()));
+      }
+    }
+
+    // -- Vulnerability verdict of an asset with agents (injector scan without security platform) --
+
+    @Nested
+    @DisplayName("Vulnerability verdict of an asset with agents")
+    class VulnerabilityAssetWithAgentsVerdict {
+
+      private static final String SCAN_RESULT = "Scan finished";
+
+      private record AssetWithAgents(
+          Inject inject,
+          VulnerabilityInjectExpectation agentOne,
+          VulnerabilityInjectExpectation agentTwo,
+          VulnerabilityInjectExpectation asset) {}
+
+      private VulnerabilityInjectExpectation buildVulnerabilityExpectation(
+          Inject inject, Agent agent, Endpoint asset, Collector... sources) {
+        VulnerabilityInjectExpectation expectation =
+            InjectExpectationFixture.createVulnerabilityInjectExpectation(inject, agent);
+        expectation.setAsset(asset);
+        if (agent != null) {
+          // Pending row of each answering source, as seeded on the agent leaves at initialization
+          expectation.setResults(
+              new java.util.ArrayList<>(
+                  Stream.of(sources)
+                      .map(
+                          source ->
+                              InjectExpectationResult.builder()
+                                  .sourceId(source.getId())
+                                  .sourceName(source.getName())
+                                  .sourcePlatform(
+                                      Optional.ofNullable(source.getSecurityPlatform())
+                                          .map(Asset::getType)
+                                          .orElse(null))
+                                  .date(Instant.now())
+                                  .build())
+                      .toList()));
+        }
+        return expectation;
+      }
+
+      private Collector persistVulnerabilityCollector(String name) {
+        return collectorComposer
+            .forCollector(CollectorFixture.createDefaultCollector(name))
+            .persist()
+            .get();
+      }
+
+      private AssetWithAgents persistAssetWithAgents(Collector... sources) {
+        Endpoint endpoint =
+            endpointComposer
+                .forEndpoint(EndpointFixture.createEndpoint())
+                .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentService()))
+                .withAgent(agentComposer.forAgent(AgentFixture.createDefaultAgentSession()))
+                .persist()
+                .get();
+        Inject inject =
+            injectComposer
+                .forInject(InjectFixture.getDefaultInject())
+                .withExercise(exerciseComposer.forExercise(persistDefaultExercise()))
+                .persist()
+                .get();
+        VulnerabilityInjectExpectation agentOne =
+            buildVulnerabilityExpectation(inject, endpoint.getAgents().get(0), endpoint, sources);
+        VulnerabilityInjectExpectation agentTwo =
+            buildVulnerabilityExpectation(inject, endpoint.getAgents().get(1), endpoint, sources);
+        VulnerabilityInjectExpectation asset =
+            buildVulnerabilityExpectation(inject, null, endpoint, sources);
+        injectExpectationRepository.saveAll(List.of(agentOne, agentTwo, asset));
+        entityManager.flush();
+        entityManager.refresh(inject);
+        return new AssetWithAgents(inject, agentOne, agentTwo, asset);
+      }
+
+      /** Expires the agents with the expiration collector: silence means "Not vulnerable" */
+      private void expireAgents(AssetWithAgents target) throws Exception {
+        String tenantId = target.inject().getTenant().getId();
+        expectationsExpirationManagerJob.registerForTenant(tenantId);
+        Collector expirationCollector = collectorService.collector(COLLECTOR_ID, tenantId);
+        injectExpectationService.expireExpectations(
+            List.of(target.agentOne(), target.agentTwo(), target.asset()), expirationCollector);
+        entityManager.flush();
+        entityManager.clear();
+      }
+
+      @ParameterizedTest(name = "vulnerable: {0}")
+      @ValueSource(booleans = {true, false})
+      void given_verdict_on_asset_with_agents_should_score_agents_and_derive_asset(
+          boolean isVulnerable) {
+        // Arrange
+        Collector collector = persistVulnerabilityCollector("collector-vulnerability");
+        AssetWithAgents target = persistAssetWithAgents(collector);
+        Inject inject = target.inject();
+        VulnerabilityInjectExpectation agentOne = target.agentOne();
+        VulnerabilityInjectExpectation agentTwo = target.agentTwo();
+        VulnerabilityInjectExpectation asset = target.asset();
+
+        // Act
+        injectExpectationService.updateInjectExpectation(
+            asset.getId(),
+            InjectExpectationFixture.getInjectExpectationUpdateInput(
+                collector.getId(), SCAN_RESULT, !isVulnerable));
+        entityManager.flush();
+        entityManager.clear();
+
+        // Assert
+        List<BaseInjectExpectation> saved =
+            injectExpectationRepository.findAllByInjectId(inject.getId());
+        Double expectedScore = isVulnerable ? FAILED_SCORE_VALUE : asset.getExpectedScore();
+        for (VulnerabilityInjectExpectation agent : List.of(agentOne, agentTwo)) {
+          TechnicalInjectExpectation savedAgent = findById(saved, agent.getId());
+          assertThat(savedAgent.getResults())
+              .singleElement()
+              .satisfies(
+                  result -> {
+                    assertThat(result.getSourceId()).isEqualTo(collector.getId());
+                    assertThat(result.getScore()).isEqualTo(expectedScore);
+                    assertThat(result.getResult())
+                        .isEqualTo(
+                            isVulnerable
+                                ? savedAgent.getFailureLabel()
+                                : savedAgent.getSuccessLabel());
+                  });
+          assertThat(savedAgent.getScore()).isEqualTo(expectedScore);
+        }
+        // The verdict lands on the agents: the asset is derived from them, not answered directly
+        TechnicalInjectExpectation savedAsset = findById(saved, asset.getId());
+        assertThat(savedAsset.getResults())
+            .noneMatch(result -> collector.getId().equals(result.getSourceId()));
+        assertThat(savedAsset.getScore()).isEqualTo(expectedScore);
+      }
+
+      @ParameterizedTest(name = "vulnerable: {0}")
+      @ValueSource(booleans = {true, false})
+      void given_verdict_after_agents_expiration_should_score_agents_and_derive_asset(
+          boolean isVulnerable) throws Exception {
+        // Arrange
+        Collector collector = persistVulnerabilityCollector("collector-vulnerability");
+        AssetWithAgents target = persistAssetWithAgents(collector);
+        expireAgents(target);
+
+        // Act
+        injectExpectationService.updateInjectExpectation(
+            target.asset().getId(),
+            InjectExpectationFixture.getInjectExpectationUpdateInput(
+                collector.getId(), SCAN_RESULT, !isVulnerable));
+        entityManager.flush();
+        entityManager.clear();
+
+        // Assert — the expiration defaults to "Not vulnerable", a later finding still wins
+        List<BaseInjectExpectation> saved =
+            injectExpectationRepository.findAllByInjectId(target.inject().getId());
+        Double expectedScore =
+            isVulnerable ? FAILED_SCORE_VALUE : target.asset().getExpectedScore();
+        for (VulnerabilityInjectExpectation agent : List.of(target.agentOne(), target.agentTwo())) {
+          TechnicalInjectExpectation savedAgent = findById(saved, agent.getId());
+          assertThat(savedAgent.getResults())
+              .anyMatch(result -> COLLECTOR_ID.equals(result.getSourceId()));
+          assertThat(savedAgent.getScore()).isEqualTo(expectedScore);
+        }
+        assertThat(findById(saved, target.asset().getId()).getScore()).isEqualTo(expectedScore);
+      }
+
+      @Test
+      @DisplayName("given one source vulnerable and another pending should keep the agent pending")
+      void given_one_source_vulnerable_and_another_pending_should_keep_the_agent_pending() {
+        // Arrange
+        Collector vulnerableSource = persistVulnerabilityCollector("collector-vulnerable");
+        Collector pendingSource = persistVulnerabilityCollector("collector-pending");
+        AssetWithAgents target = persistAssetWithAgents(vulnerableSource, pendingSource);
+
+        // Act
+        injectExpectationService.updateInjectExpectation(
+            target.agentOne().getId(),
+            InjectExpectationFixture.getInjectExpectationUpdateInput(
+                vulnerableSource.getId(), SCAN_RESULT, false));
+        entityManager.flush();
+        entityManager.clear();
+
+        // Assert — every expected source answers before the leaf is settled
+        List<BaseInjectExpectation> saved =
+            injectExpectationRepository.findAllByInjectId(target.inject().getId());
+        assertThat(findById(saved, target.agentOne().getId()).getScore()).isNull();
+      }
+
+      @Test
+      @DisplayName("given one source vulnerable and another not vulnerable should be vulnerable")
+      void given_one_source_vulnerable_and_another_not_vulnerable_should_be_vulnerable() {
+        // Arrange
+        Collector vulnerableSource = persistVulnerabilityCollector("collector-vulnerable");
+        Collector cleanSource = persistVulnerabilityCollector("collector-clean");
+        AssetWithAgents target = persistAssetWithAgents(vulnerableSource, cleanSource);
+        injectExpectationService.updateInjectExpectation(
+            target.agentOne().getId(),
+            InjectExpectationFixture.getInjectExpectationUpdateInput(
+                vulnerableSource.getId(), SCAN_RESULT, false));
+
+        // Act
+        injectExpectationService.updateInjectExpectation(
+            target.agentOne().getId(),
+            InjectExpectationFixture.getInjectExpectationUpdateInput(
+                cleanSource.getId(), SCAN_RESULT, true));
+        entityManager.flush();
+        entityManager.clear();
+
+        // Assert — "Not vulnerable" is only the absence of a finding: the finding wins
+        List<BaseInjectExpectation> saved =
+            injectExpectationRepository.findAllByInjectId(target.inject().getId());
+        assertThat(findById(saved, target.agentOne().getId()).getScore())
+            .isEqualTo(FAILED_SCORE_VALUE);
+      }
+    }
+
     // -- Asset-group update should throw --
 
     @Test
@@ -1441,13 +1944,11 @@ class AbstractTechnicalBehaviorTest extends IntegrationTest {
     void given_asset_group_update_should_throw() {
       // Arrange
       Hierarchy h = createHierarchy(false);
-      ExpectationUpdateInput input = ExpectationFixture.getExpectationUpdateInput(SOURCE_ID, 100.0);
+      ExpectationVerdict input = ExpectationFixture.getExpectationVerdict(SOURCE_ID, 100.0);
 
       // Act & Assert
       assertThatThrownBy(
-              () ->
-                  injectExpectationService.updateInjectExpectationUsingBehaviors(
-                      h.assetGroup.getId(), input))
+              () -> injectExpectationService.updateInjectExpectation(h.assetGroup.getId(), input))
           .isInstanceOf(IllegalArgumentException.class);
     }
   }

@@ -8,6 +8,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
+import io.openaev.comparator.InjectExecutionComparator;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -52,6 +53,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -501,7 +503,7 @@ public class InjectApi extends RestBehavior {
     List<Inject> next =
         injectRepository.findAll(InjectSpecification.next()).stream()
             // Keep only injects visible by the user
-            .filter(inject -> inject.getDate().isPresent())
+            .filter(inject -> inject.getDate(Instant.now()).isPresent())
             .filter(
                 inject ->
                     inject
@@ -512,7 +514,7 @@ public class InjectApi extends RestBehavior {
                                 .orElseThrow(
                                     () -> new ElementNotFoundException("Current user not found"))))
             // Order by near execution
-            .sorted(Inject.executionComparator)
+            .sorted(new InjectExecutionComparator(Instant.now()))
             // Keep only the expected size
             .limit(size.orElse(MAX_NEXT_INJECTS))
             // Collect the result

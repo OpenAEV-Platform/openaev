@@ -56,9 +56,8 @@ class LogServiceTest {
         mock(io.openaev.engine.facade.EngineService.class);
     lenient().when(engineService.getObjectMapper()).thenReturn(objectMapper);
 
-    // Normalization is exercised in LogServiceSignatureNormalizationTest; here it must behave as a
-    // pass-through so the assertions below target redaction only. Returning Mockito's default
-    // (null) would blank out input/output/signature before they reach the transport.
+    // Pass-through so the assertions below target redaction only; Mockito's default (null) would
+    // blank out input/output before they reach the transport.
     io.openaev.utils.object.ObjectNormalizationUtils objectNormalizationUtils =
         mock(io.openaev.utils.object.ObjectNormalizationUtils.class);
     lenient()
@@ -281,7 +280,6 @@ class LogServiceTest {
             "group-id",
             null,
             null,
-            null,
             entityDiffs,
             Level.WARNING,
             "uuid-8");
@@ -292,7 +290,7 @@ class LogServiceTest {
   }
 
   @Nested
-  @DisplayName("logRequestEvent — redaction of entity_diffs and signature")
+  @DisplayName("logRequestEvent — redaction of entity_diffs")
   class LogRequestEventRedaction {
 
     private static final String REDACTED = "*** Redacted ***";
@@ -318,7 +316,6 @@ class LogServiceTest {
           "success",
           ResourceType.USER_GROUP,
           "id-1",
-          null,
           null,
           null,
           entityDiffs,
@@ -347,7 +344,6 @@ class LogServiceTest {
           "id-2",
           null,
           null,
-          null,
           entityDiffs,
           Level.WARNING,
           "uuid-r2");
@@ -369,7 +365,6 @@ class LogServiceTest {
           "success",
           ResourceType.USER_GROUP,
           "id-3",
-          null,
           null,
           null,
           entityDiffs,
@@ -411,7 +406,6 @@ class LogServiceTest {
           "cred-1",
           input,
           output,
-          null,
           null,
           Level.WARNING,
           "uuid-r-credential-1");
@@ -457,7 +451,6 @@ class LogServiceTest {
           "id-4",
           null,
           null,
-          null,
           entityDiffs,
           Level.WARNING,
           "uuid-r4");
@@ -480,7 +473,6 @@ class LogServiceTest {
           "success",
           ResourceType.USER_GROUP,
           "id-5",
-          null,
           null,
           null,
           entityDiffs,
@@ -512,7 +504,6 @@ class LogServiceTest {
           "user-1",
           null,
           null,
-          null,
           entityDiffs,
           Level.WARNING,
           "uuid-r6");
@@ -541,7 +532,6 @@ class LogServiceTest {
           "group-1",
           null,
           null,
-          null,
           entityDiffs,
           Level.WARNING,
           "uuid-r7");
@@ -567,7 +557,6 @@ class LogServiceTest {
           "success",
           ResourceType.USER_GROUP,
           "id-8",
-          null,
           null,
           null,
           entityDiffs,
@@ -602,7 +591,6 @@ class LogServiceTest {
           "id-9",
           null,
           null,
-          null,
           entityDiffs,
           Level.WARNING,
           "uuid-r9");
@@ -611,133 +599,6 @@ class LogServiceTest {
       @SuppressWarnings("unchecked")
       Map<String, Object> before = (Map<String, Object>) captureEntityDiffs().get("before");
       assertThat(before).containsEntry("user_password", REDACTED).containsEntry("user_name", "bob");
-    }
-
-    // -- signature: sensitive field redaction --
-
-    @Test
-    @DisplayName("given_signatureWithPasswordField_should_redactPasswordValue")
-    void given_signatureWithPasswordField_should_redactPasswordValue() {
-      // Arrange
-      ObjectNode signature = objectMapper.createObjectNode();
-      signature.put("user_password", "plaintext");
-      signature.put("algo", "sha256");
-
-      // Act
-      logService.logRequestEvent(
-          "create",
-          "success",
-          ResourceType.USER_GROUP,
-          "id-10",
-          null,
-          null,
-          signature,
-          null,
-          Level.WARNING,
-          "uuid-r10");
-
-      // Assert
-      JsonNode sig = captureSignature();
-      assertThat(sig.get("user_password").asText()).isEqualTo(REDACTED);
-      assertThat(sig.get("algo").asText()).isEqualTo("sha256");
-    }
-
-    @Test
-    @DisplayName("given_signatureWithTokenField_should_hashTokenValue")
-    void given_signatureWithTokenField_should_hashTokenValue() {
-      // Arrange
-      ObjectNode signature = objectMapper.createObjectNode();
-      signature.put("api_token", "tok-xyz-789");
-
-      // Act
-      logService.logRequestEvent(
-          "create",
-          "success",
-          ResourceType.USER_GROUP,
-          "id-11",
-          null,
-          null,
-          signature,
-          null,
-          Level.WARNING,
-          "uuid-r11");
-
-      // Assert
-      assertThat(captureSignature().get("api_token").asText())
-          .isEqualTo(CryptoHelper.hashWithSHA256("tok-xyz-789"));
-    }
-
-    @Test
-    @DisplayName("given_signatureWithSecretField_should_redactSecretValue")
-    void given_signatureWithSecretField_should_redactSecretValue() {
-      // Arrange
-      ObjectNode signature = objectMapper.createObjectNode();
-      signature.put("client_secret", "very-secret");
-
-      // Act
-      logService.logRequestEvent(
-          "create",
-          "success",
-          ResourceType.USER_GROUP,
-          "id-12",
-          null,
-          null,
-          signature,
-          null,
-          Level.WARNING,
-          "uuid-r12");
-
-      // Assert
-      assertThat(captureSignature().get("client_secret").asText()).isEqualTo(REDACTED);
-    }
-
-    @Test
-    @DisplayName("given_nullSignature_should_notSetSignatureOnRequestMetadata")
-    void given_nullSignature_should_notSetSignatureOnRequestMetadata() {
-      // Act – no signatureNode passed
-      logService.logRequestEvent(
-          "create",
-          "success",
-          ResourceType.USER_GROUP,
-          "id-13",
-          null,
-          null,
-          null,
-          null,
-          Level.WARNING,
-          "uuid-r13");
-
-      // Assert
-      assertThat(captureEvent().getRequestMetadata().getSignature()).isNull();
-    }
-
-    @Test
-    @DisplayName("given_signatureWithPIIFields_and_userResourceType_should_removePIIKeys")
-    void given_signatureWithPIIFields_and_userResourceType_should_removePIIKeys() {
-      // Arrange
-      ObjectNode signature = objectMapper.createObjectNode();
-      signature.put("user_email", "bob@example.com");
-      signature.put("user_phone", "+1-555-0100");
-      signature.put("method_name", "updateProfile");
-
-      // Act
-      logService.logRequestEvent(
-          "update",
-          "success",
-          ResourceType.USER,
-          "user-2",
-          null,
-          null,
-          signature,
-          null,
-          Level.WARNING,
-          "uuid-r14");
-
-      // Assert
-      JsonNode sig = captureSignature();
-      assertThat(sig.has("user_email")).isFalse();
-      assertThat(sig.has("user_phone")).isFalse();
-      assertThat(sig.get("method_name").asText()).isEqualTo("updateProfile");
     }
 
     // -- helpers --
@@ -751,10 +612,6 @@ class LogServiceTest {
     @SuppressWarnings("unchecked")
     private Map<String, Object> captureEntityDiffs() {
       return (Map<String, Object>) captureEvent().getContextData().get("entity_diffs");
-    }
-
-    private JsonNode captureSignature() {
-      return captureEvent().getRequestMetadata().getSignature();
     }
   }
 

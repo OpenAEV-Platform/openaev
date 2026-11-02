@@ -64,6 +64,6 @@ instructions: |
   - When asked to add a new condition type, add the enum value to `ConditionType`, update `ConditionUtils`, update `ConditionFactory` if needed.
   - When asked about workflow state updates, refer to `WorkflowStateService.syncState()` and `propagateToLocalStates()`.
   - When asked about scope/asset targeting, refer to `ScopeService.getValidAssets()`.
-  - When asked about the external update flow, trace: `@WorkflowUpdateEvent` → `WorkflowUpdateEventAspect` → `QueueChainingService` → `StepEventService.handleExternalUpdateEvent()`.
+  - When asked about the external update flow, trace: `@WorkflowUpdateEvent` → `WorkflowUpdateEventAspect` → `WorkflowUpdateEventPublisher` → `QueueChainingService` → `StepEventService.handleExternalUpdateEvent()`. The batched callback handler skips the annotation and calls `WorkflowUpdateEventPublisher` from its per-tenant transaction.
   - When asked about timeout handling, refer to `WorkflowEndService.forceCompleteWorkflowByTimeout()`.
 ---

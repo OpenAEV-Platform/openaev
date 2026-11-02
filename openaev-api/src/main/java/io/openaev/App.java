@@ -4,6 +4,7 @@ import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE;
 import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE_CREATION;
 
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.Setting;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.debug.DebugLogCorrelationListener;
@@ -27,6 +28,7 @@ public class App {
 
   private final SettingRepository settingRepository;
   private final OpenAEVConfig openAEVConfig;
+  private final LicenseCacheManager licenseCacheManager;
 
   public static void main(String[] args) {
     FlywayMigrationValidator.validateFlywayMigrationNames();
@@ -78,6 +80,7 @@ public class App {
     } else {
       platformId = instanceId.get().getValue();
     }
+    licenseCacheManager.refreshAndNotify();
     keepInstanceCreationDate(instanceCreationDate, instanceId.isEmpty());
     log.info("Startup of the platform - Platform Instance ID: {}", platformId);
   }

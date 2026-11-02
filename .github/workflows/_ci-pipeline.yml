@@ -44,7 +44,7 @@ jobs:
 
   migrations-guard:
     name: "🔎 Migrations Guard"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v7
@@ -57,12 +57,26 @@ jobs:
         with:
           last-release-number: ${{ steps.latest-tag.outputs.latest-tag }}
 
+  # Blocking on purpose: a pull request must not merge an ADR number main already has.
+  adr-numbering:
+    name: "🔢 ADR Numbering"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # On a pull request: the merge commit and its first parent, the target branch.
+          fetch-depth: 2
+      - uses: ./.github/actions/adr-numbering
+        with:
+          pull-request: ${{ github.event_name == 'pull_request' }}
+
   ocsf-parser-generation-stability:
     strategy:
       matrix:
         version: [ "1.9.0" ]
     name: "🔎 OCSF Parser Generation Stability"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v7
@@ -84,7 +98,7 @@ jobs:
 
   backend-compile:
     name: "🔨 Backend Compile"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
@@ -94,7 +108,7 @@ jobs:
 
   frontend-build:
     name: "🎨 Frontend Build"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -104,14 +118,10 @@ jobs:
 
   prepare-bundled-assets:
     name: "📦 Prepare Bundled Assets"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-        with:
-          # git describe needs the commit graph, not historical file contents
-          fetch-depth: 0
-          filter: blob:none
       - uses: ./.github/actions/prepare-bundled-assets
 
   # ════════════════════════════════════════════════════════════════════
@@ -120,7 +130,7 @@ jobs:
 
   spotless-check:
     name: "🔍 Spotless Check"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
@@ -132,7 +142,7 @@ jobs:
   # on real PRs. Making it blocking means taking the job out of the advisory list in the gate below.
   bom-override-guard:
     name: "🔎 BOM Override Guard"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
@@ -144,7 +154,7 @@ jobs:
 
   frontend-quality:
     name: "🧪 Frontend Quality & Unit Tests"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -154,7 +164,7 @@ jobs:
 
   fds-conformity:
     name: "🎨 FDS Conformity"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
@@ -165,7 +175,7 @@ jobs:
   fds-mui-regression:
     name: "🎨 FDS MUI Regression"
     if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
@@ -182,7 +192,7 @@ jobs:
 
   api-tests:
     name: "🧪 API Tests (${{ matrix.shard_name }})"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     # A matrix entry may set continue_on_error: the multi-tenancy shadow runs are instruments, not
     # gates, and a red one must not fail the workflow while the migration is in progress.
@@ -197,8 +207,9 @@ jobs:
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
       MINIO_PORT: 11000
+      # No engine selector: the platform detects Elasticsearch 8, 9 or OpenSearch from ENGINE_URL,
+      # so a shard picks its client through the server it starts (matrix.search_engine).
       ENGINE_URL: http://localhost:9200
-      ENGINE_ENGINESELECTOR: ${{ matrix.engine_selector }}
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -227,7 +238,7 @@ jobs:
     # reach the run conclusion. The shadow runs are instruments: a red one must be visible at a
     # glance, and must not page the on-call, who is alerted on a failed Nightly run.
     continue-on-error: true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Download the per-shard verdicts
@@ -322,7 +333,7 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
 
   e2e-tests:
-    name: "🧪 E2E (${{ matrix.shard_name || 'full' }} · ${{ matrix.project }} · ${{ matrix.variant }}${{ matrix.search_engine == 'opensearch' && ' · OS' || '' }})"
+    name: "🧪 E2E (${{ matrix.shard_name || 'full' }} · ${{ matrix.project }} · ${{ matrix.variant }}${{ matrix.search_engine == 'opensearch' && ' · OS' || '' }}${{ matrix.without_license && ' · no EE' || '' }})"
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
@@ -338,7 +349,6 @@ jobs:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
       ENGINE_URL: http://localhost:9200
-      ENGINE_ENGINESELECTOR: ${{ matrix.search_engine == 'opensearch' && 'opensearch' || 'elk' }}
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       OPENAEV_ADMIN_EMAIL: admin@openaev.io
       OPENAEV_ADMIN_PASSWORD: admin
@@ -347,7 +357,8 @@ jobs:
       OPENAEV_ADMIN_ENCRYPTION_SALT: ilikesaltyfoodnomnom
       OPENAEV_RATELIMIT_ENABLED: false
       SPRING_PROFILES_ACTIVE: ci
-      OPENAEV_APPLICATION_LICENSE: ${{ secrets.OPENAEV_APPLICATION_LICENSE }}
+      # A cell with without_license runs the Community Edition: the EE specs skip themselves.
+      OPENAEV_APPLICATION_LICENSE: ${{ !matrix.without_license && secrets.OPENAEV_APPLICATION_LICENSE || '' }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
@@ -368,7 +379,7 @@ jobs:
 
   api-types-check:
     name: "🔎 API Types Check"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
@@ -403,7 +414,7 @@ jobs:
     name: "📊 Coverage Upload (backend)"
     needs: [api-tests]
     if: ${{ !cancelled() && (needs.api-tests.result == 'success' || needs.api-tests.result == 'failure') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -489,7 +500,7 @@ jobs:
     name: "📊 Coverage Upload (frontend)"
     needs: [frontend-quality]
     if: ${{ !cancelled() && needs.frontend-quality.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
@@ -516,7 +527,7 @@ jobs:
     name: "📊 Coverage Upload (e2e)"
     needs: [e2e-tests]
     if: ${{ !cancelled() && needs.e2e-tests.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
@@ -559,7 +570,7 @@ jobs:
         needs.backend-compile.result == 'success' &&
         (needs.prepare-bundled-assets.result == 'success' || needs.prepare-bundled-assets.result == 'skipped')
       }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/backend-package
@@ -570,7 +581,7 @@ jobs:
   backend-package-musl:
     name: "📦 Backend Package (musl)"
     needs: [frontend-build, backend-compile, prepare-bundled-assets]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     container:
       image: maven:3.10.0-eclipse-temurin-21-alpine
@@ -583,7 +594,6 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
 
   # Docker builds fetch bundled assets inline, avoiding a serial dependency.
-  # fetch-depth 0 is required because the asset version comes from `git describe`.
   docker-build:
     name: "🐳 Docker Build (${{ matrix.variant }} ${{ matrix.arch }})"
     if: ${{ !cancelled() }}
@@ -595,7 +605,7 @@ jobs:
         include:
           - variant: standard
             arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             platform: linux/amd64
             dockerfile: ./Dockerfile
             artifact-name: openaev-image
@@ -613,7 +623,7 @@ jobs:
             tags: openaev:ci-${{ github.run_id }}
           - variant: ubi9
             arch: amd64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             platform: linux/amd64
             dockerfile: ./Dockerfile_ubi9
             artifact-name: openaev-ubi9-image
@@ -631,10 +641,6 @@ jobs:
             tags: openaev-ubi9:ci-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          # git describe needs the commit graph, not historical file contents
-          fetch-depth: 0
-          filter: blob:none
       - uses: ./.github/actions/docker-build
         with:
           dockerfile: ${{ matrix.dockerfile }}
@@ -649,7 +655,7 @@ jobs:
   docker-merge:
     name: "🐳 Merge Platforms (${{ matrix.variant }})"
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       GH_TOKEN: ${{ github.token }}
@@ -674,7 +680,7 @@ jobs:
   container-vulnerability-scan:
     name: "🔒 Container Vulnerability Scan"
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     continue-on-error: ${{ !inputs.vulnerability-scan-fail-on-error }}
     timeout-minutes: 25
     env:
@@ -696,6 +702,7 @@ jobs:
   pipeline-gate:
     name: "✅ Pipeline Gate"
     needs:
+      - adr-numbering
       - ocsf-parser-generation-stability
       - migrations-guard
       - backend-compile
@@ -717,7 +724,7 @@ jobs:
       - docker-merge
       - container-vulnerability-scan
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: Check all upstream job results

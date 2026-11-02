@@ -23,6 +23,7 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.service.InjectExpectationUtils;
+import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.chaining.StepService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -55,12 +56,14 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>Expectation polarity is inverted for phishing.</b> A phishing expectation measures whether
  * the recipient RESISTED a step (opening the lure, following the link, submitting data). Resisting
  * is the desired outcome, so each of the three step expectations is pre-scored to its full expected
- * score at send time - GREEN / "resisted" - by {@link #initializeExpectationsAsResisted(String)}.
- * The matching transition then flips the step to a zero score - RED / "fell for it" - the moment
- * the recipient performs it. Because a pre-scored row is no longer {@code score IS NULL}, the
- * generic expiration collector never touches these rows: a recipient who never interacts simply
- * keeps the green "resisted" verdict for good, which is exactly the intended "expired means
- * success" semantics without a bespoke expiration branch.
+ * score at send time - GREEN / "resisted" - by {@link
+ * io.openaev.service.expectation.PhishingBehavior}, which gives each step a default "no
+ * interaction" result when the expectations are created. The matching transition then flips the
+ * step to a zero score - RED / "fell for it" - the moment the recipient performs it. Because a
+ * pre-scored row is no longer {@code score IS NULL}, the generic expiration collector never touches
+ * these rows: a recipient who never interacts simply keeps the green "resisted" verdict for good,
+ * which is exactly the intended "expired means success" semantics without a bespoke expiration
+ * branch.
  *
  * <p><b>Automated probes never score.</b> Mail security gateways detonate every URL and pre-fetch
  * remote images right at delivery (Microsoft Defender Safe Links being the canonical case), so
@@ -248,6 +251,7 @@ public class PhishingTrackingService {
   private final StepRepository stepRepository;
   private final FindingService findingService;
   private final PhishingTrackingPublicLookupService publicLookupService;
+  private final AttackPathFindingIngestionService attackPathFindingIngestion;
 
   /** Generates a URL-safe, unguessable per-recipient tracking token. */
   public static String generateToken() {
@@ -708,6 +712,19 @@ public class PhishingTrackingService {
       result.setFinding(finding);
     } catch (Exception e) {
       log.error("Failed to create phishing credentials finding: {}", e.getMessage(), e);
+      return;
+    }
+    // A chained run copies its findings onto the attack path on each step execution event, but a
+    // submission raises none: copy this one (and only this one, by its id set on create) once it
+    // is committed, or the attack path never shows it. Only a chained execution carries a step
+    // (see createResult).
+    if (result.getStep() != null) {
+      try {
+        attackPathFindingIngestion.copyFindingAfterCommit(
+            inject, result.getStep(), finding.getId());
+      } catch (Exception e) {
+        log.warn("Attack-path finding copy skipped for inject {} (non-fatal)", inject.getId(), e);
+      }
     }
   }
 

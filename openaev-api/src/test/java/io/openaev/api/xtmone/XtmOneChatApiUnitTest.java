@@ -1,9 +1,12 @@
 package io.openaev.api.xtmone;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -15,7 +18,9 @@ import io.openaev.context.TxCtx;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +35,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 /**
@@ -66,7 +74,8 @@ class XtmOneChatApiUnitTest {
 
     // -- ASSERT --
     verify(client)
-        .streamChatMessage(eq("hello"), isNull(), eq("agent-1"), eq(context), eq(false), any());
+        .streamChatMessage(
+            eq("hello"), isNull(), eq("agent-1"), eq(context), eq(false), eq(false), any());
   }
 
   @Test
@@ -84,7 +93,8 @@ class XtmOneChatApiUnitTest {
 
     // -- ASSERT --
     verify(client)
-        .streamChatMessage(eq("hello"), isNull(), eq("agent-1"), isNull(), eq(false), any());
+        .streamChatMessage(
+            eq("hello"), isNull(), eq("agent-1"), isNull(), eq(false), eq(false), any());
   }
 
   @Test
@@ -103,7 +113,8 @@ class XtmOneChatApiUnitTest {
 
     // -- ASSERT --
     verify(client)
-        .streamChatMessage(eq("hello"), isNull(), eq("agent-1"), isNull(), eq(true), any());
+        .streamChatMessage(
+            eq("hello"), isNull(), eq("agent-1"), isNull(), eq(true), eq(false), any());
   }
 
   @Test
@@ -120,7 +131,8 @@ class XtmOneChatApiUnitTest {
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
-    verify(client).streamChatMessage(eq("hello"), isNull(), isNull(), isNull(), eq(false), any());
+    verify(client)
+        .streamChatMessage(eq("hello"), isNull(), isNull(), isNull(), eq(false), eq(false), any());
   }
 
   @Test
@@ -137,7 +149,8 @@ class XtmOneChatApiUnitTest {
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
-    verify(client).streamChatMessage(eq("hello"), isNull(), isNull(), isNull(), eq(false), any());
+    verify(client)
+        .streamChatMessage(eq("hello"), isNull(), isNull(), isNull(), eq(false), eq(false), any());
   }
 
   @Nested
@@ -328,6 +341,131 @@ class XtmOneChatApiUnitTest {
 
       assertEquals(204, response.getStatusCode().value());
       verify(client).retractMessageFeedback(CONVERSATION_ID, MESSAGE_ID);
+    }
+  }
+
+  @Nested
+  @DisplayName("Decks, reports and videos an answer made")
+  class Artifacts {
+
+    private static final String CONVERSATION_ID = "11111111-1111-1111-1111-111111111111";
+    private static final String ARTIFACT_ID = "33333333-3333-4333-8333-333333333333";
+
+    @Test
+    @DisplayName("Given supports_artifacts true should forward the declaration with the message")
+    void given_supportsArtifacts_should_forwardTrue() throws Exception {
+      when(config.isConfigured()).thenReturn(true);
+      Map<String, Object> body = new HashMap<>();
+      body.put("content", "a deck please");
+      body.put("supports_artifacts", true);
+
+      ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
+      response.getBody().writeTo(new ByteArrayOutputStream());
+
+      verify(client)
+          .streamChatMessage(
+              eq("a deck please"), isNull(), isNull(), isNull(), eq(false), eq(true), any());
+    }
+
+    @Test
+    @DisplayName("Given supports_artifacts on a session restore should forward it")
+    void given_supportsArtifactsOnRestore_should_forwardIt() {
+      when(config.isConfigured()).thenReturn(true);
+      when(client.createChatSession("agent-1", CONVERSATION_ID, true))
+          .thenReturn(Map.of("conversation_id", CONVERSATION_ID));
+
+      ResponseEntity<Map<String, Object>> response =
+          api.createSession(
+              TxCtx.missing(),
+              Map.of(
+                  "agent_slug",
+                  "agent-1",
+                  "conversation_id",
+                  CONVERSATION_ID,
+                  "supports_artifacts",
+                  true));
+
+      assertEquals(200, response.getStatusCode().value());
+      verify(client).createChatSession("agent-1", CONVERSATION_ID, true);
+    }
+
+    @Test
+    @DisplayName("Given an unknown kind or a non-UUID id should refuse without calling XTM One")
+    void given_invalidArtifact_should_refuse() {
+      when(config.isConfigured()).thenReturn(true);
+
+      assertEquals(
+          400,
+          api.getArtifact(TxCtx.missing(), "spreadsheet", ARTIFACT_ID).getStatusCode().value());
+      assertEquals(
+          400, api.getArtifact(TxCtx.missing(), "report", "../settings").getStatusCode().value());
+      verifyNoInteractions(client);
+    }
+
+    @Test
+    @DisplayName("Given a valid artifact should return the descriptor XTM One answers")
+    void given_validArtifact_should_returnDescriptor() {
+      when(config.isConfigured()).thenReturn(true);
+      JsonNode descriptor = JsonNodeFactory.instance.objectNode().put("kind", "video");
+      when(client.getChatArtifact("video", ARTIFACT_ID)).thenReturn(descriptor);
+
+      ResponseEntity<JsonNode> response = api.getArtifact(TxCtx.missing(), "video", ARTIFACT_ID);
+
+      assertEquals(200, response.getStatusCode().value());
+      assertEquals(descriptor, response.getBody());
+    }
+
+    @Test
+    @DisplayName("Given an odd format should refuse the download without calling XTM One")
+    void given_invalidFormat_should_refuseDownload() {
+      when(config.isConfigured()).thenReturn(true);
+      MockHttpServletResponse servletResponse = new MockHttpServletResponse();
+
+      ResponseStatusException refused =
+          assertThrows(
+              ResponseStatusException.class,
+              () ->
+                  api.downloadArtifact(
+                      TxCtx.missing(),
+                      "report",
+                      ARTIFACT_ID,
+                      Map.of("format", "../pdf"),
+                      servletResponse));
+
+      assertEquals(400, refused.getStatusCode().value());
+      verifyNoInteractions(client);
+    }
+
+    @Test
+    @DisplayName("Given a valid download should stream the file with its content headers")
+    void given_validDownload_should_streamTheFile() throws Exception {
+      when(config.isConfigured()).thenReturn(true);
+      byte[] pdf = "%PDF-1.7".getBytes(StandardCharsets.UTF_8);
+      doAnswer(
+              invocation -> {
+                XtmOneClient.ArtifactSink sink = invocation.getArgument(3);
+                sink.accept(
+                    "application/pdf",
+                    "attachment; filename=\"Q3 readout.pdf\"",
+                    pdf.length,
+                    new ByteArrayInputStream(pdf));
+                return null;
+              })
+          .when(client)
+          .downloadChatArtifact(eq("report"), eq(ARTIFACT_ID), eq("pdf"), any());
+      MockHttpServletResponse servletResponse = new MockHttpServletResponse();
+
+      api.downloadArtifact(
+          TxCtx.missing(), "report", ARTIFACT_ID, Map.of("format", "pdf"), servletResponse);
+
+      assertEquals(200, servletResponse.getStatus());
+      assertEquals("application/pdf", servletResponse.getContentType());
+      assertEquals(
+          "attachment; filename=\"Q3 readout.pdf\"",
+          servletResponse.getHeader(HttpHeaders.CONTENT_DISPOSITION));
+      assertEquals(pdf.length, servletResponse.getContentLengthLong());
+      assertEquals("private, no-store", servletResponse.getHeader(HttpHeaders.CACHE_CONTROL));
+      assertArrayEquals(pdf, servletResponse.getContentAsByteArray());
     }
   }
 }

@@ -17,11 +17,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
-import io.openaev.helper.CompositeIdResolvableI;
-import io.openaev.helper.MonoIdDeserializerHelper;
-import io.openaev.helper.MonoIdSerializer;
-import io.openaev.helper.MultiIdListSerializer;
-import io.openaev.helper.MultiIdSetSerializer;
+import io.openaev.helper.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -473,6 +469,11 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
 
   // Exposes the contract capability used to decide if atomic testing creation is allowed.
   @JsonProperty("injector_contract_atomic_testing")
+  @Schema(
+      description =
+          "True when this contract can be used to create an atomic test. It does not tell whether"
+              + " a given inject is an atomic test: an inject is one when it belongs to no"
+              + " scenario and no simulation")
   public boolean getAtomicTestingEffective() {
     return Boolean.TRUE.equals(isAtomicTesting);
   }
@@ -644,6 +645,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP = "asset-group";
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_TEAM = "team";
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_EXPECTATION = "expectation";
+  public static final String CONTRACT_ELEMENT_CONTENT_CREDENTIAL_REFERENCE = "credential-reference";
 
   public static final List<String> CONTRACT_ELEMENT_CONTENT_KEY_NOT_DYNAMIC =
       List.of(

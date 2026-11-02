@@ -5,8 +5,10 @@ import static java.util.Optional.ofNullable;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.openaev.database.model.*;
 import io.openaev.rest.inject.service.AssetToExecute;
+import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import lombok.Getter;
 import org.hibernate.Hibernate;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,6 +32,9 @@ public class ExecutableInject {
 
   @JsonIgnore private final List<MultipartFile> directAttachments = new ArrayList<>();
   @JsonIgnore private List<AssetToExecute> assetsToExecute;
+
+  /** The target resolution split by marking clearance. {@code null} until cached. */
+  @JsonIgnore private ResolvedAssetsToExecute resolvedAssetsToExecute;
 
   /**
    * Domain entities backing this inject's expectations (e.g. challenges or articles), pre-resolved
@@ -133,6 +138,17 @@ public class ExecutableInject {
   public void cacheAssetsToExecute(List<AssetToExecute> resolvedAssetsToExecute) {
     this.assetsToExecute =
         resolvedAssetsToExecute != null ? List.copyOf(resolvedAssetsToExecute) : null;
+  }
+
+  /**
+   * Caches both halves of a target resolution, so the dispatch never resolves the targets again.
+   */
+  public void cacheAssetsToExecute(ResolvedAssetsToExecute resolvedAssetsToExecute) {
+    this.resolvedAssetsToExecute =
+        new ResolvedAssetsToExecute(
+            List.copyOf(resolvedAssetsToExecute.cleared()),
+            Set.copyOf(resolvedAssetsToExecute.withoutClearance()));
+    this.assetsToExecute = this.resolvedAssetsToExecute.cleared();
   }
 
   /**

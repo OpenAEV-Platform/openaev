@@ -186,7 +186,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     Team noContextualTeam = this.teamRepository.save(getTeam(null, "fakeTeamName2", false));
     exerciseTeams.add(noContextualTeam);
     Exercise exercise = getExercise(exerciseTeams);
-    exercise.setFrom("test@test.com");
     exercise.setLessonsEnabled(true);
     this.exerciseRepository.save(exercise);
     entityManager.flush();
@@ -216,7 +215,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Transactional(rollbackFor = Exception.class)
   void shouldSkipLessonDataDuringExerciseDuplicationWhenLessonsDisabled() {
     Exercise exercise = getExercise();
-    exercise.setFrom("test@test.com");
     exercise.setLessonsEnabled(false);
     this.exerciseRepository.save(exercise);
 
@@ -246,7 +244,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     // Stopping used to delete every inject of a manual chained simulation, which emptied the
     // Execution screen while the attack path (cleared only on reset) still showed the same run.
     Exercise exercise = ExerciseFixture.getExercise();
-    exercise.setFrom("test@test.com");
     exercise.setStatus(ExerciseStatus.RUNNING);
     Exercise exerciseSaved = this.exerciseRepository.save(exercise);
 
@@ -287,7 +284,6 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     TEAM_ID = teamSaved.getId();
     Exercise exercise = ExerciseFixture.getExercise();
     exercise.setTeams(List.of(teamSaved));
-    exercise.setFrom(user.getEmail());
     Exercise exerciseSaved = this.exerciseRepository.saveAndFlush(exercise);
     InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
     Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);

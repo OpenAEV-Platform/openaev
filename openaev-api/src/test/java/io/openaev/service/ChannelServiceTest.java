@@ -13,7 +13,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ArticleRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
+import io.openaev.service.expectation.ExpectationVerdict;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.fixtures.ArticleFixture;
 import io.openaev.utils.fixtures.ChannelFixture;
@@ -69,13 +69,12 @@ class ChannelServiceTest {
           () -> channelService.validateArticles(EXERCISE_ID, CHANNEL_ID, user, TENANT_ID));
 
       // Assert
-      ArgumentCaptor<ExpectationUpdateInput> captor =
-          ArgumentCaptor.forClass(ExpectationUpdateInput.class);
+      ArgumentCaptor<ExpectationVerdict> captor = ArgumentCaptor.forClass(ExpectationVerdict.class);
       verify(injectExpectationService)
           .updateInjectExpectation(eq(EXPECTATION_ID), captor.capture());
-      ExpectationUpdateInput input = captor.getValue();
-      assertEquals(MEDIA_PRESSURE_SOURCE_ID, input.getSourceId());
-      assertEquals(EXPECTED_SCORE, input.getScore());
+      ExpectationVerdict verdict = captor.getValue();
+      assertEquals(MEDIA_PRESSURE_SOURCE_ID, verdict.sourceId());
+      assertEquals(EXPECTED_SCORE, verdict.score());
     }
 
     @Test
@@ -98,7 +97,7 @@ class ChannelServiceTest {
 
       // Assert
       verify(injectExpectationService, never())
-          .updateInjectExpectation(any(), any(ExpectationUpdateInput.class));
+          .updateInjectExpectation(any(), any(ExpectationVerdict.class));
     }
 
     private User buildPlayer() {

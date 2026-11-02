@@ -83,8 +83,10 @@ A single Expectation can receive multiple validation results for the same Inject
 When automated result retrieval is not possible (e.g., non-technical Injects), record results manually:
 
 1. Open the Inject result page.
-2. Click the **shield** icon labeled **Add a result**.
+2. On the Expectation card, click **Add a result**: the **shield** icon for Detection, Prevention, and Vulnerability Expectations, the **clipboard** icon for Manual, Challenge, and Article Expectations.
 3. Fill in the result form and save.
+
+For Manual, Challenge, and Article Expectations, the **Add a result** button stays available after a score is set, so you can change the score later. The new result replaces the previous one.
 
 ### How the final result is computed
 

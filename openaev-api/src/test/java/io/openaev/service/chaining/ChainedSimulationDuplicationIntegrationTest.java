@@ -22,7 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Functional contract of duplicating a chained simulation (ADR-007 §6): <b>copy what was authored,
+ * Functional contract of duplicating a chained simulation (ADR-015 §6): <b>copy what was authored,
  * drop what was run</b>. The source is deliberately a simulation that has already executed, because
  * the safety guarantee is not the source status but the fact that the cloner reads only from the
  * TEMPLATE workflow.

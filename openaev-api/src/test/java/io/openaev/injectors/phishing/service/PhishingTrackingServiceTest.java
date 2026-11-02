@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -21,6 +22,7 @@ import io.openaev.database.model.InjectExpectationResult;
 import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
+import io.openaev.database.model.Step;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectExpectationRepository;
@@ -30,6 +32,7 @@ import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.finding.FindingService;
+import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,6 +55,7 @@ class PhishingTrackingServiceTest {
   @Mock private TeamRepository teamRepository;
   @Mock private StepRepository stepRepository;
   @Mock private FindingService findingService;
+  @Mock private AttackPathFindingIngestionService attackPathFindingIngestion;
 
   @InjectMocks private PhishingTrackingService phishingTrackingService;
 
@@ -574,6 +578,57 @@ class PhishingTrackingServiceTest {
 
     // -- ASSERT --
     verify(findingService, org.mockito.Mockito.times(1)).createFindings(anyList(), anyString());
+  }
+
+  @Test
+  @DisplayName(
+      "markSubmitted should copy the credentials finding onto the attack path of a chained run")
+  void given_chainedResult_markSubmitted_should_copyFindingOntoAttackPath() {
+    // -- ARRANGE -- a chained execution: the tracking row carries the step that produced it.
+    PhishingResult result = resultWith(true, true);
+    Step step = new Step();
+    step.setId("step-1");
+    result.setStep(step);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    when(injectExpectationRepository.findAllByInjectId(anyString())).thenReturn(List.of());
+    // The mocked service persists nothing: set the id the real create would generate.
+    doAnswer(
+            i -> {
+              List<Finding> findings = i.getArgument(0);
+              findings.getFirst().setId("finding-1");
+              return null;
+            })
+        .when(findingService)
+        .createFindings(anyList(), anyString());
+
+    // -- ACT --
+    phishingTrackingService.markSubmitted(
+        "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
+
+    // -- ASSERT -- only the submitted finding is copied, by its id.
+    verify(attackPathFindingIngestion)
+        .copyFindingAfterCommit(result.getInject(), step, "finding-1");
+  }
+
+  @Test
+  @DisplayName("markSubmitted should not touch the attack path outside a chained run")
+  void given_unchainedResult_markSubmitted_should_notCopyFindingOntoAttackPath() {
+    // -- ARRANGE -- no step: a regular (non-chained) phishing execution.
+    PhishingResult result = resultWith(true, true);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    when(injectExpectationRepository.findAllByInjectId(anyString())).thenReturn(List.of());
+
+    // -- ACT --
+    phishingTrackingService.markSubmitted(
+        "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
+
+    // -- ASSERT --
+    verify(findingService).createFindings(anyList(), eq("inject-1"));
+    verifyNoInteractions(attackPathFindingIngestion);
   }
 
   @Test

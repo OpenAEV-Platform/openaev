@@ -28,7 +28,10 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -48,6 +51,7 @@ public class AtomicTestingService {
 
   private final AssetGroupRepository assetGroupRepository;
   private final AssetRepository assetRepository;
+  private final SecretReferenceRepository secretReferenceRepository;
   private final PayloadMapper payloadMapper;
   private final InjectRepository injectRepository;
   private final InjectorContractRepository injectorContractRepository;
@@ -137,6 +141,8 @@ public class AtomicTestingService {
     injectToSave.setAssets(fromIterable(this.assetRepository.findAllById(input.getAssets())));
     injectToSave.setAssetGroups(
         fromIterable(this.assetGroupRepository.findAllById(input.getAssetGroups())));
+    injectToSave.setSecretReferences(
+        fromIterable(secretReferenceRepository.findAllById(input.getSecretReferences())));
 
     injectToSave.getDocuments().clear();
 
@@ -309,6 +315,10 @@ public class AtomicTestingService {
     // normalized recurrence expression; clearing the schedule stays allowed.
     if (recurrence != null) {
       injectService.throwIfInjectNotLaunchable(inject);
+      inject.setScheduledBy(
+          userRepository
+              .findById(currentUser().getId())
+              .orElseThrow(ElementNotFoundException::new));
     }
     inject.setRecurrence(recurrence);
     inject.setRecurrenceStart(input.getRecurrenceStart());

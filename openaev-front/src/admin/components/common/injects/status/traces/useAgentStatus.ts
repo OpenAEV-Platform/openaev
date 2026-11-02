@@ -31,28 +31,32 @@ const actionOrder = (action: string): number => ACTION_DISPLAY_ORDER[action] ?? 
 
 const useAgentStatus = (traces: ExecutionTraceOutput[]): AgentStatus => {
   return useMemo(() => {
+    // Chronological order, so a timeout shows before the traces that arrive after it.
+    // The action order only breaks ties between traces received at the same time.
     const sorted = [...traces].sort(
-      (a, b) => actionOrder(a.execution_action) - actionOrder(b.execution_action)
-        || new Date(a.execution_time).getTime() - new Date(b.execution_time).getTime(),
+      (a, b) => new Date(a.execution_time).getTime() - new Date(b.execution_time).getTime()
+        || actionOrder(a.execution_action) - actionOrder(b.execution_action),
     );
 
     const finalTrace = sorted.find(t => t.execution_action === 'COMPLETE') ?? null;
-    const startTrace = sorted.find(t => t.execution_action === 'START') ?? null;
     const lastExecutionTrace = [...sorted].reverse().find(t => t.execution_action === 'EXECUTION') ?? null;
     const agent = sorted[0]?.execution_agent;
 
-    const grouped: TraceGroup[] = [];
+    // One group per action, ordered by its first trace: a timeout received before the first
+    // attack trace shows first, and a late trace joins its action group instead of opening a new one
+    const groupsByAction = new Map<string, TraceGroup>();
     sorted.forEach((trace) => {
-      const last = grouped.at(-1);
-      if (last && trace.execution_action === last.action) {
-        last.traces.push(trace);
+      const group = groupsByAction.get(trace.execution_action);
+      if (group) {
+        group.traces.push(trace);
       } else {
-        grouped.push({
+        groupsByAction.set(trace.execution_action, {
           action: trace.execution_action,
           traces: [trace],
         });
       }
     });
+    const grouped = [...groupsByAction.values()];
 
     // Use COMPLETE trace status, or fall back to last EXECUTION trace status
     const statusName = finalTrace?.execution_status
@@ -64,7 +68,8 @@ const useAgentStatus = (traces: ExecutionTraceOutput[]): AgentStatus => {
       executorName: agent?.agent_executor?.executor_name,
       executorType: agent?.agent_executor?.executor_type,
       statusName,
-      trackingStart: startTrace?.execution_time,
+      // The first trace, START or not: a timeout can be the only trace received
+      trackingStart: sorted[0]?.execution_time,
       trackingEnd: finalTrace?.execution_time,
       traces: sorted,
       tracesByAction: grouped,

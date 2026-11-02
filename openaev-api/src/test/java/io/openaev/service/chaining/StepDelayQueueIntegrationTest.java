@@ -11,16 +11,23 @@ import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
+// Runs the test transaction in the default tenant's scope, where every fixture here is created: the
+// delay-queue job pops across all tenants, which include it.
+@TestExecutionListeners(
+    listeners = DefaultTenantScopeTestListener.class,
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class StepDelayQueueIntegrationTest {
 
   @Autowired private StepDelayQueueRepository stepDelayQueueRepository;

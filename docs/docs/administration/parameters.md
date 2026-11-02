@@ -52,6 +52,12 @@ OpenAEV supports independent customization of the **dark** and **light** themes.
 | Logo URL (collapsed) | Compact logo displayed when the sidebar is collapsed |
 | Logo URL (login) | Logo displayed on the login page |
 
+Logo and image URLs must use `https`. By default they must also point to a public address: a URL that resolves to a private or internal address is refused when you save the theme.
+
+!!! note "Closed networks (on-premise)"
+
+    If your network has no public place to host a logo, an administrator can allow internal addresses with the `openaev.theme.asset-allow-internal-targets` [configuration parameter](../reference/deployment/configuration.md). It is turned off by default. When turned on, it also applies to the external images the report renderer loads.
+
 ### Login page
 
 | Setting | Description |

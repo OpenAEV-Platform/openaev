@@ -40,7 +40,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Integration tests exercising the three real workflow interruption causes documented in ADR-007
+ * Integration tests exercising the three real workflow interruption causes documented in ADR-013
  * (TIMEOUT, CANCELED, NO_MORE_PROGRESS). Each test drives the real orchestration services
  * end-to-end and asserts both the resulting DB state and the exact operational log lines an
  * operator sees in production for that cause.
@@ -52,7 +52,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @WithMockUser(isAdmin = true)
-@DisplayName("Workflow End-Of-Life Integration Tests (ADR-007)")
+@DisplayName("Workflow End-Of-Life Integration Tests (ADR-013)")
 class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
 
   @Autowired private WorkflowEndService workflowEndService;
@@ -157,7 +157,7 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
               .orElseThrow()
               .getStatus());
 
-      // Assert - exact operational log lines an operator sees in production (see ADR-007)
+      // Assert - exact operational log lines an operator sees in production (see ADR-013)
       assertTrue(anyLogContains("Timeout expired for workflow run"));
       assertTrue(anyLogContains("Stop 2 active step(s)"));
       assertTrue(anyLogContains("force-completed due to TIMEOUT"));
@@ -186,7 +186,7 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
     void
         given_runningWorkflowWithActiveStepsDelayQueueAndActiveInject_should_forceCompleteWithoutFinishingSimulation() {
       // Arrange - the exercise is already CANCELED by the user before this cleanup runs (real
-      // production sequencing documented in ADR-007: ExerciseService.changeExerciseStatus sets
+      // production sequencing documented in ADR-013: ExerciseService.changeExerciseStatus sets
       // the exercise to CANCELED first, then calls WorkflowService.cancelSimulationEndWorkflowRun)
       Workflow workflowRun = createPersistedRunWorkflow();
       workflowRun.getSimulation().setStatus(ExerciseStatus.CANCELED);
@@ -224,7 +224,7 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
               .orElseThrow()
               .getName());
       // The simulation was already stopped by the user: cancellation must NOT flip it to
-      // FINISHED (stopSimulationByEndWorkflow no-ops for CANCELED, per ADR-007).
+      // FINISHED (stopSimulationByEndWorkflow no-ops for CANCELED, per ADR-013).
       assertEquals(
           ExerciseStatus.CANCELED,
           exerciseRepository
@@ -232,7 +232,7 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
               .orElseThrow()
               .getStatus());
 
-      // Assert - exact operational log lines an operator sees in production (see ADR-007)
+      // Assert - exact operational log lines an operator sees in production (see ADR-013)
       assertTrue(anyLogContains("Stop 2 active step(s)"));
       assertTrue(anyLogContains("force-completed due to CANCELED"));
       assertTrue(anyLogContains("3 step delay queue entries"));
@@ -341,7 +341,7 @@ class WorkflowEndOfLifeIntegrationTest extends IntegrationTest {
               .orElseThrow()
               .getStatus());
 
-      // Assert - exact operational log lines an operator sees in production (see ADR-007):
+      // Assert - exact operational log lines an operator sees in production (see ADR-013):
       // with zero active steps and an empty delay queue, endActiveStepsByWorkflowId and
       // deleteAllByWorkflowRun stay completely silent (no INFO, no ERROR) - only the
       // active-inject/asset-agent-jobs/workflow-states/simulation-finished stages log.

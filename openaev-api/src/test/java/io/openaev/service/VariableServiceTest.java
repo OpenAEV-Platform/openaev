@@ -36,7 +36,6 @@ public class VariableServiceTest extends IntegrationTest {
   void beforeAll() {
     Exercise exercise = new Exercise();
     exercise.setName("Exercise name");
-    exercise.setFrom("test@test.com");
     exercise.setReplyTos(List.of("test@test.com"));
     // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, so this
     // class-wide fixture names the default tenant explicitly rather than relying on it.

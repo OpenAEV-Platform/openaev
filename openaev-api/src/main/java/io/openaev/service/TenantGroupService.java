@@ -58,11 +58,11 @@ public class TenantGroupService {
   private final MarkingMetricCollector markingMetricCollector;
   @PersistenceContext private EntityManager entityManager;
 
-  // PermissionService pulls in InjectService -> EndpointService -> ServiceAccountPrivilegeService
-  // -> AbstractPrivilegeService -> TenantGroupService, so a plain constructor-injected field here
-  // is a circular bean dependency. @Lazy setter injection (same pattern as
-  // InjectService.setInjectStatusService) defers resolving the PermissionService bean until first
-  // use, breaking the cycle without restructuring either service.
+  // PermissionService pulls in InjectService -> EndpointService ->
+  // AgentServiceAccountPrivilegeService -> AbstractPrivilegeService -> TenantGroupService, so a
+  // plain constructor-injected field here is a circular bean dependency. @Lazy setter injection
+  // (same pattern as InjectService.setInjectStatusService) defers resolving the PermissionService
+  // bean until first use, breaking the cycle without restructuring either service.
   private PermissionService permissionService;
 
   @Autowired

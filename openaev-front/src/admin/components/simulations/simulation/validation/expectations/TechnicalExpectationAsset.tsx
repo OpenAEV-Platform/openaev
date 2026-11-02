@@ -117,7 +117,7 @@ const TechnicalExpectationAsset: FunctionComponent<Props> = ({
             {selected !== null
               && (
                 <pre>
-                  {toJsonFormat(selected.result)}
+                  {toJsonFormat(selected.result || '')}
                 </pre>
               )}
           </Alert>

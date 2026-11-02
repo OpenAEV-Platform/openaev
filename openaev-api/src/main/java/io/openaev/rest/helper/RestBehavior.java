@@ -48,6 +48,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.validation.method.ParameterValidationResult;
@@ -460,6 +461,18 @@ public class RestBehavior {
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 
+  // Matched on the cause too: Spring Data and JPA wrap the timeout in their own exceptions.
+  @ExceptionHandler({
+    TransactionTimedOutException.class,
+    org.hibernate.TransactionException.class,
+    org.hibernate.QueryTimeoutException.class
+  })
+  public ResponseEntity<ErrorMessage> handleTransactionTimeout(Exception ex) {
+    log.error("Transaction stopped on {} {}: {}", requestMethod(), requestUri(), ex.getMessage());
+    return new ResponseEntity<>(
+        new ErrorMessage("The request took too long and was stopped."), HttpStatus.GATEWAY_TIMEOUT);
+  }
+
   @ExceptionHandler(AlreadyExistingException.class)
   public ResponseEntity<ErrorMessage> handleAlreadyExistingException(AlreadyExistingException ex) {
     ErrorMessage message = new ErrorMessage(ex.getMessage());
@@ -706,6 +719,12 @@ public class RestBehavior {
       errorBag.setError(e.getMessage());
     }
     return errorBag;
+  }
+
+  @ExceptionHandler(ConflictException.class)
+  public ResponseEntity<ErrorMessage> handleConflictException(ConflictException ex) {
+    log.debug("ConflictException: {}", ex.getReason(), ex);
+    return new ResponseEntity<>(new ErrorMessage(ex.getReason()), HttpStatus.CONFLICT);
   }
 
   // -- 415 UNSUPPORTED_MEDIA_TYPE --

@@ -1,5 +1,6 @@
 package io.openaev.api.xtmone;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.NullNode;
 import io.openaev.aop.AccessControl;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
@@ -8,6 +9,7 @@ import io.openaev.rest.helper.RestBehavior;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -55,6 +57,11 @@ public class XtmOneChatApi extends RestBehavior {
   private static final Set<String> ALLOWED_RATINGS = Set.of("positive", "negative");
   private static final int MAX_FEEDBACK_COMMENT_LENGTH = 2000;
 
+  /** What an answer can make besides a file, and the shape of a download format. */
+  private static final Set<String> ARTIFACT_KINDS = Set.of("presentation", "report", "video");
+
+  private static final Pattern ARTIFACT_FORMAT_PATTERN = Pattern.compile("^[a-z0-9_]{1,20}$");
+
   private final XtmOneClient client;
   private final XtmOneConfig config;
   private final AiMetricCollector aiMetricCollector;
@@ -78,7 +85,9 @@ public class XtmOneChatApi extends RestBehavior {
     String agentSlug = body.get("agent_slug") != null ? body.get("agent_slug").toString() : null;
     String conversationId =
         body.get("conversation_id") != null ? body.get("conversation_id").toString() : null;
-    Map<String, Object> result = client.createChatSession(agentSlug, conversationId);
+    boolean supportsArtifacts = Boolean.TRUE.equals(body.get("supports_artifacts"));
+    Map<String, Object> result =
+        client.createChatSession(agentSlug, conversationId, supportsArtifacts);
     if (result == null) {
       return ResponseEntity.internalServerError().build();
     }
@@ -322,6 +331,8 @@ public class XtmOneChatApi extends RestBehavior {
     Map<String, Object> context =
         body.get("context") instanceof Map ? (Map<String, Object>) body.get("context") : null;
     boolean supportsToolApproval = Boolean.TRUE.equals(body.get("supports_tool_approval"));
+    // The chatbot renders the decks, reports and videos of the answer itself.
+    boolean supportsArtifacts = Boolean.TRUE.equals(body.get("supports_artifacts"));
 
     StreamingResponseBody responseBody =
         outputStream -> {
@@ -332,6 +343,7 @@ public class XtmOneChatApi extends RestBehavior {
                 agentSlug,
                 context,
                 supportsToolApproval,
+                supportsArtifacts,
                 sseStream -> {
                   byte[] buf = new byte[4096];
                   int n;
@@ -432,6 +444,71 @@ public class XtmOneChatApi extends RestBehavior {
       headers.set(HttpHeaders.CONTENT_DISPOSITION, file.contentDisposition());
     }
     return new ResponseEntity<>(file.content(), headers, HttpStatus.OK);
+  }
+
+  /**
+   * Describes a deck, report or video an answer made, as of now: the chatbot card follows a video
+   * whose render was still running when the answer arrived.
+   */
+  @GetMapping(XTM_ONE_URI + "/chat/artifacts/{kind}/{artifactId}")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public ResponseEntity<JsonNode> getArtifact(
+      TxCtx ctx, @PathVariable String kind, @PathVariable String artifactId) {
+    if (!config.isConfigured()) {
+      return ResponseEntity.badRequest().build();
+    }
+    if (!isValidArtifact(kind, artifactId)) {
+      return ResponseEntity.badRequest().build();
+    }
+    return ResponseEntity.ok(client.getChatArtifact(kind, artifactId));
+  }
+
+  /**
+   * Downloads a deck (PDF, PowerPoint), a report (PDF) or a video (MP4) an answer made. Streamed
+   * from XTM One with its content headers: a video can be large, and the user stays authenticated
+   * to OpenAEV only, as for {@link #downloadFile}.
+   */
+  @PostMapping(XTM_ONE_URI + "/chat/artifacts/{kind}/{artifactId}/download")
+  @Transactional(propagation = Propagation.NEVER)
+  // skipRBAC: see listSessions - per-user scoping is enforced upstream by the minted JWT.
+  @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
+  public void downloadArtifact(
+      TxCtx ctx,
+      @PathVariable String kind,
+      @PathVariable String artifactId,
+      @RequestBody Map<String, Object> body,
+      HttpServletResponse response) {
+    if (!config.isConfigured()
+        || !isValidArtifact(kind, artifactId)
+        || !(body.get("format") instanceof String format)
+        || !ARTIFACT_FORMAT_PATTERN.matcher(format).matches()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid artifact download");
+    }
+    client.downloadChatArtifact(
+        kind,
+        artifactId,
+        format,
+        (contentType, contentDisposition, contentLength, fileBody) -> {
+          response.setStatus(HttpStatus.OK.value());
+          response.setContentType(parseContentType(contentType).toString());
+          if (contentDisposition != null && !contentDisposition.isBlank()) {
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, contentDisposition);
+          }
+          if (contentLength >= 0) {
+            response.setContentLengthLong(contentLength);
+          }
+          response.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-store");
+          fileBody.transferTo(response.getOutputStream());
+        });
+  }
+
+  private static boolean isValidArtifact(String kind, String artifactId) {
+    return kind != null
+        && ARTIFACT_KINDS.contains(kind)
+        && artifactId != null
+        && FILE_ID_PATTERN.matcher(artifactId).matches();
   }
 
   private MediaType parseContentType(String contentType) {

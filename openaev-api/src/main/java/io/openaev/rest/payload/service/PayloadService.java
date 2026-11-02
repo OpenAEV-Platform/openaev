@@ -652,10 +652,10 @@ public class PayloadService {
     // (both FKs are ON DELETE CASCADE): de-index the doomed injects explicitly, no JPA lifecycle
     // event fires for them. Chaining steps referencing that contract have no FK to cascade on
     // (the contract is only a JSON snapshot in step_data), so inventory the doomed contract rows
-    // BEFORE the delete and sweep the orphaned step templates explicitly too. The inventory is
-    // grouped by tenant and each sweep stays scoped to its own tenant: a payload backs at most one
-    // contract per tenant (injector_contract_payload_unique), and nothing in the schema stops a
-    // contract of another tenant from referencing it.
+    // BEFORE the delete and sweep the orphaned step templates explicitly too. The inventory reads
+    // the contracts the caller's scope can see, grouped by tenant, and each sweep stays scoped to
+    // its own tenant: a payload backs at most one contract per tenant
+    // (injector_contract_payload_unique).
     String tenantId = payload.getTenant().getId();
     Map<String, List<String>> cascadeDeletedContractIdsPerTenant =
         injectorContractService.findContractIdsByPayloadIdPerTenant(payloadId);

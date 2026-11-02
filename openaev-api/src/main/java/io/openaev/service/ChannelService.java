@@ -2,7 +2,7 @@ package io.openaev.service;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.injectors.channel.ChannelContract.CHANNEL_PUBLISH;
-import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildMediaPressureUpdateInput;
+import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.buildMediaPressureVerdict;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.hasNoResults;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -129,7 +129,7 @@ public class ChannelService {
               expectation ->
                   injectExpectationService.updateInjectExpectation(
                       expectation.getId(),
-                      buildMediaPressureUpdateInput(expectation.getExpectedScore())));
+                      buildMediaPressureVerdict(expectation.getExpectedScore())));
     }
     return withDocumentLinksInitialized(channelReader);
   }

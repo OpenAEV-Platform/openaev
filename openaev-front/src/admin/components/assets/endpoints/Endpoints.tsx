@@ -65,11 +65,14 @@ const Endpoints = () => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  // Gates the Markings column (and its data fetch below) so the flag-off platform looks exactly as
-  // it does today — mirrors the settings.config.tsx pattern used for the Marking Definitions menu.
+  // Gates the Markings column/filter (and the data fetch below) so a flag-off or unauthorized
+  // platform looks exactly as it did before this feature — mirrors the settings.config.tsx pattern
+  // used for the Marking Definitions menu.
   const markingEnabled = isFeatureEnabled('MARKING');
+  const ability = useAbility();
+  const canAccessMarkings = markingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
   // Resolved once for the whole page; the Markings column maps ids per row. Skipped entirely when
-  // the flag is off so the platform issues no marking-definitions request at all.
+  // either gate is closed so the platform issues no marking-definitions request at all.
   const markingDefinitions = useMarkingDefinitions({
     skip: !markingEnabled,
     assignableOnly: true,
@@ -96,6 +99,7 @@ const Endpoints = () => {
     'asset_cloud_provider',
     'asset_internet_facing',
     'asset_tags',
+    ...(canAccessMarkings ? ['asset_markings'] : []),
   ];
 
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
@@ -122,7 +126,6 @@ const Endpoints = () => {
   };
 
   // Bulk selection
-  const ability = useAbility();
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
   const {
     selectedElements,
@@ -228,8 +231,8 @@ const Endpoints = () => {
       isSortable: false,
       value: (endpoint: EndpointOutput) => <ItemTags variant="list" tags={endpoint.asset_tags ?? []} />,
     },
-    // Rendered only when MARKING is enabled — with the flag off, the list must look exactly as it
-    // did before this column was added.
+    // Rendered only when MARKING is enabled and the user can access marking definitions — with
+    // either gate closed, the list must look exactly as it did before this column was added.
     ...(markingEnabled
       ? [{
           field: 'asset_markings',

@@ -12,6 +12,7 @@ import jakarta.persistence.EntityManagerFactory;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
@@ -75,6 +76,28 @@ class TenantFilteringConfigTest {
         fromGuard,
         "the background guard's '*'-activated tables must match the live schema; update"
             + " tenant-strict-tables-missed-by-entity-scan.txt to match");
+  }
+
+  @Test
+  @DisplayName(
+      "given the terminal '*' read as production arms it, plus a table, should be accepted and arm"
+          + " what '*' arms")
+  void given_wildcardReadAsItArmsPlusATable_should_beAcceptedAndArmWhatTheWildcardArms() {
+    // Arrange: the shape a test class follows production with, under the terminal value
+    Set<String> followsProduction =
+        new TreeSet<>(ProductionActiveTables.armedBy(TenantTables.ALL_STRICT));
+    followsProduction.add("documents");
+    TenantTables schema = TenantFilteringConfig.deriveFromSchema(dataSource);
+
+    // Act
+    TenantTables armed = schema.restrictTo(followsProduction);
+
+    // Assert
+    assertEquals(
+        schema.restrictTo(List.of(TenantTables.ALL_STRICT)).strict(),
+        armed.strict(),
+        "the list the reader returns under '*' must arm the strict tables '*' arms");
+    assertTrue(armed.dualScope().isEmpty(), "'*' arms no dual-scope table");
   }
 
   @Test

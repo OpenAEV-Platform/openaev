@@ -14,7 +14,7 @@ class AuditObjectMapperTest {
     // Arrange
     ObjectMapper httpMapper = new ObjectMapper();
     AuditObjectMapper auditMapper = new AuditObjectMapper(httpMapper);
-    SamplePayload payload = new SamplePayload("id-1", "visible", "secret");
+    SamplePayload payload = new SamplePayload("id-1", "visible", "secret", true);
 
     // Act
     var httpJson = httpMapper.valueToTree(payload);
@@ -24,10 +24,13 @@ class AuditObjectMapperTest {
     assertThat(httpJson.path("secret_value").isMissingNode()).isFalse();
     assertThat(auditJson.path("secret_value").isMissingNode()).isTrue();
     assertThat(auditJson.path("public_value").asText()).isEqualTo("visible");
+    assertThat(httpJson.has("listened")).isTrue();
+    assertThat(auditJson.has("listened")).isFalse();
   }
 
   private record SamplePayload(
       @JsonProperty("payload_id") String id,
       @JsonProperty("public_value") String publicValue,
-      @AuditLogIgnore @JsonProperty("secret_value") String secretValue) {}
+      @AuditLogIgnore @JsonProperty("secret_value") String secretValue,
+      @JsonProperty("listened") boolean listened) {}
 }

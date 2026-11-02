@@ -20,7 +20,7 @@ import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.fixtures.EndpointRegisterInputFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
@@ -46,7 +46,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
   @Autowired private TenantComposer tenantComposer;
   @Autowired private ExecutorFixture executorFixture;
   @Autowired private AssetAgentJobRepository assetAgentJobRepository;
-  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
 
@@ -72,7 +72,7 @@ public class EndpointServiceIntegrationTest extends IntegrationTest {
    * looks up the service-account token
    */
   private void ensureServiceAccount(String tenantId) {
-    serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
     entityManager.flush();
     entityManager.clear();
   }

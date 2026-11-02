@@ -18,6 +18,7 @@ import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.GroupSpecification;
 import io.openaev.rest.exception.BadRequestException;
@@ -128,6 +129,14 @@ public class UserService {
    */
   public long globalCount() {
     return userRepository.globalCount();
+  }
+
+  /**
+   * Returns the platform users of the given tenants (players and reserved accounts excluded), with
+   * the XTM Hub news feed types they unsubscribed from.
+   */
+  public List<RawNewsFeedRecipient> newsFeedRecipients(Collection<String> tenantIds) {
+    return userRepository.rawNewsFeedRecipients(tenantIds);
   }
 
   // -- CREATE --

@@ -7,7 +7,6 @@ import java.time.Instant;
 import org.springframework.beans.BeanUtils;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -86,13 +85,13 @@ public class LicenseCacheManager {
    * Evicts the license cache (before the method body runs) and then publishes a {@link
    * LicenseRefreshedEvent} so that listeners (e.g. {@code LogService}) can react with guaranteed
    * fresh cache data. Also called when the XTM license in force changes.
-   *
-   * <p>{@code beforeInvocation = true} is intentional: it ensures the cache is already cleared when
-   * the event handler calls {@link #getEnterpriseEditionInfo()}, avoiding a stale cache read and
-   * the Hibernate {@code StaleStateException} caused by self-call proxy bypass.
    */
-  @CacheEvict(value = LICENSE_CACHE, allEntries = true, beforeInvocation = true)
   public void refreshAndNotify() {
+    Cache cache = cacheManager.getCache(LICENSE_CACHE);
+    if (cache != null) {
+      // evict all keys
+      cache.invalidate();
+    }
     eventPublisher.publishEvent(new LicenseRefreshedEvent(this));
   }
 }
