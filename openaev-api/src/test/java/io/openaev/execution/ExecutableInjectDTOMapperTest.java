@@ -2,13 +2,17 @@ package io.openaev.execution;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.*;
 import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
+import io.openaev.rest.asset_group.form.AssetGroupSimple;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.InjectService;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,8 +43,16 @@ class ExecutableInjectDTOMapperTest {
     return endpoint;
   }
 
-  private EndpointTargetOutput outputFor(Endpoint endpoint) {
-    return EndpointTargetOutput.builder().id(endpoint.getId()).build();
+  private EndpointTargetOutput outputForEndpoint(Endpoint endpoint) {
+    return EndpointTargetOutput.builder().id(endpoint.getId()).assetGroupIds(Set.of()).build();
+  }
+
+  private EndpointTargetOutput outputForEndpoint(Endpoint endpoint, Set<String> assetGroupIds) {
+    return EndpointTargetOutput.builder().id(endpoint.getId()).assetGroupIds(assetGroupIds).build();
+  }
+
+  private AssetGroupSimple outputForAssetGroup(AssetGroup assetGroup) {
+    return AssetGroupSimple.builder().id(assetGroup.getId()).build();
   }
 
   private Inject inject() {
@@ -50,9 +62,15 @@ class ExecutableInjectDTOMapperTest {
     return inject;
   }
 
-  private ExecutableInject executableInject(Inject inject, Endpoint... assets) {
+  private ExecutableInject executableInject(Inject inject, List<Asset> assets) {
     return new ExecutableInject(
-        true, false, inject, List.of(), List.of(assets), List.of(), List.of(), List.of());
+        true, false, inject, List.of(), assets, List.of(), List.of(), List.of());
+  }
+
+  private ExecutableInject executableInject(
+      Inject inject, List<Asset> assets, List<AssetGroup> assetGroups) {
+    return new ExecutableInject(
+        true, false, inject, List.of(), assets, assetGroups, List.of(), List.of());
   }
 
   @Test
@@ -63,12 +81,14 @@ class ExecutableInjectDTOMapperTest {
     Endpoint endpointGreen = endpoint("endpoint-green");
     Endpoint endpointRed = endpoint("endpoint-red");
     Inject inject = inject();
-    ExecutableInject executableInject = executableInject(inject, endpointGreen, endpointRed);
+    ExecutableInject executableInject =
+        executableInject(inject, List.of(endpointGreen, endpointRed));
     // Simulates InjectsExecutionJob.executeInject() having already called
     // resolveAllAssetsToExecute() and cacheAssetsToExecute(...) before dispatch - the restricted
     // asset is already gone from the cached list.
     executableInject.cacheAssetsToExecute(List.of(new AssetToExecute(endpointGreen)));
-    when(endpointMapper.toEndpointTargetOutput(endpointGreen)).thenReturn(outputFor(endpointGreen));
+    when(endpointMapper.toEndpointTargetOutput(eq(endpointGreen), any()))
+        .thenReturn(outputForEndpoint(endpointGreen));
 
     ExecutableInjectDTO dto = mapper.toExecutableInjectDTO(executableInject, null);
 
@@ -86,13 +106,15 @@ class ExecutableInjectDTOMapperTest {
     Endpoint endpointGreen = endpoint("endpoint-green");
     Endpoint endpointRed = endpoint("endpoint-red");
     Inject inject = inject();
-    ExecutableInject executableInject = executableInject(inject, endpointGreen, endpointRed);
+    ExecutableInject executableInject =
+        executableInject(inject, List.of(endpointGreen, endpointRed));
     // Nothing cached this time (executableInject.getAssetsToExecute() is null) - a direct caller
     // (e.g. atomic testing, chaining) that doesn't pre-resolve, per AbstractTechnicalBehavior's own
     // fallback comment.
     when(injectService.resolveAllAssetsToExecute(inject))
         .thenReturn(List.of(new AssetToExecute(endpointGreen)));
-    when(endpointMapper.toEndpointTargetOutput(endpointGreen)).thenReturn(outputFor(endpointGreen));
+    when(endpointMapper.toEndpointTargetOutput(eq(endpointGreen), any()))
+        .thenReturn(outputForEndpoint(endpointGreen));
 
     ExecutableInjectDTO dto = mapper.toExecutableInjectDTO(executableInject, null);
 
@@ -100,7 +122,7 @@ class ExecutableInjectDTOMapperTest {
         .extracting(EndpointTargetOutput::getId)
         .containsExactly("endpoint-green");
     verify(injectService).resolveAllAssetsToExecute(inject);
-    verify(endpointMapper, never()).toEndpointTargetOutput(endpointRed);
+    verify(endpointMapper, never()).toEndpointTargetOutput(eq(endpointRed), any());
   }
 
   @Test
@@ -109,16 +131,68 @@ class ExecutableInjectDTOMapperTest {
     Endpoint endpointA = endpoint("endpoint-a");
     Endpoint endpointB = endpoint("endpoint-b");
     Inject inject = inject();
-    ExecutableInject executableInject = executableInject(inject, endpointA, endpointB);
+    ExecutableInject executableInject = executableInject(inject, List.of(endpointA, endpointB));
     executableInject.cacheAssetsToExecute(
         List.of(new AssetToExecute(endpointA), new AssetToExecute(endpointB)));
-    when(endpointMapper.toEndpointTargetOutput(any(Endpoint.class)))
-        .thenAnswer(invocation -> outputFor(invocation.getArgument(0)));
+    when(endpointMapper.toEndpointTargetOutput(any(Endpoint.class), any()))
+        .thenAnswer(invocation -> outputForEndpoint(invocation.getArgument(0)));
 
     ExecutableInjectDTO dto = mapper.toExecutableInjectDTO(executableInject, null);
 
     assertThat(dto.getAssets())
         .extracting(EndpointTargetOutput::getId)
         .containsExactlyInAnyOrder("endpoint-a", "endpoint-b");
+  }
+
+  @Test
+  @DisplayName(
+      "each endpoint target carries the IDs of the inject's asset groups it was resolved from")
+  void given_assetsResolvedFromAssetGroups_should_passTheirGroupIdsToTheTargets() {
+    // Arrange
+    Endpoint endpointInTwoGroups = endpoint("endpoint-two-groups");
+    Endpoint directEndpoint = endpoint("endpoint-direct");
+    AssetGroup groupA = new AssetGroup();
+    groupA.setId("group-a");
+    AssetGroup groupB = new AssetGroup();
+    groupB.setId("group-b");
+    Inject inject = inject();
+    ExecutableInject executableInject =
+        executableInject(
+            inject, List.of(endpointInTwoGroups, directEndpoint), List.of(groupA, groupB));
+    executableInject.cacheAssetsToExecute(
+        List.of(
+            new AssetToExecute(
+                endpointInTwoGroups, false, new ArrayList<>(List.of(groupA, groupB))),
+            new AssetToExecute(directEndpoint)));
+
+    when(endpointMapper.toEndpointTargetOutput(endpointInTwoGroups, Set.of("group-a", "group-b")))
+        .thenReturn(outputForEndpoint(endpointInTwoGroups, Set.of("group-a", "group-b")));
+    when(endpointMapper.toEndpointTargetOutput(directEndpoint, Set.of()))
+        .thenReturn(outputForEndpoint(directEndpoint));
+    when(assetGroupMapper.toAssetGroupSimple(groupA)).thenReturn(outputForAssetGroup(groupA));
+    when(assetGroupMapper.toAssetGroupSimple(groupB)).thenReturn(outputForAssetGroup(groupB));
+
+    // Act
+    ExecutableInjectDTO dto = mapper.toExecutableInjectDTO(executableInject, null);
+
+    // Assert
+
+    assertThat(dto.getAssets())
+        .extracting(EndpointTargetOutput::getId)
+        .containsExactlyInAnyOrder("endpoint-two-groups", "endpoint-direct");
+
+    assertThat(dto.getAssets())
+        .extracting(EndpointTargetOutput::getAssetGroupIds)
+        .containsExactlyInAnyOrder(Set.of("group-a", "group-b"), Set.of());
+
+    assertThat(dto.getAssetGroups())
+        .extracting(AssetGroupSimple::getId)
+        .containsExactlyInAnyOrder("group-a", "group-b");
+
+    verify(endpointMapper)
+        .toEndpointTargetOutput(endpointInTwoGroups, Set.of("group-a", "group-b"));
+    verify(endpointMapper).toEndpointTargetOutput(directEndpoint, Set.of());
+    verify(assetGroupMapper).toAssetGroupSimple(groupA);
+    verify(assetGroupMapper).toAssetGroupSimple(groupB);
   }
 }

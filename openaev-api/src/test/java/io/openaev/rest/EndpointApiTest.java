@@ -649,6 +649,90 @@ class EndpointApiTest extends IntegrationTest {
           .andExpect(jsonPath("$.numberOfElements").value(1))
           .andExpect(jsonPath("$.content.[0].asset_id").value(endpoint.getId()));
     }
+
+    @Test
+    @DisplayName(
+        "Should return, per endpoint, the requested static and dynamic asset groups it belongs to")
+    void given_staticAndDynamicAssetGroups_should_returnRequestedAssetGroupIdsPerEndpoint()
+        throws Exception {
+      // Arrange
+      Endpoint windowsEndpoint = endpointRepository.save(EndpointFixture.createEndpoint());
+      Endpoint linuxEndpoint =
+          endpointRepository.save(
+              createEndpointWithPlatform("Linux endpoint", Endpoint.PLATFORM_TYPE.Linux));
+      AssetGroup staticGroup =
+          assetGroupRepository.save(
+              createAssetGroupWithAssets("Static", List.of(windowsEndpoint, linuxEndpoint)));
+      Filters.FilterGroup windowsFilter = Filters.FilterGroup.defaultFilterGroup();
+      windowsFilter.setFilters(
+          List.of(buildFilter("endpoint_platform", Filters.FilterMode.or, List.of("Windows"))));
+      AssetGroup dynamicGroup = createDefaultAssetGroup("All windows");
+      dynamicGroup.setDynamicFilter(windowsFilter);
+      dynamicGroup = assetGroupRepository.save(dynamicGroup);
+      // Not requested: must not show up even though the linux endpoint belongs to it
+      assetGroupRepository.save(createAssetGroupWithAssets("Other", List.of(linuxEndpoint)));
+
+      SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.or);
+      filterGroup.setFilters(
+          List.of(
+              buildFilter(
+                  "assetGroups",
+                  Filters.FilterMode.or,
+                  List.of(staticGroup.getId(), dynamicGroup.getId()))));
+      searchPaginationInput.setFilterGroup(filterGroup);
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(ENDPOINT_URI + "/targets")
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(searchPaginationInput))
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      List<String> windowsGroupIds =
+          JsonPath.read(
+              response,
+              "$.content[?(@.asset_id == '" + windowsEndpoint.getId() + "')].asset_group_ids[*]");
+      List<String> linuxGroupIds =
+          JsonPath.read(
+              response,
+              "$.content[?(@.asset_id == '" + linuxEndpoint.getId() + "')].asset_group_ids[*]");
+      assertThat(windowsGroupIds)
+          .containsExactlyInAnyOrder(staticGroup.getId(), dynamicGroup.getId());
+      assertThat(linuxGroupIds).containsExactly(staticGroup.getId());
+    }
+
+    @Test
+    @DisplayName("Should return no asset group IDs when the request has no asset group filter")
+    void given_noAssetGroupFilter_should_returnEmptyAssetGroupIds() throws Exception {
+      // Arrange
+      Endpoint endpoint = endpointRepository.save(EndpointFixture.createEndpoint());
+      assetGroupRepository.save(createAssetGroupWithAssets("Static", List.of(endpoint)));
+
+      SearchPaginationInput searchPaginationInput = PaginationFixture.getDefault().build();
+      Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+      filterGroup.setMode(Filters.FilterMode.or);
+      filterGroup.setFilters(
+          List.of(buildFilter("asset_id", Filters.FilterMode.or, List.of(endpoint.getId()))));
+      searchPaginationInput.setFilterGroup(filterGroup);
+
+      // Act / Assert
+      mvc.perform(
+              post(ENDPOINT_URI + "/targets")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(searchPaginationInput))
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.numberOfElements").value(1))
+          .andExpect(jsonPath("$.content.[0].asset_group_ids").isEmpty());
+    }
   }
 
   private Inject prepareOptionsEndpointTestData() {

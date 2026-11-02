@@ -157,14 +157,16 @@ public class EndpointMapper {
   }
 
   /**
-   * Converts an endpoint to a target-focused output DTO.
+   * Converts an endpoint to a target-focused output DTO, carrying the asset groups it was targeted
+   * through.
    *
    * <p>Used for displaying endpoint information in targeting contexts.
    *
    * @param endpoint the endpoint to convert
+   * @param assetGroupIds the IDs of the asset groups the endpoint was targeted through
    * @return the endpoint target output DTO
    */
-  public EndpointTargetOutput toEndpointTargetOutput(Endpoint endpoint) {
+  public EndpointTargetOutput toEndpointTargetOutput(Endpoint endpoint, Set<String> assetGroupIds) {
     return EndpointTargetOutput.builder()
         .id(endpoint.getId())
         .hostname(endpoint.getHostname())
@@ -174,6 +176,7 @@ public class EndpointMapper {
                 ? new HashSet<>(Arrays.asList(setIps(endpoint.getIps())))
                 : emptySet())
         .agents(agentMapper.toAgentOutputs(endpoint.getAgents()))
+        .assetGroupIds(assetGroupIds)
         .build();
   }
 

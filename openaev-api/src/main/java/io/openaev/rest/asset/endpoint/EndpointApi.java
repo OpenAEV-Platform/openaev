@@ -27,6 +27,7 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import io.openaev.service.EndpointService;
+import io.openaev.service.EndpointService.EndpointTargets;
 import io.openaev.service.InjectSearchService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.HttpReqRespUtils;
@@ -39,6 +40,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -252,9 +254,16 @@ public class EndpointApi extends RestBehavior {
   public Page<EndpointTargetOutput> targetEndpoints(
       TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
 
-    Page<Endpoint> endpointPage = endpointService.searchManagedEndpoints(searchPaginationInput);
+    EndpointTargets targets = endpointService.searchManagedEndpointTargets(searchPaginationInput);
+    Page<Endpoint> endpointPage = targets.endpoints();
     List<EndpointTargetOutput> endpointTargetOutputs =
-        endpointPage.getContent().stream().map(endpointMapper::toEndpointTargetOutput).toList();
+        endpointPage.getContent().stream()
+            .map(
+                endpoint ->
+                    endpointMapper.toEndpointTargetOutput(
+                        endpoint,
+                        targets.assetGroupIdsByEndpoint().getOrDefault(endpoint.getId(), Set.of())))
+            .toList();
     return new PageImpl<>(
         endpointTargetOutputs, endpointPage.getPageable(), endpointPage.getTotalElements());
   }

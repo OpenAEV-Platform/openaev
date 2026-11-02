@@ -34,4 +34,13 @@ public class EndpointTargetOutput {
   @Schema(description = "List agents installed")
   @JsonProperty("asset_agents")
   private Set<AgentOutput> agents;
+
+  @Schema(
+      description =
+          "IDs of the asset groups this asset was targeted through, by static membership or the"
+              + " group's dynamic filter: the requested ones (assetGroups filter) on a target"
+              + " search, the inject's targeted ones in an inject payload. Empty for an asset"
+              + " targeted directly.")
+  @JsonProperty("asset_group_ids")
+  private Set<String> assetGroupIds;
 }

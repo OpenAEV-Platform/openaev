@@ -21,6 +21,7 @@ public class ExecutableInjectDTO {
   @JsonProperty("assets")
   private final Set<EndpointTargetOutput> assets;
 
+  @Deprecated(forRemoval = true)
   @JsonProperty("assetGroups")
   private final Set<AssetGroupSimple> assetGroups;
 
