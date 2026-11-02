@@ -196,7 +196,8 @@ public class ThreatArsenalService {
     // Status counts ignore the scope, so the "Revoked" row still shows how many are hidden.
     return new ThreatArsenalFacetCountsOutput(
         injectorContractService.getPlatformCounts(filtered, scope),
-        injectorContractService.getStatusCounts(filtered, scope),
+        // Every status, older or revoked versions included: a status row must stay clickable.
+        injectorContractService.getStatusCounts(filtered),
         injectorContractService.getApprovalStatusCounts(filtered, scope));
   }
 

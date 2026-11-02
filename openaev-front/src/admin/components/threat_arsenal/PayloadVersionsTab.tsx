@@ -1,7 +1,7 @@
 import { Button, Checkbox, Chip, Spinner, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 import { Alert, Box, Collapse, Pagination, Skeleton, Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
-import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { installCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
 import {
@@ -33,6 +33,8 @@ interface Props {
   onChanged?: () => void;
   /** Called after an approve / reject decision on a version, so the list can refresh the row. */
   onApprovalChanged?: (actionId: string, status: ThreatArsenalActionFullOutput['action_approval_status'], pendingVersion: boolean) => void;
+  /** Opened from a card's Migrate link: older versions still used are open, their usages ticked, the latest as target. */
+  focusMigration?: boolean;
 }
 
 interface UsagesProps {
@@ -45,16 +47,35 @@ interface UsagesProps {
   /** The newest approved version older than this one, which a pending version is compared with. */
   baseline?: PayloadVersionOutput;
   onDecided: (updated: ThreatArsenalActionFullOutput) => void;
+  /** Open, with every usage ticked, ready to migrate (from a card's Migrate link). */
+  focus?: boolean;
+  /** Another version is focused: stay folded so the focused ones stand out. */
+  folded?: boolean;
+  scrollIntoView?: boolean;
   onMigrate: (source: PayloadVersionOutput, target: PayloadVersionOutput, usages: PayloadUsageOutput[]) => Promise<PayloadVersionChangeOutput | null>;
 }
 
 // The injects, atomic tests and chained steps on one version, moved together to another version (F30).
-const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets, canMigrate, loading, installAction, baseline, onDecided, onMigrate }) => {
+const VersionUsages: FunctionComponent<UsagesProps> = ({
+  source,
+  usages,
+  targets,
+  canMigrate,
+  loading,
+  installAction,
+  baseline,
+  onDecided,
+  focus = false,
+  folded = false,
+  scrollIntoView = false,
+  onMigrate,
+}) => {
   const { t } = useFormatter();
   const usageCount = source.payload_usage_count ?? 0;
   const pending = source.payload_approval_status === 'PENDING';
   // The latest version, and a version waiting for a decision, open on what to do with them.
-  const [expanded, setExpanded] = useState(!!source.payload_is_latest || pending);
+  const [expanded, setExpanded] = useState(focus || (!folded && (!!source.payload_is_latest || pending)));
+  const rowRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(USAGES_PER_PAGE_OPTIONS[0]);
@@ -65,9 +86,15 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
   const [result, setResult] = useState<PayloadVersionChangeOutput | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   useEffect(() => {
-    setSelected(new Set());
+    setSelected(focus && canMigrate ? new Set(usages.map(usage => usage.usage_id)) : new Set());
     setPage(0);
   }, [usages]);
+  useEffect(() => {
+    if (scrollIntoView && usages.length > 0) rowRef.current?.scrollIntoView({
+      block: 'start',
+      behavior: 'smooth',
+    });
+  }, [scrollIntoView, usages.length]);
   useEffect(() => setTarget(defaultTarget), [defaultTarget]);
 
   // The header checkbox selects every usage of the version, on every page.
@@ -100,12 +127,14 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
   };
 
   return (
-    <Box sx={{
-      border: 1,
-      borderColor: 'divider',
-      borderRadius: 1,
-      overflow: 'hidden',
-    }}
+    <Box
+      ref={rowRef}
+      sx={{
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        overflow: 'hidden',
+      }}
     >
       <Box
         role="button"
@@ -272,7 +301,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
 };
 
 // F7: every version of the payload, installed or only in the catalogue, with the injects on each one.
-const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onApprovalChanged }) => {
+const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onApprovalChanged, focusMigration = false }) => {
   const { t } = useFormatter();
   // Installing and moving usages both need to manage the arsenal, as the API requires.
   const canManage = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
@@ -285,6 +314,9 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onA
   const [installing, setInstalling] = useState<string | null>(null);
 
   const listed = versions.filter(v => !!v.payload_version);
+  // From a card's Migrate link: the older installed versions something still runs.
+  const isFocused = (v: PayloadVersionOutput) => focusMigration && !v.payload_is_latest && !!v.payload_installed && (v.payload_usage_count ?? 0) > 0;
+  const firstFocused = listed.find(isFocused);
   const pageCount = Math.max(1, Math.ceil(listed.length / VERSIONS_PER_PAGE));
   const pageVersions = listed.slice((page - 1) * VERSIONS_PER_PAGE, page * VERSIONS_PER_PAGE);
 
@@ -319,6 +351,10 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onA
     setPage(1);
     load();
   }, [actionId]);
+
+  useEffect(() => {
+    if (firstFocused) setPage(Math.floor(listed.indexOf(firstFocused) / VERSIONS_PER_PAGE) + 1);
+  }, [firstFocused?.payload_id]);
 
   // Every reload resets the usages, so the page shown fetches them again.
   useEffect(() => {
@@ -377,6 +413,9 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onA
           canMigrate={canManage}
           loading={!!source.payload_action_id && (loadingUsages.has(source.payload_action_id) || (!usages[source.payload_action_id] && (source.payload_usage_count ?? 0) > 0))}
           installAction={installButton(source)}
+          focus={isFocused(source)}
+          folded={!!firstFocused && !isFocused(source)}
+          scrollIntoView={source === firstFocused}
           baseline={listed.slice(listed.indexOf(source) + 1).find(v => v.payload_installed && v.payload_approval_status === 'APPROVED')}
           onDecided={(updated) => {
             reload();

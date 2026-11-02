@@ -28,11 +28,12 @@ export const STATUS_LABEL_MAP: Record<PayloadStatus, string> = {
   REVOKED: 'Revoked',
 };
 
-export const STATUS_CHIP_SEVERITY: Record<PayloadStatus, 'low' | 'medium' | 'neutral' | 'high'> = {
+export const STATUS_CHIP_SEVERITY: Record<PayloadStatus, 'low' | 'medium' | 'neutral' | 'high' | 'critical'> = {
   VERIFIED: 'low',
   UNVERIFIED: 'medium',
   DEPRECATED: 'neutral',
-  REVOKED: 'high',
+  // Red like the revoked banner and the Versions tab: it does not run.
+  REVOKED: 'critical',
 };
 
 // Verified sits next to the approval chip and reads like "approved": the hint says it is about

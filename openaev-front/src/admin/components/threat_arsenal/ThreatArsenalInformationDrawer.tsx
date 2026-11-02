@@ -66,6 +66,8 @@ interface Props {
   onApprovalChanged?: (actionId: string, status: ThreatArsenalActionFullOutput['action_approval_status'], pendingVersion: boolean) => void;
   /** The tab shown first: the review queues open on Versions, where a pending version is decided. */
   initialTab?: DrawerTab;
+  /** Versions tab ready to migrate the usages left on older versions (a card's Migrate link). */
+  focusMigration?: boolean;
 }
 
 const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
@@ -75,6 +77,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   onRunTest,
   onApprovalChanged,
   initialTab,
+  focusMigration,
 }) => {
   const { t } = useFormatter();
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
@@ -267,6 +270,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
                 actionId={threatArsenalAction.injector_contract_id}
                 onChanged={loadVersions}
                 onApprovalChanged={onApprovalChanged}
+                focusMigration={focusMigration}
               />
             )}
             {tab === 'history' && payload && <PayloadHistoryTab actionId={threatArsenalAction.injector_contract_id} />}

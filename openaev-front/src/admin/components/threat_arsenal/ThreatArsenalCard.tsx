@@ -123,6 +123,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const canRunTest = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   // The one thing to act on, in the Figma CardBanner: revoked first, then injects left behind.
   const versionsLink = `/admin/threat-arsenal?action=${encodeURIComponent(action.injector_contract_id)}&tab=versions`;
+  const migrateLink = `${versionsLink}&focus=migrate`;
   let banner: ReactNode = null;
   if (action.action_payload?.payload_revoked) {
     banner = (
@@ -142,7 +143,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         message={olderInUse === 1 ? t('1 inject runs an older version') : t('{count} injects run an older version', { count: String(olderInUse) })}
         link={{
           label: t('Migrate'),
-          to: versionsLink,
+          to: migrateLink,
         }}
       />
     );

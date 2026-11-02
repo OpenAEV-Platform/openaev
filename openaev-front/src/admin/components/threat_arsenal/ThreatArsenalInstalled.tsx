@@ -218,6 +218,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           threatArsenalAction={openedAction}
           // "See where it is used" (revoke dialog) opens the Versions tab, which lists every usage.
           initialTab={linkedActionId && searchParams.get('tab') === 'versions' ? 'versions' : undefined}
+          focusMigration={!!linkedActionId && searchParams.get('focus') === 'migrate'}
           onRunTest={setRunTestAction}
           onApprovalChanged={() => installed.queryableHelpers.paginationHelpers.handleChangePage(0)}
         />

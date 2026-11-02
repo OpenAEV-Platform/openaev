@@ -329,6 +329,7 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
         <ThreatArsenalInformationDrawer
           open
           initialTab="versions"
+          focusMigration={searchParams.get('focus') === 'migrate'}
           onClose={drawer.close}
           threatArsenalAction={drawer.selected}
           onApprovalChanged={() => waiting.reload()}
