@@ -36,6 +36,13 @@ interface Props {
   disableDelete: boolean;
   /** Off on the review pages: a reviewer decides on a version, they do not run it from there. */
   showRunTest?: boolean;
+  /** The card's action in place of Run a test, e.g. Review on the review pages. */
+  primaryAction?: {
+    label: string;
+    onClick: () => void;
+  };
+  /** On the review pages the card shows what a decision needs: who submitted which version, and when; no migration banner. */
+  review?: { submittedBy?: string };
 }
 
 // A tag stays short: past its width it truncates, and the hover always says it in full.
@@ -74,6 +81,8 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   disableJsonExport,
   disableDelete,
   showRunTest = true,
+  primaryAction,
+  review,
 }) => {
   const { t, tPick, nsd } = useFormatter();
   const theme = useTheme();
@@ -126,7 +135,9 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const versionsLink = `/admin/threat-arsenal?action=${encodeURIComponent(action.injector_contract_id)}&tab=versions`;
   const migrateLink = `${versionsLink}&focus=migrate`;
   let banner: ReactNode = null;
-  if (action.action_payload?.payload_revoked) {
+  if (review) {
+    banner = null;
+  } else if (action.action_payload?.payload_revoked) {
     banner = (
       <ThreatArsenalCardBanner
         tone="critical"
@@ -185,20 +196,35 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         </Tooltip>
       )}
       // Always the same three columns, so Version, Source and Updated line up across the grid.
-      info={[
-        {
-          label: t('Version'),
-          value: (version && `v${version}`) || (builtIn && platformVersion ? `v${platformVersion}` : '–'),
-        },
-        {
-          label: t('Source'),
-          value: builtIn ? t('Built-in') : (origin && t(PAYLOAD_ORIGIN_LABELS[origin])) || '–',
-        },
-        {
-          label: t('Updated'),
-          value: nsd(action.injector_contract_updated_at),
-        },
-      ]}
+      info={review
+        ? [
+            {
+              label: t('Version'),
+              value: version ? `v${version}` : '–',
+            },
+            {
+              label: t('Submitted by'),
+              value: review.submittedBy ?? action.action_author_name ?? '–',
+            },
+            {
+              label: t('Submitted'),
+              value: nsd(action.injector_contract_updated_at),
+            },
+          ]
+        : [
+            {
+              label: t('Version'),
+              value: (version && `v${version}`) || (builtIn && platformVersion ? `v${platformVersion}` : '–'),
+            },
+            {
+              label: t('Source'),
+              value: builtIn ? t('Built-in') : (origin && t(PAYLOAD_ORIGIN_LABELS[origin])) || '–',
+            },
+            {
+              label: t('Updated'),
+              value: nsd(action.injector_contract_updated_at),
+            },
+          ]}
       chips={null}
       // Approval just above the strip, bottom left, only when it needs attention: the strip keeps
       // the DS layout (one status and the platforms), so nothing truncates.
@@ -246,7 +272,8 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
             gap: 4,
           }}
         >
-          {showRunTest && canRunTest && !action.action_payload?.payload_revoked && (
+          {primaryAction && <Button size="sm" priority="secondary" onClick={primaryAction.onClick}>{primaryAction.label}</Button>}
+          {!primaryAction && showRunTest && canRunTest && !action.action_payload?.payload_revoked && (
             <Button size="sm" priority="secondary" onClick={onRunTest}>{t('Run a test')}</Button>
           )}
           <ThreatArsenalActionPopover

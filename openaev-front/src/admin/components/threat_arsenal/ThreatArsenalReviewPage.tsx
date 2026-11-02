@@ -146,6 +146,11 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
       onDelete={() => waiting.remove(item.action.injector_contract_id)}
       onRunTest={() => undefined}
       showRunTest={false}
+      review={{ submittedBy: item.full?.action_last_modified_by_name ?? undefined }}
+      primaryAction={{
+        label: mode === 'to-review' ? t('Review') : t('View'),
+        onClick: () => drawer.open(item),
+      }}
       {...computeActionFlags(item.action as ThreatArsenalAction)}
     />
   );

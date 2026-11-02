@@ -193,7 +193,8 @@
     "Vision",
     "Website",
     "Workstation",
-    "Version {number}"
+    "Version {number}",
+    "Integration"
   ],
   "es": [
     "Variable {key}",
