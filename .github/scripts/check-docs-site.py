@@ -5,7 +5,7 @@
 produces a green build (selectolax 1.0.1 made mkdocs-glightbox drop every image, #8602). So,
 for the site built in <site-dir> from docs/docs:
 
-- every Markdown page has its HTML page,
+- every Markdown page MkDocs builds (not excluded by `exclude_docs` or its defaults) has its HTML page,
 - every local image a page references is an <img> of that page's content,
 - the search index has an entry for every page that is not excluded from search.
 
@@ -19,9 +19,12 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 import yaml
+from mkdocs.config import load_config
+from mkdocs.structure.files import get_files
 
 REPO = Path(__file__).resolve().parents[2]
 DOCS_ROOT = REPO / "docs" / "docs"
+MKDOCS_CONFIG = REPO / "docs" / "mkdocs.yml"
 
 FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
@@ -82,13 +85,19 @@ def local_image_names(text: str) -> set[str]:
     return names
 
 
+def built_pages() -> list[Path]:
+    """The Markdown files MkDocs builds a page from, leaving out the ones it excludes (`.*`, /templates/...)."""
+    files = get_files(load_config(str(MKDOCS_CONFIG)))
+    return sorted(Path(f.abs_src_path) for f in files.documentation_pages())
+
+
 def main() -> int:
     site = Path(sys.argv[1]) if len(sys.argv) > 1 else REPO / "docs" / "site"
     if not (site / "index.html").is_file():
         print(f"::error::{site} is not a built MkDocs site: run `mkdocs build` in docs/ first.")
         return 2
 
-    pages = sorted(DOCS_ROOT.rglob("*.md"))
+    pages = built_pages()
     errors, images, searchable = [], 0, set()
     for page in pages:
         rel = page.relative_to(REPO).as_posix()
