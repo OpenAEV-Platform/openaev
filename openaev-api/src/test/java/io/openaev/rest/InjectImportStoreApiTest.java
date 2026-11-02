@@ -63,8 +63,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
   private ResultActions upload(String xlsUri, String resourceId) throws Exception {
     MockMultipartFile file =
         new MockMultipartFile("file", "injects.xlsx", "application/octet-stream", workbook());
-    return mvc.perform(
-        multipart(tenantUri(xlsUri + "/store"), resourceId).file(file).with(csrf()));
+    return mvc.perform(multipart(tenantUri(xlsUri + "/store"), resourceId).file(file).with(csrf()));
   }
 
   /** Uploads the file, then runs the dry run and the import with a mapper of the same tenant. */
