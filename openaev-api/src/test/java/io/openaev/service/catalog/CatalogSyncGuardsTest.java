@@ -48,13 +48,19 @@ class CatalogSyncGuardsTest {
       assertThat(CatalogReleaseOrder.ORDER.compare("2026.10.30.10", "2026.10.30.9")).isPositive();
       assertThat(CatalogReleaseOrder.ORDER.compare("2026.9.1.1", "2026.10.1.1")).isNegative();
       assertThat(CatalogReleaseOrder.ORDER.compare("2026.10.30.1", "2026.10.30.1")).isZero();
+      assertThat(CatalogReleaseOrder.ORDER.compare("1.261029.0", "2026.10.29.2")).isPositive();
+      assertThat(CatalogReleaseOrder.ORDER.compare("1.261103.0", "1.261029.10")).isPositive();
+      assertThat(CatalogReleaseOrder.ORDER.compare("2.260101.0", "1.261231.5")).isPositive();
     }
 
     @Test
-    @DisplayName("Only YYYY.MM.DD.N names are releases")
+    @DisplayName("Only MAJOR.YYMMDD.N and YYYY.MM.DD.N names are releases")
     void given_otherName_should_beInvalid() {
       // Act & Assert
       assertThat(CatalogReleaseOrder.isValid("2026.10.30.123456789")).isTrue();
+      assertThat(CatalogReleaseOrder.isValid("1.261029.0")).isTrue();
+      assertThat(CatalogReleaseOrder.isValid("0.261029.0")).isFalse();
+      assertThat(CatalogReleaseOrder.isValid("1.26102.0")).isFalse();
       assertThat(CatalogReleaseOrder.isValid("r1")).isFalse();
       assertThat(CatalogReleaseOrder.isValid("2026.10.30")).isFalse();
       assertThat(CatalogReleaseOrder.isValid(null)).isFalse();

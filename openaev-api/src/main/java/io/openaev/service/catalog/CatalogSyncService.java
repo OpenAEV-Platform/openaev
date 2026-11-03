@@ -49,7 +49,7 @@ public class CatalogSyncService {
     }
     if (manifest.repository() == null || !CatalogReleaseOrder.isValid(manifest.release())) {
       throw new BadRequestException(
-          "The manifest needs a repository and a release named YYYY.MM.DD.N");
+          "The manifest needs a repository and a release named MAJOR.YYMMDD.N");
     }
   }
 }
