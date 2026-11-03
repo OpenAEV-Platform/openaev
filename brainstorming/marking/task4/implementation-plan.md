@@ -398,7 +398,8 @@ filters ANDed together. Small-to-medium change in `MarkedTable` and `MarkingDime
 
 Size: L, check with Guillaume and Damien for the POC to revisit Stream.
 
-**Status**: leak reproduced (2026-10-08), fix not started.
+**Status**: ✅ leak reproduced (2026-10-08), fixed by §2 (phases 1 to 3), behind the `MARKING` preview
+feature; checked by unit and integration tests, and by hand in two browsers (2026-11-02).
 
 ### 1) What we observed: two browsers, one admin, one `TLP:GREEN` user
 
@@ -444,73 +445,150 @@ the network stream and in the Redux store, readable by DevTools or by any compon
 > both declare `@EntityListeners(ModelBaseListener.class)`, and JPA invokes a superclass's listeners as
 > well as the subclass's. Not verified further; unrelated to markings.
 
-### 2) Proposal: stream a signal, not the content
+### 2) Streaming API and marking at BaseEvent level
 
-`StreamApi` stops sending the entity. It sends **"entity `<id>` of type `<schema>` changed / was
-deleted"**, and the client re-reads what it displays through the REST API, which already applies
-tenant, RBAC and marking filtering (statement inspector) for the **reader**.
+Keep today's events, and filter them per consumer by marking clearance. Behind the `MARKING` preview
+feature, and only when `assets` is in `openaev.marking.active-tables` (the same switches as the SQL
+filtering): otherwise every event is sent as today.
 
-```json
-{ "event_type": "DATA_UPDATE_SUCCESS", "attribute_schema": "assets", "attribute_id": "asset_id",
-  "instance": { "asset_id": "5a962860-…" } }
+```mermaid
+sequenceDiagram
+    actor A as Admin
+    participant P as Publisher transaction
+    participant S as StreamService (@Async)
+    actor G as Amber user
+    A->>P: update a finding / an inject / the RED endpoint
+    P->>P: BaseEvent: copy the markings of the entity and of its linked assets (still loaded)
+    P-->>S: after commit
+    S->>S: for each consumer: tenant + READ gate (unchanged)
+    S->>S: clearance of the consumer (MarkingClearanceCacheManager, cached)
+    S->>S: decision: clearance applied to the markings carried by the event
+    S-->>A: sees everything: event as today
+    S-->>G: dropped, or sent with hidden asset ids removed
 ```
 
-This is the shape of the id-only DELETE `StreamApi` already sends to consumers without READ
-permission, and the pattern of the attack-path version nudge, whose Javadoc states the notification can
-never leak state.
+| Phase | Scope | Status |
+|---|---|---|
+| 1 | Asset events (create, update, delete), on the asset's own markings | ✅ done |
+| 2 | Objects derived from an asset: agents, asset expectations, findings, injects, asset groups | ✅ done |
+| 3 | Objects embedded whole in a payload: an inject's expectations and execution traces | ✅ done |
 
-**Backend (`StreamApi`)**
+#### 1. The reader's clearance
 
-- `sendStreamEvent` sends `{ <id attribute>: <id> }` instead of `mapper.valueToTree(instance)`, for
-  every event (or, as a first step, for the schemas that can carry marked data: `assets`, `agents`,
-  `findings`, `injects_expectations`, `execution_traces`, `injects`, `asset_groups`).
-- Keep the tenant and READ-permission gate: it stops ids reaching consumers who may not read the type.
-- Add a marking gate on marked entities (`Asset` first, via a small `Marked` interface):
-  `MarkingClearanceCacheManager.findClearance(userId, tenantId, user.isAdminOrBypass())`, cached, no
-  query per event. Outside the clearance → send nothing (an id alone still reveals that a RED asset
-  exists and changed).
+`StreamClearanceService.clearanceFor(user, tenantId)` returns a `MarkingCtx`, the type the SQL filtering
+already uses:
 
-**Frontend (`useDataLoader.js` + consumers)**
+| Reader | Clearance |
+|---|---|
+| `MARKING` off, `assets` not active, admin, `BYPASS`, agent or OpenCTI service account | `MarkingCtx.all()` |
+| no tenant to read the clearance in | `MarkingCtx.none()`: only unmarked entities (fail-closed) |
+| otherwise | `clearanceCache.findClearance(userId, tenantId, false)`, already cached: no query per event |
 
-- The `message` handler no longer normalizes `instance` into the store. It notifies subscribers per
-  schema with the changed / deleted ids (the existing `SseActionBatcher` already coalesces by entity).
-- Lists subscribe and refetch only when a visible row is signalled. For `Endpoints.tsx`: bump
-  `reloadContentCount` on `PaginationComponentV2` (already supported, used by `AtomicTesting`,
-  `ThreatArsenal`, `GroupDetail`), debounced.
-- Detail pages re-fetch their entity when its id is signalled.
-- Fixes scenario 2 as a side effect: a list that subscribes now refreshes on another user's change.
+- The tenant is the row's, else the consumer's (`checkTenantOf`, as for the READ check): a marking
+  belongs to one tenant.
+- "Who skips markings" is shared with the HTTP path: `MarkingBypass.bypassesMarkings(user)`, extracted
+  from `HttpMarkingScopeSupplier`.
+- The rule is `MarkingCtx.allows(markings)`: every marking must be held, and no marking means visible to
+  everyone (same as `is_marking_set_allowed`). `InjectService` uses it too for the dispatch.
 
-**Why a signal rather than filtering the payload per consumer**
+**No cache of hidden asset ids.** A first design cached, per `(tenantId, markings held)`, the ids of the
+assets the reader cannot see (`HIDDEN_ASSETS_SQL`), kept fresh by the asset events and a ~60 s expiry. It
+was dropped: the event carries the markings it is decided on (below), so there is nothing to keep fresh.
+The cache got two cases wrong:
 
-- **Nothing to sanitize.** Parent payloads embed restricted data (an asset embeds its agents; an
-  inject or asset group embeds asset ids). Filtering the payload means per-type knowledge of every
-  embedded marked reference, easy to miss one. A signal carries none.
-- **One rule for every entity**, derived ones included: with Variant B, findings / expectations / traces
-  carry no marking, and the refetch goes through the SQL rewrite that already filters them.
-- **Same answer as the REST API by construction**: the screen shows what the reader's own query returns.
+- a new RED asset and its finding created in the same transaction: the finding could be checked before the
+  cache knows the asset;
+- bulk operations (`BulkOperationContext`) and native SQL send no per-asset event: the cache stays stale
+  until it expires.
 
-**Costs and residual risks**
+#### 2. The markings carried by the event
 
-- One REST request per refresh instead of zero. Bounded by: refetch only for ids on screen, debounce,
-  and coalescing per schema + id. To watch on a running simulation (many inject / expectation events).
-- Store-driven views lose the instant payload and depend on their refetch; every view relying on the
-  pushed payload must be migrated (110 `useDataLoader` callers to review, most only reload taxonomies).
-- Derived entities without a marking (a finding of a RED asset): the signal still reaches the GREEN
-  user, but only an id, and their refetch returns nothing. Acceptable, or gate with a parent-asset
-  lookup later.
+Copied in the `BaseEvent` constructor, in the publisher's transaction, while the entity and its assets are
+loaded. Same reason `permissionResourceId` is captured there: delivery runs after commit on a thread
+without session, and a deleted row cannot be reloaded (delete events are built in `@PreRemove`). They
+depend on no reader, so they are built once and checked against every consumer's clearance. Neither is
+serialized (`@JsonIgnore`).
 
-### 3) Steps
+| `BaseEvent` field | Filled from | Entities |
+|---|---|---|
+| `streamMarkings` | `Base.getStreamMarkings()`: the entity's own markings, or those of the one asset it belongs to | `Asset` and its subtypes; `Agent` (`agent_asset`); `TechnicalInjectExpectation` (`inject_expectation_asset`) |
+| `streamAssetReferences` | `Base.getStreamAssetReferences()`: per JSON property, each listed asset id with its markings (`StreamAssetReference`) | `Finding` (`finding_assets`, *about*); `Inject` (`inject_assets`, *listing*); `AssetGroup` (`asset_group_assets`, `asset_group_dynamic_assets`, *listing*) |
+| `streamEmbeddedElements` | `Base.getStreamEmbeddedElements()`: per JSON path, each embedded element id with the markings of its asset (`StreamEmbeddedElements`, from the element's own `getStreamMarkings()`) | `Inject` (`inject_expectations`, `inject_status.status_traces`); `ExecutionTrace.getStreamMarkings()` returns its agent's |
 
-- **5.1** Failing test first: a `TLP:GREEN` consumer of `StreamApi` must not receive the `instance` of a
-  `TLP:RED` asset update (today it does).
-- **5.2** Backend: signal-only events + marking gate on `Asset`; tests for an unmarked asset (signal to
-  everyone with READ), a RED asset (nothing to a GREEN consumer), a RED-cleared consumer (signal).
-- **5.3** Frontend: signal handling in `useDataLoader.js` (per-schema subscribers), then `Endpoints.tsx`
-  refetch via `reloadContentCount`.
-- **5.4** Review the remaining `useDataLoader` / store-driven views and migrate those that relied on
-  the pushed payload.
-- **5.5** (optional) Stream each endpoint change once (duplicate `ModelBaseListener` on `Asset` /
-  `Endpoint`).
+- *about*: the entity is hidden when all its assets are (a finding, `throughLinkRows` in SQL).
+- *listing*: the entity stays visible; only the hidden ids are removed (the link tables in SQL).
+- *embedded*: whole objects of a derived table inside the payload; the hidden ones are removed. Found by the
+  two-browser test: the inject event carried the RED expectations and the RED agent's traces (`stdout`).
+- If the markings cannot be read (a lazy asset that cannot be loaded during the flush), the event carries
+  `UNRESOLVED_MARKING`, which no clearance holds: only the readers who see everything receive it.
+
+The cost is reading the linked assets' markings when the event is built. They are usually already loaded:
+serializing `finding_assets`, `inject_assets` or `asset_group_assets` loads them, and `Agent.asset` is
+eager. An expectation update can cost one asset load.
+
+**Written per entity, not derived from `MarkingDerivedTables`.** The entries above mirror
+`MarkingDerivedTables`. `ExecutionTrace` has no `ModelBaseListener`: traces only reach the stream embedded
+in their inject. A table added to `MarkingDerivedTables` is not filtered on the stream until its entity
+overrides the matching method (`MarkingDerivedTablesStreamTest` fails until it does). Which kind to pick (*about*, *listing*, belongs to one asset), and why
+it is written by hand rather than inferred: `tech-design.md`, "The stream: the same rule, on each
+streamed entity".
+
+#### 3. The decision (per event and consumer)
+
+In `streamDatabaseEvent`, after the tenant and READ gates:
+
+| Event | Decision |
+|---|---|
+| no marking and no asset reference (most events) | sent as today, the clearance is not even looked up |
+| clearance `all()` | sent as today |
+| `streamMarkings` not all held | dropped: no tombstone, deletions included |
+| *about* reference with every asset hidden | dropped |
+| otherwise, with asset references | sent on a per-consumer copy of the payload, hidden ids removed; an id the event did not capture is removed too |
+| with embedded elements | same copy, hidden elements removed; an element the event did not capture is removed too |
+| no link (null FK: a team expectation, a finding with no asset) | sent, like `asset_id IS NULL` in SQL |
+
+##### Worked example: amber, holding `{CLEAR, GREEN, AMBER}`
+
+Tenant with assets A (`TLP:GREEN`) and R (`TLP:RED`).
+
+| Event | Carried by the event | Amber receives |
+|---|---|---|
+| admin renames endpoint R | `streamMarkings = {RED}` | nothing |
+| agent of R pings | `streamMarkings = {RED}` (its asset) | nothing |
+| expectation on R | `streamMarkings = {RED}` (its asset) | nothing |
+| finding on R only | *about* `finding_assets`: R `{RED}` | nothing |
+| finding on A and R | *about* `finding_assets`: A `{GREEN}`, R `{RED}` | the finding, `finding_assets = [A]` |
+| inject targeting A and R | *listing* `inject_assets`: A `{GREEN}`, R `{RED}` | the inject, `inject_assets = [A]` |
+| asset group with R only | *listing* `asset_group_assets`: R `{RED}` | the group, `asset_group_assets = []` |
+| inject run on R | *embedded* expectations on R `{RED}`, traces of R's agent `{RED}`, global trace `{}` | the inject, `inject_expectations = []`, only the global trace |
+| endpoint A updated | `streamMarkings = {GREEN}` | the event as today |
+
+#### 4. Tests
+
+- `MarkingCtxTest` (`allows`), `StreamClearanceServiceTest` (switches, bypass, clearance, no tenant).
+- `BaseEventTest`: markings, links and embedded elements captured per entity, kept as they were when the
+  event was built, not serialized, `UNRESOLVED_MARKING` fallback, `isVisibleUnder`.
+- `StreamServiceTest`: each row of the worked example, each reader served by their own clearance, the
+  clearance read in the row's tenant, no lookup for unmarked events or refused READ.
+- `MarkingDerivedTablesStreamTest`: the stream overrides match `MarkingDerivedTables` (one asset, link
+  tables with their kind, chained tables not streamed, every embedded object of a derived table declared,
+  no override without an entry).
+- Unchanged and green: `InjectServiceTest` (dispatch rule), `StreamApiDisconnectTest`,
+  `AssetMarkingIsolationTest`, `AtomicTestingApiTest`, `InjectApiTest`, `InjectStatusServiceTest`,
+  `InjectExpectationServiceTest`, `FindingServiceTest`, `AssetGroupApiTest`, `EndpointApiTest` (the
+  capture runs in the JPA callbacks).
+
+✅ **Checked by hand** (2026-11-02): admin and amber, `MARKING` on, `assets` active, a simulation run on a
+RED endpoint. Amber's EventStream shows no endpoint, agent, expectation or finding event for it, and the
+inject with `inject_assets`, `inject_expectations` empty and only the global trace.
+
+### 3) Longer term implementation: stream a signal, not the content
+
+`StreamApi` would send only "entity `<id>` of type `<schema>` changed / was deleted" (the shape of the
+id-only DELETE it already sends), never the entity content. The client re-reads what it displays through
+the REST API, which already applies tenant, RBAC and marking filtering for the reader, so no payload needs
+sanitizing. It costs one REST request per refresh and the migration of every view relying on the pushed
+payload (110 `useDataLoader` callers), hence longer term.
 
 ## Chunk 6 — OCTI: scenario create
 

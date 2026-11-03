@@ -583,11 +583,7 @@ public class InjectService {
    */
   private boolean isVisibleUnderClearance(Asset asset, MarkingCtx clearance) {
     String[] assetMarkingIds = asset.getMarkingIds();
-    if (assetMarkingIds == null || assetMarkingIds.length == 0) {
-      return true;
-    }
-    return clearance instanceof MarkingCtx.Restricted restricted
-        && restricted.markingIds().containsAll(Arrays.asList(assetMarkingIds));
+    return clearance.allows(assetMarkingIds == null ? List.of() : Arrays.asList(assetMarkingIds));
   }
 
   /**

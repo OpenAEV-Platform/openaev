@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
@@ -23,16 +24,22 @@ import io.openaev.service.StreamService;
 import io.openaev.service.UserService;
 import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
+import io.openaev.service.stream.StreamClearanceService;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperation;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperationEvent;
 import io.openaev.service.utils.BulkOperationMonitor.BulkOperationStatus;
+import io.openaev.utils.fixtures.AgentFixture;
+import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.FindingFixture;
+import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.RecordComponent;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -77,10 +84,15 @@ public class StreamServiceTest {
 
   @Mock private AttackPathAccessControl attackPathAccessControl;
 
+  @Mock private StreamClearanceService streamClearanceService;
+
   @InjectMocks private StreamService streamService;
 
   @BeforeEach
   public void setup() throws Exception {
+    // Marking filtering is opt-in per test: by default every reader sees everything.
+    when(streamClearanceService.clearanceFor(any(), any())).thenReturn(MarkingCtx.all());
+
     // mock consumer
     OpenAEVPrincipal mockPrincipal = mock(OpenAEVPrincipal.class);
     when(mockPrincipal.getId()).thenReturn(USER_ID);
@@ -654,6 +666,347 @@ public class StreamServiceTest {
     verify(permissionService, times(1))
         .hasPermission(mockUser, Optional.empty(), RESOURCE_ID, ResourceType.SCENARIO, Action.READ);
     verify(mockSink, times(2)).next(any());
+  }
+
+  // -- Marking clearance --
+  //
+  // Checked after the READ permission: a reader allowed to read assets still receives nothing about
+  // an asset carrying a marking they do not hold, deletions included (same reason as above).
+
+  private static Endpoint markedEndpoint(String... markingIds) {
+    Endpoint endpoint = restrictedEndpoint();
+    endpoint.setMarkingIds(markingIds);
+    return endpoint;
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE, DATA_DELETE})
+  public void given_markedAssetEvent_when_readerDoesNotHoldItsMarkings_should_notReceiveIt(
+      String eventType) {
+    // Arrange
+    ObjectMapper jsonMapper = useRealMapper();
+    Endpoint endpoint = markedEndpoint("tlp-red");
+    stubRead(mockUser, endpoint, true);
+    when(streamClearanceService.clearanceFor(mockUser, null))
+        .thenReturn(MarkingCtx.forMarkings(List.of("tlp-clear", "tlp-green", "tlp-amber")));
+
+    // Act
+    streamService.listenDatabaseUpdate(new BaseEvent(eventType, endpoint, jsonMapper));
+
+    // Assert
+    verify(mockSink, never()).next(any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE, DATA_DELETE})
+  public void given_markedAssetEvent_when_readerHoldsItsMarkings_should_receiveIt(
+      String eventType) {
+    // Arrange
+    ObjectMapper jsonMapper = useRealMapper();
+    Endpoint endpoint = markedEndpoint("tlp-amber");
+    stubRead(mockUser, endpoint, true);
+    when(streamClearanceService.clearanceFor(mockUser, null))
+        .thenReturn(MarkingCtx.forMarkings(List.of("tlp-clear", "tlp-green", "tlp-amber")));
+
+    // Act
+    streamService.listenDatabaseUpdate(new BaseEvent(eventType, endpoint, jsonMapper));
+
+    // Assert
+    JsonNode wire = captureWireEvent(mockSink, jsonMapper);
+    assertEquals("restricted-endpoint", wire.path("instance").path("asset_name").asText());
+  }
+
+  @Test
+  public void given_markedAssetEvent_should_serveEachReaderByTheirOwnClearance() throws Exception {
+    // Arrange
+    User admin = mock(User.class);
+    FluxSink<Object> adminSink = registerSecondConsumer(admin);
+    Endpoint endpoint = markedEndpoint("tlp-red");
+    stubRead(mockUser, endpoint, true);
+    stubRead(admin, endpoint, true);
+    when(streamClearanceService.clearanceFor(mockUser, null))
+        .thenReturn(MarkingCtx.forMarkings(List.of("tlp-amber")));
+    when(streamClearanceService.clearanceFor(admin, null)).thenReturn(MarkingCtx.all());
+
+    // Act
+    streamService.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, endpoint, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink, never()).next(any());
+    verify(adminSink).next(any());
+  }
+
+  @Test
+  public void given_markedAssetInATenant_should_readTheClearanceInTheRowsTenant() {
+    // Arrange
+    Endpoint endpoint = markedEndpoint("tlp-red");
+    endpoint.setTenant(tenant(TENANT_ID));
+    when(permissionService.hasPermissionInTenant(
+            TxCtx.forTenant(TENANT_ID),
+            mockUser,
+            RESOURCE_ID,
+            endpoint.getPermissionResourceType(),
+            Action.READ))
+        .thenReturn(true);
+    when(streamClearanceService.clearanceFor(mockUser, TENANT_ID))
+        .thenReturn(MarkingCtx.forMarkings(List.of("tlp-amber")));
+
+    // Act
+    streamService.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, endpoint, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(streamClearanceService).clearanceFor(mockUser, TENANT_ID);
+    verify(mockSink, never()).next(any());
+  }
+
+  @Test
+  public void given_unmarkedEvent_should_notResolveTheReadersClearance() {
+    // Arrange
+    Endpoint endpoint = markedEndpoint();
+    stubRead(mockUser, endpoint, true);
+
+    // Act
+    streamService.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, endpoint, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink).next(any());
+    verify(streamClearanceService, never()).clearanceFor(any(), any());
+  }
+
+  @Test
+  public void given_markedAssetEvent_when_readerCannotRead_should_notResolveTheReadersClearance() {
+    // Arrange
+    Endpoint endpoint = markedEndpoint("tlp-red");
+    denyRead(endpoint);
+
+    // Act
+    streamService.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, endpoint, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink, never()).next(any());
+    verify(streamClearanceService, never()).clearanceFor(any(), any());
+  }
+
+  // -- Marking clearance of the objects derived from an asset --
+  //
+  // What a run leaves on an asset (agent, expectation, finding) is hidden with it; an object
+  // listing
+  // assets (inject, asset group, finding) is sent with the hidden ones removed from the list.
+
+  private static final MarkingCtx AMBER =
+      MarkingCtx.forMarkings(List.of("tlp-clear", "tlp-green", "tlp-amber"));
+
+  private static Endpoint endpoint(String id, String... markingIds) {
+    Endpoint endpoint = new Endpoint();
+    endpoint.setId(id);
+    endpoint.setName(id);
+    endpoint.setMarkingIds(markingIds.length == 0 ? null : markingIds);
+    return endpoint;
+  }
+
+  private static Finding findingOn(Asset... assets) {
+    Finding finding = FindingFixture.createDefaultTextFinding();
+    finding.setId(RESOURCE_ID);
+    finding.setAssets(List.of(assets));
+    return finding;
+  }
+
+  private void readerHolds(User user, MarkingCtx clearance) {
+    when(streamClearanceService.clearanceFor(user, null)).thenReturn(clearance);
+  }
+
+  private static List<String> idsAt(JsonNode wire, String property) {
+    return wire.path("instance").path(property).valueStream().map(JsonNode::asText).toList();
+  }
+
+  @Test
+  public void given_agentOfAHiddenAsset_should_notBeReceived() {
+    // Arrange
+    Agent agent = AgentFixture.createDefaultAgentService();
+    agent.setId(RESOURCE_ID);
+    agent.setAsset(endpoint("r", "tlp-red"));
+    stubRead(mockUser, agent, true);
+    readerHolds(mockUser, AMBER);
+
+    // Act
+    streamService.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, agent, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink, never()).next(any());
+  }
+
+  @Test
+  public void given_expectationOnAHiddenAsset_should_notBeReceived() {
+    // Arrange
+    PreventionInjectExpectation expectation = restrictedExpectation();
+    expectation.setAsset(endpoint("r", "tlp-red"));
+    stubRead(mockUser, expectation, true);
+    readerHolds(mockUser, AMBER);
+
+    // Act
+    streamService.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, expectation, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink, never()).next(any());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_PERSIST, DATA_UPDATE, DATA_DELETE})
+  public void given_findingOnHiddenAssetsOnly_should_notBeReceived(String eventType) {
+    // Arrange
+    Finding finding = findingOn(endpoint("r", "tlp-red"));
+    stubRead(mockUser, finding, true);
+    readerHolds(mockUser, AMBER);
+
+    // Act
+    streamService.listenDatabaseUpdate(new BaseEvent(eventType, finding, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink, never()).next(any());
+  }
+
+  @Test
+  public void given_findingOnAVisibleAndAHiddenAsset_should_beReceivedWithEachReadersAssets()
+      throws Exception {
+    // Arrange
+    ObjectMapper jsonMapper = useRealMapper();
+    User admin = mock(User.class);
+    FluxSink<Object> adminSink = registerSecondConsumer(admin);
+    Finding finding = findingOn(endpoint("a", "tlp-green"), endpoint("r", "tlp-red"));
+    stubRead(mockUser, finding, true);
+    stubRead(admin, finding, true);
+    readerHolds(mockUser, AMBER);
+    readerHolds(admin, MarkingCtx.all());
+
+    // Act
+    streamService.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, finding, jsonMapper));
+
+    // Assert
+    assertEquals(List.of("a"), idsAt(captureWireEvent(mockSink, jsonMapper), "finding_assets"));
+    assertEquals(
+        List.of("a", "r"), idsAt(captureWireEvent(adminSink, jsonMapper), "finding_assets"));
+  }
+
+  @Test
+  public void given_injectOnAVisibleAndAHiddenAsset_should_beReceivedWithTheVisibleTargetOnly() {
+    // Arrange
+    ObjectMapper jsonMapper = useRealMapper();
+    Inject inject = InjectFixture.getDefaultInject();
+    inject.setId(RESOURCE_ID);
+    inject.setAssets(List.of(endpoint("a", "tlp-green"), endpoint("r", "tlp-red")));
+    stubRead(mockUser, inject, true);
+    readerHolds(mockUser, AMBER);
+
+    // Act
+    streamService.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, inject, jsonMapper));
+
+    // Assert
+    assertEquals(List.of("a"), idsAt(captureWireEvent(mockSink, jsonMapper), "inject_assets"));
+  }
+
+  private static List<String> idsAt(JsonNode wire, String path, String idProperty) {
+    JsonNode node = wire.path("instance");
+    for (String step : path.split("\\.")) {
+      node = node.path(step);
+    }
+    return node.valueStream().map(element -> element.path(idProperty).asText()).toList();
+  }
+
+  private static Inject injectRunOn(Endpoint asset) {
+    Agent agent = AgentFixture.createDefaultAgentService();
+    agent.setId("agent-id");
+    agent.setAsset(asset);
+    PreventionInjectExpectation onAsset = new PreventionInjectExpectation();
+    onAsset.setId("expectation-on-asset");
+    onAsset.setAsset(asset);
+    ManualInjectExpectation onTeam = new ManualInjectExpectation();
+    onTeam.setId("expectation-on-team");
+    ExecutionTrace agentTrace = new ExecutionTrace();
+    agentTrace.setId("trace-of-agent");
+    agentTrace.setAgent(agent);
+    ExecutionTrace globalTrace = new ExecutionTrace();
+    globalTrace.setId("trace-global");
+    InjectStatus status = new InjectStatus();
+    status.setId("status-id");
+    status.setTraces(List.of(globalTrace, agentTrace));
+    Inject inject = InjectFixture.getDefaultInject();
+    inject.setId(RESOURCE_ID);
+    inject.setExpectations(List.of(onAsset, onTeam));
+    inject.setStatus(status);
+    return inject;
+  }
+
+  @Test
+  public void given_injectRunOnAHiddenAsset_should_beReceivedWithoutTheAssetsExpectationsAndTraces()
+      throws Exception {
+    // Arrange
+    ObjectMapper jsonMapper = useRealMapper();
+    User admin = mock(User.class);
+    FluxSink<Object> adminSink = registerSecondConsumer(admin);
+    Inject inject = injectRunOn(endpoint("r", "tlp-red"));
+    stubRead(mockUser, inject, true);
+    stubRead(admin, inject, true);
+    readerHolds(mockUser, AMBER);
+    readerHolds(admin, MarkingCtx.all());
+
+    // Act
+    streamService.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, inject, jsonMapper));
+
+    // Assert
+    JsonNode amberWire = captureWireEvent(mockSink, jsonMapper);
+    assertEquals(
+        List.of("expectation-on-team"),
+        idsAt(amberWire, "inject_expectations", "inject_expectation_id"));
+    assertEquals(
+        List.of("trace-global"),
+        idsAt(amberWire, "inject_status.status_traces", "execution_trace_id"));
+    JsonNode adminWire = captureWireEvent(adminSink, jsonMapper);
+    assertEquals(
+        List.of("expectation-on-asset", "expectation-on-team"),
+        idsAt(adminWire, "inject_expectations", "inject_expectation_id"));
+    assertEquals(
+        List.of("trace-global", "trace-of-agent"),
+        idsAt(adminWire, "inject_status.status_traces", "execution_trace_id"));
+  }
+
+  @Test
+  public void given_assetGroupOfHiddenAssetsOnly_should_beReceivedWithNoAsset() {
+    // Arrange
+    ObjectMapper jsonMapper = useRealMapper();
+    AssetGroup group = AssetGroupFixture.createDefaultAssetGroup("group");
+    group.setId(RESOURCE_ID);
+    group.setTenant(null); // the fixture stamps the default tenant; the stubs here use none
+    group.setAssets(List.of(endpoint("r", "tlp-red")));
+    stubRead(mockUser, group, true);
+    readerHolds(mockUser, AMBER);
+
+    // Act
+    streamService.listenDatabaseUpdate(new BaseEvent(DATA_UPDATE, group, jsonMapper));
+
+    // Assert
+    JsonNode wire = captureWireEvent(mockSink, jsonMapper);
+    assertEquals("group", wire.path("instance").path("asset_group_name").asText());
+    assertEquals(List.of(), idsAt(wire, "asset_group_assets"));
+  }
+
+  @Test
+  public void given_findingWithoutAsset_should_notResolveTheReadersClearance() {
+    // Arrange
+    Finding finding = findingOn();
+    stubRead(mockUser, finding, true);
+
+    // Act
+    streamService.listenDatabaseUpdate(
+        new BaseEvent(DATA_UPDATE, finding, mock(ObjectMapper.class)));
+
+    // Assert
+    verify(mockSink).next(any());
+    verify(streamClearanceService, never()).clearanceFor(any(), any());
   }
 
   @Test

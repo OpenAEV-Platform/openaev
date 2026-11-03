@@ -6,16 +6,21 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.audit.StreamAssetReference;
+import io.openaev.database.audit.StreamEmbeddedElements;
 import io.openaev.database.model.*;
 import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
+import io.openaev.service.stream.StreamClearanceService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,6 +29,7 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -72,6 +78,7 @@ public class StreamService {
   private final PermissionService permissionService;
   private final UserService userService;
   private final AttackPathAccessControl attackPathAccessControl;
+  private final StreamClearanceService streamClearanceService;
   private final ObjectMapper mapper;
 
   private Instant lastUpdate = Instant.now();
@@ -117,10 +124,7 @@ public class StreamService {
   private boolean hasReadPermission(StreamConsumer consumer, User user, BaseEvent event) {
     String resourceId = event.getPermissionResourceId();
     ResourceType resourceType = event.getPermissionResourceType();
-    String checkTenantId =
-        Optional.ofNullable(tenantOf(event.getInstance()))
-            .or(() -> Optional.ofNullable(consumer.tenantId()).filter(id -> !id.isBlank()))
-            .orElse(null);
+    String checkTenantId = checkTenantOf(consumer, event);
     try {
       return hasReadPermission(
           consumer,
@@ -141,6 +145,65 @@ public class StreamService {
           e);
       return false;
     }
+  }
+
+  /** The tenant the checks of an event run in: the row's, else the consumer's, else none. */
+  private static String checkTenantOf(StreamConsumer consumer, BaseEvent event) {
+    return Optional.ofNullable(tenantOf(event.getInstance()))
+        .or(() -> Optional.ofNullable(consumer.tenantId()).filter(id -> !id.isBlank()))
+        .orElse(null);
+  }
+
+  /**
+   * The marking clearance the event is checked against for this consumer. Checked after the READ
+   * permission: reading assets does not mean reading every asset.
+   */
+  private MarkingCtx clearanceOf(StreamConsumer consumer, User user, BaseEvent event) {
+    // Most entities neither carry a marking nor list assets: skip resolving the clearance for them.
+    if (!event.hasMarkingLinks()) {
+      return MarkingCtx.all();
+    }
+    return streamClearanceService.clearanceFor(user, checkTenantOf(consumer, event));
+  }
+
+  /**
+   * The payload with the listed assets and the embedded elements the clearance does not allow
+   * removed. An id or element the event did not capture is removed too: its markings are unknown.
+   */
+  private ObjectNode withoutHiddenAssets(BaseEvent event, MarkingCtx clearance) {
+    ObjectNode instanceData = mapper.valueToTree(event.getInstance());
+    for (StreamAssetReference reference : event.getStreamAssetReferences()) {
+      if (instanceData.get(reference.property()) instanceof ArrayNode assetIds) {
+        Set<String> visibleIds = reference.visibleAssetIds(clearance);
+        ArrayNode visible = instanceData.putArray(reference.property());
+        assetIds.forEach(
+            assetId -> {
+              if (visibleIds.contains(assetId.asText())) {
+                visible.add(assetId);
+              }
+            });
+      }
+    }
+    for (StreamEmbeddedElements embedded : event.getStreamEmbeddedElements()) {
+      String[] steps = embedded.path().split("\\.");
+      JsonNode parent = instanceData;
+      for (int i = 0; i < steps.length - 1; i++) {
+        parent = parent.path(steps[i]);
+      }
+      String property = steps[steps.length - 1];
+      if (parent instanceof ObjectNode container
+          && container.get(property) instanceof ArrayNode elements) {
+        Set<String> visibleIds = embedded.visibleIds(clearance);
+        ArrayNode visible = container.putArray(property);
+        elements.forEach(
+            element -> {
+              if (visibleIds.contains(element.path(embedded.idProperty()).asText())) {
+                visible.add(element);
+              }
+            });
+      }
+    }
+    return instanceData;
   }
 
   /**
@@ -208,10 +271,12 @@ public class StreamService {
       PermissionService permissionService,
       UserService userService,
       AttackPathAccessControl attackPathAccessControl,
+      StreamClearanceService streamClearanceService,
       ObjectMapper mapper) {
     this.permissionService = permissionService;
     this.userService = userService;
     this.attackPathAccessControl = attackPathAccessControl;
+    this.streamClearanceService = streamClearanceService;
     this.mapper = mapper;
   }
 
@@ -324,13 +389,26 @@ public class StreamService {
           String simpleName = event.getInstance().getClass().getSimpleName();
           log.warn(String.format("Class %s can't be streamed", simpleName), e);
         }
-      } else if (event.getInstance().getResourceType() == ResourceType.NOTIFIER
-          && !permissionService.hasCapabilityPermission(user, ResourceType.NOTIFIER, Action.READ)) {
-        ObjectNode instanceData = mapper.valueToTree(event.getInstance());
-        instanceData.putNull("notifier_configuration");
-        sendStreamEvent(fluxSink, event.clone(), instanceData);
       } else {
-        sendStreamEvent(fluxSink, event);
+        MarkingCtx clearance = clearanceOf(consumer, user, event);
+        if (!event.isVisibleUnder(clearance)) {
+          // Above the consumer's clearance: like a READ denial, nothing is sent, not even a
+          // tombstone, since the id and timing of a hidden asset are already a disclosure.
+          return;
+        }
+        if (event.getInstance().getResourceType() == ResourceType.NOTIFIER
+            && !permissionService.hasCapabilityPermission(
+                user, ResourceType.NOTIFIER, Action.READ)) {
+          ObjectNode instanceData = mapper.valueToTree(event.getInstance());
+          instanceData.putNull("notifier_configuration");
+          sendStreamEvent(fluxSink, event.clone(), instanceData);
+        } else if ((!event.getStreamAssetReferences().isEmpty()
+                || !event.getStreamEmbeddedElements().isEmpty())
+            && !(clearance instanceof MarkingCtx.All)) {
+          sendStreamEvent(fluxSink, event.clone(), withoutHiddenAssets(event, clearance));
+        } else {
+          sendStreamEvent(fluxSink, event);
+        }
       }
     } finally {
       // Reset tenant context unconditionally to avoid leaking into other
