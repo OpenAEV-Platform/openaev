@@ -71,16 +71,6 @@ public class CommonSearchService {
     return cacheMap;
   }
 
-  /**
-   * Returns the entity a list widget lists, read from the {@code base_entity} filter of its
-   * perspective.
-   *
-   * <p>The widget comes from the caller, so a missing perspective or filter is refused with an
-   * {@link IllegalArgumentException}, which the REST layer turns into a 400.
-   *
-   * @param widget the list widget configuration
-   * @return the name of the entity to list
-   */
   public String getListEntityName(ListConfiguration widget) {
     ListConfiguration.ListPerspective perspective = widget.getPerspective();
     if (perspective == null || perspective.getFilter() == null) {
@@ -95,12 +85,6 @@ public class CommonSearchService {
         .getFirst();
   }
 
-  /**
-   * Returns the indexed model class of an entity, refusing an entity the engine does not index.
-   *
-   * @param entityName the name of the entity
-   * @return the model class
-   */
   public Class<?> getModelClass(String entityName) {
     return searchEngine.getModels().stream()
         .filter(model -> entityName.equals(model.getName()))
