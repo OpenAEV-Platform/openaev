@@ -62,6 +62,8 @@ public class XtmOneClient {
   private static final String INTENTS_CATALOG_AGENTS_PATH = "/api/v1/intents/catalog";
   private static final String CHAT_SESSIONS_PATH = "/api/v1/platform/chat/sessions";
   private static final String CHAT_WORKSPACES_PATH = "/api/v1/platform/chat/workspaces";
+  private static final String CHAT_CONVERSATION_REFERENCES_PATH =
+      "/api/v1/platform/chat/conversation-references";
   private static final int AGENT_LIST_TIMEOUT_SECONDS = 10;
 
   /**
@@ -141,6 +143,21 @@ public class XtmOneClient {
   // (same approach as DocumentService.encodeFileName).
   private static String encodePathSegment(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+  }
+
+  /**
+   * Appends {@code name=value} to the query string of {@code url}, the value URL-encoded with a
+   * space written {@code %20}, which reads as a space whether or not the server decodes the query
+   * as a form. A {@code null} value adds nothing.
+   */
+  private static void appendQueryParameter(StringBuilder url, String name, Object value) {
+    if (value == null) {
+      return;
+    }
+    url.append(url.indexOf("?") < 0 ? '?' : '&')
+        .append(name)
+        .append('=')
+        .append(encodePathSegment(value.toString()));
   }
 
   @SuppressWarnings("unchecked")
@@ -393,6 +410,26 @@ public class XtmOneClient {
         CHAT_WORKSPACES_PATH + "/" + encodePathSegment(workspaceId),
         null,
         "deleting the workspace");
+  }
+
+  /**
+   * Searches the conversations the current user may reference with {@code @} from the chat panel
+   * ({@code {"conversations": [{"id", "title", "key", "updated_at", "is_own"}]}}): XTM One offers
+   * only the conversations that user can open. Each parameter is sent only when given.
+   *
+   * @param query the text typed after {@code @}, {@code null} for none
+   * @param limit how many conversations to offer, {@code null} for XTM One's default
+   * @param excludedConversationId a conversation not to offer (the one the panel is in), {@code
+   *     null} for none
+   */
+  public RelayedResponse searchChatConversationReferences(
+      String query, Integer limit, String excludedConversationId) {
+    StringBuilder path = new StringBuilder(CHAT_CONVERSATION_REFERENCES_PATH);
+    appendQueryParameter(path, "q", query);
+    appendQueryParameter(path, "limit", limit);
+    appendQueryParameter(path, "exclude", excludedConversationId);
+    return relayChatRequest(
+        HttpGet::new, path.toString(), null, "searching the conversation references");
   }
 
   /**
@@ -1013,14 +1050,26 @@ public class XtmOneClient {
       boolean supportsToolApproval,
       StreamConsumer streamConsumer) {
     streamChatMessage(
-        content, conversationId, agentSlug, context, supportsToolApproval, false, streamConsumer);
+        content,
+        conversationId,
+        agentSlug,
+        context,
+        supportsToolApproval,
+        false,
+        null,
+        streamConsumer);
   }
 
   /**
-   * Same as {@link #streamChatMessage(String, String, String, Map, boolean, StreamConsumer)},
-   * forwarding whether the chatbot renders the decks, reports and videos of the answer itself
-   * ({@code supports_artifacts}): XTM One then keeps their markers and describes them in the {@code
-   * done} event; otherwise it streams no marker and turns them into links.
+   * Same as {@link #streamChatMessage(String, String, String, Map, boolean, StreamConsumer)}, with
+   * what the chat panel adds to a message.
+   *
+   * @param supportsArtifacts whether the chatbot renders the decks, reports and videos of the
+   *     answer itself ({@code supports_artifacts}): XTM One then keeps their markers and describes
+   *     them in the {@code done} event; otherwise it streams no marker and turns them into links.
+   * @param referencedConversationIds the conversations the message references with {@code @},
+   *     forwarded as given ({@code referenced_conversation_ids}); omitted from the upstream body
+   *     when {@code null} or empty. XTM One reads only those the user can open.
    */
   public void streamChatMessage(
       String content,
@@ -1029,6 +1078,7 @@ public class XtmOneClient {
       Map<String, Object> context,
       boolean supportsToolApproval,
       boolean supportsArtifacts,
+      List<String> referencedConversationIds,
       StreamConsumer streamConsumer) {
     requireConfigured(config);
     try (CloseableHttpClient httpClient = httpClientFactory.httpClientNoRetry()) {
@@ -1040,6 +1090,9 @@ public class XtmOneClient {
       if (context != null && !context.isEmpty()) body.put("context", context);
       if (supportsToolApproval) body.put("supports_tool_approval", true);
       if (supportsArtifacts) body.put("supports_artifacts", true);
+      if (referencedConversationIds != null && !referencedConversationIds.isEmpty()) {
+        body.put("referenced_conversation_ids", referencedConversationIds);
+      }
       String json = objectMapper.writeValueAsString(body);
 
       HttpPost httpPost = chatPostBuilder("/api/v1/platform/chat/messages", jwt, json);
