@@ -7,7 +7,7 @@ import { Link } from 'react-router';
 
 import { type ContentHistoryOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
-import { FDS_ROW_DETAIL_CELL_SX, FDS_TABLE_FRAME_STYLE, FDS_TABLE_LAYER_CLASS, FDS_TABLE_SX } from '../fdsTableSpec';
+import { FDS_ROW_DETAIL_CELL_SX, FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../fdsTableSpec';
 import TextDiff from '../update/TextDiff';
 
 // Shape of content_history_details, a free JSON object on the API side.
@@ -72,7 +72,7 @@ interface VersionsProps {
 export const ContentVersionsTable: FunctionComponent<VersionsProps> = ({ rows, usageLabel, loading = false }) => {
   const { t, nsdt } = useFormatter();
   return (
-    <Table size="small" aria-label={t('Versions')} sx={FDS_TABLE_SX} className={FDS_TABLE_LAYER_CLASS}>
+    <Table size="small" aria-label={t('Versions')} sx={FDS_TABLE_SX}>
       <TableHead>
         <TableRow>
           <TableCell>{t('Version')}</TableCell>
@@ -179,7 +179,7 @@ export const ChangesTable: FunctionComponent<{ changes: HistoryChange[] }> = ({ 
     <Table
       size="small"
       aria-label={t('Changes')}
-      className={FDS_TABLE_LAYER_CLASS}
+
       sx={{
         ...FDS_TABLE_SX,
         tableLayout: 'fixed',
@@ -276,11 +276,11 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
   return (
     <>
       {/* Fixed layout: opening a long before/after value must not resize the columns. */}
-      <div className={FDS_TABLE_LAYER_CLASS} style={FDS_TABLE_FRAME_STYLE}>
+      <div style={FDS_TABLE_FRAME_STYLE}>
         <Table
           size="small"
           aria-label={t('History')}
-          className={FDS_TABLE_LAYER_CLASS}
+
           sx={{
             ...FDS_TABLE_SX,
             'tableLayout': 'fixed',
