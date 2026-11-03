@@ -26,12 +26,12 @@ const newFields = (token: string): EndpointFields => ({
 });
 
 test.describe('Asset detail live updates', () => {
-  // Assets left by a failed test; deleting one already gone is a harmless 404.
+  // Every asset a test created, deleted afterwards even when the test failed.
   const createdAssetIds: string[] = [];
 
   test.afterEach(async ({ request }) => {
     const api = new EndpointApiHelpers(request);
-    await Promise.all(createdAssetIds.splice(0).map(id => api.deleteAsset(id)));
+    await Promise.all(createdAssetIds.splice(0).map(id => api.deleteAssetIfPresent(id)));
   });
 
   test('given_anOpenAssetDetail_should_showRenamesAndBaseInformationChangesWithoutReload', async ({ page, request }) => {

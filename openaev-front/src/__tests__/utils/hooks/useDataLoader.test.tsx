@@ -279,6 +279,24 @@ describe('useDataLoader', () => {
       expect(loader).toHaveBeenCalledTimes(1);
     });
 
+    it('given_aSessionStoppedBeforeItsFirstOpen_should_letTheLoadersOfTheNextSessionWaitForItsOpen', () => {
+      // Arrange: the first session's stream failed and never opened, then the layout changed
+      client.startStream();
+      FakeEventSource.last.onerror?.();
+      client.stopStream();
+      client.startStream();
+      const loader = vi.fn();
+
+      // Act
+      renderHook(() => useDataLoader(loader, []));
+      const callsBeforeTheOpen = loader.mock.calls.length;
+      FakeEventSource.last.emit('open');
+
+      // Assert
+      expect(callsBeforeTheOpen).toBe(0);
+      expect(loader).toHaveBeenCalledTimes(1);
+    });
+
     it('given_aConnectionLostBeforeTheFirstOpen_should_loadALoaderMountedDuringTheOutageAtOnce', () => {
       // Arrange
       client.startStream();

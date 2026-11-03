@@ -10,7 +10,9 @@ import { startStream, stopStream } from './streamClient';
  * (the query provider is keyed by them), which opens a stream bound to the new session.
  *
  * A layout effect: it runs before the passive effects of the layout and its children, so the data
- * loaders mounting with it already see the stream started (see useDataLoader).
+ * loaders mounting with it already see the stream started (see useDataLoader). A Suspense fallback
+ * shown above the layout runs its layout effect cleanups but keeps the loaders registered, so
+ * nothing that can suspend may sit in the layout outside its own Suspense boundary.
  */
 const useLiveStream = (): void => {
   useLayoutEffect(() => {

@@ -231,7 +231,7 @@ describe('streamClient', () => {
       expect(FakeEventSource.instances).toHaveLength(1);
     });
 
-    it('given_repeatedErrors_should_reportTheOutageOnceAndStayUnhealthyUntilTheNextOpen', () => {
+    it('given_repeatedErrors_should_reportTheOutageOnceAndStayUnhealthyUntilTheNextPing', () => {
       // Arrange
       const lost = vi.fn();
       client.onConnectionLost(lost);
@@ -248,9 +248,40 @@ describe('streamClient', () => {
       expect(lost).toHaveBeenCalledTimes(1);
       vi.advanceTimersByTime(2000);
       FakeEventSource.last.emit('open');
+      expect(client.isStreamHealthy()).toBe(false);
+      FakeEventSource.last.emit('ping');
       expect(client.isStreamHealthy()).toBe(true);
       FakeEventSource.last.onerror?.();
       expect(lost).toHaveBeenCalledTimes(2);
+    });
+
+    it('given_connectionsThatOpenButStaySilent_should_backOffLikeAFailingOne', () => {
+      // Arrange: a hung backend or a buffering proxy, every connection opens and never pings
+      const lost = vi.fn();
+      client.onConnectionLost(lost);
+      client.startStream();
+      const opened = new Set<FakeEventSource>();
+      const advanceOpeningEveryConnection = (ms: number) => {
+        for (let elapsed = 0; elapsed < ms; elapsed += 100) {
+          const connection = FakeEventSource.last;
+          if (!opened.has(connection)) {
+            opened.add(connection);
+            connection.emit('open');
+          }
+          vi.advanceTimersByTime(100);
+        }
+      };
+
+      // Act: dropped at 6 s, then every 8 s (6 s silent + 2 s) until the outage passes 30 s
+      advanceOpeningEveryConnection(47_900);
+      const connectionsBeforeTheLongerDelay = FakeEventSource.instances.length;
+      advanceOpeningEveryConnection(100);
+
+      // Assert: the drop at 38 s waits 10 s, and the outage is reported once
+      expect(connectionsBeforeTheLongerDelay).toBe(5);
+      expect(FakeEventSource.instances).toHaveLength(6);
+      expect(lost).toHaveBeenCalledTimes(1);
+      expect(client.isStreamHealthy()).toBe(false);
     });
 
     it('given_aSilentConnectionDroppedByTheWatchdog_should_reportTheOutageOnceAndStayUnhealthy', () => {

@@ -73,6 +73,7 @@ For entities with nullable `tenant_id` (Settings, User, Role, Group):
 - Use `describe.each` for parameterised tests over similar inputs
 - **AAA pattern**: Arrange / Act / Assert (same as backend)
 - Clean up shared state in `beforeEach` / `afterEach` (e.g. `localStorage.clear()`, `vi.restoreAllMocks()`)
+- A component reading TanStack queries renders inside `AppQueryProvider` (`utils/query/AppQueryProvider.tsx`: query client and live router); mock its plain API calls, never the query layer. Drive live updates through the real stream client with `FakeEventSource` (`src/__tests__/utils/stream/fakeEventSource.ts`), as `AssetDetail.test.tsx` does
 
 ### Design system components in unit tests
 

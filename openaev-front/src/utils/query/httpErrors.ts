@@ -11,3 +11,12 @@ export const httpStatus = (error: unknown): number | undefined => {
 
 /** Whether a query error is a 404 (e.g. the entity was deleted): an expected state, not a failure. */
 export const isNotFoundError = (error: unknown): boolean => httpStatus(error) === 404;
+
+/**
+ * Whether the server refused the request itself (4xx: deleted, forbidden...): retrying, or keeping
+ * the previous data on screen, would show what the user may no longer see.
+ */
+export const isClientError = (error: unknown): boolean => {
+  const status = httpStatus(error);
+  return status !== undefined && status >= 400 && status < 500;
+};

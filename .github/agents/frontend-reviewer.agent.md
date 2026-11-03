@@ -66,6 +66,7 @@ These thresholds trigger automatic severity levels regardless of subjective asse
 | **Mixed data sources** | A screen migrated to TanStack Query that still reads the same server data from Redux (`useHelper`) or `useDataLoader` | 🟠 HIGH |
 | **Live query without `meta.live`** | A query that a change (stream or mutation) can make stale but declares no `meta.live`, builds it without `liveMeta` (untyped `refs`, type names outside `ENTITY_TYPES`), misses embedded entities in `refs`, or is a count / filtered list without `watch` | 🟡 MEDIUM |
 | **Query data mutated or copied** | Sorting or editing a query's `data` in place, or copying it into `useState` / Redux — sort in a stable `select` | 🟠 HIGH |
+| **Error over data** | A query's error rendered in place of data it still has after a failed refetch (5xx, network), instead of only without data or on a client error (`isClientError`) | 🟡 MEDIUM |
 | **Thunk in a query or mutation** | A `queryFn` / `mutationFn` calling `dispatch(...)` or a `*Referential` action instead of a plain call resolving to the data | 🟠 HIGH |
 | **TanStack default overridden** | A query or the client overriding `staleTime`, `retry`, `refetchOnWindowFocus`, `refetchInterval`… without a stated reason (a query being live is not one) | 🟡 MEDIUM |
 | **Second stream** | A new `EventSource` for platform data changes outside `utils/stream/streamClient.ts` | 🟠 HIGH |

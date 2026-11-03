@@ -6,6 +6,7 @@ import { store } from '../../store';
 import { SseActionBatcher } from '../sse/SseActionBatcher';
 import {
   hasStreamOpened,
+  isStreamDown,
   isStreamStarted,
   onBulkOperationEnd,
   onConnectionLost,
@@ -26,9 +27,6 @@ const batcher = new SseActionBatcher();
 // the buffered events were dropped and a full reload of every registered
 // loader replaces them as soon as the tab is visible again.
 let needsResync = false;
-// Set when the stream broke before its first open: loaders stop waiting for an open that may never
-// come (a proxy blocking it, the platform down).
-let streamUnavailable = false;
 let batchTimeoutId;
 let idleCallbackId;
 
@@ -118,7 +116,6 @@ if (typeof document !== 'undefined') {
 // are only applied while a loader is mounted: with none, the store has nobody to feed and the next
 // mounted loader fetches fresh data anyway.
 onConnectionOpen(({ first }) => {
-  streamUnavailable = false;
   // The full reload below supersedes anything still buffered (or dropped)
   // from the previous connection.
   cancelPendingBatches();
@@ -177,10 +174,10 @@ onBulkOperationEnd(() => {
   }
 });
 
+// The stream broke before its first open (a proxy blocking it, the platform down): the loaders
+// waiting for that open load now; the open, if it comes, reloads them.
 onConnectionLost(() => {
-  if (hasStreamOpened() || streamUnavailable) return;
-  streamUnavailable = true;
-  // The loaders waiting for the first open load now; the open, if it comes, reloads them.
+  if (hasStreamOpened()) return;
   reloadAllListeners();
 });
 
@@ -190,7 +187,7 @@ const useDataLoader = (loader = () => {}, refetchArg = []) => {
     // While the session's stream has not opened yet, its first open reloads every registered
     // loader: loading here too would double the requests when a layout mounts. Without a stream (not
     // started, or broken before opening) nothing will reload it: load now.
-    if (!isStreamStarted() || hasStreamOpened() || streamUnavailable) {
+    if (!isStreamStarted() || hasStreamOpened() || isStreamDown()) {
       const load = async () => {
         await loader();
       };
