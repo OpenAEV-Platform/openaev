@@ -1,8 +1,11 @@
 package io.openaev.aop.audit_log;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.AnnotationIntrospector;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.cfg.MapperConfig;
+import com.fasterxml.jackson.databind.introspect.Annotated;
 import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import io.openaev.database.audit.AuditLogIgnore;
@@ -30,6 +33,14 @@ public class AuditObjectMapper {
     @Override
     public boolean hasIgnoreMarker(AnnotatedMember member) {
       return member.hasAnnotation(AuditLogIgnore.class) || super.hasIgnoreMarker(member);
+    }
+
+    @Override
+    public JsonIgnoreProperties.Value findPropertyIgnoralByName(
+        MapperConfig<?> config, Annotated annotated) {
+      return JsonIgnoreProperties.Value.merge(
+          super.findPropertyIgnoralByName(config, annotated),
+          JsonIgnoreProperties.Value.forIgnoredProperties("listened"));
     }
   }
 }

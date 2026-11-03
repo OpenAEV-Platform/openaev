@@ -176,7 +176,6 @@ public class LogService {
       String resourceId,
       JsonNode input,
       JsonNode output,
-      JsonNode signatureNode,
       JsonNode entityDiffsNode,
       Object logLevel,
       String logUUID) {
@@ -221,12 +220,6 @@ public class LogService {
       if (entityDiffsNode != null && !entityDiffsNode.isEmpty()) {
         entityDiffsNode = ObjectRedactionUtils.redact(entityDiffsNode, resourceType);
         ctx.put("entity_diffs", toContextValue(entityDiffsNode));
-      }
-
-      if (signatureNode != null) {
-        signatureNode = ObjectRedactionUtils.redact(signatureNode, resourceType);
-        signatureNode = objectNormalizationUtils.normalize(signatureNode);
-        doc.getRequestMetadata().setSignature(signatureNode);
       }
 
       ctx.put("message", message);
@@ -359,16 +352,6 @@ public class LogService {
       outputNode = objectNormalizationUtils.normalize(outputNode);
       ctx.put("output", toContextValue(outputNode));
     }
-
-    // Extract signature into request metadata. Normalization is what enforces the max event size:
-    // without it a large payload reaching the signature node (e.g. a @RequestPart DTO) is logged
-    // uncapped and can exhaust the heap.
-    Object signatureObj = ctx.remove("signature");
-    if (signatureObj instanceof JsonNode signatureNode && !signatureNode.isNull()) {
-      JsonNode redactedSignature = ObjectRedactionUtils.redact(signatureNode, resourceType);
-      JsonNode normalizedSignature = objectNormalizationUtils.normalize(redactedSignature);
-      doc.getRequestMetadata().setSignature(normalizedSignature);
-    }
   }
 
   /** Resolves the event access level based on the event type. */
@@ -466,10 +449,8 @@ public class LogService {
     ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.RequestContextData requestContextData =
         ThreadPoolTaskLoggerConfig.ThreadRequestContextHolder.getRequestContextData();
     String url = requestContextData != null ? requestContextData.url() : null;
-    String method = requestContextData != null ? requestContextData.method() : null;
 
     meta.setUrl(url);
-    meta.setMethod(method);
     doc.setRequestMetadata(meta);
 
     // Tenant context

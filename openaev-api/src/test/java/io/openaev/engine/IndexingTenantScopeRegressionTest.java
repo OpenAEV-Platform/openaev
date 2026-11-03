@@ -122,6 +122,7 @@ class IndexingTenantScopeRegressionTest extends IntegrationTest {
                 .sourceName(collector.getName())
                 .result("detected")
                 .score(100.0)
+                .date(Instant.now())
                 .build()));
     InjectExpectationComposer.Composer expectationWrapper =
         injectExpectationComposer.forExpectation(expectation).withEndpoint(endpointWrapper);
@@ -293,6 +294,7 @@ class IndexingTenantScopeRegressionTest extends IntegrationTest {
                 .sourceName(collector.getName())
                 .result("detected")
                 .score(100.0)
+                .date(Instant.now())
                 .build()));
     InjectExpectationComposer.Composer agentExpectationWrapper =
         injectExpectationComposer.forExpectation(agentExpectation).withEndpoint(endpointWrapper);
@@ -401,6 +403,7 @@ class IndexingTenantScopeRegressionTest extends IntegrationTest {
                 .sourceName(collector.getName())
                 .result("detected")
                 .score(100.0)
+                .date(Instant.now())
                 .build()));
     return injectExpectationComposer
         .forExpectation(agentExpectation)

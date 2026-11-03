@@ -1,5 +1,4 @@
-import { type Map as ImmutableMap } from 'immutable';
-import { Map } from 'immutable';
+import { type Map as ImmutableMap, Map } from 'immutable';
 import { describe, expect, it } from 'vitest';
 
 import * as Constants from '../../constants/ActionTypes';

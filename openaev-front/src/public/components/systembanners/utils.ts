@@ -7,7 +7,6 @@ const SYSTEM_BANNER_HEIGHT_PER_MESSAGE = 18;
 // Extra breathing space kept below the system banner messages.
 const SYSTEM_BANNER_VERTICAL_PADDING = 16;
 export type BannerMessage = Record<'debug' | 'info' | 'warn' | 'error' | 'fatal', string[]>;
-// eslint-disable-next-line import/prefer-default-export
 export const computeBannerSettings = (settings: PlatformSettings) => {
   const bannerByLevel = settings.platform_banner_by_level;
 

@@ -24,6 +24,7 @@ import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -155,11 +156,11 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     InjectExpectationResult first = new InjectExpectationResult();
     first.setSourceName("Defender");
     first.setResult("Prevented");
-    first.setDate("2026-07-28T10:00:00Z");
+    first.setDate(Instant.parse("2026-07-28T10:00:00Z"));
     InjectExpectationResult second = new InjectExpectationResult();
     second.setSourceName("Defender");
     second.setResult("Partially Prevented");
-    second.setDate("2026-07-28T10:01:00Z");
+    second.setDate(Instant.parse("2026-07-28T10:01:00Z"));
     prevention.setResults(List.of(first, second));
 
     // Act
@@ -205,7 +206,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     result.setSourceName("Defender");
     result.setSourceType("EDR");
     result.setResult("Vulnerable");
-    result.setDate("2026-07-29T10:00:00Z");
+    result.setDate(Instant.parse("2026-07-29T10:00:00Z"));
     vulnerability.setResults(List.of(result));
     VulnerabilityInjectExpectation savedExpectation =
         injectExpectationRepository.save(vulnerability);
@@ -258,7 +259,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     result.setSourceName("Trace platform");
     result.setSourceType("EDR");
     result.setResult("Prevented");
-    result.setDate("2026-07-31T10:00:00Z");
+    result.setDate(Instant.parse("2026-07-31T10:00:00Z"));
     prevention.setResults(List.of(result));
     PreventionInjectExpectation savedExpectation = injectExpectationRepository.save(prevention);
 
@@ -332,7 +333,7 @@ class AttackPathIngestionTenantAttributionTest extends IntegrationTest {
     result.setSourceName("Collector source");
     result.setSourceType("SIEM");
     result.setResult("Prevented");
-    result.setDate("2026-08-01T11:00:00Z");
+    result.setDate(Instant.parse("2026-08-01T11:00:00Z"));
     prevention.setResults(List.of(result));
     PreventionInjectExpectation savedExpectation = injectExpectationRepository.save(prevention);
 

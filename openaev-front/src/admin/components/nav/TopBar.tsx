@@ -35,6 +35,7 @@ import { useChatbot } from '../ariane/useChatbotHooks';
 import isXtmOneAvailable from '../ariane/xtmOneAvailability';
 import BulkOperationsIndicator from './BulkOperationsIndicator';
 import TopBarIconLink from './TopBarIconLink';
+import TopBarNewsFeed from './TopBarNewsFeed';
 import TopBarNotifications from './TopBarNotifications';
 
 // Re-exported from the navbar module so the rail, its in-flow spacer and this bar's offset cannot drift apart.
@@ -153,6 +154,7 @@ const TopBar: FunctionComponent = () => {
             <BulkOperationsIndicator />
             {/* OpenCTI-aligned pair: triggers alarm, then the notifications bell. */}
             <TopBarNotifications />
+            <TopBarNewsFeed />
             {holdsCapability('INSTALL_AGENT') && (
               <Tooltip>
                 <TooltipTrigger asChild>

@@ -117,8 +117,8 @@ class ComchecksExecutionJobTest extends IntegrationTest {
   private String seedRunningExercise(String tenantId) {
     String exerciseId = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, exercise_status,"
-            + " exercise_start_date, tenant_id) VALUES (?, ?, 'sim@openaev.io', 'RUNNING',"
+        "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
+            + " exercise_start_date, tenant_id) VALUES (?, ?, 'RUNNING',"
             + " now() - interval '1 hour', ?)",
         exerciseId,
         "comcheck simulation " + exerciseId,

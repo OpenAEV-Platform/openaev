@@ -46,7 +46,7 @@ class JsonTypeDirtyOnLoadCoverageTest {
    */
   private static final Set<String> LATENT_UNTIL_THEIR_TABLE_ACTIVATES =
       Set.of(
-          "BaseInjectExpectation.results",
+          "InjectExpectationResult.metadata",
           "TechnicalInjectExpectation.expectedSecurityPlatforms",
           "CatalogConnectorConfiguration.connectorConfigurationDefault",
           "Condition.keyTypes",

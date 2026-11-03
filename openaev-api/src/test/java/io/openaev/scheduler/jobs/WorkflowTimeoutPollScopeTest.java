@@ -100,8 +100,8 @@ class WorkflowTimeoutPollScopeTest extends IntegrationTest {
         tenantId,
         "timeout-poll-" + tenantId);
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, exercise_status,"
-            + " tenant_id) VALUES (?, 'chained simulation', 'sim@openaev.io', 'RUNNING', ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
+            + " tenant_id) VALUES (?, 'chained simulation', 'RUNNING', ?)",
         exerciseId,
         tenantId);
     jdbc.update(

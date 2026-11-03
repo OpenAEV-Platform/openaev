@@ -56,7 +56,6 @@ inputs:
       Prepare the agent/implant binaries and catalog on this runner. Done inline
       rather than by downloading the release-assets artifact, so the build does
       not have to wait for the prepare-bundled-assets job to finish.
-      Requires the calling job to check out with fetch-depth: 0.
     required: false
     default: "true"
   allow-registry:

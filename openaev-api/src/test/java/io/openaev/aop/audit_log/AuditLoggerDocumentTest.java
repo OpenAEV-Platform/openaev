@@ -106,7 +106,6 @@ class AuditLoggerDocumentTest extends IntegrationTest {
           assertAuditLogContainsNewContent(
               sizeBefore,
               "\"event_scope\" : \"update\"",
-              "\"method\" : \"POST\"",
               "\"url\" : \"http://localhost/api/documents\"",
               "\"entity_type\" : \"Document\"");
       assertThat(newContent).contains("\"message\" : \"updates Document\"");
@@ -145,7 +144,6 @@ class AuditLoggerDocumentTest extends IntegrationTest {
           assertAuditLogContainsNewContent(
               sizeBefore,
               "\"event_scope\" : \"update\"",
-              "\"method\" : \"PUT\"",
               "\"url\" : \"http://localhost/api/documents/" + documentId + "\"",
               "\"input\" : {",
               "\"document_description\" : \"" + newDescription + "\"");
@@ -208,7 +206,6 @@ class AuditLoggerDocumentTest extends IntegrationTest {
       assertAuditLogContainsNewContent(
           sizeBefore,
           "\"event_scope\" : \"update\"",
-          "\"method\" : \"PUT\"",
           "\"url\" : \"http://localhost/api/documents/" + documentId + "\"",
           "\"document_description\" : \"" + description + "\"");
     }

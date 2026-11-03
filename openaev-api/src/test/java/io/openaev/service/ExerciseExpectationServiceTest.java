@@ -13,6 +13,7 @@ import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.TeamFixture;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,7 +64,14 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
     String id = expectations.getFirst().getId();
 
     // -- EXECUTE --
-    ExpectationVerdict input = ExpectationVerdict.builder().score(7.0).build();
+    ExpectationVerdict input =
+        ExpectationVerdict.builder()
+            .sourceId(UUID.randomUUID().toString())
+            .sourceType("unit-test")
+            .sourceName("Unit tests")
+            .sourcePlatform("test-harness")
+            .score(7.0)
+            .build();
     BaseInjectExpectation expectation =
         this.injectExpectationService.updateInjectExpectation(id, input);
 
@@ -75,8 +83,8 @@ public class ExerciseExpectationServiceTest extends IntegrationTest {
   protected Exercise getExercise() {
     Exercise exercise = new Exercise();
     exercise.setName("Exercise name");
+    exercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     exercise.setStatus(SCHEDULED);
-    exercise.setFrom("test@test.com");
     exercise.setReplyTos(List.of("test@test.com"));
     exercise.setStart(Instant.now());
     return this.exerciseRepository.save(exercise);

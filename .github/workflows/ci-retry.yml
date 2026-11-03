@@ -1,7 +1,13 @@
 name: "[Core] Auto-Retry Failed CI"
 
-# Triggers when core-ci or nightly-ci completes with failure.
+# Triggers when core-ci or nightly-ci completes unsuccessfully.
 # Retries failed jobs up to twice, so back-to-back infra flakes are still covered.
+#
+# A job killed by its timeout-minutes limit does not make the run "failure": GitHub reports
+# the run as "cancelled", like a manual cancel or a superseded run. A cancelled run is retried
+# only when all its cancelled jobs hit their timeout, so a deliberate cancel is never undone.
+# A run is not retried either once a newer run of the same workflow exists for its branch:
+# the newer run already tests the branch, so retrying the old one would only spend CI time.
 
 on:
   workflow_run:
@@ -12,25 +18,63 @@ on:
 
 permissions:
   actions: write
+  checks: read
 
 jobs:
   retry:
     name: "🔄 Retry Failed Jobs"
     if: >-
       ${{
-        github.event.workflow_run.conclusion == 'failure' &&
+        (github.event.workflow_run.conclusion == 'failure' ||
+         github.event.workflow_run.conclusion == 'cancelled') &&
         github.event.workflow_run.run_attempt <= 2
       }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 1
+    timeout-minutes: 5
     steps:
       - name: Re-run failed jobs
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_NAME: ${{ github.event.workflow_run.name }}
+          ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.workflow_id }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          EVENT: ${{ github.event.workflow_run.event }}
         run: |
-          RUN_ID="${{ github.event.workflow_run.id }}"
-          ATTEMPT="${{ github.event.workflow_run.run_attempt }}"
-          echo "🔄 [Core] CI run #${RUN_ID} failed on attempt ${ATTEMPT} — retrying failed jobs..."
-          gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/rerun-failed-jobs" \
-            --method POST
+          set -euo pipefail
+          latest_run_id=$(gh api --method GET "repos/${REPO}/actions/workflows/${WORKFLOW_ID}/runs" \
+            -f branch="${HEAD_BRANCH}" -f event="${EVENT}" -F per_page=1 \
+            --jq '.workflow_runs[0].id')
+          if [ "${latest_run_id}" != "${RUN_ID}" ]; then
+            echo "⏭️ ${RUN_NAME} run #${RUN_ID} was superseded by run #${latest_run_id} — not retrying."
+            exit 0
+          fi
+          if [ "${CONCLUSION}" = "cancelled" ]; then
+            # A run counts as timed out only when every cancelled job carries GitHub's
+            # timeout annotation. A manual cancel or a superseded run never does, so if GitHub
+            # rewords the message, timeouts stop being retried instead of cancels being undone.
+            # Fetched into variables first so an API error fails the step instead of
+            # reading as "no timeout".
+            job_ids=$(gh api --paginate \
+              "repos/${REPO}/actions/runs/${RUN_ID}/attempts/${ATTEMPT}/jobs" \
+              --jq '.jobs[] | select(.conclusion == "cancelled") | .id')
+            if [ -z "${job_ids}" ]; then
+              echo "⏭️ ${RUN_NAME} run #${RUN_ID} was cancelled before any job ran — not retrying."
+              exit 0
+            fi
+            for job_id in ${job_ids}; do
+              messages=$(gh api --paginate "repos/${REPO}/check-runs/${job_id}/annotations" \
+                --jq '.[].message')
+              if ! grep -q 'exceeded the maximum execution time' <<< "${messages}"; then
+                echo "⏭️ ${RUN_NAME} run #${RUN_ID} was cancelled (job ${job_id} did not time out) — not retrying."
+                exit 0
+              fi
+            done
+            echo "⏱️ ${RUN_NAME} run #${RUN_ID} was cancelled by a job timeout."
+          fi
+          echo "🔄 ${RUN_NAME} run #${RUN_ID} failed on attempt ${ATTEMPT} — retrying failed jobs..."
+          gh api "repos/${REPO}/actions/runs/${RUN_ID}/rerun-failed-jobs" --method POST
           echo "✅ Re-run triggered (attempt $((ATTEMPT + 1)))"

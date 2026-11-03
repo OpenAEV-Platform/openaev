@@ -109,8 +109,8 @@ class PendingInjectChainingExclusionScopeTest extends IntegrationTest {
   private String seedRunningSimulation(String workflowStatus) {
     String exerciseId = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, exercise_status,"
-            + " tenant_id) VALUES (?, 'pending sweep', 'sweep@openaev.invalid', 'RUNNING', ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
+            + " tenant_id) VALUES (?, 'pending sweep', 'RUNNING', ?)",
         exerciseId,
         tenantId);
     if (workflowStatus != null) {

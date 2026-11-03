@@ -17,6 +17,7 @@ import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.EngineContext;
+import io.openaev.engine.EngineType;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.Handler;
 import io.openaev.engine.api.*;
@@ -26,6 +27,7 @@ import io.openaev.engine.model.EsBase;
 import io.openaev.engine.model.EsSearch;
 import io.openaev.engine.query.*;
 import io.openaev.exception.AnalyticsEngineException;
+import io.openaev.exception.UnknownEngineFieldException;
 import io.openaev.schema.PropertySchema;
 import io.openaev.service.CommonSearchService;
 import io.openaev.service.EsIndexingUtils;
@@ -131,7 +133,7 @@ public class OpenSearchService implements EngineService {
       // (e.g. the asset expectation list search box) works. Any other unknown field stays a hard
       // error.
       if (!BASE_FIELDS.contains(field)) {
-        throw new AnalyticsEngineException("Unknown field: " + field);
+        throw new UnknownEngineFieldException(field);
       }
       builder.stringValue(target);
       return builder.build();
@@ -1215,14 +1217,8 @@ public class OpenSearchService implements EngineService {
   }
 
   public EsEntities entities(TxCtx ctx, RawUserAuth user, ListRuntime runtime) {
+    String entityName = commonSearchService.getListEntityName(runtime.getWidget());
     Filters.FilterGroup searchFilters = runtime.getWidget().getPerspective().getFilter();
-    String entityName =
-        searchFilters.getFilters().stream()
-            .filter(filter -> "base_entity".equals(filter.getKey()))
-            .findAny()
-            .orElseThrow()
-            .getValues()
-            .getFirst();
     List<EngineSortField> sorts = runtime.getWidget().getSorts();
 
     List<SortOptions> engineSorts;
@@ -1283,7 +1279,7 @@ public class OpenSearchService implements EngineService {
                       // By default the engine stops counting at 10,000 and reports it as a lower
                       // bound, which froze the pagination total of large result sets at "10000".
                       .trackTotalHits(tth -> tth.enabled(true)),
-              getClassForEntity(entityName));
+              commonSearchService.getModelClass(entityName));
       long total = response.hits().total() != null ? response.hits().total().value() : 0;
       return new EsEntities(
           response.hits().hits().stream()
@@ -1299,20 +1295,6 @@ public class OpenSearchService implements EngineService {
       log.error("query exception: {}", e.getMessage(), e);
     }
     return new EsEntities(new ArrayList<>(), 0, 0, 0, 0);
-  }
-
-  /**
-   * Return the class for the entity
-   *
-   * @param entityName the name of the entity
-   * @return the class itself
-   */
-  private Class<?> getClassForEntity(String entityName) {
-    Optional<EsModel<EsBase>> model =
-        searchEngine.getModels().stream()
-            .filter(esBaseEsModel -> entityName.equals(esBaseEsModel.getName()))
-            .findAny();
-    return model.get().getModel();
   }
 
   @Override
@@ -1461,6 +1443,11 @@ public class OpenSearchService implements EngineService {
   }
 
   @Override
+  public EngineType getEngineType() {
+    return EngineType.OPENSEARCH;
+  }
+
+  @Override
   public String getEngineVersion() {
     String endpoint = "/_nodes";
     try (Response response =
@@ -1552,7 +1539,7 @@ public class OpenSearchService implements EngineService {
       // throwing a NullPointerException that 500s the whole search request. Other unknown fields
       // stay a hard error.
       if (!BASE_FIELDS.contains(field)) {
-        throw new AnalyticsEngineException("Unknown field: " + field);
+        throw new UnknownEngineFieldException(field);
       }
       return field;
     }

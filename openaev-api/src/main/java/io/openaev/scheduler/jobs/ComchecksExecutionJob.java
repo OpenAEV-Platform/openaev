@@ -9,6 +9,7 @@ import static java.util.stream.Collectors.groupingBy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantScopedTransaction;
@@ -24,18 +25,20 @@ import io.openaev.execution.ExecutionContextService;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.integration.ManagerFactory;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Component
 @DisallowConcurrentExecution
@@ -55,16 +58,11 @@ public class ComchecksExecutionJob implements Job {
 
   private final ObjectMapper mapper;
 
-  private final TransactionTemplate transactionTemplate;
-
   private final TenantScopedTransaction tenantTx;
 
   private Inject buildComcheckEmail(Comcheck comCheck, String tenantId) {
-    // injectors is v2-active: the email injector is a fail-closed association here (the raw
-    // transaction carries no tenant scope). Stamp this comcheck's tenant, then resolve the contract
-    // and the injector explicitly by (id, tenant): every tenant holds its own copy of both under
-    // the same id.
-    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+    // The contract and the injector both exist once per tenant under the same id: resolve this
+    // tenant's own, explicitly by (id, tenant).
     Inject emailInject = new Inject();
     InjectorContract contract =
         injectorContractRepository
@@ -92,7 +90,7 @@ public class ComchecksExecutionJob implements Job {
   }
 
   /** Everything needed to send one comcheck email batch, materialized inside the DB transaction. */
-  private record ComcheckSendTask(
+  record ComcheckSendTask(
       ExecutableInject injection, List<ComcheckStatus> statuses, String tenantId) {}
 
   @Override
@@ -103,7 +101,7 @@ public class ComchecksExecutionJob implements Job {
       // Phase 1 (DB transaction): expire comchecks and materialize everything needed for sending.
       // The SMTP sends deliberately happen outside the transaction: holding a DB transaction open
       // during network I/O ties up connections for the duration of the sends.
-      List<ComcheckSendTask> tasks = transactionTemplate.execute(status -> prepareSendTasks(now));
+      List<ComcheckSendTask> tasks = prepareSendTasks(now);
 
       // Phase 2 (no DB transaction): send the emails
       Objects.requireNonNullElse(tasks, List.<ComcheckSendTask>of()).stream()
@@ -141,15 +139,52 @@ public class ComchecksExecutionJob implements Job {
     }
   }
 
-  private List<ComcheckSendTask> prepareSendTasks(Instant now) {
-    // 01. Manage expired comchecks.
+  /**
+   * Expires the outdated comchecks, then builds the send tasks. The comchecks to send are gathered
+   * across tenants, with only their ids and their simulation's tenant leaving that read; each
+   * tenant's tasks are then built in a transaction scoped to that tenant, so no comcheck is ever
+   * read under another tenant's scope.
+   */
+  @VisibleForTesting
+  List<ComcheckSendTask> prepareSendTasks(Instant now) {
+    Map<String, List<String>> comcheckIdsByTenant =
+        tenantTx.execute(TxCtx.allTenants(), () -> expireAndGatherComchecksToSend(now));
+    List<ComcheckSendTask> tasks = new ArrayList<>();
+    comcheckIdsByTenant.forEach(
+        (tenantId, comcheckIds) ->
+            tasks.addAll(
+                tenantTx.execute(
+                    TxCtx.forTenant(tenantId), () -> buildSendTasks(tenantId, comcheckIds))));
+    return tasks;
+  }
+
+  private Map<String, List<String>> expireAndGatherComchecksToSend(Instant now) {
+    // 01. Manage expired comchecks. The table carries no tenant, and a comcheck with no simulation
+    // must expire too.
     List<Comcheck> toExpired = comcheckRepository.thatMustBeExpired(now);
     comcheckRepository.saveAll(
         toExpired.stream().peek(comcheck -> comcheck.setState(EXPIRED)).toList());
-    // 02. Build the send tasks for all required statuses
-    List<ComcheckStatus> allStatuses = comcheckStatusRepository.findAll(thatNeedExecution());
+    // 02. Gather the comchecks that have statuses to send, by their simulation's tenant. A
+    // projection, not the entities: loading a simulation outside the scope fails and would stop
+    // the preparation for every tenant.
+    Map<String, List<String>> comcheckIdsByTenant = new LinkedHashMap<>();
+    comcheckStatusRepository
+        .findComchecksToSendWithTenant()
+        .forEach(
+            comcheck ->
+                comcheckIdsByTenant
+                    .computeIfAbsent(comcheck.getTenant_id(), key -> new ArrayList<>())
+                    .add(comcheck.getComcheck_id()));
+    return comcheckIdsByTenant;
+  }
+
+  private List<ComcheckSendTask> buildSendTasks(String tenantId, List<String> comcheckIds) {
+    List<ComcheckStatus> statuses =
+        comcheckStatusRepository.findAll(
+            thatNeedExecution()
+                .and((root, query, cb) -> root.get("comcheck").get("id").in(comcheckIds)));
     Map<Comcheck, List<ComcheckStatus>> byComchecks =
-        allStatuses.stream().collect(groupingBy(ComcheckStatus::getComcheck));
+        statuses.stream().collect(groupingBy(ComcheckStatus::getComcheck));
     return byComchecks.entrySet().stream()
         .map(
             entry -> {
@@ -168,11 +203,14 @@ public class ComchecksExecutionJob implements Job {
                             return injectContext;
                           })
                       .toList();
-              Inject emailInject = buildComcheckEmail(comCheck, exercise.getTenant().getId());
+              // Initialised here, inside the tenant's scope: the send runs after the commit and
+              // reads the simulation from the inject.
+              Hibernate.initialize(exercise);
+              Inject emailInject = buildComcheckEmail(comCheck, tenantId);
               return new ComcheckSendTask(
                   new ExecutableInject(false, true, emailInject, userInjectContexts),
                   comcheckStatuses,
-                  exercise.getTenant().getId());
+                  tenantId);
             })
         .toList();
   }

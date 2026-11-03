@@ -90,8 +90,7 @@ is cancelled, or is skipped cannot leave consumers waiting until the poll cap.
 
 It deliberately does **not** `needs:` Prepare Bundled Assets. It re-runs the same
 composite action inline with `upload-artifact: false`, which removes ~1.4 min of serial
-wait from the head of the critical path. This is why the job checks out with
-`fetch-depth: 0` — the asset version comes from `git describe`.
+wait from the head of the critical path.
 
 ---
 
@@ -108,7 +107,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🎨 **Frontend Build** | 15 min | Yarn build of `openaev-front` |
 | 📦 **Prepare Bundled Assets** | 10 min | Agent/implant binaries from JFrog, patches `catalog-integrators.json`, uploads `release-assets` |
 | 🔍 **Spotless Check** | 10 min | Java formatting |
-| 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + Vitest + coverage |
+| 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + dependency-cruiser + knip + Vitest + coverage |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
 | 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
 | 🔒 **Container Vulnerability Scan** | 25 min | CVE scan of both amd64 images, threshold `high` |
@@ -176,6 +175,16 @@ Shard patterns live in `.github/shards/api-<n>.txt`, balanced from measured per-
 runtimes. The `remaining` shard runs whatever no shard file claims, so a newly added
 package is never silently untested.
 
+The platform detects its engine client from the server, so a cell selects an engine through the
+server it starts, with `search_engine`. Each value maps to a service of
+`openaev-dev/docker-compose.yml`, which owns the image tags:
+
+| `search_engine`  | Compose service              | Client detected   |
+|------------------|------------------------------|-------------------|
+| `elasticsearch`  | `openaev-dev-elasticsearch`  | Elasticsearch 9   |
+| `elasticsearch8` | `openaev-dev-elasticsearch8` | Elasticsearch 8   |
+| `opensearch`     | `openaev-dev-opensearch`     | OpenSearch        |
+
 |                 | Core CI | Nightly CI             |
 |-----------------|---------|------------------------|
 | Elasticsearch 8 | 7 shards + `remaining` | 7 shards + `remaining` |
@@ -189,7 +198,7 @@ package is never silently untested.
 |-|--------------------------------------------------|--------------------------------------------------------|
 | Images | standard only (amd64 + arm64)                    | standard + ubi9, amd64 + arm64                         |
 | Browsers | chrome (amd64), chromium (arm64)                 | chrome, chromium, webkit, firefox, edge                |
-| Search engines | Elasticsearch 8 only                             | Elasticsearch 8 & 9 + OpenSearch                       |
+| Search engines | Elasticsearch 9 only                             | Elasticsearch 9 + OpenSearch                           |
 | Sharding | `arsenals`, `multitenant`, `remaining` catch-all | unsharded full suites                                  |
 | Infra tests | 4 cells, `infra-chromium`                        | 7 cells across chrome, chromium, firefox, webkit, edge |
 | **Total cells** | **10**                                           | **25**                                                 |

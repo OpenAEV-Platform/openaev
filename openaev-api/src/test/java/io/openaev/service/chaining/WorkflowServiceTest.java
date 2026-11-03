@@ -12,6 +12,7 @@ import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.AlreadyExistingException;
@@ -2982,7 +2983,12 @@ class WorkflowServiceTest {
           ChainingException.class,
           () ->
               workflowService.appendChainedStepToScenarioIsolated(
-                  SCENARIO_ID, new InjectInput(), null, List.of(), List.of("leaf")));
+                  TxCtx.missing(),
+                  SCENARIO_ID,
+                  new InjectInput(),
+                  null,
+                  List.of(),
+                  List.of("leaf")));
       // Rejected at the boundary: the scenario mirror's step-service link is never reached.
       verifyNoInteractions(stepService);
     }

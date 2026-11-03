@@ -122,10 +122,6 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-        with:
-          # git describe needs the commit graph, not historical file contents
-          fetch-depth: 0
-          filter: blob:none
       - uses: ./.github/actions/prepare-bundled-assets
 
   # ════════════════════════════════════════════════════════════════════
@@ -211,8 +207,9 @@ jobs:
       SPRING_DATASOURCE_PASSWORD: openaev
       MINIO_ENDPOINT: localhost
       MINIO_PORT: 11000
+      # No engine selector: the platform detects Elasticsearch 8, 9 or OpenSearch from ENGINE_URL,
+      # so a shard picks its client through the server it starts (matrix.search_engine).
       ENGINE_URL: http://localhost:9200
-      ENGINE_ENGINESELECTOR: ${{ matrix.engine_selector }}
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -352,7 +349,6 @@ jobs:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
       ENGINE_URL: http://localhost:9200
-      ENGINE_ENGINESELECTOR: ${{ matrix.search_engine == 'opensearch' && 'opensearch' || 'elk' }}
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       OPENAEV_ADMIN_EMAIL: admin@openaev.io
       OPENAEV_ADMIN_PASSWORD: admin
@@ -598,7 +594,6 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
 
   # Docker builds fetch bundled assets inline, avoiding a serial dependency.
-  # fetch-depth 0 is required because the asset version comes from `git describe`.
   docker-build:
     name: "🐳 Docker Build (${{ matrix.variant }} ${{ matrix.arch }})"
     if: ${{ !cancelled() }}
@@ -646,10 +641,6 @@ jobs:
             tags: openaev-ubi9:ci-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          # git describe needs the commit graph, not historical file contents
-          fetch-depth: 0
-          filter: blob:none
       - uses: ./.github/actions/docker-build
         with:
           dockerfile: ${{ matrix.dockerfile }}

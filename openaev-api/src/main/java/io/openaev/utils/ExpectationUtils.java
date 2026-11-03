@@ -156,6 +156,7 @@ public class ExpectationUtils {
         .filter(TableTopInjectExpectation.class::isInstance)
         .map(TableTopInjectExpectation.class::cast)
         .filter(ExpectationUtils::isPlayerExpectation)
+        .filter(e -> e.getTeam() != null)
         .filter(e -> e.getTeam().getId().equals(tableTopInjectExpectation.getTeam().getId()))
         .filter(e -> e.getType().equals(tableTopInjectExpectation.getType()))
         .filter(e -> Objects.equals(e.getName(), tableTopInjectExpectation.getName()))

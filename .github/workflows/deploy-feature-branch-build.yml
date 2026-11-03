@@ -60,9 +60,6 @@ jobs:
         with:
           ref: ${{ inputs.head_sha }}
           path: pr
-          # prepare-bundled-assets derives the local asset version from `git describe`
-          fetch-depth: 0
-          filter: blob:none
           # The checkout is the build context, which RUN steps can bind-mount
           persist-credentials: false
       - name: Compute immutable Docker tag

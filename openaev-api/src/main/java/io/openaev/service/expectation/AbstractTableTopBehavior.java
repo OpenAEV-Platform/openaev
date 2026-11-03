@@ -3,32 +3,42 @@ package io.openaev.service.expectation;
 import static io.openaev.service.InjectExpectationUtils.*;
 import static io.openaev.utils.ExpectationUtils.*;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.addResult;
-import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.computeResultsScore;
 
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectExpectationResultRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.utils.ExpectationUtils;
+import io.openaev.utils.ReferenceResolver;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 
 /** Shared behavior for table-top style expectations (manual/challenge/article). */
-@RequiredArgsConstructor
 public abstract class AbstractTableTopBehavior
-    implements ExpectationBehavior<TableTopInjectExpectation> {
+    extends ExpectationBehavior<TableTopInjectExpectation> {
 
   @Resource protected ExpectationPropertiesConfig expectationPropertiesConfig;
 
+  @Resource private ReferenceResolver referenceResolver;
+
   protected final InjectExpectationRepository injectExpectationRepository;
+
+  protected AbstractTableTopBehavior(
+      InjectExpectationRepository injectExpectationRepository,
+      InjectExpectationResultRepository injectExpectationResultRepository) {
+    super(injectExpectationResultRepository);
+    this.injectExpectationRepository = injectExpectationRepository;
+  }
 
   /** Returns the default result entry for player-level expectations. */
   protected abstract InjectExpectationResult buildDefaultPlayerResult(Double expectedScore);
@@ -48,10 +58,16 @@ public abstract class AbstractTableTopBehavior
     if (!shouldInitializeExpectation(executableInject)) {
       return;
     }
-    boolean isAtomicTesting = executableInject.getInjection().getInject().isAtomicTesting();
+    Inject inject = executableInject.getInjection().getInject();
+    boolean isAtomicTesting = inject.isAtomicTesting();
+    // Without a simulation the chaining step resolves no recipients: it behaves as an atomic
+    // testing
+    boolean isChaining = executableInject.isChainingExecution() && inject.getExercise() != null;
 
-    List<Team> teams = executableInject.getTeams();
-    if (teams.isEmpty()) {
+    List<Team> teams = resolveTargetTeams(executableInject, inject, isChaining);
+    // A chaining audience made of players placed in the workflow scope has no target team
+    boolean hasDirectRecipients = isChaining && !executableInject.getUsers().isEmpty();
+    if (teams.isEmpty() && !hasDirectRecipients) {
       return;
     }
 
@@ -61,7 +77,9 @@ public abstract class AbstractTableTopBehavior
     List<TableTopInjectExpectation> allExpectations = new ArrayList<>();
 
     for (TableTopInjectExpectation template : templates) {
-      if (isAtomicTesting) {
+      if (isChaining) {
+        buildExpectationsForChaining(executableInject, template, teams, allExpectations);
+      } else if (isAtomicTesting) {
         buildExpectationsForAtomicTesting(template, teams, allExpectations);
       } else {
         buildExpectationsForExerciseInject(executableInject, template, teams, allExpectations);
@@ -81,9 +99,7 @@ public abstract class AbstractTableTopBehavior
   private void recomputeScores(Inject inject, List<TableTopInjectExpectation> expectations) {
     // The parents are resolved from the inject expectations: register the new ones first
     inject.getExpectations().addAll(expectations);
-    expectations.forEach(
-        expectation ->
-            expectation.setScore(computeResultsScore(expectation.getResults(), expectation)));
+    expectations.forEach(expectation -> expectation.setScore(computeLeafScore(expectation)));
     expectations.stream()
         .filter(expectation -> !isPlayerExpectation(expectation))
         .forEach(this::recomputeParentScores);
@@ -163,15 +179,68 @@ public abstract class AbstractTableTopBehavior
   }
 
   /**
+   * Resolves the teams targeted by the inject. A chaining inject targeting all teams carries none
+   * of its own: they are the simulation's teams, as for the recipients resolved by the chaining
+   * step.
+   */
+  private static List<Team> resolveTargetTeams(
+      ExecutableInject executableInject, Inject inject, boolean isChaining) {
+    if (isChaining && inject.isAllTeams()) {
+      return inject.getExercise().getTeams();
+    }
+    return executableInject.getTeams();
+  }
+
+  /**
+   * Builds expectations for chaining executions: the audience is not read from the simulation
+   * enabled players but from the recipients the chaining step resolved (targeted teams' members,
+   * minus the players denylisted in the workflow scope). A team gets an expectation only when at
+   * least one of its members is a recipient. A recipient covered by none of the targeted teams (a
+   * player placed directly in the workflow scope) gets a player expectation without team: it has no
+   * team expectation to derive, so it is its own leaf (see {@link #getLeaves}).
+   */
+  private void buildExpectationsForChaining(
+      ExecutableInject executableInject,
+      TableTopInjectExpectation template,
+      List<Team> teams,
+      List<TableTopInjectExpectation> allExpectations) {
+    Set<String> recipientIds =
+        executableInject.getUsers().stream()
+            .map(context -> context.getUser().getId())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+    Set<String> coveredByTeamIds = new HashSet<>();
+    for (Team team : teams) {
+      List<TableTopInjectExpectation> playerExpectations =
+          team.getUsers().stream()
+              .filter(user -> recipientIds.contains(user.getId()))
+              .map(user -> buildExpectationForTarget(template, team, user))
+              .toList();
+      if (playerExpectations.isEmpty()) {
+        continue;
+      }
+      playerExpectations.forEach(
+          expectation -> coveredByTeamIds.add(expectation.getUser().getId()));
+      allExpectations.add(buildExpectationForTarget(template, team, null));
+      allExpectations.addAll(playerExpectations);
+    }
+
+    recipientIds.stream()
+        .filter(userId -> !coveredByTeamIds.contains(userId))
+        .map(userId -> referenceResolver.resolve(userId, User.class))
+        .forEach(user -> allExpectations.add(buildExpectationForTarget(template, null, user)));
+  }
+
+  /**
    * Clones the template expectation and sets the team/user target.
    *
    * @param template the expectation template to clone
-   * @param team the target team
+   * @param team the target team, or {@code null} for a player targeted outside of any team
    * @param user the target user, or {@code null} for team-level expectations
    * @return a new expectation ready to be persisted
    */
   private static TableTopInjectExpectation buildExpectationForTarget(
-      TableTopInjectExpectation template, Team team, @Nullable User user) {
+      TableTopInjectExpectation template, @Nullable Team team, @Nullable User user) {
     TableTopInjectExpectation expectation = template.clone();
     expectation.setTeam(team);
     expectation.setUser(user);
@@ -221,7 +290,7 @@ public abstract class AbstractTableTopBehavior
   @Override
   public void addResultToLeaf(
       BaseInjectExpectation leaf, ExpectationVerdict verdict, String resultLabel) {
-    leaf.setResults(new ArrayList<>());
+    leaf.clearResults();
     addResult(leaf, verdict, resultLabel);
   }
 
@@ -231,8 +300,9 @@ public abstract class AbstractTableTopBehavior
    * deleting it clears the leaf.
    */
   @Override
-  public void removeResultFromLeaf(BaseInjectExpectation leaf, String sourceId) {
-    leaf.setResults(new ArrayList<>());
+  public List<InjectExpectationResult> removeResultFromLeaf(
+      BaseInjectExpectation leaf, String sourceId) {
+    return leaf.clearResults();
   }
 
   /**

@@ -263,10 +263,12 @@ public class InjectUtils {
     return inject.getExpectations().stream()
         .filter(
             expectation -> {
+              // A player targeted outside of any team (chaining scope player) is its own leaf
               boolean teamMatch =
                   expectation instanceof TableTopInjectExpectation tableTopInjectExpectation
-                      && tableTopInjectExpectation.getTeam() != null
-                      && firstIds.contains(tableTopInjectExpectation.getTeam().getId());
+                      && (tableTopInjectExpectation.getTeam() != null
+                          ? firstIds.contains(tableTopInjectExpectation.getTeam().getId())
+                          : tableTopInjectExpectation.getUser() != null);
               boolean assetMatch =
                   expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
                       && isAssetExpectation(technicalInjectExpectation)

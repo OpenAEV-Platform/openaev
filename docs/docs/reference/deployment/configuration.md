@@ -152,7 +152,7 @@ no remote counterpart (username/password, hash) are never checked and keep the `
 | Parameter                                                   | Environment variable                                       | Default value | Description                                                                                              |
 |:------------------------------------------------------------|:-----------------------------------------------------------|:--------------|:---------------------------------------------------------------------------------------------------------|
 | openaev.credentials.status-validation.enabled               | OPENAEV_CREDENTIALS_STATUS-VALIDATION_ENABLED              | true          | Enables the credential status validation job. When false, the job returns immediately and writes nothing. |
-| openaev.credentials.status-validation.cron                  | OPENAEV_CREDENTIALS_STATUS-VALIDATION_CRON                 | 0 */6 * * * ? | Quartz cron expression driving the job. The default runs every 6 minutes. Each run makes one outbound call per stale credential. |
+| openaev.credentials.status-validation.cron                  | OPENAEV_CREDENTIALS_STATUS-VALIDATION_CRON                 | 0 0 */6 * * ? | Quartz cron expression driving the job. The default runs every 6 hours. Each run makes one outbound call per stale credential. |
 | openaev.credentials.status-validation.revalidate-after-days | OPENAEV_CREDENTIALS_STATUS-VALIDATION_REVALIDATE-AFTER-DAYS | 1             | How long a credential status stays fresh. Past this age the credential is checked again.                 |
 | openaev.credentials.status-validation.max-per-run           | OPENAEV_CREDENTIALS_STATUS-VALIDATION_MAX-PER-RUN          | 500           | Maximum number of credentials checked per tenant and per run. Oldest verification first.                 |
 | openaev.credentials.status-validation.timeout-seconds       | OPENAEV_CREDENTIALS_STATUS-VALIDATION_TIMEOUT-SECONDS      | 10            | Per-call budget for a single provider probe. A probe exceeding it is inconclusive, not a rejection.      |
@@ -189,7 +189,7 @@ Each OpenCTI connection is scoped to an OpenAEV tenant, identified by its UUID (
 | openaev.xtm.hub.override-api-url                      | OPENAEV_XTM_HUB_OVERRIDE_API_URL                      |                                      | When specified, override `openaev.xtm.hub.url` during backend calls |
 | openaev.xtm.hub.collector.enable                      | OPENAEV_XTM_HUB_COLLECTOR_ENABLE                      | false                                | Enables the XTM Hub connectivity collector                          |
 | openaev.xtm.hub.collector.id                          | OPENAEV_XTM_HUB_COLLECTOR_ID                          | b402f1f5-29ba-4ee3-b366-f0467754cf4e | Identifier of the XTM Hub connectivity collector                    |
-| openaev.xtm.hub.collector.connectivity-check-interval | OPENAEV_XTM_HUB_COLLECTOR_CONNECTIVITY_CHECK_INTERVAL | 3600000 (1 hour)                     | Interval in milliseconds at which the connectivity with XTM Hub is checked |
+| openaev.xtm.hub.collector.connectivity-check-interval | OPENAEV_XTM_HUB_COLLECTOR_CONNECTIVITY_CHECK_INTERVAL | 3600 (1 hour)                        | Interval in seconds at which the connectivity with XTM Hub is checked |
 
 #### XTM Suite: XTM One
 
@@ -216,15 +216,19 @@ OpenAEV and XTM One sign their requests to each other with short-lived tokens:
 
 #### Engine
 
-OpenAEV stores and searches data in Elasticsearch or OpenSearch. The default selector `elk` targets Elasticsearch 8
-(8.19 or later). Elasticsearch 9 is also supported with `engine.engine-selector=elk9`.
+OpenAEV stores and searches data in Elasticsearch (8.19 or later, or 9) or OpenSearch. There is no engine to choose: at
+startup the platform calls `GET /` on `engine.url`, reads the version the server reports and uses the matching client.
+It refuses to start with an explicit message if the server is unreachable, rejects the credentials or is older than
+Elasticsearch 8. Elasticsearch Serverless always reports the same version for legacy clients: the platform recognises
+it by its `serverless` build flavor and uses the most recent Elasticsearch client. With AWS SigV4 authentication, the
+OpenSearch client is used without probing.
 
 With classic authentication, use Elasticsearch or OpenSearch:
 
 | Parameter              | Environment variable   | Default value         | Description                                                                                                                            |
 |:--------------------------|:--------------------------|:--------------------------|:---------------------------------------------------------------------------------------------------------------------------------------|
 | engine.engine-aws-mode | ENGINE_ENGINE_AWS_MODE | no                    | Classic authentication (no)                                                                                                            |
-| engine.engine-selector | ENGINE_ENGINE_SELECTOR | elk                   | Engine to use: `elk` (Elasticsearch 8, default), `elk9` (Elasticsearch 9) or `opensearch` (OpenSearch)                                  |
+| engine.client          | ENGINE_CLIENT          | auto                  | Engine client: `auto` detects it from the server. `elasticsearch8`, `elasticsearch9` or `opensearch` forces it and skips the detection, for a server that cannot be probed or misreports its version |
 | engine.url             | ENGINE_URL             | http://localhost:9200 | URL of the engine                                                                                                                      |
 | engine.username        | ENGINE_USERNAME        |                       | Optional. Login for the engine                                                                                                         |
 | engine.password        | ENGINE_PASSWORD        |                       | Optional. Password for the engine                                                                                                      |
@@ -235,7 +239,7 @@ With AWS SigV4 authentication, use Amazon OpenSearch or Amazon OpenSearch Server
 | Parameter                    | Environment variable     | Default value         | Description                                                                                                |
 |:-----------------------------|:-------------------------|:--------------------------|:-----------------------------------------------------------------------------------------------------------|
 | engine.engine-aws-mode       | ENGINE_ENGINE_AWS_MODE   |                       | Whether to use AWS SigV4 authentication Amazon OpenSearch or Amazon OpenSearch Serverless (`es` or `aoss`) |
-| engine.engine-selector       | ENGINE_ENGINE_SELECTOR   |                       | Engine to use for storage and search (`opensearch` for OpenSearch)                                         |
+| engine.client                | ENGINE_CLIENT            | auto                  | Leave to `auto` or set `opensearch`: AWS SigV4 authentication only works with the OpenSearch client         |
 | engine.engine-aws-host       | ENGINE_ENGINE_AWS_HOST   |                       | URL of the OpenSearch database, no http(s) prefix                                                          |
 | engine.engine-aws-region     | ENGINE_ENGINE_AWS_REGION |                       | Example: eu-west-3                                                                                         |
 
@@ -256,10 +260,28 @@ Tuning parameters applicable to both engines:
 | engine.indexing-grace-window-seconds     | ENGINE_INDEXING_GRACE_WINDOW_SECONDS     | 60            | Indexing cursor grace window in seconds. The cursor persisted after each indexing round never gets closer to wall-clock than this window, so rows committed late by long write transactions are still indexed. Must exceed the longest expected write transaction. |
 | engine.indexing-misfire-threshold-ms     | ENGINE_INDEXING_MISFIRE_THRESHOLD_MS     | 120000        | Threshold in milliseconds after which a model synchronisation is declared misfired and is rescheduled.                                                                                                                                                             |
 | engine.indexing-reset-epoch-reassert-delay-seconds | ENGINE_INDEXING_RESET_EPOCH_REASSERT_DELAY_SECONDS | 180 | Delay in seconds after which an instance that reset an index during a rolling deploy re-asserts the indexing cursor of that model, so a stale cursor written by an instance still running an older version does not skip rows. Must exceed the longest indexing round. Set to `0` to disable once every instance runs OpenAEV 3.261001.0 or later. |
+| engine.indexing-refeed-reassert-delay-seconds | ENGINE_INDEXING_REFEED_REASSERT_DELAY_SECONDS | 1800 | Delay in seconds after which the instance that applied an upgrade re-feeding an index in place (for example the findings index, to mask the sensitive values indexed before) re-feeds it a second time. During a rolling deploy, instances still running the previous version take part in the first re-feed and write their own documents, such as finding values in cleartext; the second re-feed rewrites them. Set it longer than your longest rolling deploy plus one indexing round (15 seconds). Set to `0` to skip the second re-feed, which is safe when a single instance runs. |
 
-!!! warning "Switching engines"
+!!! note "Re-feed of the Findings index after an upgrade"
 
-    After you change `engine.engine-selector`, delete the `indexing_status` table in PostgreSQL to trigger a full reindex.
+    When an upgrade changes how Findings are indexed, for example to mask sensitive Finding values, OpenAEV re-feeds the Findings index in place at startup. Dashboards stay complete, and the indexed values are updated progressively, at about 50 minutes per 100,000 Findings. On a multi-instance deployment, the instance that applied the upgrade re-feeds the index a second time after `engine.indexing-refeed-reassert-delay-seconds`, to rewrite what instances still running the previous version wrote in the meantime.
+
+    If your rolling deploy lasted longer than this delay, or if you rolled back and then upgraded again, trigger a new re-feed manually:
+
+    ```sql
+    UPDATE indexing_status
+       SET indexing_status_indexing_date = '1970-01-01T00:00:00Z', indexing_status_last_id = NULL
+     WHERE indexing_status_type = 'finding';
+    ```
+
+    A re-feed only rewrites the documents of existing Findings. A document left behind by a Finding whose deletion did not reach the search engine keeps the value it was indexed with. Only a full reindex removes such documents: during a maintenance window, with a single instance running, delete the `finding` row of the `indexing_status` table and restart.
+
+!!! warning "Switching clusters"
+
+    After you point `engine.url` at another cluster (a new empty one, or from Elasticsearch to OpenSearch), delete the
+    content of the `indexing_status` table in PostgreSQL to trigger a full reindex: it records how far each model was
+    already indexed, and left in place it makes the new cluster miss everything indexed before. Upgrading the same
+    cluster from Elasticsearch 8 to 9 keeps its indices and needs nothing.
 
 #### RabbitMQ
 
@@ -331,7 +353,7 @@ transport.
 
 | Parameter                   | Environment variable        | Default value        | Description                                                                                                                                                                                          |
 |:-------------------------------|:--------------------------------|:-------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| openaev.default-mailer      | OPENAEV_DEFAULT-MAILER      | no-reply@openaev.io  | Default sender email address, used to pre-fill new Scenarios/Simulations. It is read-only in the UI to prevent spoofing; only the sender name below can be edited from the UI |
+| openaev.default-mailer      | OPENAEV_DEFAULT-MAILER      | no-reply@openaev.io  | Sender email address of all outgoing emails (the IMAP username is used instead when IMAP is enabled). It cannot be changed from the UI                                        |
 | openaev.default-mailer-name | OPENAEV_DEFAULT-MAILER-NAME | no-reply             | Default sender display name ("Sender email from"), pre-fills the sender name on new Scenario/Simulation creation. Editable per-Scenario/Simulation afterwards in the UI                              |
 | openaev.default-reply-to    | OPENAEV_DEFAULT-REPLY-TO    | contact@openaev.io   | Default Reply-To address used on outgoing emails                                                                                                                                                     |
 

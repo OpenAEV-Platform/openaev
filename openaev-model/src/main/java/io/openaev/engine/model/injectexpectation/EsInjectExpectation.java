@@ -35,9 +35,6 @@ public class EsInjectExpectation extends EsTenantBase {
   @Queryable(label = "inject expectation description")
   private String inject_expectation_description;
 
-  @Queryable(label = "inject expectation results")
-  private String inject_expectation_results;
-
   @Queryable(label = "inject expectation score", filterable = true)
   private Double inject_expectation_score;
 

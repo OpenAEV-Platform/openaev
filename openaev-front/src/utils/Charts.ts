@@ -639,7 +639,6 @@ export const horizontalBarsChartOptions = ({
     axisTicks: { show: false },
     tickAmount: adjustTicks ? 1 : undefined,
   },
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-expect-error apexcharts typescript do not handle horizontal bar chart well
   yaxis: {
     labels: {

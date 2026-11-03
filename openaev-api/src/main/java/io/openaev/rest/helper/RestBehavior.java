@@ -15,6 +15,7 @@ import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.exception.UnknownEngineFieldException;
 import io.openaev.ratelimit.aop.RateLimitAspect;
 import io.openaev.ratelimit.exception.RateLimitedException;
 import io.openaev.rest.exception.*;
@@ -48,6 +49,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.validation.method.ParameterValidationResult;
@@ -460,6 +462,18 @@ public class RestBehavior {
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
   }
 
+  // Matched on the cause too: Spring Data and JPA wrap the timeout in their own exceptions.
+  @ExceptionHandler({
+    TransactionTimedOutException.class,
+    org.hibernate.TransactionException.class,
+    org.hibernate.QueryTimeoutException.class
+  })
+  public ResponseEntity<ErrorMessage> handleTransactionTimeout(Exception ex) {
+    log.error("Transaction stopped on {} {}: {}", requestMethod(), requestUri(), ex.getMessage());
+    return new ResponseEntity<>(
+        new ErrorMessage("The request took too long and was stopped."), HttpStatus.GATEWAY_TIMEOUT);
+  }
+
   @ExceptionHandler(AlreadyExistingException.class)
   public ResponseEntity<ErrorMessage> handleAlreadyExistingException(AlreadyExistingException ex) {
     ErrorMessage message = new ErrorMessage(ex.getMessage());
@@ -507,6 +521,15 @@ public class RestBehavior {
     // actionable while still supporting troubleshooting.
     log.debug("BadRequestException: {}", ex.getMessage(), ex);
     return new ResponseEntity<>(message, HttpStatus.BAD_REQUEST);
+  }
+
+  // Spring also matches this handler when the exception arrives wrapped in another one.
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(UnknownEngineFieldException.class)
+  public ResponseEntity<ErrorMessage> handleUnknownEngineFieldException(
+      UnknownEngineFieldException ex) {
+    log.debug("UnknownEngineFieldException: {}", ex.getMessage(), ex);
+    return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.BAD_REQUEST);
   }
 
   // A chaining lifecycle operation refused by product decision (e.g. pausing a chained

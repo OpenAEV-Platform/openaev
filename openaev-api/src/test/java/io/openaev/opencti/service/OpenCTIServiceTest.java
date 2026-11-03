@@ -1,6 +1,6 @@
 package io.openaev.opencti.service;
 
-import static io.openaev.opencti.connectors.service.PrivilegeService.CONNECTOR_EMAIL_PATTERN;
+import static io.openaev.service.account.ReservedServiceAccount.OPENCTI_CONNECTOR;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -22,7 +22,6 @@ import io.openaev.opencti.client.mutations.QueryTypeFields;
 import io.openaev.opencti.client.mutations.RegisterConnector;
 import io.openaev.opencti.client.response.Response;
 import io.openaev.opencti.connectors.ConnectorBase;
-import io.openaev.opencti.connectors.Constants;
 import io.openaev.opencti.errors.ConnectorError;
 import io.openaev.service.TenantGroupService;
 import io.openaev.service.TenantRoleService;
@@ -84,11 +83,11 @@ public class OpenCTIServiceTest extends IntegrationTest {
   }
 
   private String tenantScopedRoleId() {
-    return tenantScopedId(Constants.PROCESS_STIX_ROLE_ID);
+    return tenantScopedId(OPENCTI_CONNECTOR.access().roleId());
   }
 
   private String tenantScopedGroupId() {
-    return tenantScopedId(Constants.PROCESS_STIX_GROUP_ID);
+    return tenantScopedId(OPENCTI_CONNECTOR.access().groupId());
   }
 
   @Nested
@@ -371,9 +370,10 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(role).isNotEmpty();
         assertThat(role.orElseThrow().getCapabilities())
-            .isEqualTo(Constants.PROCESS_STIX_ROLE_CAPABILITIES);
-        assertThat(role.get().getName()).isEqualTo(Constants.PROCESS_STIX_ROLE_NAME);
-        assertThat(role.get().getDescription()).isEqualTo(Constants.PROCESS_STIX_ROLE_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().capabilities());
+        assertThat(role.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().roleName());
+        assertThat(role.get().getDescription())
+            .isEqualTo(OPENCTI_CONNECTOR.access().roleDescription());
       }
 
       @Test
@@ -408,9 +408,10 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(role).isNotEmpty();
         assertThat(role.get().getCapabilities())
-            .isEqualTo(Constants.PROCESS_STIX_ROLE_CAPABILITIES);
-        assertThat(role.get().getName()).isEqualTo(Constants.PROCESS_STIX_ROLE_NAME);
-        assertThat(role.get().getDescription()).isEqualTo(Constants.PROCESS_STIX_ROLE_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().capabilities());
+        assertThat(role.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().roleName());
+        assertThat(role.get().getDescription())
+            .isEqualTo(OPENCTI_CONNECTOR.access().roleDescription());
       }
 
       @Test
@@ -434,9 +435,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
                 tenantScopedGroupId(), TenantContext.getCurrentTenant());
 
         assertThat(group).isNotEmpty();
-        assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
+        assertThat(group.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().groupName());
         assertThat(group.get().getDescription())
-            .isEqualTo(Constants.PROCESS_STIX_GROUP_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().groupDescription());
         assertThat(group.get().getRoles().stream().map(Role::getId).toList())
             .isEqualTo(List.of(tenantScopedRoleId()));
       }
@@ -472,9 +473,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
                 tenantScopedGroupId(), TenantContext.getCurrentTenant());
 
         assertThat(group).isNotEmpty();
-        assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
+        assertThat(group.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().groupName());
         assertThat(group.get().getDescription())
-            .isEqualTo(Constants.PROCESS_STIX_GROUP_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().groupDescription());
         assertThat(group.get().getRoles().stream().map(Role::getId).toList())
             .isEqualTo(List.of(tenantScopedRoleId()));
       }
@@ -501,7 +502,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
-            .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
+            .isEqualTo(OPENCTI_CONNECTOR.emailPattern().formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
         assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
@@ -544,7 +545,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
-            .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
+            .isEqualTo(OPENCTI_CONNECTOR.emailPattern().formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
         assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
@@ -577,9 +578,10 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(role).isNotEmpty();
         assertThat(role.get().getCapabilities())
-            .isEqualTo(Constants.PROCESS_STIX_ROLE_CAPABILITIES);
-        assertThat(role.get().getName()).isEqualTo(Constants.PROCESS_STIX_ROLE_NAME);
-        assertThat(role.get().getDescription()).isEqualTo(Constants.PROCESS_STIX_ROLE_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().capabilities());
+        assertThat(role.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().roleName());
+        assertThat(role.get().getDescription())
+            .isEqualTo(OPENCTI_CONNECTOR.access().roleDescription());
       }
 
       @Test
@@ -614,9 +616,10 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(role).isNotEmpty();
         assertThat(role.get().getCapabilities())
-            .isEqualTo(Constants.PROCESS_STIX_ROLE_CAPABILITIES);
-        assertThat(role.get().getName()).isEqualTo(Constants.PROCESS_STIX_ROLE_NAME);
-        assertThat(role.get().getDescription()).isEqualTo(Constants.PROCESS_STIX_ROLE_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().capabilities());
+        assertThat(role.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().roleName());
+        assertThat(role.get().getDescription())
+            .isEqualTo(OPENCTI_CONNECTOR.access().roleDescription());
       }
 
       @Test
@@ -640,9 +643,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
                 tenantScopedGroupId(), TenantContext.getCurrentTenant());
 
         assertThat(group).isNotEmpty();
-        assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
+        assertThat(group.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().groupName());
         assertThat(group.get().getDescription())
-            .isEqualTo(Constants.PROCESS_STIX_GROUP_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().groupDescription());
         assertThat(group.get().getRoles().stream().map(Role::getId).toList())
             .isEqualTo(List.of(tenantScopedRoleId()));
       }
@@ -678,9 +681,9 @@ public class OpenCTIServiceTest extends IntegrationTest {
                 tenantScopedGroupId(), TenantContext.getCurrentTenant());
 
         assertThat(group).isNotEmpty();
-        assertThat(group.get().getName()).isEqualTo(Constants.PROCESS_STIX_GROUP_NAME);
+        assertThat(group.get().getName()).isEqualTo(OPENCTI_CONNECTOR.access().groupName());
         assertThat(group.get().getDescription())
-            .isEqualTo(Constants.PROCESS_STIX_GROUP_DESCRIPTION);
+            .isEqualTo(OPENCTI_CONNECTOR.access().groupDescription());
         assertThat(group.get().getRoles().stream().map(Role::getId).toList())
             .isEqualTo(List.of(tenantScopedRoleId()));
       }
@@ -707,7 +710,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
-            .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
+            .isEqualTo(OPENCTI_CONNECTOR.emailPattern().formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
         assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));
@@ -750,7 +753,7 @@ public class OpenCTIServiceTest extends IntegrationTest {
 
         assertThat(user).isNotEmpty();
         assertThat(user.get().getEmail())
-            .isEqualTo(CONNECTOR_EMAIL_PATTERN.formatted(testConnector.getId()));
+            .isEqualTo(OPENCTI_CONNECTOR.emailPattern().formatted(testConnector.getId()));
         assertThat(user.get().getFirstname()).isEqualTo(testConnector.getName());
         assertThat(user.get().getUnscopedGroups().stream().map(Group::getId).toList())
             .isEqualTo(List.of(tenantScopedGroupId()));

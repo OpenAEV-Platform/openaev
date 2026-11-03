@@ -13,12 +13,14 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
+import io.openaev.service.chaining.WorkflowUpdateEventPublisher;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,6 +41,7 @@ class BatchingInjectStatusServiceTest {
   @Mock private StructuredOutputUtils structuredOutputUtils;
   @Mock private InjectExecutionService injectExecutionService;
   @Mock private TenantScopedTransaction tenantTx;
+  @Mock private WorkflowUpdateEventPublisher workflowUpdateEventPublisher;
 
   @Mock private BatchQueueService<InjectExecutionCallback> injectTraceQueueService;
 
@@ -390,6 +393,56 @@ class BatchingInjectStatusServiceTest {
       assertEquals(1, result.size());
       verify(injectExecutionService)
           .processInjectExecutionWithInjector(eq(inject), eq(callback.getInjectExecutionInput()));
+    }
+  }
+
+  // ========================================================================
+  // Chaining notification
+  // ========================================================================
+  @Nested
+  @DisplayName("Chaining notification")
+  class ChainingNotificationTests {
+
+    @Test
+    @DisplayName("given a processed group, should notify its injects' steps after processing it")
+    void given_processedGroup_should_notifyItsInjectsStepsAfterProcessingIt() {
+      // -- Arrange --
+      Inject inject = createInjectWithPendingStatus(INJECT_ID);
+      Agent agent = createAgent(AGENT_ID);
+      when(injectRepository.findAllByIdWithExpectations(anyList())).thenReturn(List.of(inject));
+      when(agentRepository.findAllById(anyList())).thenReturn(List.of(agent));
+      InjectExecutionCallback callback =
+          createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.command_execution, 1000L);
+
+      // -- Act --
+      service.handleInjectExecutionCallback(List.of(callback));
+
+      // -- Assert --
+      InOrder order = inOrder(injectExecutionService, workflowUpdateEventPublisher);
+      order.verify(injectExecutionService).processInjectExecutionWithAgent(any(), any(), any());
+      order.verify(workflowUpdateEventPublisher).publishForInjects(Set.of(INJECT_ID));
+    }
+
+    @Test
+    @DisplayName("given the notification failing, should still return the processed callbacks")
+    void given_notificationFailing_should_stillReturnTheProcessedCallbacks() {
+      // -- Arrange --
+      Inject inject = createInjectWithPendingStatus(INJECT_ID);
+      Agent agent = createAgent(AGENT_ID);
+      when(injectRepository.findAllByIdWithExpectations(anyList())).thenReturn(List.of(inject));
+      when(agentRepository.findAllById(anyList())).thenReturn(List.of(agent));
+      doThrow(new IllegalStateException("lookup failed"))
+          .when(workflowUpdateEventPublisher)
+          .publishForInjects(any());
+      InjectExecutionCallback callback =
+          createCallback(INJECT_ID, AGENT_ID, InjectExecutionAction.command_execution, 1000L);
+
+      // -- Act --
+      List<InjectExecutionCallback> result =
+          service.handleInjectExecutionCallback(List.of(callback));
+
+      // -- Assert --
+      assertEquals(List.of(callback), result);
     }
   }
 

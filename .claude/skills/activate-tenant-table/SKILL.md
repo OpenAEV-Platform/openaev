@@ -378,23 +378,28 @@ Classify every hit:
 #### Removing the v1 `@Filter` silently disarms every isolation test that does not activate the table
 
 The test profile declares no `openaev.tenant.active-tables`, so the inspector never fires in a test
-context unless that context sets it. Every isolation test therefore needs
-`@TestPropertySource(properties = "openaev.tenant.active-tables={table}")`, which the RED phase
-above already tells you to write.
+context unless that context sets it. Every isolation test therefore arms its table on top of the
+production list: a `@DynamicPropertySource` that registers `ProductionActiveTables.names()` plus
+`{table}`, as Phase 2 below shows. `names()` returns the tables production arms, so under the
+terminal `*` it returns the tables `*` arms rather than the `*` itself, and the registration stays a
+valid explicit list. A narrower list is a pin, and `PinnedActiveTablesArchTest` fails until it is
+declared, with its reason, in `pinned-active-tables-baseline.txt`.
 
 The same fact decides what a control run is worth when you size an activation by arming the table and
 counting what goes red. The rule is **the control must differ from the treatment by your table and
 nothing else**:
 
-- **you armed your table only**, the convention this skill prescribes: "the same class with no
-  property" is a valid control. The inspector is installed either way and simply rewrites nothing
-  when no table is active, so the one difference is your table.
-- **you armed your table on top of other tables**, for instance the production list plus yours: the
-  no-property run is NOT a control. It differs from the treatment by every table in the list, so what
-  you measure is the cost of switching the inspector on at all. The only valid control is the same
-  armed set minus the table under test.
+- **you armed your table on top of the production list**, the convention this skill prescribes: the
+  control is the same class armed with the production list alone, which is what `main` ships, so run
+  it on `main`, or on your branch with your table taken out of the registration. The no-property run
+  is NOT a control: it differs from the treatment by every production table, so what it measures is
+  the cost of switching the inspector on at all.
+- **you armed your table only**, for a one-off measurement outside the convention: "the same class
+  with no property" is then a valid control. The inspector is installed either way and rewrites
+  nothing when no table is active, so the one difference is your table. A class that keeps that
+  narrower list is a pin, so this shape is for a measurement, not for a test you commit.
 
-A real case for the second shape: an inventory arming the production list plus `teams` reported
+A real case for the first shape: an inventory arming the production list plus `teams` reported
 seventeen red against a no-property control, and eleven of them were a `domains` unique-key collision
 that reproduces with `domains` armed alone and has nothing to do with `teams`. Armed with `teams`
 only, the class was twelve red and none was a collision.
@@ -415,14 +420,16 @@ Find them before go-live:
 
 ```bash
 # test classes that assert something about this table's isolation, and whether they activate it
-grep -rln "{Entity}\|{table}" openaev-api/src/test --include="*.java"   | xargs grep -ln "Tenant\|tenant"   | xargs grep -Ln "TestPropertySource"
+grep -rln "{Entity}\|{table}" openaev-api/src/test --include="*.java"   | xargs grep -ln "Tenant\|tenant"   | xargs grep -Ln "openaev.tenant.active-tables"
 ```
 
-Read every hit. A class that asserts cross-tenant behaviour and does not set `active-tables` is
-either proving nothing or about to break.
+Read every hit. A class that asserts cross-tenant behaviour and does not set `active-tables` runs on
+the test profile's list, which is empty, so it is either proving nothing or about to break. Give it a
+`@DynamicPropertySource` that registers `ProductionActiveTables.names()` plus your table.
 
-**Put the annotation on the outermost test class, not on a `@Nested` one.** A `@TestPropertySource`
-on a nested class builds a second Spring context, and the mock user provisioned by
+**Put the registration on the outermost test class, not on a `@Nested` one.** A nested class that
+declares its own `@DynamicPropertySource` method gets a different set of registration methods than its
+enclosing class, so Spring builds it a second context, and the mock user provisioned by
 `WithMockUserTestExecutionListener` lives in the parent's `TestUserHolder`; the nested context gets
 an empty one and every test fails on "The given id must not be null" before reaching its assertion.
 
@@ -783,9 +790,15 @@ Copy the model's structure. Key elements that must all be present:
 
 ```java
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables={table}")
 @WithMockUser(isAdmin = true)
 class {Entity}HttpIsolationTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTablesWith{Entity}(DynamicPropertyRegistry registry) {
+    Set<String> tables = new TreeSet<>(ProductionActiveTables.names());
+    tables.add("{table}");
+    registry.add("openaev.tenant.active-tables", () -> String.join(",", tables));
+  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -800,9 +813,12 @@ class {Entity}HttpIsolationTest extends IntegrationTest {
 ```
 
 Notes that make or break the test:
-- `@TestPropertySource` activates the table for this test only. The test
-  classpath keeps the allowlist empty on purpose; never add your table to the
-  test-wide properties.
+- The `@DynamicPropertySource` activates the table for this class only, on top
+  of every table production already isolates. The test classpath keeps the
+  allowlist empty on purpose; never add your table to the test-wide properties.
+  Do not hard-code a list instead: a value that does not hold the production
+  list is a pin, and `PinnedActiveTablesArchTest` fails until it is declared,
+  with its reason, in `pinned-active-tables-baseline.txt`.
 - **Leave `@WithMockUser` at its default (`autoJoinDefaultTenant` stays
   `false`) on this class.** The class-level mock user must resolve to exactly
   the tenants `tenantHelper.createTenantWithCurrentUser(...)` granted it —
@@ -1001,8 +1017,8 @@ across multiple associations the way `Hibernate.initialize()` naturally allows
   any other `TxCtx`-bearing entrypoint.
 - Write one test per fixed entrypoint, modeled on
   `SecurityPlatformCollectorsTenantScopeTest` (PR #7026): run with
-  `@TestPropertySource(properties = "openaev.tenant.active-tables={table}")`
-  (production-like, inspector active — the default test profile's empty
+  the production list plus `{table}` (`ProductionActiveTables.names()` in a
+  `@DynamicPropertySource`) (production-like, inspector active — the default test profile's empty
   allowlist is exactly what let #7026 through) and assert the association
   serializes the live link for an in-scope row, and comes back empty only
   once the linked `{Entity}` row is genuinely gone (not merely
@@ -1073,7 +1089,8 @@ Rules for this sub-phase:
   `/api/exercise/{id}/injects/test` variant is as live as its
   `/injects/test/search` successor.
 - Pin the sweep: for each sink type, add one production-like test
-  (`@TestPropertySource(properties = "openaev.tenant.active-tables={table}")`)
+  (the production list plus `{table}`, through `ProductionActiveTables.names()` in a
+  `@DynamicPropertySource`)
   asserting the computed field is NON-NULL on a representative endpoint per
   controller family, not just on the table's own API. A null-valued scalar is
   the failure mode; an empty-array assertion will not catch it.
@@ -1398,8 +1415,8 @@ Key differences from the HTTP test:
 - The test class is NOT `@Transactional`. The primitive's `execute` refuses to
   open inside an active transaction, so seed and clean through auto-committed
   `JdbcTemplate`, not a rolled-back test transaction.
-- Activate the table with `@TestPropertySource(properties =
-  "openaev.tenant.active-tables={table}")`, same as the HTTP test.
+- Activate the table on top of the production list (`ProductionActiveTables.names()` plus
+  `{table}` in a `@DynamicPropertySource`), same as the HTTP test.
 - Prove: the converted job under its scope sees and writes only the in-scope
   tenant's rows; a cross-tenant row is invisible; for a per-tenant loop, one
   tenant's failure is rolled back on its own and does not poison the others.

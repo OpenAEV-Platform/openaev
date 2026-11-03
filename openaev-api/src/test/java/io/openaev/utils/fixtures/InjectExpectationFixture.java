@@ -28,6 +28,14 @@ public class InjectExpectationFixture {
     return expectation;
   }
 
+  public static BaseInjectExpectation createExpectationForTypeAndScoreAndExpectedScore(
+      BaseInjectExpectation.EXPECTATION_TYPE type, Double score, Double expectedScore) {
+    BaseInjectExpectation expectation = createExpectationForType(type);
+    expectation.setScore(score);
+    expectation.setExpectedScore(expectedScore);
+    return expectation;
+  }
+
   public static ChallengeInjectExpectation createChallengeInjectExpectation(
       Challenge challenge, User user, Exercise exercise) {
     ChallengeInjectExpectation expectation = new ChallengeInjectExpectation();
@@ -122,6 +130,7 @@ public class InjectExpectationFixture {
     return switch (type) {
       case DETECTION -> new DetectionInjectExpectation();
       case PREVENTION -> new PreventionInjectExpectation();
+      case LOGGING -> new LoggingInjectExpectation();
       case VULNERABILITY -> new VulnerabilityInjectExpectation();
       case MANUAL -> new ManualInjectExpectation();
       case ARTICLE -> new ArticleInjectExpectation();

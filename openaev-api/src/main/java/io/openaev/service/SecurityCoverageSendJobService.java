@@ -3,8 +3,10 @@ package io.openaev.service;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.SecurityCoverageSendJob;
+import io.openaev.database.raw.RawSecurityCoverageSendJobTenant;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.SecurityCoverageSendJobRepository;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
@@ -14,7 +16,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -54,12 +55,24 @@ public class SecurityCoverageSendJobService {
     }
   }
 
-  public List<SecurityCoverageSendJob> getPendingSecurityCoverageSendJobs() {
-    return securityCoverageSendJobRepository.findByStatusAndUpdatedAtBeforeNoLock(
+  /** The pending send jobs with their simulation's tenant, limited to the caller's scope. */
+  public List<RawSecurityCoverageSendJobTenant> getPendingSecurityCoverageSendJobs() {
+    return securityCoverageSendJobRepository.findWithTenantByStatusAndUpdatedAtBefore(
         "PENDING", Instant.now().minus(1, ChronoUnit.MINUTES));
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  /** A send job by id, read in the caller's transaction and tenant scope. */
+  public SecurityCoverageSendJob securityCoverageSendJob(String id) {
+    return securityCoverageSendJobRepository
+        .findById(id)
+        .orElseThrow(() -> new ElementNotFoundException("Security coverage send job not found"));
+  }
+
+  /**
+   * Marks the jobs as sent. Joins the caller's transaction: the scheduler runs it under the tenant
+   * scope of the jobs' simulation, which a new transaction would drop.
+   */
+  @Transactional
   public void consumeJobs(List<SecurityCoverageSendJob> jobs) {
     /* force hibernate to forget cache and refetch new data */
     entityManager.flush();

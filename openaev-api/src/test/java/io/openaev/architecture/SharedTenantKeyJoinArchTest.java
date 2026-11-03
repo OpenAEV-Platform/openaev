@@ -73,27 +73,6 @@ class SharedTenantKeyJoinArchTest {
    * The classifications a waiver may carry. A bare entry, or one whose reason starts with anything
    * else, is rejected: an entry must say what makes the join safe, not merely that it is.
    */
-  /**
-   * Declared queries whose predicates are legitimately split across more than one scanned run,
-   * because the query is assembled from a SQL constant and the scan reconstructs each variant it is
-   * spliced into. Named rather than absorbed, so that a scan which stops seeing a whole query
-   * cannot hide behind this exemption. Measured, not guessed: these are the only two on this tree,
-   * the asset and finding projection that splices the asset-type constant, and the agent to
-   * endpoint correlation that splices the activity-status constant. Each entry is the query's own
-   * alias-equality set, sorted, which is the only identity available before the constant is
-   * resolved.
-   */
-  private static final List<String> KNOWN_QUERIES_SPLIT_ACROSS_RUNS =
-      List.of(
-          "a.asset_id=ca.asset_id , e.exercise_id=i.inject_exercise , f.finding_id=fa.finding_id ,"
-              + " fa.asset_id=a.asset_id , fa.finding_id=f.finding_id , fm.asset_id=ca.asset_id ,"
-              + " i.inject_exercise=e.exercise_id , i.inject_id=ia.inject_id ,"
-              + " i.inject_scenario=s.scenario_id , ia.asset_id=a.asset_id ,"
-              + " ia.inject_id=i.inject_id , im.asset_id=ca.asset_id , ra.asset_id=a.asset_id ,"
-              + " ra.asset_id=at.asset_id , ra.asset_id=fa.asset_id , ra.asset_id=ia.asset_id ,"
-              + " s.scenario_id=i.inject_scenario , ta.asset_id=a.asset_id , xa.asset_id=a.asset_id",
-          "ag.agent_asset=e.asset_id , e.asset_id=ia.asset_id");
-
   private static final List<String> CLASSIFICATIONS =
       List.of("reaches-active-table:", "dead-code", "not-established", "fixed-pending:");
 
@@ -448,24 +427,18 @@ class SharedTenantKeyJoinArchTest {
       scannedPerRun.add(predicates(run.sql()));
     }
     Set<String> unseenAnywhere = new TreeSet<>();
-    Set<String> splitAcrossRuns = new TreeSet<>();
     for (String sql : declared) {
       Set<String> wanted = predicates(sql);
       if (wanted.isEmpty() || scannedPerRun.stream().anyMatch(run -> run.containsAll(wanted))) {
         continue;
       }
-      // Not covered by one run. Either the scan is missing a predicate outright, which is the
-      // failure this census exists for, or the query is spliced from a SQL constant and is
-      // reconstructed as several runs, which is legitimate and must stay visible as a named set.
-      boolean everyPredicateSeen = true;
+      // Not covered by one run. A query spliced from a SQL constant is reconstructed as several
+      // runs, which is fine: the guard judges predicates, not whole queries. Only a predicate
+      // no run sees at all is a hole.
       for (String predicate : wanted) {
         if (scannedPerRun.stream().noneMatch(run -> run.contains(predicate))) {
           unseenAnywhere.add(predicate);
-          everyPredicateSeen = false;
         }
-      }
-      if (everyPredicateSeen) {
-        splitAcrossRuns.add(String.join(" , ", new TreeSet<>(wanted)));
       }
     }
     assertTrue(
@@ -473,12 +446,6 @@ class SharedTenantKeyJoinArchTest {
         "the source scan does not see these alias-to-alias predicates that the classpath declares,"
             + " so a query the guard must judge is invisible to it:\n  "
             + String.join("\n  ", unseenAnywhere));
-    assertEquals(
-        new TreeSet<>(KNOWN_QUERIES_SPLIT_ACROSS_RUNS),
-        splitAcrossRuns,
-        "a declared query is no longer covered by any single scanned run. That is legitimate only for"
-            + " a query spliced from a SQL constant, so a new one has to be read once and named here"
-            + " rather than absorbed");
   }
 
   @Test

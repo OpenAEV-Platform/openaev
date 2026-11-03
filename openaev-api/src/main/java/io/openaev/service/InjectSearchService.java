@@ -190,13 +190,15 @@ public class InjectSearchService {
         domainsContractIdExpression.alias("injector_contract_domains"),
         injectDependency.alias("inject_depends_on"));
 
-    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
+    // GROUP BY: the contract is selected whole, so grouping by the join expands to all its
+    // columns. Its primary key alone is not enough once the table is tenant-active, because the
+    // inspector then joins a derived table, which carries no key to derive the other columns from.
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
             injectExerciseJoin.get("id"),
             injectScenarioJoin.get("id"),
-            injectorContractJoin.get("compositeId"),
+            injectorContractJoin,
             injectorJoin.get("id"),
             injectorJoin.get("type"),
             injectDependency.get("id")));
@@ -703,11 +705,16 @@ public class InjectSearchService {
         domainsContractIdExpression.alias("injector_contract_domains"),
         assetGroupIdsExpression.alias("inject_asset_groups"));
 
-    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
+    // GROUP BY: every projected contract column is grouped, not only the primary key, because
+    // once the table is tenant-active the inspector joins a derived table, which carries no key
+    // to derive the other columns from.
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
             injectorContractJoin.get("compositeId"),
+            injectorContractJoin.get("content"),
+            injectorContractJoin.get("platforms"),
+            injectorContractJoin.get("labels"),
             injectorJoin.get("id"),
             injectorJoin.get("type"),
             payloadJoin.get("id"),

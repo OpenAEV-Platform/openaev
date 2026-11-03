@@ -8,7 +8,6 @@ export interface DetectionRemediationForm {
   author_rule: DetectionRemediation['author_rule'];
 }
 
-// eslint-disable-next-line import/prefer-default-export
 export const payloadFormToPayloadInputForAI = (data: FieldValues): Partial<PayloadInput> => {
   return {
     payload_type: data.action_type,

@@ -13,8 +13,8 @@ import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
-import io.openaev.service.AbstractPrivilegeService;
 import io.openaev.service.UserService;
+import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
@@ -73,7 +73,7 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
     // Arrange
     String adminGroupId =
         AbstractPrivilegeService.getUUIDFromName(
-            AdminPrivilegeService.ADMIN_GROUP_ID, DEFAULT_TENANT_UUID);
+            AdminPrivilegeService.ADMIN_ACCESS.groupId(), DEFAULT_TENANT_UUID);
 
     // Act
     User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
@@ -97,7 +97,7 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
     // Arrange
     String adminGroupId =
         AbstractPrivilegeService.getUUIDFromName(
-            AdminPrivilegeService.ADMIN_GROUP_ID, DEFAULT_TENANT_UUID);
+            AdminPrivilegeService.ADMIN_ACCESS.groupId(), DEFAULT_TENANT_UUID);
 
     // Act
     this.adminPrivilegeService.ensureAdminGroup(
@@ -122,7 +122,9 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
     User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
     List<Group> platformAdminGroups =
         adminUser.getUnscopedGroups().stream()
-            .filter(group -> AdminPrivilegeService.PLATFORM_ADMIN_GROUP_ID.equals(group.getId()))
+            .filter(
+                group ->
+                    AdminPrivilegeService.PLATFORM_ADMIN_ACCESS.groupId().equals(group.getId()))
             .toList();
 
     // Assert

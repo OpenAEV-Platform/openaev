@@ -6,7 +6,7 @@ import static org.mockito.Mockito.*;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AssetAgentJobRepository;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import java.util.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,7 +23,7 @@ class OpenAEVExecutorContextServiceTest {
   private static final String TENANT_ID = "tenant-id";
 
   @Mock private AssetAgentJobRepository assetAgentJobRepository;
-  @Mock private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Mock private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   @Spy private OpenAEVConfig openAEVConfig = new OpenAEVConfig();
 
   @InjectMocks private OpenAEVExecutorContextService service;

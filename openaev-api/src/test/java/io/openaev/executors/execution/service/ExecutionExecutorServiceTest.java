@@ -3,6 +3,7 @@ package io.openaev.executors.execution.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
@@ -24,11 +25,11 @@ import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.utils.ExecutorUtils;
 import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
-import io.openaev.rest.exception.AgentException;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.service.EndpointService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.fixtures.*;
@@ -47,6 +48,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class ExecutionExecutorServiceTest {
 
+  // The dispatch's target resolution: its split into agents is stubbed per test on injectService
+  private static final ResolvedAssetsToExecute RESOLVED_TARGETS =
+      new ResolvedAssetsToExecute(List.of(), Set.of());
+
   @Mock private InjectService injectService;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectStatusRepository injectStatusRepository;
@@ -60,7 +65,7 @@ public class ExecutionExecutorServiceTest {
   @Mock private ActionMetricCollector actionMetricCollector;
 
   private ExecutionExecutorService executorService;
-  @Mock private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Mock private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
 
   @BeforeEach
   void setUp() {
@@ -87,7 +92,7 @@ public class ExecutionExecutorServiceTest {
             new ExecutorUtils(assetAgentJobRepository),
             endpointService,
             connectorInstanceService,
-            serviceAccountPrivilegeService,
+            agentServiceAccountPrivilegeService,
             actionMetricCollector,
             Optional.of(auditLogger));
   }
@@ -111,14 +116,18 @@ public class ExecutionExecutorServiceTest {
             "Inject",
             endpoint);
     inject.setStatus(InjectStatusFixture.createPendingInjectStatus());
-    when(injectService.getAgentsAndAgentlessAssetsByInject(inject))
+    when(injectService.toAgentsAndAgentlessAssets(RESOLVED_TARGETS))
         .thenReturn(
-            new AgentsAndAssetsAgentless(new HashSet<>(), new HashSet<>(List.of(endpoint))));
+            new AgentsAndAssetsAgentless(
+                new HashSet<>(),
+                new HashSet<>(List.of(endpoint)),
+                new HashSet<>(),
+                new HashSet<>()));
     // Run method to test
     assertThrows(
         ExecutionExecutorException.class,
         () -> {
-          executorService.launchExecutorContext(inject);
+          executorService.launchExecutorContext(inject, RESOLVED_TARGETS);
         });
   }
 
@@ -150,6 +159,115 @@ public class ExecutionExecutorServiceTest {
     // Asserts
     ArgumentCaptor<List<ExecutionTrace>> executionTrace = ArgumentCaptor.forClass(List.class);
     verify(executionTraceRepository, never()).saveAll(executionTrace.capture());
+  }
+
+  @Test
+  void given_assetsWithoutClearance_should_saveAssetLevelNotTargetedTraces() {
+    // Arrange
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setId("0123456789");
+    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
+    // Act
+    executorService.saveAssetsWithoutClearanceTraces(new HashSet<>(Set.of(endpoint)), injectStatus);
+    // Assert
+    ArgumentCaptor<List<ExecutionTrace>> executionTrace = ArgumentCaptor.forClass(List.class);
+    verify(executionTraceRepository).saveAll(executionTrace.capture());
+    ExecutionTrace trace = executionTrace.getValue().getFirst();
+    assertEquals(ExecutionTraceStatus.ASSET_CLEARANCE_RESTRICTED, trace.getStatus());
+    assertEquals(ExecutionTraceAction.COMPLETE, trace.getAction());
+    assertEquals(List.of("0123456789"), trace.getIdentifiers());
+    assertNull(trace.getAgent());
+    assertEquals("Asset not targeted", trace.getMessage());
+  }
+
+  @Test
+  void given_noAssetWithoutClearance_should_saveNoTrace() {
+    // Arrange
+    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
+    // Act
+    executorService.saveAssetsWithoutClearanceTraces(new HashSet<>(), injectStatus);
+    // Assert
+    verify(executionTraceRepository, never()).saveAll(any());
+  }
+
+  @Test
+  void given_agentsWithoutClearance_should_saveAgentLevelNotTargetedTraces() {
+    // Arrange
+    Endpoint endpoint = EndpointFixture.createEndpoint();
+    endpoint.setId("0123456789");
+    Agent agent = AgentFixture.createDefaultAgentSession();
+    agent.setAsset(endpoint);
+    endpoint.setAgents(List.of(agent));
+    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
+    // Act
+    executorService.saveAgentsWithoutClearanceTraces(new HashSet<>(Set.of(agent)), injectStatus);
+    // Assert
+    ArgumentCaptor<List<ExecutionTrace>> executionTrace = ArgumentCaptor.forClass(List.class);
+    verify(executionTraceRepository).saveAll(executionTrace.capture());
+    ExecutionTrace trace = executionTrace.getValue().getFirst();
+    assertEquals(ExecutionTraceStatus.ASSET_CLEARANCE_RESTRICTED, trace.getStatus());
+    assertEquals(ExecutionTraceAction.COMPLETE, trace.getAction());
+    assertEquals(agent, trace.getAgent());
+    assertEquals("Asset not targeted", trace.getMessage());
+  }
+
+  @Test
+  void given_noAgentWithoutClearance_should_saveNoTrace() {
+    // Arrange
+    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
+    // Act
+    executorService.saveAgentsWithoutClearanceTraces(new HashSet<>(), injectStatus);
+    // Assert
+    verify(executionTraceRepository, never()).saveAll(any());
+  }
+
+  @Test
+  @DisplayName(
+      "Given only targets outside the launcher's clearance, launchExecutorContext should trace them"
+          + " as not targeted and counting them")
+  void given_onlyRestrictedTargets_should_traceThemAsNotTargetedAndExecuteNothing()
+      throws Exception {
+    // Arrange
+    Endpoint endpointRed = EndpointFixture.createEndpoint();
+    endpointRed.setId("endpoint-red");
+    Agent agentRed = AgentFixture.createDefaultAgentSession();
+    agentRed.setAsset(endpointRed);
+    endpointRed.setAgents(List.of(agentRed));
+    Asset assetRed = new Asset();
+    assetRed.setId("asset-red");
+    assetRed.setName("asset red");
+    Inject inject =
+        InjectFixture.createTechnicalInject(
+            InjectorContractFixture.createPayloadInjectorContract(
+                InjectorFixture.createDefaultPayloadInjector(),
+                PayloadFixture.createCommand("cmd", "whoami", List.of(), "whoami")),
+            "Inject",
+            endpointRed);
+    inject.setStatus(InjectStatusFixture.createPendingInjectStatus());
+    when(injectService.toAgentsAndAgentlessAssets(RESOLVED_TARGETS))
+        .thenReturn(
+            new AgentsAndAssetsAgentless(
+                new HashSet<>(),
+                new HashSet<>(),
+                new HashSet<>(Set.of(agentRed)),
+                new HashSet<>(Set.of(assetRed))));
+
+    // Act & Assert
+    assertThrows(
+        ExecutionExecutorException.class,
+        () -> executorService.launchExecutorContext(inject, RESOLVED_TARGETS));
+
+    ArgumentCaptor<List<ExecutionTrace>> executionTraces = ArgumentCaptor.forClass(List.class);
+    verify(executionTraceRepository, times(2)).saveAll(executionTraces.capture());
+    List<ExecutionTrace> savedTraces =
+        executionTraces.getAllValues().stream().flatMap(List::stream).toList();
+    assertThat(savedTraces)
+        .extracting(ExecutionTrace::getStatus)
+        .containsOnly(ExecutionTraceStatus.ASSET_CLEARANCE_RESTRICTED);
+    assertThat(savedTraces)
+        .extracting(ExecutionTrace::getMessage)
+        .containsExactlyInAnyOrder("Asset not targeted", "Asset not targeted");
+    assertThat(inject.getStatus().orElseThrow().getExpectedAgentCount()).isOne();
   }
 
   @Test
@@ -277,24 +395,6 @@ public class ExecutionExecutorServiceTest {
     verify(executionTraceRepository, never()).save(any(ExecutionTrace.class));
   }
 
-  @Test
-  void saveAgentErrorTrace() {
-    // Init datas
-    Endpoint endpoint = EndpointFixture.createEndpoint();
-    Agent agent = AgentFixture.createDefaultAgentSession();
-    agent.setAsset(endpoint);
-    endpoint.setAgents(List.of(agent));
-    InjectStatus injectStatus = InjectStatusFixture.createPendingInjectStatus();
-    // Run method to test
-    executorService.saveAgentErrorTrace(new AgentException("EXCEPTION !!", agent), injectStatus);
-    // Asserts
-    ArgumentCaptor<ExecutionTrace> executionTrace = ArgumentCaptor.forClass(ExecutionTrace.class);
-    verify(executionTraceRepository).save(executionTrace.capture());
-    assertEquals(ExecutionTraceStatus.ERROR, executionTrace.getValue().getStatus());
-    assertEquals(ExecutionTraceAction.COMPLETE, executionTrace.getValue().getAction());
-    assertEquals("EXCEPTION !!", executionTrace.getValue().getMessage());
-  }
-
   @Nested
   @DisplayName("launchExecutorContext with active agents")
   class LaunchExecutorContextWithAgentsTests {
@@ -321,8 +421,10 @@ public class ExecutionExecutorServiceTest {
               endpoint);
       inject.setStatus(InjectStatusFixture.createPendingInjectStatus());
 
-      when(injectService.getAgentsAndAgentlessAssetsByInject(inject))
-          .thenReturn(new AgentsAndAssetsAgentless(new HashSet<>(Set.of(agent)), new HashSet<>()));
+      when(injectService.toAgentsAndAgentlessAssets(RESOLVED_TARGETS))
+          .thenReturn(
+              new AgentsAndAssetsAgentless(
+                  new HashSet<>(Set.of(agent)), new HashSet<>(), new HashSet<>(), new HashSet<>()));
       return inject;
     }
 
@@ -365,11 +467,11 @@ public class ExecutionExecutorServiceTest {
           .thenReturn(mockContextService);
       when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenReturn(List.of());
-      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+      when(agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
           .thenReturn("token");
 
       // Act
-      executorService.launchExecutorContext(inject);
+      executorService.launchExecutorContext(inject, RESOLVED_TARGETS);
 
       // Assert
       verify(connectorInstanceConfigurationRepository)
@@ -435,11 +537,11 @@ public class ExecutionExecutorServiceTest {
           .thenReturn(mockContextService);
       when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenReturn(List.of());
-      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+      when(agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
           .thenReturn("token");
 
       // Act
-      executorService.launchExecutorContext(inject);
+      executorService.launchExecutorContext(inject, RESOLVED_TARGETS);
 
       // Assert
       ArgumentCaptor<AuditEvent> eventCaptor = ArgumentCaptor.forClass(AuditEvent.class);
@@ -476,11 +578,11 @@ public class ExecutionExecutorServiceTest {
           .thenReturn(mockContextService);
       when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenThrow(new RuntimeException("CrowdStrike API timeout"));
-      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+      when(agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
           .thenReturn("token");
 
       // Act & Assert
-      assertThatThrownBy(() -> executorService.launchExecutorContext(inject))
+      assertThatThrownBy(() -> executorService.launchExecutorContext(inject, RESOLVED_TARGETS))
           .isInstanceOf(ExecutionExecutorException.class)
           .hasMessageContaining("No asset executed");
 
@@ -533,9 +635,13 @@ public class ExecutionExecutorServiceTest {
               endpoint1);
       inject.setStatus(InjectStatusFixture.createPendingInjectStatus());
 
-      when(injectService.getAgentsAndAgentlessAssetsByInject(inject))
+      when(injectService.toAgentsAndAgentlessAssets(RESOLVED_TARGETS))
           .thenReturn(
-              new AgentsAndAssetsAgentless(new HashSet<>(Set.of(agent1, agent2)), new HashSet<>()));
+              new AgentsAndAssetsAgentless(
+                  new HashSet<>(Set.of(agent1, agent2)),
+                  new HashSet<>(),
+                  new HashSet<>(),
+                  new HashSet<>()));
 
       Manager manager = mock(Manager.class);
       when(managerFactory.getManager(anyString())).thenReturn(manager);
@@ -559,11 +665,11 @@ public class ExecutionExecutorServiceTest {
           .thenReturn(List.of());
       when(mockCtx2.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenReturn(List.of());
-      when(serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
+      when(agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
           .thenReturn("token");
 
       // Act
-      executorService.launchExecutorContext(inject);
+      executorService.launchExecutorContext(inject, RESOLVED_TARGETS);
 
       // Assert
       verify(manager).requestForInstance(eq(instance1), eq(ExecutorContextService.class));

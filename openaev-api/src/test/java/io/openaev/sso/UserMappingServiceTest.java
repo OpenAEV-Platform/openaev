@@ -1,5 +1,6 @@
 package io.openaev.sso;
 
+import static io.openaev.service.account.ReservedServiceAccount.OPENCTI_CONNECTOR;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,7 +10,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
-import io.openaev.opencti.connectors.Constants;
 import io.openaev.service.UserMappingService;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -52,11 +52,11 @@ public class UserMappingServiceTest extends IntegrationTest {
   }
 
   private String tenantScopedGroupId() {
-    return tenantScopedId(Constants.PROCESS_STIX_GROUP_ID);
+    return tenantScopedId(OPENCTI_CONNECTOR.access().groupId());
   }
 
   private String tenantScopedRoleId() {
-    return tenantScopedId(Constants.PROCESS_STIX_ROLE_ID);
+    return tenantScopedId(OPENCTI_CONNECTOR.access().roleId());
   }
 
   @Nested

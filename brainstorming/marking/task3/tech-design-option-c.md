@@ -567,7 +567,7 @@ looks wrong at first glance but is actually the mechanism behaving exactly as de
 
 ### ❓ 6.1 The service account (agent/implant) has no marking clearance of its own
 
-`ServiceAccountPrivilegeService` provisions one well-known account per tenant
+`AgentServiceAccountPrivilegeService` provisions one well-known account per tenant
 (`service-{tenantId}@openaev.invalid`), carrying only the `Service integration` role
 (`Capability.AGENT_RUNTIME_ACCESS`, `Capability.ACCESS_DOCUMENTS`). It is not admin, has no
 `BYPASS`, and — critically — its group has no `groups_markings` grant. Under

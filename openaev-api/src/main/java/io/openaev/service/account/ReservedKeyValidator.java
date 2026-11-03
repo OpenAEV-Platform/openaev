@@ -1,15 +1,10 @@
 package io.openaev.service.account;
 
-import static io.openaev.opencti.connectors.Constants.*;
-import static io.openaev.opencti.connectors.service.PrivilegeService.CONNECTOR_EMAIL_PATTERN;
-import static io.openaev.service.account.Constants.*;
-import static io.openaev.service.account.ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN;
-
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.User;
 import io.openaev.rest.exception.BadRequestException;
-import io.openaev.service.AbstractPrivilegeService;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -18,23 +13,30 @@ import java.util.stream.StreamSupport;
 
 /**
  * Validates that user-provided names do not conflict with system-reserved names used by service
- * accounts.
+ * accounts. The reserved names are those of every {@link ReservedServiceAccount}.
  */
 public final class ReservedKeyValidator {
 
   private ReservedKeyValidator() {}
 
   private static final Set<String> RESERVED_GROUP_ID =
-      Set.of(SERVICE_GROUP_ID, PROCESS_STIX_GROUP_ID);
+      Arrays.stream(ReservedServiceAccount.values())
+          .map(account -> account.access().groupId())
+          .collect(Collectors.toUnmodifiableSet());
 
-  private static final Set<String> RESERVED_ROLE_ID = Set.of(SERVICE_ROLE_ID, PROCESS_STIX_ROLE_ID);
+  private static final Set<String> RESERVED_ROLE_ID =
+      Arrays.stream(ReservedServiceAccount.values())
+          .map(account -> account.access().roleId())
+          .collect(Collectors.toUnmodifiableSet());
 
   /**
    * Compiled regexes derived from the service email patterns. The patterns contain a {@code %s}
    * placeholder (typically the tenant or connector id) which is converted to a wildcard match.
    */
   private static final List<Pattern> RESERVED_EMAIL_PATTERNS =
-      List.of(toPattern(SERVICE_EMAIL_PATTERN), toPattern(CONNECTOR_EMAIL_PATTERN));
+      Arrays.stream(ReservedServiceAccount.values())
+          .map(account -> toPattern(account.emailPattern()))
+          .toList();
 
   private static Pattern toPattern(String emailPattern) {
     // Escape every regex metacharacter, then turn the (already-escaped) %s placeholder into .+

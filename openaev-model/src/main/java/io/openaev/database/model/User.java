@@ -7,6 +7,7 @@ import static lombok.AccessLevel.NONE;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
@@ -23,6 +24,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
@@ -105,6 +107,12 @@ public class User implements Base {
     this.homeDashboard =
         ofNullable(homeDashboard).map(String::trim).filter(v -> !v.isEmpty()).orElse(null);
   }
+
+  @Setter
+  @Type(StringArrayType.class)
+  @Column(name = "user_unsubscribed_news_feed_types", columnDefinition = "text[]")
+  @JsonIgnore
+  private String[] unsubscribedNewsFeedTypes = new String[0];
 
   @Getter(NONE)
   @Setter(NONE)

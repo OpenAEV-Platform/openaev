@@ -60,16 +60,16 @@ describe('EnterpriseEditionSettings', () => {
     vi.clearAllMocks();
   });
 
-  it('shows that Enterprise Edition comes from the XTM One license, without offering to disable it', () => {
+  it('shows that Enterprise Edition comes from the Filigran license of XTM One, without offering to disable it', () => {
     renderSettings({
       ...ACTIVE_LICENSE,
       license_source: 'xtm_one',
     });
 
-    expect(screen.getByText('XTM One license')).toBeDefined();
+    expect(screen.getByText('Filigran license (through XTM One)')).toBeDefined();
     expect(screen.getByText('ACME')).toBeDefined();
     expect(screen.getByText('Activated')).toBeDefined();
-    expect(screen.getByText(/granted by the XTM license of the connected XTM One/)).toBeDefined();
+    expect(screen.getByText(/granted by the Filigran license of the connected XTM One/)).toBeDefined();
     expect(screen.queryByRole('button', { name: 'Disable Enterprise Edition' })).toBeNull();
     expect(screen.getByText('Manage your enterprise edition license')).toBeDefined();
   });
@@ -81,7 +81,18 @@ describe('EnterpriseEditionSettings', () => {
     });
 
     expect(screen.getByText('OpenAEV license')).toBeDefined();
-    expect(screen.queryByText(/granted by the XTM license/)).toBeNull();
+    expect(screen.queryByText(/granted by the Filigran license/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Disable Enterprise Edition' })).toBeDefined();
+  });
+
+  it('shows a Filigran license installed in OpenAEV as its own license', () => {
+    renderSettings({
+      ...ACTIVE_LICENSE,
+      license_source: 'filigran',
+    });
+
+    expect(screen.getByText('Filigran license')).toBeDefined();
+    expect(screen.queryByText(/granted by the Filigran license of the connected XTM One/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Disable Enterprise Edition' })).toBeDefined();
   });
 
@@ -89,6 +100,6 @@ describe('EnterpriseEditionSettings', () => {
     renderSettings({ license_is_enterprise: false });
 
     expect(screen.getByText('Community edition')).toBeDefined();
-    expect(screen.queryByText('XTM One license')).toBeNull();
+    expect(screen.queryByText('Filigran license (through XTM One)')).toBeNull();
   });
 });

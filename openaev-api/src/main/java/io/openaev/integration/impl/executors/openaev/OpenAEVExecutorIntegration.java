@@ -7,7 +7,7 @@ import io.openaev.executors.openaev.service.OpenAEVExecutorContextService;
 import io.openaev.integration.ComponentRequestEngine;
 import io.openaev.integration.Integration;
 import io.openaev.integration.annotation.QualifiedComponent;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 
 public class OpenAEVExecutorIntegration extends Integration {
@@ -23,7 +23,7 @@ public class OpenAEVExecutorIntegration extends Integration {
   @QualifiedComponent(identifier = OPENAEV_EXECUTOR_NAME)
   private OpenAEVExecutorContextService openAEVExecutorContextService;
 
-  private final ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  private final AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   private final OpenAEVConfig openAEVConfig;
 
   public OpenAEVExecutorIntegration(
@@ -31,11 +31,11 @@ public class OpenAEVExecutorIntegration extends Integration {
       ConnectorInstanceService connectorInstanceService,
       AssetAgentJobRepository assetAgentJobRepository,
       ComponentRequestEngine componentRequestEngine,
-      ServiceAccountPrivilegeService serviceAccountPrivilegeService,
+      AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService,
       OpenAEVConfig openAEVConfig) {
     super(componentRequestEngine, connectorInstance, connectorInstanceService);
     this.assetAgentJobRepository = assetAgentJobRepository;
-    this.serviceAccountPrivilegeService = serviceAccountPrivilegeService;
+    this.agentServiceAccountPrivilegeService = agentServiceAccountPrivilegeService;
     this.openAEVConfig = openAEVConfig;
   }
 
@@ -44,7 +44,7 @@ public class OpenAEVExecutorIntegration extends Integration {
 
     this.openAEVExecutorContextService =
         new OpenAEVExecutorContextService(
-            assetAgentJobRepository, serviceAccountPrivilegeService, openAEVConfig);
+            assetAgentJobRepository, agentServiceAccountPrivilegeService, openAEVConfig);
   }
 
   @Override

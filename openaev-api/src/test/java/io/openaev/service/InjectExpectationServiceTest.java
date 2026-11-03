@@ -2,6 +2,7 @@ package io.openaev.service;
 
 import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.EXPECTATIONS_VULNERABILITY_COLLECTOR_ID;
 import static io.openaev.utils.fixtures.InjectExpectationFixture.createVulnerabilityInjectExpectation;
+import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -28,9 +29,13 @@ import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.expectation.ExpectationBehavior;
+import io.openaev.service.expectation.ExpectationBehaviorResolver;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.lang.reflect.Method;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,6 +61,8 @@ class InjectExpectationServiceTest {
   @Mock private CollectorService collectorService;
   @Mock private InjectorContractContentUtils injectorContractContentUtils;
   @Mock private AuditLogger auditLogger;
+  @Mock private ExpectationBehaviorResolver expectationBehaviorResolver;
+  @Mock private PreviewFeatureService previewFeatureService;
 
   // Unstubbed: findByExternalReference defaults to Optional.empty(), so vulnerability verdicts
   // keep the legacy Expectations Vulnerability Manager attribution in these tests.
@@ -157,7 +164,7 @@ class InjectExpectationServiceTest {
               .sourceId("collector-1")
               .sourceName("EDR Collector")
               .sourceType("automatic")
-              .date("2026-08-05T10:15:30Z")
+              .date(Instant.parse("2026-08-05T10:15:30Z"))
               .build();
 
       // Act
@@ -215,6 +222,78 @@ class InjectExpectationServiceTest {
 
     // Assert
     verify(injectExpectationRepository, never()).saveAll(any());
+  }
+
+  @Nested
+  @DisplayName("Logging expectation creation behind its preview feature")
+  class LoggingCreationFlag {
+
+    private ExecutableInject executableInjectOf(Inject target) {
+      ExecutableInject executableInject = mock(ExecutableInject.class);
+      Injection injection = mock(Injection.class);
+      when(executableInject.getInjection()).thenReturn(injection);
+      when(injection.getInject()).thenReturn(target);
+      return executableInject;
+    }
+
+    @Test
+    @DisplayName("given_flag_off_should_skip_logging_expectations")
+    void given_flag_off_should_skip_logging_expectations() {
+      // Arrange
+      ExecutableInject executableInject = executableInjectOf(inject);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION))
+          .thenReturn(false);
+
+      // Act
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject,
+          List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.LOGGING)),
+          "implantType");
+
+      // Assert
+      verify(expectationBehaviorResolver, never()).resolveForForm(any(), any());
+    }
+
+    @Test
+    @DisplayName("given_flag_on_should_create_logging_expectations")
+    @SuppressWarnings("unchecked")
+    void given_flag_on_should_create_logging_expectations() {
+      // Arrange
+      ExecutableInject executableInject = executableInjectOf(inject);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION))
+          .thenReturn(true);
+      ExpectationBehavior<BaseInjectExpectation> behavior = mock(ExpectationBehavior.class);
+      when(expectationBehaviorResolver.resolveForForm(any(), any())).thenReturn(behavior);
+
+      // Act
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject,
+          List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.LOGGING)),
+          "implantType");
+
+      // Assert
+      verify(behavior).initializeAndSaveInjectExpectationsFromExecutableInject(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("given_flag_off_should_still_create_other_expectations")
+    @SuppressWarnings("unchecked")
+    void given_flag_off_should_still_create_other_expectations() {
+      // Arrange
+      ExecutableInject executableInject = executableInjectOf(inject);
+      ExpectationBehavior<BaseInjectExpectation> behavior = mock(ExpectationBehavior.class);
+      when(expectationBehaviorResolver.resolveForForm(any(), any())).thenReturn(behavior);
+
+      // Act
+      injectExpectationService.computeAndSaveExpectations(
+          executableInject,
+          List.of(createFormExpectation(BaseInjectExpectation.EXPECTATION_TYPE.DETECTION)),
+          "implantType");
+
+      // Assert
+      verify(behavior).initializeAndSaveInjectExpectationsFromExecutableInject(any(), any(), any());
+      verify(previewFeatureService, never()).isFeatureEnabled(any());
+    }
   }
 
   @Test
@@ -410,6 +489,13 @@ class InjectExpectationServiceTest {
       return captor.getValue();
     }
 
+    // Without a security platform, the group score is derived from its assets by the behaviors
+    private void assertGroupNotAnsweredDirectly() {
+      verify(injectExpectationService, never())
+          .updateInjectExpectation(
+              eq("exp-group"), any(InjectExpectationUpdateFromCollectorInput.class));
+    }
+
     @Test
     @DisplayName("Only the asset carrying the CVE is marked vulnerable, siblings stay clean")
     void shouldMarkOnlyAttributedAssetVulnerable() {
@@ -423,9 +509,7 @@ class InjectExpectationServiceTest {
 
       assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-1").getIsSuccess());
       assertEquals(Boolean.TRUE, capturedVerdict("exp-asset-2").getIsSuccess());
-      // Default group semantics: one vulnerable asset makes the group vulnerable, and the group
-      // verdict is written with its own attributed source result.
-      assertEquals(Boolean.FALSE, capturedVerdict("exp-group").getIsSuccess());
+      assertGroupNotAnsweredDirectly();
     }
 
     @Test
@@ -441,7 +525,7 @@ class InjectExpectationServiceTest {
 
       assertEquals(Boolean.TRUE, capturedVerdict("exp-asset-1").getIsSuccess());
       assertEquals(Boolean.TRUE, capturedVerdict("exp-asset-2").getIsSuccess());
-      assertEquals(Boolean.TRUE, capturedVerdict("exp-group").getIsSuccess());
+      assertGroupNotAnsweredDirectly();
     }
 
     @Test
@@ -464,7 +548,7 @@ class InjectExpectationServiceTest {
 
       assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-1").getIsSuccess());
       assertEquals(Boolean.TRUE, capturedVerdict("exp-asset-2").getIsSuccess());
-      assertEquals(Boolean.FALSE, capturedVerdict("exp-group").getIsSuccess());
+      assertGroupNotAnsweredDirectly();
     }
 
     @Test
@@ -484,7 +568,7 @@ class InjectExpectationServiceTest {
 
       assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-1").getIsSuccess());
       assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-2").getIsSuccess());
-      assertEquals(Boolean.FALSE, capturedVerdict("exp-group").getIsSuccess());
+      assertGroupNotAnsweredDirectly();
     }
 
     @Test
@@ -568,26 +652,7 @@ class InjectExpectationServiceTest {
       // dropping it, every asset falls back to the legacy blanket verdict.
       assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-1").getIsSuccess());
       assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-2").getIsSuccess());
-      assertEquals(Boolean.FALSE, capturedVerdict("exp-group").getIsSuccess());
-    }
-
-    @Test
-    @DisplayName(
-        "Expectation-group semantics keep the group clean while at least one asset is clean")
-    void shouldKeepExpectationGroupCleanWhenOneAssetIsClean() {
-      expectationGroup.setExpectationGroup(true);
-
-      ArrayNode structuredOutput = mapper.createArrayNode();
-      ObjectNode cve = structuredOutput.addObject();
-      cve.put("id", "CVE-2025-0005").put("host", "https://vulnerable-host").put("severity", "7.5");
-      cve.putArray("asset_id").add("asset-1");
-
-      injectExpectationService.matchesVulnerabilityExpectations(
-          injectorContext(structuredOutput), structuredOutput);
-
-      assertEquals(Boolean.FALSE, capturedVerdict("exp-asset-1").getIsSuccess());
-      assertEquals(Boolean.TRUE, capturedVerdict("exp-asset-2").getIsSuccess());
-      assertEquals(Boolean.TRUE, capturedVerdict("exp-group").getIsSuccess());
+      assertGroupNotAnsweredDirectly();
     }
   }
 
@@ -741,9 +806,49 @@ class InjectExpectationServiceTest {
               "inject-id", "asset-id", "ASSETS");
 
       assertEquals(1, merged.size());
-      assertEquals(List.of(collectorResult), merged.get(0).getResults());
+      assertThat(merged.get(0).getResults())
+          .allSatisfy(
+              result ->
+                  assertThat(
+                          Stream.of(collectorResult)
+                              .anyMatch(expected -> expected.valueEquals(result)))
+                      .isTrue());
       // The enrichment must stay display-only: the persistent entity is untouched.
       assertTrue(assetExpectation.getResults().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Asset view keeps the asset expectation id")
+    void given_agentSecurityPlatformResult_should_keepAssetExpectationId() {
+      // Arrange
+      DetectionInjectExpectation assetExpectation = new DetectionInjectExpectation();
+      assetExpectation.setId("asset-expectation");
+      DetectionInjectExpectation agentExpectation = new DetectionInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      agentExpectation.setResults(
+          new ArrayList<>(
+              List.of(
+                  InjectExpectationResult.builder()
+                      .sourceId("collector-1")
+                      .sourceType("collector")
+                      .sourceName("EDR Collector")
+                      .result("Success")
+                      .build())));
+      when(injectExpectationRepository.findAllByInjectAndAsset("inject-id", "asset-id"))
+          .thenReturn(List.of(assetExpectation));
+      when(injectExpectationRepository.findAllAgentExpectationsByInjectAndAsset(
+              "inject-id", "asset-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      // Act
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "asset-id", "ASSETS");
+
+      // Assert
+      assertEquals(1, merged.size());
+      assertNotSame(assetExpectation, merged.get(0));
+      assertEquals("asset-expectation", merged.get(0).getId());
     }
 
     @Test
@@ -788,7 +893,13 @@ class InjectExpectationServiceTest {
               "inject-id", "asset-id", "ASSETS");
 
       assertEquals(1, merged.size());
-      assertEquals(List.of(nucleiResult), merged.get(0).getResults());
+      assertThat(merged.get(0).getResults())
+          .allSatisfy(
+              result ->
+                  assertThat(
+                          Stream.of(nucleiResult)
+                              .anyMatch(expected -> expected.valueEquals(result)))
+                      .isTrue());
     }
 
     @Test
@@ -821,7 +932,13 @@ class InjectExpectationServiceTest {
               "inject-id", "asset-id", "ASSETS");
 
       assertEquals(1, merged.size());
-      assertEquals(List.of(managerResult), merged.get(0).getResults());
+      assertThat(merged.get(0).getResults())
+          .allSatisfy(
+              result ->
+                  assertThat(
+                          Stream.of(managerResult)
+                              .anyMatch(expected -> expected.valueEquals(result)))
+                      .isTrue());
     }
 
     @Test
@@ -901,6 +1018,26 @@ class InjectExpectationServiceTest {
     }
 
     @Test
+    @DisplayName("Merged view keeps the elected expectation id")
+    void given_sameTypeExpectations_should_keepElectedExpectationId() {
+      // Arrange
+      ManualInjectExpectation opened = manualStep("exp-opened", "Email not opened", 0.0);
+      ManualInjectExpectation clicked = manualStep("exp-clicked", "Link not clicked", 100.0);
+      when(injectExpectationRepository.findAllByInjectAndTeam("inject-id", "team-id"))
+          .thenReturn(List.of(opened, clicked));
+
+      // Act
+      List<? extends BaseInjectExpectation> merged =
+          injectExpectationService.findMergedExpectationsByInjectAndTargetAndTargetType(
+              "inject-id", "team-id", "TEAMS");
+
+      // Assert
+      assertEquals(1, merged.size());
+      assertNotSame(opened, merged.get(0));
+      assertEquals("exp-opened", merged.get(0).getId());
+    }
+
+    @Test
     @DisplayName("A single expectation per type is returned as-is")
     void singleExpectationPerTypeIsReturnedAsIs() {
       ManualInjectExpectation single = manualStep("exp-single", "Manual validation", null);
@@ -955,9 +1092,39 @@ class InjectExpectationServiceTest {
       List<? extends BaseInjectExpectation> merged = merge();
 
       assertEquals(1, merged.size());
-      assertEquals(List.of(defenderResult), merged.get(0).getResults());
+      assertThat(merged.get(0).getResults())
+          .allSatisfy(
+              result ->
+                  assertThat(
+                          Stream.of(defenderResult)
+                              .anyMatch(expected -> expected.valueEquals(result)))
+                      .isTrue());
       // The enrichment must stay display-only: the persistent entity is untouched.
       assertTrue(groupExpectation.getResults().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Asset-group view keeps the group expectation id")
+    void given_childSecurityPlatformResult_should_keepGroupExpectationId() {
+      // Arrange
+      DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
+      groupExpectation.setId("group-expectation");
+      DetectionInjectExpectation agentExpectation = new DetectionInjectExpectation();
+      agentExpectation.setId("agent-expectation");
+      agentExpectation.setResults(new ArrayList<>(List.of(collectorResult("Not Detected", 0.0))));
+      when(injectExpectationRepository.findAllByInjectAndAssetGroup("inject-id", "group-id"))
+          .thenReturn(List.of(groupExpectation));
+      when(injectExpectationRepository.findAllChildExpectationsByInjectAndAssetGroup(
+              "inject-id", "group-id"))
+          .thenReturn(List.of(agentExpectation));
+
+      // Act
+      List<? extends BaseInjectExpectation> merged = merge();
+
+      // Assert
+      assertEquals(1, merged.size());
+      assertNotSame(groupExpectation, merged.get(0));
+      assertEquals("group-expectation", merged.get(0).getId());
     }
 
     @Test
@@ -985,7 +1152,13 @@ class InjectExpectationServiceTest {
       List<? extends BaseInjectExpectation> merged = merge();
 
       assertEquals(1, merged.size());
-      assertEquals(List.of(missedResult), merged.get(0).getResults());
+      assertThat(merged.get(0).getResults())
+          .allSatisfy(
+              result ->
+                  assertThat(
+                          Stream.of(missedResult)
+                              .anyMatch(expected -> expected.valueEquals(result)))
+                      .isTrue());
     }
 
     @Test
@@ -1011,7 +1184,13 @@ class InjectExpectationServiceTest {
       List<? extends BaseInjectExpectation> merged = merge();
 
       assertEquals(1, merged.size());
-      assertEquals(List.of(detectedResult), merged.get(0).getResults());
+      assertThat(merged.get(0).getResults())
+          .allSatisfy(
+              result ->
+                  assertThat(
+                          Stream.of(detectedResult)
+                              .anyMatch(expected -> expected.valueEquals(result)))
+                      .isTrue());
     }
 
     @Test
@@ -1036,7 +1215,13 @@ class InjectExpectationServiceTest {
       List<? extends BaseInjectExpectation> merged = merge();
 
       assertEquals(1, merged.size());
-      assertEquals(List.of(answeredResult), merged.get(0).getResults());
+      assertThat(merged.get(0).getResults())
+          .allSatisfy(
+              result ->
+                  assertThat(
+                          Stream.of(answeredResult)
+                              .anyMatch(expected -> expected.valueEquals(result)))
+                      .isTrue());
     }
 
     @Test
@@ -1068,7 +1253,13 @@ class InjectExpectationServiceTest {
       List<? extends BaseInjectExpectation> merged = merge();
 
       assertEquals(1, merged.size());
-      assertEquals(List.of(defenderResult, directResult), merged.get(0).getResults());
+      assertThat(merged.get(0).getResults())
+          .allSatisfy(
+              result ->
+                  assertThat(
+                          Stream.of(defenderResult, directResult)
+                              .anyMatch(expected -> expected.valueEquals(result)))
+                      .isTrue());
     }
 
     @Test

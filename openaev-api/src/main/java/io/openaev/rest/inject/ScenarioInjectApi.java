@@ -51,6 +51,7 @@ public class ScenarioInjectApi extends RestBehavior {
   private final ScenarioInjectService scenarioInjectService;
   private final InjectMapper injectMapper;
   private final BulkInjectService bulkInjectService;
+  private final FaithfulCopyTransaction faithfulCopy;
 
   // -- READ --
 
@@ -215,9 +216,16 @@ public class ScenarioInjectApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-    Inject persistedInject =
-        injectDuplicateService.duplicateInjectForScenarioWithDuplicateWordInTitle(
-            scenarioId, injectId);
+    // A faithful copy keeps the targets the user is not cleared for; the response is read back
+    // under their clearance.
+    String duplicateId =
+        faithfulCopy.execute(
+            ctx,
+            () ->
+                injectDuplicateService
+                    .duplicateInjectForScenarioWithDuplicateWordInTitle(scenarioId, injectId)
+                    .getId());
+    Inject persistedInject = injectService.inject(duplicateId);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 

@@ -8,7 +8,7 @@ import type { LoggedHelper } from '../../../../../actions/helper';
 import { registerPlatform, unregisterPlatform } from '../../../../../actions/xtmhub/xtmhub-actions';
 import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
-import { isDemoInstance, MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
+import { MESSAGING$, XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import useExternalTab from '../../../../../utils/hooks/useExternalTab';
@@ -44,7 +44,6 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
   const { settings, currentUserTenant } = useAuth();
   const registration = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const isEnterpriseEdition = settings.platform_license?.license_is_validated === true;
-  const isDemoMode = isDemoInstance(settings);
   const registrationHubUrl = settings?.xtm_hub_url ?? XTM_HUB_DEFAULT_URL;
   const registrationPlatformTitle = settings?.platform_name ?? 'OpenAEV Platform';
   const [processStep, setProcessStep] = useState<ProcessSteps>(
@@ -206,13 +205,13 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
     }
     const shouldAutoRegister = searchParams.get(XTM_HUB_AUTO_REGISTER_QUERY_PARAM) === 'true';
     clearAutoRegisterQueryParams();
-    if (isDemoMode || isRegistered || !shouldAutoRegister) {
+    if (isRegistered || !shouldAutoRegister) {
       return;
     }
     setOperationType(OperationType.REGISTER);
     setProcessStep(ProcessSteps.INSTRUCTIONS);
     setIsAutoRegistrationPromptOpen(true);
-  }, [clearAutoRegisterQueryParams, isDemoMode, isRegistered, location.search]);
+  }, [clearAutoRegisterQueryParams, isRegistered, location.search]);
 
   const config = useMemo(() => {
     const isUnregister = operationType === OperationType.UNREGISTER;
@@ -267,8 +266,6 @@ const XtmHubTab: React.FC<XtmHubTabProps> = ({ renderTrigger }) => {
     const renderer = PROCESS_RENDERERS.get(processStep);
     return renderer && isDialogOpen ? renderer() : null;
   };
-
-  if (isDemoMode) return null;
 
   return (
     <>
