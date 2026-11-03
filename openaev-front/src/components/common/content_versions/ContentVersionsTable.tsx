@@ -1,11 +1,13 @@
 import { Chip, IconButton } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
+// fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
 import { Skeleton, Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
 import { Fragment, type FunctionComponent, type ReactNode, useState } from 'react';
 import { Link } from 'react-router';
 
 import { type ContentHistoryOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
+import { FDS_ROW_DETAIL_CELL_SX, FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../fdsTableSpec';
 import TextDiff from '../update/TextDiff';
 
 // Shape of content_history_details, a free JSON object on the API side.
@@ -70,7 +72,7 @@ interface VersionsProps {
 export const ContentVersionsTable: FunctionComponent<VersionsProps> = ({ rows, usageLabel, loading = false }) => {
   const { t, nsdt } = useFormatter();
   return (
-    <Table size="small" aria-label={t('Versions')}>
+    <Table size="small" aria-label={t('Versions')} sx={FDS_TABLE_SX}>
       <TableHead>
         <TableRow>
           <TableCell>{t('Version')}</TableCell>
@@ -174,7 +176,14 @@ export const ChangesTable: FunctionComponent<{ changes: HistoryChange[] }> = ({ 
     verticalAlign: 'top',
   };
   return (
-    <Table size="small" aria-label={t('Changes')} sx={{ tableLayout: 'fixed' }}>
+    <Table
+      size="small"
+      aria-label={t('Changes')}
+      sx={{
+        ...FDS_TABLE_SX,
+        tableLayout: 'fixed',
+      }}
+    >
       <TableHead>
         <TableRow>
           <TableCell sx={{ width: '20%' }}>{t('Field')}</TableCell>
@@ -266,64 +275,68 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
   return (
     <>
       {/* Fixed layout: opening a long before/after value must not resize the columns. */}
-      <Table
-        size="small"
-        aria-label={t('History')}
-        sx={{
-          'tableLayout': 'fixed',
-          '& tr:last-child > td': { borderBottom: 0 },
-        }}
-      >
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ width: '24%' }}>{t('History')}</TableCell>
-            <TableCell>{t('Changes')}</TableCell>
-            <TableCell sx={{ width: '14%' }}>{t('User')}</TableCell>
-            <TableCell sx={{ width: '16%' }}>{t('Date')}</TableCell>
-            <TableCell sx={{ width: 48 }} />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {loading && history.length === 0 && <SkeletonRows rows={3} columns={5} />}
-          {!loading && history.length === 0 && (
+      <div style={FDS_TABLE_FRAME_STYLE}>
+        <Table
+          size="small"
+          aria-label={t('History')}
+          sx={{
+            ...FDS_TABLE_SX,
+            'tableLayout': 'fixed',
+            '& tr:last-child > td': { borderBottom: 0 },
+          }}
+        >
+          <TableHead>
             <TableRow>
-              <TableCell colSpan={5}>{t('No history yet')}</TableCell>
+              <TableCell sx={{ width: '24%' }}>{t('History')}</TableCell>
+              <TableCell>{t('Changes')}</TableCell>
+              <TableCell sx={{ width: '14%' }}>{t('User')}</TableCell>
+              <TableCell sx={{ width: '16%' }}>{t('Date')}</TableCell>
+              <TableCell sx={{ width: 48 }} />
             </TableRow>
-          )}
-          {history.slice(page * HISTORY_PER_PAGE, (page + 1) * HISTORY_PER_PAGE).map((entry) => {
-            const changes = historyDetails(entry)?.changes ?? [];
-            const open = opened === entry.content_history_id;
-            return (
-              <Fragment key={entry.content_history_id}>
-                <TableRow>
-                  <TableCell>{label(entry)}</TableCell>
-                  <TableCell sx={{ overflowWrap: 'anywhere' }}>{summary(entry)}</TableCell>
-                  <TableCell>{entry.content_history_user ?? (entry.content_history_automatic ? t('Platform') : '-')}</TableCell>
-                  <TableCell>{entry.content_history_created_at ? nsdt(entry.content_history_created_at) : '-'}</TableCell>
-                  <TableCell align="right">
-                    {changes.length > 0 && (
-                      <IconButton
-                        priority="tertiary"
-                        size="sm"
-                        icon={open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                        aria-label={open ? t('Hide the changes') : t('Show the changes')}
-                        onClick={() => setOpened(open ? null : entry.content_history_id)}
-                      />
-                    )}
-                  </TableCell>
-                </TableRow>
-                {open && (
-                  <TableRow>
-                    <TableCell colSpan={5}>
-                      <ChangesTable changes={changes} />
+          </TableHead>
+          <TableBody>
+            {loading && history.length === 0 && <SkeletonRows rows={3} columns={5} />}
+            {!loading && history.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5}>{t('No history yet')}</TableCell>
+              </TableRow>
+            )}
+            {history.slice(page * HISTORY_PER_PAGE, (page + 1) * HISTORY_PER_PAGE).map((entry) => {
+              const changes = historyDetails(entry)?.changes ?? [];
+              const open = opened === entry.content_history_id;
+              return (
+                <Fragment key={entry.content_history_id}>
+                  <TableRow selected={open}>
+                    <TableCell>{label(entry)}</TableCell>
+                    <TableCell sx={{ overflowWrap: 'anywhere' }}>{summary(entry)}</TableCell>
+                    <TableCell>{entry.content_history_user ?? (entry.content_history_automatic ? t('Platform') : '-')}</TableCell>
+                    <TableCell>{entry.content_history_created_at ? nsdt(entry.content_history_created_at) : '-'}</TableCell>
+                    <TableCell align="right">
+                      {changes.length > 0 && (
+                        <IconButton
+                          priority="tertiary"
+                          size="sm"
+                          icon={open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                          aria-label={open ? t('Hide the changes') : t('Show the changes')}
+                          onClick={() => setOpened(open ? null : entry.content_history_id)}
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
-                )}
-              </Fragment>
-            );
-          })}
-        </TableBody>
-      </Table>
+                  {open && (
+                  // Table row detail of the DS: the field by field change on the highlight surface.
+                    <TableRow>
+                      <TableCell colSpan={5} sx={FDS_ROW_DETAIL_CELL_SX}>
+                        <ChangesTable changes={changes} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
       {history.length > HISTORY_PER_PAGE && (
         <TablePagination
           component="div"

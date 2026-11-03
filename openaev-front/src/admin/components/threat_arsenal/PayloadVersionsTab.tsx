@@ -11,6 +11,7 @@ import {
   fetchThreatArsenalVersions,
 } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
 import { SkeletonRows } from '../../../components/common/content_versions/ContentVersionsTable';
+import { FDS_GROUP_ROW_STYLE, FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../../../components/common/fdsTableSpec';
 import { useFormatter } from '../../../components/i18n';
 import {
   type PayloadUsageOutput,
@@ -22,7 +23,6 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import VersionApprovalPanel from './approval/VersionApprovalPanel';
-import { FDS_GROUP_ROW_STYLE, FDS_TABLE_SX } from './fdsTableSpec';
 import PayloadOriginChip from './PayloadOriginChip';
 import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
 import PayloadVersionSelect from './PayloadVersionSelect';
@@ -124,20 +124,12 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
   const sectionSx = {
     paddingInline: 2,
     paddingBlock: 1.5,
-    borderTop: 1,
-    borderColor: 'divider',
+    borderBottom: '1px solid var(--border-elevation-subtle-soft)',
   };
 
   return (
-    <Box
-      ref={rowRef}
-      sx={{
-        border: 1,
-        borderColor: 'divider',
-        borderRadius: 1,
-        overflow: 'hidden',
-      }}
-    >
+    // One group of the versions table (its frame is the list): no box of its own.
+    <Box ref={rowRef}>
       <Box
         role="button"
         tabIndex={0}
@@ -149,14 +141,19 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
             setExpanded(!expanded);
           }
         }}
-        // The version is a Table group row of the DS (chevron, bold label, count).
-        sx={{
+        // The version is a Table group row of the DS: chevron, bold label, (count), then its chips.
+        style={{
           ...FDS_GROUP_ROW_STYLE,
           cursor: 'pointer',
         }}
       >
         {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
         <Text variant="content-base-bold">{`v${source.payload_version ?? '-'}`}</Text>
+        {source.payload_installed && (
+          <Text variant="content-base" className="text-default-secondary">
+            {`(${t('{count} injects', { count: String(loading ? usageCount : usages.length) })})`}
+          </Text>
+        )}
         {!source.payload_installed && <Chip label={t('Not installed')} />}
         {source.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
         {/* Where the version comes from, not a second "Verified" (the lifecycle status): Filigran versions need no approval. */}
@@ -164,13 +161,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
         {source.payload_installed && !source.payload_managed && (pending || source.payload_approval_status === 'REJECTED')
           && <ApprovalStatusChip status={source.payload_approval_status} />}
         <Box sx={{ flex: 1 }} />
-        {source.payload_installed
-          ? (
-              <Text variant="content-compact" className="text-default-secondary">
-                {t('{count} injects', { count: String(loading ? usageCount : usages.length) })}
-              </Text>
-            )
-          : <span onClick={event => event.stopPropagation()}>{installAction}</span>}
+        {!source.payload_installed && <span onClick={event => event.stopPropagation()}>{installAction}</span>}
       </Box>
       <Collapse in={expanded} unmountOnExit>
         {source.payload_installed && pending && !source.payload_managed && (
@@ -402,26 +393,31 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onA
     }}
     >
       {loading && versions.length === 0 && [0, 1].map(key => <Skeleton key={key} variant="rounded" height={96} />)}
-      {pageVersions.map(source => (
-        <VersionUsages
-          key={source.payload_version}
-          source={source}
-          usages={source.payload_action_id ? usages[source.payload_action_id] ?? [] : []}
-          targets={versions.filter(v => v.payload_version && v.payload_version !== source.payload_version && !v.payload_revoked && v.payload_approval_status !== 'PENDING' && v.payload_approval_status !== 'REJECTED')}
-          canMigrate={canManage}
-          loading={!!source.payload_action_id && (loadingUsages.has(source.payload_action_id) || (!usages[source.payload_action_id] && (source.payload_usage_count ?? 0) > 0))}
-          installAction={installButton(source)}
-          focus={isFocused(source)}
-          folded={!!firstFocused && !isFocused(source)}
-          scrollIntoView={source === firstFocused}
-          baseline={listed.slice(listed.indexOf(source) + 1).find(v => v.payload_installed && v.payload_approval_status === 'APPROVED')}
-          onDecided={(updated) => {
-            reload();
-            onApprovalChanged?.(updated.action_id, updated.action_approval_status, !!updated.action_pending_version);
-          }}
-          onMigrate={migrate}
-        />
-      ))}
+      {/* One DS table: each version a group row, its injects the rows under it. */}
+      {pageVersions.length > 0 && (
+        <div style={FDS_TABLE_FRAME_STYLE}>
+          {pageVersions.map(source => (
+            <VersionUsages
+              key={source.payload_version}
+              source={source}
+              usages={source.payload_action_id ? usages[source.payload_action_id] ?? [] : []}
+              targets={versions.filter(v => v.payload_version && v.payload_version !== source.payload_version && !v.payload_revoked && v.payload_approval_status !== 'PENDING' && v.payload_approval_status !== 'REJECTED')}
+              canMigrate={canManage}
+              loading={!!source.payload_action_id && (loadingUsages.has(source.payload_action_id) || (!usages[source.payload_action_id] && (source.payload_usage_count ?? 0) > 0))}
+              installAction={installButton(source)}
+              focus={isFocused(source)}
+              folded={!!firstFocused && !isFocused(source)}
+              scrollIntoView={source === firstFocused}
+              baseline={listed.slice(listed.indexOf(source) + 1).find(v => v.payload_installed && v.payload_approval_status === 'APPROVED')}
+              onDecided={(updated) => {
+                reload();
+                onApprovalChanged?.(updated.action_id, updated.action_approval_status, !!updated.action_pending_version);
+              }}
+              onMigrate={migrate}
+            />
+          ))}
+        </div>
+      )}
       {pageCount > 1 && (
         <Pagination
           count={pageCount}

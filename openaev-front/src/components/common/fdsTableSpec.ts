@@ -1,6 +1,6 @@
 import { type CSSProperties } from 'react';
 
-import { tint } from '../../../utils/tint';
+import { tint } from '../../utils/tint';
 
 // FDS-WORKAROUND: MUI Table dressed as the Figma DS Table (8582:34772) — remove when the library ships Table — see sf-approval-card-ooux.md §7
 
@@ -26,7 +26,20 @@ export const FDS_TABLE_SX = {
   '& .MuiTableBody-root .MuiTableRow-root.Mui-selected, & .MuiTableBody-root .MuiTableRow-root.Mui-selected:hover': { backgroundColor: tint('var(--color-filigran-brand-primary)', 10) },
 };
 
-/** Table group row: chevron, bold label, count in the secondary ink, on the highlight surface (44px). */
+/** The frame around a table (and its group rows): one soft border, rounded. */
+export const FDS_TABLE_FRAME_STYLE: CSSProperties = {
+  border: BORDER,
+  borderRadius: 4,
+  overflow: 'hidden',
+};
+
+/** `sx` of the cell holding an opened row's detail (Table row detail): on the highlight surface. */
+export const FDS_ROW_DETAIL_CELL_SX = {
+  backgroundColor: 'var(--bg-elevation-highlight)',
+  padding: '16px !important',
+};
+
+/** Table group row: chevron, bold label, count in the secondary ink, on the highlight surface (44px). Use as `style`, not `sx`. */
 export const FDS_GROUP_ROW_STYLE: CSSProperties = {
   display: 'flex',
   alignItems: 'center',

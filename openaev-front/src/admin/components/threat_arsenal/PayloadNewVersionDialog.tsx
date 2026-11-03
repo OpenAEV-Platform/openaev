@@ -23,6 +23,7 @@ import {
   fetchThreatArsenalUsages,
   fetchThreatArsenalVersions,
 } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
+import { FDS_GROUP_ROW_STYLE, FDS_SELECT_ALL_BANNER_STYLE, FDS_TABLE_SX } from '../../../components/common/fdsTableSpec';
 import { useFormatter } from '../../../components/i18n';
 import {
   type PayloadUsageOutput,
@@ -30,7 +31,6 @@ import {
   type PayloadVersionOutput,
 } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
-import { FDS_GROUP_ROW_STYLE, FDS_SELECT_ALL_BANNER_STYLE, FDS_TABLE_SX } from './fdsTableSpec';
 import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
 
 interface Props {
@@ -65,6 +65,14 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
   const [moving, setMoving] = useState(false);
   // Large list: how many injects of each older version are shown (0 = folded).
   const [shown, setShown] = useState<Record<string, number>>({});
+  // A few: every version open, each foldable from its group row.
+  const [foldedSmall, setFoldedSmall] = useState<Set<string>>(new Set());
+  const toggleFoldedSmall = (id: string) => setFoldedSmall((previous) => {
+    const next = new Set(previous);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
 
   useEffect(() => {
     fetchThreatArsenalVersions(previousActionId).then(async (response: { data: PayloadVersionOutput[] }) => {
@@ -194,6 +202,16 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
               <TableRow>
                 <TableCell colSpan={canMigrate ? 4 : 3} sx={{ padding: '0 !important' }}>
                   <div style={FDS_GROUP_ROW_STYLE}>
+                    <IconButton
+                      size="sm"
+                      priority="tertiary"
+                      aria-expanded={!foldedSmall.has(source.version.payload_id ?? '')}
+                      aria-label={foldedSmall.has(source.version.payload_id ?? '')
+                        ? t('Show the injects on v{version}', { version: source.version.payload_version ?? '' })
+                        : t('Hide the injects on v{version}', { version: source.version.payload_version ?? '' })}
+                      icon={foldedSmall.has(source.version.payload_id ?? '') ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
+                      onClick={() => toggleFoldedSmall(source.version.payload_id ?? '')}
+                    />
                     <Text variant="content-base-bold">{`v${source.version.payload_version}`}</Text>
                     {source.version.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
                     <Text variant="content-base" className="text-default-secondary">
@@ -202,7 +220,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
                   </div>
                 </TableCell>
               </TableRow>
-              {usageRows(source.usages)}
+              {!foldedSmall.has(source.version.payload_id ?? '') && usageRows(source.usages)}
             </Fragment>
           ))}
         </TableBody>
