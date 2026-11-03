@@ -1,5 +1,6 @@
 import { Button, Checkbox, Chip, Spinner, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
+// fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
 import { Alert, Box, Collapse, Pagination, Skeleton, Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
 import { type FunctionComponent, type ReactNode, useEffect, useRef, useState } from 'react';
 
@@ -21,6 +22,7 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import VersionApprovalPanel from './approval/VersionApprovalPanel';
+import { FDS_GROUP_ROW_STYLE, FDS_TABLE_SX } from './fdsTableSpec';
 import PayloadOriginChip from './PayloadOriginChip';
 import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
 import PayloadVersionSelect from './PayloadVersionSelect';
@@ -147,13 +149,9 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
             setExpanded(!expanded);
           }
         }}
+        // The version is a Table group row of the DS (chevron, bold label, count).
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          paddingInline: 2,
-          paddingBlock: 1.5,
-          backgroundColor: 'action.hover',
+          ...FDS_GROUP_ROW_STYLE,
           cursor: 'pointer',
         }}
       >
@@ -202,7 +200,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
           </Box>
         )}
         {source.payload_installed && ((loading && usageCount > 0) || usages.length > 0) && (
-          <Table size="small" aria-label={t('Injects on v{version}', { version: source.payload_version ?? '-' })}>
+          <Table size="small" sx={FDS_TABLE_SX} aria-label={t('Injects on v{version}', { version: source.payload_version ?? '-' })}>
             <TableHead>
               <TableRow>
                 {canMigrate && (

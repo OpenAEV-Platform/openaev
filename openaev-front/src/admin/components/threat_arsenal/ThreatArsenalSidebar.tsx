@@ -13,7 +13,7 @@ import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type SearchPaginationInput } from '../../../utils/api-types';
 import { type IconBarElement } from '../common/domains/IconBar-model';
-import { APPROVAL_STATUSES, approvalStatusLabel } from './approval/approvalStatusUtils';
+import { APPROVAL_STATUSES, approvalStatusLabel, NEW_VERSION_HINT } from './approval/approvalStatusUtils';
 import { type ThreatArsenalFacetCounts } from './useThreatArsenalFacetCounts';
 
 const PLATFORM_FILTER_KEY = 'action_platforms';
@@ -97,6 +97,7 @@ const ThreatArsenalSidebar = ({ domainElements, authorOptions, facetCounts, newV
     approvalRows.push({
       value: 'NEW_VERSION',
       label: t('New version pending'),
+      hint: t(NEW_VERSION_HINT),
       count: newVersionCount,
       checked: pendingVersionValues.includes('true'),
       onToggle: () => toggleValue(PENDING_VERSION_FILTER_KEY, 'true'),

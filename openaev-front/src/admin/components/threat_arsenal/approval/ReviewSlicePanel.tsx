@@ -1,4 +1,4 @@
-import { Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Text } from '@filigran/design-system';
+import { Select, SelectContent, SelectItem, SelectLabel, SelectTrigger, SelectValue, Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 
@@ -9,6 +9,8 @@ export interface SliceValue {
   value: string;
   label: string;
   count: number;
+  /** Explains the value on hover (e.g. what "New versions" means). */
+  hint?: string;
 }
 
 interface Props {
@@ -38,8 +40,39 @@ const ReviewSlicePanel: FunctionComponent<Props> = ({ fields, field, values, tot
     kind: t('Type'),
   };
 
-  const row = (value: string | null, label: string, count: number) => {
+  const row = (value: string | null, label: string, count: number, hint?: string) => {
     const active = value === selected;
+    const button = (
+      <button
+        type="button"
+        aria-pressed={active}
+        onClick={() => onSelect(value)}
+        style={{
+          all: 'unset',
+          boxSizing: 'border-box',
+          cursor: 'pointer',
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing(1),
+          padding: theme.spacing(0.75, 1),
+        }}
+      >
+        <Text
+          variant={active ? 'content-base-bold' : 'content-base'}
+          style={{
+            flex: 1,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={hint ? undefined : label}
+        >
+          {label}
+        </Text>
+        <Text variant="content-caption" className="text-default-secondary">{String(count)}</Text>
+      </button>
+    );
     return (
       <li
         key={value ?? 'all'}
@@ -49,35 +82,14 @@ const ReviewSlicePanel: FunctionComponent<Props> = ({ fields, field, values, tot
           boxShadow: active ? `inset 3px 0 0 ${theme.palette.primary.main}` : undefined,
         }}
       >
-        <button
-          type="button"
-          aria-pressed={active}
-          onClick={() => onSelect(value)}
-          style={{
-            all: 'unset',
-            boxSizing: 'border-box',
-            cursor: 'pointer',
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing(1),
-            padding: theme.spacing(0.75, 1),
-          }}
-        >
-          <Text
-            variant={active ? 'content-base-bold' : 'content-base'}
-            style={{
-              flex: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-            title={label}
-          >
-            {label}
-          </Text>
-          <Text variant="content-caption" className="text-default-secondary">{String(count)}</Text>
-        </button>
+        {hint
+          ? (
+              <Tooltip>
+                <TooltipTrigger asChild>{button}</TooltipTrigger>
+                <TooltipContent side="right">{hint}</TooltipContent>
+              </Tooltip>
+            )
+          : button}
       </li>
     );
   };
@@ -127,7 +139,7 @@ const ReviewSlicePanel: FunctionComponent<Props> = ({ fields, field, values, tot
         }}
         >
           {row(null, t('All'), total)}
-          {values.map(value => row(value.value, value.label, value.count))}
+          {values.map(value => row(value.value, value.label, value.count, value.hint))}
         </ul>
       </nav>
     </aside>

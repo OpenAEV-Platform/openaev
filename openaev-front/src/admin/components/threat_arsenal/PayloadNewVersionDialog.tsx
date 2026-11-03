@@ -7,12 +7,14 @@ import {
   DialogContent,
   DialogFooter,
   DialogTitle,
+  IconButton,
   Spinner,
   Text,
 } from '@filigran/design-system';
 import { ArrowForwardOutlined, ExpandLess, ExpandMore } from '@mui/icons-material';
+// fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { useTheme } from '@mui/material/styles';
 import { Fragment, type FunctionComponent, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
@@ -28,6 +30,7 @@ import {
   type PayloadVersionOutput,
 } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
+import { FDS_GROUP_ROW_STYLE, FDS_SELECT_ALL_BANNER_STYLE, FDS_TABLE_SX } from './fdsTableSpec';
 import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
 
 interface Props {
@@ -164,11 +167,11 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
     <div style={{
       maxHeight: 360,
       overflowY: 'auto',
-      border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+      border: '1px solid var(--border-elevation-subtle-soft)',
       borderRadius: theme.shape.borderRadius,
     }}
     >
-      <Table size="small" stickyHeader aria-label={t('Injects on older versions')}>
+      <Table size="small" stickyHeader sx={FDS_TABLE_SX} aria-label={t('Injects on older versions')}>
         <TableHead>
           <TableRow>
             {canMigrate && (
@@ -189,17 +192,12 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
           {(sources ?? []).map(source => (
             <Fragment key={source.version.payload_id}>
               <TableRow>
-                <TableCell colSpan={canMigrate ? 4 : 3}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                  >
+                <TableCell colSpan={canMigrate ? 4 : 3} sx={{ padding: '0 !important' }}>
+                  <div style={FDS_GROUP_ROW_STYLE}>
                     <Text variant="content-base-bold">{`v${source.version.payload_version}`}</Text>
                     {source.version.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
-                    <Text variant="content-compact" className="text-default-secondary">
-                      {t('{count} injects', { count: String(source.usages.length) })}
+                    <Text variant="content-base" className="text-default-secondary">
+                      {`(${t('{count} injects', { count: String(source.usages.length) })})`}
                     </Text>
                   </div>
                 </TableCell>
@@ -216,22 +214,15 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
   // and "Select all" across versions, as in Gmail.
   const renderSummary = () => (
     <div style={{
-      border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+      border: '1px solid var(--border-elevation-subtle-soft)',
       borderRadius: theme.shape.borderRadius,
       maxHeight: 420,
       overflowY: 'auto',
     }}
     >
       {canMigrate && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '8px 12px',
-          backgroundColor: alpha(theme.palette.text.primary, 0.04),
-        }}
-        >
-          <Text variant="content-compact">
+        <div style={FDS_SELECT_ALL_BANNER_STYLE}>
+          <Text variant="content-base">
             {t('{selected} of {count} selected', {
               selected: String(selected.size),
               count: String(allUsages.length),
@@ -252,14 +243,21 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
         const chosen = ids.filter(usageId => selected.has(usageId)).length;
         const visible = shown[id] ?? 0;
         return (
-          <div key={id} style={{ borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.08)}` }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 12px',
-            }}
-            >
+          <div key={id}>
+            <div style={FDS_GROUP_ROW_STYLE}>
+              <IconButton
+                size="sm"
+                priority="tertiary"
+                aria-expanded={visible > 0}
+                aria-label={visible > 0
+                  ? t('Hide the injects on v{version}', { version: source.version.payload_version ?? '' })
+                  : t('Show the injects on v{version}', { version: source.version.payload_version ?? '' })}
+                icon={visible > 0 ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                onClick={() => setShown({
+                  ...shown,
+                  [id]: visible > 0 ? 0 : PAGE_SIZE,
+                })}
+              />
               {canMigrate && (
                 <Checkbox
                   aria-label={t('Every inject on v{version}', { version: source.version.payload_version ?? '' })}
@@ -269,34 +267,21 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
               )}
               <Text variant="content-base-bold">{`v${source.version.payload_version}`}</Text>
               {source.version.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
-              <Text variant="content-compact" className="text-default-secondary">
-                {t('{count, plural, one {# inject} other {# injects}} in {scenarios, plural, one {# scenario} other {# scenarios}}', {
+              <Text variant="content-base" className="text-default-secondary">
+                {`(${t('{count, plural, one {# inject} other {# injects}} in {scenarios, plural, one {# scenario} other {# scenarios}}', {
                   count: String(ids.length),
                   scenarios: String(scenarioCount(source.usages)),
-                })}
+                })})`}
               </Text>
               {canMigrate && chosen > 0 && chosen < ids.length && (
-                <Text variant="content-compact" className="text-default-secondary">
-                  {`· ${t('{count} selected', { count: String(chosen) })}`}
+                <Text variant="content-compact" className="text-default-secondary" style={{ marginLeft: 'auto' }}>
+                  {t('{count} selected', { count: String(chosen) })}
                 </Text>
               )}
-              <span style={{ flex: 1 }} />
-              <Button
-                priority="tertiary"
-                size="sm"
-                aria-expanded={visible > 0}
-                endIcon={visible > 0 ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                onClick={() => setShown({
-                  ...shown,
-                  [id]: visible > 0 ? 0 : PAGE_SIZE,
-                })}
-              >
-                {visible > 0 ? t('Hide') : t('Show injects')}
-              </Button>
             </div>
             {visible > 0 && (
               <>
-                <Table size="small" aria-label={t('Injects on v{version}', { version: source.version.payload_version ?? '' })}>
+                <Table size="small" sx={FDS_TABLE_SX} aria-label={t('Injects on v{version}', { version: source.version.payload_version ?? '' })}>
                   <TableBody>{usageRows(source.usages.slice(0, visible))}</TableBody>
                 </Table>
                 {visible < ids.length && (

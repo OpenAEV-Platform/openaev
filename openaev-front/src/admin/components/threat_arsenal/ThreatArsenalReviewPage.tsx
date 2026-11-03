@@ -40,7 +40,7 @@ import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
 import { tint } from '../../../utils/tint';
-import { displayedApprovalStatus } from './approval/approvalStatusUtils';
+import { displayedApprovalStatus, NEW_ACTION_HINT, NEW_VERSION_HINT } from './approval/approvalStatusUtils';
 import ReviewSlicePanel, { type SliceValue } from './approval/ReviewSlicePanel';
 import {
   ALL_VIEWS_AS_TABS,
@@ -157,6 +157,10 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
     new: t('New actions'),
     version: t('New versions'),
   };
+  const sliceHints: Record<string, string> = {
+    new: t(NEW_ACTION_HINT),
+    version: t(NEW_VERSION_HINT),
+  };
   const sliceValues: SliceValue[] = Object.entries(unsliced.reduce<Record<string, number>>((acc, item) => {
     const value = sliceValueOf(item, filters.sliceField, context);
     return {
@@ -167,6 +171,7 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
     .map(([value, count]) => ({
       value,
       label: sliceLabels[value] ?? value,
+      hint: sliceHints[value],
       count,
     }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));

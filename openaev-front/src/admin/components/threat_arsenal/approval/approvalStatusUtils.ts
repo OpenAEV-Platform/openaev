@@ -60,3 +60,7 @@ export const APPROVAL_COMMENT_MAX_LENGTH = 2000;
 /** Whether a payload is used by at least one atomic testing, scenario or simulation still to run. */
 export const isPayloadUsed = (usage?: ThreatArsenalActionUsageOutput) => !!usage
   && (usage.usage_atomic_testings_count ?? 0) + (usage.usage_scenarios_count ?? 0) + (usage.usage_simulations_count ?? 0) > 0;
+
+/** What "New action" and "New version" mean, said the same way wherever they appear (chips, filters). */
+export const NEW_ACTION_HINT = 'New action: created for the first time. Nothing can use it until it is approved.';
+export const NEW_VERSION_HINT = 'New version: a change to an action already in use. The approved version keeps running until someone decides on the change.';

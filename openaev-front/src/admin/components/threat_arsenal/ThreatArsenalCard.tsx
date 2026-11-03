@@ -15,7 +15,7 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import InjectIcon from '../common/injects/InjectIcon';
 import { isBuiltinConnector } from '../integrations/common/builtinConnectorDescriptions';
-import { approvalStatusSeverity, displayedApprovalStatus } from './approval/approvalStatusUtils';
+import { approvalStatusSeverity, displayedApprovalStatus, NEW_ACTION_HINT, NEW_VERSION_HINT } from './approval/approvalStatusUtils';
 import { PAYLOAD_ORIGIN_LABELS, payloadOrigin } from './payloadOrigin';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import ThreatArsenalCardBanner from './ThreatArsenalCardBanner';
@@ -119,12 +119,11 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   // rejected); the hover says it in full.
   const approvalKind = isNewVersion ? t('New version') : t('New action');
   const approvalState = approvalStatus === 'REJECTED' ? t('Rejected') : t('Pending');
-  let approvalHint = t('Rejected: edit it to submit it for approval again.');
-  if (approvalStatus === 'PENDING') {
-    approvalHint = isNewVersion
-      ? t('A new version waits for approval. The approved version keeps running until then.')
-      : t('A new action waits for approval. It cannot be used until it is approved.');
-  }
+  // The kind chip says what it is, the state chip where it stands.
+  const kindHint = t(isNewVersion ? NEW_VERSION_HINT : NEW_ACTION_HINT);
+  const stateHint = approvalStatus === 'REJECTED'
+    ? t('Rejected: edit it to submit it for approval again.')
+    : t('Pending: waits for someone who can approve content to decide.');
   const name = tPick(action.action_labels);
   // Trust line (idea A): version and source together, as in the drawer.
   const origin = payloadOrigin(action.action_payload);
@@ -231,8 +230,8 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       // the DS layout (one status and the platforms), so nothing truncates.
       statusRow={approvalNeedsAttention && (
         <>
-          <HintChip label={approvalKind} hint={approvalHint} maxWidth={140} />
-          <HintChip label={approvalState} hint={approvalHint} severity={approvalStatusSeverity(approvalStatus)} maxWidth={120} />
+          <HintChip label={approvalKind} hint={kindHint} maxWidth={140} />
+          <HintChip label={approvalState} hint={stateHint} severity={approvalStatusSeverity(approvalStatus)} maxWidth={120} />
         </>
       )}
       platforms={[]}
