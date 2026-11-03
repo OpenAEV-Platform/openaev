@@ -61,14 +61,13 @@ public class AssetMarkingsApi extends RestBehavior {
             description = "Missing marking capability for what this payload changes"),
         @ApiResponse(responseCode = "404", description = "Asset or marking not found")
       })
-  // MANAGE_MARKING_ASSIGNMENT and escalation are checked in
-  // AssetMarkingsService.updateAssetMarkings instead - see its doc.
+  // MANAGE_MARKING_ASSIGNMENT and escalation are checked in AssetMarkingsService instead - see its
+  // doc.
   public AssetMarkingsOutput updateAssetMarkings(
       TxCtx ctx,
       @PathVariable @NotBlank final String assetId,
       @Valid @RequestBody final AssetUpdateMarkingsInput input) {
-    // Tenant resolved here and passed down, per the multi-tenancy convention: the service never
-    // touches TenantContext. It is the tenant whose clearance the caller is checked against.
+    // Tenant resolved here and passed down - the service never touches TenantContext directly.
     return AssetMarkingsOutput.from(
         assetMarkingsService.updateAssetMarkings(
             writeScopeResolver.tenantForWrite(ctx, null), assetId, input));

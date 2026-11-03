@@ -78,8 +78,7 @@ public class AssetService {
    * fields such as platform / arch live on the subclass and cannot be resolved on the base root).
    */
   public Page<Asset> searchAssets(@NotNull final SearchPaginationInput searchPaginationInput) {
-    // Security platforms are a distinct concept with their own inventory, so they are excluded
-    // here; the unified asset inventory lists endpoints, AI targets and every other asset category.
+    // Security platforms have their own inventory and are excluded from this unified one.
     Specification<Asset> notSecurityPlatform =
         (root, query, cb) -> cb.notEqual(root.get("type"), AssetType.Values.SECURITY_PLATFORM_TYPE);
     return buildPaginationJPA(
@@ -149,8 +148,7 @@ public class AssetService {
         () -> {
           Specification<Asset> specification;
           if (input.getSearchPaginationInput() != null) {
-            // Same specification chain as the inventory search (filter group + text search),
-            // so the bulk scope matches exactly what the user sees in the list.
+            // Same specification chain as the inventory search, so the bulk scope matches the list.
             specification =
                 FilterUtilsJpa.<Asset>computeFilterGroupJpa(
                         input.getSearchPaginationInput().getFilterGroup())
@@ -163,22 +161,19 @@ public class AssetService {
             specification =
                 specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
           }
-          // Security platforms are managed from their dedicated area and never surface in the
-          // unified inventory: keep them out of the bulk scope even when their ids are
-          // explicitly provided.
+          // Keep security platforms out of the bulk scope even when their ids are explicitly
+          // provided.
           specification =
               specification.and(
                   (root, query, cb) ->
                       cb.notEqual(root.get("type"), AssetType.Values.SECURITY_PLATFORM_TYPE));
-          // Project only the ids: bulk scopes can span very large inventories, so loading
-          // the full entities just to extract ids would create a needless memory spike and
-          // lengthen the scope-resolution transaction.
+          // Project only the ids: loading full entities just to extract ids wastes memory at scale.
           return resolveAssetIds(specification);
         });
   }
 
-  // Criteria query selecting only the id column, so scope resolution never materialises full
-  // Asset entities (goes through the Hibernate session, so the tenant filter still applies).
+  // Criteria query selecting only the id column, via the Hibernate session so the tenant filter
+  // still applies.
   private List<String> resolveAssetIds(final Specification<Asset> specification) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
     CriteriaQuery<String> query = cb.createQuery(String.class);
@@ -208,8 +203,7 @@ public class AssetService {
    * asset category so pickers can group the inventory.
    */
   public List<AssetOptionOutput> getOptionsByName(final String searchText, Pageable pageable) {
-    // The repository query requires a non-null term (null binds break PostgreSQL type inference);
-    // an empty string matches every asset.
+    // A null bind breaks PostgreSQL type inference; an empty string matches every asset instead.
     String term = StringUtils.trimToEmpty(searchText);
     return this.assetRepository.findAllOptionsByName(term, pageable).stream()
         .map(
@@ -231,9 +225,7 @@ public class AssetService {
     if (CollectionUtils.isEmpty(ids)) {
       return List.of();
     }
-    // instanceof rather than the type discriminator string: the discriminator field is
-    // read-only (insertable = false) and not hydrated on entities created in the current
-    // persistence context, while the concrete class is always reliable.
+    // instanceof rather than the discriminator string: it's read-only and not always hydrated.
     return fromIterable(this.assetRepository.findAllById(ids)).stream()
         .filter(a -> !(a instanceof SecurityPlatform))
         .map(a -> new FilterUtilsJpa.Option(a.getId(), a.getName()))
