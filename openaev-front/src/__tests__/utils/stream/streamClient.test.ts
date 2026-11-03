@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DATA_DELETE_SUCCESS, DATA_FETCH_SUCCESS, DATA_UPDATE_SUCCESS } from '../../../constants/ActionTypes';
-import { type EntityChange } from '../../../utils/stream/entityChange';
+import { type EntityChange } from '../../../utils/query/entityChange';
 import type * as StreamClientModule from '../../../utils/stream/streamClient';
 import FakeEventSource from './fakeEventSource';
 
@@ -253,6 +253,27 @@ describe('streamClient', () => {
       expect(lost).toHaveBeenCalledTimes(2);
     });
 
+    it('given_aSilentConnectionDroppedByTheWatchdog_should_reportTheOutageOnceAndStayUnhealthy', () => {
+      // Arrange
+      const lost = vi.fn();
+      client.onConnectionLost(lost);
+      client.startStream();
+      FakeEventSource.last.emit('open');
+
+      // Act: no ping for 6 s, then the reconnected stream stays silent too
+      vi.advanceTimersByTime(6000);
+      const lostWhenDropped = lost.mock.calls.length;
+      const healthyWhenDropped = client.isStreamHealthy();
+      vi.advanceTimersByTime(12_000);
+
+      // Assert: dropped at 6 s, reconnected at 8 s, dropped again at 14 s, reconnected at 16 s
+      expect(lostWhenDropped).toBe(1);
+      expect(healthyWhenDropped).toBe(false);
+      expect(FakeEventSource.instances).toHaveLength(3);
+      expect(lost).toHaveBeenCalledTimes(1);
+      expect(client.isStreamHealthy()).toBe(false);
+    });
+
     it('given_anOutageOverThirtySeconds_should_backOffToTenSeconds', () => {
       // Arrange
       client.startStream();
@@ -270,6 +291,39 @@ describe('streamClient', () => {
       expect(FakeEventSource.instances).toHaveLength(2);
       vi.advanceTimersByTime(1);
       expect(FakeEventSource.instances).toHaveLength(3);
+    });
+
+    it('given_anOutageOverFiveMinutes_should_backOffToThirtySeconds', () => {
+      // Arrange
+      client.startStream();
+      FakeEventSource.last.emit('open');
+      FakeEventSource.last.onerror?.();
+      vi.advanceTimersByTime(2000);
+      expect(FakeEventSource.instances).toHaveLength(2);
+
+      // Act
+      vi.setSystemTime(Date.now() + 300_000);
+      FakeEventSource.last.onerror?.();
+
+      // Assert
+      vi.advanceTimersByTime(29_999);
+      expect(FakeEventSource.instances).toHaveLength(2);
+      vi.advanceTimersByTime(1);
+      expect(FakeEventSource.instances).toHaveLength(3);
+    });
+
+    it('given_anError_should_reportTheStreamUnhealthyToTheLostHandlers', () => {
+      // Arrange: pings are recent, only the error tells the connection is broken
+      const healthSeenByHandler: boolean[] = [];
+      client.onConnectionLost(() => healthSeenByHandler.push(client.isStreamHealthy()));
+      client.startStream();
+      FakeEventSource.last.emit('open');
+
+      // Act
+      FakeEventSource.last.onerror?.();
+
+      // Assert
+      expect(healthSeenByHandler).toEqual([false]);
     });
 
     it('given_aDeviceSleepThenABrokenConnection_should_reconnectWithinTwoSeconds', () => {
@@ -334,18 +388,6 @@ describe('streamClient', () => {
       // Assert
       expect(opens).toEqual([true, true]);
     });
-
-    it('given_aStartAndAStop_should_tellWhetherTheStreamOpened', () => {
-      // Arrange
-      client.startStream();
-
-      // Act / Assert
-      expect(client.hasStreamOpened()).toBe(false);
-      FakeEventSource.last.emit('open');
-      expect(client.hasStreamOpened()).toBe(true);
-      client.stopStream();
-      expect(client.hasStreamOpened()).toBe(false);
-    });
   });
 
   describe('onEntityChange', () => {
@@ -376,7 +418,7 @@ describe('streamClient', () => {
       });
     });
 
-    it('given_anAgentWithAnAsset_should_resolveTheAssetRoot', () => {
+    it('given_anAgentWithAnAsset_should_listTheAssetAsItsParent', () => {
       // Arrange
       const changes = collect();
 
@@ -395,14 +437,14 @@ describe('streamClient', () => {
         type: 'agents',
         id: 'a1',
         action: 'update',
-        root: {
+        parents: [{
           type: 'assets',
           id: 'asset1',
-        },
+        }],
       }]);
     });
 
-    it('given_aSchemaWithoutRootOrAnAgentWithoutAsset_should_leaveTheRootOut', () => {
+    it('given_aSchemaWithoutParentsOrAnAgentWithoutAsset_should_leaveTheParentsOut', () => {
       // Arrange
       const changes = collect();
 
@@ -415,7 +457,32 @@ describe('streamClient', () => {
       }));
 
       // Assert
-      expect(changes.every(change => !('root' in change))).toBe(true);
+      expect(changes).toHaveLength(2);
+      expect(changes.every(change => !('parents' in change))).toBe(true);
+    });
+
+    it.each(['constructor', '__proto__', 'toString'])('given_aSchemaNamed_%s_should_emitTheChangeWithoutParentsNorTheInstance', (schema) => {
+      // Arrange: an instance with a length would pass for a list of parents
+      const changes = collect();
+
+      // Act
+      FakeEventSource.last.emit('message', message({
+        attribute_id: 'id',
+        attribute_schema: schema,
+        instance: {
+          id: 'x1',
+          length: 1,
+          agent_secret: 'secret',
+        },
+      }));
+
+      // Assert
+      expect(changes).toEqual([{
+        type: schema,
+        id: 'x1',
+        action: 'update',
+      }]);
+      expect(JSON.stringify(changes)).not.toContain('secret');
     });
 
     it('given_aSensitiveInstance_should_neverExposeIt', () => {

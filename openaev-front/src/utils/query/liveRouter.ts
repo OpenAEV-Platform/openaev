@@ -1,6 +1,6 @@
-import { type Query, type QueryClient } from '@tanstack/react-query';
+import { focusManager, type Query, type QueryClient } from '@tanstack/react-query';
 
-import { type EntityChange, entityRefKey } from '../stream/entityChange';
+import { type EntityChange, entityRefKey } from './entityChange';
 import { type LiveMeta } from './live';
 
 /** Changes received within this window are routed together. */
@@ -9,8 +9,8 @@ const DEFAULT_THROTTLE_MS = 1000;
 
 export interface ApplyOptions {
   /**
-   * Invalidate right away, outside the batch window and the throttle: the user's own mutation must
-   * show at once. Later changes of the same queries are throttled from this point.
+   * Refetch the matching queries right away, outside the batch window and the throttle, and resolve
+   * once they are refetched: the user's own mutation must show at once.
    */
   immediate?: boolean;
 }
@@ -18,17 +18,21 @@ export interface ApplyOptions {
 export interface LiveRouter {
   /**
    * Describes entity changes (from the stream or a mutation): matching live queries are invalidated.
-   * Resolves once the immediate refetches settle (immediately for batched changes).
+   * Resolves once the immediate refetches settle (at once for batched changes).
    */
   applyChanges: (changes: EntityChange[], options?: ApplyOptions) => Promise<void>;
-  /** Invalidates the live queries showing or listing one of the types; every live query when omitted. */
-  invalidateType: (types?: string | string[]) => void;
-  /** Invalidates every live query (e.g. after a (re)connection that may have missed changes). */
+  /** Invalidates every live query (e.g. after a (re)connection or a bulk operation). */
   invalidateAllLive: () => void;
-  /** Marks every live query stale without fetching: a later mount, focus or poll refetches it. */
-  markAllLiveStale: () => void;
-  /** Invalidates every query, live or not, restarting fetches in flight (the user's rights changed: any data may differ). */
+  /**
+   * Invalidates every query, live or not, restarting fetches in flight: the user's rights grew, so
+   * any query may now return more.
+   */
   invalidateAll: () => Promise<void>;
+  /**
+   * Drops every query's data, cancelling fetches in flight, and refetches the mounted ones: the
+   * user's rights shrank, so cached data may no longer be theirs to see.
+   */
+  resetAll: () => Promise<void>;
   /** Drops the buffered changes, pending timers and cache subscription. The router stays usable afterwards. */
   dispose: () => void;
 }
@@ -41,16 +45,18 @@ interface ThrottleState {
 /** The changes of one flush, indexed once for every query to match against. */
 interface ChangeIndex {
   keys: Set<string>;
-  // Types with a change on an id the query may not show: a created or deleted entity can enter or
-  // leave a list, and changes its total.
-  membershipTypes: Set<string>;
+  // Matched against `collections`: a created or deleted entity can enter or leave a list and
+  // changes its total, even when the query does not show it.
+  createdOrDeletedTypes: Set<string>;
+  // Matched against `watch`: any change of the type.
+  types: Set<string>;
 }
 
 type LiveQuery = Query & { meta: { live: LiveMeta } };
 
-const isLiveQuery = (query: Query): query is LiveQuery => query.meta?.live !== undefined;
+const NO_REFS: ReadonlySet<string> = new Set();
 
-const isDocumentHidden = () => typeof document !== 'undefined' && document.hidden;
+const isLiveQuery = (query: Query): query is LiveQuery => query.meta?.live !== undefined;
 
 // A fetch in flight (or paused while offline) will replace the data: its response may predate the change.
 const isFetching = (query: Query) => query.state.fetchStatus !== 'idle';
@@ -58,54 +64,75 @@ const isFetching = (query: Query) => query.state.fetchStatus !== 'idle';
 const reportRefsError = (query: Query, error: unknown) => {
   if (import.meta.env.DEV && import.meta.env.MODE !== 'test') {
     // eslint-disable-next-line no-console
-    console.error('[live] refs failed, the query is not live until fixed', query.queryKey, error);
+    console.error('[live] refs failed: the query only reacts to its collections and watched types', query.queryKey, error);
   }
 };
 
-const safeRefs = (query: LiveQuery) => {
+// Refs are computed once per fetched data, not on every flush. Keyed by the data only: a query's
+// `refs` is a new closure on every render, but always describes the same data the same way.
+const refKeysByData = new WeakMap<object, ReadonlySet<string>>();
+
+const refKeysOf = (query: LiveQuery): ReadonlySet<string> => {
   const { live } = query.meta;
   const { data } = query.state;
-  if (!live.refs || data === undefined) return [];
+  if (!live.refs || data === undefined) return NO_REFS;
+  const memoizable = typeof data === 'object' && data !== null;
+  const known = memoizable ? refKeysByData.get(data) : undefined;
+  if (known !== undefined) return known;
+  let index = NO_REFS;
   try {
     const refs = live.refs(data);
-    return Array.isArray(refs) ? refs : [];
+    if (Array.isArray(refs)) {
+      index = new Set(refs.map(entityRefKey));
+    }
   } catch (error) {
     reportRefsError(query, error);
-    return [];
   }
+  if (memoizable) refKeysByData.set(data, index);
+  return index;
 };
 
-/** Each change also updates its root; the root carries no action of its own. */
+/** Each change also updates its parents; a parent carries no action of its own. */
 const expand = (changes: EntityChange[]): EntityChange[] =>
-  changes.flatMap(change => (change.root
-    ? [change, {
-        ...change.root,
-        action: 'update' as const,
-      }]
-    : [change]));
+  changes.flatMap(change => [change, ...(change.parents ?? []).map(parent => ({
+    ...parent,
+    action: 'update' as const,
+  }))]);
 
 const indexChanges = (changes: EntityChange[]): ChangeIndex => ({
   keys: new Set(changes.map(entityRefKey)),
-  membershipTypes: new Set(changes.filter(change => change.action !== 'update').map(change => change.type)),
+  createdOrDeletedTypes: new Set(changes.filter(change => change.action !== 'update').map(change => change.type)),
+  types: new Set(changes.map(change => change.type)),
+});
+
+const copyIndex = (index: ChangeIndex): ChangeIndex => ({
+  keys: new Set(index.keys),
+  createdOrDeletedTypes: new Set(index.createdOrDeletedTypes),
+  types: new Set(index.types),
 });
 
 const mergeInto = (target: ChangeIndex, index: ChangeIndex) => {
   index.keys.forEach(key => target.keys.add(key));
-  index.membershipTypes.forEach(type => target.membershipTypes.add(type));
+  index.createdOrDeletedTypes.forEach(type => target.createdOrDeletedTypes.add(type));
+  index.types.forEach(type => target.types.add(type));
 };
 
 // Two changes with the same key route the same way: only one is kept while a batch fills up.
 const changeKey = (change: EntityChange) =>
-  `${entityRefKey(change)}|${change.action}|${change.root ? entityRefKey(change.root) : ''}`;
+  `${entityRefKey(change)}|${change.action}|${(change.parents ?? []).map(entityRefKey).join(',')}`;
 
 /**
- * A query matches a change it shows (known id, any action), or a create/delete of a type it lists
- * (`collections`). An update of an entity it does not show cannot concern it.
+ * A query matches any change of a type it watches (`watch`), a create/delete of a type it lists
+ * (`collections`), both even before its first data, or a change of an entity its data shows (any
+ * action).
  */
 const matches = (query: LiveQuery, index: ChangeIndex) => {
-  if (query.state.data === undefined) return false;
-  if (query.meta.live.collections?.some(type => index.membershipTypes.has(type))) return true;
-  return safeRefs(query).some(ref => index.keys.has(entityRefKey(ref)));
+  const { watch, collections } = query.meta.live;
+  if (watch?.some(type => index.types.has(type))) return true;
+  if (collections?.some(type => index.createdOrDeletedTypes.has(type))) return true;
+  const keys = refKeysOf(query);
+  const [smaller, larger] = keys.size < index.keys.size ? [keys, index.keys] : [index.keys, keys];
+  return [...smaller].some(key => larger.has(key));
 };
 
 export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
@@ -123,15 +150,13 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
 
   const liveQueries = () => queryClient.getQueryCache().getAll().filter(isLiveQuery);
 
-  const invalidateReady = (hashes: Set<string>, refetch = !isDocumentHidden()) => {
+  // A tab in the background only marks its queries stale: TanStack refetches them on focus. Only
+  // settled queries get here, so there is no fetch in flight to cancel.
+  const invalidateReady = (hashes: Set<string>) => {
     if (hashes.size === 0) return Promise.resolve();
     return queryClient.invalidateQueries({
       predicate: query => hashes.has(query.queryHash),
-      refetchType: refetch ? 'active' : 'none',
-    }, {
-      // Cancelling would restart the fetch on every change: under a steady flow of changes
-      // (agents reporting in) a slow search would never complete.
-      cancelRefetch: false,
+      refetchType: focusManager.isFocused() ? 'active' : 'none',
     });
   };
 
@@ -141,11 +166,20 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
     return state;
   };
 
-  const pruneThrottles = () => {
-    const cache = queryClient.getQueryCache();
-    throttles.forEach((state, hash) => {
-      if (state.timer === undefined && !cache.get(hash)) throttles.delete(hash);
-    });
+  const clearPending = (hash: string) => {
+    const state = throttles.get(hash);
+    if (state?.timer !== undefined) {
+      clearTimeout(state.timer);
+      state.timer = undefined;
+    }
+    afterFetch.delete(hash);
+    parked.delete(hash);
+  };
+
+  const park = (hash: string, index: ChangeIndex) => {
+    const parkedIndex = parked.get(hash);
+    if (parkedIndex === undefined) parked.set(hash, copyIndex(index));
+    else mergeInto(parkedIndex, index);
   };
 
   // eslint-disable-next-line prefer-const -- assigned below, used by the cache subscription
@@ -157,8 +191,8 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
       const { query } = event;
       const hash = query.queryHash;
       if (event.type === 'removed') {
-        afterFetch.delete(hash);
-        parked.delete(hash);
+        clearPending(hash);
+        throttles.delete(hash);
         return;
       }
       if (event.type !== 'updated' || isFetching(query)) return;
@@ -166,9 +200,13 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
       const parkedIndex = parked.get(hash);
       parked.delete(hash);
       if (!isLiveQuery(query)) return;
-      // The settled data is what the user sees now: only the parked changes it is concerned by
-      // need another fetch, through the throttle like any other change.
-      if (due || (parkedIndex !== undefined && matches(query, parkedIndex))) {
+      if (due) {
+        // Already throttled when it was decided: the fetch that just settled predates the change.
+        throttleOf(hash).lastRun = Date.now();
+        invalidateReady(new Set([hash]));
+      } else if (parkedIndex !== undefined && matches(query, parkedIndex)) {
+        // The settled data is what the user sees now: only the parked changes it is concerned by
+        // need another fetch, through the throttle like any other change.
         throttled([query]);
       }
     });
@@ -189,8 +227,12 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
     return invalidateReady(ready);
   };
 
-  // Leading edge when the query was not invalidated recently, otherwise one trailing run.
+  // Leading edge when the query was neither invalidated nor fetched recently, otherwise one trailing
+  // run. Measured from the end of the last fetch too, so that a query slower than its throttle is
+  // not refetched back to back.
   throttled = (queries: LiveQuery[]) => {
+    // Its 'removed' events drop the throttle state of collected queries.
+    ensureCacheSubscription();
     const now = Date.now();
     const immediate = new Set<string>();
     queries.forEach((query) => {
@@ -198,7 +240,8 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
       const state = throttleOf(hash);
       if (state.timer !== undefined) return;
       const throttleMs = query.meta.live.throttleMs ?? DEFAULT_THROTTLE_MS;
-      const wait = state.lastRun + throttleMs - now;
+      const since = Math.max(state.lastRun, query.state.dataUpdatedAt, query.state.errorUpdatedAt);
+      const wait = since + throttleMs - now;
       if (wait <= 0) {
         state.lastRun = now;
         immediate.add(hash);
@@ -211,7 +254,6 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
       }
     });
     if (immediate.size > 0) invalidateNow(immediate);
-    pruneThrottles();
   };
 
   // In-flight queries keep the changes for their response; settled ones are matched now.
@@ -221,12 +263,7 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
     liveQueries().forEach((query) => {
       if (isFetching(query)) {
         ensureCacheSubscription();
-        const parkedIndex = parked.get(query.queryHash);
-        if (parkedIndex === undefined) {
-          parked.set(query.queryHash, indexChanges(changes));
-        } else {
-          mergeInto(parkedIndex, index);
-        }
+        park(query.queryHash, index);
       } else if (matches(query, index)) {
         matching.push(query);
       }
@@ -243,47 +280,45 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
     if (matching.length > 0) throttled(matching);
   };
 
+  // The user's own change: the queries showing it are refetched now and the caller waits for them.
+  // A fetch in flight is restarted (`cancelRefetch`, TanStack's default; the stream path avoids it so
+  // that a steady flow of changes cannot keep restarting a slow fetch), except a first load, which
+  // TanStack never cancels: that one is refetched once it settles.
+  const applyNow = (changes: EntityChange[]) => {
+    const index = indexChanges(expand(changes));
+    const now = Date.now();
+    const hashes = new Set<string>();
+    ensureCacheSubscription();
+    liveQueries().forEach((query) => {
+      const hash = query.queryHash;
+      if (!matches(query, index)) {
+        // The response of a fetch in flight may show the changed entity: match it once it settles.
+        if (isFetching(query)) park(hash, index);
+        return;
+      }
+      if (isFetching(query) && query.state.data === undefined) {
+        afterFetch.add(hash);
+        return;
+      }
+      clearPending(hash);
+      throttleOf(hash).lastRun = now;
+      hashes.add(hash);
+    });
+    if (hashes.size === 0) return Promise.resolve();
+    return queryClient.invalidateQueries({ predicate: query => hashes.has(query.queryHash) }, { cancelRefetch: true });
+  };
+
   const applyChanges = (changes: EntityChange[], options?: ApplyOptions) => {
     if (changes.length === 0) return Promise.resolve();
-    if (options?.immediate) {
-      const now = Date.now();
-      const hashes = new Set(route(expand(changes)).map(query => query.queryHash));
-      hashes.forEach((hash) => {
-        throttleOf(hash).lastRun = now;
-      });
-      return invalidateNow(hashes);
-    }
+    if (options?.immediate) return applyNow(changes);
     changes.forEach(change => buffer.set(changeKey(change), change));
     if (batchTimer === undefined) batchTimer = setTimeout(flush, BATCH_WINDOW_MS);
     return Promise.resolve();
   };
 
-  const invalidateType = (types?: string | string[]) => {
-    if (types === undefined) {
-      throttled(liveQueries());
-      return;
-    }
-    const wanted = new Set(Array.isArray(types) ? types : [types]);
-    throttled(liveQueries().filter(query =>
-      query.meta.live.collections?.some(type => wanted.has(type))
-      || safeRefs(query).some(ref => wanted.has(ref.type))));
-  };
+  const invalidateAllLive = () => throttled(liveQueries());
 
-  const invalidateAllLive = () => invalidateType();
-
-  const markAllLiveStale = () => {
-    invalidateReady(new Set(liveQueries().map(query => query.queryHash)), false);
-  };
-
-  // A fetch in flight was sent with the previous rights: cancel it, or its response would land as
-  // fresh data (`cancelRefetch` alone does not cancel a first load). Rights change rarely, so
-  // restarting the fetches costs nothing.
-  const invalidateAll = async () => {
-    await queryClient.cancelQueries();
-    await queryClient.invalidateQueries({ refetchType: isDocumentHidden() ? 'none' : 'active' });
-  };
-
-  const dispose = () => {
+  const dropPending = () => {
     if (batchTimer !== undefined) clearTimeout(batchTimer);
     batchTimer = undefined;
     buffer.clear();
@@ -293,16 +328,34 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
     throttles.clear();
     afterFetch.clear();
     parked.clear();
+  };
+
+  // A fetch in flight was sent with the previous rights: cancel it first, since `cancelRefetch` does
+  // not cancel a first load and its response would land as fresh data.
+  const invalidateAll = async () => {
+    dropPending();
+    await queryClient.cancelQueries();
+    await queryClient.invalidateQueries({ refetchType: focusManager.isFocused() ? 'active' : 'none' });
+  };
+
+  // TanStack's way to handle a loss of authorization: reset, not invalidate. The cached data was
+  // read with the previous rights, and an inactive query would show it again on its next mount.
+  const resetAll = () => {
+    dropPending();
+    return queryClient.resetQueries();
+  };
+
+  const dispose = () => {
+    dropPending();
     unsubscribeCache?.();
     unsubscribeCache = undefined;
   };
 
   return {
     applyChanges,
-    invalidateType,
     invalidateAllLive,
-    markAllLiveStale,
     invalidateAll,
+    resetAll,
     dispose,
   };
 };

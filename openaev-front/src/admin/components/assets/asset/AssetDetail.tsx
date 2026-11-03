@@ -2,11 +2,13 @@ import { Chip } from '@filigran/design-system';
 import { DevicesOtherOutlined, TrackChangesOutlined } from '@mui/icons-material';
 import { Alert, AlertTitle, Box, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { useQuery } from '@tanstack/react-query';
 import { Binoculars, SelectGroup } from 'mdi-material-ui';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
-import { fetchAssetOverview, searchInjectsForAsset } from '../../../../actions/assets/endpoint-actions';
+import { assetQueries } from '../../../../actions/assets/asset-queries';
+import { searchInjectsForAsset } from '../../../../actions/assets/endpoint-actions';
 import { searchDistinctFindingsOnEndpoint } from '../../../../actions/findings/finding-actions';
 import { type UserHelper } from '../../../../actions/helper';
 import { fetchPlayers } from '../../../../actions/users/User';
@@ -27,15 +29,14 @@ import ItemTags from '../../../../components/ItemTags';
 import Loader from '../../../../components/Loader';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { useHelper } from '../../../../store';
-import {
-  type EndpointOverviewOutput,
-  type InjectResultOutput,
-  type SearchPaginationInput,
-} from '../../../../utils/api-types';
+import { type InjectResultOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
+import { ENTITY_TYPES } from '../../../../utils/query/entityChange';
+import { isNotFoundError } from '../../../../utils/query/httpErrors';
+import { useApplyChanges } from '../../../../utils/query/live';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import InjectResultList from '../../atomic_testings/InjectResultList';
@@ -52,19 +53,6 @@ import InjectsPlayedOverTimeChart from '../statistics/InjectsPlayedOverTimeChart
 import PostureScoreOverTimeChart from '../statistics/PostureScoreOverTimeChart';
 import useExpectationPosture from '../useExpectationPosture';
 
-// The backend's EndpointOverviewOutput now also carries the AI target connection metadata and the
-// asset's markings; until the API types are regenerated (needs a backend restart) they are
-// declared here so the page can render them. Regenerating later makes these redundant but
-// harmless.
-type AssetOverview = EndpointOverviewOutput & {
-  ai_target_provider?: string;
-  ai_target_modality?: string;
-  ai_target_endpoint?: string;
-  ai_target_model?: string;
-  ai_target_system_prompt?: string;
-  asset_markings?: string[];
-};
-
 const AssetDetail = () => {
   const theme = useTheme();
   const { t } = useFormatter();
@@ -78,20 +66,10 @@ const AssetDetail = () => {
   };
   const id = assetId ?? endpointId ?? '';
 
-  const [asset, setAsset] = useState<AssetOverview | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const loadAsset = useCallback(() => {
-    setLoading(true);
-    fetchAssetOverview(id)
-      .then((result: { data: AssetOverview }) => setAsset(result.data))
-      .catch(() => setAsset(null))
-      .finally(() => setLoading(false));
-  }, [id]);
-
-  useEffect(() => {
-    loadAsset();
-  }, [loadAsset]);
+  // Live: the asset renamed, updated, deleted elsewhere, or one of its agents or groups changing,
+  // shows without reloading the page.
+  const { data: asset, isPending, isError, error } = useQuery(assetQueries.detail(id));
+  const applyChanges = useApplyChanges();
 
   // Gates the Markings field (and its data fetch below) so the flag-off platform looks exactly as
   // it does today - mirrors the Endpoints list convention.
@@ -140,14 +118,17 @@ const AssetDetail = () => {
   // atomic testing and scenario tabs.
   const { currentTab, handleChangeTab } = useRoutedTabs(['overview', 'statistics'], 'overview');
 
-  if (loading && !asset) {
+  if (isPending) {
     return <Loader />;
   }
-  if (!asset) {
+  // Before the data: a failed refetch keeps the previous data, and a deleted asset answers 404.
+  if (isError) {
     return (
       <Alert severity="warning">
         <AlertTitle>{t('Warning')}</AlertTitle>
-        {t('Asset is currently unavailable or you do not have sufficient permissions to access it.')}
+        {isNotFoundError(error)
+          ? t('This item does not exist or you are not allowed to view it.')
+          : t('Asset is currently unavailable or you do not have sufficient permissions to access it.')}
       </Alert>
     );
   }
@@ -211,7 +192,11 @@ const AssetDetail = () => {
             <AssetPopover
               endpoint={asset as AssetPopoverProps['endpoint']}
               agentless={!hasAgents}
-              onUpdate={() => loadAsset()}
+              onUpdate={() => applyChanges([{
+                type: ENTITY_TYPES.ASSETS,
+                id,
+                action: 'update',
+              }], { immediate: true })}
               onDelete={() => navigate('/admin/assets')}
             />
           </>

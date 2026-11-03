@@ -9,7 +9,7 @@ strategic levels.
 ### Architecture
 
 - **Backend**: Spring Boot (Java), PostgreSQL, Elasticsearch/OpenSearch, Silo (S3 object storage), RabbitMQ
-- **Frontend**: React, TypeScript, Vite, Filigran Design System (`@filigran/design-system`), Material-UI (legacy, being replaced)
+- **Frontend**: React, TypeScript, Vite, TanStack Query (server data; Redux is legacy), Filigran Design System (`@filigran/design-system`), Material-UI (legacy, being replaced)
 - **Multi-module Maven project** with 3 modules: `openaev-model`, `openaev-framework`, `openaev-api`
 - ⚠️ **`openaev-framework` is deprecated** — it will be removed. **Never add new code to `openaev-framework`**. Place
   new utilities in `openaev-api` or `openaev-model` instead.

@@ -2,11 +2,13 @@ import { DATA_DELETE_SUCCESS, DATA_FETCH_SUCCESS, DATA_UPDATE_SUCCESS } from '..
 import { buildUri } from '../Action';
 import { type BulkOperation as GeneratedBulkOperation } from '../api-types';
 import { ingestBulkOperation } from '../bulkOperations';
+import { ENTITY_TYPES, type EntityChange, type EntityChangeAction, type EntityRef } from '../query/entityChange';
 import { evaluateWatchdogTick } from '../sse/watchdogPolicy';
-import { type EntityChange, type EntityChangeAction, type EntityRef } from './entityChange';
-import { STREAM_TYPES } from './streamTypes';
 
-/** Raw `message` event payload as sent by the backend today. Only the Redux adapter may read `instance`. */
+/**
+ * Raw `message` event payload as sent by the backend today. `instance` is read only here (to build an
+ * `EntityChange`) and by the Redux adapter.
+ */
 export interface StreamMessage {
   event_type: string;
   attribute_id: string;
@@ -110,23 +112,24 @@ const dispatcherFor = (type: string) => {
   return dispatcher;
 };
 
-// Parent a change also affects, keyed by stream schema. The server already checks permissions on
-// that parent (an agent is checked on its asset), so a consumer may refetch by it.
-const ROOT_OF: Record<string, (instance: Record<string, unknown>) => EntityRef | undefined> = {
-  [STREAM_TYPES.AGENTS]: (instance) => {
+// Parents a change also affects, keyed by stream schema. Read from the payload because today's
+// event carries no parents of its own; the server already checks permissions on them (an agent is
+// checked on its asset).
+const PARENTS_OF: Record<string, (instance: Record<string, unknown>) => EntityRef[]> = {
+  [ENTITY_TYPES.AGENTS]: (instance) => {
     const assetId = instance.agent_asset;
     return typeof assetId === 'string' && assetId !== ''
-      ? {
-          type: STREAM_TYPES.ASSETS,
+      ? [{
+          type: ENTITY_TYPES.ASSETS,
           id: assetId,
-        }
-      : undefined;
+        }]
+      : [];
   },
 };
 
 // Own keys only: a schema named like an Object.prototype member must not resolve to it.
-const rootOf = (schema: string, instance: Record<string, unknown>) =>
-  (Object.hasOwn(ROOT_OF, schema) ? ROOT_OF[schema](instance) : undefined);
+const parentsOf = (schema: string, instance: Record<string, unknown>) =>
+  (Object.hasOwn(PARENTS_OF, schema) ? PARENTS_OF[schema](instance) : []);
 
 const actionOf = (eventType: string): EntityChangeAction => {
   switch (eventType) {
@@ -141,7 +144,7 @@ const actionOf = (eventType: string): EntityChangeAction => {
 };
 
 // The instance is read here and nowhere past the stream adapter: consumers only get type, id,
-// action and root.
+// action and parents.
 const toEntityChange = (message: StreamMessage): EntityChange | undefined => {
   const rawId = message.instance[message.attribute_id];
   if (rawId === undefined || rawId === null || rawId === '') return undefined;
@@ -150,9 +153,9 @@ const toEntityChange = (message: StreamMessage): EntityChange | undefined => {
     id: String(rawId),
     action: actionOf(message.event_type),
   };
-  const root = rootOf(message.attribute_schema, message.instance);
-  if (root !== undefined) {
-    change.root = root;
+  const parents = parentsOf(message.attribute_schema, message.instance);
+  if (parents.length > 0) {
+    change.parents = parents;
   }
   return change;
 };
@@ -239,7 +242,7 @@ const scheduleReconnect = () => {
   reconnectTimeoutId = setTimeout(connect, reconnectDelay());
 };
 
-// Emitted once per outage, so consumers can fall back to polling right away.
+// Emitted once per outage.
 const markDown = () => {
   if (down) return;
   down = true;
@@ -341,7 +344,7 @@ export const stopStream = (): void => {
   }
 };
 
-/** Every entity change, already reduced to its type/id/action/root. */
+/** Every entity change, already reduced to its type/id/action/parents. */
 export const onEntityChange = (handler: (change: EntityChange) => void): (() => void) =>
   subscribeTo(entityChangeHandlers, handler);
 
