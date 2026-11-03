@@ -274,6 +274,25 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Given a null entry in the list, should reject the payload and keep preferences")
+    void given_nullEntry_should_returnBadRequestAndKeepPreferences() throws Exception {
+      // Arrange
+      registerTenant(tenantId, XtmHubRegistrationStatus.REGISTERED);
+      String[] before =
+          userRepository.findById(userId).orElseThrow().getUnsubscribedNewsFeedTypes();
+
+      // Act & Assert
+      mvc.perform(
+              put(SETTINGS_URI, tenantId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"" + SUBSCRIBED_TYPES_FIELD + "\":[null]}")
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+      assertThat(userRepository.findById(userId).orElseThrow().getUnsubscribedNewsFeedTypes())
+          .isEqualTo(before);
+    }
+
+    @Test
     @DisplayName("Given the feature disabled, should not find the endpoint")
     void given_featureDisabled_should_returnNotFound() throws Exception {
       // Arrange

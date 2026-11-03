@@ -13,4 +13,4 @@ public record NewsFeedSettingsInput(
                 "The news feed types the current user wants to receive, and only those. An empty"
                     + " list unsubscribes the user from everything")
         @NotNull
-        List<NewsFeedType> subscribedTypes) {}
+        List<@NotNull NewsFeedType> subscribedTypes) {}
