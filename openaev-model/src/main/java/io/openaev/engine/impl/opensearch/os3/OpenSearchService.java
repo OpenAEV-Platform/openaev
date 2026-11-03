@@ -1217,14 +1217,8 @@ public class OpenSearchService implements EngineService {
   }
 
   public EsEntities entities(TxCtx ctx, RawUserAuth user, ListRuntime runtime) {
+    String entityName = commonSearchService.getListEntityName(runtime.getWidget());
     Filters.FilterGroup searchFilters = runtime.getWidget().getPerspective().getFilter();
-    String entityName =
-        searchFilters.getFilters().stream()
-            .filter(filter -> "base_entity".equals(filter.getKey()))
-            .findAny()
-            .orElseThrow()
-            .getValues()
-            .getFirst();
     List<EngineSortField> sorts = runtime.getWidget().getSorts();
 
     List<SortOptions> engineSorts;
@@ -1285,7 +1279,7 @@ public class OpenSearchService implements EngineService {
                       // By default the engine stops counting at 10,000 and reports it as a lower
                       // bound, which froze the pagination total of large result sets at "10000".
                       .trackTotalHits(tth -> tth.enabled(true)),
-              getClassForEntity(entityName));
+              commonSearchService.getModelClass(entityName));
       long total = response.hits().total() != null ? response.hits().total().value() : 0;
       return new EsEntities(
           response.hits().hits().stream()
@@ -1301,20 +1295,6 @@ public class OpenSearchService implements EngineService {
       log.error("query exception: {}", e.getMessage(), e);
     }
     return new EsEntities(new ArrayList<>(), 0, 0, 0, 0);
-  }
-
-  /**
-   * Return the class for the entity
-   *
-   * @param entityName the name of the entity
-   * @return the class itself
-   */
-  private Class<?> getClassForEntity(String entityName) {
-    Optional<EsModel<EsBase>> model =
-        searchEngine.getModels().stream()
-            .filter(esBaseEsModel -> entityName.equals(esBaseEsModel.getName()))
-            .findAny();
-    return model.get().getModel();
   }
 
   @Override
