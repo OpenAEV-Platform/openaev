@@ -94,6 +94,10 @@ public class InjectOutput {
       schema = @Schema(description = "Asset groups of the inject", implementation = String.class))
   private List<AssetGroup> assetGroups;
 
+  @JsonProperty("inject_secret_references")
+  @ArraySchema(schema = @Schema(description = "Secret references of the inject"))
+  private List<String> secretReferences = new ArrayList<>();
+
   @JsonProperty("inject_content")
   @Schema(description = "Content of the inject")
   private ObjectNode content;
@@ -169,6 +173,10 @@ public class InjectOutput {
   @JsonProperty("inject_healthchecks")
   @ArraySchema(schema = @Schema(description = "Healthcheck of the inject"))
   private List<HealthCheck> healthchecks = new ArrayList<>();
+
+  @JsonProperty("inject_payload_revoked")
+  @Schema(description = "The inject runs a revoked payload: it is skipped and blocks the launch")
+  private boolean payloadRevoked;
 
   @JsonProperty("inject_contract_domains")
   @Schema(description = "Domain of the inject")

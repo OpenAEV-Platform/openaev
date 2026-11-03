@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.Serializable;
 import java.util.Map;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -22,7 +23,7 @@ import lombok.Setter;
 @Setter
 @EqualsAndHashCode
 @NoArgsConstructor
-public class ReportingModule {
+public class ReportingModule implements Serializable {
 
   @JsonProperty("module_type")
   private ReportingModuleType moduleType;

@@ -158,10 +158,12 @@ const LessonsCategories = ({
                         <ListItemText
                           primary={question.lessons_question_content}
                           secondary={question.lessons_question_explanation || t('No explanation')}
-                          primaryTypographyProps={{
-                            sx: {
-                              fontSize: 13.5,
-                              fontWeight: 600,
+                          slotProps={{
+                            primary: {
+                              sx: {
+                                fontSize: 13.5,
+                                fontWeight: 600,
+                              },
                             },
                           }}
                         />

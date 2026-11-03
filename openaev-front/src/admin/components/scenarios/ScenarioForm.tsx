@@ -2,7 +2,7 @@ import { Button, Checkbox, Combobox, ComboboxChips, ComboboxField, ComboboxHelpe
 import { zodResolver } from '@hookform/resolvers/zod';
 import { MenuItem, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useState } from 'react';
+import { type FunctionComponent, type ReactNode, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -32,6 +32,10 @@ interface Props {
   initialValues: ScenarioFormInput;
   isCreation?: boolean;
   isChaining?: boolean;
+  // A catalogue scenario before install: its fields read only, the caller's sections and buttons.
+  readOnly?: boolean;
+  extra?: ReactNode;
+  actions?: ReactNode;
 }
 
 const ScenarioForm: FunctionComponent<Props> = ({
@@ -42,6 +46,9 @@ const ScenarioForm: FunctionComponent<Props> = ({
   disabled,
   isCreation = false,
   isChaining = false,
+  readOnly = false,
+  extra,
+  actions,
 }) => {
   // Standard hooks
   const theme = useTheme();
@@ -107,7 +114,8 @@ const ScenarioForm: FunctionComponent<Props> = ({
         {...register('scenario_name')}
         control={control}
         setValue={setValue}
-        askAi={true}
+        readOnly={readOnly}
+        askAi={!readOnly}
       />
       <div style={{
         display: 'flex',
@@ -119,6 +127,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
           variant="standard"
           fullWidth={true}
           name="scenario_category"
+          readOnly={readOnly}
           label={t('Category')}
           error={!!errors.scenario_category}
           control={control}
@@ -134,6 +143,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
           variant="standard"
           fullWidth={true}
           name="scenario_main_focus"
+          readOnly={readOnly}
           label={t('Main focus')}
           error={!!errors.scenario_main_focus}
           control={control}
@@ -169,6 +179,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
           variant="standard"
           fullWidth={true}
           name="scenario_severity"
+          readOnly={readOnly}
           label={t('Severity')}
           error={!!errors.scenario_severity}
           control={control}
@@ -189,6 +200,7 @@ const ScenarioForm: FunctionComponent<Props> = ({
         </SelectField>
         <DefaultKillChainSelectField<ScenarioFormInput>
           name="scenario_default_kill_chain"
+          readOnly={readOnly}
           control={control}
           defaultValue={initialValues.scenario_default_kill_chain ?? undefined}
         />
@@ -202,20 +214,23 @@ const ScenarioForm: FunctionComponent<Props> = ({
         {...register('scenario_description')}
         control={control}
         setValue={setValue}
-        askAi={true}
+        readOnly={readOnly}
+        askAi={!readOnly}
       />
-      <Controller
-        control={control}
-        name="scenario_tags"
-        render={({ field: { onChange, value }, fieldState: { error } }) => (
-          <TagField
-            label={t('Tags')}
-            fieldValue={value ?? []}
-            fieldOnChange={onChange}
-            error={error}
-          />
-        )}
-      />
+      {!readOnly && (
+        <Controller
+          control={control}
+          name="scenario_tags"
+          render={({ field: { onChange, value }, fieldState: { error } }) => (
+            <TagField
+              label={t('Tags')}
+              fieldValue={value ?? []}
+              fieldOnChange={onChange}
+              error={error}
+            />
+          )}
+        />
+      )}
       {isCreation && (
         <Checkbox
           checked={isScenarioAssistantChecked}
@@ -223,13 +238,15 @@ const ScenarioForm: FunctionComponent<Props> = ({
           label={t('Use the scenario assistant')}
         />
       )}
-      <LessonsLearnedSection
-        control={control}
-        name="scenario_lessons_enabled"
-        disabled={disabled}
-        style={{ marginTop: theme.spacing(2) }}
-      />
-      {!isChaining && (
+      {!readOnly && (
+        <LessonsLearnedSection
+          control={control}
+          name="scenario_lessons_enabled"
+          disabled={disabled}
+          style={{ marginTop: theme.spacing(2) }}
+        />
+      )}
+      {!isChaining && !readOnly && (
         <>
           <Typography variant="h2" style={{ marginTop: theme.spacing(2) }}>
             {t('Emails and SMS')}
@@ -307,18 +324,23 @@ const ScenarioForm: FunctionComponent<Props> = ({
           />
         </>
       )}
+      {extra}
       <div style={{
         display: 'flex',
         justifyContent: 'flex-end',
         gap: theme.spacing(1),
       }}
       >
-        <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
-          {t('Cancel')}
-        </Button>
-        <Button type="submit" disabled={!isDirty || isSubmitting}>
-          {editing ? t('Update') : t('Create')}
-        </Button>
+        {actions ?? (
+          <>
+            <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting}>
+              {t('Cancel')}
+            </Button>
+            <Button type="submit" disabled={!isDirty || isSubmitting}>
+              {editing ? t('Update') : t('Create')}
+            </Button>
+          </>
+        )}
       </div>
     </form>
   );

@@ -42,4 +42,4 @@ The baseline is therefore also the conversion work list: every migration of a cl
    review must look at: shrinking is progress to verify, anything else is a red flag.
 
 Background: `docs/docs/development/tenant-isolation.md` and
-`adr/ADR-002-Multi-tenant-data-isolation-strategy.md`.
+`adr/ADR-002-multi-tenant-data-isolation-strategy.md`.

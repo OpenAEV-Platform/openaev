@@ -27,7 +27,6 @@ const useStyles = makeStyles()(() => ({
     flexGrow: 1,
     marginLeft: 10,
   },
-  autoCompleteIndicator: { display: 'none' },
 }));
 
 interface Props {
@@ -152,7 +151,7 @@ const TagFieldSingle: FunctionComponent<Props> = ({
         <Dialog
           open={tagCreation}
           onClose={handleCloseTagCreation}
-          PaperProps={{ elevation: 1 }}
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>{t('Create a new tag')}</DialogTitle>
           <DialogContent>

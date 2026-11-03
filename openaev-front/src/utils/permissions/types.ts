@@ -16,6 +16,7 @@ export const ACTIONS = {
   DELETE: 'DELETE',
   SEARCH: 'SEARCH',
   CREATE: 'CREATE',
+  REVOKE: 'REVOKE',
   APPROVE: 'APPROVE',
 } as const;
 

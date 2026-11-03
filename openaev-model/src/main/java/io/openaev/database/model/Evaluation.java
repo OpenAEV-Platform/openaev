@@ -102,4 +102,16 @@ public class Evaluation implements Base {
     }
     return this.getObjective().getParentResourceType();
   }
+
+  @JsonIgnore
+  @Override
+  public String getPermissionResourceId() {
+    return getParentResourceId();
+  }
+
+  @JsonIgnore
+  @Override
+  public ResourceType getPermissionResourceType() {
+    return getParentResourceType();
+  }
 }

@@ -20,6 +20,7 @@ import io.openaev.rest.attack_pattern.form.AttackPatternUpdateInput;
 import io.openaev.rest.attack_pattern.form.AttackPatternUpsertInput;
 import io.openaev.rest.attack_pattern.response.AttackPatternOutput;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
+import io.openaev.rest.attack_pattern.service.AttackPatternUpsertService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.kill_chain_phase.service.KillChainPhaseService;
@@ -48,6 +49,7 @@ public class AttackPatternApi extends RestBehavior {
   public static final String ATTACK_PATTERN_URI = "/api/attack_patterns";
 
   private final AttackPatternService attackPatternService;
+  private final AttackPatternUpsertService attackPatternUpsertService;
 
   private final AttackPatternRepository attackPatternRepository;
   private final InjectorContractRepository injectorContractRepository;
@@ -136,7 +138,8 @@ public class AttackPatternApi extends RestBehavior {
     attackPatternRepository.findById(attackPatternId).orElseThrow(ElementNotFoundException::new);
     Iterable<InjectorContract> contracts =
         injectorContractRepository.findAll(
-            InjectorContractSpecification.fromAttackPattern(attackPatternId));
+            InjectorContractSpecification.fromAttackPattern(attackPatternId)
+                .and(InjectorContractSpecification.withLatestPayload()));
     // See AttackPatternInitializer: the contracts' attack patterns are serialized after this
     // transaction closed, so they are hydrated while the scope is still set.
     AttackPatternInitializer.initializeFromContracts(contracts);
@@ -169,19 +172,8 @@ public class AttackPatternApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Iterable<AttackPattern> upsertAttackPatterns(
       TxCtx ctx, @Valid @RequestBody AttackPatternUpsertInput input) {
-    List<AttackPattern> upserted = new ArrayList<>();
-    List<AttackPatternCreateInput> attackPatterns = input.getAttackPatterns();
-    List<AttackPatternCreateInput> patternsWithoutParent =
-        attackPatterns.stream().filter(a -> a.getParentId() == null).toList();
-    List<AttackPatternCreateInput> patternsWithParent =
-        attackPatterns.stream().filter(a -> a.getParentId() != null).toList();
-    upserted.addAll(
-        attackPatternService.internalUpsertAttackPatterns(
-            ctx, patternsWithoutParent, input.getIgnoreDependencies()));
-    upserted.addAll(
-        attackPatternService.internalUpsertAttackPatterns(
-            ctx, patternsWithParent, input.getIgnoreDependencies()));
-    return upserted;
+    return attackPatternUpsertService.upsert(
+        ctx, input.getAttackPatterns(), input.getIgnoreDependencies());
   }
 
   @DeleteMapping("/{attackPatternId}")

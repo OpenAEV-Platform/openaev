@@ -42,11 +42,13 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ExecutorFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.MarkingDefinitionFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
+import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -96,6 +98,7 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AgentComposer agentComposer;
+  @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
 
   @MockitoSpyBean private EndpointService endpointService;
   @MockitoSpyBean private AssetAgentJobRepository assetAgentJobRepository;
@@ -1566,6 +1569,132 @@ class EndpointApiTest extends IntegrationTest {
       Mockito.verify(injectStatusService, Mockito.never())
           .addJobRetrievalTraces(Mockito.any(AssetAgentJob.class));
       Mockito.verify(assetAgentJobRepository, Mockito.never()).deleteById(assetAgentJobId);
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/assets/search - marking filters")
+  @WithMockUser(isAdmin = true)
+  class MarkingFilters {
+
+    private MarkingDefinition persistDefaultTenantMarking() {
+      MarkingDefinition marking =
+          markingDefinitionComposer
+              .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
+              .withTenantId(Tenant.DEFAULT_TENANT_UUID)
+              .persist()
+              .get();
+      // MarkingClearanceCacheManager reads marking_definitions through raw JdbcTemplate, bypassing
+      // the Hibernate session - without a flush, the just-saved row is not yet visible on the
+      // connection and the admin bypass clearance silently excludes it, hiding every asset marked
+      // with it.
+      entityManager.flush();
+      return marking;
+    }
+
+    private String performAssetSearch(String uri, SearchPaginationInput input) throws Exception {
+      return mvc.perform(
+              post(uri)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
+
+    @Test
+    @DisplayName("given_eqOperator_should_returnOnlyAssetsCarryingThatMarking")
+    void given_eqOperator_should_returnOnlyAssetsCarryingThatMarking() throws Exception {
+      // Arrange
+      MarkingDefinition marking = persistDefaultTenantMarking();
+      Endpoint marked = createEndpoint("MarkingEqMarked");
+      marked.setMarkingIds(new String[] {marking.getId()});
+      endpointRepository.save(marked);
+      Endpoint unmarked = createEndpoint("MarkingEqUnmarked");
+      endpointRepository.save(unmarked);
+
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithOrOperator(
+              "asset_markings", marking.getId(), Filters.FilterOperator.eq);
+
+      // Act
+      String response = performAssetSearch(ASSET_URI + "/search", input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).contains(marked.getId()).doesNotContain(unmarked.getId());
+    }
+
+    @Test
+    @DisplayName("given_notEqOperator_should_excludeAssetsCarryingThatMarking")
+    void given_notEqOperator_should_excludeAssetsCarryingThatMarking() throws Exception {
+      // Arrange
+      MarkingDefinition marking = persistDefaultTenantMarking();
+      Endpoint marked = createEndpoint("MarkingNotEqMarked");
+      marked.setMarkingIds(new String[] {marking.getId()});
+      endpointRepository.save(marked);
+      Endpoint unmarked = createEndpoint("MarkingNotEqUnmarked");
+      endpointRepository.save(unmarked);
+
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithOrOperator(
+              "asset_markings", marking.getId(), Filters.FilterOperator.not_eq);
+
+      // Act
+      String response = performAssetSearch(ASSET_URI + "/search", input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).contains(unmarked.getId()).doesNotContain(marked.getId());
+    }
+
+    @Test
+    @DisplayName("given_emptyOperator_should_returnOnlyUnmarkedAssets")
+    void given_emptyOperator_should_returnOnlyUnmarkedAssets() throws Exception {
+      // Arrange
+      MarkingDefinition marking = persistDefaultTenantMarking();
+      Endpoint marked = createEndpoint("MarkingEmptyMarked");
+      marked.setMarkingIds(new String[] {marking.getId()});
+      endpointRepository.save(marked);
+      Endpoint unmarked = createEndpoint("MarkingEmptyUnmarked");
+      endpointRepository.save(unmarked);
+
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithOrOperator(
+              "asset_markings", null, Filters.FilterOperator.empty);
+
+      // Act
+      String response = performAssetSearch(ASSET_URI + "/search", input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).contains(unmarked.getId()).doesNotContain(marked.getId());
+    }
+
+    @Test
+    @DisplayName("given_notEmptyOperator_should_returnOnlyMarkedAssets")
+    void given_notEmptyOperator_should_returnOnlyMarkedAssets() throws Exception {
+      // Arrange
+      MarkingDefinition marking = persistDefaultTenantMarking();
+      Endpoint marked = createEndpoint("MarkingNotEmptyMarked");
+      marked.setMarkingIds(new String[] {marking.getId()});
+      endpointRepository.save(marked);
+      Endpoint unmarked = createEndpoint("MarkingNotEmptyUnmarked");
+      endpointRepository.save(unmarked);
+
+      SearchPaginationInput input =
+          PaginationFixture.simpleSearchWithOrOperator(
+              "asset_markings", null, Filters.FilterOperator.not_empty);
+
+      // Act
+      String response = performAssetSearch(ASSET_URI + "/search", input);
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$.content[*].asset_id");
+      assertThat(ids).contains(marked.getId()).doesNotContain(unmarked.getId());
     }
   }
 

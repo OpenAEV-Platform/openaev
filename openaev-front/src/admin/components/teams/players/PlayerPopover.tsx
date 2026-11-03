@@ -150,7 +150,7 @@ const PlayerPopover: FunctionComponent<PlayerPopoverProps> = ({
   });
 
   const isSelf = user.user_id === currentUser.user_id;
-  entries.push({
+  if (onDelete) entries.push({
     label: 'Delete',
     action: () => handleOpenDelete(),
     userRight: ability.can(ACTIONS.DELETE, SUBJECTS.TEAMS_AND_PLAYERS),

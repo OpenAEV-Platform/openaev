@@ -10,15 +10,22 @@ import com.azure.core.credential.TokenCredential;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AzureEnvironments;
+import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_AUTH_METHOD;
 import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_TYPE;
 import io.openaev.database.model.Secret.SECRET_TYPE;
 import io.openaev.database.model.SecretReference.SECRET_REFERENCE_TYPE;
 import io.openaev.secrets.provider.impl.validators.AzureCredentialConnectivityCheckFactory;
+import io.openaev.secrets.service.SecretService;
+import io.openaev.secrets.service.SecretValidationService;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.*;
@@ -114,12 +121,18 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
 
   @Autowired private CredentialConnectivityCheckJob job;
   @Autowired private DataSource dataSource;
+  @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private SecretValidationService secretValidationService;
+  @Autowired private SecretService secretService;
 
   private JdbcTemplate jdbc;
   private String tenantA;
   private String tenantB;
   private String referenceA;
   private String referenceB;
+  private String secretA;
+  private String secretB;
+  private String lastSeededSecretId;
 
   @BeforeEach
   void seedTwoTenantsWithOneCredentialEach() {
@@ -128,7 +141,9 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
     tenantB = seedTenant("credential-validation-b-" + UUID.randomUUID());
     // Never verified, so both are due on the very next run.
     referenceA = seedCredential(tenantA, AZURE_MANAGED_IDENTITY);
+    secretA = lastSeededSecretId;
     referenceB = seedCredential(tenantB, AZURE_MANAGED_IDENTITY);
+    secretB = lastSeededSecretId;
     setEnabled(true);
   }
 
@@ -276,6 +291,80 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
     }
   }
 
+  /**
+   * The two reads the job performs INSIDE its per-tenant scope, neither of which carries a tenant
+   * predicate of its own. The {@code TenantIsolation} tests above assert write attribution: the job
+   * loops tenant by tenant and addresses each row with the tenant it is iterating, so they hold
+   * with {@code secret_references} and {@code secrets} de-activated. These do not: both reads below
+   * are filtered by the v2 scope and by nothing else.
+   */
+  @Nested
+  @DisplayName("Scoped reads inside the job's per-tenant unit")
+  class ScopedReads {
+
+    @Test
+    @DisplayName("secret_references: only the scoped tenant's credentials are due for validation")
+    void given_tenantAScope_should_notListTenantBCredentialAsDue() {
+      // Arrange - both credentials were seeded never-verified, so both are due platform-wide.
+
+      // Act - the exact call the job makes in phase 1, in the same primitive, scoped to tenant A.
+      List<String> dueUnderA =
+          tenantTx.execute(
+              TxCtx.forTenant(tenantA),
+              () ->
+                  secretValidationService.findDueForValidation(500, Duration.ofDays(1)).stream()
+                      .map(CredentialSecretReference::getId)
+                      .toList());
+
+      // Assert - the positive case first: an empty result would pass the isolation claim on its
+      // own.
+      assertTrue(
+          dueUnderA.contains(referenceA),
+          "tenant A's own credential must be due under tenant A's scope");
+      assertFalse(
+          dueUnderA.contains(referenceB),
+          "tenant B's credential must not be due under tenant A's scope: findDueForValidation"
+              + " carries no tenant predicate, so the scope is the only thing excluding it");
+    }
+
+    @Test
+    @DisplayName("secrets: the scoped tenant cannot resolve another tenant's stored secret by id")
+    void given_tenantAScope_should_notResolveTenantBSecretById() {
+      // Act & Assert - the positive case first. This is the read LocalSecretsProvider performs on
+      // the reference's location to prepare a probe, by id only.
+      assertEquals(
+          secretA,
+          tenantTx
+              .execute(TxCtx.forTenant(tenantA), () -> secretService.findByIdOrThrow(secretA))
+              .getId(),
+          "tenant A's own secret must resolve under tenant A's scope");
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              tenantTx.execute(
+                  TxCtx.forTenant(tenantA), () -> secretService.findByIdOrThrow(secretB)),
+          "tenant B's stored secret must not resolve under tenant A's scope");
+    }
+
+    @Test
+    @DisplayName("with no scope at all: no credential is due, not even the caller's own")
+    void given_noScopeSet_should_failClosedOnTheDueCredentialsRead() {
+      // Act - called outside the primitive, so the service's own @Transactional opens a transaction
+      // with no tenant scope on it, the shape a caller that forgot to scope produces. The primitive
+      // itself refuses TxCtx.missing() by construction, so it cannot express this case.
+      List<String> dueWithNoScope =
+          secretValidationService.findDueForValidation(500, Duration.ofDays(1)).stream()
+              .map(CredentialSecretReference::getId)
+              .toList();
+
+      // Assert - the control for the two tests above, on a different line than the active-tables
+      // property: they return rows BECAUSE a scope is set, not because the query happens to match.
+      assertTrue(
+          dueWithNoScope.isEmpty(),
+          "an active-table read with no tenant scope must return nothing at all");
+    }
+  }
+
   // -- ground truth helpers: raw JDBC, never the entity manager --
 
   private Instant lastVerifiedAt(String referenceId) {
@@ -320,6 +409,7 @@ class CredentialConnectivityCheckJobIntegrationTest extends IntegrationTest {
 
   private String seedCredential(String tenantId, CREDENTIAL_AUTH_METHOD authMethod) {
     String secretId = seedAzureManagedIdentitySecret(tenantId);
+    lastSeededSecretId = secretId;
     String id = UUID.randomUUID().toString();
     jdbc.update(
         "INSERT INTO secret_references (secret_reference_id, secret_reference_type,"

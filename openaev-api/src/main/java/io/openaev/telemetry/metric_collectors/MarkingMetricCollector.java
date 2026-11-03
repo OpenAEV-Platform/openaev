@@ -12,9 +12,13 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Telemetry on the number of marking definitions available in the current tenant scope. Unlike
@@ -29,8 +33,18 @@ public class MarkingMetricCollector {
   private static final String ATTRIBUTE_TENANT_HASH = "tenant_hash";
   private static final String UNKNOWN_TENANT_HASH = "unknown";
 
+  private static final String ATTRIBUTE_RESOURCE_TYPE = "resource_type";
+  private static final String ATTRIBUTE_ACTION = "action";
+  private static final String RESOURCE_TYPE_ASSET = "asset";
+  private static final String RESOURCE_TYPE_GROUP = "group";
+  private static final String ACTION_ASSIGN = "assign";
+  private static final String ACTION_UNASSIGN = "unassign";
+
   private final MetricRegistry metricRegistry;
   private final TenantScopedTransaction tenantTx;
+
+  /** Per resource type (asset/group) and action (assign/unassign), see {@link #init()}. */
+  private final Map<Attributes, AtomicLong> markingAssignmentStats = new ConcurrentHashMap<>();
 
   @PersistenceContext private EntityManager entityManager;
 
@@ -40,6 +54,70 @@ public class MarkingMetricCollector {
         "markings_total",
         "Total number of marking definitions in the current tenant scope",
         this::collectMarkings);
+    metricRegistry.registerMultiGauge(
+        "marking_assignment_count",
+        "Number of markings assigned/unassigned to assets and groups, by resource type and action",
+        () -> collectAndReset(markingAssignmentStats));
+  }
+
+  /** Records {@code count} markings newly assigned to an asset. */
+  public void recordAssetMarkingsAssigned(int count) {
+    recordMarkingAssignment(RESOURCE_TYPE_ASSET, ACTION_ASSIGN, count);
+  }
+
+  /** Records {@code count} markings removed from an asset. */
+  public void recordAssetMarkingsUnassigned(int count) {
+    recordMarkingAssignment(RESOURCE_TYPE_ASSET, ACTION_UNASSIGN, count);
+  }
+
+  /** Records {@code count} markings newly granted by a group to its members. */
+  public void recordGroupMarkingsAssigned(int count) {
+    recordMarkingAssignment(RESOURCE_TYPE_GROUP, ACTION_ASSIGN, count);
+  }
+
+  /** Records {@code count} markings revoked from a group's grant. */
+  public void recordGroupMarkingsUnassigned(int count) {
+    recordMarkingAssignment(RESOURCE_TYPE_GROUP, ACTION_UNASSIGN, count);
+  }
+
+  private void recordMarkingAssignment(String resourceType, String action, int count) {
+    if (count <= 0) {
+      return;
+    }
+    Attributes attributes =
+        Attributes.of(
+            stringKey(ATTRIBUTE_RESOURCE_TYPE), resourceType, stringKey(ATTRIBUTE_ACTION), action);
+    Runnable increment =
+        () ->
+            markingAssignmentStats
+                .computeIfAbsent(attributes, key -> new AtomicLong(0))
+                .addAndGet(count);
+    // Deferred to afterCommit (same pattern as CommitAwareCacheManager): the caller's
+    // transaction can still roll back after this call (e.g. the repository save below it),
+    // and a rolled-back assignment must not inflate the exported count.
+    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+      increment.run();
+      return;
+    }
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            increment.run();
+          }
+        });
+  }
+
+  private Map<Attributes, Long> collectAndReset(Map<Attributes, AtomicLong> stats) {
+    Map<Attributes, Long> snapshot = new HashMap<>();
+    stats.forEach(
+        (attributes, value) -> {
+          long collected = value.getAndSet(0);
+          if (collected > 0) {
+            snapshot.put(attributes, collected);
+          }
+        });
+    return snapshot;
   }
 
   private Map<Attributes, Long> collectMarkings() {

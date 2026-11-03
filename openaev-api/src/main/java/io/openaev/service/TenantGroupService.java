@@ -28,6 +28,7 @@ import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.telemetry.metric_collectors.MarkingMetricCollector;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
@@ -54,6 +55,7 @@ public class TenantGroupService {
   private final GrantService grantService;
   private final MarkingDefinitionRepository markingDefinitionRepository;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
+  private final MarkingMetricCollector markingMetricCollector;
   @PersistenceContext private EntityManager entityManager;
 
   // PermissionService pulls in InjectService -> EndpointService -> ServiceAccountPrivilegeService
@@ -282,6 +284,9 @@ public class TenantGroupService {
     }
 
     Set<String> affected = new LinkedHashSet<>(group.getUsers().stream().map(User::getId).toList());
+
+    markingMetricCollector.recordGroupMarkingsAssigned(addedIds.size());
+    markingMetricCollector.recordGroupMarkingsUnassigned(removedIds.size());
 
     group.setMarkings(markings);
     Group saved = groupRepository.save(group);

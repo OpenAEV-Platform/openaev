@@ -168,7 +168,7 @@ class ScenarioToExerciseDocumentAttributionTest extends IntegrationTest {
             () -> {
               Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
               TenantContext.setCurrentTenant(tenantThird);
-              return scenarioToExerciseService.toExercise(scenario, null, false);
+              return scenarioToExerciseService.toExercise(scenario, null, false, null);
             });
 
     // Assert: the exercise references the same document row (a merge, so no prePersist), still in

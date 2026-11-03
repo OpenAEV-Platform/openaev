@@ -195,11 +195,13 @@ const SecurityCoverageContent: FunctionComponent<Props> = ({ widgetId, widgetCon
 
   return (
     <Box
-      flex={1}
-      display="flex"
-      flexDirection="column"
-      minHeight={0}
-      height="100%"
+      sx={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0,
+        height: '100%',
+      }}
     >
       <Box
         component="header"

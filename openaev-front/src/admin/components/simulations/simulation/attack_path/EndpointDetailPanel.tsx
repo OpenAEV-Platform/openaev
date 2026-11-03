@@ -181,7 +181,16 @@ const EndpointDetailPanel = ({
           />
         </Box>
         {endpointSub && (
-          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{endpointSub}</Typography>
+          <Typography
+            variant="caption"
+            noWrap
+            sx={{
+              color: 'text.secondary',
+              display: 'block',
+            }}
+          >
+            {endpointSub}
+          </Typography>
         )}
       </Box>
 
@@ -360,7 +369,14 @@ const EndpointDetailPanel = ({
                             {e.payloadName || e.label}
                           </Typography>
                           {subtitle && (
-                            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                            <Typography
+                              variant="caption"
+                              noWrap
+                              sx={{
+                                color: 'text.secondary',
+                                display: 'block',
+                              }}
+                            >
                               {subtitle}
                             </Typography>
                           )}
@@ -418,8 +434,8 @@ const EndpointDetailPanel = ({
                       : (
                           <Typography
                             variant="caption"
-                            color="text.secondary"
                             sx={{
+                              color: 'text.secondary',
                               display: 'block',
                               pt: 1,
                             }}

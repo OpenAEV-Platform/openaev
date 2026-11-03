@@ -85,10 +85,12 @@ const FilterChipPopover: FunctionComponent<Props> = ({
         vertical: 'bottom',
         horizontal: 'left',
       }}
-      PaperProps={{
-        className: 'fds-filter-popover',
-        elevation: 1,
-        style: { marginTop: 10 },
+      slotProps={{
+        paper: {
+          className: 'fds-filter-popover',
+          elevation: 1,
+          style: { marginTop: 10 },
+        },
       }}
     >
       <div

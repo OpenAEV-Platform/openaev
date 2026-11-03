@@ -13,15 +13,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
-import io.openaev.database.repository.AgentRepository;
+import io.openaev.execution.PayloadRevokedException;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.payload.service.PayloadService;
-import io.openaev.service.AssetGroupService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.payload_approval.BlockedPayloadsException;
 import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.utils.command.CommandArgumentBinder;
@@ -32,6 +32,7 @@ import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -51,14 +52,10 @@ public class ExecutableInjectService {
   private final InjectStatusService injectStatusService;
   private final InjectExpectationService injectExpectationService;
   private final PayloadService payloadService;
-  private final AgentRepository agentRepository;
-  private final AssetGroupService assetGroupService;
+  private final PayloadRevocationService payloadRevocationService;
   private final PayloadApprovalGate payloadApprovalGate;
 
   @Resource protected ObjectMapper mapper;
-
-  static final String PAYLOAD_ACCESS_DENIED =
-      "Agent is not allowed to retrieve the payload of this inject";
 
   private static final Set<String> RESERVED_PLACEHOLDERS = Set.of("location", "payload_location");
   private static final Pattern argumentsRegex = Pattern.compile("#\\{([^#{}]+)}");
@@ -219,7 +216,7 @@ public class ExecutableInjectService {
     if (PrimitiveType.Document == type && !value.isEmpty()) {
       try {
         Document doc = documentService.document(value);
-        value = "#{location}/" + doc.getName();
+        value = "#{location}/" + DocumentService.safeFileName(doc.getName());
         missing = false;
       } catch (ElementNotFoundException e) {
         log.error("Payload argument target unexisting document", e);
@@ -298,7 +295,8 @@ public class ExecutableInjectService {
     return Base64.getEncoder().encodeToString(computedCommand.getBytes());
   }
 
-  @Transactional(rollbackFor = Exception.class)
+  // A revoked payload is refused with its trace committed, so the agent does not end in TIMEOUT.
+  @Transactional(rollbackFor = Exception.class, noRollbackFor = PayloadRevokedException.class)
   public Payload getExecutablePayloadAndUpdateInjectStatus(String injectId, String agentId)
       throws Exception {
     // Need startTime to be defined before everything else to be the most accurate start time, as
@@ -316,41 +314,9 @@ public class ExecutableInjectService {
     return payloadToExecute;
   }
 
-  /**
-   * Object-level authorization gate: a service-account bearer token carrying AGENT_RUNTIME_ACCESS
-   * is shared across every agent, so the {@code @AccessControl} capability check alone does not
-   * prove the caller is entitled to this specific inject's payload. Reject the request (403) unless
-   * the requesting agent's asset is actually targeted by the inject, either directly or through one
-   * of its asset groups (static or dynamic membership).
-   *
-   * <p>Every failure (unknown inject, unknown agent, agent without asset, agent not targeted) maps
-   * to the same 403 and message, so the endpoint does not reveal whether an inject or agent id
-   * exists. The precise reason is only logged server-side.
-   */
-  private Inject resolveInjectTargetingAgent(String injectId, String agentId) {
-    Inject inject = injectService.findInjectOrNull(injectId);
-    Asset agentAsset = agentRepository.findById(agentId).map(Agent::getAsset).orElse(null);
-    if (inject == null || agentAsset == null || !isInjectTarget(inject, agentAsset.getId())) {
-      log.warn(
-          "Executable payload denied: inject {} (found: {}), agent {} (asset found: {})",
-          injectId,
-          inject != null,
-          agentId,
-          agentAsset != null);
-      throw new ForbiddenException(PAYLOAD_ACCESS_DENIED);
-    }
-    return inject;
-  }
-
-  private boolean isInjectTarget(Inject inject, String agentAssetId) {
-    return inject.getAssets().stream().anyMatch(asset -> agentAssetId.equals(asset.getId()))
-        || inject.getAssetGroups().stream()
-            .flatMap(group -> assetGroupService.assetsFromAssetGroup(group.getId()).stream())
-            .anyMatch(asset -> agentAssetId.equals(asset.getId()));
-  }
-
   private Payload getExecutablePayloadInject(String injectId, String agentId) throws Exception {
-    Inject inject = resolveInjectTargetingAgent(injectId, agentId);
+    injectService.checkAgentTargetsInject(injectId, agentId);
+    Inject inject = injectService.inject(injectId);
     InjectorContract contract =
         inject
             .getInjectorContract()
@@ -361,6 +327,12 @@ public class ExecutableInjectService {
 
     if (contract.getPayload() == null) {
       throw new ElementNotFoundException("Payload not found");
+    }
+    Optional<String> revocation = payloadRevocationService.revocationMessage(inject);
+    if (revocation.isPresent()) {
+      injectStatusService.addCompleteAgentTraceByInject(
+          injectId, agentId, ExecutionTraceStatus.ERROR, revocation.get());
+      throw new PayloadRevokedException(revocation.get());
     }
     // Second line of the payload approval check (the executor refuses before dispatch): the payload
     // could have been edited between the dispatch and this download by the implant.

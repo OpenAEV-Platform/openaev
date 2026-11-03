@@ -4,21 +4,16 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import io.openaev.database.model.WorkflowStateEntries;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 public class StepServiceParserTest {
 
   Gson gson = new Gson();
-  @InjectMocks WorkflowStateService stepStateService;
 
   @Test
   public void updateFields() {
@@ -229,58 +224,5 @@ public class StepServiceParserTest {
 
     Map<String, Object> values = StepService.getFields(jsonString, "outputs.message.stdout");
     assertEquals(3, values.size(), "Get all path for requested field");
-  }
-
-  @Test
-  public void testNewOutputWithComputed() {
-    // Création du stateEntries vide
-    WorkflowStateEntries stateEntries =
-        new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-
-    stepStateService.newOutput(
-        stateEntries,
-        "{\"outputs\": {\"message\": {\"stdout\": \"filigran\"}}}",
-        "outputs.message.stdout",
-        "stdout");
-
-    assertEquals(1, stateEntries.getInputs().size());
-    assertTrue(stateEntries.getInputs().getFirst().getValues().contains("filigran"));
-
-    stepStateService.newOutput(
-        stateEntries,
-        "{\"outputs\": {\"message\": {\"exit\": \"0\"}}}",
-        "outputs.message.exit",
-        "exit");
-
-    assertEquals(2, stateEntries.getInputs().size());
-    assertTrue(stateEntries.getInputByKey("exit").getValues().contains("0"));
-
-    stepStateService.newOutput(
-        stateEntries,
-        "{\"outputs\": {\"message\": {\"port\": \"445\", \"ip\": \"192.168.123.131\"}}}",
-        "outputs.message.port+outputs.message.ip",
-        "port+ip");
-
-    assertEquals(1, stateEntries.getCorrelated().size());
-    WorkflowStateEntries.Correlated c1 = stateEntries.getCorrelated().getFirst();
-    assertTrue(c1.getValues().contains(new WorkflowStateEntries.Pair("port", "445")));
-    assertTrue(c1.getValues().contains(new WorkflowStateEntries.Pair("ip", "192.168.123.131")));
-
-    stepStateService.newOutput(
-        stateEntries,
-        "{\"outputs\": {\"message\": {\"port\": \"445\", \"ip\": \"192.168.123.131\"}}}",
-        "outputs.message.port+outputs.message.ip",
-        "port+ip");
-
-    assertEquals(
-        1, stateEntries.getCorrelated().size(), "Computed identique ne doit pas être dupliqué");
-
-    stepStateService.newOutput(
-        stateEntries,
-        "{\"outputs\": {\"message\": {\"port\": \"135\", \"ip\": \"192.168.123.132\"}}}",
-        "outputs.message.port+outputs.message.ip",
-        "port+ip");
-
-    assertEquals(2, stateEntries.getCorrelated().size());
   }
 }

@@ -12,7 +12,6 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
-import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
@@ -39,7 +38,6 @@ public class PayloadCreationService {
   private final LicenseCacheManager licenseCacheManager;
 
   private final AttackPatternRepository attackPatternRepository;
-  private final PayloadRepository payloadRepository;
   private final TagRepository tagRepository;
   private final DomainService domainService;
   private final DocumentService documentService;
@@ -81,22 +79,33 @@ public class PayloadCreationService {
    */
   private PayloadInjectorContractCreationResult createInternal(
       TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
+    return create(ctx, explicitTenant, input);
+  }
+
+  /** The payload {@code createPayload} would save, left unsaved: lets callers compare content. */
+  public Payload toPayload(TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
     }
-
-    return create(ctx, explicitTenant, input);
-  }
-
-  private PayloadInjectorContractCreationResult create(
-      TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
 
     Payload payload = payloadType.getPayloadSupplier().get();
     payloadUtils.copyProperties(input, payload);
     payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, explicitTenant)));
+    if (payload instanceof Executable executable) {
+      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+    } else if (payload instanceof FileDrop fileDrop) {
+      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+    }
+    return payload;
+  }
+
+  private PayloadInjectorContractCreationResult create(
+      TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
+    PayloadType payloadType = PayloadType.fromString(input.getType());
+    Payload payload = toPayload(ctx, explicitTenant, input);
 
     // Manually created payloads are authored by the current user. System-driven
     // creations (startup datapacks, schedulers) have no authenticated user and
@@ -106,15 +115,9 @@ public class PayloadCreationService {
       payload.setLastModifiedBy(payload.getAuthorUser());
     }
 
-    if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
-    } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
-    }
-
-    Payload payloadSaved = payloadRepository.save(payload);
+    Payload payloadSaved = payloadService.createFirstVersion(payload);
     payloadApprovalService.onWrite(
-        payloadSaved, payload.getAuthorUser(), PayloadApproval.ORIGIN.CREATE, null);
+        payloadSaved, payload.getAuthorUser(), PayloadApproval.ORIGIN.CREATE);
     // The id collections default to empty lists on the input, but callers that build the
     // input via BeanUtils.copyProperties (e.g. threat arsenal action creation) can overwrite
     // those defaults with null. Spring Data's findAllById throws IllegalArgumentException

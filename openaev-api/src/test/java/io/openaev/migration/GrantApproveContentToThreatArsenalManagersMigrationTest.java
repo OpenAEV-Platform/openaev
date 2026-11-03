@@ -37,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 class GrantApproveContentToThreatArsenalManagersMigrationTest extends IntegrationTest {
 
   @Autowired
-  private V6_20261008160000000__Grant_approve_content_to_threat_arsenal_managers migration;
+  private V6_20261102100300000__Grant_approve_content_to_threat_arsenal_managers migration;
 
   /** {@code tenantId} null seeds a platform role. */
   private String insertRole(String name, String tenantId, Capability... capabilities) {
@@ -218,7 +218,7 @@ class GrantApproveContentToThreatArsenalManagersMigrationTest extends Integratio
       logger =
           (Logger)
               LoggerFactory.getLogger(
-                  V6_20261008160000000__Grant_approve_content_to_threat_arsenal_managers.class);
+                  V6_20261102100300000__Grant_approve_content_to_threat_arsenal_managers.class);
       originalLevel = logger.getLevel();
       logger.setLevel(Level.INFO);
       logs = new ListAppender<>();

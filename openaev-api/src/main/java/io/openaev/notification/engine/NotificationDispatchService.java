@@ -94,6 +94,19 @@ public class NotificationDispatchService {
     }
   }
 
+  /** In-app alert without a trigger, for events nobody subscribes to. */
+  public void alert(String tenantId, List<User> users, NotificationContent.Group group) {
+    for (User user : users) {
+      Notification notification = new Notification();
+      notification.setName(group.title());
+      notification.setType(NotificationTriggerType.LIVE);
+      notification.setContent(NotificationContent.toContentJson(List.of(group)));
+      notification.setUser(user);
+      notification.setTenant(new Tenant(tenantId));
+      notificationRepository.save(notification);
+    }
+  }
+
   // -- UI --
 
   // Repository save is transactional by itself; the entity listener then streams the new

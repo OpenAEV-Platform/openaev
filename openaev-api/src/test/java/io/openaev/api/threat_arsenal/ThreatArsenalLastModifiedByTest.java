@@ -156,18 +156,25 @@ class ThreatArsenalLastModifiedByTest extends IntegrationTest {
             List.of());
 
     // -- ACT --
-    mvc.perform(
-            put(tenantUri(TENANT_THREAT_ARSENAL_URL) + "/" + actionId)
-                .with(authentication(editorAuth))
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(updateInput)))
-        .andExpect(status().is2xxSuccessful());
+    String updated =
+        mvc.perform(
+                put(tenantUri(TENANT_THREAT_ARSENAL_URL) + "/" + actionId)
+                    .with(authentication(editorAuth))
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(updateInput)))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
     // -- ASSERT --
-    Payload payload = reload(payloadId);
-    assertThat(payload.getAuthorUser().getId()).isEqualTo(creatorId);
-    assertThat(payload.getLastModifiedBy().getId()).isEqualTo(editor.getId());
+    // The edit is a new version, written by the editor; the version it replaces never changes.
+    Payload newVersion = reload(JsonPath.read(updated, "$.action_payload.payload_id"));
+    assertThat(newVersion.getId()).isNotEqualTo(payloadId);
+    assertThat(newVersion.getAuthorUser().getId()).isEqualTo(creatorId);
+    assertThat(newVersion.getLastModifiedBy().getId()).isEqualTo(editor.getId());
+    assertThat(reload(payloadId).getLastModifiedBy().getId()).isEqualTo(creatorId);
   }
 
   @Test
@@ -220,21 +227,28 @@ class ThreatArsenalLastModifiedByTest extends IntegrationTest {
     Payload payload = reload(payloadId);
     assertThat(payload.getLastModifiedBy()).isNull();
 
-    // A user-attributed payload re-synced by its collector loses the user attribution.
+    // A collector update of a user-attributed payload adds a version that no user wrote.
     payload.setLastModifiedBy(testUserHolder.get());
     payloadRepository.save(payload);
     entityManager.flush();
+    upsertInput.setContent("echo re-synced");
 
     // -- ACT --
-    mvc.perform(
-            post(PAYLOAD_URI + "/upsert")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(upsertInput))
-                .with(csrf()))
-        .andExpect(status().isOk());
+    String resynced =
+        mvc.perform(
+                post(PAYLOAD_URI + "/upsert")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(upsertInput))
+                    .with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
     // -- ASSERT --
-    assertThat(reload(payloadId).getLastModifiedBy()).isNull();
+    String newVersionId = JsonPath.read(resynced, "$.payload_id");
+    assertThat(newVersionId).isNotEqualTo(payloadId);
+    assertThat(reload(newVersionId).getLastModifiedBy()).isNull();
   }
 
   @Test

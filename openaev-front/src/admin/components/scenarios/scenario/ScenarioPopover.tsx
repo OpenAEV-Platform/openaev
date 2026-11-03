@@ -1,8 +1,10 @@
 import { type FunctionComponent, useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import { uninstallCatalogScenario } from '../../../../actions/catalog/scenario-catalog-actions';
 import { deleteScenario, duplicateScenario, exportScenario } from '../../../../actions/scenarios/scenario-actions';
 import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
+import DialogConfirmation from '../../../../components/common/DialogConfirmation';
 import DialogDelete from '../../../../components/common/DialogDelete';
 import DialogDuplicate from '../../../../components/common/DialogDuplicate';
 import ExportOptionsDialog from '../../../../components/common/export/ExportOptionsDialog';
@@ -46,6 +48,7 @@ const ScenarioPopover: FunctionComponent<Props> = ({
   const navigate = useNavigate();
   const { canManage, canDelete } = useScenarioPermissions(scenario.scenario_id);
   const ability = useAbility();
+  const installedVersion = scenario.scenario_catalog_id ? scenario.scenario_version : undefined;
 
   // Duplicate
   const [duplicate, setDuplicate] = useState(false);
@@ -71,7 +74,10 @@ const ScenarioPopover: FunctionComponent<Props> = ({
   const handleOpenDelete = () => setDeletion(true);
   const handleCloseDelete = () => setDeletion(false);
   const submitDelete = () => {
-    dispatch(deleteScenario(scenario.scenario_id)).then(() => {
+    const removal = installedVersion
+      ? uninstallCatalogScenario(scenario.scenario_id)
+      : dispatch(deleteScenario(scenario.scenario_id));
+    removal.then(() => {
       handleCloseDelete();
       if (onDelete) onDelete(scenario.scenario_id);
     });
@@ -111,7 +117,7 @@ const ScenarioPopover: FunctionComponent<Props> = ({
     userRight: true,
   });
   if (actions.includes('Delete')) entries.push({
-    label: 'Delete',
+    label: installedVersion ? 'Uninstall' : 'Delete',
     action: () => handleOpenDelete(),
     userRight: canDelete,
     disabled: deleteDisabled,
@@ -159,15 +165,24 @@ const ScenarioPopover: FunctionComponent<Props> = ({
             onSubmit={submitExport}
           />
         )}
-      {actions.includes('Delete')
-        && (
-          <DialogDelete
-            open={deletion}
-            handleClose={handleCloseDelete}
-            handleSubmit={submitDelete}
-            text={`${t('Do you want to delete this scenario:')} ${scenario.scenario_name} ?`}
-          />
-        )}
+      {actions.includes('Delete') && installedVersion && (
+        <DialogConfirmation
+          open={deletion}
+          handleClose={handleCloseDelete}
+          handleSubmit={submitDelete}
+          text={t('Do you want to uninstall version {version} of this scenario? Its payloads stay installed.', { version: installedVersion })}
+          submitLabel={t('Uninstall')}
+          submitColor="error"
+        />
+      )}
+      {actions.includes('Delete') && !installedVersion && (
+        <DialogDelete
+          open={deletion}
+          handleClose={handleCloseDelete}
+          handleSubmit={submitDelete}
+          text={`${t('Do you want to delete this scenario:')} ${scenario.scenario_name} ?`}
+        />
+      )}
     </>
   );
 };

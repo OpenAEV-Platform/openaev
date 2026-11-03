@@ -17,6 +17,7 @@ import {
   type CreateConnectorInstanceInput,
 } from '../../../../utils/api-types';
 import { type ContractType, type EnhancedContractElement } from '../../../../utils/api-types-custom';
+import { isEmptyField, isNotEmptyField } from '../../../../utils/utils';
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
 import { CONNECTOR_NAME_KEYS } from './useConnectorInstance';
 
@@ -89,7 +90,7 @@ const ConnectorInstanceForm = ({
         }
         const expectedSchema = getZodType(matchingConf.connector_configuration_type, matchingConf.connector_configuration_format);
         const result = expectedSchema.safeParse(value);
-        if (!result.success && value) {
+        if (!result.success && isNotEmptyField(value)) {
           result.error.issues.forEach((issue) => {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
@@ -103,7 +104,7 @@ const ConnectorInstanceForm = ({
         if (matchingConf.connector_configuration_required
         // should only require password inputs ("writeOnly") during creation, NOT modification
           && (!isEditing || !matchingConf.connector_configuration_writeonly)
-          && (!value || value === '')) {
+          && isEmptyField(value)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: t('Should not be empty'),
@@ -164,12 +165,16 @@ const ConnectorInstanceForm = ({
 
   // Threshold above which a STRING field renders as a multiline textarea instead of a single-line input
   const TEXTAREA_DEFAULT_LENGTH_THRESHOLD = 100;
+  // Query templates have no catalog default (the collector runs its built-in query when empty),
+  // so the default length cannot tell they are multiline
+  const TEXTAREA_KEY_SUFFIX = '_QUERY_TEMPLATE';
 
   const formatFieldType = (
     configurationType: CatalogConnectorConfiguration['connector_configuration_type'],
     configurationFormat: CatalogConnectorConfiguration['connector_configuration_format'],
     isEnum: boolean,
     defaultValue?: unknown,
+    configurationKey?: string,
   ): ContractType => {
     if (isEnum) {
       return 'choice';
@@ -182,6 +187,9 @@ const ConnectorInstanceForm = ({
     }
     if (configurationType == 'INTEGER') {
       return 'number';
+    }
+    if (configurationType == 'STRING' && configurationKey?.endsWith(TEXTAREA_KEY_SUFFIX)) {
+      return 'textarea';
     }
     if (configurationType == 'STRING' && typeof defaultValue === 'string' && defaultValue.length > TEXTAREA_DEFAULT_LENGTH_THRESHOLD) {
       return 'textarea';
@@ -202,6 +210,7 @@ const ConnectorInstanceForm = ({
         definition.connector_configuration_format,
         !!definition.connector_configuration_enum?.length,
         definition.connector_configuration_default,
+        definition.connector_configuration_key,
       ),
       mandatory: required,
       label: formatKeyToLabel(definition.connector_configuration_key || ''), // TODO should be not null
@@ -315,7 +324,12 @@ const ConnectorInstanceForm = ({
         ))}
         {optionalFields.length > 0 && (
           <>
-            <Typography variant="h5" marginTop={theme.spacing(3)}>{t('Configuration')}</Typography>
+            <Typography
+              variant="h5"
+              sx={{ marginTop: theme.spacing(3) }}
+            >
+              {t('Configuration')}
+            </Typography>
             <Accordion>
               <AccordionSummary
                 aria-controls="panel1-content"

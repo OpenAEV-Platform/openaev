@@ -110,7 +110,7 @@ public class ProductInventoryMetricCollector {
         "Number of organizations",
         () -> safeCount(this::countOrganizations));
     metricRegistry.registerGauge(
-        "injects_total", "Number of injects", () -> safeCount(injectRepository::count));
+        "injects_total", "Number of injects", () -> safeCount(this::countInjects));
     metricRegistry.registerGauge(
         "challenges_total", "Number of challenges", () -> safeCount(this::countChallenges));
     metricRegistry.registerGauge(
@@ -132,9 +132,7 @@ public class ProductInventoryMetricCollector {
         "Number of notification triggers",
         () -> safeCount(this::countNotificationTriggers));
     metricRegistry.registerGauge(
-        "workflows_total",
-        "Number of chaining workflows",
-        () -> safeCount(workflowRepository::count));
+        "workflows_total", "Number of chaining workflows", () -> safeCount(this::countWorkflows));
     metricRegistry.registerGauge(
         "findings_total", "Number of findings", () -> safeCount(this::countFindings));
     metricRegistry.registerGauge(
@@ -162,8 +160,8 @@ public class ProductInventoryMetricCollector {
               () ->
                   entityManager
                       .createQuery(
-                          "select p.type, p.source, p.status, count(p) from Payload p"
-                              + " group by p.type, p.source, p.status",
+                          "select p.type, pi.source, p.status, count(p) from Payload p"
+                              + " join p.identity pi group by p.type, pi.source, p.status",
                           Object[].class)
                       .getResultList());
       for (Object[] row : rows) {
@@ -269,12 +267,26 @@ public class ProductInventoryMetricCollector {
     return tenantTx.<Long>execute(TxCtx.allTenants(), () -> findingRepository.count());
   }
 
-  private long countRecurringScenarios() {
-    return entityManager
-        .createQuery(
-            "select count(s) from Scenario s where s.recurrence is not null and s.recurrence <> ''",
-            Long.class)
-        .getSingleResult();
+  /** Counts injects across the whole platform, ready for the injects activation. */
+  long countInjects() {
+    return countAcrossAllTenants(injectRepository::count);
+  }
+
+  /** Counts chaining workflows across the whole platform, ready for the workflows activation. */
+  long countWorkflows() {
+    return countAcrossAllTenants(workflowRepository::count);
+  }
+
+  /** Counts recurring scenarios across the whole platform, ready for the scenarios activation. */
+  long countRecurringScenarios() {
+    return countAcrossAllTenants(
+        () ->
+            entityManager
+                .createQuery(
+                    "select count(s) from Scenario s"
+                        + " where s.recurrence is not null and s.recurrence <> ''",
+                    Long.class)
+                .getSingleResult());
   }
 
   /**

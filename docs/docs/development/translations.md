@@ -1,6 +1,6 @@
 # Translations
 
-This page explains how the OpenAEV front-end is translated, how to add or change a translation, and which checks the CI runs on the translation files.
+This page explains how the OpenAEV front-end is translated, how to add or change a translation, and which checks the CI runs.
 
 ## How translation works
 
@@ -12,7 +12,7 @@ The front-end translation files live in `openaev-front/src/utils/lang/`:
 | `de.json`, `es.json`, `fr.json`, `it.json` | German, Spanish, French, Italian |
 | `ja.json`, `ko.json`, `ru.json`, `zh.json` | Japanese, Korean, Russian, Chinese |
 
-A translation key is the English text itself: the component calls `t('Add tags')`, and every file maps `"Add tags"` to its translation. All nine files contain the same keys, and every value is translated in every language.
+A translation key is the English text itself: the component calls `t('Add tags')`, and every file maps `"Add tags"` to its translation. All nine files have the same keys.
 
 !!! note "Messages sent by the backend"
 
@@ -28,7 +28,7 @@ A translation key is the English text itself: the component calls `t('Add tags')
     yarn extract-translation
     ```
 
-    The script only detects `t('…')` calls with a single-quoted text and no other argument, in `.js`, `.jsx` and `.tsx` files. Add these keys to `en.json` by hand:
+    The script only detects `t('…')` calls with a single-quoted text and no other argument, in `.js`, `.jsx` and `.tsx` files. Add the other keys to `en.json` by hand:
 
     | Not detected | Example |
     |---|---|
@@ -37,7 +37,7 @@ A translation key is the English text itself: the component calls `t('Add tags')
     | A call in a `.ts` file | `asset-categories.ts`, `sampleData.ts` |
     | A text passed as a prop or an object property that a component translates later | `title="Import a scenario"`, `label: 'Seen'` |
 
-    `yarn i18n-checker` (step 5) detects the first three cases: run it before pushing to find the keys you missed.
+    `yarn i18n-checker` (step 5) finds the first three cases.
 
 3. Translate the new keys into the eight other languages with DeepL:
 
@@ -45,11 +45,9 @@ A translation key is the English text itself: the component calls `t('Add tags')
     SUBSCRIPTION_KEY=<your DeepL key> yarn auto-translation:all
     ```
 
-    Pass the DeepL key through the `SUBSCRIPTION_KEY` environment variable, on the command line as above or in the run configuration of your IDE.
+    You can also set `SUBSCRIPTION_KEY` in the run configuration of your IDE. Only missing keys are sent to DeepL: existing translations are never overwritten.
 
-    Only the keys missing from a language file are sent to DeepL: existing translations are never overwritten.
-
-4. Review the diff of the language files. DeepL can mistranslate a word out of context, translate a field name, or add quotes. Fix these by hand (see [Translation rules](#translation-rules)).
+4. Review the diff. DeepL can mistranslate a word out of context, translate a field name or add quotes. Fix these by hand (see [Translation rules](#translation-rules)).
 5. Check the files:
 
     ```bash
@@ -62,7 +60,7 @@ All scripts run from `openaev-front/`.
 
 | Script | What it does |
 |---|---|
-| `yarn extract-translation` | Adds to `en.json` the missing keys of the simple `t('…')` calls. Some calls must be added by hand, see [How to add or change a translation](#how-to-add-or-change-a-translation). |
+| `yarn extract-translation` | Adds to `en.json` the missing keys of the simple `t('…')` calls (see [How to add or change a translation](#how-to-add-or-change-a-translation)). |
 | `yarn auto-translation:all` | Translates with DeepL the keys missing from each language file, adjusts the case of the first letter to the source, then sorts the files. |
 | `yarn sort-translation` | Sorts the keys of every language file. |
 | `yarn i18n-checker` | Runs every check listed in [Checks run by the CI](#checks-run-by-the-ci). |
@@ -87,6 +85,7 @@ The files live in `openaev-front/scripts/`.
 |---|---|
 | `i18n-glossary.json` | `globalTerms`: brand names, acronyms and standards that are never translated (`OpenAEV`, `MITRE`, `Kubernetes`, `PowerShell`…). |
 | `i18n-loanwords.json` | Values that are legitimately identical to English: `all` for every language, then one list per language (`"de": ["Dashboard"]`). |
+
 ## Translation rules
 
 | Rule | Example |

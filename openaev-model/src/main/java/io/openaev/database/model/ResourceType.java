@@ -55,6 +55,8 @@ public enum ResourceType {
   OBJECTIVE,
   EVALUATION,
   CATALOG,
+  CATALOG_SYNC,
+  PAYLOAD_REVOCATION,
   CONNECTOR_INSTANCE_LOG,
   SECRET_PROVIDER,
   TENANT,
@@ -75,6 +77,7 @@ public enum ResourceType {
   SESSION,
   TOKEN,
   PLATFORM_SESSION,
+  AUTONOMOUS_RUN,
   SKIP_RBAC; // Used to skip RBAC checks.
 
   public static ResourceType fromString(@NotNull String name) {

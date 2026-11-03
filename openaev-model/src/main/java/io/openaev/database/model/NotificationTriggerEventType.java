@@ -2,18 +2,37 @@ package io.openaev.database.model;
 
 /**
  * Events a live {@link NotificationTrigger} can subscribe to: entity lifecycle operations
- * (create/update/delete) plus the scenario score degradation semantic event (successor of the
- * legacy {@code NotificationRule} DIFFERENCE trigger, only valid for the SCENARIO resource type).
+ * (create/update/delete) plus semantic events, each valid for a single resource type.
  */
 public enum NotificationTriggerEventType {
-  CREATE,
-  UPDATE,
-  DELETE,
-  SCORE_DEGRADATION,
+  CREATE(null),
+  UPDATE(null),
+  DELETE(null),
+  SCORE_DEGRADATION(ResourceType.SCENARIO),
+  PAYLOAD_REVOKED(ResourceType.SCENARIO),
+  NEW_PAYLOAD_VERSION(ResourceType.SCENARIO),
+  REVOKED(ResourceType.PAYLOAD),
+  REVOCATION_LIFTED(ResourceType.PAYLOAD),
+  INSTALLED_AUTOMATICALLY(ResourceType.PAYLOAD),
+  BASE_UPDATE_AVAILABLE(ResourceType.PAYLOAD),
+  RELEASE_RECEIVED(ResourceType.CATALOG),
+  // Sent to platform administrators without a trigger: no trigger can watch catalogue syncs.
+  SYNC_BLOCKED(ResourceType.CATALOG_SYNC),
   // Payload approval notifications: sent by the platform to approvers and authors, never
   // subscribed to through a trigger (refused by trigger validation).
-  APPROVAL_PENDING,
-  APPROVED,
-  REJECTED,
-  SUPERSEDED
+  APPROVAL_PENDING(ResourceType.PAYLOAD),
+  APPROVED(ResourceType.PAYLOAD),
+  REJECTED(ResourceType.PAYLOAD),
+  SUPERSEDED(ResourceType.PAYLOAD);
+
+  private final ResourceType resourceType;
+
+  NotificationTriggerEventType(ResourceType resourceType) {
+    this.resourceType = resourceType;
+  }
+
+  /** Lifecycle events apply to every resource but the catalogue, whose items only sync. */
+  public boolean appliesTo(ResourceType watched) {
+    return resourceType == null ? watched != ResourceType.CATALOG : resourceType == watched;
+  }
 }

@@ -4,6 +4,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
+import jakarta.persistence.LockModeType;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
@@ -12,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.*;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -220,9 +222,9 @@ public interface ScenarioRepository
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
 
-  // Keep the tag aggregation CTE name distinct from the real `tags` table: once `tags` became a
-  // v2-active tenant-scoped table, reusing `tags` as a CTE name in this native query collided with
-  // the tenant SQL inspector's relation-name matching and broke tenant-path scenario reads.
+  // Keep every CTE name distinct from a real table name (hence `exercises_agg` and
+  // `scenario_tags_agg`): the tenant SQL inspector matches relations by name, so a CTE named
+  // after a v2-active table is rewritten as that table and PostgreSQL refuses the statement.
   @Query(
       value =
           "WITH "
@@ -241,7 +243,7 @@ public interface ScenarioRepository
               + "  WHERE scenario_id = :scenarioId "
               + "  GROUP BY scenario_id "
               + "), "
-              + "exercises AS ( "
+              + "exercises_agg AS ( "
               + "  SELECT scenario_id, "
               + "         array_agg(DISTINCT exercise_id) FILTER (WHERE exercise_id IS NOT NULL) AS scenario_exercises "
               + "  FROM scenarios_exercises "
@@ -316,7 +318,7 @@ public interface ScenarioRepository
               + "FROM scenarios s "
               + "LEFT JOIN all_users au ON au.scenario_id = s.scenario_id "
               + "LEFT JOIN scenario_users su ON su.scenario_id = s.scenario_id "
-              + "LEFT JOIN exercises ex ON ex.scenario_id = s.scenario_id "
+              + "LEFT JOIN exercises_agg ex ON ex.scenario_id = s.scenario_id "
               + "LEFT JOIN kill_chain kc ON kc.scenario_id = s.scenario_id "
               + "LEFT JOIN platforms pf ON pf.scenario_id = s.scenario_id "
               + "LEFT JOIN workflow_platforms wpf ON wpf.scenario_id = s.scenario_id "
@@ -367,4 +369,21 @@ public interface ScenarioRepository
   Optional<Scenario> findByIdAndTenantId(String id, String tenantId);
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /** Installed catalogue scenarios, as {catalog id, version, scenario id} rows (F5). */
+  @Query(
+      "SELECT s.catalogId, s.version, s.id FROM Scenario s WHERE s.catalogId IS NOT NULL"
+          + " AND s.version IS NOT NULL AND s.uninstalled = false")
+  List<Object[]> findInstalledCatalogVersions();
+
+  List<Scenario> findAllByCatalogId(String catalogId);
+
+  List<Scenario> findAllByNameAndCatalogIdIsNullOrderByCreatedAtAsc(String name);
+
+  Optional<Scenario> findByCatalogRepositoryAndCatalogId(String repository, String catalogId);
+
+  // Update, rollback and simulation creation of a catalogue scenario take it in this order.
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT s FROM Scenario s WHERE s.id = :id")
+  Optional<Scenario> findForUpdate(@Param("id") String id);
 }

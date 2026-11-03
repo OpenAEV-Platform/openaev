@@ -29,6 +29,7 @@ export const MESSAGING$ = {
   }]),
   toggleNav: new Subject<void>(),
   redirect: new Subject<string>(),
+  refreshMe: new Subject<void>(),
   toggleArianeChat: new Subject<void>(),
   setArianeChatMode: new Subject<ArianeChatMode>(),
 };

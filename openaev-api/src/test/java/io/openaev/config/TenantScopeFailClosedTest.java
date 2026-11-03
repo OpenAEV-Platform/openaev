@@ -8,6 +8,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.WithoutTenantScope;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.UUID;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @WithMockUser(isAdmin = true)
 @DisplayName("A read with no tenant scope sees nothing (fail-closed)")
+@WithoutTenantScope
 class TenantScopeFailClosedTest extends IntegrationTest {
 
   @Autowired private TenantIsolationTestHelper tenantHelper;

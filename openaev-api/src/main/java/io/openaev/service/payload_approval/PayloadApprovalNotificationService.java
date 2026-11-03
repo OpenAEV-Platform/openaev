@@ -33,18 +33,15 @@ public class PayloadApprovalNotificationService {
    * A payload, or a new version of an approved payload, is waiting for approval: the approvers will
    * be notified, except the author.
    *
-   * @param versionNumber the pending version, {@code null} for a payload never approved
+   * @param newVersion whether an earlier version of the payload was approved
    */
   public void recordPending(
-      @NotNull final Payload payload,
-      @Nullable final User author,
-      @Nullable final Integer versionNumber) {
+      @NotNull final Payload payload, @Nullable final User author, final boolean newVersion) {
     PayloadApprovalNotification notification =
-        newNotification(
-            payload, versionNumber == null ? EVENT.PAYLOAD_PENDING : EVENT.VERSION_PENDING);
+        newNotification(payload, newVersion ? EVENT.VERSION_PENDING : EVENT.PAYLOAD_PENDING);
     notification.setActor(author);
     notification.setActorName(author != null ? author.getNameOrEmail() : null);
-    notification.setVersionNumber(versionNumber);
+    notification.setVersion(newVersion ? payload.getVersion() : null);
     notificationRepository.save(notification);
   }
 
@@ -53,7 +50,7 @@ public class PayloadApprovalNotificationService {
    * there is no author (collector, platform) or when the author made the change themselves.
    *
    * @param actor who decided (approve, reject) or whose change superseded the version
-   * @param versionNumber the version, {@code null} for a payload never approved
+   * @param newVersion whether an earlier version of the payload was approved
    * @param reason the reason of a rejection
    */
   public void recordOutcome(
@@ -61,7 +58,7 @@ public class PayloadApprovalNotificationService {
       @NotNull final EVENT event,
       @Nullable final User actor,
       @Nullable final User author,
-      @Nullable final Integer versionNumber,
+      final boolean newVersion,
       @Nullable final String reason) {
     if (event.forApprovers()) {
       throw new IllegalArgumentException("Not an outcome event: " + event);
@@ -73,7 +70,7 @@ public class PayloadApprovalNotificationService {
     notification.setActor(actor);
     notification.setActorName(actor != null ? actor.getNameOrEmail() : null);
     notification.setRecipient(author);
-    notification.setVersionNumber(versionNumber);
+    notification.setVersion(newVersion ? payload.getVersion() : null);
     notification.setComment(reason);
     notificationRepository.save(notification);
   }

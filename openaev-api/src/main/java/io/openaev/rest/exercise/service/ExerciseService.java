@@ -779,6 +779,11 @@ public class ExerciseService {
       injectService.resetInjectByExercise(exercise.getId());
       // Reset lessons learned answers
       this.lessonsService.resetLessonsAnswer(exercise.getId());
+      // Revoke URL access tokens BEFORE the reload: the bulk update clears the persistence context
+      // (clearAutomatically), which would detach the reloaded exercise, and the final save would
+      // then merge a stale injects collection holding the chained injects deleted below
+      // (ObjectNotFoundException).
+      urlAccessTokenService.revokeAllForExercise(exercise.getId());
 
       entityManager.flush();
       entityManager.clear();
@@ -812,7 +817,6 @@ public class ExerciseService {
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
       }
-      urlAccessTokenService.revokeAllForExercise(exercise.getId());
     }
     // In case of manual start
     if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
@@ -820,6 +824,7 @@ public class ExerciseService {
       throwIfExerciseNotLaunchable(exercise);
       Instant nextMinute = now().truncatedTo(MINUTES).plus(1, MINUTES);
       exercise.setStart(nextMinute);
+      exercise.setLaunchedBy(userService.currentUser());
       actionMetricCollector.addSimulationPlayedCount();
     }
     // If exercise move from pause to running state,
@@ -1334,9 +1339,16 @@ public class ExerciseService {
    * exists in committed state (the callback path); creation flows must keep using {@link
    * #enableTargetedTeamMembers}, which joins the surrounding transaction and therefore sees a
    * simulation created in it. See {@code AutonomousRunService#setRunScope}.
+   *
+   * <p>The {@code ctx} argument is load-bearing even though this body never reads it: {@code
+   * REQUIRES_NEW} suspends the caller's transaction, so the caller's scope does not travel with it.
+   * The tenant aspect sets the new transaction's scope from this parameter. Without it the team
+   * lookup on the tenant-active {@code teams} table returns nothing and the team is skipped, so its
+   * players are never enabled.
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-  public void enableTargetedTeamMembersIsolated(String simulationId, List<String> teamIds) {
+  public void enableTargetedTeamMembersIsolated(
+      TxCtx ctx, String simulationId, List<String> teamIds) {
     this.exerciseTeamUserService.enableTargetedTeamMembers(simulationId, teamIds);
   }
 
@@ -1450,6 +1462,10 @@ public class ExerciseService {
     }
 
     List<HealthCheck> healthChecks = new ArrayList<>();
+    Exercise exercise = exercise(exerciseId);
+    if (exercise.getStatus() == ExerciseStatus.SCHEDULED) {
+      healthChecks.addAll(injectService.runRevocationChecks(exercise.getInjects()));
+    }
 
     // Scope definition check
     workflowService

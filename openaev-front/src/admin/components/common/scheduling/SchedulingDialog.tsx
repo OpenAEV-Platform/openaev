@@ -250,10 +250,10 @@ const SchedulingDialog: FunctionComponent<Props> = ({ open, onClose, initialValu
     <Dialog
       open={open}
       onClose={handleClose}
-      TransitionComponent={Transition}
-      PaperProps={{ elevation: 1 }}
       maxWidth="sm"
       fullWidth
+      slots={{ transition: Transition }}
+      slotProps={{ paper: { elevation: 1 } }}
     >
       {notEditable && (
         <DialogContent>

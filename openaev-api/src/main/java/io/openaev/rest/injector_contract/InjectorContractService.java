@@ -52,6 +52,7 @@ import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TriVoid;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -68,6 +69,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -113,17 +115,30 @@ public class InjectorContractService implements DependenciesManager {
   private final InjectIndexCleanupService injectIndexCleanupService;
   private final StepRepository stepRepository;
   private final ChainingStepCleanupService chainingStepCleanupService;
+  private final PayloadVersionService payloadVersionService;
 
-  private final List<String> listDefaultInjectorContract =
+  /**
+   * Built-in contracts whose injectors start with the platform through an autostart instance, so
+   * the default tenant always holds them.
+   */
+  private static final List<String> REQUIRED_DEFAULT_CONTRACTS =
       List.of(
           EmailContract.EMAIL_GLOBAL,
           EmailContract.EMAIL_DEFAULT,
           ChallengeContract.CHALLENGE_PUBLISH,
-          OvhSmsContract.OVH_DEFAULT,
           ManualContract.MANUAL_DEFAULT,
-          ChannelContract.CHANNEL_PUBLISH,
+          ChannelContract.CHANNEL_PUBLISH);
+
+  /** Built-in contracts the default tenant holds only once their connector is configured there. */
+  private static final List<String> OPTIONAL_DEFAULT_CONTRACTS =
+      List.of(
+          OvhSmsContract.OVH_DEFAULT,
           OpenCTIContract.OPENCTI_CREATE_CASE,
           OpenCTIContract.OPENCTI_CREATE_REPORT);
+
+  private final List<String> listDefaultInjectorContract =
+      Stream.concat(REQUIRED_DEFAULT_CONTRACTS.stream(), OPTIONAL_DEFAULT_CONTRACTS.stream())
+          .toList();
 
   /** Configuration flag for enabling email import from XLS files. */
   @Value("${openaev.xls.import.mail.enable}")
@@ -142,6 +157,18 @@ public class InjectorContractService implements DependenciesManager {
    * @return the injector contract
    * @throws ElementNotFoundException if not found
    */
+  /** The contract of a payload; every payload has exactly one. */
+  public Optional<InjectorContract> findOptionalByPayload(@NotNull final Payload payload) {
+    return injectorContractRepository.findInjectorContractByPayload(payload);
+  }
+
+  public InjectorContract findByPayload(@NotNull final Payload payload) {
+    return injectorContractRepository
+        .findInjectorContractByPayload(payload)
+        .orElseThrow(
+            () -> new ElementNotFoundException("No contract for payload " + payload.getId()));
+  }
+
   public InjectorContract injectorContract(@NotBlank final String id) {
     return injectorContractRepository
         .findByIdOrExternalId(id, id)
@@ -186,7 +213,8 @@ public class InjectorContractService implements DependenciesManager {
       @Nullable final Specification<InjectorContract> specification,
       @Nullable final Specification<InjectorContract> specificationCount,
       @NotNull final Pageable pageable,
-      @NotNull TriVoid<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector) {
+      @NotNull TriVoid<CriteriaBuilder, CriteriaQuery<Tuple>, Root<InjectorContract>> selector,
+      boolean byPrimaryDomain) {
     CriteriaBuilder cb = this.entityManager.getCriteriaBuilder();
 
     CriteriaQuery<Tuple> cq = cb.createTupleQuery();
@@ -209,7 +237,11 @@ public class InjectorContractService implements DependenciesManager {
     }
 
     // -- Sorting --
-    List<Order> orders = toSortCriteriaBuilder(cb, injectorContractRoot, pageable.getSort());
+    List<Order> orders = new ArrayList<>();
+    if (byPrimaryDomain) {
+      orders.add(cb.asc(primaryDomainName(cb, cq, injectorContractRoot)));
+    }
+    orders.addAll(toSortCriteriaBuilder(cb, injectorContractRoot, pageable.getSort()));
     cq.orderBy(orders);
 
     // Type Query
@@ -568,6 +600,9 @@ public class InjectorContractService implements DependenciesManager {
   // no_transactional_self_invocation). The entry point's transaction makes the contract delete
   // and the chaining step sweep commit or roll back together.
   public void deleteInjectorContract(InjectorContract injectorContract) {
+    if (injectorContract.getPayload() != null) {
+      payloadVersionService.assertDeletable(injectorContract.getPayload());
+    }
     // Same compensation as deleteInjectorContractById: the injects FK on injectors_contracts is ON
     // DELETE CASCADE, so the injects (and, one hop further, their expectations and findings) vanish
     // at the database level without a single JPA lifecycle event. The engine cascade is single-hop:
@@ -606,11 +641,11 @@ public class InjectorContractService implements DependenciesManager {
    * pass-through for {@code InjectorContractRepository#findContractTenantPairsByPayloadId} so
    * consumers outside this service (the payload-delete path) never touch the repository directly.
    *
-   * <p>The result deliberately spans all tenants so the payload-delete path sweeps exactly what the
-   * database cascade removes, each tenant with its own tenant-scoped call. Today {@code
-   * unique_injector_contract_payload} guarantees a payload backs at most one contract
-   * platform-wide, so the map holds at most one entry - the grouped shape simply keeps the delete
-   * path correct if that 1:1 constraint is ever relaxed.
+   * <p>The result covers the tenants the caller's scope can read, each swept with its own
+   * tenant-scoped call. {@code injector_contract_payload_unique} allows one contract per payload
+   * per tenant, so the map normally holds one entry. A contract of another tenant referencing the
+   * same payload, which the schema does not prevent yet, is removed by the database cascade but its
+   * steps are not swept.
    *
    * @param payloadId the payload whose contract ids are resolved
    * @return contract ids grouped by tenant id, empty when the payload backs no contract
@@ -635,6 +670,7 @@ public class InjectorContractService implements DependenciesManager {
     // The injects FK on injectors_contracts is ON DELETE CASCADE: collect the doomed inject ids
     // before the delete and de-index them explicitly (no JPA lifecycle fires for DB cascades).
     String tenantId = TenantContext.getCurrentTenant();
+    payloadVersionService.assertContractDeletable(injectorContractId, tenantId);
     List<String> cascadeDeletedInjectIds =
         injectIndexCleanupService.injectIdsByContractIds(List.of(injectorContractId), tenantId);
     this.injectorContractRepository.deleteById(
@@ -702,6 +738,28 @@ public class InjectorContractService implements DependenciesManager {
           new OutputModeConfig(
               this::selectForInjectorContractThreatArsenalContent, this::mapThreatArsenalContent));
 
+  /** First domain name in alphabetical order, "To classify" left out: the section of the card. */
+  private static Expression<String> primaryDomainName(
+      CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<InjectorContract> root) {
+    Subquery<String> subquery = cq.subquery(String.class);
+    Root<InjectorContract> correlated = subquery.correlate(root);
+    Join<InjectorContract, Domain> domain = correlated.join("domains");
+    return subquery
+        .select(cb.least(domain.<String>get("name")))
+        .where(cb.notEqual(domain.get("name"), DomainService.TO_CLASSIFY));
+  }
+
+  public PageImpl<? extends InjectorContractBaseOutput> getSinglePage(
+      Specification<InjectorContract> specification,
+      Specification<InjectorContract> specificationCount,
+      Pageable pageable,
+      OutputMode mode,
+      List<String> idsToIgnore,
+      List<String> idsToProcess) {
+    return getSinglePage(
+        specification, specificationCount, pageable, mode, idsToIgnore, idsToProcess, false);
+  }
+
   /**
    * Returns a page of injector contracts using the requested output mode.
    *
@@ -711,6 +769,7 @@ public class InjectorContractService implements DependenciesManager {
    * @param mode output mode (defaults to FULL when null)
    * @param idsToIgnore ids to exclude from research
    * @param idsToProcess ids to include on research
+   * @param byPrimaryDomain sort by primary domain first, so the page can show domain sections
    * @return page of contracts mapped to the selected output format
    */
   public PageImpl<? extends InjectorContractBaseOutput> getSinglePage(
@@ -719,7 +778,8 @@ public class InjectorContractService implements DependenciesManager {
       Pageable pageable,
       OutputMode mode,
       List<String> idsToIgnore,
-      List<String> idsToProcess) {
+      List<String> idsToProcess,
+      boolean byPrimaryDomain) {
     OutputMode safeMode = (mode == null) ? OutputMode.FULL : mode;
     OutputModeConfig config = CONFIGS.get(safeMode);
 
@@ -741,7 +801,8 @@ public class InjectorContractService implements DependenciesManager {
                       .in(idsToProcess));
     }
 
-    QuerySetup qs = setupQuery(specification, specificationCount, pageable, config.selector());
+    QuerySetup qs =
+        setupQuery(specification, specificationCount, pageable, config.selector(), byPrimaryDomain);
 
     List<? extends InjectorContractBaseOutput> results =
         qs.query.getResultList().stream().map(config.mapper()).toList();
@@ -751,6 +812,7 @@ public class InjectorContractService implements DependenciesManager {
 
   private record InjectorContractQueryContext(
       Join<InjectorContract, Payload> payloadJoin,
+      Join<Payload, PayloadIdentity> payloadIdentityJoin,
       Join<Payload, CollectorType> payloadCollectorTypeJoin,
       Join<?, Injector> injectorJoin,
       Expression<String[]> injectorIdsExpression,
@@ -762,8 +824,10 @@ public class InjectorContractService implements DependenciesManager {
   private InjectorContractQueryContext buildCommonInjectorContractContext(
       CriteriaBuilder cb, Root<InjectorContract> injectorContractRoot) {
     Join<InjectorContract, Payload> payloadJoin = createLeftJoin(injectorContractRoot, "payload");
+    Join<Payload, PayloadIdentity> payloadIdentityJoin =
+        payloadJoin.join("identity", JoinType.LEFT);
     Join<Payload, CollectorType> payloadCollectorTypeJoin =
-        payloadJoin.join("collectorType", JoinType.LEFT);
+        payloadIdentityJoin.join("collectorType", JoinType.LEFT);
     Join<?, Injector> injectorContractInjectorJoin =
         injectorContractRoot.join("injectorLinks", JoinType.LEFT).join("injector", JoinType.LEFT);
 
@@ -790,6 +854,7 @@ public class InjectorContractService implements DependenciesManager {
 
     return new InjectorContractQueryContext(
         payloadJoin,
+        payloadIdentityJoin,
         payloadCollectorTypeJoin,
         injectorContractInjectorJoin,
         injectorIdsExpression,
@@ -822,31 +887,54 @@ public class InjectorContractService implements DependenciesManager {
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
         ctx.payloadJoin().get("executionArch").alias("payload_execution_arch"),
         ctx.injectorIdsExpression().alias("injector_contract_injector_ids"),
-        ctx.injectorNamesExpression().alias("injector_contract_injector_names"));
+        ctx.injectorNamesExpression().alias("injector_contract_injector_names"),
+        ctx.payloadJoin().get("version").alias("payload_version"),
+        ctx.payloadIdentityJoin().get("managed").alias("payload_managed"),
+        cb.<Boolean>selectCase()
+            .when(cb.isNotNull(ctx.payloadIdentityJoin().get("overrides")), true)
+            .otherwise(false)
+            .alias("payload_variant"));
 
     // GROUP BY
-    cq.groupBy(getCommonGroupBy(injectorContractRoot, ctx));
+    List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
+    groupBy.add(ctx.payloadJoin().get("version"));
+    groupBy.add(ctx.payloadIdentityJoin().get("managed"));
+    groupBy.add(ctx.payloadIdentityJoin().get("overrides"));
+    cq.groupBy(groupBy);
   }
 
   private InjectorContractFullOutput mapFull(Tuple tuple) {
     String[] injectorIdsArray = tuple.get("injector_contract_injector_ids", String[].class);
     String[] injectorNamesArray = tuple.get("injector_contract_injector_names", String[].class);
     Map<String, String> injectorNames = buildInjectorNamesMap(injectorIdsArray, injectorNamesArray);
-    return new InjectorContractFullOutput(
-        tuple.get("injector_contract_id", String.class),
-        tuple.get("injector_contract_external_id", String.class),
-        tuple.get("injector_contract_labels", Map.class),
-        tuple.get("injector_contract_content", String.class),
-        tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
-        tuple.get("payload_type", String.class),
-        tuple.get("collector_type", String.class),
-        tuple.get("injector_contract_injector_type", String.class),
-        dedupePreservingOrder(tuple.get("injector_contract_attack_patterns", String[].class)),
-        dedupePreservingOrder(tuple.get("injector_contract_tags", String[].class)),
-        dedupePreservingOrder(tuple.get("injector_contract_domains", String[].class)),
-        tuple.get("injector_contract_updated_at", Instant.class),
-        tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class),
-        injectorNames);
+    InjectorContractFullOutput output =
+        new InjectorContractFullOutput(
+            tuple.get("injector_contract_id", String.class),
+            tuple.get("injector_contract_external_id", String.class),
+            tuple.get("injector_contract_labels", Map.class),
+            tuple.get("injector_contract_content", String.class),
+            tuple.get("injector_contract_platforms", Endpoint.PLATFORM_TYPE[].class),
+            tuple.get("payload_type", String.class),
+            tuple.get("collector_type", String.class),
+            tuple.get("injector_contract_injector_type", String.class),
+            dedupePreservingOrder(tuple.get("injector_contract_attack_patterns", String[].class)),
+            dedupePreservingOrder(tuple.get("injector_contract_tags", String[].class)),
+            dedupePreservingOrder(tuple.get("injector_contract_domains", String[].class)),
+            tuple.get("injector_contract_updated_at", Instant.class),
+            tuple.get("payload_execution_arch", Payload.PAYLOAD_EXECUTION_ARCH.class),
+            injectorNames);
+    output.setPayloadVersion(tuple.get("payload_version", String.class));
+    if (tuple.get("payload_type", String.class) != null) {
+      InjectorContractFullOutput.PayloadOrigin origin =
+          InjectorContractFullOutput.PayloadOrigin.LOCAL;
+      if (Boolean.TRUE.equals(tuple.get("payload_managed", Boolean.class))) {
+        origin = InjectorContractFullOutput.PayloadOrigin.CATALOG;
+      } else if (Boolean.TRUE.equals(tuple.get("payload_variant", Boolean.class))) {
+        origin = InjectorContractFullOutput.PayloadOrigin.CUSTOMIZED;
+      }
+      output.setPayloadOrigin(origin);
+    }
+    return output;
   }
 
   /**
@@ -916,7 +1004,6 @@ public class InjectorContractService implements DependenciesManager {
         ctx.payloadJoin().get("type"),
         ctx.payloadJoin().get("status"),
         ctx.payloadJoin().get("approvalStatus"),
-        ctx.payloadJoin().get("pendingVersion"),
         ctx.payloadJoin().get("executionArch"),
         ctx.payloadCollectorTypeJoin().get("id"),
         ctx.payloadCollectorTypeJoin().get("name"));
@@ -1003,7 +1090,6 @@ public class InjectorContractService implements DependenciesManager {
         ctx.injectorContractDomainsIdsExpression().alias("injector_contract_domains"),
         ctx.payloadJoin().get("status").alias("payload_status"),
         ctx.payloadJoin().get("approvalStatus").alias("payload_approval_status"),
-        ctx.payloadJoin().get("pendingVersion").alias("payload_pending_version"),
         ctx.payloadJoin().get("id").alias("payload_id"),
         ctx.attackPatternIdsExpression().alias("injector_contract_attack_patterns"),
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
@@ -1064,8 +1150,7 @@ public class InjectorContractService implements DependenciesManager {
                 tuple.get("payload_type", String.class),
                 tuple.get("collector_type", String.class),
                 tuple.get("payload_status", Payload.PAYLOAD_STATUS.class),
-                tuple.get("payload_approval_status", Payload.PAYLOAD_APPROVAL_STATUS.class),
-                Boolean.TRUE.equals(tuple.get("payload_pending_version", Boolean.class)))
+                tuple.get("payload_approval_status", Payload.PAYLOAD_APPROVAL_STATUS.class))
             : null;
 
     return new ThreatArsenalAction(
@@ -1154,10 +1239,14 @@ public class InjectorContractService implements DependenciesManager {
    * Shared base specification for the facet-count aggregations: current filters + text search +
    * access control, exactly like the search route.
    */
+  private Specification<InjectorContract> facetBaseSpec(SearchPaginationInput input) {
+    return facetBaseSpec(input, Specification.unrestricted());
+  }
+
   /**
    * Base specification of every facet count: the user's filters, text search and access, within
    * {@code scope}. A picker passes the same scope as its list search (e.g. approved payloads only)
-   * so each count equals what the list shows; the Threat Arsenal passes an unrestricted scope.
+   * so each count equals what the list shows.
    */
   private Specification<InjectorContract> facetBaseSpec(
       SearchPaginationInput input, Specification<InjectorContract> scope) {
@@ -1178,10 +1267,15 @@ public class InjectorContractService implements DependenciesManager {
    * @param input the search and filtering criteria
    * @return the list of domain counts derived from effective contract associations
    */
+  public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
+    return getDomainCounts(input, Specification.unrestricted());
+  }
+
+  /** Same, narrowed by {@code scope} (e.g. the Threat Arsenal's latest-version rule). */
   public List<InjectorContractDomainCountOutput> getDomainCounts(
       SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input, scope);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input).and(scope);
 
     CriteriaQuery<InjectorContractDomainCountOutput> qDirect =
         cb.createQuery(InjectorContractDomainCountOutput.class);
@@ -1205,10 +1299,15 @@ public class InjectorContractService implements DependenciesManager {
    * projection). Authorless contracts are excluded here - the UI exposes them via a dedicated "No
    * author" facet.
    */
+  public List<InjectorContractAuthorCountOutput> getAuthorCounts(SearchPaginationInput input) {
+    return getAuthorCounts(input, Specification.unrestricted());
+  }
+
+  /** Same, narrowed by {@code scope} (e.g. the Threat Arsenal's latest-version rule). */
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(
       SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input, scope);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input).and(scope);
 
     CriteriaQuery<InjectorContractAuthorCountOutput> q =
         cb.createQuery(InjectorContractAuthorCountOutput.class);
@@ -1264,10 +1363,15 @@ public class InjectorContractService implements DependenciesManager {
    * known platform value using the same {@code array_position_wrapper} membership test as the
    * filter engine ({@link io.openaev.utils.OperationUtilsJpa}).
    */
+  public Map<String, Long> getPlatformCounts(SearchPaginationInput input) {
+    return getPlatformCounts(input, Specification.unrestricted());
+  }
+
+  /** Same, narrowed by {@code scope} (e.g. the Threat Arsenal's latest-version rule). */
   public Map<String, Long> getPlatformCounts(
       SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input, scope);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input).and(scope);
 
     Map<String, Long> counts = new LinkedHashMap<>();
     for (Endpoint.PLATFORM_TYPE platform : Endpoint.PLATFORM_TYPE.values()) {
@@ -1292,10 +1396,15 @@ public class InjectorContractService implements DependenciesManager {
    * Number of contracts per payload status under the given filters. Contracts without a payload
    * carry no status and are excluded (like the author facet excludes authorless contracts).
    */
+  public Map<String, Long> getStatusCounts(SearchPaginationInput input) {
+    return getStatusCounts(input, Specification.unrestricted());
+  }
+
+  /** Same, narrowed by {@code scope} (e.g. the Threat Arsenal's latest-version rule). */
   public Map<String, Long> getStatusCounts(
       SearchPaginationInput input, Specification<InjectorContract> scope) {
     CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-    Specification<InjectorContract> baseSpec = facetBaseSpec(input, scope);
+    Specification<InjectorContract> baseSpec = facetBaseSpec(input).and(scope);
 
     CriteriaQuery<Tuple> q = cb.createTupleQuery();
     Root<InjectorContract> root = q.from(InjectorContract.class);
@@ -1328,8 +1437,8 @@ public class InjectorContractService implements DependenciesManager {
     CriteriaQuery<Tuple> q = cb.createTupleQuery();
     Root<InjectorContract> root = q.from(InjectorContract.class);
     Join<InjectorContract, Payload> payloadJoin = root.join("payload", JoinType.INNER);
-    // The displayed status: a new version waiting counts as PENDING (see Payload).
-    Path<Payload.PAYLOAD_APPROVAL_STATUS> status = payloadJoin.get("displayApprovalStatus");
+    // The status of the version each row shows (the latest one in the Threat Arsenal).
+    Path<Payload.PAYLOAD_APPROVAL_STATUS> status = payloadJoin.get("approvalStatus");
 
     Predicate predicate = baseSpec.toPredicate(root, q, cb);
     if (predicate != null) {
@@ -1376,43 +1485,26 @@ public class InjectorContractService implements DependenciesManager {
     return counts;
   }
 
+  /**
+   * The built-in contracts are NOT copied from the default tenant. A tenant's own built-in
+   * injectors register them from their code declarations later in the same onboarding, through
+   * {@code ManagerFactory}, which declares this manager as a prerequisite. The optional ones (OVH,
+   * OpenCTI) appear once their connector is configured for that tenant, which is what they mean.
+   *
+   * <p>Copying them instead read the default tenant's rows across the tenant boundary and carried
+   * its link ids into the new tenant. No data pack consumes a contract between the two steps, so
+   * there is nothing to bridge.
+   */
   @Override
-  public void createDependencyForTenant(Tenant tenant) throws DependenciesManagerException {
-    try {
-      int copied = 0;
-      for (String injectorContractId : listDefaultInjectorContract) {
-        InjectorContractId compositeId =
-            new InjectorContractId(injectorContractId, Tenant.DEFAULT_TENANT_UUID);
-        InjectorContract source = entityManager.find(InjectorContract.class, compositeId);
-        if (source == null) {
-          continue; // contract does not exist for the current tenant — skip
-        }
-        entityManager.detach(source);
-        source.setTenant(tenant);
-        // Provision the default contracts only. The injector rows for this tenant do not exist yet
-        // (built-in injectors register later, in the ManagerFactory round), so cascading the join
-        // rows here would reference a missing injector and violate the composite foreign key
-        // injectors_injector_contracts_injector_fk. Injector registration recreates the links
-        // FK-safely once its own injector row is in place. Replace the collection with a fresh list
-        // (instead of clearing it) so orphanRemoval does not schedule a delete of the detached
-        // default-tenant links loaded with the source.
-        source.setInjectorLinks(new ArrayList<>());
-        entityManager.persist(source);
-        copied++;
-      }
-      log.info(
-          "Provisioned {} default injector contract(s) for tenant {}; their join rows are "
-              + "(re)created during builtin injector registration",
-          copied,
-          tenant.getId());
-    } catch (Exception e) {
-      log.error(
-          "Failed to create default injector contracts for tenant {}: {}",
-          tenant.getId(),
-          e.getMessage());
-      throw new DependenciesManagerException(
-          "Failed to create default injector contracts for tenant " + tenant.getName(), e);
-    }
+  public void createDependencyForTenant(Tenant tenant) {
+    // Nothing to provision: see the javadoc above.
+  }
+
+  @Override
+  public List<Class<? extends DependenciesManager>> getPrerequisite() {
+    // Nothing to order against: this manager provisions no contract. The dependency on
+    // DomainService existed only so the copies could relink to the new tenant's domains.
+    return List.of();
   }
 
   @Override

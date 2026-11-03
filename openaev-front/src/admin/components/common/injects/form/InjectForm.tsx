@@ -130,7 +130,7 @@ const InjectForm = ({
     // Enrich initialValues with default contract value
     if (injectorContractContent) {
       injectorContractContent.fields
-        .filter(f => !notDynamicFields.includes(f.key))
+        .filter(f => !notDynamicFields.includes(f.key) && isInjectContentType(f.type))
         .forEach((field: ContractElement) => {
           if (!initialValues.inject_content[field.key]) {
             initialValues.inject_content = {
@@ -235,6 +235,10 @@ const InjectForm = ({
       if (isVisibleField(fieldContract, injectorContractContent.fields, injectValues)) {
         return;
       }
+      if (fieldContract.type === 'credential-reference') {
+        injectValues.inject_secret_references = [];
+        return;
+      }
 
       const isNotDynamic = notDynamicFields.includes(fieldContract.key);
       const targetObj = (isNotDynamic ? injectValues : injectValues.inject_content) as Record<string, unknown>;
@@ -244,6 +248,35 @@ const InjectForm = ({
   };
 
   const { handleSubmit, reset, subscribe, getValues, setError, clearErrors, trigger, watch, formState: { isSubmitting } } = methods;
+
+  // Another version of the same payload: the values typed so far are kept, key by key.
+  const keepTypedValues = (initialValues: Record<string, FieldValue>) => {
+    const typed = getValues() as unknown as Record<string, FieldValue>;
+    if (!typed?.inject_injector_contract) {
+      return initialValues;
+    }
+    const keys = new Set(injectorContractContent?.fields.map(field => field.key) ?? []);
+    const content = { ...(initialValues.inject_content as Record<string, FieldValue>) };
+    Object.entries((typed.inject_content ?? {}) as Record<string, FieldValue>).forEach(([key, value]) => {
+      if (keys.has(key) && value !== undefined && value !== '') {
+        content[key] = value;
+      }
+    });
+    return {
+      ...initialValues,
+      inject_title: typed.inject_title ?? initialValues.inject_title,
+      inject_description: typed.inject_description ?? initialValues.inject_description,
+      inject_tags: typed.inject_tags ?? initialValues.inject_tags,
+      inject_teams: typed.inject_teams ?? initialValues.inject_teams,
+      inject_all_teams: typed.inject_all_teams ?? initialValues.inject_all_teams,
+      inject_assets: typed.inject_assets ?? initialValues.inject_assets,
+      inject_asset_groups: typed.inject_asset_groups ?? initialValues.inject_asset_groups,
+      inject_depends_duration_days: typed.inject_depends_duration_days ?? initialValues.inject_depends_duration_days,
+      inject_depends_duration_hours: typed.inject_depends_duration_hours ?? initialValues.inject_depends_duration_hours,
+      inject_depends_duration_minutes: typed.inject_depends_duration_minutes ?? initialValues.inject_depends_duration_minutes,
+      inject_content: content,
+    };
+  };
 
   // Notify parent when the selected injector changes
   const selectedInjectorId = watch('inject_injector');
@@ -273,6 +306,7 @@ const InjectForm = ({
         inject_teams: data.inject_all_teams ? [] : data.inject_teams,
         inject_assets: data.inject_assets,
         inject_asset_groups: data.inject_asset_groups,
+        inject_secret_references: data.inject_secret_references,
         inject_documents: data.inject_documents,
         inject_depends_duration,
         inject_depends_on: data.inject_depends_on ? data.inject_depends_on : [],
@@ -465,7 +499,7 @@ const InjectForm = ({
   // This ensures the form is pre-filled according to the selected contract.
   useEffect(() => {
     if (isCreation) {
-      const initialValues = getInitialValues();
+      const initialValues = keepTypedValues(getInitialValues());
       reset(initialValues);
       setDefaultValues(initialValues);
     }

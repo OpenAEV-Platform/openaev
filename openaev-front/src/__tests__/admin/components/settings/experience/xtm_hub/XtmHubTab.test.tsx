@@ -458,6 +458,19 @@ describe('XtmHubTab', () => {
         renderXtmHubTab({ registrationStatus: null });
         expect(getExternalTabArgs().tabName).toBe('xtmhub-registration');
       });
+
+      it('passes the XTM Hub origin as expectedOrigin', () => {
+        renderXtmHubTab({ registrationStatus: null });
+        expect(getExternalTabArgs().expectedOrigin).toBe('https://hub.example.com');
+      });
+
+      it('passes the origin of XTM_HUB_DEFAULT_URL when xtm_hub_url is not set', () => {
+        renderXtmHubTab({
+          registrationStatus: null,
+          settingsOverrides: { xtm_hub_url: undefined },
+        });
+        expect(getExternalTabArgs().expectedOrigin).toBe(new URL(XTM_HUB_DEFAULT_URL).origin);
+      });
     });
 
     describe('when registered', () => {

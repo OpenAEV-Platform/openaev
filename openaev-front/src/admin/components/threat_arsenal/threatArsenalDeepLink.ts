@@ -20,11 +20,12 @@ export const toThreatArsenalAction = (full: ThreatArsenalActionFullOutput): Thre
   // Only payload-based actions have an approval status.
   action_payload: full.action_approval_status
     ? {
+        payload_id: full.action_payload_id,
+        payload_version: full.action_payload_version,
         payload_type: full.action_type,
         payload_collector_type: full.action_collector_type,
         payload_status: full.action_status,
         payload_approval_status: full.action_approval_status,
-        payload_pending_version: !!full.action_pending_version,
       }
     : undefined,
 });

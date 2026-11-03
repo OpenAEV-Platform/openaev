@@ -56,10 +56,12 @@ const WidgetMultiSeriesSelection: FunctionComponent<{
   };
 
   return (
-    <Box marginTop={2}>
+    <Box sx={{ marginTop: 2 }}>
       <Box
-        display="grid"
-        gap={2}
+        sx={{
+          display: 'grid',
+          gap: 2,
+        }}
       >
         {currentSeries.map((series, index) => {
           return (

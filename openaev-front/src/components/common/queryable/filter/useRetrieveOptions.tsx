@@ -11,6 +11,7 @@ import { searchExerciseByIdAsOption } from '../../../../actions/exercises/exerci
 import { searchInjectorByIdAsOptions } from '../../../../actions/injectors/injector-action';
 import { searchInjectByIdAsOption, searchTargetOptionsById } from '../../../../actions/injects/inject-action';
 import { searchKillChainPhasesByIdAsOption } from '../../../../actions/kill_chain_phases/killChainPhase-action';
+import { searchMarkingDefinitionByIdAsOption } from '../../../../actions/marking_definitions/marking-definition-actions';
 import { searchOrganizationByIdAsOptions } from '../../../../actions/organizations/organization-actions';
 import { searchScenarioByIdAsOption } from '../../../../actions/scenarios/scenario-actions';
 import { searchSimulationByIdAsOptions } from '../../../../actions/simulations/simulation-action';
@@ -82,6 +83,7 @@ const useRetrieveOptions = () => {
       case 'action_domains':
       case 'injector_contract_domains':
       case 'inject_contract_domains':
+      case 'scenario_domains':
       case 'base_security_domains_side':
         searchDomainsByIdsAsOption(ids).then((response) => {
           setOptions(response.data);
@@ -178,6 +180,11 @@ const useRetrieveOptions = () => {
           setOptions(response.data);
         });
         break;
+      case 'asset_markings':
+        searchMarkingDefinitionByIdAsOption(ids).then((response) => {
+          setOptions(response.data);
+        });
+        break;
       case 'payload_author_team':
         searchTeamByIdAsOption(ids).then((response) => {
           setOptions(response.data);
@@ -240,6 +247,7 @@ const useRetrieveOptions = () => {
       // Author filter: an id may belong to a person, a team or an organization -
       // resolve across all three and merge (each id only matches its own type).
       case 'action_author':
+      case 'scenario_author':
         Promise.all([
           searchPlayerByIdAsOption(ids),
           searchTeamByIdAsOption(ids),

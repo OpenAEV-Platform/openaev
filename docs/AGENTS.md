@@ -129,7 +129,7 @@ End pages with a `## What's next?` section containing a bullet list of links. Us
 
 ### Images
 
-- Store images in the `assets/` subdirectory next to the page that references them (e.g., `docs/administration/assets/`, `docs/deployment/ecosystem/integration-manager/assets/`).
+- Store images in the `assets/` subdirectory next to the page that references them (e.g., `docs/administration/assets/`, `docs/deployment/integration-manager/assets/`).
 - Use descriptive filenames: `scenario-import-global.png`.
 - Optimize for web (compressed, < 1 MB).
 

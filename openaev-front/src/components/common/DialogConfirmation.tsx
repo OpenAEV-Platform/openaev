@@ -1,8 +1,7 @@
 import { Button } from '@filigran/design-system';
 import { Dialog as DialogMUI, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import type React from 'react';
-import { useEffect, useState } from 'react';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { useFormatter } from '../i18n';
 import Transition from './Transition';

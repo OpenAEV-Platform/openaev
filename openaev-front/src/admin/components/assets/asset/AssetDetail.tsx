@@ -14,8 +14,7 @@ import Breadcrumbs from '../../../../components/Breadcrumbs';
 import chipLinkClassName from '../../../../components/common/chips/chipLink';
 import { DetailHero, DetailSections, Field, HeroStat, InformationGrid, SectionBlock } from '../../../../components/common/detail/EntityDetailCommon';
 import EndpointArchFragment from '../../../../components/common/list/fragments/EndpointArchFragment';
-import { type Page } from '../../../../components/common/queryable/Page';
-import { initSorting } from '../../../../components/common/queryable/Page';
+import { initSorting, type Page } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import Tabs from '../../../../components/common/tabs/Tabs';
@@ -97,7 +96,10 @@ const AssetDetail = () => {
   // Gates the Markings field (and its data fetch below) so the flag-off platform looks exactly as
   // it does today - mirrors the Endpoints list convention.
   const markingEnabled = isFeatureEnabled('MARKING');
-  const markingDefinitions = useMarkingDefinitions({ skip: !markingEnabled });
+  const markingDefinitions = useMarkingDefinitions({
+    skip: !markingEnabled,
+    assignableOnly: true,
+  });
 
   // Resolve the linked person (identity assets) to a readable name.
   const { usersMap } = useHelper((helper: UserHelper) => ({ usersMap: helper.getUsersMap() }));
@@ -407,7 +409,10 @@ const AssetDetail = () => {
                     </Box>
                   )
                 : (
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography
+                      variant="body2"
+                      sx={{ color: 'text.secondary' }}
+                    >
                       {t('No asset group')}
                     </Typography>
                   )}

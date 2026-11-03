@@ -3,6 +3,7 @@ package io.openaev.notification.engine;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.NotificationTriggerEventType;
@@ -10,6 +11,7 @@ import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationEventRecordRepository;
+import io.openaev.service.UserService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +32,7 @@ public class NotificationEngineService {
   private final NotificationDispatchService dispatchService;
   private final NotificationEventRecordRepository notificationEventRecordRepository;
   private final TenantScopedTransaction tenantTx;
+  private final UserService userService;
 
   /**
    * Processes one entity lifecycle event.
@@ -86,7 +89,11 @@ public class NotificationEngineService {
                 if (!matchingService.matches(trigger, entry, entityId)) {
                   return;
                 }
-                recordEvents(trigger, entry, entityId, eventType, message);
+                List<String> recipients = allowedRecipients(trigger, entry);
+                if (recipients.isEmpty()) {
+                  return;
+                }
+                recordEvents(trigger, recipients, entry, entityId, eventType, message);
                 NotificationContent.Group group =
                     new NotificationContent.Group(
                         trigger.name(),
@@ -94,10 +101,7 @@ public class NotificationEngineService {
                             new NotificationContent.Event(
                                 eventType, message, entry.getResourceType(), entityId)));
                 dispatchService.dispatch(
-                    trigger,
-                    NotificationTriggerType.LIVE,
-                    trigger.recipientUserIds(),
-                    List.of(group));
+                    trigger, NotificationTriggerType.LIVE, recipients, List.of(group));
               });
         } finally {
           TenantContext.clearCurrentTenant();
@@ -113,14 +117,27 @@ public class NotificationEngineService {
     }
   }
 
+  private List<String> allowedRecipients(
+      ResolvedNotificationTrigger trigger, NotificationResourceCatalog entry) {
+    Capability required = entry.requiredCapability();
+    if (required == null) {
+      return trigger.recipientUserIds();
+    }
+    return userService.find(trigger.recipientUserIds()).stream()
+        .filter(user -> user.isAdmin() || user.getCapabilities().contains(required))
+        .map(User::getId)
+        .toList();
+  }
+
   private void recordEvents(
       ResolvedNotificationTrigger trigger,
+      List<String> recipients,
       NotificationResourceCatalog entry,
       String entityId,
       NotificationTriggerEventType eventType,
       String message) {
     List<NotificationEventRecord> records =
-        trigger.recipientUserIds().stream()
+        recipients.stream()
             .map(
                 userId -> {
                   NotificationEventRecord record = new NotificationEventRecord();
@@ -148,13 +165,10 @@ public class NotificationEngineService {
           case CREATE -> "created";
           case UPDATE -> "updated";
           case DELETE -> "deleted";
-          case SCORE_DEGRADATION -> "score degraded";
           // Sent by PayloadApprovalNotificationService with its own messages, never matched here
           // (triggers cannot subscribe to them).
           case APPROVAL_PENDING -> "pending approval";
-          case APPROVED -> "approved";
-          case REJECTED -> "rejected";
-          case SUPERSEDED -> "superseded";
+          default -> eventType.name().toLowerCase().replace('_', ' ');
         };
     String resourceLabel = entry.getResourceType().name().toLowerCase().replace('_', ' ');
     return "[" + resourceLabel + "] " + label + " " + operation;

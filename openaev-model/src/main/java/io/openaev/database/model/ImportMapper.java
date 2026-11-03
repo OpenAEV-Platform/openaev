@@ -9,9 +9,9 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -47,7 +47,7 @@ public class ImportMapper implements TenantBase {
   @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
   @JoinColumn(name = "importer_mapper_id", nullable = false)
   @JsonProperty("import_mapper_inject_importers")
-  private List<InjectImporter> injectImporters = new ArrayList<>();
+  private Set<InjectImporter> injectImporters = new HashSet<>();
 
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)

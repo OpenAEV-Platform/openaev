@@ -13,13 +13,13 @@ Each rule consists of a **tag** and a list of **Asset groups**. The rules are ap
 1. **When creating an Inject**: If the Scenario has a tag matching a rule, the associated Asset groups are automatically applied to the new Inject.
 2. **When adding a tag to a Scenario**: If the new tag matches a rule, a popup asks whether to apply the default Asset groups to all existing Injects in the Scenario.
 
-Manage rules in **Settings > Customization**.
+Manage rules in **Settings > Customization > Default asset rules**.
 
 ## OpenCTI default rule
 
 A rule for the **opencti** tag is created automatically. This tag is applied to all Scenarios generated from OpenCTI data (see [Generating Scenarios from OpenCTI](../usage/build/scenario/security-coverage.md)). The OpenCTI default rule cannot be removed, and its tag cannot be modified.
 
-![Asset Rules](../usage/assets/asset_rules.png)
+![Asset Rules](../usage/build/scenario/assets/asset_rules.png)
 
 ## What's next?
 

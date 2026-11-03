@@ -36,6 +36,15 @@ const usePaginationState = (
     handleChangeRowsPerPage: useCallback((rowsPerPage: number) => onChangeRef.current?.(0, rowsPerPage), []),
     handleChangePagination: useCallback((pagination: Pagination) => onChangeRef.current?.(pagination.page, pagination.size), []),
     handleChangeTotalElements: useCallback((value: number) => setTotalElements(value), []),
+    incrementTotalElements: (delta: number) => {
+      const total = Math.max(0, totalElements + delta);
+      setTotalElements(total);
+      // The current page lost its only row: step back to the new last page, which refetches it
+      const lastPage = Math.max(0, Math.ceil(total / size) - 1);
+      if (page > lastPage) {
+        onChange?.(lastPage, size);
+      }
+    },
     getTotalElements: () => totalElements,
     page,
     elementsPerPage: size,
@@ -89,6 +98,11 @@ export const useLocalPaginationState = (
       setSize(newSize);
     }, []),
     handleChangeTotalElements: useCallback((value: number) => setTotalElements(value), []),
+    incrementTotalElements: (delta: number) => {
+      const total = Math.max(0, totalElements + delta);
+      setTotalElements(total);
+      setPage(Math.min(page, Math.max(0, Math.ceil(total / size) - 1)));
+    },
     getTotalElements: () => totalElements,
     page,
     elementsPerPage: size,

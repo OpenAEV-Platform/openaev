@@ -30,6 +30,7 @@ public class HealthCheck {
     INEFFECTIVE_TECHNICAL_TARGETS,
     /** The scope allowlist has team/player entries but no step consumes them. */
     INEFFECTIVE_AUDIENCE_TARGETS,
+    REVOKED,
   }
 
   public enum Type {
@@ -49,6 +50,8 @@ public class HealthCheck {
     OPTIONAL_ARGS("optional_args"),
     MESSAGE("message"),
     SCOPE_DEFINITION("scope_definition"),
+    CREDENTIAL_REFERENCE("credential_reference"),
+    PAYLOAD("payload"),
     UNKNOWN("unknown");
 
     private final String value;

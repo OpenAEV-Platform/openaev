@@ -115,7 +115,11 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
       : SPECIALIST_DEFAULT_DISCOVERY_MODE;
     const mode = ((modes?.[agentId] as AutonomousDiscoveryMode) ?? fallback);
     return (
-      <Stack direction="row" alignItems="center" spacing={0.5}>
+      <Stack
+        direction="row"
+        spacing={0.5}
+        sx={{ alignItems: 'center' }}
+      >
         <Select
           value={mode}
           disabled={disabled}
@@ -137,8 +141,8 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                   <Typography variant="body2">{modeLabel(m)}</Typography>
                   <Typography
                     variant="caption"
-                    color="text.secondary"
                     sx={{
+                      color: 'text.secondary',
                       display: 'block',
                       whiteSpace: 'normal',
                     }}
@@ -277,10 +281,9 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
   const descriptionNode = (description?: string | null) => (
     <Typography
       variant="caption"
-      color="text.secondary"
       noWrap={!isSmall}
       title={!isSmall ? (description ?? undefined) : undefined}
-      sx={isSmall ? { whiteSpace: 'normal' } : undefined}
+      sx={[{ color: 'text.secondary' }, isSmall ? { whiteSpace: 'normal' } : false]}
     >
       {description ?? '-'}
     </Typography>
@@ -327,7 +330,15 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
     const content = isSmall
       ? (
           <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ minWidth: 0 }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                minWidth: 0,
+              }}
+            >
               {nameNode(row.name)}
               {row.chip}
             </Stack>
@@ -409,17 +420,27 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
     <div>
       <Stack
         direction="row"
-        alignItems="center"
-        justifyContent={title ? 'space-between' : 'flex-start'}
         spacing={1}
+        sx={{
+          alignItems: 'center',
+          justifyContent: title ? 'space-between' : 'flex-start',
+        }}
       >
         {title && (
-          <Stack direction="row" alignItems="center" spacing={0.5}>
+          <Stack
+            direction="row"
+            spacing={0.5}
+            sx={{ alignItems: 'center' }}
+          >
             <Typography variant="h2" sx={{ margin: 0 }}>{title}</Typography>
             {infoIcon}
           </Stack>
         )}
-        <Stack direction="row" alignItems="center" spacing={0.5}>
+        <Stack
+          direction="row"
+          spacing={0.5}
+          sx={{ alignItems: 'center' }}
+        >
           <SearchInput variant="small" onChange={value => setKeyword(value ?? '')} />
           {!title && infoIcon}
         </Stack>
@@ -495,7 +516,10 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                   modeNode = enabled
                     ? renderModeSelect(agent.id)
                     : (
-                        <Typography variant="caption" color="text.disabled">
+                        <Typography
+                          variant="caption"
+                          sx={{ color: 'text.disabled' }}
+                        >
                           -
                         </Typography>
                       );
@@ -527,7 +551,10 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                   <ListItemIcon />
                   <ListItemText
                     primary={(
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography
+                        variant="caption"
+                        sx={{ color: 'text.secondary' }}
+                      >
                         {t('No agent matches your search.')}
                       </Typography>
                     )}
@@ -557,7 +584,11 @@ const AutonomousAgentsSelector: FunctionComponent<Props> = ({
                   </ListItemIcon>
                   <ListItemText
                     primary={(
-                      <Stack direction="row" spacing={0.5} alignItems="center">
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        sx={{ alignItems: 'center' }}
+                      >
                         <Typography variant="body2" sx={{ color: 'inherit' }}>
                           {t('Create an agent in XTM One')}
                         </Typography>

@@ -38,6 +38,12 @@ public @interface AccessControl {
    */
   boolean skipRBAC() default false;
 
+  /**
+   * The guard requires that the caller has admin privileges, not withstanding the resource
+   * manipulated in the protected method
+   */
+  boolean requireAdmin() default false;
+
   /** Whether the feature is Enterprise Edition (EE) only. */
   boolean isEnterpriseEdition() default false;
 }

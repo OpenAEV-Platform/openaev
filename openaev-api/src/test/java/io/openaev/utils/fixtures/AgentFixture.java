@@ -10,8 +10,20 @@ import java.time.Instant;
 
 public class AgentFixture {
 
-  public static Agent createDefaultAgentService() {
+  /**
+   * agents is a v2-active table, so the entity carries no listener to stamp the owning tenant: a
+   * fixture that does not set it writes NULL and the NOT NULL constraint refuses the insert. The
+   * ambient tenant is what the removed listener used, so a test that does not care about the tenant
+   * keeps the row it had before. A test that does care sets its own afterwards.
+   */
+  private static Agent newAgent() {
     Agent agent = new Agent();
+    agent.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    return agent;
+  }
+
+  public static Agent createDefaultAgentService() {
+    Agent agent = newAgent();
     agent.setExecutedByUser(Agent.ADMIN_SYSTEM_WINDOWS);
     agent.setPrivilege(Agent.PRIVILEGE.admin);
     agent.setDeploymentMode(Agent.DEPLOYMENT_MODE.service);
@@ -20,7 +32,7 @@ public class AgentFixture {
   }
 
   public static Agent createDefaultAgentSession() {
-    Agent agent = new Agent();
+    Agent agent = newAgent();
     agent.setExecutedByUser(Agent.ADMIN_SYSTEM_WINDOWS);
     agent.setPrivilege(Agent.PRIVILEGE.admin);
     agent.setDeploymentMode(Agent.DEPLOYMENT_MODE.session);
@@ -38,7 +50,6 @@ public class AgentFixture {
     Agent agent = createDefaultAgentService();
     agent.setAsset(asset);
     agent.setExternalReference(externalReference);
-    agent.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return agent;
   }
 

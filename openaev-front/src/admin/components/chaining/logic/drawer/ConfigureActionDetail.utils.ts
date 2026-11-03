@@ -152,12 +152,29 @@ export const getContractFieldDefaultValue = (field: ContractElement): unknown =>
   return undefined;
 };
 
+const PLACEHOLDER_DEFAULT_TYPES = new Set<ContractType>(['text', 'number']);
+
 /**
- * Builds a default content map from all contract fields, including expectations.
+ * Contract default of a text/number field, to display as a faded placeholder instead of writing it
+ * into the action content: the content must only hold defined values, so a default can never be
+ * mistaken for one. The backend applies it as a last resort, when the field has neither a defined
+ * value nor a pool value. Undefined when the field has no usable default.
+ */
+export const getPlaceholderDefault = (field: ContractElement): string | undefined => {
+  if (!PLACEHOLDER_DEFAULT_TYPES.has(field.type)) return undefined;
+  const defaultValue = getContractFieldDefaultValue(field);
+  const text = defaultValue === undefined || defaultValue === null ? '' : String(defaultValue).trim();
+  return text === '' ? undefined : text;
+};
+
+/**
+ * Builds a default content map from the contract fields, including expectations.
+ * Fields whose default is shown as a placeholder are left out.
  */
 export const buildContractDefaults = (fields: ContractElement[]): Record<string, unknown> => {
   const defaults: Record<string, unknown> = {};
   for (const field of fields) {
+    if (getPlaceholderDefault(field) !== undefined) continue;
     const defaultValue = getContractFieldDefaultValue(field);
     if (defaultValue !== undefined && defaultValue !== null) {
       defaults[field.key] = defaultValue;

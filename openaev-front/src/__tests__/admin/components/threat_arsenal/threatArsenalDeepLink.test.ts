@@ -12,7 +12,8 @@ describe('threatArsenalDeepLink', () => {
       action_type: 'Command',
       action_status: 'VERIFIED',
       action_approval_status: 'APPROVED',
-      action_pending_version: { version_id: 'v2' },
+      action_payload_id: 'payload-1',
+      action_payload_version: '1.1.0',
       action_domains: ['domain-1'],
       action_updated_at: '2026-10-15T00:00:00Z',
     } as unknown as ThreatArsenalActionFullOutput;
@@ -24,7 +25,8 @@ describe('threatArsenalDeepLink', () => {
     expect(action.injector_contract_id).toBe('contract-1');
     expect(action.action_domains_ids).toEqual(['domain-1']);
     expect(action.action_payload?.payload_approval_status).toBe('APPROVED');
-    expect(action.action_payload?.payload_pending_version).toBe(true);
+    expect(action.action_payload?.payload_id).toBe('payload-1');
+    expect(action.action_payload?.payload_version).toBe('1.1.0');
   });
 
   it('has no payload for a built-in action', () => {

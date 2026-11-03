@@ -1,9 +1,12 @@
 import { Alert, Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
-import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
+import { Dialog, DialogActions, DialogContent, DialogContentText, Divider, Menu, MenuItem } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { type MouseEvent, useState } from 'react';
+import { type MouseEvent, useEffect, useState } from 'react';
 
+import { uninstallCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
+import { liftPayloadRevocation, revokePayload } from '../../../actions/payloads/payload-revocation-actions';
+import { customizePayload, liftInheritedRevocation, type VariantSaveOutput } from '../../../actions/payloads/payload-variant-actions';
 import {
   deleteThreatArsenalAction,
   duplicateThreatArsenalAction,
@@ -11,23 +14,32 @@ import {
   fetchThreatArsenalAction,
   updateThreatArsenalAction,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
+import { fetchThreatArsenalVersions } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
+import DialogConfirmation from '../../../components/common/DialogConfirmation';
 import DialogDelete from '../../../components/common/DialogDelete';
 import Drawer from '../../../components/common/Drawer';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import {
+  type PayloadVersionOutput,
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
   type ThreatArsenalActionUpdateInput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
+import { MESSAGING$ } from '../../../utils/Environment';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { download } from '../../../utils/utils';
 import InjectorContractForm, { type InjectorContractFormValues } from '../integrations/injectors/injector_contracts/InjectorContractForm';
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
+import { buildInitialValues, handleCleanupCommandValue, handleCleanupExecutorValue } from './actionFormValues';
+import PayloadNewVersionDialog from './PayloadNewVersionDialog';
+import payloadRevocationChoices from './payloadRevocationChoices';
+import PayloadRevocationDialog from './PayloadRevocationDialog';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
+import PayloadVariantEditor from './variants/PayloadVariantEditor';
 
 interface PayloadPopoverNewProps {
   actionId: string;
@@ -35,98 +47,18 @@ interface PayloadPopoverNewProps {
   name: string;
   onUpdate?: (action: ThreatArsenalAction) => void;
   onDelete?: () => void;
-  onDuplicate?: (action: ThreatArsenalAction) => void;
+  onDuplicate?: (action: ThreatArsenalAction, open?: boolean) => void;
   disableUpdate?: boolean;
   disableDuplicate?: boolean;
   disableJsonExport?: boolean;
   disableDelete?: boolean;
+  revoked?: boolean;
+  // A catalogue payload version: uninstalled, never deleted (F26).
+  managed?: boolean;
+  // A customized catalogue payload: changed through its overrides, not "Update".
+  variantIdentityId?: string;
+  onRevocationChange?: (revoked: boolean, status?: ThreatArsenalActionFullOutput['action_status']) => void;
 }
-
-const buildInitialValues
-  = (action: ThreatArsenalActionFullOutput, actionName: string): Partial<ThreatArsenalActionCreateCustomInput> & {
-    action_id?: string;
-    payload_id?: string;
-  } => {
-    const remediations: Record<string, DetectionRemediationForm> = {};
-    action.action_detection_remediations?.forEach((remediation) => {
-      remediations[remediation.detection_remediation_security_platform ?? ''] = {
-        content: remediation.detection_remediation_values ?? '',
-        remediationId: remediation.detection_remediation_id ?? '',
-        author_rule: remediation.author_rule,
-      };
-    });
-
-    // An action with a pending version is edited from that version: saving replaces it (the active
-    // version keeps running until a version is approved).
-    const pending = action.action_pending_version?.version_content;
-    const executable = pending
-      ? {
-          command_executor: pending.executor,
-          command_content: pending.content,
-          dns_resolution_hostname: pending.hostname,
-          action_arguments: pending.arguments,
-          action_prerequisites: pending.prerequisites,
-          file_drop_file: action.action_type === 'FileDrop' ? pending.file_id : undefined,
-          executable_file: action.action_type === 'Executable' ? pending.file_id : undefined,
-          action_execution_arch: pending.execution_arch as ThreatArsenalActionFullOutput['action_execution_arch'],
-          action_platforms: pending.platforms as ThreatArsenalActionFullOutput['action_platforms'],
-          action_cleanup_executor: pending.cleanup_executor,
-          action_cleanup_command: pending.cleanup_command,
-        }
-      : {
-          command_executor: action.command_executor as string | undefined,
-          command_content: action.command_content as string | undefined,
-          dns_resolution_hostname: action.dns_resolution_hostname as string | undefined,
-          action_arguments: action.action_arguments,
-          action_prerequisites: action.action_prerequisites,
-          file_drop_file: action.file_drop_file as string | undefined,
-          executable_file: action.executable_file as string | undefined,
-          action_execution_arch: action.action_execution_arch,
-          action_platforms: action.action_platforms,
-          action_cleanup_executor: action.action_cleanup_executor,
-          action_cleanup_command: action.action_cleanup_command,
-        };
-
-    return {
-      action_id: action.action_id,
-      action_name: actionName,
-      action_description: action.action_description,
-      action_type: action.action_type as ThreatArsenalActionCreateCustomInput['action_type'],
-      command_executor: executable.command_executor,
-      command_content: executable.command_content,
-      dns_resolution_hostname: executable.dns_resolution_hostname,
-      action_arguments: executable.action_arguments?.map(arg => ({
-        ...arg,
-        type: String(arg.type) === 'targeted_asset' ? 'targeted-asset' : arg.type,
-        description: arg.description ?? undefined,
-        separator: arg.separator ?? undefined,
-      })),
-      action_prerequisites: executable.action_prerequisites,
-      file_drop_file: executable.file_drop_file,
-      action_attack_patterns: action.action_attack_patterns,
-      action_tags: action.action_tags as string[] | undefined,
-      action_expectations: action.action_expectations ?? ['PREVENTION', 'DETECTION'],
-      action_expected_security_platforms: action.action_expected_security_platforms ?? {},
-      action_execution_arch: executable.action_execution_arch,
-      action_output_parsers: action.action_output_parsers as ThreatArsenalActionCreateCustomInput['action_output_parsers'],
-      action_platforms: executable.action_platforms,
-      executable_file: executable.executable_file,
-      action_cleanup_executor: executable.action_cleanup_executor ?? '',
-      action_cleanup_command: executable.action_cleanup_command ?? '',
-      remediations: remediations as ThreatArsenalActionCreateCustomInput['remediations'],
-      action_domains: action.action_domains,
-    } as Partial<ThreatArsenalActionCreateCustomInput> & {
-      action_id?: string;
-      payload_id?: string;
-    };
-  };
-
-const handleCleanupCommandValue = (value: string): string | null => (value === '' ? null : value);
-
-const handleCleanupExecutorValue = (executor: string, command: string): string | null => {
-  if (executor !== '' && handleCleanupCommandValue(command) !== null) return executor;
-  return null;
-};
 
 const ThreatArsenalActionPopover = ({
   actionId,
@@ -139,11 +71,19 @@ const ThreatArsenalActionPopover = ({
   disableDuplicate,
   disableJsonExport,
   disableDelete,
+  revoked,
+  managed,
+  variantIdentityId,
+  onRevocationChange,
 }: PayloadPopoverNewProps) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDuplicate, setOpenDuplicate] = useState(false);
   const [deletion, setDeletion] = useState(false);
+  const [uninstall, setUninstall] = useState(false);
+  const [editingVariant, setEditingVariant] = useState<string | null>(null);
+  const [revocation, setRevocation] = useState(false);
+  const [lifting, setLifting] = useState(false);
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   const { t, tPick } = useFormatter();
@@ -170,6 +110,8 @@ const ThreatArsenalActionPopover = ({
     setFetchedAction(null);
   };
 
+  const [newVersion, setNewVersion] = useState<ThreatArsenalAction | null>(null);
+
   const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
     const inputValues: ThreatArsenalActionUpdateInput = {
       ...data,
@@ -192,10 +134,17 @@ const ThreatArsenalActionPopover = ({
     } as ThreatArsenalActionUpdateInput;
 
     const response = await updateThreatArsenalAction(actionId, inputValues);
-    if (response.data && onUpdate) {
-      onUpdate(response.data as ThreatArsenalAction);
+    const saved = response.data as ThreatArsenalAction | undefined;
+    if (saved && onUpdate) {
+      onUpdate(saved);
     }
     handleCloseEdit();
+    if (saved?.action_previous_version_id && (saved.action_previous_version_usages ?? 0) > 0) {
+      setNewVersion(saved);
+    } else if (saved?.action_previous_version_id && saved.action_payload?.payload_approval_status === 'PENDING') {
+      // The move question goes to the approver, when the version is approved.
+      MESSAGING$.notifySuccess(t('v{version} is waiting for approval. Injects keep running their current version until an approver approves it.', { version: saved.action_payload.payload_version ?? '' }));
+    }
   };
 
   const onSubmitInjectorContractEdit = (data: InjectorContractFormValues) => {
@@ -224,6 +173,14 @@ const ThreatArsenalActionPopover = ({
     });
   };
 
+  // -- Uninstall: a catalogue payload goes back to Available, its versions hidden (F26) --
+  const submitUninstall = () => {
+    uninstallCatalogPayload(payloadId ?? '').then(() => {
+      setUninstall(false);
+      if (onDelete) onDelete();
+    });
+  };
+
   // -- Duplicate --
   const handleOpenDuplicate = () => {
     setOpenDuplicate(true);
@@ -239,28 +196,75 @@ const ThreatArsenalActionPopover = ({
     handleCloseDuplicate();
   };
 
+  // -- Revocation --
+  const handleOpenRevocation = () => {
+    handlePopoverClose();
+    setRevocation(true);
+  };
+
+  const submitRevocation = async (revokedId: string, reason: string) => {
+    await revokePayload(revokedId, { content_revocation_reason: reason });
+    if (revokedId === payloadId) {
+      onRevocationChange?.(true, 'REVOKED');
+    }
+    setRevocation(false);
+  };
+
+  const submitCustomize = () => {
+    handlePopoverClose();
+    customizePayload(payloadId ?? '').then((response: { data: VariantSaveOutput }) => {
+      const variant = response.data.action;
+      if (variant && onDuplicate) {
+        onDuplicate(variant, false);
+      }
+      MESSAGING$.notifySuccess(t('Customized copy created: it keeps receiving Filigran updates'));
+      // The copy is made to be changed: its editor opens right away.
+      if (variant?.action_payload?.payload_identity_id) {
+        setEditingVariant(variant.action_payload.payload_identity_id);
+      }
+    });
+  };
+
+  // A customized version revoked through its base is freed with a reason; its own revocation is lifted.
+  const submitLiftRevocation = async (liftedId: string, reason: string, inherited: boolean) => {
+    if (inherited) {
+      await liftInheritedRevocation(liftedId, reason);
+    } else {
+      await liftPayloadRevocation(liftedId);
+    }
+    if (liftedId === payloadId) {
+      // Lifting restores the status the payload had before; read it back.
+      const response = await fetchThreatArsenalAction(actionId);
+      onRevocationChange?.(false, (response.data as ThreatArsenalActionFullOutput | undefined)?.action_status);
+    }
+    setLifting(false);
+  };
+
   const hasDuplicateCapability = ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
 
-  // Editing an approved action: what changes in what it runs waits for approval as a new version.
-  const versionNote = (action: ThreatArsenalActionFullOutput): string | null => {
-    if (action.action_approval_status !== 'APPROVED') return null;
-    const canApprove = ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS);
-    if (action.action_pending_version) {
-      return canApprove
-        ? t('This action has a pending version: the form shows it. Saving applies it directly as a new approved version.')
-        : t('This action has a pending version: the form shows it. Saving replaces it; the approved version keeps running until a version is approved.');
-    }
-    return canApprove
-      ? null
-      : t('Changes to what this action runs wait for approval as a new version; the approved version keeps running meanwhile. Other changes apply now.');
-  };
+  // Saving what an action runs adds a version: without "Approve content", it waits for approval and
+  // the injects stay on their version until an approver approves it and moves them.
+  const versionNote = (): string | null => (ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS)
+    ? null
+    : t('Changes to what this action runs create a new version that waits for approval. Injects keep running their current version until an approver approves the new one.'));
   const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
+  const hasRevokeCapability = ability.can(ACTIONS.REVOKE, SUBJECTS.THREAT_ARSENALS);
+
+  // Revoke and Lift revocation only show when some version can take them.
+  const [versions, setVersions] = useState<PayloadVersionOutput[]>([]);
+  useEffect(() => {
+    if (anchorEl && hasRevokeCapability && payloadId) {
+      fetchThreatArsenalVersions(actionId).then((response: { data: PayloadVersionOutput[] }) => setVersions(response.data));
+    }
+  }, [anchorEl]);
+  const canRevoke = payloadRevocationChoices(versions, false, false).length > 0;
+  const canLift = payloadRevocationChoices(versions, true, !!variantIdentityId).length > 0;
 
   const duplicateOff = !hasDuplicateCapability || !!disableDuplicate;
   const updateOff = !hasUpdateCapability || !!disableUpdate;
   const deleteOff = !hasDeleteCapability || !!disableDelete;
-  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff;
+  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff && !hasRevokeCapability;
 
   // -- Export --
   const handleExportJsonSingle = async () => {
@@ -291,13 +295,98 @@ const ThreatArsenalActionPopover = ({
           <MenuItem onClick={handleOpenDuplicate} disabled={disableDuplicate}>{t('Duplicate')}</MenuItem>
         )}
         <MenuItem onClick={handleExportJsonSingle} disabled={disableJsonExport}>{t('Export')}</MenuItem>
-        {hasUpdateCapability && (
+        {hasDuplicateCapability && managed && !revoked && !!payloadId && (
+          <MenuItem onClick={submitCustomize}>{t('Customize')}</MenuItem>
+        )}
+        {hasUpdateCapability && !variantIdentityId && (
           <MenuItem onClick={handleOpenEdit} disabled={disableUpdate}>{t('Update')}</MenuItem>
         )}
-        {hasDeleteCapability && (
+        {hasUpdateCapability && variantIdentityId && (
+          <MenuItem onClick={() => {
+            handlePopoverClose();
+            setEditingVariant(variantIdentityId);
+          }}
+          >
+            {t('Edit customization')}
+          </MenuItem>
+        )}
+        {hasDeleteCapability && !managed && (
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
+        {((hasDeleteCapability && managed) || (hasRevokeCapability && (canRevoke || canLift))) && <Divider />}
+        {hasDeleteCapability && managed && (
+          <MenuItem onClick={() => {
+            handlePopoverClose();
+            setUninstall(true);
+          }}
+          >
+            {t('Uninstall')}
+          </MenuItem>
+        )}
+        {hasRevokeCapability && !!payloadId && canRevoke && (
+          <MenuItem onClick={handleOpenRevocation}>{t('Revoke')}</MenuItem>
+        )}
+        {hasRevokeCapability && !!payloadId && canLift && (
+          <MenuItem onClick={() => {
+            handlePopoverClose();
+            setLifting(true);
+          }}
+          >
+            {t('Lift revocation')}
+          </MenuItem>
+        )}
       </Menu>
+
+      {editingVariant && (
+        <PayloadVariantEditor
+          identityId={editingVariant}
+          onClose={() => setEditingVariant(null)}
+          onSaved={(output) => {
+            if (output.action && onUpdate) {
+              onUpdate({
+                ...output.action,
+                action_previous_version_id: output.previous_action_id ?? output.action.action_previous_version_id,
+              });
+            }
+            if (output.new_version && output.previous_action_id && output.previous_version_usages > 0 && output.action) {
+              setNewVersion({
+                ...output.action,
+                action_previous_version_id: output.previous_action_id,
+                action_previous_version_usages: output.previous_version_usages,
+              });
+            }
+          }}
+        />
+      )}
+
+      <PayloadRevocationDialog
+        open={revocation}
+        name={name}
+        actionId={actionId}
+        payloadId={payloadId}
+        onClose={() => setRevocation(false)}
+        onSubmit={submitRevocation}
+      />
+
+      <PayloadRevocationDialog
+        open={lifting}
+        name={name}
+        lift
+        customized={!!variantIdentityId}
+        actionId={actionId}
+        payloadId={payloadId}
+        onClose={() => setLifting(false)}
+        onSubmit={submitLiftRevocation}
+      />
+
+      <DialogConfirmation
+        open={uninstall}
+        handleClose={() => setUninstall(false)}
+        handleSubmit={submitUninstall}
+        submitLabel={t('Uninstall')}
+        submitColor="error"
+        text={t('Do you want to uninstall this action? All its versions go back to the catalog; scenarios that use it block the uninstall.')}
+      />
 
       <DialogDelete
         open={deletion}
@@ -329,9 +418,9 @@ const ThreatArsenalActionPopover = ({
         title={`${t('Update the action :')} ${name}`}
       >
         <>
-          {fetchedAction && !!payloadId && versionNote(fetchedAction) && (
+          {fetchedAction && !!payloadId && versionNote() && (
             <div style={{ marginBottom: theme.spacing(2) }}>
-              <Alert severity="info" title={versionNote(fetchedAction)} />
+              <Alert severity="info" title={versionNote()} />
             </div>
           )}
           {fetchedAction && !!payloadId && (
@@ -361,6 +450,15 @@ const ThreatArsenalActionPopover = ({
           )}
         </>
       </Drawer>
+      {newVersion?.action_previous_version_id && newVersion.action_payload?.payload_id && (
+        <PayloadNewVersionDialog
+          previousActionId={newVersion.action_previous_version_id}
+          newPayloadId={newVersion.action_payload.payload_id}
+          newVersion={newVersion.action_payload.payload_version ?? ''}
+          usages={newVersion.action_previous_version_usages ?? 0}
+          onClose={() => setNewVersion(null)}
+        />
+      )}
     </>
   );
 };

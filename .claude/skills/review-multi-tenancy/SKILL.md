@@ -156,6 +156,13 @@ For each native query, first check Step 2b's classification of the table(s) it t
   - Does it join through a tenant-filtered entity? ✅
   - Neither? → 🟠 HIGH — filter bypass
 
+Whatever the table's v1/v2 classification, also check what the join is **keyed on**. An id that
+repeats across tenants by design (a business key whose uniqueness is composite with `tenant_id`, such
+as an external id or a published catalog id) is not a tenant boundary: joining on it alone lets
+another tenant's row in. `openaev-api/src/test/resources/shared-tenant-keys.txt` lists those keys.
+A join on one of them must constrain both sides to the same tenant, or carry a reasoned entry in
+`shared-tenant-key-join-waivers.txt`. 🟠 HIGH otherwise.
+
 ## Step 4 — Audit migrations
 
 ```bash

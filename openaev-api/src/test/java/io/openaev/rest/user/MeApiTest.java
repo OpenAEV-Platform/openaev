@@ -22,12 +22,15 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.user.form.me.UpdateMeEmailInput;
 import io.openaev.rest.user.form.me.UpdateMePasswordInput;
 import io.openaev.rest.user.form.me.UpdateProfileInput;
+import io.openaev.rest.user.form.user.RenewTokenInput;
 import io.openaev.service.MailingService;
 import io.openaev.service.UserService;
+import io.openaev.service.account.ServiceAccountPrivilegeService;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
@@ -61,6 +64,8 @@ public class MeApiTest extends IntegrationTest {
   @Autowired private ObjectMapper objectMapper;
   @Autowired private io.openaev.utils.mockUser.TestUserHolder testUserHolder;
   @Autowired private UserComposer userComposer;
+  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private TokenRepository tokenRepository;
   @MockitoBean private RandomUtils mockRandomUtils;
   @MockitoBean private MailingService mockMailingService;
 
@@ -543,6 +548,55 @@ public class MeApiTest extends IntegrationTest {
       mvc.perform(get(ME_URI + "/tokens").accept(MediaType.APPLICATION_JSON).with(csrf()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$").isArray());
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/me/token/refresh — service-account self-renewal")
+  class PostMeTokenRefreshServiceAccount {
+
+    @Test
+    @DisplayName(
+        "Given the disclosed installer bearer token, should reject self-renewal and leave the token usable")
+    void given_serviceAccountBearerToken_should_rejectSelfRenewal() throws Exception {
+      // -------- Arrange: bootstrap the tenant's service account and read its real bearer token,
+      // exactly as an INSTALL_AGENT holder would obtain it from the installer endpoint --------
+      serviceAccountPrivilegeService.ensurePrivilegedUserExists(Tenant.DEFAULT_TENANT_UUID);
+      entityManager.flush();
+      entityManager.clear();
+      String serviceAccountToken =
+          serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+              Tenant.DEFAULT_TENANT_UUID);
+
+      // -------- Act: authenticate AS the service account with that bearer token (no
+      // @WithMockUser involved) and list its own tokens, as the real attack chain would --------
+      String tokensResponse =
+          mvc.perform(
+                  get(ME_URI + "/tokens")
+                      .accept(MediaType.APPLICATION_JSON)
+                      .header("Authorization", "Bearer " + serviceAccountToken))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String tokenId = JsonPath.read(tokensResponse, "$[0].token_id");
+
+      RenewTokenInput input = new RenewTokenInput();
+      input.setTokenId(tokenId);
+
+      // -------- Act: attempt self-renewal using the same bearer token --------
+      mvc.perform(
+              post(ME_URI + "/token/refresh")
+                  .with(csrf())
+                  .header("Authorization", "Bearer " + serviceAccountToken)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isNotFound());
+
+      // -------- Assert: rotation never happened, the disclosed token still authenticates --------
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(tokenRepository.findByValue(serviceAccountToken)).isPresent();
     }
   }
 

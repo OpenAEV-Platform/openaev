@@ -25,11 +25,10 @@ import org.springframework.test.context.TestPropertySource;
  * and for an inject targeting an asset group that goes through {@code
  * AssetGroupService.assetsFromAssetGroup(id)}, which loads the group by id.
  *
- * <p>Unlike the sibling {@code handleAutoClosingSimulations}, that handler opens no tenant scope.
- * It relies on {@code disableFilter("tenantFilter")}, the v1 cross-tenant idiom, which is inert
- * under v2: the statement inspector rewrites by SQL text and filters a {@code findById} just like
- * any other read. With no scope the lookup finds nothing and {@code assetGroup(id)} throws {@link
- * ElementNotFoundException}, which propagates out of the job.
+ * <p>Without a tenant scope of its own, the way the sibling {@code handleAutoClosingSimulations}
+ * opens one, that lookup fails: the statement inspector rewrites by SQL text and filters a {@code
+ * findById} just like any other read. With no scope the lookup finds nothing and {@code
+ * assetGroup(id)} throws {@link ElementNotFoundException}, which propagates out of the job.
  *
  * <p>This is not a silent degradation. The exception escapes to {@code execute()}, which rethrows
  * it as a {@code JobExecutionException}, so a single inject targeting an asset group stops the

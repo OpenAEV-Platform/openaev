@@ -17,11 +17,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
-import io.openaev.helper.CompositeIdResolvableI;
-import io.openaev.helper.MonoIdDeserializerHelper;
-import io.openaev.helper.MonoIdSerializer;
-import io.openaev.helper.MultiIdListSerializer;
-import io.openaev.helper.MultiIdSetSerializer;
+import io.openaev.helper.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -75,7 +71,8 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     compositeId.setTenantId(tenant != null ? tenant.getId() : null);
   }
 
-  @Column(name = "injector_contract_external_id", unique = true)
+  // Unique per tenant, not platform-wide: injector_contract_external_id_unique.
+  @Column(name = "injector_contract_external_id")
   @JsonProperty("injector_contract_external_id")
   @Nullable
   private String externalId;
@@ -154,17 +151,10 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
     return ofNullable(getPayload()).map(Payload::getStatus).orElse(null);
   }
 
-  @Queryable(filterable = true, path = "payload.pendingVersion")
-  @JsonProperty("injector_contract_payload_pending_version")
-  public boolean getPayloadPendingVersion() {
-    return ofNullable(getPayload()).map(Payload::isPendingVersion).orElse(false);
-  }
-
-  // Filtered on the displayed status: an approved payload with a new version waiting matches
-  // PENDING, like the list shows it. The value returned is the stored status.
+  // The approval status of the version this contract runs.
   @Queryable(
       filterable = true,
-      path = "payload.displayApprovalStatus",
+      path = "payload.approvalStatus",
       refEnumClazz = Payload.PAYLOAD_APPROVAL_STATUS.class)
   @JsonProperty("injector_contract_payload_approval_status")
   @Enumerated(EnumType.STRING)
@@ -661,6 +651,7 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI {
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_ASSET_GROUP = "asset-group";
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_TEAM = "team";
   public static final String CONTRACT_ELEMENT_CONTENT_TYPE_EXPECTATION = "expectation";
+  public static final String CONTRACT_ELEMENT_CONTENT_CREDENTIAL_REFERENCE = "credential-reference";
 
   public static final List<String> CONTRACT_ELEMENT_CONTENT_KEY_NOT_DYNAMIC =
       List.of(

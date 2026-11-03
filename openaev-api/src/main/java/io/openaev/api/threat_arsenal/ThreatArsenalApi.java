@@ -48,6 +48,28 @@ public class ThreatArsenalApi {
 
   // -- READ --
 
+  @GetMapping({
+    THREAT_ARSENAL_URL + "/name-available",
+    TENANT_THREAT_ARSENAL_URL + "/name-available"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(summary = "Whether no other payload of the tenant uses this name")
+  public boolean nameAvailable(
+      TxCtx ctx, @RequestParam String name, @RequestParam(required = false) String actionId) {
+    return threatArsenalService.isNameAvailable(name, actionId);
+  }
+
+  @GetMapping({THREAT_ARSENAL_URL + "/action-id", TENANT_THREAT_ARSENAL_URL + "/action-id"})
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(
+      summary = "The action that runs a payload version, for links that only know the payload")
+  public ThreatArsenalActionIdOutput actionIdOfPayload(
+      TxCtx ctx, @RequestParam("payload_id") String payloadId) {
+    return new ThreatArsenalActionIdOutput(threatArsenalService.actionIdOfPayload(payloadId));
+  }
+
   @GetMapping({THREAT_ARSENAL_URL + "/{actionId}", TENANT_THREAT_ARSENAL_URL + "/{actionId}"})
   @Transactional
   @AccessControl(
@@ -247,19 +269,21 @@ public class ThreatArsenalApi {
       actionPerformed = Action.APPROVE,
       resourceType = ResourceType.THREAT_ARSENAL)
   @Operation(
-      summary = "Approve the payload of an action, or its pending version",
+      summary = "Approve the pending payload version of an action",
       description =
-          "Requires Approve content. Approves the pending version when there is one (send its"
-              + " version_fingerprint): its content is applied and the next run uses it."
-              + " Otherwise approves a pending payload (send action_approval_fingerprint). Refused"
-              + " when the content changed since it was shown.")
+          "Requires Approve content. The injects stay on the version they run: when the approved"
+              + " version replaces an approved version still in use, the response names that"
+              + " version's action and its usages (action_previous_version_id,"
+              + " action_previous_version_usages), so the approver can move them.")
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "The approved action"),
+    @ApiResponse(
+        responseCode = "200",
+        description = "The decision and, after an approval, the move offer"),
     @ApiResponse(
         responseCode = "400",
-        description = "Nothing pending, payload-less action, or content changed since shown")
+        description = "The version is not pending, or the action has no payload")
   })
-  public ThreatArsenalActionFullOutput approveAction(
+  public ThreatArsenalApprovalDecisionOutput approveAction(
       @RequireTenantSelector TxCtx ctx,
       @NotBlank @PathVariable final String actionId,
       @Valid @RequestBody ThreatArsenalApproveInput input) {
@@ -277,17 +301,17 @@ public class ThreatArsenalApi {
       actionPerformed = Action.APPROVE,
       resourceType = ResourceType.THREAT_ARSENAL)
   @Operation(
-      summary = "Reject the payload of an action, or its pending version",
+      summary = "Reject the pending payload version of an action",
       description =
-          "Requires Approve content. Rejects the pending version when there is one (the active"
-              + " version stays in use), otherwise a pending payload. A reason is required.")
+          "Requires Approve content. The injects stay on the version they run. A reason is"
+              + " required.")
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "The rejected action"),
+    @ApiResponse(responseCode = "200", description = "The decision"),
     @ApiResponse(
         responseCode = "400",
-        description = "Nothing pending, payload-less action, or no reason")
+        description = "The version is not pending, the action has no payload, or no reason")
   })
-  public ThreatArsenalActionFullOutput rejectAction(
+  public ThreatArsenalApprovalDecisionOutput rejectAction(
       @RequireTenantSelector TxCtx ctx,
       @NotBlank @PathVariable final String actionId,
       @Valid @RequestBody ThreatArsenalRejectInput input) {
@@ -310,27 +334,6 @@ public class ThreatArsenalApi {
       // payload_approvals are v2 tenant-scoped).
       TxCtx ctx, @NotBlank @PathVariable final String actionId) {
     return threatArsenalService.approvals(actionId);
-  }
-
-  @GetMapping({
-    THREAT_ARSENAL_URL + "/{actionId}/versions",
-    TENANT_THREAT_ARSENAL_URL + "/{actionId}/versions"
-  })
-  @Transactional(readOnly = true)
-  @AccessControl(
-      resourceId = "#actionId",
-      actionPerformed = Action.READ,
-      resourceType = ResourceType.THREAT_ARSENAL)
-  @Operation(
-      summary = "Versions of the payload of an action, newest first",
-      description =
-          "Versions submitted after the payload was first approved, with their content. Version 1,"
-              + " the initial content, is not listed.")
-  public List<PayloadVersionOutput> actionVersions(
-      // Unused by the handler body; sets the tenant scope of the transaction (payloads and
-      // payload_versions are v2 tenant-scoped).
-      TxCtx ctx, @NotBlank @PathVariable final String actionId) {
-    return threatArsenalService.versions(actionId);
   }
 
   @PostMapping({

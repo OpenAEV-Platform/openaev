@@ -32,10 +32,10 @@ import io.openaev.service.payload_approval.BlockedPayloadsException.BlockedPaylo
 import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.AgentUtils;
-import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +48,6 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.hibernate.Session;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -85,7 +84,6 @@ public class InjectsExecutionJob implements Job {
   private final io.openaev.executors.Executor executor;
   private final ActionMetricCollector actionMetricCollector;
   private final WorkflowService workflowService;
-  private final EntityManager entityManager;
   private final TenantScopedJobRunner tenantScopedJobRunner;
 
   private final List<ExecutionStatus> executionStatusesNotReady =
@@ -103,24 +101,58 @@ public class InjectsExecutionJob implements Job {
   private final PayloadApprovalGate payloadApprovalGate;
 
   public List<Exercise> autoStartDueExercises() {
-    // Disable tenant filter — called from InjectsExecutionJob which runs cross-tenant
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
-    return promoteDueExercisesToRunning();
-  }
-
-  private List<Exercise> promoteDueExercisesToRunning() {
-    List<Exercise> exercises = exerciseRepository.findAllShouldBeInRunningState(now());
-    if (exercises.isEmpty()) {
+    // The poll spans every tenant and only ids leave it. Each tenant's simulations are then started
+    // inside that tenant's scope: exercises.tenant_id has a database default, so a status write
+    // under a wider scope would not say which tenant it acts for. The started list keeps the
+    // poll's order, which is the order executeChainedSimulations starts the workflows in.
+    Map<String, String> tenantIdByDueId =
+        tenantScopedJobRunner.supplyAcrossTenants(
+            () -> {
+              Map<String, String> tenantIds = new LinkedHashMap<>();
+              exerciseRepository
+                  .findAllShouldBeInRunningState(now())
+                  .forEach(
+                      exercise -> tenantIds.put(exercise.getId(), exercise.getTenant().getId()));
+              return tenantIds;
+            });
+    if (tenantIdByDueId.isEmpty()) {
       return List.of();
     }
-    // A scheduled run that uses a payload which is not approved does not start at all: it goes
-    // back to draft (no start date, so the user plans it again on purpose) and the refusal is
-    // audited. Normally done as soon as the payload is blocked; this covers any race.
-    List<Exercise> startedExercises = new ArrayList<>();
-    for (Exercise exercise : exercises) {
+    actionMetricCollector.addSimulationPlayedCount(tenantIdByDueId.size());
+    Map<String, List<String>> dueIdsByTenant = new LinkedHashMap<>();
+    tenantIdByDueId.forEach(
+        (exerciseId, tenantId) ->
+            dueIdsByTenant.computeIfAbsent(tenantId, key -> new ArrayList<>()).add(exerciseId));
+
+    Map<String, Exercise> startedById = new HashMap<>();
+    dueIdsByTenant.forEach(
+        (tenantId, exerciseIds) -> {
+          try {
+            tenantScopedJobRunner
+                .supplyInTenant(tenantId, () -> promoteToRunning(exerciseIds))
+                .forEach(exercise -> startedById.put(exercise.getId(), exercise));
+          } catch (RuntimeException e) {
+            // That tenant's transaction rolled back, so its simulations stay SCHEDULED and the next
+            // run retries them. The other tenants' simulations are started and must still reach
+            // executeChainedSimulations.
+            log.error("Could not start the scheduled simulations of tenant {}", tenantId, e);
+          }
+        });
+    return tenantIdByDueId.keySet().stream()
+        .map(startedById::get)
+        .filter(Objects::nonNull)
+        .toList();
+  }
+
+  private List<Exercise> promoteToRunning(List<String> exerciseIds) {
+    List<Exercise> exercises = new ArrayList<>();
+    for (Exercise exercise : exerciseRepository.findAllById(exerciseIds)) {
+      // A scheduled run that uses a payload version which is not approved does not start at all:
+      // it goes back to draft (no start date, so the user plans it again on purpose) and the
+      // refusal is audited. Normally done as soon as the payload is blocked; this covers any race.
       List<BlockedPayload> blocked = payloadApprovalGate.blockedPayloads(exercise.getInjects());
       if (blocked.isEmpty()) {
-        startedExercises.add(exercise);
+        exercises.add(exercise);
       } else {
         exercise.setStart(null);
         exercise.setUpdatedAt(now());
@@ -137,16 +169,12 @@ public class InjectsExecutionJob implements Job {
             blocked.size());
       }
     }
-    if (startedExercises.isEmpty()) {
-      return List.of();
-    }
-    actionMetricCollector.addSimulationPlayedCount(startedExercises.size());
-    startedExercises.forEach(
+    exercises.forEach(
         exercise -> {
           exercise.setStatus(ExerciseStatus.RUNNING);
           exercise.setUpdatedAt(now());
         });
-    exerciseRepository.saveAll(startedExercises);
+    List<Exercise> startedExercises = exerciseRepository.saveAll(exercises);
     startedExercises.forEach(this::logScheduledLaunch);
     return startedExercises;
   }
@@ -357,10 +385,7 @@ public class InjectsExecutionJob implements Job {
   @LogExecutionTime
   public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     try {
-      // One cross-tenant transaction: the approval check reads each due simulation's injects (a
-      // lazy collection) and their payloads (a tenant-scoped table).
-      List<Exercise> startedExercises =
-          tenantScopedJobRunner.supplyAcrossTenants(this::autoStartDueExercises);
+      List<Exercise> startedExercises = autoStartDueExercises();
       executeChainedSimulations(startedExercises);
       executeClassicalInjects();
     } catch (Exception e) {
@@ -370,16 +395,21 @@ public class InjectsExecutionJob implements Job {
   }
 
   private void executeChainedSimulations(List<Exercise> startedExercises) {
-    // Chained simulations do not execute injects here; they only start their workflow run.
+    // Chained simulations do not execute injects here; they only start their workflow run, in the
+    // simulation's tenant scope like the classical injects below: the start resolves the scope's
+    // assets and the steps' injector contracts, and with no scope it sees none of them.
     startedExercises.forEach(
-        exercise -> {
-          try {
-            workflowService.startWorkflowBySimulationIdIfPresent(exercise.getId());
-          } catch (ChainingException e) {
-            throw new IllegalStateException(
-                "Could not start workflow for scheduled simulation " + exercise.getId(), e);
-          }
-        });
+        exercise ->
+            tenantScopedJobRunner.runInTenant(
+                exercise.getTenant().getId(),
+                () -> {
+                  try {
+                    workflowService.startWorkflowBySimulationIdIfPresent(exercise.getId());
+                  } catch (ChainingException e) {
+                    throw new IllegalStateException(
+                        "Could not start workflow for scheduled simulation " + exercise.getId(), e);
+                  }
+                }));
   }
 
   private void executeClassicalInjects() throws Exception {

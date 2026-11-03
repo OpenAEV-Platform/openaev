@@ -5,7 +5,9 @@ import io.openaev.api.payload.PayloadImportService;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadApproval;
+import io.openaev.database.model.PayloadIdentity;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectorRepository;
@@ -14,6 +16,9 @@ import io.openaev.jsonapi.ResourceObject;
 import io.openaev.jsonapi.ZipJsonApi;
 import io.openaev.service.UserService;
 import io.openaev.service.ZipJsonService;
+import io.openaev.service.catalog.CatalogArchiveChecks;
+import io.openaev.service.payload.PayloadContentHashService;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
@@ -39,6 +44,8 @@ public class ThreatArsenalImportService {
   private final ThreatArsenalMapper threatArsenalMapper;
   private final ObjectMapper objectMapper;
   private final InjectorRepository injectorRepository;
+  private final PayloadContentHashService payloadContentHashService;
+  private final PayloadVersionService payloadVersionService;
   private final UserService userService;
   private final PayloadApprovalService payloadApprovalService;
 
@@ -48,6 +55,56 @@ public class ThreatArsenalImportService {
       return importFromInjectorContract(file, tenantId);
     }
     return importFromPayload(ctx, file);
+  }
+
+  /**
+   * Imports a catalogue package straight into its managed identity as this version, names and
+   * content untouched and its hash computed, so the caller can check it against the release (F3).
+   */
+  public Payload importCatalogAction(
+      @NotNull TxCtx ctx,
+      @NotNull byte[] archive,
+      @NotNull String tenantId,
+      @NotNull PayloadIdentity identity,
+      @NotNull String version)
+      throws Exception {
+    if (CatalogArchiveChecks.isVersionFile(archive)) {
+      return payloadImportService.importCatalogVersionFile(ctx, archive, identity, version);
+    }
+    if (!isInjectorContractExport(archive)) {
+      PayloadImportService.PayloadImportResult result =
+          payloadImportService.importCatalogPayload(ctx, archive, identity, version);
+      Payload payload = result.payloadOutput().persistedData();
+      payload.setContentHash(
+          payloadContentHashService.hash(payload, result.injectorContract().getAttackPatterns()));
+      return payload;
+    }
+    InjectorContract contract =
+        injectorContractZipJsonApi
+            .handleImportAsExported(
+                archive,
+                "injector_contract_labels",
+                null,
+                imported -> {
+                  imported.setId(UUID.randomUUID().toString());
+                  imported.setTenant(new Tenant(tenantId));
+                  imported.setExternalId(null);
+                  Payload payload = imported.getPayload();
+                  if (payload != null) {
+                    PayloadImportService.asCatalogVersion(payload, identity, version);
+                    imported.addInjectors(injectorRepository.findAllByPayloads(true));
+                  }
+                  InjectorContractMigrationUtils.migratePredefinedExpectations(imported);
+                  return imported;
+                },
+                tenantId)
+            .persistedData();
+    Payload payload = contract.getPayload();
+    if (payload == null) {
+      throw new IllegalArgumentException("The package holds no payload");
+    }
+    payload.setContentHash(payloadContentHashService.hash(payload, contract.getAttackPatterns()));
+    return payload;
   }
 
   private ThreatArsenalAction importFromInjectorContract(MultipartFile file, String tenantId)
@@ -79,6 +136,7 @@ public class ThreatArsenalImportService {
               // disabled). Re-link payload-based contracts to the payload-supporting
               // injectors, as synchroniseInjectorContractBasedOnPayload does on creation.
               if (contract.getPayload() != null) {
+                PayloadImportService.asLocalImport(contract.getPayload());
                 contract.addInjectors(injectorRepository.findAllByPayloads(true));
               }
               InjectorContractMigrationUtils.migratePredefinedExpectations(contract);
@@ -87,10 +145,8 @@ public class ThreatArsenalImportService {
             tenantId);
     if (response.persistedData().getPayload() != null) {
       payloadApprovalService.onWrite(
-          response.persistedData().getPayload(),
-          importingUser,
-          PayloadApproval.ORIGIN.IMPORT,
-          null);
+          response.persistedData().getPayload(), importingUser, PayloadApproval.ORIGIN.IMPORT);
+      payloadVersionService.refreshLatest(response.persistedData().getPayload().getIdentity());
     }
     return threatArsenalMapper.toThreatArsenalAction(response.persistedData());
   }
@@ -113,7 +169,11 @@ public class ThreatArsenalImportService {
    * treated as a legacy payload export.
    */
   private boolean isInjectorContractExport(MultipartFile file) throws Exception {
-    try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(file.getBytes()))) {
+    return isInjectorContractExport(file.getBytes());
+  }
+
+  private boolean isInjectorContractExport(byte[] archive) throws Exception {
+    try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(archive))) {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
         if (entry.getName().endsWith(".json") && !"meta.json".equals(entry.getName())) {

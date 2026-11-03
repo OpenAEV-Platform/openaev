@@ -1,5 +1,5 @@
 import { Paper } from '@filigran/design-system';
-import { GridLegacy } from '@mui/material';
+import { Grid } from '@mui/material';
 import { type FunctionComponent } from 'react';
 
 import { fetchPlatformParameters, updatePlatformPolicies } from '../../../../actions/Application';
@@ -35,7 +35,11 @@ const Policies: FunctionComponent = () => {
 
   return (
     <div style={{ display: 'flex' }}>
-      <div style={{ flexGrow: 1 }}>
+      <div style={{
+        flexGrow: 1,
+        minWidth: 0,
+      }}
+      >
         <Breadcrumbs
           variant="list"
           elements={[{ label: t(SETTINGS_LABEL) }, { label: t('Security') }, {
@@ -43,7 +47,7 @@ const Policies: FunctionComponent = () => {
             current: true,
           }]}
         />
-        <GridLegacy item={true} xs={6} style={{ marginTop: 30 }}>
+        <Grid style={{ marginTop: 30 }} size={6}>
           <SectionLabel>{t('Login messages')}</SectionLabel>
           <Paper
             padding={16}
@@ -55,7 +59,7 @@ const Policies: FunctionComponent = () => {
           >
             <PolicyForm onSubmit={onUpdate} initialValues={initialValues}></PolicyForm>
           </Paper>
-        </GridLegacy>
+        </Grid>
       </div>
       <SecurityMenu />
     </div>

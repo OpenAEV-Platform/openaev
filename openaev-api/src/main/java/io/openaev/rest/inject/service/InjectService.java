@@ -2,6 +2,7 @@ package io.openaev.rest.inject.service;
 
 import static io.openaev.database.model.CollectExecutionStatus.COLLECTING;
 import static io.openaev.database.model.ExecutionStatus.*;
+import static io.openaev.database.model.Filters.isEmptyFilterGroup;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TARGETED_PROPERTY;
@@ -25,6 +26,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.IndexEvent;
 import io.openaev.database.audit.ModelBaseListener;
@@ -59,8 +62,11 @@ import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.security.SecurityExpression;
 import io.openaev.rest.security.SecurityExpressionHandler;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
+import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.service.readiness.InjectSensitiveFields;
 import io.openaev.service.readiness.LaunchReadinessService;
@@ -108,12 +114,19 @@ import org.springframework.util.CollectionUtils;
 public class InjectService {
   private static final String CREDENTIAL_ACCESS_DENIED = "CREDENTIAL_ACCESS_DENIED";
   private static final String CREDENTIAL_INACTIVE = "CREDENTIAL_INACTIVE";
+  static final String AGENT_ACCESS_DENIED = "Agent is not allowed to act on this inject";
 
   private final TeamRepository teamRepository;
+  private final SecretReferenceService secretReferenceService;
   private final ExecutionTraceRepository executionTraceRepository;
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final InjectAgentResolverService injectAgentResolverService;
+  // Dispatch-time marking clearance enforcement (resolveAllAssetsToExecute). Called directly -
+  // never through HttpMarkingScopeSupplier, which folds in the unrelated AGENT_RUNTIME_ACCESS
+  // agent-callback bypass.
+  private final MarkingClearanceCacheManager markingClearanceCacheManager;
+  private final PreviewFeatureService previewFeatureService;
   private final PayloadApprovalGate payloadApprovalGate;
   private final LaunchReadinessService launchReadinessService;
   private final AiTargetRepository aiTargetRepository;
@@ -136,6 +149,7 @@ public class InjectService {
   private final TagRepository tagRepository;
   private final DocumentRepository documentRepository;
   private final PayloadRepository payloadRepository;
+  private final AgentService agentService;
   private final SmtpService smtpService;
   private final ImapService imapService;
   private final HealthCheckUtils healthCheckUtils;
@@ -145,6 +159,7 @@ public class InjectService {
   private final ApplicationEventPublisher eventPublisher;
   private final BulkOperationMonitor bulkOperationMonitor;
   private final InjectStatusService injectStatusService;
+  private final PayloadRevocationService payloadRevocationService;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -201,6 +216,8 @@ public class InjectService {
     inject.setUser(this.userService.currentUser());
     inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
     inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
+    inject.setSecretReferences(
+        secretReferenceService.secretReferences(input.getSecretReferences()));
     inject.setTags(tagService.tagSet(input.getTagIds()));
     List<InjectDocument> injectDocuments =
         input.getDocuments().stream()
@@ -271,6 +288,25 @@ public class InjectService {
     return inject;
   }
 
+  /** Security domains of the actions each scenario's injects use, by scenario ID. */
+  @Transactional(readOnly = true)
+  public Map<String, Set<String>> domainIdsByScenario(Collection<String> scenarioIds) {
+    Map<String, Set<String>> domains = new HashMap<>();
+    injectRepository
+        .findDomainIdsByScenarioIds(scenarioIds)
+        .forEach(
+            row ->
+                domains
+                    .computeIfAbsent((String) row[0], k -> new HashSet<>())
+                    .add((String) row[1]));
+    return domains;
+  }
+
+  @Transactional(readOnly = true)
+  public Set<Inject> findByScenarioId(@NotBlank final String scenarioId) {
+    return injectRepository.findByScenarioId(scenarioId);
+  }
+
   public Inject inject(@NotBlank final String injectId) {
     return this.injectRepository
         .findById(injectId)
@@ -283,11 +319,96 @@ public class InjectService {
    * @param injectId inject ID to search
    * @return the inject found or null if none matched the ID
    */
+  /** Scenario and atomic testing injects running this payload (F30). */
+  @Transactional(readOnly = true)
+  public List<Inject> findTemplateInjectsByPayloadId(@NotBlank final String payloadId) {
+    return injectRepository.findTemplateInjectsByPayloadId(payloadId);
+  }
+
+  public Inject save(@NotNull final Inject inject) {
+    return injectRepository.save(inject);
+  }
+
   public Inject findInjectOrNull(@NotBlank final String injectId) {
     if (injectId == null) {
       return null;
     }
     return this.injectRepository.findById(injectId).orElse(null);
+  }
+
+  /**
+   * Object-level authorization gate shared by the implant endpoints (executable payload retrieval
+   * and execution callback). The service-account bearer token carrying AGENT_RUNTIME_ACCESS is
+   * shared across every agent, so the {@code @AccessControl} capability check alone does not prove
+   * the caller is entitled to act on a specific inject for a specific agent. Reject the request
+   * (403) unless the given primary agent's asset is targeted by the inject, either directly or
+   * through one of its asset groups (static or dynamic membership).
+   *
+   * <p>Runs on every implant callback, under the per-inject lock: only ids are read, the inject and
+   * the agent are never loaded. The cheapest check (direct and static-group targets) runs first;
+   * the inject's asset groups and the agent's asset are only loaded when it fails.
+   *
+   * <p>Every failure (unknown inject, unknown or non-primary agent, agent without asset, agent not
+   * targeted) maps to the same 403 and message, so the endpoints do not reveal whether an inject or
+   * agent id exists.
+   *
+   * @param injectId the inject the agent is acting on
+   * @param agentId the agent reported by the implant
+   * @throws ForbiddenException if the agent is not a target of the inject
+   */
+  public void checkAgentTargetsInject(String injectId, String agentId) {
+    if (injectId == null || agentId == null || !isInjectTarget(injectId, agentId)) {
+      denyAgentAccess(injectId, agentId);
+    }
+  }
+
+  /**
+   * Object-level authorization gate of the implant execution callback. Same contract as {@link
+   * #checkAgentTargetsInject}, except that an agent granted the inject at launch keeps the right to
+   * report on it: its outputs and its final COMPLETE must not be lost, nor the inject left pending,
+   * because the inject's targets were edited (or a dynamic group stopped matching) mid-execution.
+   * The agent is accepted when it holds an expectation or an execution trace on the inject, or when
+   * it is currently a target. The payload retrieval keeps the strict {@link
+   * #checkAgentTargetsInject}: nothing was granted yet at that point.
+   *
+   * @param injectId the inject the agent is reporting on
+   * @param agentId the agent reported by the implant
+   * @throws ForbiddenException if the agent was neither granted nor targeted by the inject
+   */
+  public void checkAgentMayReportOnInject(String injectId, String agentId) {
+    if (injectId == null
+        || agentId == null
+        || !(agentService.isPrimaryAgentGrantedInject(agentId, injectId)
+            || isInjectTarget(injectId, agentId))) {
+      denyAgentAccess(injectId, agentId);
+    }
+  }
+
+  private void denyAgentAccess(String injectId, String agentId) {
+    log.warn("Agent access to inject denied: inject {}, agent {}", injectId, agentId);
+    throw new ForbiddenException(AGENT_ACCESS_DENIED);
+  }
+
+  private boolean isInjectTarget(String injectId, String agentId) {
+    if (agentService.isPrimaryAgentAssetStaticallyTargetedByInject(agentId, injectId)) {
+      return true;
+    }
+    // Dynamic membership costs one id-constrained query per dynamic group, so the (potentially
+    // large) dynamic member lists are never materialized.
+    List<AssetGroup> dynamicGroups =
+        assetGroupService.assetGroupsOfInject(injectId).stream()
+            .filter(group -> !isEmptyFilterGroup(group.getDynamicFilter()))
+            .toList();
+    if (dynamicGroups.isEmpty()) {
+      return false;
+    }
+    return agentService
+        .findPrimaryAgentAsset(agentId)
+        .map(
+            asset ->
+                dynamicGroups.stream()
+                    .anyMatch(group -> assetGroupService.isAssetInDynamicGroup(asset, group)))
+        .orElse(false);
   }
 
   /**
@@ -435,7 +556,73 @@ public class InjectService {
               }
             });
 
-    return assetToExecutes;
+    return filterByMarkingClearance(inject, assetToExecutes);
+  }
+
+  /**
+   * Drop every resolved asset whose marking is not covered by {@link #resolveLaunchedByClearance}'s
+   * <b>current</b> result for this inject - partial/scoped execution. A null/zero clearance means
+   * every marked target is skipped, nothing throws, nothing runs.
+   */
+  private List<AssetToExecute> filterByMarkingClearance(
+      Inject inject, List<AssetToExecute> assetToExecutes) {
+    java.util.function.Predicate<Asset> launchable = launchableUnderClearance(inject);
+    return assetToExecutes.stream()
+        .filter(assetToExecute -> launchable.test(assetToExecute.asset()))
+        .toList();
+  }
+
+  /** Resolve feature flag MARKING */
+  private java.util.function.Predicate<Asset> launchableUnderClearance(Inject inject) {
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)) {
+      return asset -> true;
+    }
+    MarkingCtx clearance = resolveLaunchedByClearance(inject);
+    return asset -> isVisibleUnderClearance(asset, clearance);
+  }
+
+  /**
+   * Resolves the live, current marking clearance of the actor whose launch/relaunch gates this
+   * inject's dispatch - the parent Exercise's {@code launchedBy} for a scenario-linked inject, or
+   * the inject's own {@code launchedBy} for a root/atomic-testing inject. Never cached on the
+   * entity: a group-membership change between launch and dispatch is picked up automatically. A
+   * null actor (deleted user, or an old row created before this field existed) resolves to zero
+   * clearance.
+   *
+   * <p>Calls {@link MarkingClearanceCacheManager} directly, never {@code HttpMarkingScopeSupplier}:
+   * {@code bypass} here is the actor's own {@code isAdminOrBypass()} only, not the unrelated {@code
+   * AGENT_RUNTIME_ACCESS} agent-callback bypass that supplier also grants full clearance to.
+   *
+   * <p>Shared by every independent asset-resolution point that must honor partial/scoped execution
+   * (expectation computation, agent-routing dispatch, external-push dispatch) so the rule is
+   * implemented once, not reinvented per call site.
+   */
+  private MarkingCtx resolveLaunchedByClearance(Inject inject) {
+    // The dispatch may hold an inject loaded in another session, always load user by its id, do
+    // not rely on User associated to Inject by lazy loading association.
+    Optional<User> launchedBy =
+        injectRepository
+            .findLauncherId(inject.getId())
+            .flatMap(launcherId -> userService.find(List.of(launcherId)).stream().findFirst());
+    if (launchedBy.isEmpty()) {
+      return MarkingCtx.none();
+    }
+    User launcher = launchedBy.get();
+    return markingClearanceCacheManager.findClearance(
+        launcher.getId(), inject.getTenant().getId(), launcher.isAdminOrBypass());
+  }
+
+  /**
+   * An asset with no marking is visible to everyone (Task 3). A marked asset is visible only when
+   * the clearance covers <b>every</b> marking it carries (STIX AND-of-markings reading, not OR).
+   */
+  private boolean isVisibleUnderClearance(Asset asset, MarkingCtx clearance) {
+    String[] assetMarkingIds = asset.getMarkingIds();
+    if (assetMarkingIds == null || assetMarkingIds.length == 0) {
+      return true;
+    }
+    return clearance instanceof MarkingCtx.Restricted restricted
+        && restricted.markingIds().containsAll(Arrays.asList(assetMarkingIds));
   }
 
   /**
@@ -518,12 +705,42 @@ public class InjectService {
     }
   }
 
+  /** A disabled inject never runs, so only enabled ones are checked. */
+  public List<HealthCheck> runRevocationChecks(Collection<Inject> injects) {
+    List<Payload> payloads =
+        injects.stream()
+            .filter(Inject::isEnabled)
+            .flatMap(inject -> inject.getPayload().stream())
+            .distinct()
+            .toList();
+    return !payloads.isEmpty() && payloadRevocationService.anyRevoked(payloads)
+        ? List.of(revokedHealthCheck())
+        : List.of();
+  }
+
+  private static HealthCheck revokedHealthCheck() {
+    return new HealthCheck(
+        HealthCheck.Type.PAYLOAD, HealthCheck.Detail.REVOKED, HealthCheck.Status.ERROR, now());
+  }
+
+  /** A revoked payload is never launched, whatever the license (F9, F18). */
+  public void throwIfPayloadRevoked(Inject inject) {
+    payloadRevocationService
+        .revocationMessage(inject)
+        .ifPresent(
+            message -> {
+              throw new BadRequestException(message);
+            });
+  }
+
   @Transactional
   public InjectResultOverviewOutput launch(String id) {
     Inject inject = injectRepository.findById(id).orElseThrow(ElementNotFoundException::new);
+    this.throwIfPayloadRevoked(inject);
     this.throwIfInjectNotLaunchable(inject);
     inject.clean();
     inject.setUpdatedAt(Instant.now());
+    inject.setLaunchedBy(userService.currentUser());
     Inject savedInject = saveInjectAndStatusAsQueuing(inject);
     return injectMapper.toInjectResultOverviewOutput(savedInject);
   }
@@ -548,9 +765,12 @@ public class InjectService {
   // each other directly.
   private InjectResultOverviewOutput doRelaunch(String id, boolean checkLaunchable) {
     Inject duplicatedInject = findAndDuplicateInject(id);
+    this.throwIfPayloadRevoked(duplicatedInject);
     if (checkLaunchable) {
       this.throwIfInjectNotLaunchable(duplicatedInject);
     }
+    duplicatedInject.setLaunchedBy(
+        checkLaunchable ? userService.currentUser() : duplicatedInject.getScheduledBy());
     Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
     deleteForRelaunch(id, savedInject.getId());
     return injectMapper.toInjectResultOverviewOutput(savedInject);
@@ -874,6 +1094,8 @@ public class InjectService {
       inject.setAssets(fromIterable(this.assetService.assets(input.getAssets())));
     }
     inject.setAssetGroups(fromIterable(this.assetGroupService.assetGroups(input.getAssetGroups())));
+    inject.setSecretReferences(
+        secretReferenceService.secretReferences(input.getSecretReferences()));
     inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
 
     // Set documents
@@ -1058,17 +1280,33 @@ public class InjectService {
         });
   }
 
+  /**
+   * Builds the real agent/agentless-asset sets a launch actually acts on - this is what {@link
+   * io.openaev.execution.ExecutionExecutorService#launchExecutorContext} commands to execute, so
+   * partial/scoped execution is enforced here directly rather than relying on {@link
+   * #resolveAllAssetsToExecute}'s result (which only feeds expectation/finding computation and is a
+   * separate, independent resolution of the same inject's targets).
+   */
   public AgentsAndAssetsAgentless getAgentsAndAgentlessAssetsByInject(Inject inject) {
+    return agentsAndAgentlessAssets(inject, launchableUnderClearance(inject));
+  }
+
+  private AgentsAndAssetsAgentless agentsAndAgentlessAssets(
+      Inject inject, java.util.function.Predicate<Asset> launchable) {
     Set<Agent> agents = new HashSet<>();
     Set<Asset> assetsAgentless = new HashSet<>();
 
     for (Asset asset : inject.getAssets()) {
-      extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
+      if (launchable.test(asset)) {
+        extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
+      }
     }
 
     for (AssetGroup assetGroup : inject.getAssetGroups()) {
       for (Asset asset : assetGroupService.assetsFromAssetGroup(assetGroup.getId())) {
-        extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
+        if (launchable.test(asset)) {
+          extractAgentsAndAssetsAgentless(agents, assetsAgentless, asset);
+        }
       }
     }
 
@@ -1481,12 +1719,17 @@ public class InjectService {
             imapService.isServiceAvailable(),
             HealthCheck.Type.IMAP,
             HealthCheck.Status.WARNING));
+    // Every target, not only those a launch would execute: a health check describes the inject's
+    // configuration, before any launch, so there is no launcher whose clearance would apply.
     healthChecks.addAll(
         healthCheckUtils.runExecutorChecks(
-            inject, this.getAgentsAndAgentlessAssetsByInject(inject)));
+            inject, agentsAndAgentlessAssets(inject, asset -> true)));
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
+    if (inject.getPayload().filter(payloadRevocationService::isRevokedCached).isPresent()) {
+      healthChecks.add(revokedHealthCheck());
+    }
 
     return healthChecks;
   }

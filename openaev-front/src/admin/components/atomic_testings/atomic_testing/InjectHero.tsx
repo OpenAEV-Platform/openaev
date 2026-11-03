@@ -156,7 +156,7 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
             ? <InjectStatus status="DRAFT" />
             : <InjectStatus status={statusName as InjectStatusType['status_name']} errorMessage={errorMessage} />}
           <PayloadDeprecatedChip status={payload?.payload_status} />
-          <PayloadApprovalWarningChip approvalStatus={payload?.payload_approval_status} pendingVersion={payload?.payload_pending_version} payloadName={contractLabel || undefined} />
+          <PayloadApprovalWarningChip approvalStatus={payload?.payload_approval_status} payloadName={contractLabel || undefined} />
           {isScheduled && !isSchedulePaused && (
             <Tooltip>
               <TooltipTrigger asChild>

@@ -351,3 +351,8 @@ export const widgetToEntitiesByByScenario = (scenarioId: string, widgetId: strin
 export const attackPathsByScenario = (scenarioId: string, widgetId: string, parameters: Record<string, string | undefined>) => {
   return simplePostCall(`/api/scenarios/${scenarioId}/dashboard/attack-paths/${widgetId}`, parameters);
 };
+
+// Scenario authors with their counts under the filters, for the author facet.
+export const fetchScenarioAuthorCounts = (input: SearchPaginationInput) => {
+  return simplePostCall('/api/scenarios/author-counts', input);
+};

@@ -6,7 +6,6 @@ import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerPeriod;
 import io.openaev.database.model.NotificationTriggerType;
-import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationTriggerRepository;
@@ -140,7 +139,7 @@ public class NotificationTriggerService {
   private static boolean isPlatformOnly(NotificationTriggerEventType eventType) {
     return switch (eventType) {
       case APPROVAL_PENDING, APPROVED, REJECTED, SUPERSEDED -> true;
-      case CREATE, UPDATE, DELETE, SCORE_DEGRADATION -> false;
+      default -> false;
     };
   }
 
@@ -162,12 +161,14 @@ public class NotificationTriggerService {
         throw new IllegalArgumentException(
             "Payload approval events are sent by the platform and cannot be subscribed to");
       }
-      // Score degradation is a scenario-only semantic event
-      if (trigger.getEventTypes().contains(NotificationTriggerEventType.SCORE_DEGRADATION)
-          && trigger.getWatchedResourceType() != ResourceType.SCENARIO) {
-        throw new IllegalArgumentException(
-            "The score degradation event type is only supported for scenarios");
-      }
+      trigger.getEventTypes().stream()
+          .filter(eventType -> !eventType.appliesTo(trigger.getWatchedResourceType()))
+          .findFirst()
+          .ifPresent(
+              eventType -> {
+                throw new IllegalArgumentException(
+                    "The " + eventType + " event type is not supported for this resource type");
+              });
     } else if (trigger.getType() == NotificationTriggerType.DIGEST) {
       if (trigger.getPeriod() == null) {
         throw new IllegalArgumentException("Digest notification triggers require a period");

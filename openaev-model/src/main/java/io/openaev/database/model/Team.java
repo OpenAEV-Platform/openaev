@@ -123,9 +123,9 @@ public class Team implements TenantBase {
       name = "exercises_teams",
       joinColumns = @JoinColumn(name = "team_id"),
       inverseJoinColumns = @JoinColumn(name = "exercise_id"))
-  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("team_exercises")
-  private List<Exercise> exercises = new ArrayList<>();
+  private Set<Exercise> exercises = new HashSet<>();
 
   @ArraySchema(
       schema =
@@ -137,9 +137,9 @@ public class Team implements TenantBase {
       name = "scenarios_teams",
       joinColumns = @JoinColumn(name = "team_id"),
       inverseJoinColumns = @JoinColumn(name = "scenario_id"))
-  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("team_scenarios")
-  private List<Scenario> scenarios = new ArrayList<>();
+  private Set<Scenario> scenarios = new HashSet<>();
 
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
@@ -150,7 +150,7 @@ public class Team implements TenantBase {
   @JsonProperty("team_injects")
   @JsonIgnore
   @Queryable(filterable = true, dynamicValues = true, path = "injects.id")
-  private List<Inject> injects = new ArrayList<>();
+  private Set<Inject> injects = new HashSet<>();
 
   @Column(name = "team_contextual")
   @JsonProperty("team_contextual")

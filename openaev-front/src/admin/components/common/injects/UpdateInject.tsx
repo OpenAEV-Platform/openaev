@@ -8,6 +8,7 @@ import { fetchInject } from '../../../../actions/Inject';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
 import { fetchDocumentsPayloadByInject } from '../../../../actions/injects/inject-action';
 import { type InjectHelper } from '../../../../actions/injects/inject-helper';
+import { changeThreatArsenalVersion } from '../../../../actions/threat_arsenals/threatArsenal-version-actions';
 import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
@@ -17,14 +18,16 @@ import {
   type AttackPattern, type Document,
   type Inject,
   type InjectInput,
-  type KillChainPhase, type Variable,
+  type KillChainPhase, type PayloadVersionChangeOutput, type PayloadVersionOutput, type Variable,
 } from '../../../../utils/api-types';
 import { type InjectorContractConverted } from '../../../../utils/api-types-custom';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, INHERITED_CONTEXT, SUBJECTS } from '../../../../utils/permissions/types';
 import { arrayToRecord, isNotEmptyField } from '../../../../utils/utils';
+import PayloadContractVersionSelect from '../../threat_arsenal/PayloadContractVersionSelect';
 import { PermissionsContext } from '../Context';
 import InjectForm from './form/InjectForm';
 import InjectCardComponent from './InjectCardComponent';
@@ -36,6 +39,8 @@ interface Props {
   open: boolean;
   handleClose: () => void;
   onUpdateInject: (data: Inject) => Promise<void>;
+  // The list shows the inject's revocation, which a version change can lift.
+  onVersionChanged?: () => void;
   massUpdateInject?: (data: Inject[]) => Promise<void>;
   injectId: string;
   isAtomic?: boolean;
@@ -49,6 +54,7 @@ const UpdateInject: React.FC<Props> = ({
   open,
   handleClose,
   onUpdateInject,
+  onVersionChanged,
   massUpdateInject,
   injectId,
   isAtomic = false,
@@ -116,6 +122,29 @@ const UpdateInject: React.FC<Props> = ({
     }
   }, [inject]);
 
+  // F30 for this one inject: same checks as moving injects from the Versions tab.
+  const [changingVersion, setChangingVersion] = useState(false);
+  const changeVersion = (version: PayloadVersionOutput) => {
+    if (!injectorContract || !version.payload_id) {
+      return;
+    }
+    setChangingVersion(true);
+    changeThreatArsenalVersion(injectorContract.injector_contract_id, {
+      target_payload_id: version.payload_id,
+      inject_ids: [injectId],
+    })
+      .then((response: { data: PayloadVersionChangeOutput }) => {
+        const refusal = response.data.refused?.[0];
+        if (refusal) {
+          MESSAGING$.notifyError(refusal.reason ?? t('This version cannot be used by this inject'));
+          return undefined;
+        }
+        onVersionChanged?.();
+        return dispatch(fetchInject(injectId));
+      })
+      .finally(() => setChangingVersion(false));
+  };
+
   const getInjectHeaderTitle = (): string => {
     if (injectorContract?.injector_contract_needs_executor && inject?.inject_attack_patterns?.length !== 0) {
       const phases = (inject?.inject_kill_chain_phases ?? []).map((value: KillChainPhase) => value.phase_name).filter(Boolean).join(', ');
@@ -152,8 +181,16 @@ const UpdateInject: React.FC<Props> = ({
         <div style={{
           display: 'flex',
           alignItems: 'center',
+          gap: theme.spacing(1),
         }}
         >
+          {contractPayload && injectorContract && (
+            <PayloadContractVersionSelect
+              contractId={injectorContract.injector_contract_id}
+              disabled={changingVersion}
+              onChange={changeVersion}
+            />
+          )}
           {inject?.inject_injector_contract?.injector_contract_platforms?.map(
             platform => (
               <PlatformIcon
@@ -206,6 +243,7 @@ const UpdateInject: React.FC<Props> = ({
           <TabsContent value="Inject details" forceMount hidden={activeTab !== 'Inject details'}>
             {!isInjectLoading && inject && (
               <InjectForm
+                key={injectorContract?.injector_contract_id}
                 handleClose={handleClose}
                 // A disabled inject stays fully editable: "disabled" only means it is excluded from
                 // execution, it is not a read-only state. Only missing contract content and

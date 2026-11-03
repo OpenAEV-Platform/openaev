@@ -3,7 +3,7 @@ import {
   GroupsOutlined,
   ImportantDevicesOutlined,
   LockOutlined,
-  MailOutline,
+  MailOutlineOutlined,
   PublicOutlined,
   SmartToyOutlined,
   StorageOutlined,
@@ -15,11 +15,11 @@ import { type Domain } from '../../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../../utils/domains/domainUtils';
 import { type IconBarElement } from './IconBar-model';
 
-const DOMAIN_ICON_MAP: Record<string, () => ReactElement> = {
+export const DOMAIN_ICON_MAP: Record<string, () => ReactElement> = {
   'Endpoint': () => <ImportantDevicesOutlined />,
   'Network': () => <PublicOutlined />,
   'Web App': () => <WebAssetOutlined />,
-  'E-mail Infiltration': () => <MailOutline />,
+  'E-mail Infiltration': () => <MailOutlineOutlined />,
   'Data Exfiltration': () => <StorageOutlined />,
   'URL Filtering': () => <LockOutlined />,
   'Cloud': () => <CloudOutlined />,

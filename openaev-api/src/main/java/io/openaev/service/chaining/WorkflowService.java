@@ -873,7 +873,7 @@ public class WorkflowService {
 
   /**
    * Finds the current execution of a simulation: its latest run, whatever its status (RUN, END or
-   * STOP). Reset deletes every execution (ADR-009), but a database reset before that may still hold
+   * STOP). Reset deletes every execution (ADR-014), but a database reset before that may still hold
    * older runs, so callers must act on this one only.
    *
    * @param simulationId the ID of the simulation
@@ -1486,14 +1486,43 @@ public class WorkflowService {
   @Transactional(rollbackFor = Exception.class)
   public void startWorkflowByScenarioIdAndSimulation(String scenarioId, Exercise simulation)
       throws ChainingException {
+    doStartWorkflowByScenarioIdAndSimulation(scenarioId, simulation, false);
+  }
+
+  /**
+   * Start workflow for given scenario, optionally as a keep-alive (autonomous) simulation.
+   *
+   * <p>With {@code keepAlive}, the simulation TEMPLATE is marked keep-alive with its timeout off
+   * BEFORE the run is created and evaluated, so the run inherits it from the start. An autonomous
+   * run launches with an empty workflow: a run that is not yet keep-alive at its first evaluation
+   * is ended for NO_MORE_PROGRESS, which also finishes the simulation before the orchestrator has
+   * authored a single step.
+   *
+   * @param scenarioId id of the scenario to start
+   * @param simulation the simulation the workflow is launched for
+   * @param keepAlive whether the launched workflow must stay in RUN awaiting an orchestrator
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void startWorkflowByScenarioIdAndSimulation(
+      String scenarioId, Exercise simulation, boolean keepAlive) throws ChainingException {
+    doStartWorkflowByScenarioIdAndSimulation(scenarioId, simulation, keepAlive);
+  }
+
+  private void doStartWorkflowByScenarioIdAndSimulation(
+      String scenarioId, Exercise simulation, boolean keepAlive) throws ChainingException {
     Workflow workflowTemplateScenario =
         findWorkflowTemplateByScenarioId(scenarioId)
             .orElseThrow(
                 () ->
                     new ElementNotFoundException(
                         "Workflow (TEMPLATE) not found. Scenario ID: " + scenarioId));
-    Workflow workflowTemplateSimulation =
-        saveWorkflowRun(copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation));
+    Workflow workflowTemplateSimulationToSave =
+        copyWorkflowTemplateToSimulation(workflowTemplateScenario, simulation);
+    if (keepAlive) {
+      workflowTemplateSimulationToSave.setKeepAlive(true);
+      workflowTemplateSimulationToSave.setTimeoutEnabled(false);
+    }
+    Workflow workflowTemplateSimulation = saveWorkflowRun(workflowTemplateSimulationToSave);
     stepService.copyStepTemplate(workflowTemplateScenario, workflowTemplateSimulation);
 
     doStartWorkflowBySimulationId(workflowTemplateSimulation);
@@ -1699,8 +1728,13 @@ public class WorkflowService {
       return workflowRun;
     }
 
-    // Get all step template
-    List<Step> stepsTemplate = stepService.findAllStepTemplateByWorkflow(workflowTemplateId);
+    // Get all step templates, in a deterministic order: readying a template creates its local
+    // state and commits its execution hashes, and concurrent evaluations of the same run must take
+    // those locks in the same order (see WorkflowStateService#propagateToLocalStates, ADR-011).
+    List<Step> stepsTemplate =
+        stepService.findAllStepTemplateByWorkflow(workflowTemplateId).stream()
+            .sorted(Comparator.comparing(Step::getId))
+            .toList();
 
     if (stepsTemplate.isEmpty()) {
       // Autonomous (keep-alive) runs provision an EMPTY workflow and let the AI orchestrator author
@@ -1765,13 +1799,10 @@ public class WorkflowService {
    * scenario can be relaunched in normal mode and run-and-end normally. A no-op when the simulation
    * has no workflow yet.
    *
-   * <p>Must be called at launch time, in the SAME transaction as the launch, on a freshly
-   * provisioned simulation. The initial evaluation inside {@code startWorkflow} ENDs an empty
-   * non-keep-alive run on the spot - and an autonomous run always launches empty - so the freshly
-   * ended run is invisible to the RUN-status finder. This method therefore also picks up the
-   * simulation's END runs and restores them to RUN: on a fresh simulation the only possible END run
-   * is the one the launch itself just ended (nothing ever executed), so the restore can never
-   * resurrect a legitimately finished run.
+   * <p>It does NOT reopen an ended run: ending a run also finishes its simulation, so a live
+   * autonomous launch must already start keep-alive (see {@link
+   * #startWorkflowByScenarioIdAndSimulation(String, Exercise, boolean)}) for its empty run to
+   * survive the initial evaluation.
    *
    * @param simulationId the launched simulation whose workflows should keep themselves alive
    */
@@ -1783,26 +1814,10 @@ public class WorkflowService {
     List<Workflow> workflows = new ArrayList<>();
     findWorkflowTemplateBySimulationId(simulationId).ifPresent(workflows::add);
     workflows.addAll(findWorkflowRunBySimulationId(simulationId));
-    // Recover the empty run the launch evaluation just ended (see javadoc): parked back in RUN, it
-    // awaits the orchestrator's first authored step instead of staying terminally closed.
-    workflows.addAll(
-        workflowRepository.findAllBySimulation_IdAndStatus(simulationId, WorkflowStatus.END));
     for (Workflow workflow : workflows) {
-      boolean dirty = false;
-      if (workflow.getStatus() == WorkflowStatus.END) {
-        workflow.setStatus(WorkflowStatus.RUN);
-        // The launch evaluation provisionally ended this empty run and froze its end scope
-        // snapshot; reopening it must clear that photo or the live autonomous run would
-        // misclassify every later drift as after-execution. See ADR-006.
-        scopeSnapshotService.clearEnd(workflow);
-        dirty = true;
-      }
       if (!workflow.isKeepAlive() || workflow.isTimeoutEnabled()) {
         workflow.setKeepAlive(true);
         workflow.setTimeoutEnabled(false);
-        dirty = true;
-      }
-      if (dirty) {
         workflowRepository.save(workflow);
       }
     }
@@ -2011,38 +2026,30 @@ public class WorkflowService {
   /**
    * Transaction-isolated variant of {@link #appendChainedStepToScenario(String, InjectInput,
    * String, List)} for the autonomous orchestrator's step-authoring callback. Runs in its OWN
-   * transaction ({@link Propagation#REQUIRES_NEW}) so a scenario-mirror failure (the scenario
-   * template invisible under the callback thread's tenant, or a concurrent author racing the same
-   * scenario workflow) rolls back only this twin and can NEVER mark the caller's authoring
-   * transaction rollback-only. The executing simulation step is authored authoritatively first and
-   * this scenario mirror is a secondary projection - a mirror failure must not fail (500) the
-   * author callback and lose the executing step at commit. See {@code
-   * AutonomousRunService#mirrorStepOntoScenario}.
+   * transaction ({@link Propagation#REQUIRES_NEW}) so a scenario-mirror failure (a concurrent
+   * author racing the same scenario workflow, a stale event link) rolls back only this twin and can
+   * NEVER mark the caller's authoring transaction rollback-only. The executing simulation step is
+   * authored authoritatively first and this scenario mirror is a secondary projection - a mirror
+   * failure must not fail (500) the author callback and lose the executing step at commit. See
+   * {@code AutonomousRunService#mirrorStepOntoScenario}.
    *
-   * <p>Both public entry points delegate to the same private, non-transactional body: a same-class
-   * call to a {@code @Transactional} sibling would bypass the Spring proxy (see {@code
+   * <p>{@code existingEventConditionIds} links the twin to EXISTING scenario event roots by id
+   * (resolved by the caller from its sim-&gt;scenario event mapping) so the exported scenario
+   * shares one event across the actions that reuse it, exactly like the executing simulation side.
+   *
+   * <p>The {@code ctx} argument is load-bearing even though this body never reads it: {@code
+   * REQUIRES_NEW} suspends the caller's transaction, so the caller's scope does not travel with it.
+   * The tenant aspect sets the new transaction's scope from this parameter. Without it every read
+   * of a tenant-active table in the body returns nothing: the twin is written with its asset
+   * targets and tags dropped, and the injector contract check refuses it.
+   *
+   * <p>The public entry point delegates to a private, non-transactional body: a same-class call to
+   * a {@code @Transactional} sibling would bypass the Spring proxy (see {@code
    * TenantBackgroundTransactionArchTest#no_transactional_self_invocation}).
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
   public String appendChainedStepToScenarioIsolated(
-      String scenarioId,
-      InjectInput injectInput,
-      String parentScenarioStepTemplateId,
-      List<ConditionCreateInput> triggerConditions)
-      throws ChainingException {
-    return doAppendChainedStepToScenario(
-        scenarioId, injectInput, parentScenarioStepTemplateId, triggerConditions, List.of());
-  }
-
-  /**
-   * Existing-event variant of {@link #appendChainedStepToScenarioIsolated(String, InjectInput,
-   * String, List)}: links the mirrored scenario twin to an EXISTING scenario event root by id
-   * (resolved by the caller from its sim-&gt;scenario event mapping) so the exported scenario
-   * shares one event across the actions that reuse it, exactly like the executing simulation side.
-   * Still REQUIRES_NEW and best-effort - the mirror must never fail the author callback.
-   */
-  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-  public String appendChainedStepToScenarioIsolated(
+      TxCtx ctx,
       String scenarioId,
       InjectInput injectInput,
       String parentScenarioStepTemplateId,
@@ -2552,35 +2559,21 @@ public class WorkflowService {
    * failure must not fail (500) the update callback. See {@code
    * AutonomousRunService#updateAttackPathStep}.
    *
+   * <p>A null {@code triggerConditions} keeps the twin's conditions; {@code
+   * existingEventConditionIds} links it to existing event roots when the corrected simulation step
+   * reuses an existing event.
+   *
+   * <p>The {@code ctx} argument carries the scope into the new transaction, for the same reason as
+   * on {@link #appendChainedStepToScenarioIsolated}: the body rebuilds the twin's data from
+   * tenant-active tables.
+   *
    * <p>Delegates to the same private, non-transactional body as {@link #updateChainedStep}: a
    * same-class call to a {@code @Transactional} sibling would bypass the Spring proxy (see {@code
    * TenantBackgroundTransactionArchTest#no_transactional_self_invocation}).
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-  public void updateChainedStepIsolated(String stepTemplateId, InjectInput injectInput)
-      throws ChainingException {
-    doUpdateChainedStep(stepTemplateId, injectInput, null);
-  }
-
-  /**
-   * Trigger-aware, transaction-isolated variant of {@link #updateChainedStepIsolated(String,
-   * InjectInput)} used to keep the scenario mirror twin's finding trigger in lock-step with the
-   * corrected simulation step. Same {@link Propagation#REQUIRES_NEW} best-effort isolation.
-   */
-  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
   public void updateChainedStepIsolated(
-      String stepTemplateId, InjectInput injectInput, List<ConditionCreateInput> triggerConditions)
-      throws ChainingException {
-    doUpdateChainedStep(stepTemplateId, injectInput, triggerConditions);
-  }
-
-  /**
-   * Existing-event, transaction-isolated variant used to keep the scenario mirror twin's event
-   * linkage in lock-step when the corrected simulation step reuses an existing event. Same {@link
-   * Propagation#REQUIRES_NEW} best-effort isolation as the other isolated update overloads.
-   */
-  @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-  public void updateChainedStepIsolated(
+      TxCtx ctx,
       String stepTemplateId,
       InjectInput injectInput,
       List<ConditionCreateInput> triggerConditions,

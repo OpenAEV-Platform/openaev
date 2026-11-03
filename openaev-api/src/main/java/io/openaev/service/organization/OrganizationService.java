@@ -74,6 +74,19 @@ public class OrganizationService {
   }
 
   /**
+   * Finds an organization by id with its tags loaded, for the endpoint that returns the raw entity:
+   * see {@link #fetchTags(List)}.
+   *
+   * @param organizationId the id of the organization to find
+   * @return the found organization, with its tags loaded
+   */
+  public Organization findByIdWithTags(String organizationId) {
+    Organization organization = findById(organizationId);
+    fetchTags(List.of(organization));
+    return organization;
+  }
+
+  /**
    * Finds organizations with pagination based on the provided search and pagination input.
    *
    * @param searchPaginationInput the input containing search and pagination parameters
@@ -81,8 +94,23 @@ public class OrganizationService {
    */
   public Page<Organization> organizationPagination(
       @NotNull SearchPaginationInput searchPaginationInput) {
-    return buildPaginationJPA(
-        organizationRepository::findAll, searchPaginationInput, Organization.class);
+    Page<Organization> organizations =
+        buildPaginationJPA(
+            organizationRepository::findAll, searchPaginationInput, Organization.class);
+    fetchTags(organizations.getContent());
+    return organizations;
+  }
+
+  /**
+   * Loads the tags of the organizations inside the scoped transaction. The organization endpoints
+   * return the raw entity, serialized open-in-view after the commit, when a lazy {@code tags} load
+   * fails closed to an empty array: the edit form, filled from that response, then erased the tags.
+   */
+  private void fetchTags(List<Organization> organizations) {
+    if (!organizations.isEmpty()) {
+      organizationRepository.findAllByIdInFetchingTags(
+          organizations.stream().map(Organization::getId).toList());
+    }
   }
 
   /**

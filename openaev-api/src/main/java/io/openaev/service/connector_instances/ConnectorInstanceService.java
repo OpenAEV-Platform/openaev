@@ -25,7 +25,6 @@ import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.connectors.HeartbeatWindow;
 import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.ConnectorInstanceMapper;
-import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Duration;
 import java.time.Instant;
@@ -34,7 +33,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
-import org.hibernate.Session;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,7 +54,6 @@ public class ConnectorInstanceService implements AuditLoggedService {
 
   private final EncryptionFactory encryptionFactory;
   private final ManagerFactory managerFactory;
-  private final EntityManager entityManager;
   private final EndpointService endpointService;
   private final TenantScopedTransaction tenantTx;
 
@@ -70,7 +67,6 @@ public class ConnectorInstanceService implements AuditLoggedService {
       CollectorRepository collectorRepository,
       ExecutorRepository executorRepository,
       InjectorRepository injectorRepository,
-      EntityManager entityManager,
       EndpointService endpointService,
       TenantScopedTransaction tenantTx,
       // Use lazy injection to break a circular dependency
@@ -84,7 +80,6 @@ public class ConnectorInstanceService implements AuditLoggedService {
     this.collectorRepository = collectorRepository;
     this.executorRepository = executorRepository;
     this.injectorRepository = injectorRepository;
-    this.entityManager = entityManager;
     this.endpointService = endpointService;
     this.tenantTx = tenantTx;
     this.managerFactory = managerFactory;
@@ -278,10 +273,8 @@ public class ConnectorInstanceService implements AuditLoggedService {
    * <p>Use only for platform-level operations (e.g. XtmComposer callbacks) where the request is not
    * scoped to a specific tenant and the instance must be found regardless of the current tenant
    * context. Widens the caller's already-open transaction to every tenant via {@code
-   * TenantScopedTransaction#setScopeOnCurrentTransaction}, which covers both the v1 {@code @Filter}
-   * (disabled below, for as long as it exists) and the v2 statement inspector (once {@code
-   * connector_instances} is added to {@code openaev.tenant.active-tables}) — so this stays correct
-   * across the go-live cutover instead of silently starting to see zero rows.
+   * TenantScopedTransaction#setScopeOnCurrentTransaction}, which the v2 statement inspector reads
+   * for {@code connector_instances}. Nothing this lookup loads carries the v1 {@code @Filter}.
    *
    * @param id the connector instance ID to search for
    * @return the connector instance matching the ID
@@ -290,7 +283,6 @@ public class ConnectorInstanceService implements AuditLoggedService {
   public ConnectorInstancePersisted connectorInstanceByIdIgnoringTenantFilter(String id)
       throws EntityNotFoundException {
     tenantTx.setScopeOnCurrentTransaction(TxCtx.allTenants());
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
     return connectorInstanceRepository
         .findWithGraphById(id)
         .orElseThrow(

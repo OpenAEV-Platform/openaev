@@ -304,13 +304,13 @@ class AttackPathRunWiringTest extends IntegrationTest {
     // tenantFilter).
     TenantContext.clearCurrentTenant();
 
-    // The producer stamps events with these projections (step/workflow -> simulation -> tenant).
+    // The producer stamps events with these projections (the step and workflow rows' own tenant).
     // Assert they resolve the tenant on a real graph regardless of ambient scope.
     assertThat(stepRepository.findTenantIdByStepId(committedStep.getId()))
-        .as("step -> workflow -> simulation -> tenant projection")
+        .as("step row tenant projection")
         .contains(tenant.getId());
     assertThat(workflowRepository.findTenantIdByWorkflowId(persistedWorkflowId))
-        .as("workflow -> simulation -> tenant projection")
+        .as("workflow row tenant projection")
         .contains(tenant.getId());
   }
 

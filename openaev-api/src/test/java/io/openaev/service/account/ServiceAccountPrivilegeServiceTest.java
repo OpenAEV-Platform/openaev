@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import io.openaev.config.SessionManager;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Token;
@@ -33,6 +34,7 @@ public class ServiceAccountPrivilegeServiceTest {
   @Mock private TenantGroupService tenantGroupService;
   @Mock private UserService userService;
   @Mock private TenantUserService tenantUserService;
+  @Mock private SessionManager sessionManager;
 
   @InjectMocks private ServiceAccountPrivilegeService privilegeService;
 
@@ -366,6 +368,29 @@ public class ServiceAccountPrivilegeServiceTest {
     assertThatThrownBy(() -> privilegeService.getTokenUserServiceAccountByTenant(TENANT_ID))
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessage("Token not found");
+  }
+
+  // endregion
+
+  // region rotateTokenForTenant
+
+  @Test
+  @DisplayName(
+      "Should delete the existing token, issue a new one, and invalidate the account's sessions")
+  void shouldDeleteOldTokenIssueNewTokenAndInvalidateSessionsWhenRotating() {
+    // prepare
+    mockUser.setId("service-account-id");
+    Token oldToken = new Token();
+    mockUser.setTokens(new ArrayList<>(List.of(oldToken)));
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
+
+    // act
+    privilegeService.rotateTokenForTenant(TENANT_ID);
+
+    // assert
+    verify(userService).deleteUserToken(oldToken);
+    verify(userService).createUserToken(mockUser);
+    verify(sessionManager).invalidateUserSession(mockUser.getId());
   }
 
   // endregion

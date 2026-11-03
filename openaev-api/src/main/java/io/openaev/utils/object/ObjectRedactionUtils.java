@@ -23,6 +23,7 @@ public class ObjectRedactionUtils {
           Pattern.compile(".*secret.*"),
           Pattern.compile(".*credential.*"),
           Pattern.compile("^hash$"),
+          Pattern.compile("^inject_authorisation_code$"),
           Pattern.compile("^aws_session_token$"),
           Pattern.compile("^aws_secret_access_key$"),
           Pattern.compile("^aws_external_id$"),

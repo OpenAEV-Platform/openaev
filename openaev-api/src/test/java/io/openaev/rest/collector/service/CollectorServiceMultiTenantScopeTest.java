@@ -34,6 +34,11 @@ import org.springframework.test.context.TestPropertySource;
  * CollectorService} itself and nothing stops a future background caller (a per-tenant migration, an
  * onboarding step) from reaching it with a wider scope than the tenant it writes for.
  *
+ * <p>The dedup must also FIND the write tenant's own row when it is there. A lookup that misses it
+ * concludes the type is absent and re-inserts it, which violates {@code
+ * collector_types_name_tenant_unique}. That was the shape behind the repeated unique-violation
+ * errors the shadow runs reported while this table was read through the name-only lookup.
+ *
  * <p>Deliberately NOT {@code @Transactional}: {@link TenantScopedTransaction#execute} refuses to
  * open inside an active transaction. Seed and clean through auto-committed JDBC.
  */
@@ -86,6 +91,42 @@ class CollectorServiceMultiTenantScopeTest extends IntegrationTest {
         rawCollectorTypeId(typeName, tenantB),
         result.getId(),
         "tenant A's row must not be tenant B's pre-existing row");
+  }
+
+  @Test
+  @DisplayName(
+      "given both tenants already own a same-named collector type, ensuring it for tenant A under a"
+          + " scope spanning both must return A's own row and insert nothing")
+  void given_bothTenantsOwnTheType_should_returnTheWriteTenantRowAndInsertNothing() {
+    // Arrange
+    String typeName = "openaev_scope_test_" + UUID.randomUUID();
+    seedCollectorType(tenantA, typeName);
+    seedCollectorType(tenantB, typeName);
+    String expectedId = rawCollectorTypeId(typeName, tenantA);
+
+    // Act
+    CollectorType result =
+        tenantTx.execute(
+            TxCtx.forTenants(List.of(tenantA, tenantB)),
+            () -> collectorService.ensureCollectorTypeExists(tenantA, typeName));
+
+    // Assert
+    assertEquals(
+        expectedId,
+        result.getId(),
+        "the dedup must return tenant A's existing row, not tenant B's same-named one");
+    assertEquals(
+        2,
+        rawCollectorTypeCount(typeName),
+        "nothing may be inserted: the dedup must resolve A's own row by (name, tenant) and leave"
+            + " the two rows as they are");
+  }
+
+  private int rawCollectorTypeCount(String typeName) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM collector_types WHERE collector_type_name = ?",
+        Integer.class,
+        typeName);
   }
 
   private String seedTenant(String label) {

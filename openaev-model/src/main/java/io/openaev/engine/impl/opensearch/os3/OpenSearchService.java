@@ -17,6 +17,7 @@ import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.EngineContext;
+import io.openaev.engine.EngineType;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.Handler;
 import io.openaev.engine.api.*;
@@ -224,7 +225,7 @@ public class OpenSearchService implements EngineService {
                         return WildcardQuery.of(
                                 w ->
                                     w.field(toElasticField(field))
-                                        .value("*" + val.stringValue() + "*"))
+                                        .value("*" + escapeWildcard(val.stringValue()) + "*"))
                             .toQuery();
                       } else {
                         // Champ text : match
@@ -248,7 +249,9 @@ public class OpenSearchService implements EngineService {
                       FieldValue val = toVal(field, v, parameters);
                       if (propertyField != null && propertyField.isKeyword()) {
                         return WildcardQuery.of(
-                                w -> w.field(elasticField).value("*" + val.stringValue() + "*"))
+                                w ->
+                                    w.field(elasticField)
+                                        .value("*" + escapeWildcard(val.stringValue()) + "*"))
                             .toQuery();
                       } else {
                         return MatchQuery.of(m -> m.field(elasticField).query(val)).toQuery();
@@ -333,9 +336,12 @@ public class OpenSearchService implements EngineService {
    * @return the query
    */
   private Query queryFromSearch(String search) {
-    QueryStringQuery.Builder queryStringQuery = new QueryStringQuery.Builder();
-    queryStringQuery.query(search).analyzeWildcard(true).fields(BASE_FIELDS);
-    return queryStringQuery.build().toQuery();
+    String text = search.trim();
+    Query byText =
+        MatchBoolPrefixQuery.of(m -> m.field(SEARCH_TEXT_FIELD).query(text).operator(Operator.And))
+            .toQuery();
+    Query byId = TermQuery.of(t -> t.field(SEARCH_ID_FIELD).value(FieldValue.of(text))).toQuery();
+    return BoolQuery.of(b -> b.should(byText, byId).minimumShouldMatch("1")).toQuery();
   }
 
   /**
@@ -1453,6 +1459,11 @@ public class OpenSearchService implements EngineService {
       log.error(String.format("query exception: %s", e.getMessage()), e);
     }
     return List.of();
+  }
+
+  @Override
+  public EngineType getEngineType() {
+    return EngineType.OPENSEARCH;
   }
 
   @Override

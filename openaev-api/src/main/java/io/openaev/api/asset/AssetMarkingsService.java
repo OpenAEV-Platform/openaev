@@ -15,6 +15,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
+import io.openaev.telemetry.metric_collectors.MarkingMetricCollector;
 import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,6 +47,7 @@ public class AssetMarkingsService {
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final UserService userService;
   private final PermissionService permissionService;
+  private final MarkingMetricCollector markingMetricCollector;
 
   /**
    * Replaces an asset's marking set.
@@ -131,6 +133,9 @@ public class AssetMarkingsService {
     }
 
     logDeclassification(asset, currentUser, previous, uniqueMarkingIds);
+
+    markingMetricCollector.recordAssetMarkingsAssigned(addedIds.size());
+    markingMetricCollector.recordAssetMarkingsUnassigned(removedIds.size());
 
     asset.setMarkingIds(uniqueMarkingIds.toArray(String[]::new));
     return assetRepository.save(asset);

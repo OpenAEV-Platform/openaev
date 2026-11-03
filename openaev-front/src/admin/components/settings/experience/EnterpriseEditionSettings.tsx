@@ -226,8 +226,10 @@ const EnterpriseEditionSettings: React.FC = () => {
           >
             <Typography>{t('You are about to disable the "Enterprise Edition" mode. Please note that this action will disable access to certain advanced features.')}</Typography>
             <Typography
-              sx={{ marginTop: theme.spacing(6) }}
-              fontWeight="bold"
+              sx={{
+                fontWeight: 'bold',
+                marginTop: theme.spacing(6),
+              }}
             >
               {t('However, your existing data will remain intact and will not be lost.')}
             </Typography>

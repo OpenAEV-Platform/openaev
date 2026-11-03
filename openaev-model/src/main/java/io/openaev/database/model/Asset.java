@@ -270,7 +270,12 @@ public class Asset implements TenantBase {
    * there is <b>no foreign key</b> to {@code marking_definitions}. Validity of the ids is therefore
    * an application concern: writes must go through the marking write guard, and deleting a
    * definition must scrub the arrays (design §5.7).
+   *
+   * <p>{@code @Queryable(filterable = true)} is an unrelated, explicit opt-in: a caller choosing
+   * "only assets marked X" through the search Specification layer. It does not touch the
+   * clearance-based restriction above, which never goes through this annotation.
    */
+  @Queryable(filterable = true, dynamicValues = true)
   @Type(StringArrayType.class)
   @Column(name = "marking_ids", columnDefinition = "text[]")
   @JsonProperty("asset_markings")

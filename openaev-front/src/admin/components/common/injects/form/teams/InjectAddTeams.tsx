@@ -157,6 +157,7 @@ const InjectAddTeams: FunctionComponent<Props> = ({
               inline
               onCreate={(team) => {
                 setTeamValues([...teamValues, team as TeamOutput]);
+                queryableHelpers.paginationHelpers.incrementTotalElements(1);
                 setSelectedTeamValues([...selectedTeamValues, team as TeamOutput]);
                 // If a team is created, it has to be linked to the simulation/scenario
                 onReplaceTeam?.([...selectedTeamValues, team as TeamOutput].map(v => v.team_id));

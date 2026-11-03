@@ -106,7 +106,7 @@ class KillChainPhaseFieldComponent extends Component {
           <Dialog
             open={this.state.killChainPhaseCreation}
             onClose={this.handleCloseKillChainPhaseCreation.bind(this)}
-            PaperProps={{ elevation: 1 }}
+            slotProps={{ paper: { elevation: 1 } }}
           >
             <DialogTitle>{t('Create a new kill chain phase')}</DialogTitle>
             <DialogContent>

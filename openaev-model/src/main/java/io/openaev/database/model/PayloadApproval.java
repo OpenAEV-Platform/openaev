@@ -13,8 +13,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * One entry of the approval history of a payload: every status change, by whom, how and why. Kept
- * for auditability, including the automatic approvals of authors who hold "Approve content".
+ * One entry of the approval history of a payload version: every status change, by whom, how and
+ * why. Kept for auditability, including the automatic approvals of authors who hold "Approve
+ * content".
  */
 @Getter
 @Setter
@@ -32,10 +33,14 @@ public class PayloadApproval implements TenantBase {
     DUPLICATE,
     IMPORT,
     COLLECTOR,
+    // A version from a trusted source (a release verified by Filigran): approved on arrival.
+    CATALOG,
     SYSTEM,
     MIGRATION,
     APPROVE,
-    REJECT
+    REJECT,
+    // A newer version of the same payload replaced this pending one before any decision.
+    SUPERSEDE
   }
 
   @Id
@@ -80,15 +85,6 @@ public class PayloadApproval implements TenantBase {
 
   @Column(name = "payload_approval_comment")
   private String comment;
-
-  @Column(name = "payload_approval_fingerprint")
-  private String fingerprint;
-
-  // The version this decision applied, when it approved a pending version (Task 5).
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "payload_approval_version")
-  @JsonIgnore
-  private PayloadVersion version;
 
   @Column(name = "payload_approval_created_at", nullable = false, updatable = false)
   @NotNull

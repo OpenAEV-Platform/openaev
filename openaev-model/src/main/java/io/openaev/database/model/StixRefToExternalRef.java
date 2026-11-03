@@ -1,6 +1,7 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 import lombok.Getter;
@@ -10,7 +11,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class StixRefToExternalRef {
+public class StixRefToExternalRef implements Serializable {
 
   @JsonProperty("stix_ref")
   private String stixRef;

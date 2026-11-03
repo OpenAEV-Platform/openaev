@@ -8,8 +8,10 @@ import static java.time.Instant.now;
 import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.*;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.OnDeleteAction;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
@@ -33,6 +35,9 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
@@ -247,6 +252,69 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @JsonProperty("scenario_external_url")
   private String externalUrl;
 
+  // -- AUTHOR (the user who made it or the organization that published it; never exported) --
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "scenario_author_user")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("scenario_author_user")
+  @Queryable(dynamicValues = true, filterable = true, path = "authorUser.id")
+  @Schema(description = "User author of the scenario", type = "string")
+  private User authorUser;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "scenario_author_organization")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("scenario_author_organization")
+  @Queryable(dynamicValues = true, filterable = true, path = "authorOrganization.id")
+  @Schema(description = "Organization author of the scenario", type = "string")
+  private Organization authorOrganization;
+
+  // -- CATALOGUE --
+
+  // Identity of the catalogue scenario this one was installed from; never set by a zip import.
+  @Column(name = "scenario_catalog_id")
+  @JsonProperty("scenario_catalog_id")
+  @Queryable(filterable = true)
+  private String catalogId;
+
+  @Column(name = "scenario_version")
+  @JsonProperty("scenario_version")
+  private String version;
+
+  @Column(name = "scenario_catalog_repository")
+  @JsonProperty("scenario_catalog_repository")
+  private String catalogRepository;
+
+  // Soft uninstall: the instance, its revisions and simulations stay; read-only and hidden.
+  @Column(name = "scenario_uninstalled")
+  @JsonProperty("scenario_uninstalled")
+  private boolean uninstalled;
+
+  // Installed on main before revisions: no update until the base is computed from its package.
+  @Column(name = "scenario_base_pending")
+  @JsonProperty("scenario_base_pending")
+  private boolean basePending;
+
+  // The content the catalogue last wrote, normalized: what each update merges against.
+  @Type(JsonType.class)
+  @Column(name = "scenario_base_content", columnDefinition = "jsonb")
+  @JsonIgnore
+  private JsonNode baseContent;
+
+  // Single author filter over both author FKs (the facet and the filter bar use it).
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      paths = {"authorUser.id", "authorOrganization.id"})
+  @JsonProperty("scenario_author")
+  public String getAuthor() {
+    if (authorUser != null) {
+      return authorUser.getId();
+    }
+    return authorOrganization != null ? authorOrganization.getId() : null;
+  }
+
   // -- OCTI GENERATION SCENARIO FROM STIX --
 
   // mappedBy @OneToOne: SecurityCoverage owns the FK, so Hibernate cannot proxy this side and
@@ -277,6 +345,20 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @Column(name = "scenario_recurrence_end")
   @JsonProperty("scenario_recurrence_end")
   private Instant recurrenceEnd;
+
+  /**
+   * The user who last configured (created or updated) this scenario's recurrence — not the
+   * scenario's editor in general. This is the actor a scheduled {@link Exercise}'s {@code
+   * launchedBy} is resolved from when {@link io.openaev.scheduler.jobs.ScenarioExecutionJob}
+   * materializes it with no live user present. No deserializer on purpose: this field is stamped
+   * server-side only (recurrence update endpoint), never accepted from client JSON.
+   */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "scenario_scheduled_by")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("scenario_scheduled_by")
+  @Schema(implementation = String.class)
+  private User scheduledBy;
 
   /**
    * When the schedule was paused because the scenario stopped being launchable (an action not
@@ -459,19 +541,18 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
       name = "scenarios_exercises",
       joinColumns = @JoinColumn(name = "scenario_id"),
       inverseJoinColumns = @JoinColumn(name = "exercise_id"))
-  @JsonSerialize(using = MultiIdListSerializer.class)
+  @JsonSerialize(using = MultiIdSetSerializer.class)
   @JsonProperty("scenario_exercises")
   @Setter(NONE)
-  private List<Exercise> exercises;
+  private Set<Exercise> exercises;
 
-  public void setExercises(List<Exercise> exercises) {
+  public void setExercises(Collection<Exercise> exercises) {
     if (exercises != null) {
       for (Exercise exercise : exercises) {
         if (exercise != null) exercise.setUpdatedAt(now());
       }
     }
-    this.exercises = exercises;
-    this.setUpdatedAt(now());
+    this.exercises = exercises == null ? null : new HashSet<>(exercises);
   }
 
   @Getter
@@ -572,6 +653,24 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
         .toList();
   }
 
+  // -- DOMAINS --
+  // Filter only: search rows carry the domains, so a response never loads the injects for them.
+  @JsonIgnore
+  @JsonProperty("scenario_domains")
+  @JsonSerialize(using = MultiIdSetSerializer.class)
+  @Schema(implementation = String[].class)
+  @Queryable(
+      filterable = true,
+      dynamicValues = true,
+      path = "injects.injectorContract.domains.id",
+      clazz = String[].class)
+  public Set<Domain> getDomains() {
+    return getInjects().stream()
+        .flatMap(inject -> inject.getInjectorContract().map(InjectorContract::getDomains).stream())
+        .flatMap(Set::stream)
+        .collect(Collectors.toSet());
+  }
+
   // -- KILL CHAIN PHASES --
   @JsonProperty("scenario_kill_chain_phases")
   @Queryable(
@@ -600,6 +699,9 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
     if (this == o) return true;
     if (o == null || !Base.class.isAssignableFrom(o.getClass())) return false;
     Base base = (Base) o;
+    if (base.getId() == null || this.getId() == null) {
+      return false;
+    }
     return id.equals(base.getId());
   }
 

@@ -38,11 +38,7 @@ import io.openaev.rest.tag.TagService;
 import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
-import io.openaev.service.chaining.ConditionService;
-import io.openaev.service.chaining.ScopeService;
-import io.openaev.service.chaining.StepService;
-import io.openaev.service.chaining.StepTargetingService;
-import io.openaev.service.chaining.WorkflowStateService;
+import io.openaev.service.chaining.*;
 import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.utils.InjectUtils;
@@ -1410,13 +1406,31 @@ public class InjectExecutionStep implements ActionStep {
     }
   }
 
+  /**
+   * Builds the base content of an inject: the contract default values, overridden by the values
+   * explicitly defined on the inject. A default value is therefore only a last resort, used when
+   * the input argument has no defined value and no pool value (pool values are applied afterwards
+   * by {@link #applyMapping}).
+   */
   private ObjectNode resolveBaseInjectContent(Inject inject, InjectorContract injectorContract) {
-    if (inject != null && inject.getContent() != null && !inject.getContent().isEmpty()) {
-      return inject.getContent();
-    }
     ObjectNode defaults =
         injectorContractContentUtils.getDynamicInjectorContractFieldsForInject(injectorContract);
-    return defaults != null ? defaults : mapper.createObjectNode();
+    ObjectNode base = defaults != null ? defaults : mapper.createObjectNode();
+    if (inject == null || inject.getContent() == null) {
+      return base;
+    }
+    inject
+        .getContent()
+        .fields()
+        .forEachRemaining(
+            entry -> {
+              boolean blankDefinedValue =
+                  entry.getValue().isTextual() && entry.getValue().asText().isBlank();
+              if (!(blankDefinedValue && base.has(entry.getKey()))) {
+                base.set(entry.getKey(), entry.getValue());
+              }
+            });
+    return base;
   }
 
   /**

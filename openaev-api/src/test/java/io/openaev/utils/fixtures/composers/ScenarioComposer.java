@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -52,7 +53,7 @@ public class ScenarioComposer extends ComposerBase<Scenario> {
 
     public Composer withSimulation(ExerciseComposer.Composer simulationComposer) {
       simulationComposers.add(simulationComposer);
-      List<Exercise> simulations = this.scenario.getExercises();
+      Set<Exercise> simulations = this.scenario.getExercises();
       simulations.add(simulationComposer.get());
       this.scenario.setExercises(simulations);
       return this;
@@ -111,6 +112,12 @@ public class ScenarioComposer extends ComposerBase<Scenario> {
   }
 
   public Composer forScenario(Scenario scenario) {
+    this.generatedItems.add(scenario);
+    return new Composer(scenario);
+  }
+
+  public Composer forScenario(Supplier<Scenario> supplier) {
+    Scenario scenario = supplier.get();
     this.generatedItems.add(scenario);
     return new Composer(scenario);
   }

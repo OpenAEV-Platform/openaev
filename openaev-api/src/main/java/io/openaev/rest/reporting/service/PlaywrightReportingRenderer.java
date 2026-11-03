@@ -28,7 +28,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -308,15 +307,19 @@ public class PlaywrightReportingRenderer implements ReportingRenderer {
     // makes: TokenAuthenticationFilter accepts "Bearer <plain token>" statelessly, and since the
     // fresh context carries no cookies these requests are also CSRF-exempt. The token therefore
     // never appears in the URL (and thus never in access logs).
+    // It is NOT set as a context-wide extra HTTP header: that would replay it to every host the
+    // page loads a resource from (e.g. a tenant-controlled logo url). The egress guard attaches it
+    // to requests to the platform's own origin only.
+    String trustedAuthorization = "Bearer " + job.tokenValue();
     Browser.NewContextOptions contextOptions =
         new Browser.NewContextOptions()
-            .setExtraHTTPHeaders(Map.of("Authorization", "Bearer " + job.tokenValue()))
             .setViewportSize(1280, 900)
             // Loopback TLS uses the bundled self-signed certificate
             .setIgnoreHTTPSErrors(this.sslEnabled);
     String url = buildRenderUrl(job);
     return this.browserPoolService.withContext(
         contextOptions,
+        trustedAuthorization,
         context -> {
           context.setDefaultTimeout(this.renderTimeoutMs);
           Page page = context.newPage();

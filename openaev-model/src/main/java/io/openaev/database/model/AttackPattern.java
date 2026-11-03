@@ -121,9 +121,11 @@ public class AttackPattern implements TenantBase {
   // row. Only bump when contents actually change: an unconditional bump forces an UPDATE (and an
   // SSE restream) on every no-op collector upsert (#6778).
   public void setKillChainPhases(List<KillChainPhase> killChainPhases) {
-    if (!Base.haveSameIds(this.killChainPhases, killChainPhases)) {
-      this.updatedAt = now();
+    // Keeping the managed collection avoids deleting and reinserting every join row.
+    if (Base.haveSameIds(this.killChainPhases, killChainPhases)) {
+      return;
     }
+    this.updatedAt = now();
     this.killChainPhases = killChainPhases;
   }
 

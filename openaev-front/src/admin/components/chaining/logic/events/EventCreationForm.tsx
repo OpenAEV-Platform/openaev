@@ -212,7 +212,13 @@ const EventCreationForm: FunctionComponent<EventCreationFormProps> = ({
             >
               {t('Trigger Conditions')}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'text.secondary',
+                mb: 2,
+              }}
+            >
               {t('Event conditions are based on data produced by Actions. To access more options in the "Field to inspect", consider adding additional.')}
             </Typography>
             <Box sx={{

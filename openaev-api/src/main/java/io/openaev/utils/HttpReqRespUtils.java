@@ -54,7 +54,22 @@ public class HttpReqRespUtils {
    * @return the client IP address, or "0.0.0.0" if no request context is available
    */
   public static String getClientIpAddressIfServletRequestExist() {
-    HttpServletRequest request = getCurrentRequest();
+    return getClientIpAddressFromRequest(getCurrentRequest());
+  }
+
+  /**
+   * Extracts the client IP address from the current HTTP request.
+   *
+   * <p>This method handles various proxy configurations by checking multiple headers in order of
+   * preference. It properly handles comma-separated IP lists (common when multiple proxies are
+   * involved) by returning only the first (original client) IP.
+   *
+   * <p>If no request context exists, returns "0.0.0.0" as a fallback.
+   *
+   * @param request the request to inspect for client IP address
+   * @return the client IP address, or "0.0.0.0" if no request context is available
+   */
+  public static String getClientIpAddressFromRequest(HttpServletRequest request) {
     Map<String, String> headers = extractHeaders(request);
 
     String ip = getClientIpAddressFromHeaders(headers);

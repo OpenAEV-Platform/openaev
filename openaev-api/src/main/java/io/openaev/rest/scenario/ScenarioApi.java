@@ -1,5 +1,6 @@
 package io.openaev.rest.scenario;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.ScenarioSpecification.byName;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -34,6 +35,7 @@ import io.openaev.rest.asset_group.form.AssetGroupOutput;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.helper.RestBehavior;
@@ -125,7 +127,7 @@ public class ScenarioApi extends RestBehavior {
               .map(this.customDashboardService::customDashboard)
               .orElse(null));
     }
-    Scenario savedScenario = this.scenarioService.createScenario(scenario);
+    Scenario savedScenario = this.scenarioService.createManualScenario(scenario);
 
     // If the engine is chaining, create and link a workflow to the scenario.
     if (Boolean.TRUE.equals(input.getIsChaining())) {
@@ -614,6 +616,10 @@ public class ScenarioApi extends RestBehavior {
             || (input.getRecurrence() != null && !input.getRecurrence().isBlank());
     if (schedules) {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
+      scenario.setScheduledBy(
+          this.userRepository
+              .findById(currentUser().getId())
+              .orElseThrow(ElementNotFoundException::new));
     }
     scenario.setUpdateAttributes(input);
     // Saving or stopping the schedule is the deliberate action that ends a pause (saving is
@@ -695,6 +701,10 @@ public class ScenarioApi extends RestBehavior {
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(scenarioId);
     Exercise simulation;
+    User launchedBy =
+        this.userRepository
+            .findById(currentUser().getId())
+            .orElseThrow(ElementNotFoundException::new);
 
     if (workflowService.isScenarioChaining(scenarioId)) {
       this.scenarioService.throwIfScenarioPayloadsNotApproved(scenario);
@@ -705,14 +715,14 @@ public class ScenarioApi extends RestBehavior {
       autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId);
       simulation =
           scenarioToExerciseService.toExercise(
-              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, launchedBy);
       workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
 
     } else {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
       simulation =
           scenarioToExerciseService.toExercise(
-              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+              scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, launchedBy);
     }
 
     return simulation;

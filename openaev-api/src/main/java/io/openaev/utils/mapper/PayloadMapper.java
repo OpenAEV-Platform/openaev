@@ -20,7 +20,6 @@ import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.rest.payload.output_parser.OutputParserSimple;
 import io.openaev.rest.payload.regex_group.RegexGroupSimple;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -80,12 +79,8 @@ public class PayloadMapper {
     Optional<InjectStatus> injectStatusOpt = injectObj.getStatus();
     Payload payload = injectorContract.getPayload();
 
-    // Show the payload's current (approved) content when the inject has not run yet, when no
-    // payload output was kept, or when the payload changed after the last run (for example a new
-    // version was approved): the next run uses that content. The execution traces keep what ran.
-    if (injectStatusOpt.isEmpty()
-        || injectStatusOpt.get().getPayloadOutput() == null
-        || changedSinceLastRun(payload, injectStatusOpt.get())) {
+    // Handle the case when inject has not been executed yet or no payload output exists
+    if (injectStatusOpt.isEmpty() || injectStatusOpt.get().getPayloadOutput() == null) {
       if (payload != null) {
         populatePayloadDetails(statusPayloadOutputBuilder, payload, injectorContract);
 
@@ -105,13 +100,6 @@ public class PayloadMapper {
                 populateExecutedPayload(
                     statusPayloadOutputBuilder, statusPayload, injectorContract))
         .orElse(null);
-  }
-
-  private static boolean changedSinceLastRun(Payload payload, InjectStatus injectStatus) {
-    Instant lastRun = injectStatus.getTrackingSentDate();
-    return payload != null
-        && payload.getUpdatedAt() != null
-        && (lastRun == null || payload.getUpdatedAt().isAfter(lastRun));
   }
 
   private Set<RegexGroupSimple> toRegexGroupSimple(Set<RegexGroup> regexGroups) {
@@ -235,6 +223,10 @@ public class PayloadMapper {
         .arguments(statusPayload.getArguments())
         .prerequisites(statusPayload.getPrerequisites())
         .externalId(statusPayload.getExternalId())
+        .payloadId(statusPayload.getPayloadId())
+        .version(statusPayload.getVersion())
+        .contentHash(statusPayload.getContentHash())
+        .argumentValues(statusPayload.getArgumentValues())
         .executableFile(statusPayload.getExecutableFile())
         .fileDropFile(statusPayload.getFileDropFile())
         .hostname(statusPayload.getHostname())
@@ -266,7 +258,6 @@ public class PayloadMapper {
                     .collectorType(payloadToSimple.getCollectorTypeValue())
                     .status(payloadToSimple.getStatus())
                     .approvalStatus(payloadToSimple.getApprovalStatus())
-                    .pendingVersion(payloadToSimple.isPendingVersion())
                     .build())
         .orElse(null);
   }
@@ -348,17 +339,8 @@ public class PayloadMapper {
     return RelatedEntityOutput.builder().id(payload.getId()).name(payload.getName()).build();
   }
 
-  /**
-   * Convert Payload to its DTO
-   *
-   * @param payload payload to convert
-   * @param attackPatternIds List of attackPattern Ids link to the payload through the
-   *     injectorContract
-   * @param domainIds List of domain ids link to the payload through the injectorContract
-   * @param tagsIds List of tags ids link to the payload through the injectorContract
-   * @return payload converted to its DTO
-   */
-  public PayloadOutput toPayloadOutput(
+  /** Attack pattern, domain and tag IDs come from the payload's injector contract. */
+  public static PayloadOutput toPayloadOutput(
       @NotNull Payload payload,
       List<String> attackPatternIds,
       List<String> domainIds,
@@ -378,6 +360,8 @@ public class PayloadMapper {
             .arguments(payload.getArguments())
             .prerequisites(payload.getPrerequisites())
             .externalId(payload.getExternalId())
+            .version(payload.getVersion())
+            .originId(payload.getOriginId())
             .source(payload.getSource())
             .expectations(payload.getExpectations())
             .expectedSecurityPlatforms(payload.getExpectedSecurityPlatforms())
@@ -392,16 +376,17 @@ public class PayloadMapper {
                 payload.getLastModifiedBy() != null ? payload.getLastModifiedBy().getId() : null)
             .approvalStatus(payload.getApprovalStatus());
 
-    if (payload instanceof Command command) {
-      builder.commandExecutor(command.getExecutor()).commandContent(command.getContent());
-    } else if (payload instanceof DnsResolution dnsResolution) {
-      builder.dnsResolutionHostname(dnsResolution.getHostname());
-    } else if (payload instanceof FileDrop fileDrop && fileDrop.getFileDropFile() != null) {
-      builder.fileDropFile(fileDrop.getFileDropFile().getId());
-    } else if (payload instanceof Executable executable && executable.getExecutableFile() != null) {
-      builder.executableFile(executable.getExecutableFile().getId());
+    switch (Hibernate.unproxy(payload)) {
+      case Command command ->
+          builder.commandExecutor(command.getExecutor()).commandContent(command.getContent());
+      case DnsResolution dnsResolution ->
+          builder.dnsResolutionHostname(dnsResolution.getHostname());
+      case FileDrop fileDrop when fileDrop.getFileDropFile() != null ->
+          builder.fileDropFile(fileDrop.getFileDropFile().getId());
+      case Executable executable when executable.getExecutableFile() != null ->
+          builder.executableFile(executable.getExecutableFile().getId());
+      default -> {}
     }
-
     return builder.build();
   }
 }

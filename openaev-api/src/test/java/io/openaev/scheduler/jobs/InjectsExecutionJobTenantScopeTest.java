@@ -27,7 +27,6 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
-import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,7 +35,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -75,7 +73,6 @@ class InjectsExecutionJobTenantScopeTest {
   @Mock private InjectStatusService injectStatusService;
   @Mock private io.openaev.executors.Executor executor;
   @Mock private ActionMetricCollector actionMetricCollector;
-  @Mock private EntityManager entityManager;
   @Mock private TenantScopedTransaction tenantTx;
   @Mock private TenantScopedJobRunner tenantScopedJobRunner;
   @Mock private HealthCheckUtils healthCheckUtils;
@@ -96,7 +93,6 @@ class InjectsExecutionJobTenantScopeTest {
   @BeforeEach
   void setUp() throws Exception {
     ReflectionTestUtils.setField(job, "auditLogger", Optional.empty());
-    when(entityManager.unwrap(Session.class)).thenReturn(mock(Session.class));
 
     // The scoping is what this suite asserts, so the runner is the real one over the mocked
     // primitive - a stub would run the work with no scope opened at all.
@@ -109,11 +105,10 @@ class InjectsExecutionJobTenantScopeTest {
             })
         .when(tenantScopedJobRunner)
         .runInTenant(anyString(), any(Runnable.class));
-    // The scheduled-start sweep opens one cross-tenant transaction: run its work inline.
-    when(tenantScopedJobRunner.supplyAcrossTenants(any()))
-        .thenAnswer(invocation -> invocation.getArgument(0, Supplier.class).get());
 
     // Every sweep around the execution is a no-op here: this test is about the execution scope.
+    when(tenantScopedJobRunner.supplyAcrossTenants(any()))
+        .thenAnswer(invocation -> invocation.<Supplier<?>>getArgument(0).get());
     when(exerciseRepository.findAllShouldBeInRunningState(any())).thenReturn(List.of());
     doReturn(List.of()).when(exerciseRepository).saveAll(any());
     when(injectService.resolveAllAssetsToExecute(any(Inject.class))).thenReturn(List.of());

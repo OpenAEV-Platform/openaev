@@ -60,6 +60,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   private static final String TENANT_THREAT_ARSENAL_URI = "/api/tenants/{tenantId}/threat_arsenals";
   private static Document EXECUTABLE_FILE;
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
+  @Autowired private io.openaev.utils.helpers.PayloadVersionTestHelper payloadVersionTestHelper;
   @Autowired private MockMvc mvc;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private PayloadRepository payloadRepository;
@@ -72,6 +74,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private AttackPatternComposer attackPatternComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private InjectorFixture injectorFixture;
   @Autowired private DetectionRemediationComposer detectionRemediationComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
@@ -81,7 +85,8 @@ public class ThreatArsenalApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    openaevInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     injectorContractComposer.reset();
     attackPatternComposer.reset();
     tagComposer.reset();
@@ -2001,6 +2006,64 @@ public class ThreatArsenalApiTest extends IntegrationTest {
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON))
           .andExpect(status().is2xxSuccessful());
+    }
+
+    // A version makes it a catalogue version; without one it stays a local payload.
+    private InjectorContractComposer.Composer payloadContract(String version) {
+      InjectorContractComposer.Composer contract =
+          injectorContractComposer
+              .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+              .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+              .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()))
+              .persist();
+      if (version != null) {
+        payloadVersionTestHelper.asManagedVersion(
+            contract.get().getPayload(), UUID.randomUUID().toString(), version);
+      }
+      return contract;
+    }
+
+    @Test
+    @DisplayName("Deleting a managed payload version is refused (F26)")
+    void given_managedPayloadVersion_should_refuseDeletion() throws Exception {
+      // Arrange
+      InjectorContract contract = payloadContract("1.0.0").get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert
+      mvc.perform(
+              delete(tenantUri(TENANT_THREAT_ARSENAL_URI + "/" + contract.getId()))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Deleting a payload still run by injects is refused and names where (F26)")
+    void given_payloadRunByScenarioInject_should_refuseDeletion() throws Exception {
+      // Arrange
+      InjectorContractComposer.Composer contract = payloadContract(null);
+      // The contract is already persisted: link it to the inject, not its composer.
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setInjectorContract(contract.get());
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultIncidentResponseScenario())
+              .withInject(injectComposer.forInject(inject))
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act & Assert
+      mvc.perform(
+              delete(tenantUri(TENANT_THREAT_ARSENAL_URI + "/" + contract.get().getId()))
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON))
+          .andExpect(status().isBadRequest())
+          .andExpect(content().string(containsString(scenario.getName())));
     }
   }
 

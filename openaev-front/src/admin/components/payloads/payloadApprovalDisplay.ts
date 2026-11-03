@@ -12,21 +12,18 @@ export interface PayloadApprovalDisplay {
   tooltip: string;
 }
 
-// An approved payload whose new version waits for approval: the inject keeps running the approved
-// version, so this informs and never blocks.
-const PENDING_VERSION_DISPLAY: PayloadApprovalDisplay = {
-  status: 'PAYLOAD_PENDING_APPROVAL',
-  shortLabel: 'Pending',
-  label: 'New version pending approval',
-  tooltip: 'A new version of this payload is pending approval. This inject keeps running the approved version until the new one is approved.',
-};
-
-const DISPLAYS: Record<'PENDING' | 'REJECTED', PayloadApprovalDisplay> = {
+const DISPLAYS: Record<'PENDING' | 'REJECTED' | 'SUPERSEDED', PayloadApprovalDisplay> = {
   PENDING: {
     status: 'PAYLOAD_PENDING_APPROVAL',
     shortLabel: 'Pending',
     label: 'Payload pending approval',
-    tooltip: 'This payload is not approved: launching this inject is blocked until a user with "Approve content" approves it.',
+    tooltip: 'The payload version of this inject is not approved: launching it is blocked until a user with "Approve content" approves it.',
+  },
+  SUPERSEDED: {
+    status: 'PAYLOAD_REJECTED',
+    shortLabel: 'Superseded',
+    label: 'Payload version superseded',
+    tooltip: 'The payload version of this inject was replaced by a newer version before being approved: launching it is blocked. Move the inject to an approved version.',
   },
   REJECTED: {
     status: 'PAYLOAD_REJECTED',
@@ -37,27 +34,25 @@ const DISPLAYS: Record<'PENDING' | 'REJECTED', PayloadApprovalDisplay> = {
 };
 
 /**
- * What to show for an inject whose payload is not approved (pending or rejected), or approved with a
- * new version pending approval, computed on read; undefined for an approved payload with nothing
- * pending or an inject without payload.
+ * What to show for an inject whose payload version is not approved (pending, rejected or
+ * superseded), computed on read; undefined for an approved version or an inject without payload.
  * Labels are translation keys.
  */
-export const payloadApprovalDisplay = (approvalStatus?: ApprovalStatus, pendingVersion?: boolean): PayloadApprovalDisplay | undefined => {
-  if (approvalStatus === 'PENDING' || approvalStatus === 'REJECTED') {
-    return DISPLAYS[approvalStatus];
-  }
-  return approvalStatus === 'APPROVED' && pendingVersion ? PENDING_VERSION_DISPLAY : undefined;
-};
+export const payloadApprovalDisplay = (approvalStatus?: ApprovalStatus): PayloadApprovalDisplay | undefined => (
+  approvalStatus === 'PENDING' || approvalStatus === 'REJECTED' || approvalStatus === 'SUPERSEDED'
+    ? DISPLAYS[approvalStatus]
+    : undefined);
 
-/** Whether the payload of an inject blocks its launch (never approved); a pending version does not. */
-export const isApprovalBlocking = (approvalStatus?: ApprovalStatus): boolean => approvalStatus === 'PENDING' || approvalStatus === 'REJECTED';
+/** Whether the payload version of an inject blocks its launch (not approved). */
+export const isApprovalBlocking = (approvalStatus?: ApprovalStatus): boolean => payloadApprovalDisplay(approvalStatus) !== undefined;
 
 type Translate = (message: string, values?: Record<string, string>) => string;
 
 const BLOCKER_MESSAGES: Record<LaunchBlockerOutput['approval_status'], string> = {
   PENDING: '{name} is pending approval',
   REJECTED: '{name} is rejected',
-  APPROVED: '{name} changed since its approval',
+  SUPERSEDED: '{name} was replaced by a newer version',
+  APPROVED: '{name} is approved',
 };
 
 /** Whether these blockers keep a launch from happening. */

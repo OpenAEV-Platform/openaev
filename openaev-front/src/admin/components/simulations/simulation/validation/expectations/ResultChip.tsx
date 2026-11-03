@@ -1,5 +1,4 @@
 import { Chip, type ChipSeverity } from '@filigran/design-system';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../../../components/i18n';
@@ -11,40 +10,31 @@ const ResultChip: FunctionComponent<Props> = ({ expectation }) => {
   // Standard hooks
   const { t } = useFormatter();
 
-  const result = !R.isEmpty(expectation.inject_expectation_results);
-
-  const isFail = () => {
-    return result
-      && (expectation.inject_expectation_type === 'PREVENTION'
-        && expectation.inject_expectation_expected_score !== expectation.inject_expectation_score);
-  };
+  const score = expectation.inject_expectation_score;
+  const isPending = score == null;
+  const isFail = !isPending && score < expectation.inject_expectation_expected_score;
 
   const label = () => {
-    if (result) {
-      if (isFail()) {
-        return `${t('Failed')} (${expectation.inject_expectation_score})`;
+    if (isPending) {
+      if (expectation.inject_expectation_type === 'ARTICLE') {
+        return t('Pending reading');
       }
-      return `${t('Validated')} (${expectation.inject_expectation_score})`;
-    }
-
-    if (expectation.inject_expectation_type === 'ARTICLE') {
-      return t('Pending reading');
-    }
-    if (expectation.inject_expectation_type === 'CHALLENGE') {
-      return t('Pending submission');
-    }
-    if (expectation.inject_expectation_type === 'PREVENTION' || expectation.inject_expectation_type === 'DETECTION') {
+      if (expectation.inject_expectation_type === 'CHALLENGE') {
+        return t('Pending submission');
+      }
       return t('Pending');
     }
-
-    return null;
+    if (isFail) {
+      return `${t('Failed')} (${score})`;
+    }
+    return `${t('Validated')} (${score})`;
   };
 
   const severity = (): ChipSeverity => {
-    if (isFail()) {
+    if (isPending) {
       return 'medium';
     }
-    return result ? 'low' : 'neutral';
+    return isFail ? 'critical' : 'low';
   };
 
   return (

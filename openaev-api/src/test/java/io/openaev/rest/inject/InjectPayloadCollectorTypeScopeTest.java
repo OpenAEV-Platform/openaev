@@ -65,6 +65,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @DisplayName("Inject responses serialize the payload collector type outside the request scope")
 class InjectPayloadCollectorTypeScopeTest extends IntegrationTest {
 
+  @Autowired private io.openaev.utils.helpers.PayloadVersionTestHelper payloadVersionTestHelper;
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
@@ -157,7 +158,7 @@ class InjectPayloadCollectorTypeScopeTest extends IntegrationTest {
           injectorContractRepository.deleteById(
               new InjectorContractId(injectorContractId, tenantId));
           injectorRepository.deleteById(ConnectorCompositeId.of(injectorId, tenantId));
-          payloadRepository.deleteById(payloadId);
+          payloadVersionTestHelper.delete(payloadId);
           collectorTypeRepository.deleteById(collectorTypeId);
         });
   }

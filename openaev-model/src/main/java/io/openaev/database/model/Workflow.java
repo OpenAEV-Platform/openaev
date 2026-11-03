@@ -26,7 +26,7 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class Workflow implements Base {
+public class Workflow implements TenantBase {
 
   @Id
   @Column(name = "workflow_id")
@@ -36,6 +36,11 @@ public class Workflow implements Base {
   @EqualsAndHashCode.Include
   @Schema(description = "ID of the workflow")
   private String id;
+
+  @JsonIgnore
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  private Tenant tenant;
 
   @NotNull
   @Column(name = "workflow_status")
@@ -204,4 +209,17 @@ public class Workflow implements Base {
   @Builder.Default
   @JsonProperty("workflow_scope_variables")
   private List<ScopeVariable> workflowScopeVariables = new ArrayList<>();
+
+  /**
+   * A workflow belongs to the tenant of its simulation or of its scenario ({@code
+   * chk_workflow_simulation_or_scenario} allows exactly one of the two).
+   */
+  @PrePersist
+  void attributeTenantFromOwner() {
+    Tenant ownerTenant =
+        simulation != null
+            ? simulation.getTenant()
+            : scenario != null ? scenario.getTenant() : null;
+    tenant = ParentTenant.inherit(this, tenant, ownerTenant);
+  }
 }

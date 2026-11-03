@@ -41,7 +41,7 @@ To create a new lesson template, follow these steps:
 1. Click the + button at the bottom right corner of the screen.
 2. Give your new lesson template a name.
 
-![lesson-creation.png](./assets/lesson-creation.png)
+![lesson-creation.png](assets/lesson-creation.png)
 
 Once completed, your new lesson will appear in the lesson learned list.
 
@@ -52,7 +52,7 @@ To create a new category, follow these steps:
 1. Click the + button at the bottom right corner of the screen
 2. Give your new category a name and an order to organize your categories
 
-![lesson-category-creation.png](../../assets/components/lesson-category-creation.png)
+![lesson-category-creation.png](assets/lesson-category-creation.png)
 
 ### Create a question
 
@@ -61,7 +61,7 @@ To create a new question, follow these steps:
 1. Click the + button at the bottom of your category
 2. Give your new question a content and an order to organize your questions
 
-![lesson-question-creation.png](../../assets/components/lesson-question-creation.png)
+![lesson-question-creation.png](assets/lesson-question-creation.png)
 
 ## Use a lesson template
 
@@ -76,6 +76,6 @@ your Breach and Attack Simulations.
 
 ## What's next?
 
-- [Simulations](../../evaluate/simulation/simulation.md) -- Launch Simulations and collect Player feedback
+- [Simulations](../../run-and-evaluate/simulation/simulation.md) -- Launch Simulations and collect Player feedback
 - [Scenarios](../scenario/scenario.md) -- Build Scenarios that include lessons-learned surveys
 - [People](../people.md) -- Manage the Players and Teams who will respond to surveys

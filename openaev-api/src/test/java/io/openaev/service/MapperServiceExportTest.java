@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.ImportMapper;
 import io.openaev.database.repository.ImportMapperRepository;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,7 @@ class MapperServiceExportTest extends IntegrationTest {
     ImportMapper mapper = new ImportMapper();
     mapper.setName("Test Mapper");
     mapper.setInjectTypeColumn("injectType");
-    mapper.setInjectImporters(new ArrayList<>());
+    mapper.setInjectImporters(new HashSet<>());
     ImportMapper mapperSaved = this.importMapperRepository.save(mapper);
 
     // -- EXECUTE --

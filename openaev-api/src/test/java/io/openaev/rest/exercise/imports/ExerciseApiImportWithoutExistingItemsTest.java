@@ -38,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @TestInstance(PER_CLASS)
 public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private VariableComposer variableComposer;
   @Autowired private VariableRepository variableRepository;
@@ -96,8 +97,8 @@ public class ExerciseApiImportWithoutExistingItemsTest extends IntegrationTest {
     documentComposer.reset();
     tagComposer.reset();
     exerciseComposer.reset();
-    challengeInjectorIntegrationFactory.registerConnectorForTenant(
-        TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        challengeInjectorIntegrationFactory, TenantContext.getCurrentTenant());
   }
 
   // this is part of the "Arrange" part of the AAA pattern for the following tests

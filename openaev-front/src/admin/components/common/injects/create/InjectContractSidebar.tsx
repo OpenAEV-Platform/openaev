@@ -184,7 +184,7 @@ const InjectContractSidebar = ({ domainElements, searchPaginationInput, filterHe
       statusValues,
       statusCounts: facetCounts?.statuses,
       toggle: value => toggleValue(STATUS_FILTER_KEY, statusValues, value),
-    });
+    }).filter(row => row.value !== 'REVOKED');
 
     const authorRows = buildAuthorRows({
       authorOptions,

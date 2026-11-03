@@ -39,6 +39,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.ServletException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -206,7 +207,7 @@ class TeamApiTest extends IntegrationTest {
     Team team = TeamFixture.getEmptyTeam();
     team.setName(CONTEXTUAL_TEAM_NAME);
     team.setContextual(true);
-    team.setExercises(List.of(exercise));
+    team.setExercises(new HashSet<>(List.of(exercise)));
     this.teamRepository.save(team);
 
     TeamCreateInput teamInput = createContextualExerciseTeam(List.of(exercise.getId()));

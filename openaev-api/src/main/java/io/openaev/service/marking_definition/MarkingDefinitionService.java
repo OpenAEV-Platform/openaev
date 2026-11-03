@@ -15,10 +15,12 @@ import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -127,6 +129,38 @@ public class MarkingDefinitionService {
       // switch exhaustive without assuming that invariant holds forever.
       case MarkingCtx.All ignored -> all;
     };
+  }
+
+  /**
+   * Tells whether a marking definition is currently assigned, i.e. whether its id appears in the
+   * {@code marking_ids} array of any row of any marked table, or granted to a group through {@code
+   * groups_markings}.
+   *
+   * @param ctx transaction context containing tenant scope
+   * @param markingDefinitionId identifier of the marking definition
+   * @return {@code true} if at least one marked entity carries the definition or at least one group
+   *     is granted it
+   */
+  @Transactional(readOnly = true)
+  public boolean isAssigned(@NotNull TxCtx ctx, @NotBlank String markingDefinitionId) {
+    findByIdOrThrow(ctx, markingDefinitionId);
+    for (String table : allTablesWithMarkingIds.tableNames()) {
+      Boolean assigned =
+          jdbcTemplate.queryForObject(
+              "SELECT EXISTS (SELECT 1 FROM "
+                  + table
+                  + " WHERE COALESCE(marking_ids, '{}'::text[]) @> ARRAY[?]::text[])",
+              Boolean.class,
+              markingDefinitionId);
+      if (Boolean.TRUE.equals(assigned)) {
+        return true;
+      }
+    }
+    return Boolean.TRUE.equals(
+        jdbcTemplate.queryForObject(
+            "SELECT EXISTS (SELECT 1 FROM groups_markings WHERE marking_id = ?)",
+            Boolean.class,
+            markingDefinitionId));
   }
 
   private MarkingDefinition findByIdOrThrow(
@@ -260,10 +294,73 @@ public class MarkingDefinitionService {
       jdbcTemplate.update(
           "UPDATE "
               + table
-              + " SET marking_ids = array_remove(marking_ids, ?) WHERE marking_ids @> ARRAY[?]::text[]",
+              + " SET marking_ids = array_remove(marking_ids, ?) WHERE COALESCE(marking_ids, '{}'::text[]) @> ARRAY[?]::text[]",
           markingDefinitionId,
           markingDefinitionId);
     }
+  }
+
+  // -- OPTIONS --
+
+  /**
+   * Resolves marking definitions in the current tenant scope by id, for labeling filter values
+   * already selected elsewhere (e.g. an asset's {@code marking_ids} array).
+   *
+   * @param ctx transaction context containing tenant scope
+   * @param ids marking definition ids to resolve
+   * @return one option per id found, label formatted as {@code "{type}:{definition}"}
+   */
+  @Transactional(readOnly = true)
+  public List<FilterUtilsJpa.Option> optionsById(@NotNull TxCtx ctx, @NotNull List<String> ids) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (tenantIds.isEmpty() || ids.isEmpty()) {
+      return List.of();
+    }
+    return repository.findAll(tenantSpecification(tenantIds).and(idsSpecification(ids))).stream()
+        .map(MarkingDefinitionService::toOption)
+        .toList();
+  }
+
+  /**
+   * Searches marking definitions in the current tenant scope by a free-text match on type or
+   * definition, for populating a filter's dynamic value picker.
+   *
+   * @param ctx transaction context containing tenant scope
+   * @param searchText optional substring to match (case-insensitive) against type or definition
+   * @return matching options, ascending by {@code order}
+   */
+  @Transactional(readOnly = true)
+  public List<FilterUtilsJpa.Option> optionsByName(@NotNull TxCtx ctx, String searchText) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (tenantIds.isEmpty()) {
+      return List.of();
+    }
+    Specification<MarkingDefinition> specification = tenantSpecification(tenantIds);
+    if (searchText != null && !searchText.isBlank()) {
+      specification = specification.and(byNameSpecification(searchText));
+    }
+    return repository.findAll(specification, Sort.by("order").ascending()).stream()
+        .map(MarkingDefinitionService::toOption)
+        .toList();
+  }
+
+  private static Specification<MarkingDefinition> idsSpecification(Collection<String> ids) {
+    return (root, query, criteriaBuilder) -> root.get("id").in(ids);
+  }
+
+  private static Specification<MarkingDefinition> byNameSpecification(String searchText) {
+    String pattern = "%" + searchText.trim().toLowerCase(Locale.ROOT) + "%";
+    return (root, query, criteriaBuilder) ->
+        criteriaBuilder.or(
+            criteriaBuilder.like(criteriaBuilder.lower(root.get("type")), pattern),
+            criteriaBuilder.like(criteriaBuilder.lower(root.get("definition")), pattern));
+  }
+
+  private static FilterUtilsJpa.Option toOption(MarkingDefinition definition) {
+    String type = definition.getType();
+    String value = definition.getDefinition();
+    String label = value.startsWith(type + ":") ? value : type + ":" + value;
+    return new FilterUtilsJpa.Option(definition.getId(), label);
   }
 
   /**

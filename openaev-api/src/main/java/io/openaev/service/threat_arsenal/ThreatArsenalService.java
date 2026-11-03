@@ -8,11 +8,13 @@ import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 
 import io.openaev.api.threat_arsenal.dto.*;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Filters;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
+import io.openaev.database.model.PayloadApproval;
 import io.openaev.database.model.SecurityPlatform;
-import io.openaev.database.model.User;
+import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -31,19 +33,31 @@ import io.openaev.schema.SchemaUtils;
 import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.UserService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
+import io.openaev.service.payload.PayloadRevocationService;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
 import io.openaev.service.payload_approval.PayloadUsage;
 import io.openaev.service.payload_approval.PayloadUsageService;
-import io.openaev.service.payload_approval.PayloadVersionService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.Join;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.ListUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,16 +66,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ThreatArsenalService {
 
-  /** The Threat Arsenal counts every action, approved or not (unlike the inject pickers). */
-  private static final Specification<InjectorContract> ALL_ACTIONS = Specification.unrestricted();
+  private static final String ALL_VERSIONS_FILTER_KEY = "action_all_versions";
+  private static final String PAYLOAD_STATUS_FILTER_KEY = "injector_contract_payload_status";
 
   private final PayloadCreationService payloadCreationService;
   private final PayloadUpdateService payloadUpdateService;
   private final PayloadService payloadService;
+  private final PayloadRevocationService payloadRevocationService;
   private final InjectorContractService injectorContractService;
   private final ThreatArsenalMapper threatArsenalMapper;
   private final DetectionRemediationService detectionRemediationService;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+
+  @PersistenceContext private EntityManager entityManager;
   private final ProvidingFilterSpecificationBuilder providingFilterSpecificationBuilder;
   private final PayloadApprovalService payloadApprovalService;
   private final UserService userService;
@@ -148,7 +165,7 @@ public class ThreatArsenalService {
   public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
-    return injectorContractService.getDomainCounts(filtered, ALL_ACTIONS);
+    return injectorContractService.getDomainCounts(filtered, versionScope(filtered));
   }
 
   /**
@@ -159,7 +176,7 @@ public class ThreatArsenalService {
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(SearchPaginationInput input) {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
-    return injectorContractService.getAuthorCounts(filtered, ALL_ACTIONS);
+    return injectorContractService.getAuthorCounts(filtered, versionScope(filtered));
   }
 
   /**
@@ -170,10 +187,12 @@ public class ThreatArsenalService {
   public ThreatArsenalFacetCountsOutput getFacetCounts(SearchPaginationInput input) {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
+    Specification<InjectorContract> scope = versionScope(filtered);
+    // Status counts ignore the scope, so the "Revoked" row still shows how many are hidden.
     return new ThreatArsenalFacetCountsOutput(
-        injectorContractService.getPlatformCounts(filtered, ALL_ACTIONS),
-        injectorContractService.getStatusCounts(filtered, ALL_ACTIONS),
-        injectorContractService.getApprovalStatusCounts(filtered, ALL_ACTIONS));
+        injectorContractService.getPlatformCounts(filtered, scope),
+        injectorContractService.getStatusCounts(filtered),
+        injectorContractService.getApprovalStatusCounts(filtered, scope));
   }
 
   /**
@@ -254,11 +273,24 @@ public class ThreatArsenalService {
    */
   @Transactional(rollbackFor = Exception.class)
   public ThreatArsenalAction create(TxCtx ctx, ThreatArsenalActionCreateInput actionInput) {
+    payloadService.assertNameAvailable(actionInput.name(), null);
     PayloadCreateInput payloadCreateInput =
         convertActionCreateInputToPayloadCreateInput(actionInput);
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(ctx, payloadCreateInput);
-    return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
+    return describeAction(threatArsenalMapper.toThreatArsenalAction(result.injectorContract()));
+  }
+
+  /** Whether the name is free for this action's payload, or for a new one (#3399). */
+  @Transactional(readOnly = true)
+  public boolean isNameAvailable(String name, @jakarta.annotation.Nullable String actionId) {
+    String payloadId =
+        actionId == null || actionId.isBlank()
+            ? null
+            : Optional.ofNullable(injectorContractService.injectorContract(actionId).getPayload())
+                .map(Payload::getId)
+                .orElse(null);
+    return payloadService.isNameAvailable(name, payloadId);
   }
 
   /**
@@ -295,14 +327,47 @@ public class ThreatArsenalService {
     if (actionInput.expectations() == null) {
       throw new BadRequestException("action_expectations is required for payload-based actions");
     }
+    payloadService.assertNameAvailable(actionInput.name(), injectorContract.getPayload().getId());
     // convert ThreatArsenalActionUpdateInput into PayloadUpdateInput
     PayloadUpdateInput payloadInput = getPayloadUpdateInputFromCommonActionInput(actionInput);
     // update payload using the resolved payload ID
-    PayloadCreationService.PayloadInjectorContractCreationResult result =
+    PayloadUpdateService.PayloadSaveResult result =
         this.payloadUpdateService.updatePayload(
             injectorContract.getPayload().getId(), payloadInput);
-    // convert to ThreatArsenalAction
-    return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
+    ThreatArsenalAction action =
+        describeAction(threatArsenalMapper.toThreatArsenalAction(result.injectorContract()));
+    if (result.newVersion()) {
+      // The version whose injects the saver may move: the approved one the new version replaces.
+      action.setPreviousVersionActionId(
+          result.previous().getId().equals(injectorContract.getPayload().getId())
+              ? injectorContract.getId()
+              : injectorContractService.findByPayload(result.previous()).getId());
+      action.setPreviousVersionUsages(result.previousUsages());
+    }
+    return action;
+  }
+
+  /** The action (its contract) that runs this payload version. */
+  @Transactional(readOnly = true)
+  public String actionIdOfPayload(String payloadId) {
+    return injectorContractService
+        .findOptionalByPayload(payloadVersionService.findById(payloadId))
+        .map(InjectorContract::getId)
+        .orElseThrow(() -> new ElementNotFoundException("No action for payload " + payloadId));
+  }
+
+  /** An action as the cards show it: version, description, origin, revocation. */
+  @Transactional(readOnly = true)
+  public ThreatArsenalAction describe(ThreatArsenalAction action) {
+    return describeAction(action);
+  }
+
+  private ThreatArsenalAction describeAction(ThreatArsenalAction action) {
+    if (action == null) {
+      return null;
+    }
+    markRevoked(new PageImpl<>(List.of(action)));
+    return action;
   }
 
   private ThreatArsenalAction updateActionNotPayloadBased(
@@ -312,7 +377,7 @@ public class ThreatArsenalService {
     InjectorContract injectorContractUpdated =
         injectorContractService.updateInjectorContractTTPDomainsAndTags(
             injectorContract, injectorContractInput);
-    return threatArsenalMapper.toThreatArsenalAction(injectorContractUpdated);
+    return describeAction(threatArsenalMapper.toThreatArsenalAction(injectorContractUpdated));
   }
 
   private InjectorContractUpdateMappingInput getInjectorContractUpdateMappingInputFromActionInput(
@@ -340,48 +405,48 @@ public class ThreatArsenalService {
   // -- APPROVAL --
 
   /**
-   * Approves the pending version of an action payload, or a pending payload, provided its content
-   * is still the one the approver saw. An approved version is applied to the payload and its
-   * contract, and the next run uses it.
+   * Approves the pending payload version of an action. Its injects stay where they are: when the
+   * approved version replaces an approved version still in use, the output names that version's
+   * action and its usages, so the approver can move them (the "new version" dialog).
    */
-  public ThreatArsenalActionFullOutput approve(String actionId, ThreatArsenalApproveInput input) {
-    Payload payload = payloadForDecision(actionId);
-    if (payload.isPendingVersion()) {
-      payloadVersionService.approve(
-          payload, userService.currentUser(), input.fingerprint(), input.comment());
-      payloadService.resynchroniseInjectorContract(payload);
-    } else {
-      User decider = userService.currentUser();
-      payloadApprovalService.approve(payload, decider, input.fingerprint(), input.comment());
-      // A pending payload approved before (e.g. edited before versions existed) gets a new number.
-      payloadVersionService.onReapproved(payload, decider);
-    }
-    return findById(actionId);
+  public ThreatArsenalApprovalDecisionOutput approve(
+      String actionId, ThreatArsenalApproveInput input) {
+    Payload version = payloadForDecision(actionId);
+    PayloadApproval approval =
+        payloadApprovalService.approve(version, userService.currentUser(), input.comment());
+    Optional<PayloadApprovalService.MoveOffer> offer =
+        payloadApprovalService.moveOffer(version).filter(o -> o.fromContract() != null);
+    return decision(
+        actionId,
+        version,
+        approval,
+        offer.map(o -> o.fromContract().getId()).orElse(null),
+        offer.map(PayloadApprovalService.MoveOffer::usages).orElse(null));
   }
 
-  /**
-   * Rejects the pending version of an action payload (the active version stays in use), or a
-   * pending payload.
-   */
-  public ThreatArsenalActionFullOutput reject(String actionId, ThreatArsenalRejectInput input) {
-    Payload payload = payloadForDecision(actionId);
-    if (payload.isPendingVersion()) {
-      payloadVersionService.reject(payload, userService.currentUser(), input.reason());
-    } else {
-      payloadApprovalService.reject(payload, userService.currentUser(), input.reason());
-    }
-    return findById(actionId);
+  /** Rejects the pending payload version of an action; its injects stay where they are. */
+  public ThreatArsenalApprovalDecisionOutput reject(
+      String actionId, ThreatArsenalRejectInput input) {
+    Payload version = payloadForDecision(actionId);
+    PayloadApproval rejection =
+        payloadApprovalService.reject(version, userService.currentUser(), input.reason());
+    return decision(actionId, version, rejection, null, null);
   }
 
-  /** Stored versions of the payload of an action, newest first; empty for payload-less actions. */
-  public List<PayloadVersionOutput> versions(String actionId) {
-    InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
-    if (injectorContract.getPayload() == null) {
-      return List.of();
-    }
-    return payloadVersionService.versions(injectorContract.getPayload().getId()).stream()
-        .map(PayloadVersionOutput::from)
-        .toList();
+  private static ThreatArsenalApprovalDecisionOutput decision(
+      String actionId,
+      Payload version,
+      PayloadApproval entry,
+      String previousActionId,
+      Integer previousUsages) {
+    return new ThreatArsenalApprovalDecisionOutput(
+        actionId,
+        version.getApprovalStatus(),
+        PayloadApprovalOutput.from(entry),
+        version.getId(),
+        version.getVersion(),
+        previousActionId,
+        previousUsages);
   }
 
   /** Approval history of the payload of an action, newest first; empty for payload-less actions. */
@@ -431,7 +496,7 @@ public class ThreatArsenalService {
 
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadService.duplicate(payload.getId());
-    return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
+    return describeAction(threatArsenalMapper.toThreatArsenalAction(result.injectorContract()));
   }
 
   /**
@@ -445,25 +510,31 @@ public class ThreatArsenalService {
       InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
     SearchPaginationInput searchInput =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
+    Specification<InjectorContract> scope =
+        versionScope(searchInput, input.isApprovedPayloadsOnly());
     ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext =
         providingFilterSpecificationBuilder.extractProvidingFilter(searchInput);
     Specification<InjectorContract> searchSpecification =
         computeSearchJpa(searchInput.getTextSearch());
-    return buildPaginationCriteriaBuilder(
-        (spec, specCount, pageable) ->
-            this.injectorContractService.getSinglePage(
-                combineWithProvidingSpec(
-                    input.restrictToPickable(spec), providingFilterContext, searchSpecification),
-                combineWithProvidingSpec(
-                    input.restrictToPickable(specCount),
-                    providingFilterContext,
-                    searchSpecification),
-                pageable,
-                mode,
-                input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
-        providingFilterContext.searchInput(),
-        InjectorContract.class);
+    return markRevoked(
+        buildPaginationCriteriaBuilder(
+            (spec, specCount, pageable) ->
+                this.injectorContractService.getSinglePage(
+                    combineWithProvidingSpec(
+                        input.restrictToPickable(spec.and(scope)),
+                        providingFilterContext,
+                        searchSpecification),
+                    combineWithProvidingSpec(
+                        input.restrictToPickable(specCount.and(scope)),
+                        providingFilterContext,
+                        searchSpecification),
+                    pageable,
+                    mode,
+                    input.getInjectorContractIdsToIgnore(),
+                    input.getInjectorContractIdsToProcess(),
+                    input.isGroupByPrimaryDomain()),
+            providingFilterContext.searchInput(),
+            InjectorContract.class));
   }
 
   /**
@@ -479,6 +550,8 @@ public class ThreatArsenalService {
       InjectorContractService.OutputMode mode, InjectorContractSearchPaginationInput input) {
     SearchPaginationInput searchInput =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
+    Specification<InjectorContract> scope =
+        versionScope(searchInput, input.isApprovedPayloadsOnly());
     ProvidingFilterSpecificationBuilder.ProvidingFilterContext providingFilterContext =
         providingFilterSpecificationBuilder.extractProvidingFilter(searchInput);
     Specification<InjectorContract> searchSpecification =
@@ -489,23 +562,160 @@ public class ThreatArsenalService {
           return cb.not(injectorJoin.get("type").in(TABLETOP_INJECTOR_TYPES));
         };
 
-    return buildPaginationCriteriaBuilder(
-        (spec, specCount, pageable) ->
-            this.injectorContractService.getSinglePage(
-                combineWithProvidingSpec(
-                    input.restrictToPickable(spec.and(excludeTabletop)),
-                    providingFilterContext,
-                    searchSpecification),
-                combineWithProvidingSpec(
-                    input.restrictToPickable(specCount.and(excludeTabletop)),
-                    providingFilterContext,
-                    searchSpecification),
-                pageable,
-                mode,
-                input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
-        providingFilterContext.searchInput(),
-        InjectorContract.class);
+    return markRevoked(
+        buildPaginationCriteriaBuilder(
+            (spec, specCount, pageable) ->
+                this.injectorContractService.getSinglePage(
+                    combineWithProvidingSpec(
+                        input.restrictToPickable(spec.and(excludeTabletop).and(scope)),
+                        providingFilterContext,
+                        searchSpecification),
+                    combineWithProvidingSpec(
+                        input.restrictToPickable(specCount.and(excludeTabletop).and(scope)),
+                        providingFilterContext,
+                        searchSpecification),
+                    pageable,
+                    mode,
+                    input.getInjectorContractIdsToIgnore(),
+                    input.getInjectorContractIdsToProcess(),
+                    input.isGroupByPrimaryDomain()),
+            providingFilterContext.searchInput(),
+            InjectorContract.class));
+  }
+
+  /**
+   * Hides older versions and revoked payloads unless the user asks for every version or for the
+   * revoked ones (F9, F11, F34). Removes the all-versions flag from the filters it reads.
+   */
+  private Specification<InjectorContract> versionScope(SearchPaginationInput input) {
+    return versionScope(input, false);
+  }
+
+  /**
+   * Same, for a picker of approved actions: its default version is the latest approved one, so a
+   * payload whose latest version waits for approval is still offered in its approved version.
+   */
+  private Specification<InjectorContract> versionScope(
+      SearchPaginationInput input, boolean approvedOnly) {
+    Filters.FilterGroup group = input.getFilterGroup();
+    List<Filters.Filter> filters =
+        group == null || group.getFilters() == null ? List.of() : group.getFilters();
+    boolean allVersions =
+        filters.stream().anyMatch(f -> ALL_VERSIONS_FILTER_KEY.equals(f.getKey()));
+    if (allVersions) {
+      group.setFilters(
+          filters.stream().filter(f -> !ALL_VERSIONS_FILTER_KEY.equals(f.getKey())).toList());
+    }
+    boolean revokedAsked =
+        filters.stream()
+            .anyMatch(
+                f ->
+                    PAYLOAD_STATUS_FILTER_KEY.equals(f.getKey())
+                        && f.getValues() != null
+                        && f.getValues().contains(Payload.PAYLOAD_STATUS.REVOKED.name()));
+    if (allVersions || revokedAsked) {
+      return InjectorContractSpecification.withoutUninstalledPayload();
+    }
+    return (approvedOnly
+            ? InjectorContractSpecification.withLatestApprovedPayload()
+            : InjectorContractSpecification.withLatestPayload())
+        .and(InjectorContractSpecification.withoutUninstalledPayload());
+  }
+
+  /** Adds what the cards show about a payload: revoked, version, older versions still used. */
+  private Page<? extends InjectorContractBaseOutput> markRevoked(
+      Page<? extends InjectorContractBaseOutput> page) {
+    markTeamTargets(page);
+    List<PayloadSimple> payloads =
+        page.getContent().stream()
+            .filter(ThreatArsenalAction.class::isInstance)
+            .map(action -> ((ThreatArsenalAction) action).getPayload())
+            .filter(Objects::nonNull)
+            .toList();
+    if (payloads.isEmpty()) {
+      return page;
+    }
+    List<Payload> entities =
+        payloadVersionService.findAllById(payloads.stream().map(PayloadSimple::getId).toList());
+    Map<String, Payload> byId =
+        entities.stream().collect(Collectors.toMap(Payload::getId, Function.identity()));
+    Set<String> revoked = payloadRevocationService.revokedIds(entities);
+    Map<String, Long> olderInUse =
+        payloadVersionService.countTemplateInjectsOnOlderVersions(
+            entities.stream()
+                .filter(Payload::isLatest)
+                .map(p -> p.getIdentity().getId())
+                .collect(Collectors.toSet()));
+    Map<String, Long> installedVersions =
+        payloadVersionService.countInstalledVersions(
+            entities.stream().map(p -> p.getIdentity().getId()).collect(Collectors.toSet()));
+    payloads.forEach(
+        payload -> {
+          Payload entity = byId.get(payload.getId());
+          payload.setRevoked(revoked.contains(payload.getId()));
+          if (entity != null) {
+            payload.setVersion(entity.getVersion());
+            payload.setDescription(entity.getDescription());
+            payload.setManaged(entity.isManaged());
+            payload.setIdentityId(entity.getIdentity().getId());
+            if (entity.getIdentity().isVariant()) {
+              describeVariant(payload, entity);
+            }
+            String identityId = entity.getIdentity().getId();
+            payload.setInstalledVersions(installedVersions.getOrDefault(identityId, 0L));
+            // Payload approval: injects can only move to an approved latest version.
+            if (entity.isLatest()
+                && entity.getApprovalStatus() == Payload.PAYLOAD_APPROVAL_STATUS.APPROVED) {
+              payload.setOlderVersionsInUse(olderInUse.getOrDefault(identityId, 0L));
+            }
+          }
+        });
+    return page;
+  }
+
+  private void describeVariant(PayloadSimple output, Payload variant) {
+    output.setVariant(true);
+    output.setConflict(variant.getIdentity().getConflictTargetPayloadId() != null);
+    if (variant.getOriginId() == null) {
+      return;
+    }
+    Payload base = payloadVersionService.findById(variant.getOriginId());
+    output.setBaseVersion(base.getVersion());
+    if (base.getIdentity().isUninstalled()) {
+      return;
+    }
+    Set<String> revoked =
+        payloadRevocationService.revokedIds(payloadVersionService.findVersions(base.getIdentity()));
+    payloadVersionService.findVersions(base.getIdentity()).stream()
+        .filter(v -> !revoked.contains(v.getId()))
+        .map(Payload::getVersion)
+        .filter(v -> io.openaev.utils.SemanticVersion.ORDER.compare(v, base.getVersion()) > 0)
+        .max(io.openaev.utils.SemanticVersion.ORDER)
+        .ifPresent(output::setNewerBaseVersion);
+  }
+
+  /** Flags the actions whose contract has a team field: the cards show a team target. */
+  @SuppressWarnings("unchecked")
+  private void markTeamTargets(Page<? extends InjectorContractBaseOutput> page) {
+    List<ThreatArsenalAction> actions =
+        page.getContent().stream()
+            .filter(ThreatArsenalAction.class::isInstance)
+            .map(ThreatArsenalAction.class::cast)
+            .toList();
+    if (actions.isEmpty()) {
+      return;
+    }
+    Set<String> targetingTeams =
+        new HashSet<>(
+            entityManager
+                .createNativeQuery(
+                    "SELECT injector_contract_id FROM injectors_contracts"
+                        + " WHERE injector_contract_id IN (:ids)"
+                        + " AND (injector_contract_content::jsonb -> 'fields')"
+                        + " @> '[{\"type\":\"team\"}]'::jsonb")
+                .setParameter("ids", actions.stream().map(ThreatArsenalAction::getId).toList())
+                .getResultList());
+    actions.forEach(action -> action.setTargetsTeams(targetingTeams.contains(action.getId())));
   }
 
   private Specification<InjectorContract> combineWithProvidingSpec(
@@ -588,6 +798,15 @@ public class ThreatArsenalService {
    * ticked on screen.
    */
   private List<String> resolveEligibleIds(InjectorContractSearchPaginationInput input) {
+    List<String> candidates = resolveCandidateIds(input);
+    // F26: skip managed versions and payloads still run by injects, checked in batches.
+    Set<String> blocked = new HashSet<>();
+    ListUtils.partition(candidates, 1000)
+        .forEach(batch -> blocked.addAll(payloadVersionService.findNotDeletableContractIds(batch)));
+    return candidates.stream().filter(id -> !blocked.contains(id)).toList();
+  }
+
+  private List<String> resolveCandidateIds(InjectorContractSearchPaginationInput input) {
     List<String> idsToProcess = input.getInjectorContractIdsToProcess();
     if (idsToProcess != null && !idsToProcess.isEmpty()) {
       return idsToProcess.stream().filter(this::isEligibleForDeletion).toList();

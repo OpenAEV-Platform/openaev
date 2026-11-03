@@ -32,6 +32,16 @@ vi.mock('../../../../network', async (importOriginal) => {
       const instance = original.api(...args);
       instance.defaults.adapter = async (config: InternalAxiosRequestConfig) => {
         requests.push(config);
+        // The version list the popover loads is not under test: no other version.
+        if (config.url?.endsWith('/versions')) {
+          return {
+            status: 200,
+            data: [],
+            statusText: '',
+            headers: {},
+            config,
+          };
+        }
         const next = responses.shift() ?? {
           status: 200,
           data: {},
@@ -111,18 +121,17 @@ const fetchedAction = {
     action_approval_status: 'APPROVED',
   },
 };
-const fetchedWithPendingVersion = {
+// A save that added version 1.1.0, waiting for approval (an author without Approve content).
+const savedPendingVersion = {
   status: 200,
   data: {
-    ...fetchedAction.data,
-    action_pending_version: {
-      version_id: 'version-2',
-      version_number: 2,
-      version_status: 'PENDING',
-      version_origin: 'UPDATE',
-      version_fingerprint: 'fp-2',
-      version_created_at: '2026-10-09T10:00:00Z',
-      version_content: { content: 'whoami /priv' },
+    injector_contract_id: 'action-2',
+    action_previous_version_id: 'action-1',
+    action_previous_version_usages: 0,
+    action_payload: {
+      payload_id: 'payload-2',
+      payload_version: '1.1.0',
+      payload_approval_status: 'PENDING',
     },
   },
 };
@@ -161,10 +170,9 @@ const submitEdit = async () => {
   fireEvent.click(screen.getByRole('button', { name: SUBMIT_EDIT }));
 };
 
-const PENDING_FOR_AUTHOR = 'This action has a pending version: the form shows it. Saving replaces it; the approved version keeps running until a version is approved.';
-const APPROVED_FOR_AUTHOR = 'Changes to what this action runs wait for approval as a new version; the approved version keeps running meanwhile. Other changes apply now.';
+const NOTE_FOR_AUTHOR = 'Changes to what this action runs create a new version that waits for approval. Injects keep running their current version until an approver approves the new one.';
 
-describe('ThreatArsenalActionPopover: editing an approved action (payload versioning, Task 5)', () => {
+describe('ThreatArsenalActionPopover: saving an action (payload versions and approval)', () => {
   beforeEach(() => {
     requests.length = 0;
     responses.length = 0;
@@ -196,21 +204,7 @@ describe('ThreatArsenalActionPopover: editing an approved action (payload versio
     expect(notifyError).not.toHaveBeenCalled();
   });
 
-  it('prefills the form from the pending version and tells an author that saving replaces it', async () => {
-    // Arrange
-    permissions.canApprove = false;
-    responses.push(fetchedWithPendingVersion);
-    renderPopover();
-
-    // Act
-    await openEdit();
-
-    // Assert
-    expect(screen.getByTestId('initial-command').textContent).toBe('whoami /priv');
-    expect(screen.getByText(PENDING_FOR_AUTHOR)).toBeTruthy();
-  });
-
-  it('tells an author that content changes of an approved action wait for approval', async () => {
+  it('tells an author that a saved version waits for approval before injects use it', async () => {
     // Arrange
     permissions.canApprove = false;
     responses.push(fetchedAction);
@@ -221,10 +215,10 @@ describe('ThreatArsenalActionPopover: editing an approved action (payload versio
 
     // Assert
     expect(screen.getByTestId('initial-command').textContent).toBe('whoami');
-    expect(screen.getByText(APPROVED_FOR_AUTHOR)).toBeTruthy();
+    expect(screen.getByText(NOTE_FOR_AUTHOR)).toBeTruthy();
   });
 
-  it('shows no note to an approver editing an approved action without pending version', async () => {
+  it('shows no note to an approver: their version is approved at once', async () => {
     // Arrange
     responses.push(fetchedAction);
     renderPopover();
@@ -233,7 +227,21 @@ describe('ThreatArsenalActionPopover: editing an approved action (payload versio
     await openEdit();
 
     // Assert
-    expect(screen.queryByText(APPROVED_FOR_AUTHOR)).toBeNull();
-    expect(screen.queryByText(PENDING_FOR_AUTHOR)).toBeNull();
+    expect(screen.queryByText(NOTE_FOR_AUTHOR)).toBeNull();
+  });
+
+  it('does not ask the author to move the injects of a version waiting for approval', async () => {
+    // Arrange
+    permissions.canApprove = false;
+    responses.push(fetchedAction, savedPendingVersion);
+    const onUpdate = renderPopover();
+
+    // Act
+    await submitEdit();
+
+    // Assert
+    await waitFor(() => expect(onUpdate).toHaveBeenCalled());
+    expect(screen.queryByText('New version v{version}')).toBeNull();
+    expect(requests.some(request => request.url?.endsWith('/change-version'))).toBe(false);
   });
 });

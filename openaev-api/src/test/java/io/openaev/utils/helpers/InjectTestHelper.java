@@ -3,6 +3,7 @@ package io.openaev.utils.helpers;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import java.util.List;
@@ -17,6 +18,7 @@ public class InjectTestHelper {
 
   private final InjectExpectationRepository injectExpectationRepository;
   private final PayloadRepository payloadRepository;
+  private final PayloadVersionService payloadVersionService;
   private final InjectorContractRepository injectorContractRepository;
   private final AgentRepository agentRepository;
   private final EndpointRepository endpointRepository;
@@ -67,7 +69,9 @@ public class InjectTestHelper {
     if (payload.getTenant() == null) {
       payload.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     }
-    return payloadRepository.save(payload);
+    Payload saved = payloadRepository.save(payload);
+    payloadVersionService.refreshLatest(saved.getIdentity());
+    return saved;
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)

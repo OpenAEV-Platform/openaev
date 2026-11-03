@@ -29,6 +29,14 @@ public interface RawFindingIndexing extends RawTenant {
   String getFinding_value();
 
   /**
+   * Returns the value as the platform displays it, masked when the finding type holds secret
+   * material. This is what the search index stores.
+   *
+   * @return the displayed value, or {@code null} on a row written before the column was filled
+   */
+  String getFinding_value_display();
+
+  /**
    * Returns the field name that categorizes this finding.
    *
    * @return the field name

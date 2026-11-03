@@ -194,7 +194,7 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       case 'RUNNING':
         return `${exerciseName} ${t('will be started, do you want to continue?')}`;
       case 'PAUSED':
-        return `${t('Injects will be paused, do you want to continue?')}`;
+        return `${t('Injects would be paused do you confirm?')}`;
       case 'SCHEDULED':
         return `${exerciseName} ${t('data will be reset, do you want to restart?')}`;
       // Stopping keeps everything that ran - only Reset clears it - so this must not borrow the
@@ -211,9 +211,9 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       {dangerousButton()}
       <Dialog
         open={Boolean(openChangeStatus)}
-        TransitionComponent={Transition}
         onClose={() => setOpenChangeStatus(null)}
-        PaperProps={{ elevation: 1 }}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogContent>
           <DialogContentText>

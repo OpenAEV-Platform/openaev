@@ -162,11 +162,20 @@ const OrganizationsList = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.TENANT_SETTINGS}>
               <CreateOrganization
-                onCreate={(result: Organization) => setOrganizations([result, ...organizations])}
+                onCreate={(result: Organization) => {
+                  setOrganizations([result, ...organizations]);
+                  queryableHelpers.paginationHelpers.incrementTotalElements(1);
+                }}
               />
             </Can>
           </Box>
@@ -235,7 +244,10 @@ const OrganizationsList = () => {
                     organization={organization}
                     tagsMap={tagsMap}
                     onUpdate={(result: Organization) => setOrganizations(organizations.map(o => (o.organization_id !== result.organization_id ? o : result)))}
-                    onDelete={(result: string) => setOrganizations(organizations.filter(o => (o.organization_id !== result)))}
+                    onDelete={(result: string) => {
+                      setOrganizations(organizations.filter(o => (o.organization_id !== result)));
+                      queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                    }}
                     openEditOnInit={organization.organization_id === searchId}
                   />
                 )}

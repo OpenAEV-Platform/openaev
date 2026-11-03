@@ -15,6 +15,15 @@ import lombok.Data;
 @Builder
 public class PayloadOutput {
 
+  // Set by a save that created a new version (ADR-018).
+  @Schema(description = "Version this save replaced as the latest one, when it created a version")
+  @JsonProperty("payload_previous_version_id")
+  private String previousVersionId;
+
+  @Schema(description = "Injects and chained steps still on the previous version")
+  @JsonProperty("payload_previous_version_usages")
+  private Integer previousVersionUsages;
+
   @Schema(description = "Payload unique identifier")
   @NotBlank
   @JsonProperty("payload_id")
@@ -56,6 +65,14 @@ public class PayloadOutput {
   @Schema(description = "External reference identifier")
   @JsonProperty("payload_external_id")
   private String externalId;
+
+  @Schema(description = "Managed version from a repository release; null for a local copy")
+  @JsonProperty("payload_version")
+  private String version;
+
+  @Schema(description = "Payload this local copy was duplicated from")
+  @JsonProperty("payload_origin_id")
+  private String originId;
 
   @Schema(description = "Payload source origin")
   @JsonProperty("payload_source")

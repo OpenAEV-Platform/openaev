@@ -71,6 +71,9 @@ const TimelineInjectNodeComponent = ({ data, selected }: NodeProps<NodeInject>) 
   if (!enabled) {
     statusColor = theme.palette.text.disabled;
     statusLabel = t('Disabled');
+  } else if (inject.inject_payload_revoked) {
+    statusColor = theme.palette.error.main;
+    statusLabel = t('Payload revoked');
   } else if (!ready) {
     statusColor = theme.palette.warning.main;
     statusLabel = t('Missing content');

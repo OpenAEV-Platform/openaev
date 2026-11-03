@@ -1,6 +1,6 @@
 # People
 
-People represent the human side of your security posture in OpenAEV. Players, Teams, and Organizations let you organize who participates in [Simulations](../evaluate/simulation/simulation.md) and [Atomic Tests](../evaluate/atomic-testing/atomic-testing.md).
+People represent the human side of your security posture in OpenAEV. Players, Teams, and Organizations let you organize who participates in [Simulations](../run-and-evaluate/simulation/simulation.md) and [Atomic Tests](../run-and-evaluate/atomic-testing/atomic-testing.md).
 
 ## Why use People?
 
@@ -60,7 +60,7 @@ or subsidiaries.
 ## What's next?
 
 - [Scenarios](scenario/scenario.md) -- Assign Teams and Players to Scenarios
-- [Simulations](../evaluate/simulation/simulation.md) -- Launch Simulations targeting your People
-- [Injects](../evaluate/injects/inject-overview.md) -- Target Players and Teams with Injects
+- [Simulations](../run-and-evaluate/simulation/simulation.md) -- Launch Simulations targeting your People
+- [Injects](../run-and-evaluate/injects/inject-overview.md) -- Target Players and Teams with Injects
 - [Assets](assets.md) -- Manage Endpoints and Asset groups
 

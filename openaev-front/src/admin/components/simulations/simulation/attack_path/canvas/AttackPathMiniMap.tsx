@@ -52,7 +52,6 @@ const AttackPathMiniMap = ({ rects, worldWidth, worldHeight, viewport, onNavigat
         <g transform={`translate(${offsetX}, ${offsetY}) scale(${scale})`}>
           {rects.map((r, i) => (
             <rect
-              // eslint-disable-next-line react/no-array-index-key
               key={i}
               x={r.x}
               y={r.y}

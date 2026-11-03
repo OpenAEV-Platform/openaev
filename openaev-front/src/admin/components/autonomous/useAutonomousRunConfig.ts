@@ -29,7 +29,7 @@ export interface ScopeSelection {
   customRules: ScopeCustomRule[];
 }
 
-const EMPTY_SCOPE: ScopeSelection = {
+export const EMPTY_SCOPE: ScopeSelection = {
   endpointIds: [],
   assetGroupIds: [],
   teamIds: [],
@@ -37,7 +37,7 @@ const EMPTY_SCOPE: ScopeSelection = {
   customRules: [],
 };
 
-const scopeSelectionCount = (selection: ScopeSelection): number =>
+export const scopeSelectionCount = (selection: ScopeSelection): number =>
   selection.endpointIds.length
   + selection.assetGroupIds.length
   + selection.teamIds.length
@@ -56,7 +56,7 @@ const toScopeRule = (
 
 // Flattens a per-list selection into the workflow scope-rule inputs the create/plan/launch APIs seed
 // onto the run's scenario + simulation workflows (both lists together make the full scope definition).
-const selectionToRules = (selection: ScopeSelection, mode: 'ALLOWLIST' | 'DENYLIST'): WorkflowScopeRuleInput[] => [
+export const selectionToRules = (selection: ScopeSelection, mode: 'ALLOWLIST' | 'DENYLIST'): WorkflowScopeRuleInput[] => [
   ...selection.endpointIds.map(id => toScopeRule(mode, 'ASSET', id)),
   ...selection.assetGroupIds.map(id => toScopeRule(mode, 'ASSET_GROUP', id)),
   ...selection.teamIds.map(id => toScopeRule(mode, 'TEAM', id)),

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -170,7 +171,6 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
       exerciseRepository.save(exercise);
       this.articleComposers.forEach(ArticleComposer.Composer::persist);
       this.categoryComposers.forEach(LessonsCategoryComposer.Composer::persist);
-      this.injectComposers.forEach(InjectComposer.Composer::persist);
       this.objectiveComposers.forEach(ObjectiveComposer.Composer::persist);
       this.tagComposers.forEach(TagComposer.Composer::persist);
       this.documentComposers.forEach(DocumentComposer.Composer::persist);
@@ -179,6 +179,8 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
       this.securityCoverageComposer.ifPresent(SecurityCoverageComposer.Composer::persist);
       this.securityCoverageSendJobComposer.ifPresent(
           SecurityCoverageSendJobComposer.Composer::persist);
+      // Last: persisting a payload queries, which flushes everything the exercise references.
+      this.injectComposers.forEach(InjectComposer.Composer::persist);
       return this;
     }
 
@@ -207,6 +209,12 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
   }
 
   public Composer forExercise(Exercise exercise) {
+    generatedItems.add(exercise);
+    return new Composer(exercise);
+  }
+
+  public Composer forExercise(Supplier<Exercise> supplier) {
+    Exercise exercise = supplier.get();
     generatedItems.add(exercise);
     return new Composer(exercise);
   }

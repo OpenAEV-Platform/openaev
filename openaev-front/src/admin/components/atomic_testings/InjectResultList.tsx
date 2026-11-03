@@ -245,12 +245,11 @@ const InjectResultList: FunctionComponent<Props> = ({
           }}
           >
             <InjectStatus status={displayStatus as InjectStatusType['status_name']} />
-            {/* A new version pending approval does not block the inject: a "Pending" chip next to its status. */}
+            {/* The payload version this inject runs is not approved: an icon next to its status. */}
             <PayloadApprovalWarningChip
               approvalStatus={approvalStatus}
-              pendingVersion={injectResultOutput.inject_injector_contract?.injector_contract_payload?.payload_pending_version}
               payloadName={actionName}
-              variant={payloadApprovalDisplay(approvalStatus) ? 'icon' : 'chip'}
+              variant="icon"
             />
           </span>
         );
@@ -339,7 +338,13 @@ const InjectResultList: FunctionComponent<Props> = ({
         contextId={contextId}
         reloadContentCount={reloadContentCount + reloadCount}
         topBarButtons={showActions ? (
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSESSMENT}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -422,7 +427,10 @@ const InjectResultList: FunctionComponent<Props> = ({
                       <AtomicTestingPopover
                         atomic={injectResultOutput}
                         actions={['Duplicate', 'Export', 'Delete']}
-                        onDelete={result => setInjects(injects.filter(e => e.inject_id !== result))}
+                        onDelete={(result) => {
+                          setInjects(injects.filter(e => e.inject_id !== result));
+                          queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                        }}
                         inList
                       />
                     ) : null}

@@ -34,7 +34,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.AbstractMockHttpServletRequestBuilder;
 
 @TestInstance(PER_CLASS)
 @Disabled
@@ -98,7 +98,7 @@ public class RbacMockMvcTest extends IntegrationTest {
   void endpointTestScenarios(EndpointInfo endpoint, EndpointTestScenarios endpointTestScenario)
       throws Exception {
     // Arrange
-    MockHttpServletRequestBuilder request = createRequestBuilder(endpoint);
+    AbstractMockHttpServletRequestBuilder<?> request = createRequestBuilder(endpoint);
     Authentication auth =
         createAuthenticationForScenario(
             endpoint.getAccessControl(), endpointTestScenario, endpoint);
@@ -120,9 +120,9 @@ public class RbacMockMvcTest extends IntegrationTest {
     }
   }
 
-  private MockHttpServletRequestBuilder createRequestBuilder(EndpointInfo ep) {
+  private AbstractMockHttpServletRequestBuilder<?> createRequestBuilder(EndpointInfo ep) {
     String resolvedPath = resolvePathVariables(ep.getPath());
-    MockHttpServletRequestBuilder builder;
+    AbstractMockHttpServletRequestBuilder<?> builder;
 
     switch (ep.getMethod()) {
       case GET -> builder = get(resolvedPath);

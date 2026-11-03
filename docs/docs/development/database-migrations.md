@@ -11,12 +11,12 @@ respective class names.
 ## Schema updates
 To update the schema, create a new migration class ranked at the end of the lexicographical order, using the following
 pattern:
-`V6_{nanosecond_timestamp}__name_of_the_migration`
+`V6_{timestamp}__name_of_the_migration`
 
-where `nanosecond_timestamp` is of the form `yyyyMMddhhmmssSSS`.
+where `timestamp` is the current UTC time in the form `yyyyMMddHHmmssSSS`.
 
 Example contents of the `migration` directory:
-```shell
+```text
 ...
 ├── V5_24__Add_Indexing_Cursor_Indexes.java
 ├── V5_25__Add_exercise_coverage_index.java
@@ -28,17 +28,25 @@ On the next app boot, the new migration will be picked up and run against the ex
 A migration file may be created manually as long as the class name (including the version code) is unique and fulfils
 the requirements for a Flyway schema migration.
 
-OpenAEV includes a maven plugin for helping create these migration files, especially with the correct timestamp: [OpenAEV Maven Plugin](https://github.com/OpenAEV-Platform/openaev/blob/2597eae21b7886da93b9acdda4583aa8a2d63233/openaev-maven-plugin/README.md)
+OpenAEV includes a Maven plugin that creates these migration files with the correct timestamp: [OpenAEV Maven Plugin](https://github.com/OpenAEV-Platform/openaev/blob/main/openaev-maven-plugin/README.md).
+Install it first: `mvn clean install -DskipTests` from the repository root does it (see [Build from source](build-from-source.md#building-and-running)).
 
-It must be used from within the `openaev-api` java module:
-```shell
-(openaev-api) $ mvn openaev:migration
+Run it from the `openaev-api` module:
+```bash
+cd openaev-api
+mvn openaev:migration
 ```
-Optionally, give a "reason" argument to customise the class name and give it a human readable purpose:
-```shell
-(openaev-api) $ mvn openaev:migration -Dreason="add columns to some table"
+Optionally, give a "reason" argument to set a readable class name:
+```bash
+mvn openaev:migration -Dreason="add columns to some table"
 ```
-The new migration class file and skeleton contents are now created in the `migration` directory. 
+The new migration class file and skeleton contents are now created in the `migration` directory.
+
+!!! warning
+
+    Never edit, rename or delete a migration that is part of a release. The CI migrations guard compares file
+    names with the last release: it fails on a renamed or deleted migration, or a new one that does not sort
+    last. It does not detect edits inside a released migration.
 
 ## Out-of-order migration processing
 By default, Flyway imposes a strictly sequential order for running migrations, which means that
@@ -47,7 +55,7 @@ end of the lexicographical order, Flyway will output an error and exit, preventi
 
 OpenAEV exposes an environment variable to enable the "out-of-order" mode in Flyway, which allows migrations to
 run in any order, as they are detected from boot to boot.
-```shell
+```bash
 OPENAEV_FLYWAY_OUT_OF_ORDER=true|false
 ```
 * `true`: enable the out-of-order mode
@@ -56,3 +64,9 @@ OPENAEV_FLYWAY_OUT_OF_ORDER=true|false
 Alternatively, set the following Spring property: `spring.flyway.out-of-order` (`true|false`).
 
 Note that at any one time, all unprocessed migrations are still run sequentially in lexicographical order.
+
+## What's next?
+
+- [Build from source](build-from-source.md) -- Build and run OpenAEV locally
+- [Platform development](platform.md) -- Day-to-day backend and frontend workflow
+- [Breaking changes](../deployment/breaking-changes.md) -- Changes that need action when upgrading

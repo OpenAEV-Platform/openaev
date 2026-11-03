@@ -10,7 +10,7 @@ interface Props {
   onDeployBtnClick: (e: SyntheticEvent) => void;
   style?: CSSProperties;
   deploymentCount: number;
-  /** 'sm' in the card grid, where the footer shares its row with the use-case chips. */
+  /** 'sm' in the card grid, like every card action. */
   size?: 'sm' | 'md';
   buttonStyle?: CSSProperties;
 }

@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -257,14 +256,14 @@ public class ConnectorOrchestrationService {
   }
 
   /**
-   * Pushes log entries to a specific connector instance after validating the XTM composer.
+   * Replaces the logs of a specific connector instance after validating the XTM composer.
    *
    * @param xtmComposerId the unique identifier of the XTM composer to validate
    * @param connectorInstanceId the unique identifier of the connector instance to receive the logs
-   * @param logs a set of log messages to be pushed to the connector instance
+   * @param logs the container's latest log lines, oldest first (a full snapshot, not new lines)
    */
   public void pushLogsByConnectorInstance(
-      String xtmComposerId, String connectorInstanceId, Set<String> logs) {
+      String xtmComposerId, String connectorInstanceId, List<String> logs) {
     this.xtmComposerService.throwIfInvalidXtmComposerId(xtmComposerId);
     if (logs.isEmpty()) {
       return;

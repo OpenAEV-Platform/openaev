@@ -69,8 +69,9 @@ public class PayloadApprovalNotification implements TenantBase {
   @Column(name = "payload_approval_notification_payload_name")
   private String payloadName;
 
-  @Column(name = "payload_approval_notification_version_number")
-  private Integer versionNumber;
+  // The version concerned (e.g. 1.2.0), null for a payload never approved.
+  @Column(name = "payload_approval_notification_version")
+  private String version;
 
   /** Who caused the event: the author for a pending event, the decider for an outcome. */
   @ManyToOne(fetch = FetchType.LAZY)

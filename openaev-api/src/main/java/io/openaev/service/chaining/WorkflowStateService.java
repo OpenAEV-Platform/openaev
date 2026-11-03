@@ -1,14 +1,9 @@
 package io.openaev.service.chaining;
 
-import static io.openaev.utils.JsonUtils.gson;
-
 import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConditionRepository;
-import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.utils.ConditionUtils;
 import io.openaev.validator.IpAddressUtils;
 import java.util.*;
@@ -23,12 +18,16 @@ import org.springframework.stereotype.Service;
 public class WorkflowStateService {
   private final ConditionUtils conditionUtils;
   private final PrimitiveValidationContextBuilder primitiveValidationContextBuilder;
-  private final WorkflowStateRepository workflowStateRepository;
+  private final WorkflowStateStore workflowStateStore;
   private final ConditionRepository conditionRepository;
 
   /**
    * Syncs structured output data into the global workflow state entries and propagates matching
    * values to the local states of steps whose filter conditions are satisfied by the output.
+   *
+   * <p>Append-only: the accepted values and tuples are inserted as new entries of the global state
+   * (and of the matching local states); the existing state is never read nor rewritten, so the cost
+   * of a sync does not depend on how much the run has accumulated (ADR-011).
    *
    * @param dataToSync JSON element containing output data to merge
    * @param typeMappings mapping from field name to resolved chaining mapped type
@@ -36,23 +35,22 @@ public class WorkflowStateService {
    */
   public void syncState(
       JsonElement dataToSync, Map<String, ChainingMappedType> typeMappings, Workflow workflowRun) {
+    if (!dataToSync.isJsonObject()) {
+      return;
+    }
     Map<String, ChainingMappedType> safeTypeMappings =
         typeMappings != null ? typeMappings : Collections.emptyMap();
-    WorkflowState globalState = loadOrBuildGlobalState(workflowRun);
 
-    WorkflowStateEntries entries =
-        gson.fromJson(globalState.getEntries(), WorkflowStateEntries.class);
-
-    // Process traces
-    if (dataToSync.isJsonObject()) {
-      IngestionResult ingestion =
-          saveToEntries(entries, dataToSync.getAsJsonObject(), safeTypeMappings, workflowRun);
-      propagateToLocalStates(ingestion, workflowRun);
+    WorkflowStateEntries globalDelta = WorkflowStateEntries.empty();
+    IngestionResult ingestion =
+        saveToEntries(globalDelta, dataToSync.getAsJsonObject(), safeTypeMappings, workflowRun);
+    if (ingestion.isEmpty()) {
+      return;
     }
 
-    // Save JSON back to DB
-    globalState.setEntries(gson.toJson(entries));
-    save(globalState);
+    workflowStateStore.append(
+        workflowStateStore.getOrCreateGlobalStateId(workflowRun), globalDelta);
+    propagateToLocalStates(ingestion, workflowRun);
   }
 
   /**
@@ -89,9 +87,14 @@ public class WorkflowStateService {
       return;
     }
 
-    for (Map.Entry<Step, List<Condition>> stepEntry : stepToConditions.entrySet()) {
-      propagateValuesToStep(stepEntry.getKey(), stepEntry.getValue(), ingestion, workflowRun);
-    }
+    // Deterministic order: concurrent syncs touching the same local states must lock them in the
+    // same order, or they could deadlock when running inside a single transaction.
+    stepToConditions.entrySet().stream()
+        .sorted(Map.Entry.comparingByKey(Comparator.comparing(Step::getId)))
+        .forEach(
+            stepEntry ->
+                propagateValuesToStep(
+                    stepEntry.getKey(), stepEntry.getValue(), ingestion, workflowRun));
   }
 
   /**
@@ -187,35 +190,15 @@ public class WorkflowStateService {
       return;
     }
 
-    // Load or build the local state for this step template and add the values
-    WorkflowState localState = loadOrBuildLocalState(stepTemplate, workflowRun);
-    if (localState == null) {
-      log.error(
-          "[Chaining] Failed to load or build local state for step template {} in workflow run {}",
-          stepTemplate.getId(),
-          workflowRun.getId());
-      return;
-    }
-    WorkflowStateEntries localEntries =
-        gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
-
+    WorkflowStateEntries localDelta = WorkflowStateEntries.empty();
     for (Map.Entry<String, List<String>> valueEntry : valuesToPropagate.entrySet()) {
-      String keyTypeName = valueEntry.getKey();
-      List<String> values = valueEntry.getValue();
-      WorkflowStateEntries.Input input = localEntries.getInputByKey(keyTypeName);
-      input.getValues().addAll(values);
+      localDelta.getInputByKey(valueEntry.getKey()).getValues().addAll(valueEntry.getValue());
     }
+    // Tuples already present in the local state are ignored by the store (same content hash).
+    localDelta.getCorrelated().addAll(correlatedToPropagate);
 
-    // Add correlated tuples that are not already present in local state (dedup by pair-set)
-    for (WorkflowStateEntries.Correlated tuple : correlatedToPropagate) {
-      if (localEntries.getCorrelated().stream()
-          .noneMatch(existing -> existing.getValues().equals(tuple.getValues()))) {
-        localEntries.getCorrelated().add(tuple);
-      }
-    }
-
-    localState.setEntries(gson.toJson(localEntries));
-    save(localState);
+    workflowStateStore.append(
+        workflowStateStore.getOrCreateLocalStateId(stepTemplate, workflowRun), localDelta);
   }
 
   /**
@@ -336,9 +319,9 @@ public class WorkflowStateService {
   }
 
   /**
-   * Parses structured output fields and adds their values to the global state entries.
+   * Parses structured output fields and adds their values to the global state delta.
    *
-   * @param entries global state entries to populate
+   * @param entries global state delta to populate
    * @param structuredOutput JSON object with field arrays produced by the step
    * @param typeMappings mapping from output field name to its resolved chaining type
    * @param workflowRun the running workflow execution
@@ -556,9 +539,69 @@ public class WorkflowStateService {
     return primitiveOpt;
   }
 
-  /** Persists a workflow state entity. */
-  public WorkflowState save(WorkflowState state) {
-    return workflowStateRepository.save(state);
+  // -- Read side ---------------------------------------------------------------------------------
+
+  /**
+   * View of the global state of a run, restricted to {@code keys}: input values of these keys and,
+   * when {@code withCorrelated} is set, the correlated tuples holding at least one of them. Empty
+   * when the run has no global state yet.
+   */
+  public WorkflowStateEntries loadGlobalEntries(
+      Workflow workflowRun, Collection<String> keys, boolean withCorrelated) {
+    return workflowStateStore
+        .findGlobalStateId(workflowRun.getId())
+        .map(stateId -> workflowStateStore.load(stateId, keys, withCorrelated, false))
+        .orElseGet(WorkflowStateEntries::empty);
+  }
+
+  /**
+   * View of the local state of a step template in a run, restricted to {@code keys} (with the
+   * correlated tuples holding one of them when {@code withCorrelated} is set), and with its
+   * committed execution hashes when {@code withHashes} is set. Empty when the step has no local
+   * state yet.
+   */
+  public WorkflowStateEntries loadLocalEntries(
+      Step stepTemplate,
+      Workflow workflowRun,
+      Collection<String> keys,
+      boolean withCorrelated,
+      boolean withHashes) {
+    return workflowStateStore
+        .findLocalStateId(stepTemplate.getId(), workflowRun.getId())
+        .map(stateId -> workflowStateStore.load(stateId, keys, withCorrelated, withHashes))
+        .orElseGet(WorkflowStateEntries::empty);
+  }
+
+  /** Input values of the global state of a run for the given keys. */
+  public Set<String> getGlobalInputValues(String workflowRunId, Collection<String> keys) {
+    return workflowStateStore
+        .findGlobalStateId(workflowRunId)
+        .map(stateId -> workflowStateStore.loadInputValues(stateId, keys))
+        .orElseGet(Set::of);
+  }
+
+  // -- Execution hashes (anti-replay) -------------------------------------------------------------
+
+  /** Execution hashes already committed for a step template in a run. */
+  public Set<String> getCommittedHashes(Step stepTemplate, Workflow workflowRun) {
+    return workflowStateStore
+        .findLocalStateId(stepTemplate.getId(), workflowRun.getId())
+        .map(workflowStateStore::loadExecutionHashes)
+        .orElseGet(Set::of);
+  }
+
+  /**
+   * Commits execution hashes for a step template in a run and returns the ones actually committed
+   * by this call. A hash that was already committed — including by a concurrent evaluation of the
+   * same step — is not returned: its combination has already been executed and must not be executed
+   * again.
+   */
+  public Set<String> commitHashes(Step stepTemplate, Workflow workflowRun, Set<String> hashes) {
+    if (hashes == null || hashes.isEmpty()) {
+      return Set.of();
+    }
+    return workflowStateStore.commitExecutionHashes(
+        workflowStateStore.getOrCreateLocalStateId(stepTemplate, workflowRun), hashes);
   }
 
   /**
@@ -581,167 +624,8 @@ public class WorkflowStateService {
    * @param workflowExecution the RUN workflow the step executes under
    */
   public void clearExecutionHashes(Step stepTemplate, Workflow workflowExecution) {
-    WorkflowState localState =
-        workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-            stepTemplate.getId(), workflowExecution.getId());
-    if (localState == null) {
-      return;
-    }
-    WorkflowStateEntries entries =
-        gson.fromJson(localState.getEntries(), WorkflowStateEntries.class);
-    Set<String> hashExecution = entries.getHashExecution();
-    if (hashExecution == null || hashExecution.isEmpty()) {
-      return;
-    }
-    hashExecution.clear();
-    localState.setEntries(gson.toJson(entries));
-    save(localState);
-  }
-
-  /**
-   * Returns or creates the global state for a workflow execution.
-   *
-   * @param workflow the running workflow
-   * @return existing global state, or a new (unsaved) one with empty entries
-   */
-  private WorkflowState loadOrBuildGlobalState(Workflow workflow) {
-    WorkflowState state = getGlobalStateByWorkflowId(workflow.getId());
-    if (state == null) {
-      state =
-          WorkflowState.builder()
-              .workflowExecution(workflow)
-              .entries(gson.toJson(createInitialEntries()))
-              .build();
-    }
-    return state;
-  }
-
-  private static WorkflowStateEntries createInitialEntries() {
-    return new WorkflowStateEntries(new ArrayList<>(), new ArrayList<>(), new HashSet<>());
-  }
-
-  /**
-   * Returns the global {@link WorkflowState} for a workflow execution (null step-template).
-   *
-   * @param workflowId the workflow execution ID
-   * @return the global state, or {@code null} if not yet created
-   */
-  public WorkflowState getGlobalStateByWorkflowId(String workflowId) {
-    return workflowStateRepository.findByStepTemplateIsNullAndWorkflowExecutionId(workflowId);
-  }
-
-  /**
-   * Returns the local {@link WorkflowState} for a step template within a workflow execution.
-   *
-   * @param targetTemplate the step template ID
-   * @param workflowExecution the workflow execution ID
-   * @return the local state, or {@code null} if not yet initialized
-   */
-  public WorkflowState loadOrBuildLocalState(Step targetTemplate, Workflow workflowExecution) {
-    WorkflowState localState =
-        workflowStateRepository.findByStepTemplate_IdAndWorkflowExecution_Id(
-            targetTemplate.getId(), workflowExecution.getId());
-
-    if (localState == null) {
-      localState =
-          initializeLocalState(
-              targetTemplate, workflowExecution, gson.toJson(createInitialEntries()));
-    }
-
-    return localState;
-  }
-
-  /**
-   * Creates a new local state entity for a step template (not yet persisted).
-   *
-   * @param target the step template
-   * @param workflowExecution the workflow execution
-   * @param entriesJson initial entries as JSON
-   * @return a new WorkflowState bound to the step and workflow
-   */
-  private WorkflowState initializeLocalState(
-      Step target, Workflow workflowExecution, String entriesJson) {
-    return WorkflowState.builder()
-        .stepTemplate(target)
-        .workflowExecution(workflowExecution)
-        .entries(entriesJson)
-        .build();
-  }
-
-  /**
-   * path - key are use during the config of mapped value (see Condition Mapper) path is different
-   * depending on step parent but key is the same for the next step
-   *
-   * @param workflowStateEntries "state entries of current step"
-   * @param output "new output"
-   * @param path "outputs.message.stdout" or "outputs.message.port+outputs.message.ip"
-   * @param key "stout" or "ip+port"
-   */
-  public void newOutput(
-      WorkflowStateEntries workflowStateEntries, String output, String path, String key) {
-    if (workflowStateEntries.isPathCorrelated(path)) {
-      // Get Mapped condition liked to this step(child) and with idStepFrom(parent)
-      // todo It give you the key <-> path
-      Map<String, String> pathToKey = new HashMap<>();
-      // todo remove
-      pathToKey.put("outputs.message.ip", "ip");
-      pathToKey.put("outputs.message.port", "port");
-      List<String> paths = workflowStateEntries.pathCorrelated(path);
-
-      Set<WorkflowStateEntries.Pair> values = new HashSet<>();
-      for (String pathUnit : paths) {
-        // TODO check if we can have other than Primitive
-        String value = getValues(output, pathUnit).stream().findFirst().orElse("");
-        values.add(new WorkflowStateEntries.Pair(pathToKey.get(pathUnit), value));
-      }
-
-      Map<Set<WorkflowStateEntries.Pair>, WorkflowStateEntries.Correlated> index =
-          workflowStateEntries.getIndexCorrelatedInput();
-      if (!index.containsKey(values)) {
-        WorkflowStateEntries.Correlated newCorrelated =
-            new WorkflowStateEntries.Correlated(values, null);
-        workflowStateEntries.getCorrelated().add(newCorrelated);
-        // todo test all combination  and launch the ones not executed
-        // Todo save this StepInputBuffer
-      }
-    } else {
-      Set<String> values = getValues(output, path);
-
-      List<String> newValues = new ArrayList<>();
-
-      WorkflowStateEntries.Input input = workflowStateEntries.getInputByKey(key);
-      for (String value : values) {
-        if (!input.getValues().contains(value)) {
-          newValues.add(value);
-          input.getValues().add(value);
-          // todo test all combination and launch the ones not executed
-          // Todo save this StepInputBuffer
-        }
-      }
-    }
-  }
-
-  /**
-   * Extracts values from an output string based on the given path.
-   *
-   * @param output the output string to extract values from
-   * @param path the path specifying which fields to extract
-   * @return a set of extracted string values
-   */
-  private Set<String> getValues(String output, String path) {
-    Map<String, Object> fields = StepService.getFields(output, path);
-
-    return fields.values().stream()
-        .map(
-            value -> {
-              if (value instanceof JsonNull) {
-                return null;
-              } else if (value instanceof JsonPrimitive jsonPrimitive) {
-                return jsonPrimitive.getAsString();
-              } else {
-                return value.toString();
-              }
-            })
-        .collect(Collectors.toSet());
+    workflowStateStore
+        .findLocalStateId(stepTemplate.getId(), workflowExecution.getId())
+        .ifPresent(workflowStateStore::clearExecutionHashes);
   }
 }

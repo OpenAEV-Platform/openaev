@@ -23,9 +23,15 @@ public class ThreatArsenalInputFixture {
 
   public static ThreatArsenalActionCreateInput createDefaultCommandLineAction(
       List<String> domainIds) {
+    return createDefaultCommandLineAction(domainIds, "Command line payload");
+  }
+
+  /** Same, named: action names are unique in a tenant. */
+  public static ThreatArsenalActionCreateInput createDefaultCommandLineAction(
+      List<String> domainIds, String name) {
     return new ThreatArsenalActionCreateInput(
         Command.COMMAND_TYPE,
-        "Command line payload",
+        name,
         PAYLOAD_SOURCE.MANUAL,
         PAYLOAD_STATUS.VERIFIED,
         new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},

@@ -238,7 +238,7 @@ class ChainingRbacIsolationTest extends IntegrationTest {
         .andExpect(status().isOk());
   }
 
-  // -- DUPLICATE (ADR-007): the chained branch of POST /api/exercises/{id} reads and writes
+  // -- DUPLICATE (ADR-015): the chained branch of POST /api/exercises/{id} reads and writes
   // chaining rows, which carry no tenant_id. Its isolation is the same grant chain as above,
   // resolved on the owning simulation. --
 

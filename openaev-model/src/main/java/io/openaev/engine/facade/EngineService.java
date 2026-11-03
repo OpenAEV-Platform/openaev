@@ -5,6 +5,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.CustomDashboardParameters;
 import io.openaev.database.model.Filters;
 import io.openaev.database.raw.RawUserAuth;
+import io.openaev.engine.EngineType;
 import io.openaev.engine.EsModel;
 import io.openaev.engine.api.*;
 import io.openaev.engine.model.EsBase;
@@ -22,6 +23,12 @@ import java.util.stream.Stream;
 public interface EngineService {
 
   List<String> BASE_FIELDS = List.of("base_id", "base_entity", "base_representative");
+
+  /** Analyzed-text field the free-text {@link #search} matches its terms (and last prefix) on. */
+  String SEARCH_TEXT_FIELD = "base_representative";
+
+  /** Exact-value field the free-text {@link #search} matches a whole id on. */
+  String SEARCH_ID_FIELD = "base_id.keyword";
 
   /**
    * Upper bound on ids per engine call inside {@link #bulkDelete(List)}: keeps the terms clauses
@@ -239,6 +246,13 @@ public interface EngineService {
    * @return the version of the engine
    */
   String getEngineVersion();
+
+  /**
+   * Engine this implementation drives, as detected at startup.
+   *
+   * @return the engine type
+   */
+  EngineType getEngineType();
 
   /**
    * Size actually used by the platform indexes on the engine, in bytes.

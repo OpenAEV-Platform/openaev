@@ -47,7 +47,8 @@ const Healthchecks = ({ healthchecks, scenarioId, exerciseId }: Props) => {
         window.open(`${documentationRootUrl}/latest/usage/collectors/?h=collector`);
         break;
       }
-      case 'INJECT': {
+      case 'INJECT':
+      case 'PAYLOAD': {
         if (exerciseId) {
           navigate(`/admin/simulations/${exerciseId}/injects`);
         } else {
@@ -102,7 +103,10 @@ const Healthchecks = ({ healthchecks, scenarioId, exerciseId }: Props) => {
                 height: '10px',
               }}
             />
-            <Typography variant="h3" marginBottom={0}>
+            <Typography
+              variant="h3"
+              sx={{ marginBottom: 0 }}
+            >
               {t(`healthcheck.type.${healthcheck.type}`)}
               :
             </Typography>

@@ -51,7 +51,8 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 ### 4. State Management
 - [ ] Global state updated via `WorkflowStateService.syncState()` BEFORE propagation
 - [ ] Local state propagation uses `propagateToLocalStates()`
-- [ ] State entries are properly serialized/deserialized (Gson)
+- [ ] State is written and read only through `WorkflowStateStore` (append-only deltas, views restricted to the keys actually read — never a full-state load or rewrite)
+- [ ] Execution hashes are committed with `commitHashes()` and a READY step is created only for the hashes it returned (anti-replay, ADR-011)
 
 ### 5. Conditions
 - [ ] Conditions evaluated BEFORE step execution
@@ -61,7 +62,11 @@ timeout handling, scope resolution, and the AOP bridge to inject lifecycle.
 - [ ] Conditions linked to steps via `ConditionStep` entity
 
 ### 6. External Update Bridge (AOP)
-- [ ] Methods that mutate inject status are annotated with `@WorkflowUpdateEvent`
+- [ ] Methods that mutate inject status are annotated with `@WorkflowUpdateEvent`, except a method that
+      runs with no transaction: the aspect would then look the step up with no tenant scope, so such a
+      method calls `WorkflowUpdateEventPublisher` from a scoped transaction instead
+- [ ] The annotation is not placed on a method only reached by a self-invocation: Spring AOP is
+      proxy-based, so the aspect never runs and no event is published
 - [ ] SpEL expressions correctly extract inject/expectation IDs
 - [ ] Exactly one of `injectId`, `injectIds`, or `expectationIds` is specified per annotation
 

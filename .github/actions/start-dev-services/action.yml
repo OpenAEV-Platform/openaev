@@ -8,7 +8,9 @@ description: >
 
 inputs:
   search-engine:
-    description: "Search engine type: elasticsearch or opensearch"
+    description: >
+      Search engine to start: elasticsearch (the compose default major), elasticsearch8
+      or opensearch. The platform detects its engine client from the server it reaches.
     required: false
     default: "elasticsearch"
   search-engine-image:
@@ -32,7 +34,12 @@ runs:
 
         SEARCH_IMAGE="$SEARCH_ENGINE_IMAGE"
         if [ -z "$SEARCH_IMAGE" ]; then
-          SEARCH_SERVICE=$([ "$SEARCH_ENGINE" = "opensearch" ] && echo "openaev-dev-opensearch" || echo "openaev-dev-elasticsearch")
+          case "$SEARCH_ENGINE" in
+            elasticsearch) SEARCH_SERVICE=openaev-dev-elasticsearch ;;
+            elasticsearch8) SEARCH_SERVICE=openaev-dev-elasticsearch8 ;;
+            opensearch) SEARCH_SERVICE=openaev-dev-opensearch ;;
+            *) echo "::error::Unknown search-engine '$SEARCH_ENGINE' (elasticsearch, elasticsearch8 or opensearch)"; exit 1 ;;
+          esac
           SEARCH_IMAGE=$(docker compose -f "$COMPOSE_FILE" config --images "$SEARCH_SERVICE")
         fi
 

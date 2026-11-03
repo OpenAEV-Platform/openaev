@@ -1,5 +1,7 @@
 package io.openaev.service.autonomous;
 
+import static io.openaev.database.specification.InjectorContractSpecification.withLatestApprovedPayload;
+
 import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.api.autonomous.dto.CapabilityReport;
 import io.openaev.api.autonomous.dto.CapabilityReport.ArsenalInventory;
@@ -242,8 +244,9 @@ public class CapabilityResolverService {
 
   private ContractIndex buildIndex() {
     ContractIndex index = new ContractIndex();
-    for (InjectorContract contract : injectorContractRepository.findAll()) {
-      // The orchestrator only gets actions that can run (approved payload, or none)
+    for (InjectorContract contract :
+        injectorContractRepository.findAll(withLatestApprovedPayload())) {
+      // The orchestrator only gets actions that can run (approved payload version, or none)
       if (!payloadApprovalGate.isRunnable(contract.getPayload())) {
         continue;
       }

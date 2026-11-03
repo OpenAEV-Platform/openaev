@@ -74,7 +74,7 @@ class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
     saveRegistration("token-b", tenantB);
     saveRegistration("token-deleted", tenantDeleted);
 
-    when(xtmHubClient.refreshRegistrationStatusAllTenants(any(), any(), any()))
+    when(xtmHubClient.refreshRegistrationStatusAllTenants(any(), any(), any(), any()))
         .thenReturn(Map.of());
 
     // When
@@ -82,7 +82,8 @@ class XtmHubConnectivityCollectorServiceTest extends IntegrationTest {
 
     // Then — the hub was called exactly once, carrying only the 2 active tenant IDs
     ArgumentCaptor<Map<String, TenantRegistrationDetails>> tenantsCaptor = ArgumentCaptor.captor();
-    verify(xtmHubClient).refreshRegistrationStatusAllTenants(any(), any(), tenantsCaptor.capture());
+    verify(xtmHubClient)
+        .refreshRegistrationStatusAllTenants(any(), any(), any(), tenantsCaptor.capture());
 
     Map<String, TenantRegistrationDetails> sentTenants = tenantsCaptor.getValue();
     assertThat(sentTenants)

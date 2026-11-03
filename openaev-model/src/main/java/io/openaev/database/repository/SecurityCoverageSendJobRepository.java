@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.SecurityCoverageSendJob;
+import io.openaev.database.raw.RawSecurityCoverageSendJobTenant;
 import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import java.util.List;
@@ -19,15 +20,21 @@ public interface SecurityCoverageSendJobRepository
   @Query("select scsj from SecurityCoverageSendJob scsj where scsj.simulation = ?1")
   Optional<SecurityCoverageSendJob> findBySimulation(@NotBlank Exercise simulation);
 
+  /**
+   * The send jobs in a status since before the given instant, with their simulation and its tenant.
+   * The join on the simulation keeps only the jobs the caller's scope can reach.
+   */
   @Query(
       value =
           """
-    SELECT scsj.* FROM security_coverage_send_job scsj
+    SELECT scsj.security_coverage_send_job_id, e.exercise_id, e.tenant_id
+    FROM security_coverage_send_job scsj
+    JOIN exercises e ON e.exercise_id = scsj.security_coverage_send_job_simulation
     WHERE scsj.security_coverage_send_job_status = :status
       AND scsj.security_coverage_send_job_updated_at < :updatedAtBefore
     """,
       nativeQuery = true)
-  List<SecurityCoverageSendJob> findByStatusAndUpdatedAtBeforeNoLock(
+  List<RawSecurityCoverageSendJobTenant> findWithTenantByStatusAndUpdatedAtBefore(
       String status, Instant updatedAtBefore);
 
   @Query(

@@ -64,6 +64,8 @@ public class BrowserPoolService {
 
   private final Duration permitWait;
 
+  private final ReportRenderEgressGuard egressGuard;
+
   private final ThreadLocal<BrowserSession> threadSession = new ThreadLocal<>();
 
   /** All sessions ever created, for best-effort cleanup at shutdown. */
@@ -73,21 +75,28 @@ public class BrowserPoolService {
 
   public BrowserPoolService(
       @Value("${openaev.reporting.max-concurrent-renders:2}") final int maxConcurrentRenders,
-      @Value("${openaev.reporting.render-timeout-seconds:90}") final long renderTimeoutSeconds) {
+      @Value("${openaev.reporting.render-timeout-seconds:90}") final long renderTimeoutSeconds,
+      final ReportRenderEgressGuard egressGuard) {
     this.renderPermits = new Semaphore(Math.max(1, maxConcurrentRenders));
     this.permitWait = PlaywrightReportingRenderer.renderBudget(renderTimeoutSeconds);
+    this.egressGuard = egressGuard;
   }
 
   /**
    * Runs the given action with a fresh isolated {@link BrowserContext}, closing it afterwards.
    *
-   * @param options the context options (auth headers, viewport, TLS behavior)
+   * @param options the context options (viewport, TLS behavior). Never put the render token in here
+   *     as an extra HTTP header: it would be replayed to every host the page reaches.
+   * @param trustedAuthorization the {@code Authorization} header value attached by the egress guard
+   *     to requests to the platform's own origin only
    * @param action the render action
    * @return the action result
    * @throws InterruptedException if interrupted while waiting for a render permit
    */
   public <T> T withContext(
-      final Browser.NewContextOptions options, final Function<BrowserContext, T> action)
+      final Browser.NewContextOptions options,
+      final String trustedAuthorization,
+      final Function<BrowserContext, T> action)
       throws InterruptedException {
     // Bounded on purpose: a render parked with a permit must not queue every later generation
     // behind it forever. Failing here surfaces as the generation's error message.
@@ -101,6 +110,7 @@ public class BrowserPoolService {
     try {
       Browser liveBrowser = acquireBrowser();
       try (BrowserContext context = liveBrowser.newContext(options)) {
+        this.egressGuard.install(context, trustedAuthorization);
         return action.apply(context);
       }
     } finally {

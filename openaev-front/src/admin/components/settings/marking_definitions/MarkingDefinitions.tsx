@@ -18,6 +18,7 @@ import { useQueryableWithLocalStorage } from '../../../../components/common/quer
 import { type Header } from '../../../../components/common/SortHeadersList';
 import DangerZone from '../../../../components/common/tag/DangerZone';
 import { useFormatter } from '../../../../components/i18n';
+import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import {
   type MarkingDefinitionInput,
   type MarkingDefinitionOutput,
@@ -51,6 +52,7 @@ const MarkingDefinitions = () => {
   const dispatch = useAppDispatch();
 
   const [markingDefinitions, setMarkingDefinitions] = useState<MarkingDefinitionOutput[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [openCreate, setOpenCreate] = useState(false);
 
   const availableFilterNames = [
@@ -147,6 +149,7 @@ const MarkingDefinitions = () => {
         const createdMarkingDefinition = extractMarkingDefinitionFromStoreResult(result);
         if (createdMarkingDefinition) {
           upsert(createdMarkingDefinition);
+          queryableHelpers.paginationHelpers.incrementTotalElements(1);
           setOpenCreate(false);
         }
         return result;
@@ -156,7 +159,11 @@ const MarkingDefinitions = () => {
 
   return (
     <div style={{ display: 'flex' }}>
-      <div style={{ flexGrow: 1 }}>
+      <div style={{
+        flexGrow: 1,
+        minWidth: 0,
+      }}
+      >
         <Breadcrumbs
           variant="list"
           elements={[
@@ -172,6 +179,7 @@ const MarkingDefinitions = () => {
           fetch={searchMarkingDefinitions}
           searchPaginationInput={searchPaginationInput}
           setContent={setMarkingDefinitions}
+          setLoading={setLoading}
           availableFilterNames={availableFilterNames}
           queryableHelpers={queryableHelpers}
           entityPrefix="marking_definition"
@@ -199,15 +207,18 @@ const MarkingDefinitions = () => {
               )}
             />
           </ListItem>
-          {markingDefinitions.map((item: MarkingDefinitionOutput) => (
+          {loading && <PaginatedListLoader Icon={CenterFocusStrongOutlined} headers={headers} headerStyles={inlineStyles} />}
+          {!loading && markingDefinitions.map((item: MarkingDefinitionOutput) => (
             <ListItem
               key={item.marking_definition_id}
               secondaryAction={(
                 <MarkingDefinitionPopover
                   markingDefinition={item}
-                  onDelete={result =>
+                  onDelete={(result) => {
                     setMarkingDefinitions(prev =>
-                      prev.filter(d => d.marking_definition_id !== result))}
+                      prev.filter(d => d.marking_definition_id !== result));
+                    queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                  }}
                   onUpdate={upsert}
                 />
               )}

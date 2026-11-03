@@ -21,8 +21,8 @@ Examples of built-in variables include:
 
 The list of **available variables** is found in the definition of the Inject:
 
-![Variables section](../../assets/variables_inject_definition.png)
-![Variables section](../../assets/variables_list.png)
+![Variables section](assets/variables_inject_definition.png)
+![Variables section](assets/variables_list.png)
 
 ## Custom variables
 
@@ -36,8 +36,8 @@ To define custom variables:
 
 From this section, you can create, update, or delete custom variables.
 
-![Variables section](../../assets/variables_management.png)
-![Variables section](../../assets/variables_creation.png)
+![Variables section](assets/variables_management.png)
+![Variables section](assets/variables_creation.png)
 
 ### Limitations
 
@@ -53,8 +53,8 @@ Here is a non-exhaustive list of concerned injects :
 - Email sending
 - Sms sending
 
-![Variables usage](../../assets/variables_usage.png)
-![Variables usage](../../assets/variables_usage_in_email.png)
+![Variables usage](assets/variables_usage.png)
+![Variables usage](assets/variables_usage_in_email.png)
 
 In case of a list like `articles`, which is a list of articles with properties such as `id`, `name`, and `uri`, or `${teams}`, you could write:
 
@@ -66,5 +66,5 @@ In case of a list like `articles`, which is a list of articles with properties s
 ## What's next?
 
 - [Scenarios](../scenario/scenario.md) -- Define custom Variables for your Scenarios
-- [Injects](../../evaluate/injects/inject-overview.md) -- Use Variables to personalize Inject content
-- [Built-in Injects](../../environment/injects-builtin.md) -- Overview of Injectors that support Variables (Email, SMS)
+- [Injects](../../run-and-evaluate/injects/inject-overview.md) -- Use Variables to personalize Inject content
+- [Built-in Injects](../../../integrations/injectors/injects-builtin.md) -- Overview of Injectors that support Variables (Email, SMS)

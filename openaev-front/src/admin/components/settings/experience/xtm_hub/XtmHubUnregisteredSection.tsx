@@ -17,7 +17,10 @@ const XtmHubUnregisteredSection: React.FC = () => {
       <ExperienceHeadline>
         {t('Extend and scale your OpenAEV experience')}
       </ExperienceHeadline>
-      <Typography variant="body2" color="text.secondary">
+      <Typography
+        variant="body2"
+        sx={{ color: 'text.secondary' }}
+      >
         {t('Connect OpenAEV to XTMHub to deploy pre-configured actions and scenarios in one click, start free trials, and get more out of your XTM platform.')}
       </Typography>
       <div

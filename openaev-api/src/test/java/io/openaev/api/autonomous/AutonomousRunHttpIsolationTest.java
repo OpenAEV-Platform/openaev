@@ -18,6 +18,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.security.token.XtmJwksExtractor;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.WithoutTenantScope;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.UUID;
@@ -86,6 +87,7 @@ import org.springframework.transaction.annotation.Transactional;
     })
 @WithMockUser(isAdmin = true)
 @DisplayName("autonomous run isolation through the real HTTP endpoints")
+@WithoutTenantScope
 class AutonomousRunHttpIsolationTest extends IntegrationTest {
 
   // Both mappings the API declares, derived from its own constants rather than retyped: a route

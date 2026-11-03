@@ -32,6 +32,7 @@ import io.openaev.database.repository.TenantRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.execution.ExecutionExecutorException;
+import io.openaev.execution.PayloadRevokedException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -310,6 +311,117 @@ public class InjectExecutionStepTest extends IntegrationTest {
     // Assert
     assertNotNull(updated);
     assertTrue(updated.isEmpty());
+  }
+
+  private InjectorContract contractWithDefault(String key, String defaultValue) {
+    ObjectNode field = mapper.createObjectNode();
+    field.put("key", key);
+    field.put("cardinality", "1");
+    field.putArray("defaultValue").add(defaultValue);
+    ObjectNode convertedContent = mapper.createObjectNode();
+    convertedContent.putArray("fields").add(field);
+    InjectorContract contract = mock(InjectorContract.class);
+    doReturn(convertedContent).when(contract).getConvertedContent();
+    return contract;
+  }
+
+  private ObjectNode resolveContent(Inject inject, InjectorContract contract, Step step) {
+    ObjectNode base =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveBaseInjectContent", inject, contract);
+    return ReflectionTestUtils.invokeMethod(
+        injectExecutionStep, "updateContentWithInputs", step, base);
+  }
+
+  private Step stepWithPoolMapper(String stepId, String input) {
+    Step step = new Step();
+    step.setId(stepId);
+    step.setInput(input);
+    Condition mapperCondition = new Condition();
+    mapperCondition.setType(ConditionType.MAPPER);
+    mapperCondition.setKeyTypes(List.of(PrimitiveType.IPv4));
+    mapperCondition.setKey("target_ip");
+    doReturn(List.of(mapperCondition)).when(conditionService).findAllConditionsByStepId(stepId);
+    doReturn(true).when(conditionUtils).isMapperCondition(mapperCondition);
+    return step;
+  }
+
+  @Test
+  void given_noDefinedValueAndNoPoolValue_should_useContractDefault() {
+    // Arrange
+    InjectorContract contract = contractWithDefault("target_ip", "0.0.0.0");
+    Step step = stepWithPoolMapper("step-default-1", "{}");
+
+    // Act
+    ObjectNode content = resolveContent(new Inject(), contract, step);
+
+    // Assert
+    assertEquals("0.0.0.0", content.get("target_ip").asText());
+  }
+
+  @Test
+  void given_noDefinedValueButPoolValue_should_usePoolValueInsteadOfDefault() {
+    // Arrange
+    InjectorContract contract = contractWithDefault("target_ip", "0.0.0.0");
+    Step step = stepWithPoolMapper("step-default-2", "{\"IPv4\":\"10.10.10.10\"}");
+
+    // Act
+    ObjectNode content = resolveContent(new Inject(), contract, step);
+
+    // Assert
+    assertEquals("10.10.10.10", content.get("target_ip").asText());
+  }
+
+  @Test
+  void given_definedValueAndNoPoolValue_should_useDefinedValueInsteadOfDefault() {
+    // Arrange
+    InjectorContract contract = contractWithDefault("target_ip", "0.0.0.0");
+    Inject inject = new Inject();
+    ObjectNode injectContent = mapper.createObjectNode();
+    injectContent.put("target_ip", "192.168.1.1");
+    inject.setContent(injectContent);
+    Step step = stepWithPoolMapper("step-default-3", "{}");
+
+    // Act
+    ObjectNode content = resolveContent(inject, contract, step);
+
+    // Assert
+    assertEquals("192.168.1.1", content.get("target_ip").asText());
+  }
+
+  @Test
+  void given_blankDefinedValue_should_useContractDefault() {
+    // Arrange
+    InjectorContract contract = contractWithDefault("target_ip", "0.0.0.0");
+    Inject inject = new Inject();
+    ObjectNode injectContent = mapper.createObjectNode();
+    injectContent.put("target_ip", "  ");
+    inject.setContent(injectContent);
+    Step step = stepWithPoolMapper("step-default-4", "{}");
+
+    // Act
+    ObjectNode content = resolveContent(inject, contract, step);
+
+    // Assert
+    assertEquals("0.0.0.0", content.get("target_ip").asText());
+  }
+
+  @Test
+  void given_definedValueOnOtherField_should_keepDefaultOfUntouchedField() {
+    // Arrange
+    InjectorContract contract = contractWithDefault("target_ip", "0.0.0.0");
+    Inject inject = new Inject();
+    ObjectNode injectContent = mapper.createObjectNode();
+    injectContent.put("other_field", "value");
+    inject.setContent(injectContent);
+    Step step = stepWithPoolMapper("step-default-5", "{}");
+
+    // Act
+    ObjectNode content = resolveContent(inject, contract, step);
+
+    // Assert
+    assertEquals("0.0.0.0", content.get("target_ip").asText());
+    assertEquals("value", content.get("other_field").asText());
   }
 
   @Test
@@ -865,6 +977,31 @@ public class InjectExecutionStepTest extends IntegrationTest {
                     ExecutionTraceStatus.ERROR.equals(trace.getStatus())
                         && "No asset executed".equals(trace.getMessage())),
         "the failure reason must be kept as an error trace");
+  }
+
+  @Test
+  void given_revokedPayload_should_failInjectWithErrorTrace() throws Exception {
+    // Arrange
+    doThrow(new PayloadRevokedException("Payload revoked: crashes DCs"))
+        .when(executor)
+        .directExecute(any());
+    Step stepReady = createReadyStepForRun();
+
+    // Act
+    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+
+    // Assert
+    assertTrue(stepRunOpt.isEmpty(), "the step must be ended as a failure");
+    String injectId = StepService.getField(stepReady.getData(), "inject_id");
+    InjectStatus injectStatus =
+        injectRepository.findById(injectId).orElseThrow().getStatus().orElseThrow();
+    assertEquals(ExecutionStatus.ERROR, injectStatus.getName());
+    assertTrue(
+        injectStatus.getTraces().stream()
+            .anyMatch(
+                trace ->
+                    ExecutionTraceStatus.ERROR.equals(trace.getStatus())
+                        && "Payload revoked: crashes DCs".equals(trace.getMessage())));
   }
 
   @Test
@@ -1644,7 +1781,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
     injectExecutionStep.end(stepRun);
 
     // ASSERT
-    verifyNoInteractions(injectService);
+    verify(injectService, never()).inject(any());
     assertEquals(StepStatus.END, stepRun.getStatus());
   }
 

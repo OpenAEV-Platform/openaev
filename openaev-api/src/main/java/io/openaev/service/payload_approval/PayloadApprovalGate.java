@@ -32,11 +32,9 @@ import org.springframework.stereotype.Service;
  * launching an atomic testing, a scenario or a simulation, a scheduled run, and the executor right
  * before dispatch.
  *
- * <p>A payload runs only when it is {@code APPROVED} and its executable content is still the one
- * that was approved (same {@link PayloadFingerprint}). Payload-less built-in actions and payloads
- * exempted by a {@link PayloadApprovalExemption} always run. A payload approved before fingerprints
- * were recorded (no approved fingerprint) is trusted as approved: any later content change makes it
- * pending again through the payload write paths.
+ * <p>A payload version runs only when it is {@code APPROVED}: a version never changes once created,
+ * so its approval covers exactly what runs. Payload-less built-in actions and payloads exempted by
+ * a {@link PayloadApprovalExemption} always run.
  */
 @Service
 @RequiredArgsConstructor
@@ -44,7 +42,7 @@ public class PayloadApprovalGate {
 
   static final String PENDING_REASON = "pending approval";
   static final String REJECTED_REASON = "rejected";
-  static final String CHANGED_REASON = "content changed since its approval";
+  static final String SUPERSEDED_REASON = "superseded by a newer version";
 
   private final ObjectProvider<PayloadApprovalExemption> exemptions;
   // Conditional bean (audit transports): absent when audit logging is disabled.
@@ -66,9 +64,8 @@ public class PayloadApprovalGate {
     if (status == PAYLOAD_APPROVAL_STATUS.REJECTED) {
       return Optional.of(blocked(unproxied, REJECTED_REASON));
     }
-    String approved = unproxied.getApprovedFingerprint();
-    if (approved != null && !approved.equals(PayloadFingerprint.of(unproxied))) {
-      return Optional.of(blocked(unproxied, CHANGED_REASON));
+    if (status == PAYLOAD_APPROVAL_STATUS.SUPERSEDED) {
+      return Optional.of(blocked(unproxied, SUPERSEDED_REASON));
     }
     return Optional.empty();
   }

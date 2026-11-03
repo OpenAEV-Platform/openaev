@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/prefer-default-export
 export const scenarioCategories = new Map([
   ['global-crisis', 'Global Crisis'],
   ['attack-scenario', 'Attack Scenario'],
@@ -9,3 +8,8 @@ export const scenarioCategories = new Map([
   ['lateral-movement', 'Lateral Movement'],
   ['url-filtering', 'URL Filtering'],
 ]);
+
+export const SCENARIO_TYPE_LABELS: Record<string, string> = {
+  'time-based': 'Time-based',
+  'chained': 'Chained',
+};

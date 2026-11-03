@@ -19,9 +19,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 
 /**
  * Feature: OCTI OAEV - GENERATION SCENARIOS
@@ -56,6 +59,8 @@ class OpenCTIApiTest extends IntegrationTest {
   @Mock InjectorContractApi injectorContractApi;
   @Mock OpenCTIApi openCTIApi;
 
+  @Autowired private RequestMappingHandlerAdapter requestMappingHandlerAdapter;
+
   private MockMvc mockMvc;
 
   @BeforeEach
@@ -74,6 +79,13 @@ class OpenCTIApiTest extends IntegrationTest {
                 injectApi,
                 openCTIApi)
             .setCustomArgumentResolvers(TxCtxTestArgumentResolver.missing())
+            // Standalone setup otherwise registers Spring's default converters, which pick Jackson
+            // 3
+            // and cannot read the Jackson 2 tree types our DTOs carry; use the app's converters.
+            .setMessageConverters(
+                requestMappingHandlerAdapter
+                    .getMessageConverters()
+                    .toArray(HttpMessageConverter<?>[]::new))
             .build();
   }
 

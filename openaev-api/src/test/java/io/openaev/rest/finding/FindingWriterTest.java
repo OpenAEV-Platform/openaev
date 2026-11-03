@@ -1,21 +1,31 @@
 package io.openaev.rest.finding;
 
+import static io.openaev.database.audit.ModelBaseListener.DATA_PERSIST;
+import static io.openaev.database.audit.ModelBaseListener.DATA_UPDATE;
+import static io.openaev.utils.SensitiveValueMaskingUtils.MASK;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.model.ContractOutputType;
+import io.openaev.database.model.Finding;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 
 /**
  * {@code FindingWriter.saveCompleteFinding} opens its own {@code REQUIRES_NEW} transaction, so the
@@ -33,19 +43,23 @@ import org.springframework.test.context.TestPropertySource;
  */
 @TestPropertySource(properties = "openaev.tenant.active-tables=findings,assets")
 @WithMockUser(isAdmin = true)
+@RecordApplicationEvents
 @DisplayName("the finding writer refuses a write it cannot attribute or cannot see")
 class FindingWriterTest extends IntegrationTest {
 
   @Autowired private FindingWriter findingWriter;
   @Autowired private DataSource dataSource;
+  @Autowired private ApplicationEvents applicationEvents;
 
   private JdbcTemplate jdbc;
   private String ownerTenant;
   private String otherTenant;
   private String injectId;
   private String assetId;
+  private String secondAssetId;
   private final String field = "hostname";
-  private final String type = "text";
+  // A real enum name: the published event loads the finding back as an entity.
+  private final String type = ContractOutputType.Text.name();
   private String value;
 
   @BeforeEach
@@ -55,6 +69,7 @@ class FindingWriterTest extends IntegrationTest {
     otherTenant = seedTenant("writer-other-");
     injectId = UUID.randomUUID().toString();
     assetId = UUID.randomUUID().toString();
+    secondAssetId = UUID.randomUUID().toString();
     value = "writer-" + UUID.randomUUID();
 
     jdbc.update(
@@ -69,6 +84,14 @@ class FindingWriterTest extends IntegrationTest {
             + " VALUES (?, 'writer-asset', 'Endpoint', now(), now(), ?, 'writer-asset', 'Linux',"
             + " 'x86_64')",
         assetId,
+        ownerTenant);
+    // The asset of a second agent reporting the same finding.
+    jdbc.update(
+        "INSERT INTO assets (asset_id, asset_name, asset_type, asset_created_at, asset_updated_at,"
+            + " tenant_id, asset_hostname, endpoint_platform, endpoint_arch)"
+            + " VALUES (?, 'writer-asset-2', 'Endpoint', now(), now(), ?, 'writer-asset-2',"
+            + " 'Linux', 'x86_64')",
+        secondAssetId,
         ownerTenant);
     // The row the second write will conflict with, owned by ownerTenant.
     jdbc.update(
@@ -85,7 +108,7 @@ class FindingWriterTest extends IntegrationTest {
 
   @AfterEach
   void sweep() {
-    jdbc.update("DELETE FROM findings_assets WHERE asset_id = ?", assetId);
+    jdbc.update("DELETE FROM findings_assets WHERE asset_id IN (?, ?)", assetId, secondAssetId);
     for (String tenantId : new String[] {ownerTenant, otherTenant}) {
       jdbc.update("DELETE FROM findings WHERE tenant_id = ?", tenantId);
       jdbc.update("DELETE FROM assets WHERE tenant_id = ?", tenantId);
@@ -158,6 +181,56 @@ class FindingWriterTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("an agent finding is stored with the value the platform displays (#7893)")
+  void given_aSensitiveAgentFinding_should_storeItsDisplayedValue() {
+    // The native upsert skips the JPA callbacks, so the writer must pass the displayed value
+    // itself: search, filters and sorts read it, never the cleartext.
+    findingWriter.saveCompleteFinding(
+        TxCtx.forTenant(ownerTenant),
+        "credentials",
+        "Credentials",
+        "admin:motdepasse",
+        new String[0],
+        injectId,
+        "writer probe",
+        assetId,
+        new String[0]);
+
+    assertEquals(
+        "admin:mo" + MASK,
+        jdbc.queryForObject(
+            "SELECT finding_value_display FROM findings WHERE tenant_id = ? AND finding_value = ?",
+            String.class,
+            ownerTenant,
+            "admin:motdepasse"));
+  }
+
+  @Test
+  @DisplayName("a row written before the displayed value existed gets it on its next detection")
+  void given_aRowWithoutDisplayedValue_should_getItWhenDetectedAgain() {
+    // The seeded row was inserted without finding_value_display, like a row written by a pod of
+    // the previous version during a rolling deploy. The conflict branch must fill it.
+    findingWriter.saveCompleteFinding(
+        TxCtx.forTenant(ownerTenant),
+        field,
+        type,
+        value,
+        new String[0],
+        injectId,
+        "writer probe",
+        assetId,
+        new String[0]);
+
+    assertEquals(
+        value,
+        jdbc.queryForObject(
+            "SELECT finding_value_display FROM findings WHERE tenant_id = ? AND finding_value = ?",
+            String.class,
+            ownerTenant,
+            value));
+  }
+
+  @Test
   @DisplayName("a scope that names no single tenant is refused, naming the inject")
   void scopeWithoutASingleTenantIsRefused() {
     IllegalStateException thrown =
@@ -179,6 +252,97 @@ class FindingWriterTest extends IntegrationTest {
         thrown.getMessage().contains(injectId),
         "the refusal must name the inject so the caller can find what it failed to resolve: "
             + thrown.getMessage());
+  }
+
+  /**
+   * The writes are native, so no JPA listener publishes their lifecycle event: without the writer's
+   * own, notification triggers on findings never fire for agent executions (#8649). The events
+   * mirror a JPA save: each agent reports its own copy of a finding, and only a new row or a new
+   * asset link changes the finding.
+   */
+  @Nested
+  @DisplayName("lifecycle events")
+  class LifecycleEvents {
+
+    @Test
+    @DisplayName("a new finding publishes a create, and the same agent reporting it again nothing")
+    void given_newFindingReportedTwiceOnSameAsset_should_publishSingleCreate() {
+      // Arrange
+      String newValue = "writer-new-" + UUID.randomUUID();
+
+      // Act
+      writeInOwnerScope(newValue, assetId);
+      writeInOwnerScope(newValue, assetId);
+
+      // Assert
+      List<BaseEvent> events = findingEvents();
+      assertEquals(1, events.size(), "a repeated report changes nothing on the finding");
+      assertEquals(DATA_PERSIST, events.get(0).getType());
+      assertEquals(findingIdOf(newValue), events.get(0).getInstance().getId());
+    }
+
+    @Test
+    @DisplayName("a second agent reporting the finding on another asset publishes an update")
+    void given_newFindingReportedOnSecondAsset_should_publishCreateThenUpdate() {
+      // Arrange
+      String newValue = "writer-new-" + UUID.randomUUID();
+
+      // Act
+      writeInOwnerScope(newValue, assetId);
+      writeInOwnerScope(newValue, secondAssetId);
+
+      // Assert: the update is what lets a trigger filtered on the second asset match
+      List<BaseEvent> events = findingEvents();
+      assertEquals(
+          List.of(DATA_PERSIST, DATA_UPDATE), events.stream().map(BaseEvent::getType).toList());
+      String findingId = findingIdOf(newValue);
+      assertTrue(events.stream().allMatch(event -> findingId.equals(event.getInstance().getId())));
+      assertEquals(
+          2,
+          ((Finding) events.get(1).getInstance()).getAssets().size(),
+          "the update must carry the finding with both assets");
+    }
+
+    @Test
+    @DisplayName("an existing finding already linked to the asset publishes nothing")
+    void given_existingFindingAlreadyLinkedToAsset_should_publishNothing() {
+      // Arrange: the first write links the seeded finding to the asset
+      writeInOwnerScope(value, assetId);
+      applicationEvents.clear();
+
+      // Act
+      writeInOwnerScope(value, assetId);
+
+      // Assert
+      assertTrue(findingEvents().isEmpty());
+    }
+
+    private void writeInOwnerScope(String findingValue, String reportingAssetId) {
+      findingWriter.saveCompleteFinding(
+          TxCtx.forTenant(ownerTenant),
+          field,
+          type,
+          findingValue,
+          new String[0],
+          injectId,
+          "writer probe",
+          reportingAssetId,
+          new String[0]);
+    }
+
+    private List<BaseEvent> findingEvents() {
+      return applicationEvents.stream(BaseEvent.class)
+          .filter(event -> event.getInstance() instanceof Finding)
+          .toList();
+    }
+
+    private String findingIdOf(String findingValue) {
+      return jdbc.queryForObject(
+          "SELECT finding_id FROM findings WHERE finding_inject_id = ? AND finding_value = ?",
+          String.class,
+          injectId,
+          findingValue);
+    }
   }
 
   private String seedTenant(String prefix) {

@@ -4,6 +4,7 @@ import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.PreventionInjectExpectation;
 import io.openaev.database.model.TechnicalInjectExpectation;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectExpectationResultRepository;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.service.InjectService;
 import org.springframework.stereotype.Component;
@@ -15,8 +16,13 @@ public class PreventionBehavior extends AbstractTechnicalBehavior {
   public PreventionBehavior(
       CollectorService collectorService,
       InjectService injectService,
-      InjectExpectationRepository injectExpectationRepository) {
-    super(collectorService, injectService, injectExpectationRepository);
+      InjectExpectationRepository injectExpectationRepository,
+      InjectExpectationResultRepository injectExpectationResultRepository) {
+    super(
+        collectorService,
+        injectService,
+        injectExpectationRepository,
+        injectExpectationResultRepository);
   }
 
   @Override

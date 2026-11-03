@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.database.model.Capability;
 import io.openaev.processor.datapack.PresetTenantData;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -83,5 +84,17 @@ class PresetTenantDataTest {
   void given_defaultRoles_should_containExactlyThreeRoles() {
     // -- ASSERT --
     assertThat(PresetTenantData.DEFAULT_ROLES).containsOnlyKeys("Observer", "Manager", "Admin");
+  }
+
+  @Test
+  @DisplayName("given_defaultGroupMarkings_should_matchEachGroupToItsTlpLevel")
+  void given_defaultGroupMarkings_should_matchEachGroupToItsTlpLevel() {
+    // -- ASSERT --
+    assertThat(PresetTenantData.DEFAULT_GROUP_MARKINGS)
+        .containsExactlyInAnyOrderEntriesOf(
+            Map.of(
+                "Admin", "TLP:RED",
+                "Manager", "TLP:AMBER",
+                "Observer", "TLP:GREEN"));
   }
 }

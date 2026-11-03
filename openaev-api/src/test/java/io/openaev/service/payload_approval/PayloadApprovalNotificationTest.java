@@ -159,20 +159,25 @@ class PayloadApprovalNotificationTest extends IntegrationTest {
             .content(asJsonString(input)));
   }
 
-  private String detail(String actionId) throws Exception {
-    return mvc.perform(get(url("/" + actionId)))
-        .andExpect(status().isOk())
-        .andReturn()
-        .getResponse()
-        .getContentAsString();
+  /** A saved version: its own action and its number. */
+  private record Saved(String actionId, String version) {}
+
+  private Saved newVersionAs(User user, String actionId, String name, String content)
+      throws Exception {
+    String response =
+        editAs(user, actionId, name, content)
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return new Saved(
+        JsonPath.read(response, "$.injector_contract_id"),
+        JsonPath.read(response, "$.action_payload.payload_version"));
   }
 
-  private ResultActions decideAs(User user, String actionId, String decision, String fingerprint)
-      throws Exception {
+  private ResultActions decideAs(User user, String actionId, String decision) throws Exception {
     Map<String, String> body =
-        decision.equals("approve")
-            ? Map.of("approval_fingerprint", fingerprint)
-            : Map.of("approval_reason", "Too broad");
+        decision.equals("approve") ? Map.of() : Map.of("approval_reason", "Too broad");
     return mvc.perform(
         post(url("/" + actionId + "/" + decision))
             .with(authentication(buildAuthenticationToken(user)))
@@ -281,8 +286,8 @@ class PayloadApprovalNotificationTest extends IntegrationTest {
       assertThat(notificationsOf(otherApprover)).isEmpty();
 
       // Act
-      editAs(author, actionId, "Whoami", "whoami /priv").andExpect(status().is2xxSuccessful());
-      editAs(author, actionId, "Whoami", "whoami /groups").andExpect(status().is2xxSuccessful());
+      Saved first = newVersionAs(author, actionId, "Whoami", "whoami /priv");
+      newVersionAs(author, first.actionId(), "Whoami", "whoami /groups");
       service.dispatchTenant(TENANT);
 
       // Assert
@@ -290,7 +295,10 @@ class PayloadApprovalNotificationTest extends IntegrationTest {
       assertThat(received).hasSize(1);
       assertThat(eventsOf(received.getFirst())).hasSize(1);
       assertThat((String) eventsOf(received.getFirst()).getFirst().get("message"))
-          .isEqualTo("New version v2 of \"Whoami\" is pending approval (submitted by Author User)");
+          .isEqualTo(
+              "New version v"
+                  + first.version()
+                  + " of \"Whoami\" is pending approval (submitted by Author User)");
       // The same author replacing their own version is not told it was superseded.
       assertThat(notificationsOf(author)).isEmpty();
     }
@@ -307,7 +315,7 @@ class PayloadApprovalNotificationTest extends IntegrationTest {
       String actionId = createAs(author, "Whoami");
 
       // Act
-      decideAs(approver, actionId, "reject", null).andExpect(status().is2xxSuccessful());
+      decideAs(approver, actionId, "reject").andExpect(status().is2xxSuccessful());
       service.dispatchTenant(TENANT);
 
       // Assert
@@ -326,20 +334,18 @@ class PayloadApprovalNotificationTest extends IntegrationTest {
     void given_approvedVersion_should_notifyAuthor() throws Exception {
       // Arrange
       String actionId = createAs(approver, "Whoami");
-      editAs(author, actionId, "Whoami", "whoami /priv").andExpect(status().is2xxSuccessful());
-      String fingerprint =
-          JsonPath.read(detail(actionId), "$.action_pending_version.version_fingerprint");
+      Saved pending = newVersionAs(author, actionId, "Whoami", "whoami /priv");
 
       // Act
-      decideAs(otherApprover, actionId, "approve", fingerprint)
-          .andExpect(status().is2xxSuccessful());
+      decideAs(otherApprover, pending.actionId(), "approve").andExpect(status().is2xxSuccessful());
       service.dispatchTenant(TENANT);
 
       // Assert
       List<Notification> received = notificationsOf(author);
       assertThat(received).hasSize(1);
       assertThat((String) eventsOf(received.getFirst()).getFirst().get("message"))
-          .isEqualTo("Your version v2 of \"Whoami\" was approved by Second User");
+          .isEqualTo(
+              "Your version v" + pending.version() + " of \"Whoami\" was approved by Second User");
     }
 
     @Test
@@ -348,11 +354,10 @@ class PayloadApprovalNotificationTest extends IntegrationTest {
     void given_supersededVersion_should_notifyItsAuthor() throws Exception {
       // Arrange
       String actionId = createAs(approver, "Whoami");
-      editAs(author, actionId, "Whoami", "whoami /priv").andExpect(status().is2xxSuccessful());
+      Saved replaced = newVersionAs(author, actionId, "Whoami", "whoami /priv");
 
       // Act
-      editAs(otherAuthor, actionId, "Whoami", "whoami /groups")
-          .andExpect(status().is2xxSuccessful());
+      newVersionAs(otherAuthor, replaced.actionId(), "Whoami", "whoami /groups");
       service.dispatchTenant(TENANT);
 
       // Assert
@@ -362,7 +367,9 @@ class PayloadApprovalNotificationTest extends IntegrationTest {
       assertThat(event.get("operation")).isEqualTo("SUPERSEDED");
       assertThat((String) event.get("message"))
           .isEqualTo(
-              "Your version v2 of \"Whoami\" was replaced by a newer version (by Other User)");
+              "Your version v"
+                  + replaced.version()
+                  + " of \"Whoami\" was replaced by a newer version (by Other User)");
     }
   }
 

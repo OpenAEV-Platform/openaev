@@ -1,6 +1,6 @@
 # Run modes
 
-OpenAEV supports two startup run modes controlled by `openaev.run-mode`.
+OpenAEV supports two startup run modes, set with `openaev.run-mode`.
 
 ## Modes
 
@@ -9,7 +9,7 @@ OpenAEV supports two startup run modes controlled by `openaev.run-mode`.
 
 ## Safe mode behavior
 
-When `openaev.run-mode=safe`, Quartz background jobs are not started at boot.  
+When `openaev.run-mode=safe`, Quartz background jobs are not started at boot.
 The web application remains available and a banner is shown in the frontend to indicate degraded operation.
 
 ## Impacted features in safe mode
@@ -30,3 +30,8 @@ The following feature areas are impacted because their Quartz jobs are disabled:
 ```properties
 openaev.run-mode=safe
 ```
+
+## What's next?
+
+- [Platform managers](managers.md) -- Background services of the platform
+- [Configuration](../../reference/deployment/configuration.md) -- Platform configuration parameters

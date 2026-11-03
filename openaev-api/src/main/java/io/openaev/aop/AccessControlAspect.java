@@ -116,12 +116,14 @@ public class AccessControlAspect {
 
     // Perform your RBAC check with the extracted value
     boolean allowed =
-        permissionService.hasPermission(
-            principal,
-            httpMappingInfo,
-            resourceId,
-            accessControl.resourceType(),
-            accessControl.actionPerformed());
+        accessControl.requireAdmin()
+            ? permissionService.hasUserAdminPrivileges(principal)
+            : permissionService.hasPermission(
+                principal,
+                httpMappingInfo,
+                resourceId,
+                accessControl.resourceType(),
+                accessControl.actionPerformed());
 
     if (!allowed) {
       log.warn(

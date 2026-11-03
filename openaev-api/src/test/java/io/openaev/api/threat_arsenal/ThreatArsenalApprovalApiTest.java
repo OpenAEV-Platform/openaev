@@ -26,7 +26,7 @@ import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
-import io.openaev.migration.V6_20261008160000000__Grant_approve_content_to_threat_arsenal_managers;
+import io.openaev.migration.V6_20261102100300000__Grant_approve_content_to_threat_arsenal_managers;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.role.form.RoleInput;
@@ -45,6 +45,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -69,7 +70,7 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
 
   @Autowired
-  private V6_20261008160000000__Grant_approve_content_to_threat_arsenal_managers
+  private V6_20261102100300000__Grant_approve_content_to_threat_arsenal_managers
       approveContentUpgrade;
 
   private Authentication author;
@@ -121,7 +122,8 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
   private String createAction(Authentication as) throws Exception {
     Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
     ThreatArsenalActionCreateInput input =
-        ThreatArsenalInputFixture.createDefaultCommandLineAction(List.of(domain.getId()));
+        ThreatArsenalInputFixture.createDefaultCommandLineAction(
+            List.of(domain.getId()), "Approval action " + UUID.randomUUID());
     String response =
         mvc.perform(
                 post(url(""))
@@ -148,13 +150,15 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
     return JsonPath.read(detail(actionId), "$.action_approval_status");
   }
 
-  private String fingerprint(String actionId) throws Exception {
-    return JsonPath.read(detail(actionId), "$.action_approval_fingerprint");
+  private String nameOf(String actionId) throws Exception {
+    return JsonPath.read(detail(actionId), "$.action_labels.en");
   }
 
-  private ThreatArsenalActionUpdateInput update(String content, String description) {
+  /** An update of the action keeping its name (names are unique in a tenant). */
+  private ThreatArsenalActionUpdateInput update(String actionId, String content, String description)
+      throws Exception {
     return new ThreatArsenalActionUpdateInput(
-        "Command line payload",
+        nameOf(actionId),
         new Endpoint.PLATFORM_TYPE[] {Endpoint.PLATFORM_TYPE.Linux},
         description,
         "bash",
@@ -176,26 +180,40 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
         List.of());
   }
 
-  private void updateAs(Authentication as, String actionId, ThreatArsenalActionUpdateInput input)
+  /** Saves the action and returns the action of the version the save leaves (new or same). */
+  private String updateAs(Authentication as, String actionId, ThreatArsenalActionUpdateInput input)
       throws Exception {
-    mvc.perform(
-            put(url("/" + actionId))
-                .with(authentication(as))
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(input)))
-        .andExpect(status().is2xxSuccessful());
+    String response =
+        mvc.perform(
+                put(url("/" + actionId))
+                    .with(authentication(as))
+                    .with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input)))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return JsonPath.read(response, "$.injector_contract_id");
   }
 
-  /** An edit of an approved action waits as a pending version; the action stays approved. */
-  private void assertPendingVersion(String actionId) throws Exception {
-    String detail = detail(actionId);
-    assertThat((String) JsonPath.read(detail, "$.action_approval_status")).isEqualTo("APPROVED");
-    assertThat((Object) JsonPath.read(detail, "$.action_pending_version")).isNotNull();
+  /**
+   * An edit of an approved action adds a pending version (its own action); the approved version
+   * stays approved and keeps its injects.
+   */
+  private void assertPendingVersion(String approvedActionId, String newActionId) throws Exception {
+    assertThat(newActionId).isNotEqualTo(approvedActionId);
+    assertThat(approvalStatus(approvedActionId)).isEqualTo("APPROVED");
+    assertThat(approvalStatus(newActionId)).isEqualTo("PENDING");
   }
 
-  private String pendingFingerprint(String actionId) throws Exception {
-    return JsonPath.read(detail(actionId), "$.action_pending_version.version_fingerprint");
+  private ResultActions approveAs(Authentication as, String actionId) throws Exception {
+    return mvc.perform(
+        post(url("/" + actionId + "/approve"))
+            .with(authentication(as))
+            .with(csrf())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(asJsonString(new ThreatArsenalApproveInput(null))));
   }
 
   @Nested
@@ -224,17 +242,25 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "an author's content edit of an approved action waits as a pending version, a cosmetic one"
-            + " applies directly (Task 5)")
-    void given_authorEdits_should_createPendingVersionOnContentChangeOnly() throws Exception {
+        "an author's content edit of an approved action adds a pending version, the approved one"
+            + " stays approved")
+    void given_authorEdits_should_addPendingVersion() throws Exception {
       String actionId = createAction(approver);
 
-      updateAs(author, actionId, update("echo hello", "A clearer description"));
-      assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
-      assertThat((Object) JsonPath.read(detail(actionId), "$.action_pending_version")).isNull();
+      String newActionId = updateAs(author, actionId, update(actionId, "echo changed", null));
 
-      updateAs(author, actionId, update("echo changed", "A clearer description"));
-      assertPendingVersion(actionId);
+      assertPendingVersion(actionId, newActionId);
+    }
+
+    @Test
+    @DisplayName("an approver's content edit adds a version approved at once")
+    void given_approverEdits_should_addApprovedVersion() throws Exception {
+      String actionId = createAction(approver);
+
+      String newActionId = updateAs(approver, actionId, update(actionId, "echo changed", null));
+
+      assertThat(newActionId).isNotEqualTo(actionId);
+      assertThat(approvalStatus(newActionId)).isEqualTo("APPROVED");
     }
 
     @Test
@@ -292,7 +318,7 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
   class Decisions {
 
     @Test
-    @DisplayName("an approver approves a pending action with the shown fingerprint")
+    @DisplayName("an approver approves a pending version")
     void given_approver_should_approve() throws Exception {
       String actionId = createAction(author);
 
@@ -302,8 +328,7 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
                       .with(authentication(approver))
                       .with(csrf())
                       .contentType(MediaType.APPLICATION_JSON)
-                      .content(
-                          asJsonString(new ThreatArsenalApproveInput(fingerprint(actionId), "OK"))))
+                      .content(asJsonString(new ThreatArsenalApproveInput("OK"))))
               .andExpect(status().isOk())
               .andReturn()
               .getResponse()
@@ -322,42 +347,24 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
     void given_author_should_beForbidden() throws Exception {
       String actionId = createAction(author);
 
-      mvc.perform(
-              post(url("/" + actionId + "/approve"))
-                  .with(authentication(author))
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(
-                      asJsonString(new ThreatArsenalApproveInput(fingerprint(actionId), null))))
-          .andExpect(status().isForbidden());
+      approveAs(author, actionId).andExpect(status().isForbidden());
       assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
     }
 
     @Test
     @DisplayName(
-        "approving content that changed since it was shown, or a non-pending action, is refused")
-    void given_staleFingerprintOrNotPending_should_refuse() throws Exception {
-      String actionId = createAction(author);
-      String shown = fingerprint(actionId);
-      updateAs(author, actionId, update("echo swapped", null));
+        "a pending version replaced by a newer one is superseded: it can no longer be approved, nor"
+            + " an approved version")
+    void given_supersededOrApprovedVersion_should_refuse() throws Exception {
+      String first = createAction(author);
+      String second = updateAs(author, first, update(first, "echo swapped", null));
 
-      mvc.perform(
-              post(url("/" + actionId + "/approve"))
-                  .with(authentication(approver))
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(new ThreatArsenalApproveInput(shown, null))))
-          .andExpect(status().isBadRequest());
+      assertThat(approvalStatus(first)).isEqualTo("SUPERSEDED");
+      assertThat(approvalStatus(second)).isEqualTo("PENDING");
+      approveAs(approver, first).andExpect(status().isBadRequest());
 
       String approved = createAction(approver);
-      mvc.perform(
-              post(url("/" + approved + "/approve"))
-                  .with(authentication(approver))
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(
-                      asJsonString(new ThreatArsenalApproveInput(fingerprint(approved), null))))
-          .andExpect(status().isBadRequest());
+      approveAs(approver, approved).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -382,9 +389,10 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
           .andExpect(status().isOk());
       assertThat(approvalStatus(actionId)).isEqualTo("REJECTED");
 
-      // Rule 3: a rejected payload goes back to pending once its author edits it.
-      updateAs(author, actionId, update("echo fixed", null));
-      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+      // The author fixes it: a new version waits for approval, the rejected one stays rejected.
+      String fixed = updateAs(author, actionId, update(actionId, "echo fixed", null));
+      assertThat(approvalStatus(fixed)).isEqualTo("PENDING");
+      assertThat(approvalStatus(actionId)).isEqualTo("REJECTED");
 
       String history =
           mvc.perform(get(url("/" + actionId + "/approvals")))
@@ -393,8 +401,8 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
               .getResponse()
               .getContentAsString();
       List<String> origins = JsonPath.read(history, "$[*].approval_origin");
-      assertThat(origins).containsExactly("UPDATE", "REJECT", "CREATE");
-      assertThat((String) JsonPath.read(history, "$[1].approval_comment"))
+      assertThat(origins).containsExactly("REJECT", "CREATE");
+      assertThat((String) JsonPath.read(history, "$[0].approval_comment"))
           .isEqualTo("Deletes system logs");
     }
 
@@ -413,7 +421,7 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
                   .with(authentication(approver))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(new ThreatArsenalApproveInput("any", null))))
+                  .content(asJsonString(new ThreatArsenalApproveInput(null))))
           .andExpect(status().isBadRequest());
     }
   }
@@ -550,10 +558,12 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
                                   Capability.ACCESS_THREAT_ARSENALS,
                                   Capability.MANAGE_THREAT_ARSENALS)))))
           .andExpect(status().is2xxSuccessful());
-      updateAs(asAuthor, actionId, update("echo maker-checker", "Command line payload"));
+      String newActionId =
+          updateAs(
+              asAuthor, actionId, update(actionId, "echo maker-checker", "Command line payload"));
 
       // -- ASSERT --
-      assertPendingVersion(actionId);
+      assertPendingVersion(actionId, newActionId);
     }
   }
 
@@ -582,7 +592,7 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
       // Created in its own tenant-scoped transaction: set the legacy state on the persisted row
       String id = payloadService.createFileDropPayload(defaultTenant, documentId).getId();
       FileDrop fileDrop = (FileDrop) payloadRepository.findById(id).orElseThrow();
-      payloadApprovalService.onWrite(fileDrop, null, PayloadApproval.ORIGIN.IMPORT, null);
+      fileDrop.setApprovalStatus(Payload.PAYLOAD_APPROVAL_STATUS.PENDING);
       payloadRepository.save(fileDrop);
       entityManager.flush();
       assertThat(fileDrop.getApprovalStatus()).isEqualTo(Payload.PAYLOAD_APPROVAL_STATUS.PENDING);
@@ -683,10 +693,10 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
               List.of());
 
       // -- ACT --
-      updateAs(author, actionId, input);
+      String newActionId = updateAs(author, actionId, input);
 
       // -- ASSERT --
-      assertPendingVersion(actionId);
+      assertPendingVersion(actionId, newActionId);
     }
   }
 
@@ -741,27 +751,21 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
                                   Capability.ACCESS_THREAT_ARSENALS,
                                   Capability.MANAGE_THREAT_ARSENALS)))))
           .andExpect(status().is2xxSuccessful());
-      updateAs(session, actionId, update("echo after removal", "Command line payload"));
+      String newActionId =
+          updateAs(
+              session, actionId, update(actionId, "echo after removal", "Command line payload"));
 
       // -- ASSERT --
-      assertPendingVersion(actionId);
+      assertPendingVersion(actionId, newActionId);
+      approveAs(session, newActionId).andExpect(status().isForbidden());
       mvc.perform(
-              post(url("/" + actionId + "/approve"))
-                  .with(authentication(session))
-                  .with(csrf())
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(
-                      asJsonString(
-                          new ThreatArsenalApproveInput(pendingFingerprint(actionId), null))))
-          .andExpect(status().isForbidden());
-      mvc.perform(
-              post(url("/" + actionId + "/reject"))
+              post(url("/" + newActionId + "/reject"))
                   .with(authentication(session))
                   .with(csrf())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(new ThreatArsenalRejectInput("Not mine to reject"))))
           .andExpect(status().isForbidden());
-      assertPendingVersion(actionId);
+      assertPendingVersion(actionId, newActionId);
     }
   }
 }

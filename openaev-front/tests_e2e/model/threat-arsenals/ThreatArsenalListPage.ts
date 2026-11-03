@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
+import { TIMEOUT, WEBKIT_PAGE_LOAD_TIMEOUT } from '../../utils/constants';
+
 class ThreatArsenalListPage {
   readonly page: Page;
   readonly addButton: Locator;
@@ -60,8 +62,24 @@ class ThreatArsenalListPage {
     return this.listContainer.nth(lineNumber);
   }
 
+  /**
+   * The URL changes before the page mounts, so wait for the header and the
+   * pagination row here, once, instead of in the first action of each test.
+   * WebKit gets a longer budget: see WEBKIT_PAGE_LOAD_TIMEOUT.
+   */
   async waitForLoad() {
+    const timeout = this.page.context().browser()?.browserType().name() === 'webkit'
+      ? WEBKIT_PAGE_LOAD_TIMEOUT
+      : TIMEOUT;
     await this.page.waitForURL('**/threat-arsenal**');
+    await this.gridViewButton.waitFor({
+      state: 'visible',
+      timeout,
+    });
+    await this.paginationRow.waitFor({
+      state: 'visible',
+      timeout,
+    });
   }
 
   async openCreateThreatArsenal() {

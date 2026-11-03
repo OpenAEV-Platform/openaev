@@ -69,7 +69,14 @@ const TenantGroupsTab = () => {
         availableFilterNames={TENANT_GROUP_FILTERS}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <CreateTenantGroup onCreate={addGroup} disabled={!canManage} disabledMessage={PERMISSION_REQUIRED} />
+          <CreateTenantGroup
+            onCreate={(group) => {
+              addGroup(group);
+              queryableHelpers.paginationHelpers.incrementTotalElements(1);
+            }}
+            disabled={!canManage}
+            disabledMessage={PERMISSION_REQUIRED}
+          />
         )}
       />
       <List>
@@ -103,7 +110,10 @@ const TenantGroupsTab = () => {
                     groupMarkingIds={group.group_markings ?? []}
                     markingEnabled={markingEnabled}
                     onUpdate={updateGroupInList}
-                    onDelete={removeGroup}
+                    onDelete={(groupId: string) => {
+                      removeGroup(groupId);
+                      queryableHelpers.paginationHelpers.incrementTotalElements(-1);
+                    }}
                   />
                 )}
                 headers={headers}

@@ -9,6 +9,8 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
@@ -54,8 +56,10 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.*;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -68,6 +72,7 @@ import org.springframework.transaction.annotation.Transactional;
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
+@ExtendWith(MockitoExtension.class)
 class ScenarioServiceTest extends IntegrationTest {
 
   @Autowired ScenarioRepository scenarioRepository;
@@ -670,10 +675,10 @@ class ScenarioServiceTest extends IntegrationTest {
     this.scenarioRepository.save(scenario);
 
     // Act
-    when(this.injectService.runChecks(any())).thenReturn(List.of());
     List<HealthCheck> healthchecks = scenarioService.runChecks(scenario.getId());
 
     // Assert
+    verify(this.injectService, never()).runChecks(any());
     boolean hasMissingContent =
         healthchecks.stream()
             .anyMatch(

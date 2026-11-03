@@ -213,7 +213,7 @@ public class PayloadApprovalNotificationDispatcher {
 
   static String messageOf(PayloadApprovalNotification notification) {
     String payload = "\"" + notification.getPayloadName() + "\"";
-    Integer version = notification.getVersionNumber();
+    String version = notification.getVersion();
     String actor = notification.getActorName();
     return switch (notification.getEvent()) {
       case PAYLOAD_PENDING ->
@@ -241,7 +241,7 @@ public class PayloadApprovalNotificationDispatcher {
     };
   }
 
-  private static String yours(String payload, Integer version) {
+  private static String yours(String payload, String version) {
     return version != null
         ? "Your version v" + version + " of " + payload
         : "Your payload " + payload;

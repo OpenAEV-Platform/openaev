@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
+import org.hibernate.Hibernate;
 import org.hibernate.TransientObjectException;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
@@ -79,6 +80,34 @@ public class TeamService {
     return teamRepository
         .findByIdAndTenantIdIn(teamId, tenantIds)
         .orElseThrow(ElementNotFoundException::new);
+  }
+
+  /**
+   * Loads a team in scope with its tags, for the endpoint that returns the raw entity. It is
+   * serialized open-in-view after the commit, when a lazy {@code tags} load fails closed to an
+   * empty array once {@code tags} is v2-active: the team edit form, filled from that response, then
+   * saved the empty list and erased the team's tags.
+   */
+  public Team teamInScopeWithTags(@NotNull final TxCtx ctx, @NotNull final String teamId) {
+    Team team = teamInScope(ctx, teamId);
+    Hibernate.initialize(team.getTags());
+    return team;
+  }
+
+  /**
+   * Loads the players of a team in scope with their tags and teams, for the endpoint that returns
+   * the raw users: {@code tags} and {@code teams} are both v2-active, so a lazy load at
+   * serialization time fails closed to an empty array. The player edit form is filled from that
+   * response, and an empty tag list erased the player's tags on save.
+   */
+  public List<User> teamPlayersInScope(@NotNull final TxCtx ctx, @NotNull final String teamId) {
+    List<User> players = teamInScope(ctx, teamId).getUsers();
+    players.forEach(
+        player -> {
+          Hibernate.initialize(player.getTags());
+          Hibernate.initialize(player.getTeams());
+        });
+    return players;
   }
 
   /**

@@ -7,10 +7,8 @@ import { LogoXtmOneIcon } from 'filigran-icon';
 import { type FunctionComponent, type MouseEvent as ReactMouseEvent, useState } from 'react';
 
 import { aiChangeTone, aiExplain, aiFixSpelling, aiGenMedia, aiGenMessage, aiGenSubject, aiMakeLonger, aiMakeShorter, aiSummarize } from '../../../../actions/AskAI';
-// eslint-disable-next-line import/no-cycle
 import SimpleRichTextField from '../../../../components/fields/SimpleRichTextField';
 import { useFormatter } from '../../../../components/i18n';
-// eslint-disable-next-line import/no-cycle
 import ResponseDialog, { type AgentMode } from '../../../../utils/ai/ResponseDialog';
 import useAI from '../../../../utils/hooks/useAI';
 import useEnterpriseEdition from '../../../../utils/hooks/useEnterpriseEdition';
@@ -357,11 +355,11 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           agentMode={useXtmOne ? agentMode : null}
         />
         <Dialog
-          PaperProps={{ elevation: 1 }}
           open={openGenMessageOptions}
           onClose={handleCloseGenMessageOptions}
           fullWidth={true}
           maxWidth="xs"
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>{t('Select options')}</DialogTitle>
           <DialogContent>
@@ -451,11 +449,11 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           </DialogActions>
         </Dialog>
         <Dialog
-          PaperProps={{ elevation: 1 }}
           open={openGenMediaOptions}
           onClose={handleCloseGenMediaOptions}
           fullWidth={true}
           maxWidth="xs"
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>{t('Select options')}</DialogTitle>
           <DialogContent>
@@ -538,11 +536,11 @@ const TextFieldAskAI: FunctionComponent<TextFieldAskAiProps> = ({
           </DialogActions>
         </Dialog>
         <Dialog
-          PaperProps={{ elevation: 1 }}
           open={openToneOptions}
           onClose={handleCloseToneOptions}
           fullWidth={true}
           maxWidth="xs"
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>{t('Select options')}</DialogTitle>
           <DialogContent>

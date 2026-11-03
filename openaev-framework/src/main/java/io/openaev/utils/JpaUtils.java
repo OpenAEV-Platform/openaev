@@ -9,7 +9,11 @@ import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
+import org.hibernate.metamodel.model.domain.ManagedDomainType;
+import org.hibernate.metamodel.model.domain.PersistentAttribute;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
+import org.hibernate.query.criteria.JpaFrom;
+import org.hibernate.query.sqm.tree.from.SqmFrom;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.CollectionUtils;
 
@@ -45,6 +49,28 @@ public final class JpaUtils {
     // Utility class - prevent instantiation
   }
 
+  /**
+   * Returns {@code from}, treated as the subtype declaring {@code attribute} when only a subtype of
+   * its entity declares it. Hibernate 6 resolved such attributes from the supertype path
+   * implicitly; Hibernate 7 requires the treat, and {@code SchemaUtils#schemaWithSubtypes} offers
+   * them (e.g. {@code AiAttack.category} when searching payloads, or {@code Endpoint.agents} when
+   * joining an inject's assets).
+   */
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public static From<?, ?> declaringFrom(
+      @NotNull final From<?, ?> from, @NotNull final String attribute) {
+    // A root's or a join's referenced path source is the entity type it ranges over.
+    if (from instanceof SqmFrom<?, ?> sqmFrom
+        && sqmFrom.getReferencedPathSource().getPathType() instanceof ManagedDomainType<?> type
+        && type.findAttribute(attribute) == null) {
+      PersistentAttribute<?, ?> subTypeAttribute = type.findSubTypesAttribute(attribute);
+      if (subTypeAttribute != null) {
+        return ((JpaFrom) sqmFrom).treatAs(subTypeAttribute.getDeclaringType().getJavaType());
+      }
+    }
+    return from;
+  }
+
   private static <U> Path<U> computePath(
       @NotNull final From<?, ?> from, @NotNull final String key) {
     String[] jsonPaths = key.split("\\.");
@@ -53,15 +79,16 @@ public final class JpaUtils {
     if (jsonPaths.length > 1) {
       From<?, ?> currentFrom = from;
       for (int i = 0; i < jsonPaths.length - 1; i++) {
-        currentFrom = currentFrom.join(jsonPaths[i], JoinType.LEFT);
+        currentFrom = declaringFrom(currentFrom, jsonPaths[i]).join(jsonPaths[i], JoinType.LEFT);
       }
       // Last path part -> use get
-      return currentFrom.get(jsonPaths[jsonPaths.length - 1]);
+      String last = jsonPaths[jsonPaths.length - 1];
+      return declaringFrom(currentFrom, last).get(last);
     }
 
     // Simple path -> use get
     else if (jsonPaths.length == 1) {
-      return from.get(jsonPaths[0]);
+      return declaringFrom(from, jsonPaths[0]).get(jsonPaths[0]);
     }
 
     return null;
@@ -113,9 +140,11 @@ public final class JpaUtils {
     // Join
     if (propertySchema.getJoinTable() != null) {
       PropertySchema.JoinTable joinTable = propertySchema.getJoinTable();
-      return root.join(joinTable.getJoinOn(), JoinType.LEFT).get("id");
+      return declaringFrom(root, joinTable.getJoinOn())
+          .join(joinTable.getJoinOn(), JoinType.LEFT)
+          .get("id");
     } else {
-      return root.get(propertySchema.getName());
+      return declaringFrom(root, propertySchema.getName()).get(propertySchema.getName());
     }
   }
 

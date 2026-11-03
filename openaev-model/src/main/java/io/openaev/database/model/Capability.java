@@ -26,6 +26,8 @@ public enum Capability {
       pair(ResourceType.SCENARIO, Action.SEARCH),
       pair(ResourceType.SIMULATION, Action.READ),
       pair(ResourceType.SIMULATION, Action.SEARCH),
+      pair(ResourceType.AUTONOMOUS_RUN, Action.READ),
+      pair(ResourceType.AUTONOMOUS_RUN, Action.SEARCH),
       pair(ResourceType.ATOMIC_TESTING, Action.READ),
       pair(ResourceType.ATOMIC_TESTING, Action.SEARCH),
       pair(ResourceType.WORKFLOW, Action.READ),
@@ -41,6 +43,8 @@ public enum Capability {
       pair(ResourceType.SCENARIO, Action.CREATE),
       pair(ResourceType.SIMULATION, Action.WRITE),
       pair(ResourceType.SIMULATION, Action.DUPLICATE),
+      pair(ResourceType.AUTONOMOUS_RUN, Action.WRITE),
+      pair(ResourceType.AUTONOMOUS_RUN, Action.DUPLICATE),
       pair(ResourceType.SIMULATION, Action.CREATE),
       pair(ResourceType.ATOMIC_TESTING, Action.WRITE),
       pair(ResourceType.ATOMIC_TESTING, Action.DUPLICATE),
@@ -58,6 +62,7 @@ public enum Capability {
       MANAGE_ASSESSMENT,
       pair(ResourceType.SCENARIO, Action.DELETE),
       pair(ResourceType.SIMULATION, Action.DELETE),
+      pair(ResourceType.AUTONOMOUS_RUN, Action.DELETE),
       pair(ResourceType.ATOMIC_TESTING, Action.DELETE),
       pair(ResourceType.STEP, Action.DELETE),
       pair(ResourceType.WORKFLOW, Action.DELETE),
@@ -66,6 +71,7 @@ public enum Capability {
       ACCESS_ASSESSMENT,
       pair(ResourceType.SCENARIO, Action.LAUNCH),
       pair(ResourceType.SIMULATION, Action.LAUNCH),
+      pair(ResourceType.AUTONOMOUS_RUN, Action.LAUNCH),
       pair(ResourceType.ATOMIC_TESTING, Action.LAUNCH)),
 
   // Teams & Players
@@ -148,6 +154,8 @@ public enum Capability {
       pair(ResourceType.THREAT_ARSENAL, Action.CREATE),
       pair(ResourceType.THREAT_ARSENAL, Action.DUPLICATE)),
   DELETE_THREAT_ARSENALS(MANAGE_THREAT_ARSENALS, pair(ResourceType.THREAT_ARSENAL, Action.DELETE)),
+  REVOKE_THREAT_ARSENALS(
+      MANAGE_THREAT_ARSENALS, pair(ResourceType.PAYLOAD_REVOCATION, Action.WRITE)),
   // "Approve content": trust a payload's content to be used, a content decision kept apart from
   // Launch assessment (an execution decision). Sibling of Manage so approvers need not author.
   APPROVE_THREAT_ARSENALS(
@@ -516,6 +524,13 @@ public enum Capability {
       CapabilityGroup.SECURITY,
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.AGENT_INSTALLER, Action.READ)),
+
+  // Sends content releases to the catalogue: meant for the collector's account alone.
+  SYNC_CATALOG(
+      null,
+      CapabilityGroup.THREAT_ARSENALS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.CATALOG_SYNC, Action.CREATE)),
 
   // STIX
   MANAGE_STIX_BUNDLE(

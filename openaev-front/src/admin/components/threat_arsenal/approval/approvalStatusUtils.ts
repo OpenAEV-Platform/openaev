@@ -5,7 +5,7 @@ import { type PayloadApprovalOutput, type ThreatArsenalActionUsageOutput } from 
 export type ApprovalStatus = NonNullable<PayloadApprovalOutput['approval_status']>;
 export type ApprovalOrigin = NonNullable<PayloadApprovalOutput['approval_origin']>;
 
-export const APPROVAL_STATUSES: ApprovalStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
+export const APPROVAL_STATUSES: ApprovalStatus[] = ['PENDING', 'APPROVED', 'REJECTED', 'SUPERSEDED'];
 
 // Same ladder as the other status chips: orange "medium" for what needs attention, green "low"
 // when it can be used, red "critical" when it is blocked.
@@ -13,12 +13,14 @@ const STATUS_SEVERITIES: Record<ApprovalStatus, ChipSeverity> = {
   PENDING: 'medium',
   APPROVED: 'low',
   REJECTED: 'critical',
+  SUPERSEDED: 'neutral',
 };
 
 const STATUS_LABELS: Record<ApprovalStatus, string> = {
   PENDING: 'Pending approval',
   APPROVED: 'Approved',
   REJECTED: 'Rejected',
+  SUPERSEDED: 'Superseded',
 };
 
 const ORIGIN_LABELS: Record<ApprovalOrigin, string> = {
@@ -27,21 +29,17 @@ const ORIGIN_LABELS: Record<ApprovalOrigin, string> = {
   DUPLICATE: 'Duplicated',
   IMPORT: 'Imported',
   COLLECTOR: 'Synchronized by a collector',
+  CATALOG: 'Verified by Filigran',
   SYSTEM: 'Built-in',
   MIGRATION: 'Approved when payload approval was introduced',
   APPROVE: 'Approved',
   REJECT: 'Rejected',
+  SUPERSEDE: 'Replaced by a newer version',
 };
 
 export const approvalStatusSeverity = (status: ApprovalStatus): ChipSeverity => STATUS_SEVERITIES[status] ?? 'neutral';
 
 export const approvalStatusLabel = (status: ApprovalStatus): string => STATUS_LABELS[status] ?? status;
-
-/**
- * The status shown for an action: its latest version's. An approved action with a new version
- * waiting shows PENDING; the approved version keeps running until that version is decided.
- */
-export const displayedApprovalStatus = <S extends ApprovalStatus | null | undefined>(status: S, pendingVersion?: boolean): S | 'PENDING' => (pendingVersion ? 'PENDING' : status);
 
 export const approvalOriginLabel = (origin: ApprovalOrigin): string => ORIGIN_LABELS[origin] ?? origin;
 

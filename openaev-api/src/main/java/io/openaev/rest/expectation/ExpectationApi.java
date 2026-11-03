@@ -10,11 +10,12 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
+import io.openaev.rest.exercise.form.InjectExpectationUpdateFromUIInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
+import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.expectation.ExpectationVerdict;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -46,14 +47,16 @@ public class ExpectationApi extends RestBehavior {
   public InjectExpectationOutput updateInjectExpectation(
       TxCtx ctx,
       @PathVariable @NotBlank final String expectationId,
-      @Valid @RequestBody final ExpectationUpdateInput input) {
+      @Valid @RequestBody final InjectExpectationUpdateFromUIInput input) {
     log.debug(
         "PUT expectation {} with source={} ({}), score={}",
         expectationId,
         input.getSourceId(),
         input.getSourceName(),
         input.getScore());
-    return toOutput(injectExpectationService.updateInjectExpectation(expectationId, input));
+    return toOutput(
+        injectExpectationService.updateInjectExpectation(
+            expectationId, ExpectationVerdict.fromUI(input)));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -275,7 +278,7 @@ public class ExpectationApi extends RestBehavior {
   public InjectExpectationOutput updateInjectExpectation(
       TxCtx ctx,
       @PathVariable @NotBlank final String expectationId,
-      @Valid @RequestBody @NotNull InjectExpectationUpdateInput input) {
+      @Valid @RequestBody @NotNull InjectExpectationUpdateFromCollectorInput input) {
     return toOutput(injectExpectationService.updateInjectExpectation(expectationId, input));
   }
 

@@ -37,6 +37,7 @@ import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.OrganizationComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.WithoutTenantScope;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.HashSet;
@@ -384,6 +385,9 @@ class OrganizationHttpIsolationTest extends IntegrationTest {
     }
 
     @Test
+    // Unscoped like main: under the default test scope the preload really loads the foreign
+    // organization, and findById then serves it from the persistence context, unfiltered.
+    @WithoutTenantScope
     @DisplayName("A preloaded foreign organization does not bypass the ownership guard")
     void given_foreignOrganizationInPersistenceContext_should_rejectUpdate() throws Exception {
       // Arrange

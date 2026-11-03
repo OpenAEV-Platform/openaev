@@ -9,24 +9,34 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AttackPatternRepository;
 import io.openaev.database.repository.DomainRepository;
+import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ManagedPayloadReadOnlyException;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpdateInput;
+import io.openaev.service.GrantService;
 import io.openaev.service.UserService;
+import io.openaev.service.content.ContentHistoryService;
+import io.openaev.service.payload.PayloadVersionNumbering;
+import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.payload_approval.PayloadApprovalService;
-import io.openaev.service.payload_approval.PayloadVersionService;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Saves a local payload (ADR-018): a change of its hashed content adds a new version, the previous
+ * row never changes; tags and domains are metadata, saved on the version as it is.
+ */
 @RequiredArgsConstructor
 @Service
 public class PayloadUpdateService {
@@ -41,14 +51,35 @@ public class PayloadUpdateService {
   private final AttackPatternRepository attackPatternRepository;
   private final DomainRepository domainRepository;
   private final PayloadRepository payloadRepository;
+  private final InjectorContractRepository injectorContractRepository;
   private final DocumentService documentService;
+  private final ContentHistoryService contentHistoryService;
+  private final PayloadVersionService payloadVersionService;
+  private final PayloadVersionNumbering payloadVersionNumbering;
+  private final GrantService grantService;
+
+  /**
+   * @param previous the version saved over, when a new one was created; null otherwise
+   * @param previousUsages injects and chained steps still on the previous version
+   */
+  public record PayloadSaveResult(
+      Payload payload, InjectorContract injectorContract, Payload previous, int previousUsages) {
+
+    public boolean newVersion() {
+      return previous != null;
+    }
+
+    public PayloadCreationService.PayloadInjectorContractCreationResult creation() {
+      return new PayloadCreationService.PayloadInjectorContractCreationResult(
+          payload, injectorContract);
+    }
+  }
+
   private final UserService userService;
   private final PayloadApprovalService payloadApprovalService;
-  private final PayloadVersionService payloadVersionService;
 
   @Transactional(rollbackFor = Exception.class)
-  public PayloadCreationService.PayloadInjectorContractCreationResult updatePayload(
-      String payloadId, PayloadUpdateInput input) {
+  public PayloadSaveResult updatePayload(String payloadId, PayloadUpdateInput input) {
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);
@@ -56,59 +87,75 @@ public class PayloadUpdateService {
 
     Payload payload =
         this.payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
+    if (PayloadVersionService.isManaged(payload)) {
+      throw new ManagedPayloadReadOnlyException(
+          "Payload " + payloadId + " is a managed version and is read-only: duplicate it to edit.");
+    }
+    if (payload.getIdentity().isVariant()) {
+      throw new BadRequestException(
+          "Payload " + payloadId + " is customized: change its overrides instead.");
+    }
     // Same guard as PayloadCreationService: callers converting action inputs (threat arsenal
     // update) can carry null id collections, which findAllById rejects with "Ids must not be
     // null". An absent collection means "no associations".
     List<AttackPattern> attackPatterns =
         fromIterable(
             attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds())));
-    return update(input, payload, attackPatterns);
+    return save(input, (Payload) Hibernate.unproxy(payload), attackPatterns);
   }
 
-  private PayloadCreationService.PayloadInjectorContractCreationResult update(
-      PayloadUpdateInput input, Payload existingPayload, List<AttackPattern> attackPatterns) {
-    PayloadType payloadType = PayloadType.fromString(existingPayload.getType());
+  private PayloadSaveResult save(
+      PayloadUpdateInput input, Payload current, List<AttackPattern> attackPatterns) {
+    PayloadType payloadType = PayloadType.fromString(current.getType());
     validateArchitecture(payloadType.key, input.getExecutionArch());
+    Set<Domain> domains =
+        iterableToSet(domainRepository.findAllById(emptyIfNull(input.getDomainIds())));
+    Set<Tag> tags = iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds())));
+    Optional<InjectorContract> currentContract =
+        injectorContractRepository.findInjectorContractByPayload(current);
 
-    Payload payload = (Payload) Hibernate.unproxy(existingPayload);
-    PayloadVersionService.Active active = PayloadVersionService.Active.of(payload);
-    boolean wasApproved = payload.getApprovalStatus() == Payload.PAYLOAD_APPROVAL_STATUS.APPROVED;
+    Payload candidate = payloadService.copyForNewVersion(current);
+    payloadUtils.copyProperties(input, candidate);
     // Null outside an authenticated request (system flows): an unknown modifier, never a stale one.
-    User actor = userService.currentUserOrNull();
-    payloadUtils.copyProperties(input, payload);
-    payload.setLastModifiedBy(actor);
-
-    // Somehow, loading tags can create a detached error on detection remediation.
-    // Detaching the collection before and reattaching it after bypass the issue
-    List<DetectionRemediation> originalDrs = new ArrayList<>(payload.getDetectionRemediations());
-    payload.setDetectionRemediations(Collections.emptyList());
-    payload.setDetectionRemediations(originalDrs);
-
-    if (payload instanceof Executable executable) {
+    candidate.setLastModifiedBy(userService.currentUserOrNull());
+    if (candidate instanceof Executable executable) {
       executable.setExecutableFile(documentService.document(input.getExecutableFile()));
-    } else if (payload instanceof FileDrop fileDrop) {
+    } else if (candidate instanceof FileDrop fileDrop) {
       fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
     }
 
-    // An executable edit of an approved payload that needs approval becomes a pending version: the
-    // payload keeps its approved content and only the cosmetic part of the edit is saved.
-    payloadVersionService.onEdit(payload, active, actor, PayloadVersion.ORIGIN.UPDATE);
-    Payload saved = payloadRepository.save(payload);
-    payloadApprovalService.onWrite(
-        saved, saved.getLastModifiedBy(), PayloadApproval.ORIGIN.UPDATE, active.fingerprint());
-    if (!wasApproved
-        && actor != null
-        && saved.getApprovalStatus() == Payload.PAYLOAD_APPROVAL_STATUS.APPROVED) {
-      // An approver's edit approving a pending payload that had been approved before: new number.
-      payloadVersionService.onReapproved(saved, actor);
+    Optional<PayloadVersionNumbering.Change> change =
+        payloadVersionNumbering.change(
+            current,
+            currentContract.map(InjectorContract::getAttackPatterns).orElse(List.of()),
+            candidate,
+            attackPatterns);
+    if (change.isEmpty()) {
+      InjectorContract contract =
+          payloadService.synchroniseInjectorContractBasedOnPayload(
+              current, attackPatterns, domains, tags);
+      return new PayloadSaveResult(current, contract, null, 0);
     }
-    InjectorContract injectorContract =
+
+    Payload saved =
+        payloadVersionService.addVersion(
+            current.getIdentity(),
+            candidate,
+            highest -> PayloadVersionNumbering.bump(highest.getVersion(), change.get()));
+    payloadApprovalService.onWrite(saved, saved.getLastModifiedBy(), PayloadApproval.ORIGIN.UPDATE);
+    InjectorContract contract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
-            saved,
-            attackPatterns,
-            iterableToSet(domainRepository.findAllById(emptyIfNull(input.getDomainIds()))),
-            iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
-    return new PayloadCreationService.PayloadInjectorContractCreationResult(
-        saved, injectorContract);
+            saved, attackPatterns, domains, tags);
+    currentContract.ifPresent(
+        previous ->
+            grantService.copyGrants(
+                previous.getId(), contract.getId(), Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL));
+    contentHistoryService.payloadUpdated(current, saved);
+    // The saver is asked to move the injects only when the new version is approved at once; a
+    // pending version is offered to them by the approver who approves it.
+    return payloadApprovalService
+        .moveOffer(saved)
+        .map(offer -> new PayloadSaveResult(saved, contract, offer.from(), offer.usages()))
+        .orElseGet(() -> new PayloadSaveResult(saved, contract, current, 0));
   }
 }

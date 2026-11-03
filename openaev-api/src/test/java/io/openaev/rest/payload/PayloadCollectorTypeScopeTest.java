@@ -48,6 +48,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @DisplayName("PayloadApi#payloads serializes the collector type name outside the request scope")
 class PayloadCollectorTypeScopeTest extends IntegrationTest {
 
+  @Autowired private io.openaev.utils.helpers.PayloadVersionTestHelper payloadVersionTestHelper;
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
@@ -90,7 +91,7 @@ class PayloadCollectorTypeScopeTest extends IntegrationTest {
     tenantTx.execute(
         TxCtx.forTenant(tenantId),
         () -> {
-          payloadRepository.deleteById(payloadId);
+          payloadVersionTestHelper.delete(payloadId);
           collectorTypeRepository.deleteById(collectorTypeId);
         });
   }

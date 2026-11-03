@@ -127,7 +127,13 @@ const CustomDomainInstructionsPanel: FunctionComponent<Props> = ({ customDomain,
       )}
 
       <Box>
-        <Typography variant="body2" color="text.secondary" sx={{ marginBottom: 2 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+            marginBottom: 2,
+          }}
+        >
           {t('Publish the two DNS records below at your DNS provider, then run the verification. DNS changes can take a few minutes to propagate.')}
         </Typography>
 
@@ -169,19 +175,28 @@ const CustomDomainInstructionsPanel: FunctionComponent<Props> = ({ customDomain,
                 </Typography>
               </Box>
               <Box sx={{ paddingLeft: '30px' }}>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('Record type')}
                 </Typography>
                 <Box sx={{ marginBottom: 1 }}>
                   <CodeBlock content={record.type} />
                 </Box>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('Name / host')}
                 </Typography>
                 <Box sx={{ marginBottom: 1 }}>
                   <CodeBlock content={record.name} />
                 </Box>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  sx={{ color: 'text.secondary' }}
+                >
                   {t('Value')}
                 </Typography>
                 <CodeBlock content={record.value} />
@@ -192,7 +207,10 @@ const CustomDomainInstructionsPanel: FunctionComponent<Props> = ({ customDomain,
       </Box>
 
       {domain.custom_domain_last_checked_at && (
-        <Typography variant="caption" color="text.secondary">
+        <Typography
+          variant="caption"
+          sx={{ color: 'text.secondary' }}
+        >
           {t('Last checked')}
           {': '}
           {fldt(domain.custom_domain_last_checked_at)}

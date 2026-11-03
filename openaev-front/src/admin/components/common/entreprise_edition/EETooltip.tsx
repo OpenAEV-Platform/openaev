@@ -50,11 +50,11 @@ const EETooltip = ({
           </span>
         </Tooltip>
         <Dialog
-          PaperProps={{ elevation: 1 }}
           open={openEnableAI}
           onClose={() => setOpenEnableAI(false)}
           fullWidth={true}
           maxWidth="sm"
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>
             {t('Enable AI powered platform')}
@@ -83,11 +83,11 @@ const EETooltip = ({
           </span>
         </Tooltip>
         <Dialog
-          PaperProps={{ elevation: 1 }}
           open={openConfigAI}
           onClose={() => setOpenConfigAI(false)}
           fullWidth={true}
           maxWidth="sm"
+          slotProps={{ paper: { elevation: 1 } }}
         >
           <DialogTitle>
             {t('Enable AI powered platform')}

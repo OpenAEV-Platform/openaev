@@ -199,6 +199,9 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.marking_definition.MarkingDefinitionApi#create",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#update",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#delete",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#assigned",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#optionsByName",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#optionsById",
           "io.openaev.api.attackpath.AttackPathApi#relations",
           "io.openaev.api.attackpath.AttackPathApi#findings",
           "io.openaev.api.attackpath.AttackPathApi#executionDetail",
@@ -330,6 +333,10 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.payload.PayloadApi#createPayload",
           "io.openaev.rest.payload.PayloadApi#updatePayload",
           "io.openaev.rest.payload.PayloadApi#duplicatePayload",
+          // payload revocation (F34): reads the payload and refreshes its latest flag
+          "io.openaev.api.payload.PayloadRevocationApi#revocation",
+          "io.openaev.api.payload.PayloadRevocationApi#revoke",
+          "io.openaev.api.payload.PayloadRevocationApi#lift",
           // tenant_xtmhub_registrations (v2): singleton registration endpoints and the explicit
           // default-tenant contact-us lookup
           "io.openaev.api.xtmhub.XtmHubApi#getRegistration",
@@ -456,6 +463,9 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // SecurityCoverageSendJobService#shouldCreateCoverageSendJob.
           // Both overloads (with/without agentId) are covered by the single name entry.
           "io.openaev.rest.inject.InjectApi#injectExecutionCallback",
+          // implant endpoints: InjectService#checkAgentTargetsInject reads the agent's asset and
+          // the inject's asset groups (assets / asset_groups, v2) before serving the payload.
+          "io.openaev.rest.inject.InjectApi#getExecutablePayloadInject",
           // security platforms: serialize the collectors association (tenant-active table) so the
           // UI can keep collector-managed platforms read-only (#7025). Both overloads of
           // securityPlatforms (GET list and POST search) are covered by the single name entry.

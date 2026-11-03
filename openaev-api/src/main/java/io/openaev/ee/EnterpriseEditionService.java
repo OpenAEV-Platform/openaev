@@ -96,8 +96,7 @@ public class EnterpriseEditionService {
     throw new UnsupportedOperationException("No attribute found for " + variable);
   }
 
-  public static boolean verifyCertificate(
-      X509Certificate certToVerify, X509Certificate trustedCaCert) {
+  public boolean verifyCertificate(X509Certificate certToVerify, X509Certificate trustedCaCert) {
     try {
       TrustAnchor trustAnchor = new TrustAnchor(trustedCaCert, null);
       Set<TrustAnchor> trustAnchors = Collections.singleton(trustAnchor);
@@ -133,7 +132,7 @@ public class EnterpriseEditionService {
     License license = new License();
     license.setLicenseByConfiguration(isLicenseByConfig);
     license.setLicenseEnterprise(true);
-    license.setValidCert(true);
+    license.setValidCert(verifyCertificate);
     String licenseType = getExtension(x509License, LICENSE_OPTION_TYPE);
     license.setType(LicenseTypeEnum.valueOf(licenseType));
     boolean isValidProduct =

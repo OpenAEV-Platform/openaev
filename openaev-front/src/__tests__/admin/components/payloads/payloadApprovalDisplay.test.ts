@@ -15,13 +15,11 @@ describe('payloadApprovalDisplay', () => {
     });
   });
 
-  it('informs, without blocking, about a new version pending approval of an approved payload', () => {
-    expect(payloadApprovalDisplay('APPROVED', true)).toMatchObject({
-      status: 'PAYLOAD_PENDING_APPROVAL',
-      label: 'New version pending approval',
+  it('names a version replaced before any decision as superseded', () => {
+    expect(payloadApprovalDisplay('SUPERSEDED')).toMatchObject({
+      status: 'PAYLOAD_REJECTED',
+      label: 'Payload version superseded',
     });
-    // A never-approved payload keeps its blocking display, whatever the flag.
-    expect(payloadApprovalDisplay('PENDING', true)?.label).toBe('Payload pending approval');
   });
 
   it('shows nothing for an approved payload or an inject without payload', () => {
@@ -42,7 +40,7 @@ describe('launchBlockedLabel', () => {
 
   it('says why one action blocks the launch', () => {
     expect(launchBlockedLabel(t, [blocker('TEST-A', 'PENDING')])).toBe('Can\'t launch: TEST-A is pending approval');
-    expect(launchBlockedLabel(t, [blocker('TEST-A', 'APPROVED')])).toBe('Can\'t launch: TEST-A changed since its approval');
+    expect(launchBlockedLabel(t, [blocker('TEST-A', 'SUPERSEDED')])).toBe('Can\'t launch: TEST-A was replaced by a newer version');
   });
 
   it('names up to 3 actions, then "+N"', () => {

@@ -156,8 +156,8 @@ const PhishingHtmlPreview = ({ title, iframeTitle, srcDoc, chrome, height = 560 
         open={fullscreen}
         onClose={closeFullscreen}
         fullScreen
-        PaperProps={{ elevation: 1 }}
-        TransitionComponent={Transition}
+        slots={{ transition: Transition }}
+        slotProps={{ paper: { elevation: 1 } }}
       >
         <DialogTitle sx={{
           display: 'flex',

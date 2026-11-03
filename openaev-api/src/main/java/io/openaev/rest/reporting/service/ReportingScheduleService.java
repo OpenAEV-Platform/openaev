@@ -16,6 +16,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.injectors.email.service.EmailService;
+import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.reporting.ReportingService;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.service.FileService;
@@ -236,7 +237,11 @@ public class ReportingScheduleService {
       fileBytes = stream.readAllBytes();
     }
     DataAttachment attachment =
-        new DataAttachment(document.getId(), document.getName(), fileBytes, document.getType());
+        new DataAttachment(
+            document.getId(),
+            DocumentService.safeFileName(document.getName()),
+            fileBytes,
+            document.getType());
     String subject = "[" + platformName() + "] Scheduled report: " + reporting.getName();
     sendEmail(recipients, subject, buildReportBody(reporting, generation), List.of(attachment));
     log.info(

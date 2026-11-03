@@ -53,7 +53,7 @@ import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import ApprovalStatusChip from './approval/ApprovalStatusChip';
-import { displayedApprovalStatus } from './approval/approvalStatusUtils';
+import PayloadRevocationBanner from './PayloadRevocationBanner';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
 
 // Human labels for the predefined expectation types carried by a payload/contract.
@@ -137,17 +137,16 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
 
   const primaryDomain = domains[0];
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
-  const status = action.action_payload?.payload_status ?? payload?.payload_status;
+  const revokedPayloadId = action.action_payload?.payload_revoked || payload?.payload_status === 'REVOKED'
+    ? action.action_payload?.payload_id ?? payload?.payload_id
+    : undefined;
+  const status = action.action_payload?.payload_revoked ? 'REVOKED' : action.action_payload?.payload_status ?? payload?.payload_status;
   const statusColor = status ? getStatusColor(theme, status) : undefined;
   const statusLabel = getStatusLabel(status);
-  // A payload that is not approved shows its approval status instead of Verified / Unverified /
+  // A version that is not approved shows its approval status instead of Verified / Unverified /
   // Deprecated: the approval decides whether it can be used.
-  // A new version waiting shows as Pending (the latest version's status).
-  const approvalStatus = displayedApprovalStatus(
-    action.action_payload?.payload_approval_status ?? payload?.payload_approval_status,
-    action.action_payload?.payload_pending_version ?? payload?.payload_pending_version,
-  );
-  const approvalWins = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED';
+  const approvalStatus = action.action_payload?.payload_approval_status ?? payload?.payload_approval_status;
+  const approvalWins = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED' || approvalStatus === 'SUPERSEDED';
   const name = tPick(action.action_labels);
   const description = payload?.payload_description ?? '';
   const platforms = payload?.payload_platforms ?? action.action_platforms ?? [];
@@ -221,6 +220,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
       gap: 2,
     }}
     >
+      {revokedPayloadId && <PayloadRevocationBanner payloadId={revokedPayloadId} />}
       <Box
         sx={{
           position: 'relative',
@@ -482,7 +482,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               : <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>}
           </Field>
 
-          <Field label="Author">
+          <Field label="Provider">
             {authorName
               ? (
                   <Box sx={{

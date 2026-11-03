@@ -2,6 +2,7 @@ package io.openaev.api.autonomous;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -107,6 +108,13 @@ class AutonomousRunNonAdminIsolationTest extends IntegrationTest {
   void directivesUnderOtherTenantIsHiddenFromNonAdmin() throws Exception {
     mvc.perform(get(SCOPED + "/{runId}/directives", otherTenant, runId))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  @DisplayName("lack of LAUNCH privileges end up in 403")
+  void forbiddenWhenLackingLaunch() throws Exception {
+    mvc.perform(post(SCOPED + "/{runId}/directives", ownerTenant, runId).content("{}"))
+        .andExpect(status().isForbidden());
   }
 
   // Same native seeding as the admin suite: an explicit tenant_id lands the rows without a

@@ -2,7 +2,6 @@ import { Button, IconButton, Paper, Text } from '@filigran/design-system';
 import { ArrowBack, Close, OpenInNew, ShieldOutlined } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-// eslint-disable-next-line import/no-named-as-default
 import DOMPurify from 'dompurify';
 import { useEffect, useRef, useState } from 'react';
 
@@ -862,7 +861,6 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                     </div>
                     {/* Detection rule text is sanitized before rendering — never injected raw. */}
                     <div
-                      // eslint-disable-next-line react/no-danger
                       dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize((rem.detection_remediation_values ?? '').replace(/\n/g, '<br/>')) }}
                     />
                   </div>

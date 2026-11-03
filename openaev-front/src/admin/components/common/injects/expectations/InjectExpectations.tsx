@@ -123,7 +123,10 @@ const InjectExpectations: FunctionComponent<InjectExpectationsProps> = ({
           alignItems: 'center',
         }}
         >
-          <Typography variant="subtitle2" fontWeight={600}>
+          <Typography
+            variant="subtitle2"
+            sx={{ fontWeight: 600 }}
+          >
             {t('Expectations')}
           </Typography>
           {canAddExpectation && (

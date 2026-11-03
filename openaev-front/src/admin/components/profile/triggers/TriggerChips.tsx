@@ -9,19 +9,6 @@ import { eventTypeLabel, resourceTypeLabel } from './triggerUtils';
 // Design system list chips: square corners, 20px height, uppercase, alpha-tinted background
 // (same pattern as ItemSeverity / ItemStatus)
 const useStyles = makeStyles()(() => ({
-  chipInList: {
-    fontSize: 12,
-    height: 20,
-    borderRadius: 4,
-    textTransform: 'uppercase',
-    width: 100,
-  },
-  chipAuto: {
-    fontSize: 12,
-    height: 20,
-    borderRadius: 4,
-    textTransform: 'uppercase',
-  },
   eventsContainer: {
     display: 'flex',
     flexWrap: 'wrap',
@@ -38,7 +25,12 @@ const eventTypeSeverity = (eventType: string): ChipSeverity => {
     case 'DELETE':
       return 'critical';
     case 'SCORE_DEGRADATION':
+    case 'NEW_PAYLOAD_VERSION':
+    case 'BASE_UPDATE_AVAILABLE':
       return 'medium';
+    case 'PAYLOAD_REVOKED':
+    case 'REVOKED':
+      return 'high';
     default:
       return 'neutral';
   }

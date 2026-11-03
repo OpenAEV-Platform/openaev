@@ -23,11 +23,15 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springdoc.api.ErrorMessage;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.core.DefaultParameterNameDiscoverer;
 import org.springframework.core.MethodParameter;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -42,6 +46,27 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 
 @DisplayName("RestBehavior exception mapping")
 class RestBehaviorTest {
+
+  /**
+   * Spring Framework 7 dropped the short {@code ParameterValidationResult} constructors and only
+   * keeps the seven-argument one. This mirrors what the removed three-argument constructor did: no
+   * container, no index, no key, and a source lookup that refuses every type.
+   */
+  private static ParameterValidationResult validationResult(
+      MethodParameter parameter,
+      Object argument,
+      List<? extends MessageSourceResolvable> resolvableErrors) {
+    return new ParameterValidationResult(
+        parameter,
+        argument,
+        resolvableErrors,
+        null,
+        null,
+        null,
+        (error, sourceType) -> {
+          throw new IllegalArgumentException("No source object of the given type");
+        });
+  }
 
   @Test
   @DisplayName("a tenant-filtering refusal maps to 500 with a clear code")
@@ -577,8 +602,7 @@ class RestBehaviorTest {
       Method method = updateActionLikeMethod();
       MethodParameter bodyParameter = new MethodParameter(method, 1);
       ParameterValidationResult result =
-          new ParameterValidationResult(
-              bodyParameter, new SampleValidationInput(), List.of(fieldErrors));
+          validationResult(bodyParameter, new SampleValidationInput(), List.of(fieldErrors));
       MethodValidationResult validation =
           MethodValidationResult.create(this, method, List.of(result));
       return new HandlerMethodValidationException(validation);
@@ -642,8 +666,7 @@ class RestBehaviorTest {
       pathParameter.initParameterNameDiscovery(new DefaultParameterNameDiscoverer());
       MessageSourceResolvable resolvable =
           new DefaultMessageSourceResolvable(new String[] {"NotBlank"}, "must not be blank");
-      ParameterValidationResult result =
-          new ParameterValidationResult(pathParameter, "", List.of(resolvable));
+      ParameterValidationResult result = validationResult(pathParameter, "", List.of(resolvable));
       HandlerMethodValidationException ex =
           new HandlerMethodValidationException(
               MethodValidationResult.create(this, method, List.of(result)));
@@ -684,22 +707,26 @@ class RestBehaviorTest {
         "unnamed same-typed parameters get distinct positional labels instead of colliding")
     void given_unnamedParameters_should_labelPositionallyWithoutCollision()
         throws NoSuchMethodException {
-      // GIVEN - two String parameters whose names are unavailable (no discoverer initialized,
-      // as when sources are not compiled with -parameters): a type-based fallback would label
-      // both "String" and clobber one children entry
+      // GIVEN - two String parameters whose names are unavailable (as when sources are not
+      // compiled with -parameters): a type-based fallback would label both "String" and clobber
+      // one children entry. Spring 7 discovers names by default, so discovery is turned off.
       Method method =
           HandlerMethodValidationHandling.class.getDeclaredMethod(
               "linkActionsLike", String.class, String.class);
+      MethodParameter firstParameter = new MethodParameter(method, 0);
+      firstParameter.initParameterNameDiscovery(null);
+      MethodParameter secondParameter = new MethodParameter(method, 1);
+      secondParameter.initParameterNameDiscovery(null);
       ParameterValidationResult first =
-          new ParameterValidationResult(
-              new MethodParameter(method, 0),
+          validationResult(
+              firstParameter,
               "",
               List.of(
                   new DefaultMessageSourceResolvable(
                       new String[] {"NotBlank"}, "must not be blank")));
       ParameterValidationResult second =
-          new ParameterValidationResult(
-              new MethodParameter(method, 1),
+          validationResult(
+              secondParameter,
               "x",
               List.of(
                   new DefaultMessageSourceResolvable(
@@ -779,7 +806,7 @@ class RestBehaviorTest {
       // broken response contract is a server bug, not a client mistake
       Method method = HandlerMethodValidationHandling.class.getDeclaredMethod("renderActionLike");
       ParameterValidationResult result =
-          new ParameterValidationResult(
+          validationResult(
               new MethodParameter(method, -1),
               "",
               List.of(
@@ -799,6 +826,46 @@ class RestBehaviorTest {
       assertNotNull(bag);
       assertEquals(500, bag.getCode());
       assertTrue(bag.getMessage().contains("must not be blank"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Release version header")
+  class ReleaseVersionHeader {
+
+    private HttpHeaders headersFor(String version) {
+      HttpHeaders headers = new HttpHeaders();
+      new RestBehavior().addReleaseVersionHeader(headers, version);
+      return headers;
+    }
+
+    @ParameterizedTest(name = "\"{0}\" is sent")
+    @ValueSource(strings = {"3.260923.0", "1.2", "1.2.3.4", "3.260923.01"})
+    @DisplayName("a numeric release is sent as is")
+    void given_numericRelease_should_addHeader(String version) {
+      assertEquals(List.of(version), headersFor(version).get(RestBehavior.VERSION_HEADER));
+    }
+
+    // Values the installer scripts cannot compare: once recorded on a host, one of them would
+    // block every later upgrade there.
+    @ParameterizedTest(name = "\"{0}\" is left out")
+    @NullAndEmptySource
+    @ValueSource(
+        strings = {
+          "latest",
+          "prerelease",
+          "Testing",
+          "unknown",
+          "3",
+          "1.2.3.4.5",
+          "3.260923.0-SNAPSHOT",
+          "v3.260923.0",
+          " 3.260923.0",
+          "1.9999999999"
+        })
+    @DisplayName("a version the installer scripts cannot compare is left out")
+    void given_uncomparableVersion_should_omitHeader(String version) {
+      assertFalse(headersFor(version).containsHeader(RestBehavior.VERSION_HEADER));
     }
   }
 }

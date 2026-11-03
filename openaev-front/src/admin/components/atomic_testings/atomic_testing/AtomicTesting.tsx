@@ -18,22 +18,6 @@ import TargetResultsDetail from './target_result/TargetResultsDetail';
 import { TargetResultsSkeleton, TargetsPaneSkeleton } from './TargetSkeletons';
 
 const useStyles = makeStyles()({
-  chip: {
-    fontSize: 12,
-    height: 25,
-    margin: '0 7px 7px 0',
-    textTransform: 'uppercase',
-    borderRadius: 4,
-    width: 180,
-  },
-  dividerL: {
-    position: 'absolute',
-    backgroundColor: 'rgba(105, 103, 103, 0.45)',
-    width: '2px',
-    bottom: '0',
-    height: '99%',
-    left: '-10px',
-  },
   tabs: {
     marginLeft: 'auto',
     marginBottom: 12,
@@ -154,7 +138,7 @@ const AtomicTesting = () => {
     }
     if (hasAiTargets) {
       tabs.push({
-        key: index++,
+        key: index,
         // AI targets are assets too, so the tab carries the same label as the
         // endpoint-backed one; keep the specific label only in the (theoretical)
         // case where both tabs coexist, to avoid two tabs named "Assets".

@@ -186,14 +186,18 @@ const Teams = () => {
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <ExportButton totalElements={queryableHelpers.paginationHelpers.getTotalElements()} exportProps={exportProps} />
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.TEAMS_AND_PLAYERS}>
               <CreateTeam onCreate={(result) => {
                 setTeams([result, ...teams]);
-                queryableHelpers.paginationHelpers.handleChangeTotalElements(
-                  queryableHelpers.paginationHelpers.getTotalElements() + 1,
-                );
+                queryableHelpers.paginationHelpers.incrementTotalElements(1);
               }}
               />
             </Can>
@@ -265,9 +269,7 @@ const Teams = () => {
                     onUpdate={result => onTeamUpdated(result)}
                     onDelete={(result) => {
                       setTeams(teams.filter(v => (v.team_id !== result)));
-                      queryableHelpers.paginationHelpers.handleChangeTotalElements(
-                        Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - 1),
-                      );
+                      queryableHelpers.paginationHelpers.incrementTotalElements(-1);
                     }}
                     openEditOnInit={team.team_id === searchId}
                   />

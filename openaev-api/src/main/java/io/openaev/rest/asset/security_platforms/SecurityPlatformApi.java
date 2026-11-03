@@ -38,7 +38,7 @@ import org.springframework.web.bind.annotation.*;
 public class SecurityPlatformApi {
 
   public static final String SECURITY_PLATFORM_URI = "/api/security_platforms";
-  private static final String TENANT_SECURITY_PLATFORM_URI = TENANT_PREFIX + "/security_platforms";
+  static final String TENANT_SECURITY_PLATFORM_URI = TENANT_PREFIX + "/security_platforms";
 
   @Value("${info.app.version:unknown}")
   String version;
@@ -65,13 +65,18 @@ public class SecurityPlatformApi {
    * v2 tenant-active yet, but the association is lazy and rendered open-in-view, so it must load
    * inside the scoped transaction to stay correct when that table is activated.
    *
-   * <p>Create and upsert are exempt: create returns a brand-new entity whose empty in-memory
-   * associations serialize without a database load, and upsert is the connector-facing registration
-   * endpoint whose response the UI never consumes.
+   * <p>{@code asset_tags} is initialized here too: {@code tags} is v2 tenant-active, and the edit
+   * form is filled from these responses, so a tag list serialized empty open-in-view was saved back
+   * and erased the platform's tags.
+   *
+   * <p>Create is exempt: it returns a brand-new entity whose empty in-memory associations serialize
+   * without a database load. Upsert is not: it reads an existing platform and its response carries
+   * the links, including the one the registration adds.
    */
   private static SecurityPlatform withManagerLinksInitialized(SecurityPlatform securityPlatform) {
     Hibernate.initialize(securityPlatform.getCollectors());
     Hibernate.initialize(securityPlatform.getInjectors());
+    Hibernate.initialize(securityPlatform.getTags());
     return securityPlatform;
   }
 
@@ -151,7 +156,10 @@ public class SecurityPlatformApi {
       securityPlatform.setLogoLight(null);
     }
     securityPlatform.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
-    SecurityPlatform saved = this.securityPlatformRepository.save(securityPlatform);
+    // Initialized before the link below is written, so the response carries the stored links
+    // plus the one this request adds.
+    SecurityPlatform saved =
+        withManagerLinksInitialized(this.securityPlatformRepository.save(securityPlatform));
     linkRegisteringInjector(saved, input.getExternalReference());
     return saved;
   }
@@ -183,6 +191,9 @@ public class SecurityPlatformApi {
             injector -> {
               injector.setSecurityPlatform(securityPlatform);
               injectorRepository.save(injector);
+              // Both sides: the platform's injectors are already loaded and are what the
+              // response serializes.
+              securityPlatform.getInjectors().add(injector);
             });
   }
 

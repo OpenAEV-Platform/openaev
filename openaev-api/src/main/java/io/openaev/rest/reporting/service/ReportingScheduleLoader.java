@@ -3,11 +3,9 @@ package io.openaev.rest.reporting.service;
 import io.openaev.database.model.ReportingSchedule;
 import io.openaev.database.repository.ReportingScheduleRepository;
 import io.openaev.scheduler.TenantScopedJobRunner;
-import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.Session;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,16 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
  * engine's {@code NotificationTriggerLoader}. {@code reporting_schedules} is tenant-active: the
  * engine load, which must see every tenant's schedules, opens its own transaction through {@link
  * TenantScopedJobRunner#supplyAcrossTenants}, never {@code @Transactional} alone - an unscoped read
- * of an active table fails closed and silently returns nothing. The {@code disableFilter} call is
- * defensive, kept so that a future {@code @Transactional} hop on this session cannot silently
- * re-scope this cross-tenant read of the still-v1 tables it joins (owner, recipient users).
+ * of an active table fails closed and silently returns nothing.
  */
 @Service
 @RequiredArgsConstructor
 public class ReportingScheduleLoader {
 
   private final ReportingScheduleRepository reportingScheduleRepository;
-  private final EntityManager entityManager;
   private final TenantScopedJobRunner tenantScopedJobRunner;
 
   /**
@@ -34,10 +29,7 @@ public class ReportingScheduleLoader {
    */
   public List<ReportingSchedule> loadEnabledSchedules() {
     return tenantScopedJobRunner.supplyAcrossTenants(
-        () -> {
-          disableV1TenantFilter();
-          return reportingScheduleRepository.findAllEnabledForScheduling();
-        });
+        reportingScheduleRepository::findAllEnabledForScheduling);
   }
 
   /**
@@ -51,10 +43,5 @@ public class ReportingScheduleLoader {
     reportingScheduleRepository
         .findById(scheduleId)
         .ifPresent(schedule -> schedule.setLastRunAt(lastRunAt));
-  }
-
-  // No-op when the filter was never enabled; see the class javadoc.
-  private void disableV1TenantFilter() {
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
   }
 }

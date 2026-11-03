@@ -1,6 +1,6 @@
 # Scenario import
 
-Recreating a timeline of [Injects](../../evaluate/injects/inject-overview.md) from a spreadsheet can be tedious. OpenAEV lets you import Injects defined in an XLS file directly into a [Scenario](scenario.md). The process has two steps: [creating a mapper](#how-to-create-a-mapper) and [importing the XLS file using the mapper](#how-to-import-injects-into-a-scenario-using-a-mapper).
+Recreating a timeline of [Injects](../../run-and-evaluate/injects/inject-overview.md) from a spreadsheet can be tedious. OpenAEV lets you import Injects defined in an XLS file directly into a [Scenario](scenario.md). The process has two steps: [creating a mapper](#how-to-create-a-mapper) and [importing the XLS file using the mapper](#how-to-import-injects-into-a-scenario-using-a-mapper).
 
 ## Why use Scenario import?
 
@@ -10,9 +10,9 @@ Recreating a timeline of [Injects](../../evaluate/injects/inject-overview.md) fr
 
 ## How to create a mapper?
 
-First of all, to import [Injects](../../evaluate/injects/inject-overview.md) into a [Scenario](scenario.md), you need to create a mapper. To do that, using an admin account, navigate to **Settings > Data ingestion**. You will then be able to see a list of all the mappers but also to create new ones by clicking on the "+" button on the bottom right of the screen.
+First of all, to import [Injects](../../run-and-evaluate/injects/inject-overview.md) into a [Scenario](scenario.md), you need to create a mapper. To do that, using an admin account, navigate to **Settings > Data ingestion**. You will then be able to see a list of all the mappers but also to create new ones by clicking on the "+" button on the bottom right of the screen.
 
-![List of Mappers](../../assets/mapper_screen.png)
+![List of Mappers](assets/mapper_screen.png)
 
 ### Setting up the mapper to tell each Inject apart
 
@@ -20,9 +20,9 @@ When creating a new mapper, you will quickly be asked to choose an inject type c
 
 The first thing to define in this representation is the matching type in the xls. This is the value that will define which inject to create when scanning the column defined in "inject type column". For instance, if you want to create an inject that sends individual emails when in the column there is the word "mail", then you will need to set the value as "mail". You can also make use of [regular expressions](https://en.wikipedia.org/wiki/Regular_expression) in this field. Please keep in mind though that this value is case sensitive. 
 
-![Creating an xls mapper](../../assets/xls_mapper_example.png)
+![Creating an xls mapper](assets/xls_mapper_example.png)
 
-Once that is done, you can select the inject type among a list of [injects](../../evaluate/injects/inject-overview.md) that are compatible with the xls import. When that selection is done, you will be able to set a column for each of the attribute that can be completed using the import. If you wish to set a default value you can do so by clicking the gear on the right side of the field.
+Once that is done, you can select the inject type among a list of [injects](../../run-and-evaluate/injects/inject-overview.md) that are compatible with the xls import. When that selection is done, you will be able to set a column for each of the attribute that can be completed using the import. If you wish to set a default value you can do so by clicking the gear on the right side of the field.
 
 ### Properly setting the trigger time of the Inject
 The "Trigger Time" field has a second parameter you can set using the gear button. Use it to define a custom format for specific dates and/or times. The complete format rules are available [here](https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html). Quick overview:
@@ -63,23 +63,23 @@ If your Team name already exists, it will be automatically linked to your Inject
 ### Testing the mapper
 If you click on the test button, you'll then be asked to choose a file. Once that is done, you will have to select the sheet to test out of the spreadsheet and the timezone. You will then be able to click on Test to have the result field filled as well as a list of the messages generated during the import (those are not saved, and are just there to help figure out what happened during the import itself).
 
-![Testing an xls mapper](../../assets/mapper_test_example.png)
+![Testing an xls mapper](assets/mapper_test_example.png)
 
 ## How to import Injects into a Scenario using a mapper?
 
-Once your mapper has been created, navigate to your [Scenario](scenario.md) and then to the [Injects](../../evaluate/injects/inject-overview.md) tab. There, you will be able to click on an import button on the top right.
+Once your mapper has been created, navigate to your [Scenario](scenario.md) and then to the [Injects](../../run-and-evaluate/injects/inject-overview.md) tab. There, you will be able to click on an import button on the top right.
 A modal will be opening, inviting you to select an .xls/.xlsx file. Once it has been selected, you can click on next. You will then be asked to choose the sheet to import out of the spreadsheet and to select the mapper to use. You will also be able to select the timezone to use for the import. Once everything is set, click on the launch import button and your injects will be imported into the current scenario !
 Please do note that if all the dates in the xls file are absolute time of the day (e.g. 9:30, 12:45, ...), it is required for the scenario to have a launch date set.
 ## Example
 #### 1. Mapper
     
-![Testing an xls mapper](../../assets/update_the_xls_mapper.png)
-![Testing an xls mapper](../../assets/mapper_inject_type_sms.png)
-![Testing an xls mapper](../../assets/mapper_inject_type_mail.png)
+![Testing an xls mapper](assets/update_the_xls_mapper.png)
+![Testing an xls mapper](assets/mapper_inject_type_sms.png)
+![Testing an xls mapper](assets/mapper_inject_type_mail.png)
 
 Trigger time configuration:
 
-![mapper_inject_import_xls_trigger_time.png](../../assets/mapper_inject_import_xls_trigger_time.png)
+![mapper_inject_import_xls_trigger_time.png](assets/mapper_inject_import_xls_trigger_time.png)
 
 #### 2. XLS
 
@@ -104,7 +104,7 @@ Trigger time configuration:
    |   | Hold the hot debrief                                                                           | 17:30                                       | All                                                                           | Hot debrief                                                      | 30–45 min: key facts, strengths, improvement areas, immediate actions.                                                                                   | Debriefing support available in the planner/facilitator panel.                                                    | Debrief conducted                                                     | Hot debrief                                                | 100                                       | To do                                        |
    |   | <span style="color: #1bb6ff"> Send the report and action plan by email </span>                 | <span style="color: #1bb6ff"> T+1 </span>   | <span style="color: #1bb6ff"> IT Team, Executive management, Sponsors </span> | <span style="color: #1bb6ff"> Report </span>                     | <span style="color: #1bb6ff"> Consolidated report, action plan, owners and deadlines; follow-up scheduled. </span>                                       | <span style="color: #1bb6ff"> Plan a cold debrief in 2–4 weeks; invite additional stakeholders if needed. </span> | <span style="color: #1bb6ff"> Report sent and actions tracked </span> | <span style="color: #1bb6ff"> Report + action plan </span> | <span style="color: #1bb6ff"> 100 </span> | <span style="color: #1bb6ff"> To do  </span> |
 
-[Download](../../assets/model_inject_xlsx.xlsx)
+[Download](assets/model_inject_xlsx.xlsx)
 #### 3. Result
 
 The mapper maps every blue-highlighted row in the Excel file and creates one Inject per row.
@@ -116,15 +116,15 @@ Because, for this example, the mapper is configured with the following “Matchi
 
 The scenario has been scheduled before import of the file and the **trigger time**, into the mapper, has been configured. 
 
-![mapper_xls_inject_import_result](../../assets/mapper_xls_inject_import_result.png)
-![mapper_inject_import_xls_interactive_view.png](../../assets/mapper_inject_import_xls_interactive_view.png)
+![mapper_xls_inject_import_result](assets/mapper_xls_inject_import_result.png)
+![mapper_inject_import_xls_interactive_view.png](assets/mapper_inject_import_xls_interactive_view.png)
 
 Team “AI Desk” already exists and is associated with the Inject “Notify the Service Desk (user email),” while the others are created at import as contextual teams.
 
-![mapper_import_inject_team.png](../../assets/mapper_import_inject_team.png)
+![mapper_import_inject_team.png](assets/mapper_import_inject_team.png)
 
 ## What's next?
 
 - [Scenarios](scenario.md) -- Manage and configure your Scenarios
-- [Injects](../../evaluate/injects/inject-overview.md) -- Create and configure Injects manually
-- [Simulations](../../evaluate/simulation/simulation.md) -- Launch a Simulation from your Scenario
+- [Injects](../../run-and-evaluate/injects/inject-overview.md) -- Create and configure Injects manually
+- [Simulations](../../run-and-evaluate/simulation/simulation.md) -- Launch a Simulation from your Scenario

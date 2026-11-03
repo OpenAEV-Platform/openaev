@@ -14,19 +14,23 @@ import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.execution.ExecutionExecutorService;
+import io.openaev.execution.PayloadRevokedException;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.RabbitmqService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.payload_approval.BlockedPayloadsException;
 import io.openaev.service.payload_approval.PayloadApprovalGate;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.telemetry.metric_collectors.ContentMetricCollector;
 import jakarta.annotation.Resource;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +55,8 @@ public class Executor {
   private final ExecutionExecutorService executionExecutorService;
   private final InjectStatusService injectStatusService;
   private final InjectService injectService;
+  private final PayloadRevocationService payloadRevocationService;
+  private final ContentMetricCollector contentMetricCollector;
   private final ExecutableInjectDTOMapper executableInjectDTOMapper;
   private final ConnectorInstanceService connectorInstanceService;
   private final InjectExpectationService injectExpectationService;
@@ -144,6 +150,12 @@ public class Executor {
             .getInjectorContract()
             .orElseThrow(
                 () -> new UnsupportedOperationException("Inject does not have a contract"));
+    // Thrown here, outside any transactional proxy, so the caller's transaction stays sound.
+    Optional<String> revocation = payloadRevocationService.revocationMessage(inject);
+    if (revocation.isPresent()) {
+      contentMetricCollector.addRevokedInject();
+      throw new PayloadRevokedException(revocation.get());
+    }
     refuseUnapprovedPayload(inject, injectorContract);
 
     // Resolve the injector instance from the inject entity directly
@@ -199,7 +211,7 @@ public class Executor {
           "Inject is now too old for execution: id "
               + inject.getId()
               + ", launch date "
-              + inject.getDate()
+              + inject.getDate(Instant.now())
               + ", now date "
               + Instant.now());
     }

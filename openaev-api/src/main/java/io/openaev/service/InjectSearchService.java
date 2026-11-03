@@ -25,6 +25,7 @@ import io.openaev.rest.atomic_testing.form.InjectorContractSimple;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.TargetType;
@@ -64,6 +65,7 @@ public class InjectSearchService {
   private final InjectExpectationMapper injectExpectationMapper;
 
   private final HealthCheckUtils healthCheckUtils;
+  private final PayloadRevocationService payloadRevocationService;
 
   @PersistenceContext private EntityManager entityManager;
 
@@ -169,6 +171,8 @@ public class InjectSearchService {
     Expression<String[]> assetIdsExpression = createJoinArrayAggOnId(cb, injectRoot, "assets");
     Expression<String[]> assetGroupIdsExpression =
         createJoinArrayAggOnId(cb, injectRoot, "assetGroups");
+    Expression<String[]> secretReferenceIdsExpression =
+        createJoinArrayAggOnId(cb, injectRoot, "secretReferences");
     Expression<String[]> domainsContractIdExpression =
         createJoinArrayAggOnIdForJoin(cb, injectorContractJoin, "domains");
 
@@ -187,18 +191,21 @@ public class InjectSearchService {
         teamIdsExpression.alias("inject_teams"),
         assetIdsExpression.alias("inject_assets"),
         assetGroupIdsExpression.alias("inject_asset_groups"),
+        secretReferenceIdsExpression.alias("inject_secret_references"),
         injectorJoin.get("type").alias("inject_type"),
         domainsContractIdExpression.alias("injector_contract_domains"),
         injectDependency.alias("inject_depends_on"),
         injectStatusJoin.get("trackingSentDate").alias("inject_sent_at"));
 
-    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
+    // GROUP BY: the contract is selected whole, so grouping by the join expands to all its
+    // columns. Its primary key alone is not enough once the table is tenant-active, because the
+    // inspector then joins a derived table, which carries no key to derive the other columns from.
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
             injectExerciseJoin.get("id"),
             injectScenarioJoin.get("id"),
-            injectorContractJoin.get("compositeId"),
+            injectorContractJoin,
             injectorJoin.get("id"),
             injectorJoin.get("type"),
             injectDependency.get("id"),
@@ -206,6 +213,28 @@ public class InjectSearchService {
   }
 
   private List<InjectOutput> execInject(TypedQuery<Tuple> query) {
+    List<InjectOutput> injects = toInjectOutputs(query);
+    // One query for the whole list, not one per inject.
+    Set<String> revoked =
+        payloadRevocationService.revokedIdsAmong(
+            injects.stream()
+                .map(InjectSearchService::payloadIdOf)
+                .filter(Objects::nonNull)
+                .toList());
+    injects.forEach(
+        inject -> {
+          String payloadId = payloadIdOf(inject);
+          inject.setPayloadRevoked(payloadId != null && revoked.contains(payloadId));
+        });
+    return injects;
+  }
+
+  private static String payloadIdOf(InjectOutput inject) {
+    InjectorContract contract = inject.getInjectorContract();
+    return contract == null || contract.getPayload() == null ? null : contract.getPayload().getId();
+  }
+
+  private List<InjectOutput> toInjectOutputs(TypedQuery<Tuple> query) {
     return query.getResultList().stream()
         .map(
             tuple -> {
@@ -285,6 +314,22 @@ public class InjectSearchService {
                                         AssetGroup assetGroup = new AssetGroup();
                                         assetGroup.setId(id);
                                         return assetGroup;
+                                      })
+                                  .collect(Collectors.toList()))
+                      .orElse(new ArrayList<>()));
+              // The timeline sends this light inject back on drag / reconnect: omitting the
+              // secret references would wipe them from the inject on the next update.
+              inject.setSecretReferences(
+                  ofNullable(tuple.get("inject_secret_references", String[].class))
+                      .map(
+                          ids ->
+                              Arrays.stream(ids)
+                                  .distinct()
+                                  .map(
+                                      id -> {
+                                        SecretReference secretReference = new SecretReference();
+                                        secretReference.setId(id);
+                                        return secretReference;
                                       })
                                   .collect(Collectors.toList()))
                       .orElse(new ArrayList<>()));
@@ -651,7 +696,8 @@ public class InjectSearchService {
     Join<Base, Base> payloadJoin = injectorContractJoin.join("payload", JoinType.LEFT);
     joinMap.put("payload", payloadJoin);
 
-    Join<Base, Base> collectorTypeJoin = payloadJoin.join("collectorType", JoinType.LEFT);
+    Join<Base, Base> collectorTypeJoin =
+        payloadJoin.join("identity", JoinType.LEFT).join("collectorType", JoinType.LEFT);
     joinMap.put("collectorType", collectorTypeJoin);
 
     Join<Base, Base> statusJoin = injectRoot.join("status", JoinType.LEFT);
@@ -685,7 +731,6 @@ public class InjectSearchService {
         payloadJoin.get("type").alias("payload_type"),
         payloadJoin.get("status").alias("payload_status"),
         payloadJoin.get("approvalStatus").alias("payload_approval_status"),
-        payloadJoin.get("pendingVersion").alias("payload_pending_version"),
         collectorTypeJoin.get("name").alias("payload_collector_type"),
         statusJoin.get("id").alias("status_id"),
         statusJoin.get("name").alias("status_name"),
@@ -696,18 +741,22 @@ public class InjectSearchService {
         domainsContractIdExpression.alias("injector_contract_domains"),
         assetGroupIdsExpression.alias("inject_asset_groups"));
 
-    // GROUP BY — compositeId expands to both PK columns (injector_contract_id + tenant_id)
+    // GROUP BY: every projected contract column is grouped, not only the primary key, because
+    // once the table is tenant-active the inspector joins a derived table, which carries no key
+    // to derive the other columns from.
     cq.groupBy(
         Arrays.asList(
             injectRoot.get("id"),
             injectorContractJoin.get("compositeId"),
+            injectorContractJoin.get("content"),
+            injectorContractJoin.get("platforms"),
+            injectorContractJoin.get("labels"),
             injectorJoin.get("id"),
             injectorJoin.get("type"),
             payloadJoin.get("id"),
             payloadJoin.get("type"),
             payloadJoin.get("status"),
             payloadJoin.get("approvalStatus"),
-            payloadJoin.get("pendingVersion"),
             collectorTypeJoin.get("name"),
             statusJoin.get("id"),
             exerciseJoin.get("id")));
@@ -742,9 +791,6 @@ public class InjectSearchService {
                         .approvalStatus(
                             tuple.get(
                                 "payload_approval_status", Payload.PAYLOAD_APPROVAL_STATUS.class))
-                        .pendingVersion(
-                            Boolean.TRUE.equals(
-                                tuple.get("payload_pending_version", Boolean.class)))
                         .build();
               }
 

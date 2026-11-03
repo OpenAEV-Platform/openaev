@@ -27,7 +27,10 @@ test.describe('Catalog — external collector deployment', () => {
     expect(newTenantId).not.toBeNull();
   });
 
-  test.afterEach(async ({ request }) => {
+  test.afterEach(async ({ page, request }) => {
+    // Leave the tenant's pages before deleting it: an app left on a deleted tenant keeps
+    // reconnecting its event stream, and the context teardown can then hang until the test timeout.
+    await page.goto('about:blank');
     if (newTenantId) {
       await new TenantApiHelpers(request).softDeleteTenant(newTenantId);
       newTenantId = null;

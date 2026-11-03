@@ -433,6 +433,7 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
         >
           <Typography
             sx={{
+              color: 'inherit',
               flex: '1 1 100%',
               fontSize: 12,
               display: 'flex',
@@ -440,7 +441,6 @@ export class ToolBarComponent extends Component<ToolBarProps, ToolBarState> {
               gap: 0.5,
               textTransform: 'none',
             }}
-            color="inherit"
           >
             <Box component="span" sx={{ fontWeight: 'bold' }}>
               {numberOfSelectedElements}

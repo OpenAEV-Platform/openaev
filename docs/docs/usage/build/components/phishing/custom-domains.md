@@ -69,7 +69,7 @@ Two things must be in place for an inbound request on your hostname to reach the
 
     It answers `200` for a verified custom domain and `404` for anything else. An unverified or unknown hostname is therefore refused at the edge and never gets a certificate.
 
-Configure your edge to use that endpoint as its allow-list. See [Configuration](../../../../deployment/configuration.md) for the platform-side settings.
+Configure your edge to use that endpoint as its allow-list. See [Configuration](../../../../reference/deployment/configuration.md) for the platform-side settings.
 
 !!! warning
 

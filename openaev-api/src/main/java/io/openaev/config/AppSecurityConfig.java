@@ -12,17 +12,24 @@ import io.openaev.config.security.OpenSamlConfig;
 import io.openaev.config.security.SecurityService;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.User;
+import io.openaev.ratelimit.config.RateLimitConfig;
+import io.openaev.ratelimit.filter.PreliminaryRateLimitFilter;
+import io.openaev.ratelimit.service.RateLimitService;
 import io.openaev.security.SsoRefererAuthenticationFailureHandler;
 import io.openaev.security.SsoRefererAuthenticationSuccessHandler;
 import io.openaev.security.TokenAuthenticationFilter;
 import io.openaev.service.UserMappingService;
 import io.openaev.service.user_events.UserEventService;
+import io.openaev.utils.RequestUtils;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -46,9 +53,11 @@ import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
+import org.springframework.security.oauth2.core.oidc.OidcScopes;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
@@ -72,13 +81,18 @@ public class AppSecurityConfig {
   private static final String TENANT_IMPLANT_URI = "/api/tenants/*/implant/**";
   private static final String TENANT_PLAYER_URI = "/api/tenants/*/player/**";
   private static final String BEARER_PREFIX = "Bearer ";
+  private static final Set<String> USER_INFO_SCOPES =
+      Set.of(OidcScopes.PROFILE, OidcScopes.EMAIL, OidcScopes.ADDRESS, OidcScopes.PHONE);
 
   private final OpenAEVConfig openAEVConfig;
   private final OpenSamlConfig openSamlConfig;
   private final SecurityService securityService;
   private final UserEventService userEventService;
   private final UserMappingService userMappingService;
+  private final RateLimitService rateLimitService;
+  private final RateLimitConfig rateLimitConfig;
   private final SessionManager sessionManager;
+  private final RequestUtils requestUtils;
 
   private final Optional<AuditLogger> auditLogger;
 
@@ -87,6 +101,7 @@ public class AppSecurityConfig {
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http.addFilterBefore(tokenAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(rateLimitFilter(), TokenAuthenticationFilter.class)
         .requestCache(Customizer.withDefaults())
         .requestCache(cache -> cache.requestCache(new HttpSessionRequestCache()))
         .csrf(
@@ -235,6 +250,11 @@ public class AppSecurityConfig {
     return new TokenAuthenticationFilter();
   }
 
+  @Bean
+  public PreliminaryRateLimitFilter rateLimitFilter() {
+    return new PreliminaryRateLimitFilter(rateLimitService, rateLimitConfig, requestUtils);
+  }
+
   public User userOauth2Management(ClientRegistration clientRegistration, OAuth2User user) {
     String emailAttribute = user.getAttribute("email");
     String registrationId = clientRegistration.getRegistrationId();
@@ -278,8 +298,21 @@ public class AppSecurityConfig {
   @Bean
   public OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {
     OidcUserService delegate = new OidcUserService();
+    delegate.setRetrieveUserInfo(AppSecurityConfig::shouldRetrieveUserInfo);
     return request ->
         oidcUserManagement(request.getClientRegistration(), delegate.loadUser(request));
+  }
+
+  // Spring Security 7 calls UserInfo whatever the granted scopes; keep the 6.x rule.
+  private static boolean shouldRetrieveUserInfo(OidcUserRequest request) {
+    ClientRegistration registration = request.getClientRegistration();
+    if (isBlank(registration.getProviderDetails().getUserInfoEndpoint().getUri())
+        || !AuthorizationGrantType.AUTHORIZATION_CODE.equals(
+            registration.getAuthorizationGrantType())) {
+      return false;
+    }
+    Set<String> grantedScopes = request.getAccessToken().getScopes();
+    return grantedScopes.isEmpty() || grantedScopes.stream().anyMatch(USER_INFO_SCOPES::contains);
   }
 
   @Bean
@@ -359,27 +392,63 @@ public class AppSecurityConfig {
   }
 
   /**
-   * Persists the security context in the HTTP session for browser / cookie auth.
+   * Whether the request carries any credential {@link TokenAuthenticationFilter} authenticates
+   * with: an {@code Authorization} header (bearer-prefixed or raw) or the token auth cookie.
    *
-   * <p>Authorization-header (bearer) requests stay stateless - no session is read or created.
+   * <p>All three forms are token authentications, never a browser login - so none of them may be
+   * allowed to persist a reusable HTTP session. Before this, only the bearer-prefixed header was
+   * treated as stateless; the cookie and raw-header forms fell through to the session repository,
+   * so a holder of a disclosed token (e.g. the installer token behind {@code INSTALL_AGENT}, see
+   * #271) could use either form once to mint a session cookie, then keep replaying that session -
+   * including after the token itself was rotated, since the session never re-checks it.
+   *
+   * <p>A header is only a raw-token candidate when it carries no other scheme: {@link
+   * TokenAuthenticationFilter} passes a non-bearer header to its plain-token extractor whole, and
+   * every issued token is a bare UUID with no whitespace, so a "{@code <Scheme> <value>}" header
+   * for a different scheme (e.g. a reverse proxy injecting {@code Authorization: Basic ...} in
+   * front of SSO) can never match. Treating it as a token credential anyway forced every such
+   * request stateless, so the browser session was never read or saved and SSO/local-login users
+   * behind such a proxy were logged out right after logging in.
+   */
+  private static boolean hasTokenCredential(HttpServletRequest request, String tokenCookieName) {
+    String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+    if (!isBlank(header)
+        && (startsWithIgnoreCase(header, BEARER_PREFIX) || !header.contains(" "))) {
+      return true;
+    }
+    Cookie[] cookies = request.getCookies();
+    return cookies != null
+        && Arrays.stream(cookies).anyMatch(cookie -> tokenCookieName.equals(cookie.getName()));
+  }
+
+  /**
+   * Persists the security context in the HTTP session for browser / SSO auth.
+   *
+   * <p>Any token-authenticated request (see {@link #hasTokenCredential}) stays stateless - no
+   * session is read or created.
    *
    * <p>So a pure API client never receives a JSESSIONID to replay (#6343); SSO sessions are intact.
    */
   private SecurityContextRepository bearerAwareSecurityContextRepository() {
-    return new BearerAwareSecurityContextRepository();
+    return new BearerAwareSecurityContextRepository(openAEVConfig.getCookieName());
   }
 
   /** See {@link #bearerAwareSecurityContextRepository()}. */
   private static final class BearerAwareSecurityContextRepository
       implements SecurityContextRepository {
 
+    private final String tokenCookieName;
     private final HttpSessionSecurityContextRepository sessionRepository =
         new HttpSessionSecurityContextRepository();
     private final RequestAttributeSecurityContextRepository statelessRepository =
         new RequestAttributeSecurityContextRepository();
 
+    private BearerAwareSecurityContextRepository(String tokenCookieName) {
+      this.tokenCookieName = tokenCookieName;
+    }
+
     private SecurityContextRepository delegate(HttpServletRequest request) {
-      return hasBearerToken(request) ? statelessRepository : sessionRepository;
+      return hasTokenCredential(request, tokenCookieName) ? statelessRepository : sessionRepository;
     }
 
     @Override

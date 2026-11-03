@@ -139,5 +139,20 @@ class SecurityServiceTest extends IntegrationTest {
       assertThat(result.getTenants()).hasSize(1);
       assertThat(result.getTenants().getFirst().getId()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
     }
+
+    @Test
+    void given_newUser_should_notKeepCachedTenantsWithoutTheAttachedTenant() {
+      // -- ACT --
+      User result =
+          securityService.userManagement(
+              SSO_EMAIL, REGISTRATION_ID, List.of(), List.of(), "John", "Doe");
+      // Writes the membership as the commit would, so an uncached read sees it.
+      entityManager.flush();
+
+      // -- ASSERT --
+      // Requests resolve the user's tenants through this cache: a stale list denies them all.
+      assertThat(tenantMembershipCacheManager.findTenantIdsByUserId(result.getId()))
+          .containsExactly(Tenant.DEFAULT_TENANT_UUID);
+    }
   }
 }

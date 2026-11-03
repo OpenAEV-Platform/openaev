@@ -29,15 +29,6 @@ const useStyles = makeStyles()(theme => ({
     borderRadius: 4,
     position: 'relative',
   },
-  icon: {
-    paddingTop: 4,
-    display: 'inline-block',
-  },
-  text: {
-    display: 'inline-block',
-    flexGrow: 1,
-    marginLeft: 10,
-  },
 }));
 
 const WidgetSeriesSelection: FunctionComponent<{
@@ -101,7 +92,7 @@ const WidgetSeriesSelection: FunctionComponent<{
             mode: 'and',
             filters: [
               buildFilter(BASE_ENTITY_FILTER_KEY, [entity], 'eq'),
-              ...searchPaginationInput.filterGroup?.filters ?? [],
+              ...(searchPaginationInput.filterGroup?.filters ?? []),
             ],
           },
     });
@@ -167,7 +158,7 @@ const WidgetSeriesSelection: FunctionComponent<{
             />
           </div>
         )}
-      <Box padding={2}>
+      <Box sx={{ padding: 2 }}>
         <TextFieldFds
           label={t('Label (entities)')}
           value={label}

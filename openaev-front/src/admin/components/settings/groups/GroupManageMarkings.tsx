@@ -5,7 +5,7 @@ import { type FunctionComponent, useEffect, useMemo, useState } from 'react';
 import SelectListPicker, { type SelectListPickerElements } from '../../../../components/common/SelectListPicker';
 import { useFormatter } from '../../../../components/i18n';
 import { type MarkingDefinitionOutput } from '../../../../utils/api-types';
-import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
+import { useMarkingDefinitionsWithLoading } from '../../../../utils/hooks/useMarkingDefinitions';
 
 interface Props {
   initialState: string[];
@@ -20,12 +20,8 @@ interface Props {
 // useMarkingDefinitions), so unlike GroupManageRoles this picker has no server-side pagination:
 // the whole set is loaded once and filtered/sorted client-side by SelectListPicker.
 //
-// Marking grants are ordinal and cumulative within a type (TLP:RED implies TLP:AMBER implies
-// TLP:GREEN implies TLP:CLEAR - see MarkingScopeResolver). Rather than let independent checkboxes
-// misrepresent that as "pick any combination", clicking a level here checks it and every less
-// restrictive level of the same type, and unchecks every more restrictive one - so the picker
-// always shows a single cumulative cutoff per type, matching what is actually granted. Clicking
-// the already-topmost checked level again clears the whole type.
+// Checkboxes are independent, as in OpenCTI: the lower levels of a type are granted server-side
+// (MarkingScopeResolver).
 const GroupManageMarkings: FunctionComponent<Props> = ({
   initialState,
   open,
@@ -35,7 +31,7 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
   title,
 }) => {
   const { t } = useFormatter();
-  const markingDefinitions = useMarkingDefinitions({ skip: !open });
+  const { definitions: markingDefinitions, loading } = useMarkingDefinitionsWithLoading({ skip: !open });
   // Most restrictive first within a type (TLP:RED at the top), so the cumulative cutoff a user
   // picks reads top-down as "this and everything below it".
   const markingValues = useMemo(
@@ -57,32 +53,7 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
   }, [open, initialState]);
 
   const toggleMarking = (markingId: string) => {
-    const marking = markingDefinitions[markingId];
-    if (!marking) {
-      return;
-    }
-    const sameTypeIds = new Set(
-      markingValues
-        .filter(m => m.marking_definition_type === marking.marking_definition_type)
-        .map(m => m.marking_definition_id),
-    );
-    const otherTypesSelected = selectedIds.filter(id => !sameTypeIds.has(id));
-    const currentTypeSelected = selectedIds.filter(id => sameTypeIds.has(id));
-    const currentHighestOrder = currentTypeSelected.length > 0
-      ? Math.max(...currentTypeSelected.map(id => markingDefinitions[id]?.marking_definition_order ?? 0))
-      : undefined;
-
-    // Clicking the current cutoff again clears the whole type instead of doing nothing - it is
-    // the only way to bring a type back to "no grant" once something has been checked.
-    if (currentHighestOrder === marking.marking_definition_order) {
-      setSelectedIds(otherTypesSelected);
-      return;
-    }
-
-    const cumulativeIds = Array.from(sameTypeIds).filter(
-      id => (markingDefinitions[id]?.marking_definition_order ?? 0) <= marking.marking_definition_order,
-    );
-    setSelectedIds([...otherTypesSelected, ...cumulativeIds]);
+    setSelectedIds(prev => (prev.includes(markingId) ? prev.filter(id => id !== markingId) : [...prev, markingId]));
   };
 
   const elements: SelectListPickerElements<MarkingDefinitionOutput> = useMemo(() => ({
@@ -135,6 +106,7 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
   return (
     <SelectListPicker<MarkingDefinitionOutput>
       open={open}
+      isLoading={loading}
       onClose={handleClose}
       onSubmit={handleSubmit}
       title={title ?? t('Manage markings for group: {groupName}', { groupName })}

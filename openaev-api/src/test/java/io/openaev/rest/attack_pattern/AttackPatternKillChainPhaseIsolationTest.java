@@ -23,12 +23,23 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * {@code kill_chain_phases} is reached from {@link io.openaev.database.model.AttackPattern} through
- * a LAZY {@code @ManyToMany}, which bypasses {@code KillChainPhaseRepository} entirely. With
- * open-in-view the JSON rendering runs after the commit, and the tenant scope is transaction-local,
- * so a lazy load at rendering time would serialize an EMPTY phase list once the table is active —
- * the #7025 blind spot. This test pins the fix: the association is initialized inside the scoped
- * transaction, so a tenant sees its own phases and never another tenant's.
+ * Phase ids served next to an attack pattern, on the by-id read and on the search. Both go through
+ * {@code KillChainPhaseService.phaseIdsByAttackPatternId}, which projects them with {@code
+ * KillChainPhaseRepository.findPhaseIdsByAttackPatternIds}: a JPQL query rooted on {@code
+ * AttackPattern}, joined to the phases, correlated with {@code kcp.tenant.id = ap.tenant.id}. The
+ * lazy {@code @ManyToMany} this class was first written for is no longer on the read path.
+ *
+ * <p>What that means for the claim this class can make: every assertion here holds with {@code
+ * kill_chain_phases} removed from {@code openaev.tenant.active-tables}, because the query root
+ * {@code AttackPattern} still carries the v1 {@code tenantFilter}, which restricts the projection
+ * to the ambient tenant's patterns before the phases are reached. The activation also hides the
+ * phases, through the join and the correlation, but it is not what makes these tests pass today, so
+ * they must not be read as the proof that the table is active. That proof is {@code
+ * KillChainPhaseHttpIsolationTest}, nine of whose assertions go red with the table disarmed.
+ *
+ * <p>What this class does pin, and is worth keeping: the phase ids served with a pattern are the
+ * pattern's own tenant's, the list is never empty for the owner (the #7025 empty-list regression),
+ * and the search projection agrees with the by-id read.
  */
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=kill_chain_phases,attack_patterns")
@@ -90,6 +101,8 @@ class AttackPatternKillChainPhaseIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("under tenant B's path: B's pattern exposes B's phase and never A's")
   void ownPatternNeverExposesAnotherTenantPhase() throws Exception {
+    // The correlation in the projection is what keeps A's phase off B's pattern, and it holds
+    // whether or not the table is active: an own-tenant read, not an activation proof.
     String response =
         mvc.perform(get(TENANT_PATTERN_BY_ID, tenantB, patternB))
             .andExpect(status().isOk())
@@ -104,9 +117,9 @@ class AttackPatternKillChainPhaseIsolationTest extends IntegrationTest {
   @DisplayName("search under tenant A's path: A's phase id is listed, B's is not")
   void searchExposesOnlyOwnTenantPhaseIds() throws Exception {
     // The search returns a DTO, so nothing hydrates the association any more: the phase ids come
-    // from the projection, which reads kill_chain_phases and is therefore scoped. A regression
-    // here means the projection lost its scope or its tenant correlation, and the page would carry
-    // another tenant's phase ids.
+    // from the projection. A regression here means the projection lost its tenant correlation, or
+    // the search page stopped being scoped, and the page would carry another tenant's phase ids.
+    // Also green with the table disarmed, for the reason given in the class javadoc.
     String response =
         mvc.perform(
                 post(TENANT_PATTERN_SEARCH, tenantA)

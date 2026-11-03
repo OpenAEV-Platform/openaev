@@ -16,7 +16,7 @@ To create a new document, follow these steps:
 2. Select a file to create your document.
 3. Optionally, add a description and tags to provide additional context. You can also link your Documents directly to specific Simulations or Scenarios.
 
-![Document creation](./assets/document-creation.png)
+![Document creation](assets/document-creation.png)
 
 After completing these steps, your new document will appear in the document list. Clicking on a document in the list
 will allow you to download it.
@@ -32,5 +32,5 @@ You can also create a File Drop Threat Arsenal Action and include your Documents
 ## What's next?
 
 - [Scenarios](../scenario/scenario.md) -- Attach Documents to your Scenarios
-- [Injects](../../evaluate/injects/inject-overview.md) -- Use Documents in table-top Injects
+- [Injects](../../run-and-evaluate/injects/inject-overview.md) -- Use Documents in table-top Injects
 - [Threat Arsenal](../threat-arsenals/threat-arsenals.md) -- Create File Drop actions with your Documents

@@ -2,6 +2,7 @@ package io.openaev.service.targets.search.specifications;
 
 import io.openaev.database.model.*;
 import io.openaev.utils.FilterUtilsJpa;
+import io.openaev.utils.JpaUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.criteria.*;
 import jakarta.validation.constraints.NotNull;
@@ -180,7 +181,7 @@ public class SearchSpecificationUtils<T> {
   public static From<?, ?> createJoinedFrom(From<?, ?> root, List<String> joinPath) {
     From<?, ?> finalJoin = root;
     for (String path : joinPath) {
-      finalJoin = finalJoin.join(path);
+      finalJoin = JpaUtils.declaringFrom(finalJoin, path).join(path);
     }
     return finalJoin;
   }

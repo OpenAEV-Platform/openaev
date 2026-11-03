@@ -3,6 +3,8 @@ package io.openaev.injectors.email.service;
 import static java.lang.Integer.parseInt;
 import static java.time.Instant.now;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CommunicationRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -69,6 +71,13 @@ public class ImapService extends ExternalServiceBase {
   private final FileService fileService;
   private final Environment env;
   private final SettingRepository settingRepository;
+  private final TenantScopedTransaction tenantScopedTransaction;
+
+  /** The inject a reply names, and the tenant every read and write for that reply runs in. */
+  private record ResolvedInject(String injectId, String tenantId) {}
+
+  /** What the attachment upload needs once the communication is recorded. */
+  private record RecordedCommunication(String communicationId, String exerciseId) {}
 
   @PostConstruct
   private void init() {
@@ -193,16 +202,37 @@ public class ImapService extends ExternalServiceBase {
         .toList();
   }
 
-  private Inject injectResolver(String content, String contentHtml) {
+  /**
+   * An inbound email carries no tenant: the inject id in its footer is the only routing key, and it
+   * is globally unique. This is the one read made across every tenant, and it returns the inject's
+   * tenant only; everything that follows runs in that tenant.
+   */
+  private Optional<ResolvedInject> injectResolver(String content, String contentHtml) {
     Matcher matcher =
         content.length() > 10
             ? INJECT_ID_PATTERN.matcher(content)
             : INJECT_ID_PATTERN.matcher(contentHtml);
-    if (matcher.find()) {
-      String injectId = matcher.group(1);
-      return injectRepository.findById(injectId).orElse(null);
+    if (!matcher.find()) {
+      return Optional.empty();
     }
-    return null;
+    String injectId = matcher.group(1);
+    return tenantScopedTransaction.execute(
+        TxCtx.allTenants(),
+        () ->
+            injectRepository
+                .findTenantRefById(injectId)
+                .map(ref -> new ResolvedInject(ref.getId(), ref.getTenantId())));
+  }
+
+  private RecordedCommunication recordCommunication(String injectId, Communication communication) {
+    Inject inject = injectRepository.findById(injectId).orElseThrow();
+    communication.setInject(inject);
+    Communication saved = communicationRepository.save(communication);
+    // Update inject for real time
+    inject.setUpdatedAt(now());
+    injectRepository.save(inject);
+    String exerciseId = inject.getExercise() != null ? inject.getExercise().getId() : null;
+    return new RecordedCommunication(saved.getId(), exerciseId);
   }
 
   private void parseMessages(Message[] messages, Boolean isSent) throws Exception {
@@ -211,15 +241,24 @@ public class ImapService extends ExternalServiceBase {
       String messageID = mimeMessage.getMessageID();
       String content = getTextFromMessage(message);
       String contentHtml = getHtmlFromMessage(message);
-      Inject inject = injectResolver(content, contentHtml);
-      if (inject != null) {
-        String tenantId = inject.getTenant().getId();
+      Optional<ResolvedInject> resolved = injectResolver(content, contentHtml);
+      if (resolved.isPresent()) {
+        String injectId = resolved.get().injectId();
+        String tenantId = resolved.get().tenantId();
+        TxCtx tenantScope = TxCtx.forTenant(tenantId);
         boolean messageAlreadyAvailable =
-            communicationRepository.existsByIdentifierAndInjectTenantId(messageID, tenantId);
+            tenantScopedTransaction.execute(
+                tenantScope,
+                () ->
+                    communicationRepository.existsByIdentifierAndInjectTenantId(
+                        messageID, tenantId));
         if (!messageAlreadyAvailable) {
           List<String> participants = computeParticipants(message);
           List<User> users =
-              userRepository.findAllByEmailInIgnoreCaseAndTenantId(participants, tenantId);
+              tenantScopedTransaction.execute(
+                  tenantScope,
+                  () ->
+                      userRepository.findAllByEmailInIgnoreCaseAndTenantId(participants, tenantId));
           if (!users.isEmpty()) {
             String subject = message.getSubject();
             String from = String.valueOf(Arrays.stream(message.getFrom()).toList().get(0));
@@ -235,37 +274,39 @@ public class ImapService extends ExternalServiceBase {
             communication.setContentHtml(contentHtml);
             communication.setIdentifier(messageID);
             communication.setUsers(users);
-            communication.setInject(inject);
             communication.setAnimation(isSent);
             communication.setFrom(from);
             communication.setTo(to);
             try {
-              // Save the communication
-              Communication comm = communicationRepository.save(communication);
-              // Update inject for real time
-              inject.setUpdatedAt(now());
-              injectRepository.save(inject);
+              RecordedCommunication recorded =
+                  tenantScopedTransaction.execute(
+                      tenantScope, () -> recordCommunication(injectId, communication));
               // Upload attachments in communication
               final MimeMessageParser mimeParser = new MimeMessageParser(mimeMessage).parse();
               final List<DataSource> attachmentList = mimeParser.getAttachmentList();
               final List<String> uploads = new ArrayList<>();
-              String exerciseId = null;
-              if (inject.getExercise() != null) {
-                exerciseId = inject.getExercise().getId();
-              }
+              String exerciseId = recorded.exerciseId();
               for (DataSource dataSource : attachmentList) {
                 final String fileName = dataSource.getName();
                 String path =
                     exerciseId != null
-                        ? "/" + exerciseId + "/communications/" + comm.getId()
-                        : "/communications/" + comm.getId();
+                        ? "/" + exerciseId + "/communications/" + recorded.communicationId()
+                        : "/communications/" + recorded.communicationId();
                 String uploadName =
                     fileService.uploadStream(path, fileName, dataSource.getInputStream());
                 uploads.add(uploadName);
               }
               // Add attachment in the communication
-              comm.setAttachments(uploads.toArray(String[]::new));
-              communicationRepository.save(comm);
+              tenantScopedTransaction.execute(
+                  tenantScope,
+                  () ->
+                      communicationRepository
+                          .findById(recorded.communicationId())
+                          .ifPresent(
+                              comm -> {
+                                comm.setAttachments(uploads.toArray(String[]::new));
+                                communicationRepository.save(comm);
+                              }));
             } catch (Exception e) {
               log.error(e.getMessage(), e);
             }

@@ -1,8 +1,8 @@
 name: Prepare Bundled Assets
 description: >
   Download agent/implant binaries from JFrog and patch the catalog version.
-  Requires a full git checkout (fetch-depth: 0) in the calling job, because the
-  local artifact version comes from `git describe`.
+  The local file names carry the project version from `pom.xml`, which is the
+  version the backend looks them up with.
   Callers that only need the assets on their own runner should set
   upload-artifact: false; exactly one job must upload for the artifact to exist.
 
@@ -38,6 +38,7 @@ runs:
     - name: Compute versions
       id: versions
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: |
         if [[ "$GITHUB_REF" == refs/tags/* ]]; then
           TAG="${GITHUB_REF#refs/tags/}"
@@ -48,17 +49,24 @@ runs:
           echo "catalog_version=rolling"  >> "$GITHUB_OUTPUT"
         fi
 
+        # The backend resolves the bundled files with its own version
+        # (info.app.version = project.version). The latest git tag is not a safe
+        # source: it falls back to an older release when a release tag is removed.
+        # Parsed without Maven because the checkout may hold untrusted code.
+        LOCAL_VERSION="$(yq -p xml -oy '.project.version // ""' pom.xml)"
+        # The version ends up in file paths, so reject anything but a plain version
+        if [[ ! "$LOCAL_VERSION" =~ ^[0-9A-Za-z][0-9A-Za-z._+-]*$ ]]; then
+          echo "❌ Could not read a valid project version from pom.xml: '${LOCAL_VERSION}'"
+          exit 1
+        fi
+        echo "local_version=${LOCAL_VERSION}" >> "$GITHUB_OUTPUT"
+
     - name: Download agent & implant binaries
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
         BINARY_VERSION="${{ steps.versions.outputs.binary_version }}"
-
-        if [[ "${{ steps.versions.outputs.catalog_version }}" == "rolling" || "${{ steps.versions.outputs.catalog_version }}" == "prerelease" ]]; then
-          LOCAL_VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo "$BINARY_VERSION")"
-        else
-          LOCAL_VERSION="$BINARY_VERSION"
-        fi
+        LOCAL_VERSION="${{ steps.versions.outputs.local_version }}"
 
         if ! bash "$GITHUB_ACTION_PATH/../../../scripts/download-binaries.sh" "$BINARY_VERSION" "$LOCAL_VERSION"; then
           echo "❌ download-binaries.sh failed"

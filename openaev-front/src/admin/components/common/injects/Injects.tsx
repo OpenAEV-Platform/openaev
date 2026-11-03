@@ -56,19 +56,7 @@ const useStyles = makeStyles()(theme => ({
     opacity: 0.38,
     pointerEvents: 'none',
   },
-  duration: {
-    fontSize: 12,
-    height: theme.spacing(2.5),
-    float: 'left',
-    marginRight: theme.spacing(1),
-    borderRadius: theme.shape.borderRadius,
-    width: 180,
-    backgroundColor: 'var(--color-filigran-brand-primary-transparency-10)',
-    color: 'var(--color-filigran-brand-primary)',
-    border: '1px solid var(--color-filigran-brand-primary)',
-  },
   itemHead: { textTransform: 'uppercase' },
-  item: { height: theme.spacing(6.25) },
   bodyItems: { display: 'flex' },
   bodyItem: {
     minHeight: theme.spacing(2.5),
@@ -219,8 +207,13 @@ const Injects: FunctionComponent<Props> = ({
         }
         let injectStatus;
         let injectTooltip = '';
+        // A revoked payload is skipped at execution and blocks the launch (F18).
+        const revoked = inject.inject_enabled && inject.inject_payload_revoked;
         if (!inject.inject_enabled) {
           injectStatus = t('Disabled');
+        } else if (revoked) {
+          injectStatus = t('Payload revoked');
+          injectTooltip = t('This inject is skipped and the scenario cannot launch until the revocation is lifted.');
         } else if (!inject.inject_ready) {
           injectStatus = t('Missing content');
           injectTooltip = inject.inject_healthchecks
@@ -240,19 +233,17 @@ const Injects: FunctionComponent<Props> = ({
           }}
           >
             <ItemBoolean
-              status={inject.inject_ready ? inject.inject_enabled : false}
+              status={inject.inject_ready && !revoked ? inject.inject_enabled : false}
               label={injectStatus}
               variant="inList"
               tooltip={injectTooltip}
             />
-            {inject.inject_enabled && (
-              // Not approved: an icon next to the status. A new version pending approval does not
-              // block the inject: a "Pending" chip next to its usual status.
+            {inject.inject_enabled && payloadApprovalDisplay(approvalStatus) && (
+              // The version this inject runs is not approved: an icon next to the status.
               <PayloadApprovalWarningChip
                 approvalStatus={approvalStatus}
-                pendingVersion={payload?.payload_pending_version}
                 payloadName={payload?.payload_name}
-                variant={payloadApprovalDisplay(approvalStatus) ? 'icon' : 'chip'}
+                variant="icon"
               />
             )}
           </span>
@@ -551,7 +542,13 @@ const Injects: FunctionComponent<Props> = ({
         queryableHelpers={queryableHelpers}
         reloadContentCount={reloadInjectCount}
         topBarButtons={(
-          <Box display="flex" gap={1} alignItems="center">
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              alignItems: 'center',
+            }}
+          >
             <InjectsListButtons
               availableButtons={availableButtons}
               setViewMode={setViewMode}
@@ -730,6 +727,7 @@ const Injects: FunctionComponent<Props> = ({
               open
               handleClose={() => setSelectedInjectId(null)}
               onUpdateInject={onUpdateInject}
+              onVersionChanged={() => setReloadInjectCount(prev => prev + 1)}
               massUpdateInject={massUpdateInject}
               injectId={selectedInjectId}
               injects={injects}

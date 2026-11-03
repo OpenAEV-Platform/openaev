@@ -127,8 +127,18 @@ const ChoiceCard = ({ icon: Icon, iconColor, circle, title, description, onClick
         }}
         />
       </Box>
-      <Typography variant="subtitle1" fontWeight={600}>{title}</Typography>
-      <Typography variant="body2" color="text.secondary">{description}</Typography>
+      <Typography
+        variant="subtitle1"
+        sx={{ fontWeight: 600 }}
+      >
+        {title}
+      </Typography>
+      <Typography
+        variant="body2"
+        sx={{ color: 'text.secondary' }}
+      >
+        {description}
+      </Typography>
     </ButtonBase>
   );
 };

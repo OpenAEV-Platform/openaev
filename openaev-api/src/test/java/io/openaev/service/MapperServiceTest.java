@@ -161,19 +161,32 @@ public class MapperServiceTest extends IntegrationTest {
     assertEquals(
         importMapper.getInjectImporters().size(), capturedImportMapper.getInjectImporters().size());
     // verify injectImporter
-    assertEquals("", capturedImportMapper.getInjectImporters().get(0).getId());
+    assertEquals("", capturedImportMapper.getInjectImporters().iterator().next().getId());
     assertEquals(
-        importMapper.getInjectImporters().get(0).getImportTypeValue(),
-        capturedImportMapper.getInjectImporters().get(0).getImportTypeValue());
+        importMapper.getInjectImporters().iterator().next().getImportTypeValue(),
+        capturedImportMapper.getInjectImporters().iterator().next().getImportTypeValue());
     assertEquals(
-        importMapper.getInjectImporters().get(0).getRuleAttributes().size(),
-        capturedImportMapper.getInjectImporters().get(0).getRuleAttributes().size());
+        importMapper.getInjectImporters().iterator().next().getRuleAttributes().size(),
+        capturedImportMapper.getInjectImporters().iterator().next().getRuleAttributes().size());
     // verify ruleAttribute
     assertEquals(
-        "", capturedImportMapper.getInjectImporters().get(0).getRuleAttributes().get(0).getId());
+        "",
+        capturedImportMapper
+            .getInjectImporters()
+            .iterator()
+            .next()
+            .getRuleAttributes()
+            .get(0)
+            .getId());
     assertEquals(
-        importMapper.getInjectImporters().get(0).getRuleAttributes().get(0).getName(),
-        capturedImportMapper.getInjectImporters().get(0).getRuleAttributes().get(0).getName());
+        importMapper.getInjectImporters().iterator().next().getRuleAttributes().get(0).getName(),
+        capturedImportMapper
+            .getInjectImporters()
+            .iterator()
+            .next()
+            .getRuleAttributes()
+            .get(0)
+            .getName());
 
     assertEquals(response.getId(), importMapperSaved.getId());
   }

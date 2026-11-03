@@ -47,10 +47,12 @@ vi.mock('../../../../../actions/threat_arsenals/threatArsenal-actions', () => ({
   fetchThreatArsenalActionUsage: (...args: unknown[]) => mockUsage(...args),
 }));
 
+// A pending payload version: each version is its own action (#8731).
 const pendingAction = {
   action_id: 'action-1',
+  action_payload_id: 'payload-1',
+  action_payload_version: '1.1.0',
   action_approval_status: 'PENDING',
-  action_approval_fingerprint: 'fingerprint-1',
   action_approval_latest: {
     approval_id: 'entry-1',
     approval_status: 'PENDING',
@@ -58,31 +60,6 @@ const pendingAction = {
     approval_automatic: true,
     approval_actor_name: 'Author User',
     approval_created_at: '2026-10-07T10:00:00Z',
-  },
-} as unknown as ThreatArsenalActionFullOutput;
-
-// An approved action whose author submitted a new version (Task 5).
-const actionWithPendingVersion = {
-  ...pendingAction,
-  action_approval_status: 'APPROVED',
-  action_approval_fingerprint: 'fingerprint-active',
-  action_active_version: 1,
-  action_active_content: {
-    content: 'whoami',
-    executor: 'sh',
-  },
-  action_pending_version: {
-    version_id: 'version-2',
-    version_number: 2,
-    version_status: 'PENDING',
-    version_origin: 'UPDATE',
-    version_fingerprint: 'fingerprint-2',
-    version_author_name: 'Author User',
-    version_created_at: '2026-10-09T10:00:00Z',
-    version_content: {
-      content: 'whoami\nid',
-      executor: 'sh',
-    },
   },
 } as unknown as ThreatArsenalActionFullOutput;
 
@@ -153,7 +130,7 @@ describe('ThreatArsenalApprovalSection', () => {
   });
 
   describe('decisions', () => {
-    it('approves with the fingerprint of the shown content', async () => {
+    it('approves the version shown', async () => {
       // Arrange
       mockCan.mockReturnValue(true);
       mockApprove.mockResolvedValue({
@@ -171,11 +148,20 @@ describe('ThreatArsenalApprovalSection', () => {
       fireEvent.click(dialogButtons[dialogButtons.length - 1]);
 
       // Assert
-      await waitFor(() => expect(mockApprove).toHaveBeenCalledWith('action-1', {
-        approval_fingerprint: 'fingerprint-1',
-        approval_comment: undefined,
-      }, false));
+      await waitFor(() => expect(mockApprove).toHaveBeenCalledWith('action-1', { approval_comment: undefined }, false));
       await waitFor(() => expect(onDecided).toHaveBeenCalled());
+    });
+
+    it('tells the approver that the injects stay on their version until moved', async () => {
+      // Arrange
+      mockCan.mockReturnValue(true);
+      renderSection(pendingAction);
+
+      // Act
+      fireEvent.click(screen.getByRole('button', { name: /Approve/ }));
+
+      // Assert
+      expect(await screen.findByText('Approve version v{version}? It can then be used. Injects keep running their current version: you will be asked whether to move them to this one.')).toBeTruthy();
     });
 
     it('does not reject without a reason', async () => {
@@ -189,11 +175,11 @@ describe('ThreatArsenalApprovalSection', () => {
       fireEvent.click(dialogButtons[dialogButtons.length - 1]);
 
       // Assert
-      expect(await screen.findByText('A reason is required to reject a payload.')).toBeTruthy();
+      expect(await screen.findByText('A reason is required to reject a version.')).toBeTruthy();
       expect(mockReject).not.toHaveBeenCalled();
     });
 
-    it('shows where the payload is used as information, with no usage warning when rejecting (Task 5)', async () => {
+    it('shows where the payload is used as information, with no usage warning when rejecting', async () => {
       // Arrange
       mockCan.mockReturnValue(true);
       mockUsage.mockResolvedValue({
@@ -210,69 +196,33 @@ describe('ThreatArsenalApprovalSection', () => {
       fireEvent.click(screen.getByRole('button', { name: /Reject/ }));
 
       // Assert
-      expect(await screen.findByText('Reject this payload? It stays blocked until it is edited and approved.')).toBeTruthy();
+      expect(await screen.findByText('Reject version v{version}? Injects keep running their current version; the author can save a new version.')).toBeTruthy();
       expect(mockUsage).toHaveBeenCalledWith('action-1');
     });
   });
 
-  describe('pending version (Task 5)', () => {
-    it('offers the decision on an approved action with a pending version and shows its changes', async () => {
+  describe('superseded version', () => {
+    it('offers no decision on a version replaced before any decision', () => {
       // Arrange
       mockCan.mockReturnValue(true);
 
       // Act
-      renderSection(actionWithPendingVersion);
+      renderSection({
+        ...pendingAction,
+        action_approval_status: 'SUPERSEDED',
+      } as ThreatArsenalActionFullOutput);
 
       // Assert
-      expect((screen.getByRole('button', { name: /Approve/ }) as HTMLButtonElement).disabled).toBe(false);
-      expect(screen.getByText('Pending version')).toBeTruthy();
-      // The status is the latest version's (Pending), not "Approved"; the active version stays in use.
-      expect(screen.getByText('Pending approval')).toBeTruthy();
-      expect(screen.queryByText('Approved')).toBeNull();
-      expect(screen.getByText('v{number} (approved, still in use)')).toBeTruthy();
-      const diff = screen.getByLabelText('Command');
-      expect(diff.textContent).toContain('  whoami');
-      expect(diff.textContent).toContain('+ id');
-      expect(screen.queryByText('Executor')).toBeNull();
+      expect(screen.queryByRole('button', { name: /Approve/ })).toBeNull();
+      expect(screen.getByText('Superseded')).toBeTruthy();
     });
 
-    it('approves the pending version with the fingerprint of that version', async () => {
-      // Arrange
-      mockCan.mockReturnValue(true);
-      mockApprove.mockResolvedValue({ data: actionWithPendingVersion });
-      renderSection(actionWithPendingVersion);
-
-      // Act
-      fireEvent.click(screen.getByRole('button', { name: /Approve/ }));
-      expect(await screen.findByText('Approve version {number}? It replaces the active version: the next runs use it.')).toBeTruthy();
-      const dialogButtons = await screen.findAllByRole('button', { name: 'Approve' });
-      fireEvent.click(dialogButtons[dialogButtons.length - 1]);
-
-      // Assert
-      await waitFor(() => expect(mockApprove).toHaveBeenCalledWith('action-1', {
-        approval_fingerprint: 'fingerprint-2',
-        approval_comment: undefined,
-      }, false));
-    });
-
-    it('rejects the pending version, keeping the active one', async () => {
-      // Arrange
-      mockCan.mockReturnValue(true);
-      renderSection(actionWithPendingVersion);
-
-      // Act
-      fireEvent.click(screen.getByRole('button', { name: /Reject/ }));
-
-      // Assert
-      expect(await screen.findByText('Reject version {number}? The active version stays in use.')).toBeTruthy();
-    });
-
-    it('shows the latest decision but no history list', async () => {
+    it('shows the latest decision but no history list', () => {
       // Arrange
       mockCan.mockReturnValue(true);
 
       // Act
-      renderSection(actionWithPendingVersion);
+      renderSection(pendingAction);
 
       // Assert
       expect(screen.getByText('Last decision')).toBeTruthy();

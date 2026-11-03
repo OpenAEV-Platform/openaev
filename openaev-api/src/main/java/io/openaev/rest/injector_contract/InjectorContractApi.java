@@ -1,6 +1,9 @@
 package io.openaev.rest.injector_contract;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.database.specification.InjectorContractSpecification.withLatestApprovedPayload;
+import static io.openaev.database.specification.InjectorContractSpecification.withLatestPayload;
+import static io.openaev.database.specification.InjectorContractSpecification.withoutRevokedPayload;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
@@ -76,6 +79,21 @@ public class InjectorContractApi extends RestBehavior {
                         InjectorContractBaseOutput.class,
                         InjectorContractFullOutput.class,
                       })))
+  private static Specification<InjectorContract> versionScope(
+      InjectorContractSearchPaginationInput input) {
+    Specification<InjectorContract> scope = Specification.unrestricted();
+    if (input.isLatestVersionsOnly()) {
+      // A picker of approved actions offers each payload in its latest approved version.
+      scope =
+          scope.and(
+              input.isApprovedPayloadsOnly() ? withLatestApprovedPayload() : withLatestPayload());
+    }
+    if (input.isExcludeRevokedPayloads()) {
+      scope = scope.and(withoutRevokedPayload());
+    }
+    return scope;
+  }
+
   @PostMapping({INJECTOR_CONTRACT_URL + "/search", TENANT_INJECTOR_CONTRACT_URL + "/search"})
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
@@ -86,14 +104,15 @@ public class InjectorContractApi extends RestBehavior {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                input.restrictToPickable(spec),
-                input.restrictToPickable(specCount),
+                input.restrictToPickable(spec.and(versionScope(input))),
+                input.restrictToPickable(specCount.and(versionScope(input))),
                 pageable,
                 input.isIncludeFullDetails()
                     ? InjectorContractService.OutputMode.FULL
                     : InjectorContractService.OutputMode.BASE,
                 input.getInjectorContractIdsToIgnore(),
-                input.getInjectorContractIdsToProcess()),
+                input.getInjectorContractIdsToProcess(),
+                input.isGroupByPrimaryDomain()),
         handleArchitectureFilter(input),
         InjectorContract.class);
   }

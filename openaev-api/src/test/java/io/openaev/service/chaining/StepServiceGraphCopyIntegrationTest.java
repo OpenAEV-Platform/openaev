@@ -28,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Graph-copy correctness of {@link StepService#copyStepTemplate(Workflow, Workflow)}, the single
  * cloning primitive shared by launch, autonomous plan provisioning, convert-to-manual and
- * duplication (ADR-007).
+ * duplication (ADR-015).
  */
 @SpringBootTest
 @Transactional
@@ -184,6 +184,7 @@ class StepServiceGraphCopyIntegrationTest {
       Condition standalone =
           ConditionFixture.getDefaultCondition(PrimitiveType.Text, "standalone-value");
       standalone.setWorkflowId(scenarioTemplate.getId());
+      standalone.setTenant(scenarioTemplate.getTenant());
       standalone.setName("Unattached event");
       conditionComposer.forCondition(standalone).persist();
 

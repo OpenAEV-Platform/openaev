@@ -55,6 +55,14 @@ export const OPERATION_COLORS: Record<string, string> = {
   UPDATE: deepPurple[500],
   DELETE: red[500],
   SCORE_DEGRADATION: orange[500],
+  PAYLOAD_REVOKED: red[500],
+  REVOKED: red[500],
+  SYNC_BLOCKED: red[500],
+  REVOCATION_LIFTED: green[500],
+  NEW_PAYLOAD_VERSION: orange[500],
+  BASE_UPDATE_AVAILABLE: orange[500],
+  INSTALLED_AUTOMATICALLY: green[500],
+  RELEASE_RECEIVED: deepPurple[500],
   APPROVAL_PENDING: orange[500],
   APPROVED: green[500],
   REJECTED: red[500],
@@ -71,6 +79,14 @@ export const OPERATION_LABELS: Record<string, string> = {
   UPDATE: 'Modification',
   DELETE: 'Deletion',
   SCORE_DEGRADATION: 'Score degradation',
+  PAYLOAD_REVOKED: 'Payload revoked',
+  REVOKED: 'Revoked',
+  REVOCATION_LIFTED: 'Revocation lifted',
+  NEW_PAYLOAD_VERSION: 'New action version available',
+  BASE_UPDATE_AVAILABLE: 'Filigran update available',
+  INSTALLED_AUTOMATICALLY: 'Installed automatically',
+  RELEASE_RECEIVED: 'Release received',
+  SYNC_BLOCKED: 'Catalog sync blocked',
   APPROVAL_PENDING: 'Pending approval',
   APPROVED: 'Approved',
   REJECTED: 'Rejected',
@@ -91,6 +107,9 @@ export const operationIcon = (operation: string): ReactNode => {
     case 'DELETE':
       return <BellRemoveOutline style={{ color }} />;
     case 'SCORE_DEGRADATION':
+    case 'PAYLOAD_REVOKED':
+    case 'REVOKED':
+    case 'SYNC_BLOCKED':
     case 'APPROVAL_PENDING':
       return <BellAlertOutline style={{ color }} />;
     case 'APPROVED':
@@ -106,9 +125,8 @@ export const operationIcon = (operation: string): ReactNode => {
   }
 };
 
-// Resource types with a dedicated detail page. Types without a standalone
-// detail route (payload, vulnerability, document, challenge) are deliberately
-// absent: their notifications are not navigable.
+// Resource types with a page to open. Types without one (vulnerability, document, challenge) are
+// absent: their notifications are not navigable. A payload opens its action in the Threat Arsenal.
 const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
   SCENARIO: id => `${SCENARIO_BASE_URL}/${id}`,
   SIMULATION: id => `${SIMULATION_BASE_URL}/${id}`,
@@ -119,9 +137,17 @@ const RESOURCE_TYPE_URLS: Record<string, (id: string) => string> = {
   TEAM: id => `${TEAM_BASE_URL}/${id}`,
   PLAYER: id => `${PERSON_BASE_URL}/${id}`,
   SECURITY_PLATFORM: id => `${SECURITY_PLATFORM_BASE_URL}/${id}`,
+  PAYLOAD: () => '/admin/threat-arsenal',
+  CATALOG: () => '/admin/threat-arsenal/available',
+  CATALOG_SYNC: () => '/admin/threat-arsenal/available',
   // Payload approval notifications open the action's drawer in the Threat Arsenal.
   THREAT_ARSENAL: id => `/admin/threat-arsenal?${ACTION_PARAM}=${encodeURIComponent(id)}`,
 };
+
+/** Router state the page needs to open the entity: the Threat Arsenal opens a payload's action. */
+export const eventLinkState = (event?: NotificationEvent) => (
+  event?.resource_type === 'PAYLOAD' && event.resource_id ? { openPayloadId: event.resource_id } : undefined
+);
 
 /**
  * URL of the entity that triggered an event, or undefined when not navigable

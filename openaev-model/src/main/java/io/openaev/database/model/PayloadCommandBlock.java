@@ -1,13 +1,16 @@
 package io.openaev.database.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.Serializable;
 import java.util.List;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
 @Setter
 @Getter
-public class PayloadCommandBlock {
+@EqualsAndHashCode
+public class PayloadCommandBlock implements Serializable {
 
   @JsonProperty("command_executor")
   private String executor;
