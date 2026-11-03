@@ -19,6 +19,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.utils.command.CommandArgumentBinder;
+import io.openaev.utils.command.CommandBindingException;
 import jakarta.annotation.Resource;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -286,7 +287,7 @@ public class ExecutableInjectService {
     return Base64.getEncoder().encodeToString(computedCommand.getBytes());
   }
 
-  @Transactional(rollbackFor = Exception.class)
+  @Transactional(rollbackFor = Exception.class, noRollbackFor = CommandBindingException.class)
   public Payload getExecutablePayloadAndUpdateInjectStatus(String injectId, String agentId)
       throws Exception {
     // Need startTime to be defined before everything else to be the most accurate start time, as
@@ -296,7 +297,13 @@ public class ExecutableInjectService {
     // but it would require more changes in the implant code and change this endpoint from a get to
     // a post.
     Instant startTime = Instant.now();
-    Payload payloadToExecute = getExecutablePayloadInject(injectId, agentId);
+    Payload payloadToExecute;
+    try {
+      payloadToExecute = getExecutablePayloadInject(injectId, agentId);
+    } catch (CommandBindingException e) {
+      this.injectStatusService.setImplantErrorTrace(injectId, agentId, e.getMessage());
+      throw e;
+    }
     this.injectStatusService.addStartImplantExecutionTraceByInject(
         injectId, agentId, "Implant is up and starting execution", startTime);
     this.injectExpectationService.addStartDateSignatureToInjectExpectationsByAgent(

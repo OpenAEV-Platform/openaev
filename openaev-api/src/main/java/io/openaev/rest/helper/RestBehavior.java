@@ -21,6 +21,7 @@ import io.openaev.ratelimit.exception.RateLimitedException;
 import io.openaev.rest.exception.*;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.stix.parsing.ParsingException;
+import io.openaev.utils.command.CommandBindingException;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -529,6 +530,13 @@ public class RestBehavior {
   public ResponseEntity<ErrorMessage> handleUnknownEngineFieldException(
       UnknownEngineFieldException ex) {
     log.debug("UnknownEngineFieldException: {}", ex.getMessage(), ex);
+    return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.BAD_REQUEST);
+  }
+
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(CommandBindingException.class)
+  public ResponseEntity<ErrorMessage> handleCommandBindingException(CommandBindingException ex) {
+    log.debug("CommandBindingException: {}", ex.getMessage(), ex);
     return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.BAD_REQUEST);
   }
 

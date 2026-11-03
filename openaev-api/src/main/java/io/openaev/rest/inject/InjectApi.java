@@ -40,6 +40,7 @@ import io.openaev.service.credential.CredentialService;
 import io.openaev.service.targets.TargetService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.command.CommandBindingException;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -436,7 +437,7 @@ public class InjectApi extends RestBehavior {
       summary = "Get the payload ready to be executed",
       description =
           "This endpoint is invoked by implants to retrieve a payload command that's pre-configured and ready for execution.")
-  @Transactional
+  @Transactional(noRollbackFor = CommandBindingException.class)
   public Payload getExecutablePayloadInject(
       TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
