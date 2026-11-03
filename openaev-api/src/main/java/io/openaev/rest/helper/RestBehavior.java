@@ -880,13 +880,15 @@ public class RestBehavior {
   }
 
   /**
-   * Hydrates, inside the scoped transaction, the lazy {@code user_teams} collection every endpoint
-   * returning a raw {@link User} serializes. The collection is loaded after the controller returns,
-   * through open-in-view, where the tenant scope is already gone: a lazy load at that point runs
-   * unscoped and fails closed, so the array comes back empty although the memberships exist.
+   * Hydrates, inside the scoped transaction, the lazy {@code user_teams} and {@code
+   * user_organization} associations every endpoint returning a raw {@link User} serializes. They
+   * are loaded after the controller returns, through open-in-view, where the tenant scope is
+   * already gone: a lazy load at that point runs unscoped and fails closed, so the array comes back
+   * empty although the memberships exist.
    */
   protected static User hydrateUserForResponse(User user) {
     Hibernate.initialize(user.getTeams());
+    user.loadOrganizations();
     return user;
   }
 }

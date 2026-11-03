@@ -22,6 +22,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.Hibernate;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.Type;
@@ -204,6 +205,16 @@ public class User implements Base {
   @Schema(description = "Organization ID of the user", type = "string")
   public Organization getOrganization() {
     return organizationOfTenant(TenantContext.getCurrentTenant());
+  }
+
+  /**
+   * Loads the organizations of the user. Call it inside the scoped transaction of an endpoint that
+   * returns the raw user: {@code user_organization} is otherwise read after the commit, where the
+   * tenant scope is gone and a lazy load of the v2-active {@code organizations} fails closed to
+   * nothing.
+   */
+  public void loadOrganizations() {
+    Hibernate.initialize(organizations);
   }
 
   /**

@@ -34,7 +34,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -42,12 +41,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * A user is platform-level while an organization belongs to one tenant: linking the user to an
- * organization in a tenant must never unlink it in another one (issue #8187). The API keeps a single
- * {@code user_organization} value, the one of the tenant the request is made in.
+ * organization in a tenant must never unlink it in another one (issue #8187). The API keeps a
+ * single {@code user_organization} value, the one of the tenant the request is made in.
  */
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@TestPropertySource(properties = "openaev.tenant.active-tables=organizations")
 @WithMockUser(isAdmin = true)
 @DisplayName("User organization per tenant")
 class UserOrganizationPerTenantTest extends IntegrationTest {
