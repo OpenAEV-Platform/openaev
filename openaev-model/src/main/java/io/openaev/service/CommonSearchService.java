@@ -2,6 +2,7 @@ package io.openaev.service;
 
 import io.openaev.engine.EngineContext;
 import io.openaev.engine.EsModel;
+import io.openaev.engine.api.ListConfiguration;
 import io.openaev.schema.PropertySchema;
 import io.openaev.schema.SchemaUtils;
 import java.lang.reflect.Field;
@@ -68,6 +69,44 @@ public class CommonSearchService {
             .collect(Collectors.toSet());
     properties.forEach(p -> cacheMap.putIfAbsent(p.getName(), p));
     return cacheMap;
+  }
+
+  /**
+   * Returns the entity a list widget lists, read from the {@code base_entity} filter of its
+   * perspective.
+   *
+   * <p>The widget comes from the caller, so a missing perspective or filter is refused with an
+   * {@link IllegalArgumentException}, which the REST layer turns into a 400.
+   *
+   * @param widget the list widget configuration
+   * @return the name of the entity to list
+   */
+  public String getListEntityName(ListConfiguration widget) {
+    ListConfiguration.ListPerspective perspective = widget.getPerspective();
+    if (perspective == null || perspective.getFilter() == null) {
+      throw new IllegalArgumentException("A list widget needs a perspective with a filter");
+    }
+    return perspective.getFilter().getFilters().stream()
+        .filter(filter -> "base_entity".equals(filter.getKey()))
+        .filter(filter -> filter.getValues() != null && !filter.getValues().isEmpty())
+        .findAny()
+        .orElseThrow(() -> new IllegalArgumentException("A list widget needs a base_entity filter"))
+        .getValues()
+        .getFirst();
+  }
+
+  /**
+   * Returns the indexed model class of an entity, refusing an entity the engine does not index.
+   *
+   * @param entityName the name of the entity
+   * @return the model class
+   */
+  public Class<?> getModelClass(String entityName) {
+    return searchEngine.getModels().stream()
+        .filter(model -> entityName.equals(model.getName()))
+        .findAny()
+        .orElseThrow(() -> new IllegalArgumentException("Unknown entity: " + entityName))
+        .getModel();
   }
 
   /**
