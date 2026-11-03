@@ -69,28 +69,6 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
         subtitle={authorName ? `${t('by')} ${authorName}` : undefined}
         description={scenario.scenario_description ?? undefined}
         linkTo={`/admin/scenarios/${scenario.scenario_id}`}
-        topRight={(
-          <ScenarioPopover
-            scenario={scenario}
-            actions={['Duplicate', 'Export', 'Delete']}
-            onDelete={onDelete}
-            inList
-            // Launch on every Active card, installed or local (F6); Update only for a catalogue scenario.
-            leadingEntries={[{
-              label: 'Launch',
-              action: () => {
-                launch();
-              },
-              userRight: canLaunch,
-            }, ...(updateAvailable
-              ? [{
-                  label: 'Update',
-                  action: () => setUpdating(true),
-                  userRight: canManage,
-                }]
-              : [])]}
-          />
-        )}
         // DS Card anatomy, as on the Threat Arsenal cards (Figma 8467:4560), with the content this card
         // already had: "Update available" in the banner, version and last run in the info row, status
         // and platforms bottom left, Launch right.
@@ -132,8 +110,38 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
             {(scenario.scenario_platforms ?? []).slice(0, 3).map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
           </>
         )}
-        action={canLaunch && (
-          <Button size="sm" onClick={launch}>{t('Launch')}</Button>
+        // The menu sits beside the action, bottom right, as on the Threat Arsenal cards.
+        action={(
+          <span
+            onClick={event => event.stopPropagation()}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            {canLaunch && <Button size="sm" onClick={launch}>{t('Launch')}</Button>}
+            <ScenarioPopover
+              scenario={scenario}
+              actions={['Duplicate', 'Export', 'Delete']}
+              onDelete={onDelete}
+              inList
+              // Launch on every Active card, installed or local (F6); Update only for a catalogue scenario.
+              leadingEntries={[{
+                label: 'Launch',
+                action: () => {
+                  launch();
+                },
+                userRight: canLaunch,
+              }, ...(updateAvailable
+                ? [{
+                    label: 'Update',
+                    action: () => setUpdating(true),
+                    userRight: canManage,
+                  }]
+                : [])]}
+            />
+          </span>
         )}
       />
     </>
