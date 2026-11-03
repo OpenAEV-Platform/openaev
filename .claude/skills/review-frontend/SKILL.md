@@ -71,7 +71,7 @@ Rules: `frontend.instructions.md` → *Design System & Layout*.
 
 - **Server data**: TanStack Query with its defaults and `queryOptions` in `actions/{feature}/{feature}-queries.ts` (keys carry every parameter, `queryFn` passes `signal`, plain calls resolving to the data, never a thunk); a migrated screen never also reads that data from Redux
 - **Live refresh**: invalidation only (`meta.live` built with `liveMeta` on queries, `useLiveMutation` for mutations), no `setQueryData` / direct `invalidateQueries`, no new `EventSource` for platform data
-- **Paginated lists**: `useQueryableWithLocalStorage` + `PaginationComponentV2`
+- **Paginated lists**: `usePaginatedQuery` + `QueryableToolbar` on queries (total from the data, no `handleChangeTotalElements` / `incrementTotalElements`), `useQueryableWithLocalStorage` + `PaginationComponentV2` on screens not migrated yet
 - **Actions**: simple calls in the feature's action file (`actions/{feature}/{feature}-action.ts`, or the existing `-actions.ts`)
 - **Hooks**: custom hook per feature (e.g., `useOrganizations.ts`) for local state
 

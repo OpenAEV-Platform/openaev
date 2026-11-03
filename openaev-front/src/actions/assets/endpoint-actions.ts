@@ -1,5 +1,6 @@
 import { type Dispatch } from 'redux';
 
+import { type Page } from '../../components/common/queryable/Page';
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall } from '../../utils/Action';
 import { type AssetBulkProcessingInput, type AssetUpdateMarkingsInput, type Endpoint, type EndpointInput, type EndpointOutput, type EndpointOverviewOutput, type SearchPaginationInput } from '../../utils/api-types';
 import { arrayOfEndpoints, endpoint } from './asset-schema';
@@ -37,9 +38,13 @@ export const searchEndpoints = (searchPaginationInput: SearchPaginationInput) =>
 // Unified asset inventory: returns EVERY asset type (endpoints, AI targets, identities, cloud /
 // web / network / generic). Endpoints keep their agents/platform; other types list with those
 // empty. Filters/sorts must reference base asset fields (no endpoint-only platform/arch facets).
-export const searchAssets = (searchPaginationInput: SearchPaginationInput) => {
-  return simplePostCall('/api/assets/search', searchPaginationInput);
-};
+// Plain read backing the query cache: no toast (the query cache notifies), and cancellable
+// through the query's signal.
+export const searchAssets = ({ input, signal }: {
+  input: SearchPaginationInput;
+  signal?: AbortSignal;
+}): Promise<Page<EndpointOutput>> =>
+  simplePostCall('/api/assets/search', input, { signal }, false).then(response => response.data);
 
 // Generic delete for the unified inventory: removes any asset type (endpoint, AI target, or any
 // other category) by id. Security platforms are rejected server-side (managed in their own area).
