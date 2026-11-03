@@ -63,7 +63,6 @@ plugins:
   - search
   - redirects:
       redirect_maps:
-        'development/api-usage.md': 'reference/apis/rest-api.md'
         'deployment/authentication.md': 'deployment/platform/authentication.md'
         'deployment/certificate-validation.md': 'deployment/platform/certificate-validation.md'
         'deployment/configuration.md': 'reference/deployment/configuration.md'
@@ -182,8 +181,7 @@ nav:
         - URL access token enforcement for email links: deployment/breaking-changes/2.260622.0-url-access-token-enforcement.md
         - Injector contract expectation format: deployment/breaking-changes/MigrationVersion-injector-contract-expectation-format.md
         - Tenant users, groups and roles capabilities: deployment/breaking-changes/MigrationVersion-tenant-users-groups-and-roles-capabilities.md
-        - Elasticsearch 9 and engine auto-detection: deployment/breaking-changes/MigrationVersion-elasticsearch-9.md
-        - Windows agents running under a named service account: deployment/breaking-changes/3.261016.0-windows-agent-config-permissions.md
+        - Elasticsearch 9: deployment/breaking-changes/MigrationVersion-elasticsearch-9.md
     - Integration Manager:
       - Overview: deployment/integration-manager/overview.md
       - Quick start: deployment/integration-manager/quick-start.md
@@ -298,9 +296,10 @@ nav:
     - Configuration: reference/deployment/configuration.md
     - REST API: reference/apis/rest-api.md
     - Filters: reference/apis/filters.md
+    - Security Coverage result bundle: reference/apis/security-coverage-results.md
     - Bulk snapshot export: reference/apis/bulk-snapshot.md
     - Telemetry: reference/deployment/telemetry.md
-  - Troubleshooting: troubleshooting/index.md
+  - Troubleshooting & FAQ: troubleshooting/index.md
   - Development:
     - Prerequisites:
       - Ubuntu: development/environment-ubuntu.md
@@ -313,4 +312,5 @@ nav:
     - Collector development: development/collectors.md
     - Injector development: development/injectors.md
     - Attack path: development/attack-path.md
+    - REST API: development/api-usage.md
     - Translations: development/translations.md
