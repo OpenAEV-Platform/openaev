@@ -83,14 +83,27 @@ public class TeamService {
   }
 
   /**
-   * Loads a team in scope with its tags, for the endpoint that returns the raw entity. It is
-   * serialized open-in-view after the commit, when a lazy {@code tags} load fails closed to an
-   * empty array once {@code tags} is v2-active: the team edit form, filled from that response, then
-   * saved the empty list and erased the team's tags.
+   * Loads a team in scope with its tags, simulations, scenarios, injects and communications, for
+   * the endpoint that returns the raw entity. It is serialized open-in-view after the commit, when
+   * a lazy load on a v2-active table fails closed to an empty array: the team edit form, filled
+   * from that response, then saved the empty tag list and erased the team's tags. Simulations and
+   * scenarios are tenant tables too, and the team page counts them from the same response.
+   *
+   * <p>The team's injects are the ones of its simulations and scenarios that target it: each
+   * inject's eager {@code teams} reads the isolated {@code teams} table, so loaded after the commit
+   * the team is no longer among its targets and its injects, their counts and communications come
+   * back empty. Reading them here loads those collections while the scope is set (one query per
+   * simulation or scenario for its injects, one subselect per eager collection of an inject, and
+   * the batch-fetched dependencies of the injects, which grow with their number in batches of the
+   * configured batch size); the response then finds them initialized.
    */
-  public Team teamInScopeWithTags(@NotNull final TxCtx ctx, @NotNull final String teamId) {
+  public Team teamInScopeWithCollections(@NotNull final TxCtx ctx, @NotNull final String teamId) {
     Team team = teamInScope(ctx, teamId);
     Hibernate.initialize(team.getTags());
+    Hibernate.initialize(team.getExercises());
+    Hibernate.initialize(team.getScenarios());
+    team.getExercisesInjects();
+    team.getScenariosInjects();
     return team;
   }
 

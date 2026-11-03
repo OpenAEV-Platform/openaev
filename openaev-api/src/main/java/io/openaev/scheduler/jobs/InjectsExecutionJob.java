@@ -25,6 +25,7 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.scheduler.jobs.exception.ErrorMessagesPreExecutionException;
 import io.openaev.service.chaining.WorkflowService;
@@ -177,9 +178,11 @@ public class InjectsExecutionJob implements Job {
               + details
               + ")");
     }
-    List<AssetToExecute> resolvedAssets = injectService.resolveAllAssetsToExecute(inject);
+    ResolvedAssetsToExecute resolvedAssets =
+        injectService.resolveAssetsToExecuteByClearance(inject);
     executableInject.cacheAssetsToExecute(resolvedAssets);
-    List<Map<String, Object>> endpointResolutions = buildEndpointResolutions(resolvedAssets);
+    List<Map<String, Object>> endpointResolutions =
+        buildEndpointResolutions(resolvedAssets.cleared());
     log.info("Executing inject {}", inject.getInject().getTitle());
     try {
       this.executor.execute(executableInject);

@@ -38,6 +38,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.expectation.ExpectationBehavior;
 import io.openaev.service.expectation.ExpectationBehaviorResolver;
 import io.openaev.service.expectation.ExpectationVerdict;
@@ -88,6 +89,7 @@ public class InjectExpectationService {
   @Resource protected ObjectMapper mapper;
 
   private final ExpectationBehaviorResolver expectationBehaviorResolver;
+  private final PreviewFeatureService previewFeatureService;
 
   // -- BEHAVIOR-BASED EXPECTATION CREATION/UPDATE --
 
@@ -126,15 +128,26 @@ public class InjectExpectationService {
     Exercise exercise = executableInject.getInjection().getExercise();
     Inject inject = executableInject.getInjection().getInject();
 
-    contentExpectations.forEach(
-        entry -> {
-          ExpectationBehavior<BaseInjectExpectation> behavior =
-              expectationBehaviorResolver.resolveForForm(entry, inject);
-          BaseInjectExpectation template =
-              behavior.convertFormExpectationToBaseInjectExpectation(entry, exercise, inject);
-          behavior.initializeAndSaveInjectExpectationsFromExecutableInject(
-              executableInject, template, implantType);
-        });
+    contentExpectations.stream()
+        .filter(this::isCreationEnabled)
+        .forEach(
+            entry -> {
+              ExpectationBehavior<BaseInjectExpectation> behavior =
+                  expectationBehaviorResolver.resolveForForm(entry, inject);
+              BaseInjectExpectation template =
+                  behavior.convertFormExpectationToBaseInjectExpectation(entry, exercise, inject);
+              behavior.initializeAndSaveInjectExpectationsFromExecutableInject(
+                  executableInject, template, implantType);
+            });
+  }
+
+  /**
+   * Logging expectations are not created while their preview feature is disabled, even when the
+   * inject content (API call, import) already carries one.
+   */
+  private boolean isCreationEnabled(Expectation entry) {
+    return entry.getType() != LOGGING
+        || previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION);
   }
 
   /**

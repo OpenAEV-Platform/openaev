@@ -20,6 +20,7 @@ import io.openaev.rest.exception.UnprocessableContentException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.service.AtomicTestingService;
+import io.openaev.service.FaithfulCopyTransaction;
 import io.openaev.service.InjectExpectationService;
 import io.openaev.service.InjectImportService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
@@ -54,6 +55,7 @@ public class AtomicTestingApi extends RestBehavior {
   private final DetectionRemediationService detectionRemediationService;
   private final InjectImportService injectImportService;
   private final ExpectationsDriftService expectationsDriftService;
+  private final FaithfulCopyTransaction faithfulCopy;
 
   @LogExecutionTime
   @PostMapping("/search")
@@ -159,7 +161,11 @@ public class AtomicTestingApi extends RestBehavior {
       // tenant scope for this read (duplicate reads Inject#getInjector(), a lazy association on
       // the v2-scoped injectors table).
       TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
-    return atomicTestingService.duplicate(atomicTestingId);
+    // A faithful copy keeps the targets the user is not cleared for; the response is read back
+    // under their clearance.
+    String duplicateId =
+        faithfulCopy.execute(ctx, () -> atomicTestingService.duplicate(atomicTestingId).getId());
+    return atomicTestingService.findById(duplicateId);
   }
 
   @Operation(
@@ -241,7 +247,14 @@ public class AtomicTestingApi extends RestBehavior {
       // tenant scope for this read (relaunch duplicates the inject, reading Inject#getInjector(),
       // a lazy association on the v2-scoped injectors table).
       TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
-    return atomicTestingService.relaunch(atomicTestingId);
+    // Checked on what the user can see, before the faithful copy: the targets they are not cleared
+    // for are kept in the relaunched atomic testing but not executed. The response is read back
+    // under their clearance.
+    atomicTestingService.throwIfNotLaunchable(atomicTestingId);
+    String relaunchedId =
+        faithfulCopy.execute(
+            ctx, () -> atomicTestingService.relaunchAsCurrentUser(atomicTestingId));
+    return atomicTestingService.findById(relaunchedId);
   }
 
   // -- RECURRENCE --

@@ -116,7 +116,7 @@ const addTextTrigger = async (page: Page, name: string, value: string): Promise<
   await selectOption(page, 'Operator', 'Equals');
   await page.getByLabel('Expected Value', { exact: true }).fill(value);
   await page.getByRole('button', {
-    name: 'Add trigger',
+    name: 'Add event',
     exact: true,
   }).click();
   await expect(page.getByText(name, { exact: true }).first()).toBeVisible();

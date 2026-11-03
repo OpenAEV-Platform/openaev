@@ -30,7 +30,7 @@ import io.openaev.rest.user.form.me.UpdateProfileInput;
 import io.openaev.rest.user.form.user.RenewTokenInput;
 import io.openaev.service.MailingService;
 import io.openaev.service.UserService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.RandomUtils;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
@@ -64,7 +64,7 @@ public class MeApiTest extends IntegrationTest {
   @Autowired private ObjectMapper objectMapper;
   @Autowired private io.openaev.utils.mockUser.TestUserHolder testUserHolder;
   @Autowired private UserComposer userComposer;
-  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   @Autowired private TokenRepository tokenRepository;
   @MockitoBean private RandomUtils mockRandomUtils;
   @MockitoBean private MailingService mockMailingService;
@@ -561,11 +561,11 @@ public class MeApiTest extends IntegrationTest {
     void given_serviceAccountBearerToken_should_rejectSelfRenewal() throws Exception {
       // -------- Arrange: bootstrap the tenant's service account and read its real bearer token,
       // exactly as an INSTALL_AGENT holder would obtain it from the installer endpoint --------
-      serviceAccountPrivilegeService.ensurePrivilegedUserExists(Tenant.DEFAULT_TENANT_UUID);
+      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(Tenant.DEFAULT_TENANT_UUID);
       entityManager.flush();
       entityManager.clear();
       String serviceAccountToken =
-          serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+          agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
               Tenant.DEFAULT_TENANT_UUID);
 
       // -------- Act: authenticate AS the service account with that bearer token (no

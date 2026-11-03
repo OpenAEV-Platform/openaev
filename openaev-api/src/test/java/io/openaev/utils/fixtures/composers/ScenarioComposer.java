@@ -4,6 +4,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 public class ScenarioComposer extends ComposerBase<Scenario> {
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private ScenarioService scenarioService;
+  @Autowired private RowTenantScope rowTenantScope;
 
   public class Composer extends InnerComposerBase<Scenario> {
     private final Scenario scenario;
@@ -79,18 +81,24 @@ public class ScenarioComposer extends ComposerBase<Scenario> {
 
     @Override
     public Composer persist() {
-      articleComposers.forEach(ArticleComposer.Composer::persist);
-      simulationComposers.forEach(ExerciseComposer.Composer::persist);
       // The listener now fails fast on an unattributed write; stamp the ambient tenant here when
       // the caller left it unset, mirroring EndpointComposer and SecurityPlatformComposer.
       if (scenario.getTenant() == null) {
         scenario.setTenant(new Tenant(TenantContext.getCurrentTenant()));
       }
-      scenarioRepository.save(scenario);
-      tagComposers.forEach(TagComposer.Composer::persist);
-      injectComposers.forEach(InjectComposer.Composer::persist);
-      variableComposers.forEach(VariableComposer.Composer::persist);
-      scenarioService.createScenario(scenario);
+      // The scenario is saved, then saved again by createScenario: that second write is an UPDATE,
+      // which must run in the scenario's tenant scope.
+      rowTenantScope.write(
+          scenario.getTenant().getId(),
+          () -> {
+            articleComposers.forEach(ArticleComposer.Composer::persist);
+            simulationComposers.forEach(ExerciseComposer.Composer::persist);
+            scenarioRepository.save(scenario);
+            tagComposers.forEach(TagComposer.Composer::persist);
+            injectComposers.forEach(InjectComposer.Composer::persist);
+            variableComposers.forEach(VariableComposer.Composer::persist);
+            scenarioService.createScenario(scenario);
+          });
       return this;
     }
 

@@ -16,7 +16,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.helpers.SessionTestHelper;
 import jakarta.persistence.EntityManager;
 import jakarta.servlet.http.Cookie;
@@ -41,7 +41,7 @@ public class AppSecurityConfigTest extends IntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private TokenRepository tokenRepository;
-  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   @Autowired private SessionTestHelper sessionTestHelper;
   @Autowired private EntityManager entityManager;
 
@@ -330,11 +330,11 @@ public class AppSecurityConfigTest extends IntegrationTest {
     // holds the soon-to-be-rotated token - the thing the admin rotation remediation must revoke,
     // regardless of how the session came to exist (token authentications are themselves stateless
     // post-fix: see AppSecurityConfig#hasTokenCredential).
-    serviceAccountPrivilegeService.ensurePrivilegedUserExists(Tenant.DEFAULT_TENANT_UUID);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(Tenant.DEFAULT_TENANT_UUID);
     entityManager.flush();
     entityManager.clear();
     User serviceAccount =
-        serviceAccountPrivilegeService
+        agentServiceAccountPrivilegeService
             .getUserServiceAccountByTenant(Tenant.DEFAULT_TENANT_UUID)
             .orElseThrow();
     String sessionId =
@@ -349,7 +349,7 @@ public class AppSecurityConfigTest extends IntegrationTest {
 
     // -- ACT --
     // The admin remediation path: rotate the tenant's service-account token.
-    serviceAccountPrivilegeService.rotateTokenForTenant(Tenant.DEFAULT_TENANT_UUID);
+    agentServiceAccountPrivilegeService.rotateTokenForTenant(Tenant.DEFAULT_TENANT_UUID);
     entityManager.flush();
     entityManager.clear();
 

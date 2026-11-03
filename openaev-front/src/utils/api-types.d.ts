@@ -267,6 +267,7 @@ export interface AiAttack {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -2153,6 +2154,7 @@ interface BasePayload {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -2228,6 +2230,7 @@ interface BasePayloadCreateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -2825,6 +2828,7 @@ export interface Command {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -3907,6 +3911,7 @@ export interface DnsResolution {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -5521,6 +5526,7 @@ export interface Executable {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -5599,6 +5605,7 @@ export interface ExecutionTrace {
     | "TIMEOUT"
     | "INTERRUPTED"
     | "ASSET_AGENTLESS"
+    | "ASSET_CLEARANCE_RESTRICTED"
     | "AGENT_INACTIVE"
     | "AGENT_OVERLOADED"
     | "INFO"
@@ -5648,6 +5655,7 @@ export interface ExecutionTraceOutput {
     | "TIMEOUT"
     | "INTERRUPTED"
     | "ASSET_AGENTLESS"
+    | "ASSET_CLEARANCE_RESTRICTED"
     | "AGENT_INACTIVE"
     | "AGENT_OVERLOADED"
     | "INFO"
@@ -5903,7 +5911,12 @@ export interface ExercisesGlobalScoresOutput {
 export interface ExpectationResultsByType {
   avgResult: "FAILED" | "PENDING" | "PARTIAL" | "UNKNOWN" | "SUCCESS";
   distribution: ResultDistribution[];
-  type: "DETECTION" | "HUMAN_RESPONSE" | "PREVENTION" | "VULNERABILITY";
+  type:
+    | "DETECTION"
+    | "HUMAN_RESPONSE"
+    | "LOGGING"
+    | "PREVENTION"
+    | "VULNERABILITY";
 }
 
 export interface ExpectationsDriftDismissInput {
@@ -5972,6 +5985,7 @@ export interface FileDrop {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -6709,6 +6723,7 @@ export interface InjectExpectationAgentOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY";
   /** @format int64 */
   inject_expiration_time: number;
@@ -6801,6 +6816,7 @@ export interface InjectExpectationOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY";
   /**
    * Last update date of the inject expectation
@@ -7303,6 +7319,7 @@ export interface Injector {
 export interface InjectorContract {
   convertedContent?: object;
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** True when this contract can be used to create an atomic test. It does not tell whether a given inject is an atomic test: an inject is one when it belongs to no scenario and no simulation */
   injector_contract_atomic_testing?: boolean;
   injector_contract_attack_patterns?: string[];
   /** @minLength 1 */
@@ -8020,7 +8037,7 @@ export interface License {
   license_is_valid_product?: boolean;
   license_is_validated?: boolean;
   license_platform?: string;
-  license_source?: "openaev" | "xtm_one";
+  license_source?: "openaev" | "xtm_one" | "filigran";
   /** @format date-time */
   license_start_date?: string;
   license_type?: "trial" | "nfr" | "standard" | "lts";
@@ -8241,6 +8258,7 @@ export interface NetworkTraffic {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -9717,6 +9735,7 @@ export interface PayloadInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -9800,6 +9819,7 @@ export interface PayloadOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Optional map of expectation type to expected security platform types (empty = any) */
@@ -9903,6 +9923,7 @@ export interface PayloadUpdateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -9971,6 +9992,7 @@ export interface PayloadUpsertInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -10184,6 +10206,7 @@ export interface PlatformSettings {
     | "RATE_LIMITING"
     | "BULK_SNAPSHOT_EXPORT"
     | "XTM_HUB_NEWS_FEED"
+    | "LOGGING_EXPECTATION"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -10202,6 +10225,11 @@ export interface PlatformSettings {
    * @format int64
    */
   expectation_detection_expiration_time: number;
+  /**
+   * Time to wait before logging time has expired
+   * @format int64
+   */
+  expectation_logging_expiration_time: number;
   /**
    * Default score for manuel expectation
    * @format int32
@@ -10572,6 +10600,7 @@ export interface PublicPlatformSettings {
     | "RATE_LIMITING"
     | "BULK_SNAPSHOT_EXPORT"
     | "XTM_HUB_NEWS_FEED"
+    | "LOGGING_EXPECTATION"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -12911,6 +12940,7 @@ export interface ThreatArsenalActionCreateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Optional map of technical expectation type to the security platform types expected to fulfil it (e.g. {"DETECTION": ["EDR","XDR"], "PREVENTION": ["EDR"]}). Empty or absent for a given type means any security platform. */
@@ -12995,6 +13025,7 @@ export interface ThreatArsenalActionFullOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Security platform types expected to fulfil each predefined technical expectation (empty or absent = any security platform) */
@@ -13111,6 +13142,7 @@ export interface ThreatArsenalActionUpdateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Optional map of technical expectation type to the security platform types expected to fulfil it (e.g. {"DETECTION": ["EDR","XDR"], "PREVENTION": ["EDR"]}). Empty or absent for a given type means any security platform. */
@@ -13228,6 +13260,7 @@ export interface ThreatArsenalExpectationDetail {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY";
 }
 

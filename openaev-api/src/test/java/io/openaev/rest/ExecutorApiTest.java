@@ -24,7 +24,7 @@ import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.EndpointService;
-import io.openaev.service.account.ServiceAccountPrivilegeService;
+import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.utils.AgentUtils;
 import io.openaev.utils.HashUtils;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -77,7 +77,7 @@ public class ExecutorApiTest extends IntegrationTest {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private TestUserHolder testUserHolder;
   @Autowired private EntityManager entityManager;
-  @Autowired private ServiceAccountPrivilegeService serviceAccountPrivilegeService;
+  @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
 
   @BeforeEach
   void setUp() {
@@ -676,7 +676,7 @@ public class ExecutorApiTest extends IntegrationTest {
      * token.
      */
     private void ensureServiceAccount(String tenantId) {
-      serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
       entityManager.flush();
       entityManager.clear();
     }
@@ -713,7 +713,7 @@ public class ExecutorApiTest extends IntegrationTest {
   class RotateOpenAevAgentInstallerToken {
 
     private void ensureServiceAccount(String tenantId) {
-      serviceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
       entityManager.flush();
       entityManager.clear();
     }
@@ -736,7 +736,7 @@ public class ExecutorApiTest extends IntegrationTest {
     void givenUserWithManageUsersCapability_shouldRotateToken() throws Exception {
       ensureServiceAccount(Tenant.DEFAULT_TENANT_UUID);
       String previousToken =
-          serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+          agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
               Tenant.DEFAULT_TENANT_UUID);
 
       mvc.perform(post("/api/agent/installer/openaev/token/rotate").with(csrf()))
@@ -745,7 +745,7 @@ public class ExecutorApiTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
       String rotatedToken =
-          serviceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
+          agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
               Tenant.DEFAULT_TENANT_UUID);
       assertThat(rotatedToken).isNotEqualTo(previousToken);
     }

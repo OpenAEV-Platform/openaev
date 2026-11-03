@@ -1,7 +1,6 @@
 package io.openaev.service.account;
 
-import static io.openaev.service.account.Constants.*;
-import static io.openaev.service.account.ServiceAccountPrivilegeService.SERVICE_EMAIL_PATTERN;
+import static io.openaev.service.account.ReservedServiceAccount.AGENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,7 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Service Account Privilege Service tests")
-public class ServiceAccountPrivilegeServiceTest {
+public class AgentServiceAccountPrivilegeServiceTest {
 
   @Mock private TenantRoleService tenantRoleService;
   @Mock private TenantGroupService tenantGroupService;
@@ -36,10 +35,10 @@ public class ServiceAccountPrivilegeServiceTest {
   @Mock private TenantUserService tenantUserService;
   @Mock private SessionManager sessionManager;
 
-  @InjectMocks private ServiceAccountPrivilegeService privilegeService;
+  @InjectMocks private AgentServiceAccountPrivilegeService privilegeService;
 
   private static final String TENANT_ID = "tenant-123";
-  private static final String SERVICE_EMAIL = SERVICE_EMAIL_PATTERN.formatted(TENANT_ID);
+  private static final String SERVICE_EMAIL = AGENT.emailPattern().formatted(TENANT_ID);
 
   private Role mockRole;
   private Group mockGroup;
@@ -49,12 +48,12 @@ public class ServiceAccountPrivilegeServiceTest {
   void setUp() {
 
     mockRole = new Role();
-    mockRole.setId(AbstractPrivilegeService.getUUIDFromName(SERVICE_ROLE_ID, TENANT_ID));
-    mockRole.setName(SERVICE_ROLE_NAME);
+    mockRole.setId(AbstractPrivilegeService.getUUIDFromName(AGENT.access().roleId(), TENANT_ID));
+    mockRole.setName(AGENT.access().roleName());
 
     mockGroup = new Group();
-    mockGroup.setId(AbstractPrivilegeService.getUUIDFromName(SERVICE_GROUP_ID, TENANT_ID));
-    mockGroup.setName(SERVICE_GROUP_NAME);
+    mockGroup.setId(AbstractPrivilegeService.getUUIDFromName(AGENT.access().groupId(), TENANT_ID));
+    mockGroup.setName(AGENT.access().groupName());
 
     mockUser = new User();
     mockUser.setEmail(SERVICE_EMAIL);
@@ -227,9 +226,9 @@ public class ServiceAccountPrivilegeServiceTest {
     verify(tenantRoleService)
         .createRoleInternal(
             anyString(),
-            eq(SERVICE_ROLE_NAME),
-            eq(SERVICE_ROLE_DESCRIPTION),
-            eq(SERVICE_ROLE_CAPABILITIES),
+            eq(AGENT.access().roleName()),
+            eq(AGENT.access().roleDescription()),
+            eq(AGENT.access().capabilities()),
             eq(TENANT_ID));
     verify(tenantRoleService, never()).updateRoleInternal(any(), any(), any(), any(), any());
   }
@@ -259,9 +258,9 @@ public class ServiceAccountPrivilegeServiceTest {
     verify(tenantRoleService)
         .updateRoleInternal(
             eq(mockRole.getId()),
-            eq(SERVICE_ROLE_NAME),
-            eq(SERVICE_ROLE_DESCRIPTION),
-            eq(SERVICE_ROLE_CAPABILITIES),
+            eq(AGENT.access().roleName()),
+            eq(AGENT.access().roleDescription()),
+            eq(AGENT.access().capabilities()),
             eq(TENANT_ID));
   }
 

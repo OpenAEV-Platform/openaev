@@ -262,7 +262,9 @@ public class ScenarioApiTest extends IntegrationTest {
   @DisplayName("Retrieve scenario")
   @Test
   @Order(3)
-  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void retrieveScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario testScenario =
@@ -297,7 +299,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Update scenario")
   @Test
-  @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void updateScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario testScenario =
@@ -466,7 +470,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Delete scenario")
   @Test
-  @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.DELETE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void deleteScenarioTest() throws Exception {
     // -- PREPARE --
     Scenario testScenario =
@@ -480,7 +486,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Delete scenario with inject")
   @Test
-  @WithMockUser(withCapabilities = {Capability.DELETE_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.DELETE_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void deleteScenarioWithInjectTest() throws Exception {
     Scenario testScenario = getScenario(ScenarioFixture.getScheduledScenario(), null);
     // -- EXECUTE 1 ASSERT --
@@ -491,7 +499,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Check if a rule applies when a rule is found")
   @Test
-  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void checkIfRuleAppliesTest_WHEN_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
@@ -530,7 +540,9 @@ public class ScenarioApiTest extends IntegrationTest {
 
   @DisplayName("Check if a rule applies when no rule is found")
   @Test
-  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  @WithMockUser(
+      withCapabilities = {Capability.ACCESS_ASSESSMENT},
+      autoJoinDefaultTenant = true)
   void checkIfRuleAppliesTest_WHEN_no_rule_found() throws Exception {
     this.tagRuleRepository.deleteAll();
     this.tagRepository.deleteAll();
@@ -566,6 +578,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when launch scenario with crowdstrike")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_crowdstrikeAsset_should_not_startScenario() throws Exception {
       Scenario scenario = getScenario(null, executorFixture.getCrowdstrikeExecutor());
 
@@ -576,6 +589,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when scheduled scenario with Tanium")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_taniumAsset_should_not_scheduleScenario() throws Exception {
       Scenario scenario = getScenario(null, executorFixture.getTaniumExecutor());
       ScenarioRecurrenceInput input = new ScenarioRecurrenceInput();
@@ -593,6 +607,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when scheduled scenario with Sentinel One")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_sentineloneAsset_should_not_scheduleScenario() throws Exception {
       Scenario scenario = getScenario(null, executorFixture.getSentineloneExecutor());
       ScenarioRecurrenceInput input = new ScenarioRecurrenceInput();
@@ -663,7 +678,7 @@ public class ScenarioApiTest extends IntegrationTest {
   @Test
   @Transactional
   @DisplayName("Should enable all users of newly added teams when replacing scenario teams")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void replacingTeamsShouldEnableNewTeamUsers() throws Exception {
     // -- PREPARE --
     User userTom = userRepository.save(UserFixture.getUser("Tom", "TEST", "tom-test@fake.email"));
@@ -852,6 +867,8 @@ public class ScenarioApiTest extends IntegrationTest {
     // -- PREPARE --
     // Create test user with assessment role and granted on email injectorContract
     User testUser = createUserWithManageAssessmentRoleAndGrantOnEmailInjectorContract();
+    // A member of the default tenant, where the scenarios below live.
+    tenantRepository.addUserToTenant(testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
     Authentication auth = buildAuthenticationToken(testUser);
 
     Scenario scenarioA =

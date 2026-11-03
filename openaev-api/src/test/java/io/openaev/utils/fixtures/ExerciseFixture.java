@@ -2,9 +2,11 @@ package io.openaev.utils.fixtures;
 
 import static java.time.temporal.ChronoUnit.MINUTES;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.ExerciseStatus;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -18,7 +20,7 @@ public class ExerciseFixture {
   }
 
   public static Exercise getExercise(List<Team> exerciseTeams) {
-    Exercise exercise = new Exercise();
+    Exercise exercise = newExercise();
     exercise.setName(EXERCISE_NAME);
     if (exerciseTeams != null) {
       exercise.setTeams(exerciseTeams);
@@ -130,8 +132,20 @@ public class ExerciseFixture {
 
   private static Exercise createDefaultExerciseWithName(String name) {
     String new_name = name == null ? "exercise-%s".formatted(UUID.randomUUID()) : name;
-    Exercise exercise = new Exercise();
+    Exercise exercise = newExercise();
     exercise.setName(new_name);
+    return exercise;
+  }
+
+  /**
+   * Stamps the ambient tenant, which is what {@code TenantBaseListener} does for a simulation
+   * today. Once {@code exercises} is tenant-active the listener is gone from {@code Exercise}, so
+   * an unattributed simulation fails on the not-null tenant column; a test that needs another
+   * tenant overrides it.
+   */
+  private static Exercise newExercise() {
+    Exercise exercise = new Exercise();
+    exercise.setTenant(new Tenant(TenantContext.getCurrentTenant()));
     return exercise;
   }
 }

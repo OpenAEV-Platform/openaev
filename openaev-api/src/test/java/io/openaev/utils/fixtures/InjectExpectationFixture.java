@@ -130,6 +130,7 @@ public class InjectExpectationFixture {
     return switch (type) {
       case DETECTION -> new DetectionInjectExpectation();
       case PREVENTION -> new PreventionInjectExpectation();
+      case LOGGING -> new LoggingInjectExpectation();
       case VULNERABILITY -> new VulnerabilityInjectExpectation();
       case MANUAL -> new ManualInjectExpectation();
       case ARTICLE -> new ArticleInjectExpectation();

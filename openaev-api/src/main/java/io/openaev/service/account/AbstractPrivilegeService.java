@@ -1,10 +1,12 @@
-package io.openaev.service;
+package io.openaev.service.account;
 
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
-import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
+import io.openaev.service.TenantGroupService;
+import io.openaev.service.TenantRoleService;
+import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantUserService;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -19,38 +21,28 @@ public abstract class AbstractPrivilegeService {
   protected final UserService userService;
   protected final TenantUserService tenantUserService;
 
-  protected abstract String getRoleId();
-
-  protected abstract String getRoleName();
-
-  protected abstract String getRoleDescription();
-
-  protected abstract Set<Capability> getRoleCapabilities();
-
-  protected abstract String getGroupId();
-
-  protected abstract String getGroupName();
-
-  protected abstract String getGroupDescription();
+  protected abstract WellKnownAccess wellKnownAccess();
 
   protected Role createWellKnownRole(String tenantId) {
-    String id = getUUIDFromName(getRoleId(), tenantId);
+    WellKnownAccess access = wellKnownAccess();
+    String id = getUUIDFromName(access.roleId(), tenantId);
     Optional<Role> role = tenantRoleService.findByIdAndTenant(id, tenantId);
     if (role.isEmpty()) {
       return tenantRoleService.createRoleInternal(
-          id, getRoleName(), getRoleDescription(), getRoleCapabilities(), tenantId);
+          id, access.roleName(), access.roleDescription(), access.capabilities(), tenantId);
     }
     return tenantRoleService.updateRoleInternal(
-        id, getRoleName(), getRoleDescription(), getRoleCapabilities(), tenantId);
+        id, access.roleName(), access.roleDescription(), access.capabilities(), tenantId);
   }
 
   protected Group createWellKnownGroupWithRole(Role role, String tenantId) {
-    String groupId = getUUIDFromName(getGroupId(), tenantId);
+    WellKnownAccess access = wellKnownAccess();
+    String groupId = getUUIDFromName(access.groupId(), tenantId);
     Optional<Group> group = tenantGroupService.findByIdAndTenant(groupId, tenantId);
 
     TenantGroupCreateInput input = new TenantGroupCreateInput();
-    input.setName(getGroupName());
-    input.setDescription(getGroupDescription());
+    input.setName(access.groupName());
+    input.setDescription(access.groupDescription());
     input.setDefaultUserAssignation(false);
 
     List<Role> roles = new ArrayList<>(List.of(role));

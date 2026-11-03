@@ -40,23 +40,27 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class AdminPrivilegeService extends AbstractPrivilegeService {
 
-  public static final String ADMIN_ROLE_ID = "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d";
-  public static final String ADMIN_ROLE_NAME = "Admin";
-  public static final String ADMIN_ROLE_DESCRIPTION = "Full administrative access to the tenant.";
-  public static final Set<Capability> ADMIN_ROLE_CAPABILITIES = Set.of(Capability.BYPASS);
+  /** Not a {@link ReservedServiceAccount}: this role and group are not reserved. */
+  public static final WellKnownAccess ADMIN_ACCESS =
+      new WellKnownAccess(
+          "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+          "Admin",
+          "Full administrative access to the tenant.",
+          Set.of(Capability.BYPASS),
+          "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
+          "Administrators",
+          "Tenant administrators.");
 
-  public static final String ADMIN_GROUP_ID = "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e";
-  public static final String ADMIN_GROUP_NAME = "Administrators";
-  public static final String ADMIN_GROUP_DESCRIPTION = "Tenant administrators.";
-
-  public static final String PLATFORM_ADMIN_ROLE_ID = "3c4d5e6f-7a8b-4c9d-8e0f-2a3b4c5d6e7f";
-  public static final String PLATFORM_ADMIN_ROLE_NAME = "Admin";
-  public static final String PLATFORM_ADMIN_ROLE_DESCRIPTION =
-      "Full administrative access to the platform.";
-
-  public static final String PLATFORM_ADMIN_GROUP_ID = "4d5e6f7a-8b9c-4d0e-9f1a-3b4c5d6e7f8a";
-  public static final String PLATFORM_ADMIN_GROUP_NAME = "Administrators";
-  public static final String PLATFORM_ADMIN_GROUP_DESCRIPTION = "Platform administrators.";
+  /** Platform-scoped (tenant = null): its ids are stored as is, not derived per tenant. */
+  public static final WellKnownAccess PLATFORM_ADMIN_ACCESS =
+      new WellKnownAccess(
+          "3c4d5e6f-7a8b-4c9d-8e0f-2a3b4c5d6e7f",
+          "Admin",
+          "Full administrative access to the platform.",
+          Set.of(Capability.BYPASS),
+          "4d5e6f7a-8b9c-4d0e-9f1a-3b4c5d6e7f8a",
+          "Administrators",
+          "Platform administrators.");
 
   private final PlatformRoleService platformRoleService;
   private final PlatformGroupService platformGroupService;
@@ -75,38 +79,8 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
   }
 
   @Override
-  protected String getRoleId() {
-    return ADMIN_ROLE_ID;
-  }
-
-  @Override
-  protected String getRoleName() {
-    return ADMIN_ROLE_NAME;
-  }
-
-  @Override
-  protected String getRoleDescription() {
-    return ADMIN_ROLE_DESCRIPTION;
-  }
-
-  @Override
-  protected Set<Capability> getRoleCapabilities() {
-    return ADMIN_ROLE_CAPABILITIES;
-  }
-
-  @Override
-  protected String getGroupId() {
-    return ADMIN_GROUP_ID;
-  }
-
-  @Override
-  protected String getGroupName() {
-    return ADMIN_GROUP_NAME;
-  }
-
-  @Override
-  protected String getGroupDescription() {
-    return ADMIN_GROUP_DESCRIPTION;
+  protected WellKnownAccess wellKnownAccess() {
+    return ADMIN_ACCESS;
   }
 
   /**
@@ -133,12 +107,12 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
       log.info(
           "Enrolled admin user {} into the '{}' group for tenant {}",
           adminUser.getId(),
-          getGroupName(),
+          ADMIN_ACCESS.groupName(),
           tenantId);
     }
-    // Mirror ServiceAccountPrivilegeService: make sure the admin belongs to the tenant that owns
-    // the group, so the self-heal also covers installs whose users_tenants row is missing. The call
-    // is idempotent and clears the persistence context, so it runs after the group enrollment.
+    // Mirror AgentServiceAccountPrivilegeService: make sure the admin belongs to the tenant that
+    // owns the group, so the self-heal also covers installs whose users_tenants row is missing. The
+    // call is idempotent and clears the persistence context, so it runs after the group enrollment.
     tenantUserService.attachToTenant(adminUser.getId(), tenantId);
     return group;
   }
@@ -156,15 +130,15 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
   public Group ensurePlatformAdminGroup(User adminUser) {
     Role role =
         platformRoleService.ensureInternalPlatformRole(
-            PLATFORM_ADMIN_ROLE_ID,
-            PLATFORM_ADMIN_ROLE_NAME,
-            PLATFORM_ADMIN_ROLE_DESCRIPTION,
-            Set.of(Capability.BYPASS));
+            PLATFORM_ADMIN_ACCESS.roleId(),
+            PLATFORM_ADMIN_ACCESS.roleName(),
+            PLATFORM_ADMIN_ACCESS.roleDescription(),
+            PLATFORM_ADMIN_ACCESS.capabilities());
     Group group =
         platformGroupService.ensureInternalPlatformGroupWithRoles(
-            PLATFORM_ADMIN_GROUP_ID,
-            PLATFORM_ADMIN_GROUP_NAME,
-            PLATFORM_ADMIN_GROUP_DESCRIPTION,
+            PLATFORM_ADMIN_ACCESS.groupId(),
+            PLATFORM_ADMIN_ACCESS.groupName(),
+            PLATFORM_ADMIN_ACCESS.groupDescription(),
             List.of(role));
     boolean alreadyMember =
         adminUser.getUnscopedGroups().stream().anyMatch(g -> g.getId().equals(group.getId()));
@@ -174,7 +148,7 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
       log.info(
           "Enrolled admin user {} into the platform '{}' group",
           adminUser.getId(),
-          PLATFORM_ADMIN_GROUP_NAME);
+          PLATFORM_ADMIN_ACCESS.groupName());
     }
     return group;
   }
