@@ -32,6 +32,14 @@ public class ImportMapperFixture {
   public static final String DEFAULT_TEAMS_NAME = "teams";
   public static final String DEFAULT_TEAMS_COLUMN = "E";
 
+  /** A mapper with no importers: no injector contract to persist alongside it. */
+  public static ImportMapper createDefaultImportMapper() {
+    ImportMapper importMapper = new ImportMapper();
+    importMapper.setName(DEFAULT_MAPPER_NAME);
+    importMapper.setInjectTypeColumn(DEFAULT_INJECT_TYPE_COLUMN);
+    return importMapper;
+  }
+
   public static ImportMapper createImportMapper(String injectTypeValue) {
     return createImportMapper(DEFAULT_MAPPER_NAME, injectTypeValue, DEFAULT_INJECT_TYPE_COLUMN);
   }

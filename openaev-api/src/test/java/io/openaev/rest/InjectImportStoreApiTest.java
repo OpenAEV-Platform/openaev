@@ -13,12 +13,13 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Grant;
-import io.openaev.database.model.Tenant;
 import io.openaev.rest.scenario.form.InjectsImportInput;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
+import io.openaev.utils.fixtures.composers.ImportMapperComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utils.fixtures.import_mapper.ImportMapperFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayOutputStream;
 import java.util.UUID;
@@ -53,11 +54,13 @@ class InjectImportStoreApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private ImportMapperComposer importMapperComposer;
 
   @BeforeEach
   void setUp() {
     scenarioComposer.reset();
     exerciseComposer.reset();
+    importMapperComposer.reset();
   }
 
   private ResultActions upload(String xlsUri, String resourceId) throws Exception {
@@ -78,7 +81,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
 
     InjectsImportInput input = new InjectsImportInput();
     input.setName(SHEET_NAME);
-    input.setImportMapperId(seedMapper());
+    input.setImportMapperId(persistMapper());
     input.setTimezoneOffset(0);
     for (String step : new String[] {"dry", "import"}) {
       mvc.perform(
@@ -101,18 +104,13 @@ class InjectImportStoreApiTest extends IntegrationTest {
   }
 
   /** A mapper with no importers, in the default tenant the test user belongs to. */
-  private String seedMapper() {
-    String id = UUID.randomUUID().toString();
-    entityManager
-        .createNativeQuery(
-            "INSERT INTO import_mappers (mapper_id, mapper_name, mapper_inject_type_column, tenant_id)"
-                + " VALUES (CAST(:id AS uuid), :name, :col, :tenant)")
-        .setParameter("id", id)
-        .setParameter("name", "xls-import-mapper")
-        .setParameter("col", "A")
-        .setParameter("tenant", Tenant.DEFAULT_TENANT_UUID)
-        .executeUpdate();
-    return id;
+  private String persistMapper() {
+    return importMapperComposer
+        .forImportMapper(ImportMapperFixture.createDefaultImportMapper())
+        .persist()
+        .get()
+        .getId()
+        .toString();
   }
 
   @Nested
