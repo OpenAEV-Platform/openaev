@@ -5,6 +5,7 @@ import { type QueueItem } from './useApprovalQueue';
  * (base set + search + source + type) and a "slice by" field; built-in views per role (To review
  * for approvers, My changes for authors), plus views a person adds with "+ New view". DESIGN DEMO:
  * saved views live in this browser only; the product would store them per user on the server.
+ * Beyond a few views, only the pinned ones are tabs and the rest sit under "More views".
  */
 export type ReviewSource = 'all' | 'people' | 'collectors';
 export type ReviewKind = 'all' | 'new' | 'version';
@@ -100,6 +101,56 @@ export const sameFilters = (a: ReviewFilters, b: ReviewFilters) => a.search === 
   && a.sliceField === b.sliceField && a.sliceValue === b.sliceValue;
 
 const storageKey = (mode: string, me?: string) => `threat-arsenal:review-views:${mode}:${me ?? 'anonymous'}`;
+const pinnedKey = (mode: string, me?: string) => `threat-arsenal:review-views-pinned:${mode}:${me ?? 'anonymous'}`;
+
+/** Up to this many views, all are tabs; beyond, only the pinned ones (at most MAX_PINNED_VIEWS). */
+export const ALL_VIEWS_AS_TABS = 4;
+// The DS Customize Panel's pin limit (RULE-09).
+export const MAX_PINNED_VIEWS = 5;
+
+/** How a person arranged the views: order, shown or hidden, tab or "More views" (DS Customize Panel). */
+export interface ViewLayoutItem {
+  id: string;
+  visible: boolean;
+  pinned: boolean;
+}
+
+/** The stored layout fitted to the views that exist: gone ones dropped, new ones added at the end. */
+export const fitLayout = (stored: ViewLayoutItem[] | null, views: ReviewView[]): ViewLayoutItem[] => {
+  const ids = new Set(views.map(view => view.id));
+  const kept = (stored ?? []).filter(item => ids.has(item.id));
+  let pinnedCount = kept.filter(item => item.pinned).length;
+  const added = views.filter(view => !kept.some(item => item.id === view.id)).map((view) => {
+    // A view starts as a tab while there is room (built-in ones first), otherwise under "More views".
+    const pinned = pinnedCount < MAX_PINNED_VIEWS;
+    if (pinned) pinnedCount += 1;
+    return {
+      id: view.id,
+      visible: true,
+      pinned,
+    };
+  });
+  return [...kept, ...added];
+};
+
+export const readViewLayout = (mode: string, me?: string): ViewLayoutItem[] | null => {
+  try {
+    const raw = window.localStorage.getItem(pinnedKey(mode, me));
+    const parsed = raw ? JSON.parse(raw) as unknown : null;
+    // Pins saved before the layout existed were a list of ids.
+    return Array.isArray(parsed) && parsed.every(item => typeof item === 'object') ? parsed as ViewLayoutItem[] : null;
+  } catch {
+    return null;
+  }
+};
+
+export const writeViewLayout = (mode: string, me: string | undefined, layout: ViewLayoutItem[]) => {
+  try {
+    window.localStorage.setItem(pinnedKey(mode, me), JSON.stringify(layout));
+  } catch {
+    // Storage unavailable: the layout lasts for this page only.
+  }
+};
 
 export const readSavedViews = (mode: string, me?: string): ReviewView[] => {
   try {

@@ -1,5 +1,9 @@
 import {
   Button,
+  CustomizePanel,
+  CustomizePanelContent,
+  type CustomizePanelItem,
+  CustomizePanelTrigger,
   Dialog,
   DialogBody,
   DialogContent,
@@ -19,10 +23,11 @@ import {
   SelectValue,
   Tabs,
   TabsList,
+  TabsMenuTrigger,
   TabsTrigger,
   Text,
 } from '@filigran/design-system';
-import { AddOutlined, DeleteOutlined, EditOutlined, ExpandLess, ExpandMore, FactCheckOutlined, MoreVert } from '@mui/icons-material';
+import { AddOutlined, DeleteOutlined, EditOutlined, ExpandLess, ExpandMore, FactCheckOutlined, MoreVert, TuneOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -38,10 +43,14 @@ import { tint } from '../../../utils/tint';
 import { displayedApprovalStatus } from './approval/approvalStatusUtils';
 import ReviewSlicePanel, { type SliceValue } from './approval/ReviewSlicePanel';
 import {
+  ALL_VIEWS_AS_TABS,
   builtInViews,
+  fitLayout,
   matches,
   matchesFilters,
+  MAX_PINNED_VIEWS,
   readSavedViews,
+  readViewLayout,
   type ReviewContext,
   type ReviewFilters,
   type ReviewKind,
@@ -50,6 +59,7 @@ import {
   sameFilters,
   sliceValueOf,
   writeSavedViews,
+  writeViewLayout,
 } from './approval/reviewViews';
 import { isFromCollector, type QueueItem, useApprovalQueue, useQueueDrawer } from './approval/useApprovalQueue';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
@@ -91,11 +101,32 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
   const [saved, setSaved] = useState<ReviewView[]>(() => readSavedViews(mode, me));
   const views = [...builtIn, ...saved];
   const activeView = views.find(view => view.id === searchParams.get(VIEW_PARAM)) ?? builtIn[0];
+  const viewLabel = (view: ReviewView) => (view.saved ? view.label : t(view.label));
+  // Idea A: with few views all are tabs; beyond (the DS Customize Panel is for 5+ items), the pinned
+  // ones are tabs, the other shown ones sit under "More views", and the Customize Panel arranges them.
+  const [storedLayout, setStoredLayout] = useState(() => readViewLayout(mode, me));
+  const layout = fitLayout(storedLayout, views);
+  const allTabs = views.length <= ALL_VIEWS_AS_TABS;
+  const viewById = (id: string) => views.find(view => view.id === id);
+  const tabViews = allTabs ? views : layout.filter(item => item.visible && item.pinned).map(item => viewById(item.id)).filter((view): view is ReviewView => !!view);
+  const moreViews = allTabs ? [] : layout.filter(item => item.visible && !item.pinned).map(item => viewById(item.id)).filter((view): view is ReviewView => !!view);
+  const isTab = (view: ReviewView) => tabViews.some(tabView => tabView.id === view.id);
+  const storeLayout = (next: typeof layout) => {
+    setStoredLayout(next);
+    writeViewLayout(mode, me, next);
+  };
+  const panelItems: CustomizePanelItem[] = layout.map(item => ({
+    ...item,
+    label: viewLabel(viewById(item.id) as ReviewView),
+  }));
+  const defaultPanelItems: CustomizePanelItem[] = fitLayout(null, views).map(item => ({
+    ...item,
+    label: viewLabel(viewById(item.id) as ReviewView),
+  }));
   const [filters, setFilters] = useState<ReviewFilters>(activeView.filters);
   const [naming, setNaming] = useState<'new' | 'rename' | null>(null);
   const [viewName, setViewName] = useState('');
   const [folded, setFolded] = useState<Record<string, boolean>>({});
-  const viewLabel = (view: ReviewView) => (view.saved ? view.label : t(view.label));
   const changed = !sameFilters(filters, activeView.filters);
 
   const context: ReviewContext = {
@@ -171,6 +202,12 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
         saved: true,
       };
       storeViews([...saved, view]);
+      // A view just made shows as a tab when there is room, so its creator sees it land.
+      storeLayout([...layout, {
+        id: view.id,
+        visible: true,
+        pinned: layout.filter(item => item.pinned).length < MAX_PINNED_VIEWS,
+      }]);
       selectView(view);
     }
     setNaming(null);
@@ -189,6 +226,7 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
   };
   const deleteView = () => {
     storeViews(saved.filter(view => view.id !== activeView.id));
+    storeLayout(layout.filter(item => item.id !== activeView.id));
     selectView(builtIn[0]);
   };
   const setFilter = (patch: Partial<ReviewFilters>) => setFilters({
@@ -201,11 +239,13 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
     {
       id: 'new',
       label: t('New actions'),
+      hint: t('Created for the first time: nothing can use them until they are approved.'),
       items: shown.filter(item => !context.isLaterVersion(item)),
     },
     {
       id: 'version',
       label: t('New versions'),
+      hint: t('Changes to actions already in use: the approved version keeps running until a decision.'),
       items: shown.filter(item => context.isLaterVersion(item)),
     },
   ].filter(section => section.items.length > 0 || (canAdd && section.id === 'new'));
@@ -302,10 +342,39 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
             <Button priority="tertiary" size="sm" startIcon={<AddOutlined fontSize="small" />} onClick={() => openNaming('new')}>
               {t('New view')}
             </Button>
+            {!allTabs && (
+              <CustomizePanel
+                mode="show"
+                items={panelItems}
+                defaultItems={defaultPanelItems}
+                maxPinned={MAX_PINNED_VIEWS}
+                onSave={next => storeLayout(next.map(({ id, visible, pinned }) => ({
+                  id,
+                  visible,
+                  pinned,
+                })))}
+              >
+                <CustomizePanelTrigger asChild>
+                  <IconButton size="sm" priority="tertiary" icon={<TuneOutlined fontSize="small" />} aria-label={t('Customize views')} />
+                </CustomizePanelTrigger>
+                <CustomizePanelContent
+                  align="end"
+                  title={t('Views')}
+                  labels={{
+                    pinnedSection: t('Tabs'),
+                    unpinnedSection: t('More views'),
+                    counter: ({ pinned, maxPinned }) => t('{pinned} of {max} tabs used', {
+                      pinned: String(pinned),
+                      max: String(maxPinned),
+                    }),
+                  }}
+                />
+              </CustomizePanel>
+            )}
             {activeView.saved && (
               <Menu>
                 <MenuTrigger asChild>
-                  <IconButton size="sm" priority="tertiary" icon={<MoreVert fontSize="small" />} aria-label={t('Options of the view {name}', { name: activeView.label })} />
+                  <IconButton size="sm" priority="tertiary" icon={<MoreVert fontSize="small" />} aria-label={t('Options of the view {name}', { name: viewLabel(activeView) })} />
                 </MenuTrigger>
                 <MenuContent align="end">
                   <MenuItem startIcon={<EditOutlined fontSize="small" />} onSelect={() => openNaming('rename')}>{t('Rename view')}</MenuItem>
@@ -316,7 +385,7 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
           </div>
         )}
       >
-        {views.map(view => (
+        {tabViews.map(view => (
           <TabsTrigger
             key={view.id}
             value={view.id}
@@ -326,6 +395,18 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
             {viewLabel(view)}
           </TabsTrigger>
         ))}
+        {moreViews.length > 0 && (
+          <TabsMenuTrigger
+            active={!isTab(activeView)}
+            menu={moreViews.map(view => (
+              <MenuItem key={view.id} selected={view.id === activeView.id} onSelect={() => selectView(view)}>
+                {`${viewLabel(view)} · ${counts[view.id] ?? 0}`}
+              </MenuItem>
+            ))}
+          >
+            {t('More views')}
+          </TabsMenuTrigger>
+        )}
       </TabsList>
     </Tabs>
   );
@@ -435,6 +516,7 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
                   <Text as="h2" variant="title-xs" style={{ margin: 0 }}>{section.label}</Text>
                   <Text variant="content-caption" className="text-default-secondary">{String(section.items.length)}</Text>
                 </button>
+                <Text variant="content-compact" className="text-default-secondary" style={{ marginTop: -8 }}>{section.hint}</Text>
                 {!folded[section.id] && (
                   <MarketplaceGrid loading={false} isEmpty={false} emptyState={null}>
                     {section.items.map(card)}
