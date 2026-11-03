@@ -107,6 +107,23 @@ The `filterGroup` field combines filters with `and` or `or`. For the format and 
 
 Validation errors (`400`) return per-field error messages. Other errors return a JSON body with a `message` field.
 
+## XTM One chat endpoints
+
+When OpenAEV is connected to XTM One, the embedded chat panel reaches XTM One through proxy endpoints under `/api/xtmone/chat`. They require an Enterprise Edition license and call XTM One's embedded-chat API as the calling OpenAEV user, so XTM One applies that user's own permissions. The endpoints below manage the conversations of the chat history and the XTM One workspaces that group them:
+
+| Endpoint | Description |
+|---|---|
+| `POST /api/xtmone/chat/sessions` | Creates or restores a conversation. The body is forwarded to XTM One as sent, including `workspace_id` to file a new conversation into a workspace |
+| `PATCH /api/xtmone/chat/sessions/{id}` | Renames a conversation (`title`) or files it into a workspace (`workspace_id`); an explicit `null` `workspace_id` takes it out of its workspace |
+| `GET /api/xtmone/chat/workspaces` | Lists the user's XTM One workspaces |
+| `POST /api/xtmone/chat/workspaces` | Creates a workspace (`name`, optional `description`) |
+| `PATCH /api/xtmone/chat/workspaces/{id}` | Renames a workspace or changes its description |
+| `DELETE /api/xtmone/chat/workspaces/{id}` | Deletes a workspace |
+
+Path `{id}` values must be UUIDs, otherwise the request is refused with a `400`. These endpoints answer with XTM One's own status, and when XTM One refuses a change (for example the user's default workspace, or a workspace that still holds work items, cannot be deleted), with a body holding only XTM One's `detail` message. A `422` means XTM One refused the request, possibly because of an error between OpenAEV and XTM One: the reason is in the response body's `detail`.
+
+When XTM One is not configured on OpenAEV, every endpoint under `/api/xtmone/chat` answers `503 Service Unavailable` with the body `{"detail": "XTM One is not configured"}`.
+
 ## Multi-tenant context
 
 The API exposes two sets of endpoints:
