@@ -47,9 +47,11 @@ $ mkdocs serve
 Starting server at http://localhost:8000/
 ```
 
-Every dependency is pinned in `requirements.txt` and updated by Renovate. To try a new version
-locally, change its pin and run `pip install --no-deps -r requirements.txt && pip check` again:
-the CI installs it this way, so a package missing from the file fails there.
+`requirements.in` lists the direct dependencies, and `requirements.txt` pins them with everything
+they pull in. Renovate keeps both up to date. To try a new version locally, change its pin in
+`requirements.in`, regenerate `requirements.txt` with the `uv pip compile` command written at its
+top, and run `pip install --no-deps -r requirements.txt && pip check` again: the CI installs it
+this way. Never edit `requirements.txt` by hand.
 
 `mkdocs serve` asks the GitHub API for the contributors of every page. To skip that, and the
 git dates, run `DOCS_GIT_PLUGINS=false mkdocs serve`.
