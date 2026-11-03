@@ -5,8 +5,13 @@ import { Link } from 'react-router';
 import { useFormatter } from '../../../../components/i18n';
 import { REDIRECT_CONNECT_XTM_HUB_URL } from '../../../../constants/BaseUrls';
 
+interface Props {
+  /** XTM Hub cannot be reached: connecting is no use then, so the button is not offered. */
+  unreachable?: boolean;
+}
+
 /** Invites the user to connect the product to XTM Hub, which is what delivers the news feed. */
-const NewsFeedHubBanner = () => {
+const NewsFeedHubBanner = ({ unreachable = false }: Props) => {
   const { t } = useFormatter();
 
   return (
@@ -35,12 +40,16 @@ const NewsFeedHubBanner = () => {
             <Text variant="title-md" as="h2" style={{ margin: 0 }}>{t('XTM Hub is disconnected')}</Text>
           </div>
           <Text variant="content-compact" className="text-default-secondary">
-            {t('Please connect yourself so you can receive News Feeds')}
+            {unreachable
+              ? t('XTM Hub is unreachable and connection can\'t be established')
+              : t('Please connect yourself so you can receive News Feeds')}
           </Text>
         </div>
-        <Button asChild>
-          <Link to={REDIRECT_CONNECT_XTM_HUB_URL}>{t('Connect product to XTM Hub')}</Link>
-        </Button>
+        {!unreachable && (
+          <Button asChild>
+            <Link to={REDIRECT_CONNECT_XTM_HUB_URL}>{t('Connect product to XTM Hub')}</Link>
+          </Button>
+        )}
       </div>
     </Paper>
   );

@@ -115,6 +115,18 @@ public class XtmHubService {
                 XtmHubRegistrationStatus.REGISTERED, XtmHubRegistrationStatus.LOST_CONNECTIVITY));
   }
 
+  /**
+   * Whether a tenant in the scope of the request is registered on XTM Hub and still reaches it,
+   * unlike {@link #isNewsFeedAvailable(TxCtx)} that also holds for a tenant that lost its
+   * connectivity.
+   */
+  public boolean isHubConnected(TxCtx ctx) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    return !tenantIds.isEmpty()
+        && tenantXtmHubRegistrationRepository.existsByTenantIdInAndRegistrationStatusIn(
+            tenantIds, EnumSet.of(XtmHubRegistrationStatus.REGISTERED));
+  }
+
   public TenantXtmHubRegistration register(TxCtx ctx, @NotBlank final String token) {
     String tenantId = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     User currentUser = userService.currentUser();

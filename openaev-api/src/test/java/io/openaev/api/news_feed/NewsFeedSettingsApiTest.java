@@ -44,6 +44,7 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
   private static final String SETTINGS_URI = TENANT_NEWS_FEED_SETTINGS_URI + "/me";
   private static final String SUBSCRIBED_TYPES_FIELD = "news_feed_settings_subscribed_types";
   private static final String HUB_REGISTERED_FIELD = "news_feed_settings_hub_registered";
+  private static final String HUB_CONNECTED_FIELD = "news_feed_settings_hub_connected";
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -107,6 +108,7 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
       // Assert
       assertThatJson(response).node(SUBSCRIBED_TYPES_FIELD).isEqualTo("[\"RESOURCE_SCENARIO\"]");
       assertThatJson(response).node(HUB_REGISTERED_FIELD).isEqualTo(true);
+      assertThatJson(response).node(HUB_CONNECTED_FIELD).isEqualTo(true);
     }
 
     @Test
@@ -117,11 +119,13 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
 
       // Assert
       assertThatJson(response).node(HUB_REGISTERED_FIELD).isEqualTo(false);
+      assertThatJson(response).node(HUB_CONNECTED_FIELD).isEqualTo(false);
     }
 
     @Test
-    @DisplayName("Given a tenant that lost its connectivity, should still be registered")
-    void given_lostConnectivityTenant_should_stillBeRegistered() throws Exception {
+    @DisplayName(
+        "Given a tenant that lost its connectivity, should still be registered but not connected")
+    void given_lostConnectivityTenant_should_stillBeRegisteredButNotConnected() throws Exception {
       // Arrange
       registerTenant(tenantId, XtmHubRegistrationStatus.LOST_CONNECTIVITY);
 
@@ -130,6 +134,7 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
 
       // Assert
       assertThatJson(response).node(HUB_REGISTERED_FIELD).isEqualTo(true);
+      assertThatJson(response).node(HUB_CONNECTED_FIELD).isEqualTo(false);
     }
 
     @Test
@@ -199,6 +204,27 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
       assertThat(
               userRepository.findById(other.getId()).orElseThrow().getUnsubscribedNewsFeedTypes())
           .isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "Given a tenant that lost its connectivity, should update the settings and report it as"
+            + " not connected")
+    void given_lostConnectivityTenant_should_updateAndReportNotConnected() throws Exception {
+      // Arrange
+      registerTenant(tenantId, XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+
+      // Act
+      String response =
+          putSettings().andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+      // Assert
+      assertThatJson(response).node(SUBSCRIBED_TYPES_FIELD).isArray().isEmpty();
+      assertThatJson(response).node(HUB_REGISTERED_FIELD).isEqualTo(true);
+      assertThatJson(response).node(HUB_CONNECTED_FIELD).isEqualTo(false);
+      assertThat(userRepository.findById(userId).orElseThrow())
+          .extracting(User::getUnsubscribedNewsFeedTypes)
+          .isEqualTo(new String[] {NewsFeedUtils.ALL_TYPES});
     }
 
     @Test

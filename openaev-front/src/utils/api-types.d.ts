@@ -8348,6 +8348,8 @@ export interface NewsFeedSettingsInput {
 }
 
 export interface NewsFeedSettingsOutput {
+  /** Whether a tenant in scope is registered on XTM Hub and has not lost its connectivity. A registered tenant that lost it still gets its news feed, but should be invited to reconnect */
+  news_feed_settings_hub_connected: boolean;
   /** Whether the news feed is served by XTM Hub, that is a tenant in scope is registered. The preferences can only be changed when it is */
   news_feed_settings_hub_registered: boolean;
   /** The news feed types the current user is subscribed to */

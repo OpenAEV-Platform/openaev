@@ -44,9 +44,9 @@ public class NewsFeedSettingsApi {
   @Operation(
       summary = "Get my news feed settings",
       description =
-          "Returns the news feed types the current user is subscribed to, and whether the news"
-              + " feed is served by XTM Hub. The endpoint is not found when the XTM_HUB_NEWS_FEED"
-              + " feature is disabled.")
+          "Returns the news feed types the current user is subscribed to, whether the news"
+              + " feed is served by XTM Hub, and whether XTM Hub is connected. The endpoint is not"
+              + " found when the XTM_HUB_NEWS_FEED feature is disabled.")
   @Transactional(readOnly = true)
   @ApiResponses(
       value = {
@@ -56,7 +56,9 @@ public class NewsFeedSettingsApi {
   public NewsFeedSettingsOutput getMyNewsFeedSettings(TxCtx ctx) {
     assertFeatureEnabled();
     return new NewsFeedSettingsOutput(
-        newsFeedItemService.getMySubscribedTypes(), xtmHubService.isNewsFeedAvailable(ctx));
+        newsFeedItemService.getMySubscribedTypes(),
+        xtmHubService.isNewsFeedAvailable(ctx),
+        xtmHubService.isHubConnected(ctx));
   }
 
   // -- UPDATE --
@@ -83,7 +85,9 @@ public class NewsFeedSettingsApi {
       TxCtx ctx, @RequestBody @Valid NewsFeedSettingsInput input) {
     assertFeatureEnabled();
     return new NewsFeedSettingsOutput(
-        xtmHubService.updateMyNewsFeedSubscribedTypes(ctx, input.subscribedTypes()), true);
+        xtmHubService.updateMyNewsFeedSubscribedTypes(ctx, input.subscribedTypes()),
+        true,
+        xtmHubService.isHubConnected(ctx));
   }
 
   private void assertFeatureEnabled() {

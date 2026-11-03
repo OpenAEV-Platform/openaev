@@ -17,4 +17,12 @@ public record NewsFeedSettingsOutput(
                 "Whether the news feed is served by XTM Hub, that is a tenant in scope is"
                     + " registered. The preferences can only be changed when it is",
             requiredMode = Schema.RequiredMode.REQUIRED)
-        boolean hubRegistered) {}
+        boolean hubRegistered,
+    @JsonProperty("news_feed_settings_hub_connected")
+        @Schema(
+            description =
+                "Whether a tenant in scope is registered on XTM Hub and has not lost its"
+                    + " connectivity. A registered tenant that lost it still gets its news feed,"
+                    + " but should be invited to reconnect",
+            requiredMode = Schema.RequiredMode.REQUIRED)
+        boolean hubConnected) {}

@@ -10,6 +10,7 @@ import { type NewsFeedSettingsOutput } from '../../../../utils/api-types';
 
 let enabled = false;
 let canManageTenantSettings = true;
+let xtmHubReachable = true;
 const { mockFetchSettings, mockUpdateSettings } = vi.hoisted(() => ({
   mockFetchSettings: vi.fn(),
   mockUpdateSettings: vi.fn(),
@@ -17,6 +18,7 @@ const { mockFetchSettings, mockUpdateSettings } = vi.hoisted(() => ({
 
 vi.mock('../../../../utils/utils', () => ({ isFeatureEnabled: () => enabled }));
 vi.mock('../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: (action: string, subject: string) => canManageTenantSettings && action === 'MANAGE' && subject === 'TENANT_SETTINGS' }) }));
+vi.mock('../../../../utils/hooks/useAuth', () => ({ default: () => ({ settings: { xtm_hub_reachable: xtmHubReachable } }) }));
 vi.mock('../../../../actions/news_feed/news-feed-actions', () => ({
   fetchMyNewsFeedSettings: mockFetchSettings,
   updateMyNewsFeedSettings: mockUpdateSettings,
@@ -32,6 +34,7 @@ const ENABLE_ALL = 'Enable News Feed notifications';
 const buildSettings = (overrides: Partial<NewsFeedSettingsOutput> = {}): NewsFeedSettingsOutput => ({
   news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'],
   news_feed_settings_hub_registered: true,
+  news_feed_settings_hub_connected: true,
   ...overrides,
 });
 
@@ -49,6 +52,7 @@ describe('NewsFeed page', () => {
   beforeEach(() => {
     enabled = true;
     canManageTenantSettings = true;
+    xtmHubReachable = true;
     mockFetchSettings.mockResolvedValue({ data: buildSettings() });
     mockUpdateSettings.mockImplementation(async input => ({ data: buildSettings({ news_feed_settings_subscribed_types: input.news_feed_settings_subscribed_types }) }));
   });
@@ -70,9 +74,32 @@ describe('NewsFeed page', () => {
   });
 
   describe('header', () => {
-    it('is titled News feed in the breadcrumbs', () => {
+    it('is titled XTM Hub News Feed in the breadcrumbs', () => {
       renderPage('items');
-      expect(within(screen.getByRole('navigation')).getByText('News feed')).toBeInTheDocument();
+      expect(within(screen.getByRole('navigation')).getByText('XTM Hub News Feed')).toBeInTheDocument();
+    });
+
+    it('shows the XTM Hub News Feed title over the tabs', () => {
+      renderPage('items');
+      expect(screen.getByRole('heading', {
+        level: 1,
+        name: 'XTM Hub News Feed',
+      })).toBeInTheDocument();
+    });
+  });
+
+  describe('settings outline', () => {
+    it('titles the settings under the page title, as a level 2 heading', async () => {
+      renderPage('settings');
+      await screen.findByRole('switch', { name: ENABLE_ALL });
+      expect(screen.getByRole('heading', {
+        level: 1,
+        name: 'XTM Hub News Feed',
+      })).toBeInTheDocument();
+      expect(screen.getByRole('heading', {
+        level: 2,
+        name: 'XTM Hub News feed settings',
+      })).toBeInTheDocument();
     });
   });
 
@@ -100,7 +127,12 @@ describe('NewsFeed page', () => {
 
   describe('XTM Hub banner', () => {
     it.each(['items', 'settings'] as const)('invites to connect the product on the %s tab when the tenant is not registered', async (tab) => {
-      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_hub_registered: false }) });
+      mockFetchSettings.mockResolvedValue({
+        data: buildSettings({
+          news_feed_settings_hub_registered: false,
+          news_feed_settings_hub_connected: false,
+        }),
+      });
       renderPage(tab);
       expect(await screen.findByText(DISCONNECTED)).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Connect product to XTM Hub' })).toHaveAttribute('href', '/redirect/connect-xtm-hub');
@@ -108,7 +140,12 @@ describe('NewsFeed page', () => {
 
     it.each(['items', 'settings'] as const)('is not shown on the %s tab to a user who cannot connect XTM Hub', async (tab) => {
       canManageTenantSettings = false;
-      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_hub_registered: false }) });
+      mockFetchSettings.mockResolvedValue({
+        data: buildSettings({
+          news_feed_settings_hub_registered: false,
+          news_feed_settings_hub_connected: false,
+        }),
+      });
       renderPage(tab);
       await waitFor(() => expect(mockFetchSettings).toHaveBeenCalled());
       // let the settings land in the page before checking that the banner stays absent
@@ -117,6 +154,29 @@ describe('NewsFeed page', () => {
       });
       expect(screen.queryByText(DISCONNECTED)).not.toBeInTheDocument();
       expect(screen.queryByRole('link', { name: 'Connect product to XTM Hub' })).not.toBeInTheDocument();
+    });
+
+    it.each(['items', 'settings'] as const)('invites to reconnect on the %s tab when the platform lost its connectivity', async (tab) => {
+      // still registered, so the news feed keeps being served, but no longer connected
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_hub_connected: false }) });
+      renderPage(tab);
+      expect(await screen.findByText(DISCONNECTED)).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Connect product to XTM Hub' })).toBeInTheDocument();
+    });
+
+    it.each(['items', 'settings'] as const)('says XTM Hub is unreachable, with no way to connect, on the %s tab', async (tab) => {
+      xtmHubReachable = false;
+      renderPage(tab);
+      expect(await screen.findByText(DISCONNECTED)).toBeInTheDocument();
+      expect(screen.getByText('XTM Hub is unreachable and connection can\'t be established')).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Connect product to XTM Hub' })).not.toBeInTheDocument();
+    });
+
+    it('says XTM Hub is unreachable to a user who cannot connect XTM Hub too', async () => {
+      xtmHubReachable = false;
+      canManageTenantSettings = false;
+      renderPage('items');
+      expect(await screen.findByText('XTM Hub is unreachable and connection can\'t be established')).toBeInTheDocument();
     });
 
     it('is not shown when the tenant is registered', async () => {
@@ -155,6 +215,20 @@ describe('NewsFeed page', () => {
       await waitFor(() => expect(screen.getByRole('switch', { name: 'Scenario' })).not.toBeChecked());
     });
 
+    it('unsubscribes from a type when its label is clicked', async () => {
+      renderPage('settings');
+      await screen.findByRole('switch', { name: 'Scenario' });
+      fireEvent.click(screen.getByText('Scenario'));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }));
+    });
+
+    it('unsubscribes from everything when the label of the global switch is clicked', async () => {
+      renderPage('settings');
+      await screen.findByRole('switch', { name: ENABLE_ALL });
+      fireEvent.click(screen.getByText(ENABLE_ALL));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }));
+    });
+
     it('subscribes to a type again when its switch is turned back on', async () => {
       mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_subscribed_types: [] }) });
       renderPage('settings');
@@ -186,7 +260,12 @@ describe('NewsFeed page', () => {
     });
 
     it('cannot be changed when the tenant is not registered', async () => {
-      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_hub_registered: false }) });
+      mockFetchSettings.mockResolvedValue({
+        data: buildSettings({
+          news_feed_settings_hub_registered: false,
+          news_feed_settings_hub_connected: false,
+        }),
+      });
       renderPage('settings');
       expect(await screen.findByRole('switch', { name: 'Scenario' })).toBeDisabled();
       expect(screen.getByRole('switch', { name: ENABLE_ALL })).toBeDisabled();

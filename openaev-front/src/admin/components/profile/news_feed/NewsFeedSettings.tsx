@@ -1,6 +1,7 @@
 import { Paper, Switch, Text } from '@filigran/design-system';
 // fds:keep-mui Divider has no library equivalent yet
 import { Divider } from '@mui/material';
+import { useId } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import SimpleError from '../../../../components/SimpleError';
@@ -13,6 +14,40 @@ interface Props {
   saving: boolean;
   onChange: (subscribedTypes: NewsFeedType[]) => void;
 }
+
+interface SettingRowProps {
+  label: string;
+  checked: boolean;
+  disabled: boolean;
+  /** The main switch: its label is emphasised, the ones of the types are secondary. */
+  primary?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}
+
+/** A label on the left, its switch on the right. The label is the switch's accessible name and toggles it. */
+const SettingRow = ({ label, checked, disabled, primary = false, onCheckedChange }: SettingRowProps) => {
+  const id = useId();
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 16,
+    }}
+    >
+      <Text
+        as="label"
+        htmlFor={id}
+        variant={primary ? 'content-base-bold' : 'content-compact'}
+        className={primary ? undefined : 'text-default-secondary'}
+      >
+        {label}
+      </Text>
+      <Switch id={id} checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
+    </div>
+  );
+};
 
 /** Subscriptions of the user: one switch per news feed type, and one that turns them all on or off. */
 const NewsFeedSettings = ({ settings, failed, saving, onChange }: Props) => {
@@ -39,18 +74,20 @@ const NewsFeedSettings = ({ settings, failed, saving, onChange }: Props) => {
     <section style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: 16,
+      gap: 8,
+      width: '50%',
     }}
     >
-      <Text variant="title-sm" as="h2" style={{ margin: 0 }}>{t('XTM Hub News feed settings')}</Text>
-      <Paper padding={16}>
+      <Text variant="content-caption" as="h2" className="text-default-secondary" style={{ margin: 0 }}>{t('XTM Hub News feed settings')}</Text>
+      <Paper padding={24}>
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 16,
+          gap: 20,
         }}
         >
-          <Switch
+          <SettingRow
+            primary
             label={t('Enable News Feed notifications')}
             checked={subscribedTypes.length > 0}
             disabled={disabled}
@@ -61,11 +98,11 @@ const NewsFeedSettings = ({ settings, failed, saving, onChange }: Props) => {
             display: 'flex',
             flexDirection: 'column',
             gap: 16,
-            paddingLeft: 16,
+            padding: '0 20px',
           }}
           >
             {NEWS_FEED_TYPES.map(type => (
-              <Switch
+              <SettingRow
                 key={type}
                 label={typeLabel(type)}
                 checked={subscribedTypes.includes(type)}
