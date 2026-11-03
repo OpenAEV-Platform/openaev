@@ -175,6 +175,17 @@
             ],
             allowedVersions: '<1.0.1',
         },
+        // docker.elastic.co publishes no release timestamp, and with minimumReleaseAge set Renovate holds
+        // a release without one as pending for good (minimumReleaseAgeBehaviour: timestamp-required).
+        // No elasticsearch or kibana image PR was opened from 2026-06-03, when minimumReleaseAge came in,
+        // until this rule (#8899).
+        {
+            description: 'docker.elastic.co publishes no release timestamp, so minimumReleaseAge would hold every update as pending',
+            matchPackageNames: [
+                'docker.elastic.co/**',
+            ],
+            minimumReleaseAge: null,
+        },
         // group non-major devDependencies once a week to avoid Renovate noise
         {
             groupName: 'devDependencies (non-major)',
