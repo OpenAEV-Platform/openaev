@@ -97,6 +97,12 @@ public class ExecutionTrace implements Base {
     return identifiers == null ? List.of() : List.of(identifiers);
   }
 
+  /** A global trace is about the whole inject: no agent, no context identifier. */
+  @JsonIgnore
+  public boolean isGlobal() {
+    return agent == null && getIdentifiers().isEmpty();
+  }
+
   @Override
   public int hashCode() {
     return Objects.hash(id);

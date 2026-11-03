@@ -22,14 +22,6 @@ public interface InjectStatusRepository
 
   Optional<InjectStatus> findByInjectId(@NotNull String injectId);
 
-  // Same row as findByInjectId (unique index on status_inject): InjectStatus.traces already loads
-  // ordered (time ASC, id ASC) and unfiltered; callers that want only the global/orchestration
-  // traces filter by getAgent() == null themselves (see InjectStatusMapper,
-  // AttackPathGraphService).
-  default Optional<InjectStatus> findInjectStatusWithGlobalExecutionTraces(String injectId) {
-    return findByInjectId(injectId);
-  }
-
   /**
    * The execution status name of many injects at once, as {@code (injectId, statusName)} pairs. The
    * attack-path graph read ships every execution's "did it actually run" status, so resolving it

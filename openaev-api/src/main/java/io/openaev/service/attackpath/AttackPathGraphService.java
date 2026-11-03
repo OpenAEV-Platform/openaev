@@ -376,11 +376,11 @@ public class AttackPathGraphService {
   private String injectorCommandLine(String injectId) {
     List<ExecutionTrace> traces =
         injectStatusRepository
-            .findInjectStatusWithGlobalExecutionTraces(injectId)
+            .findByInjectId(injectId)
             .map(InjectStatus::getTraces)
             .orElse(List.of())
             .stream()
-            .filter(trace -> trace.getAgent() == null && trace.getIdentifiers().isEmpty())
+            .filter(ExecutionTrace::isGlobal)
             .toList();
     String rawCommandLine = findCommandTraceMessage(traces);
     if (rawCommandLine == null) {

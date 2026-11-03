@@ -1273,8 +1273,7 @@ public class InjectService {
   }
 
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(String injectId) {
-    return injectStatusMapper.toInjectStatusOutput(
-        injectStatusRepository.findInjectStatusWithGlobalExecutionTraces(injectId));
+    return injectStatusMapper.toInjectStatusOutput(injectStatusRepository.findByInjectId(injectId));
   }
 
   public InjectStatusOutput getInjectStatusWithAllExecutionTraces(String injectId) {
