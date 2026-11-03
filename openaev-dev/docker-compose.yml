@@ -93,7 +93,7 @@ services:
   #  OPTIONAL SERVICES — For testing, tooling, or alternative engines
   #  These are NOT required for day-to-day backend/frontend development.
   #  The alternative engines sit behind profiles, so a plain `up -d` does not start them:
-  #  name the service, or pass --profile opensearch / --profile es8.
+  #  name the service, or pass --profile opensearch / --profile es8 / --profile keycloak.
   # ===========================================================================
 
   # Test PostgreSQL database (ephemeral - no volume for clean test runs)
@@ -232,6 +232,20 @@ services:
     depends_on:
       openaev-dev-pgsql:
         condition: service_healthy
+  # Keycloak - local SSO provider (OpenID Connect) with test accounts and groups, see README.md
+  # Admin console: http://localhost:8180 (admin/admin)
+  openaev-dev-keycloak:
+    profiles: ["keycloak"]
+    container_name: openaev-dev-keycloak
+    image: quay.io/keycloak/keycloak:26.4
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8180:8080"
   # Kibana - Elasticsearch UI for development
   openaev-dev-kibana:
     container_name: openaev-dev-kibana
