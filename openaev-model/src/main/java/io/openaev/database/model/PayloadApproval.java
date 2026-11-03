@@ -40,7 +40,9 @@ public class PayloadApproval implements TenantBase {
     APPROVE,
     REJECT,
     // A newer version of the same payload replaced this pending one before any decision.
-    SUPERSEDE
+    SUPERSEDE,
+    // An approver took a decision back: the approved or rejected version waits for approval again.
+    REOPEN
   }
 
   @Id

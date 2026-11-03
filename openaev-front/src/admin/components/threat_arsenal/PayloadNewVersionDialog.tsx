@@ -10,18 +10,10 @@ import {
 } from '@filigran/design-system';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
-import {
-  changeThreatArsenalVersion,
-  fetchThreatArsenalUsages,
-  fetchThreatArsenalVersions,
-} from '../../../actions/threat_arsenals/threatArsenal-version-actions';
+import { fetchThreatArsenalVersions } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
 import { useFormatter } from '../../../components/i18n';
-import {
-  type PayloadUsageOutput,
-  type PayloadVersionChangeOutput,
-  type PayloadVersionOutput,
-} from '../../../utils/api-types';
-import { MESSAGING$ } from '../../../utils/Environment';
+import { type PayloadVersionOutput } from '../../../utils/api-types';
+import movePayloadVersionUsages from './payloadVersionMove';
 
 interface Props {
   // Contract of the version the save replaced, and the version it created.
@@ -51,23 +43,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
       return;
     }
     setMoving(true);
-    fetchThreatArsenalUsages(previousActionId)
-      .then((response: { data: PayloadUsageOutput[] }) => changeThreatArsenalVersion(previousActionId, {
-        target_payload_id: newPayloadId,
-        inject_ids: response.data.filter(u => u.usage_type !== 'step').map(u => u.usage_id),
-        step_ids: response.data.filter(u => u.usage_type === 'step').map(u => u.usage_id),
-      }))
-      .then((response: { data: PayloadVersionChangeOutput }) => {
-        const refused = response.data.refused?.length ?? 0;
-        if (refused > 0) {
-          MESSAGING$.notifyError(t('{count} usages could not move and stay on the previous version', { count: String(refused) }));
-        } else {
-          MESSAGING$.notifySuccess(t('{count} usages moved to v{version}', {
-            count: String(response.data.moved_ids?.length ?? 0),
-            version: newVersion,
-          }));
-        }
-      })
+    movePayloadVersionUsages(previousActionId, newPayloadId, newVersion, t)
       .finally(() => {
         setMoving(false);
         onClose();

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.Command;
@@ -229,8 +230,7 @@ class PayloadApprovalServiceTest {
       Command older = version("1.1.0", PAYLOAD_APPROVAL_STATUS.PENDING);
       PayloadApproval olderEntry = new PayloadApproval();
       olderEntry.setActor(author);
-      when(payloadApprovalRepository.findFirstByPayloadIdAndStatusOrderByCreatedAtDesc(
-              older.getId(), PAYLOAD_APPROVAL_STATUS.PENDING))
+      when(payloadApprovalRepository.findFirstByPayloadIdOrderByCreatedAtAsc(older.getId()))
           .thenReturn(Optional.of(olderEntry));
       Command newer = version("1.2.0", PAYLOAD_APPROVAL_STATUS.PENDING);
       User otherAuthor = new User();
@@ -293,6 +293,95 @@ class PayloadApprovalServiceTest {
       assertThatThrownBy(() -> service.reject(pending, approver, " "))
           .isInstanceOf(BadRequestException.class);
       assertThat(pending.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.PENDING);
+    }
+  }
+
+  @Nested
+  @DisplayName("Taking a decision back")
+  class TakingBack {
+
+    @Test
+    @DisplayName(
+        "Given an approved version, reject should reject it, tell its author and refresh the"
+            + " pointers")
+    void given_approvedVersion_should_reject() {
+      // -- ARRANGE --
+      version("1.0.0", PAYLOAD_APPROVAL_STATUS.APPROVED);
+      Command approved = version("1.1.0", PAYLOAD_APPROVAL_STATUS.APPROVED);
+      PayloadApproval creation = new PayloadApproval();
+      creation.setActor(author);
+      when(payloadApprovalRepository.findFirstByPayloadIdOrderByCreatedAtAsc(approved.getId()))
+          .thenReturn(Optional.of(creation));
+
+      // -- ACT --
+      service.reject(approved, approver, "Approved by mistake");
+
+      // -- ASSERT --
+      assertThat(approved.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.REJECTED);
+      assertThat(lastEntry().getComment()).isEqualTo("Approved by mistake");
+      verify(payloadApprovalNotificationService)
+          .recordOutcome(approved, EVENT.REJECTED, approver, author, true, "Approved by mistake");
+      verify(payloadVersionService).refreshLatest(identity);
+    }
+
+    @Test
+    @DisplayName(
+        "Given an approved version, reopen should move it back to pending without notifying"
+            + " anyone")
+    void given_approvedVersion_should_reopen() {
+      // -- ARRANGE --
+      Command approved = version("1.0.0", PAYLOAD_APPROVAL_STATUS.APPROVED);
+
+      // -- ACT --
+      service.reopen(approved, approver, "Second review");
+
+      // -- ASSERT --
+      assertThat(approved.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.PENDING);
+      PayloadApproval entry = lastEntry();
+      assertThat(entry.getOrigin()).isEqualTo(ORIGIN.REOPEN);
+      assertThat(entry.isAutomatic()).isFalse();
+      assertThat(entry.getComment()).isEqualTo("Second review");
+      verify(payloadVersionService).refreshLatest(identity);
+      verifyNoInteractions(payloadApprovalNotificationService);
+    }
+
+    @Test
+    @DisplayName("Given a rejected version, reopen should move it back to pending")
+    void given_rejectedVersion_should_reopen() {
+      // -- ARRANGE --
+      Command rejected = version("1.0.0", PAYLOAD_APPROVAL_STATUS.REJECTED);
+
+      // -- ACT --
+      service.reopen(rejected, approver, null);
+
+      // -- ASSERT --
+      assertThat(rejected.getApprovalStatus()).isEqualTo(PAYLOAD_APPROVAL_STATUS.PENDING);
+      assertThat(lastEntry().getComment()).isNull();
+    }
+
+    @Test
+    @DisplayName("Given a pending or superseded version, reopen should refuse it")
+    void given_notDecidedVersion_should_refuseReopen() {
+      // -- ARRANGE --
+      Command pending = version("1.0.0", PAYLOAD_APPROVAL_STATUS.PENDING);
+      Command superseded = version("1.1.0", PAYLOAD_APPROVAL_STATUS.SUPERSEDED);
+
+      // -- ACT / ASSERT --
+      assertThatThrownBy(() -> service.reopen(pending, approver, null))
+          .isInstanceOf(BadRequestException.class);
+      assertThatThrownBy(() -> service.reopen(superseded, approver, null))
+          .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    @DisplayName("Given a rejected version, reject should refuse it")
+    void given_rejectedVersion_should_refuseReject() {
+      // -- ARRANGE --
+      Command rejected = version("1.0.0", PAYLOAD_APPROVAL_STATUS.REJECTED);
+
+      // -- ACT / ASSERT --
+      assertThatThrownBy(() -> service.reject(rejected, approver, "Again"))
+          .isInstanceOf(BadRequestException.class);
     }
   }
 

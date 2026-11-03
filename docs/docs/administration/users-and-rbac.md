@@ -77,7 +77,7 @@ Platform settings, Tenants and the platform users, groups, roles and sessions ca
 | `Access reportings` | Access, Manage, Delete | Reports |
 | `Access findings` | Access | Findings from Simulations and Atomic Tests |
 | `Access assessment` | Access, Manage, Delete, Launch | Scenarios, Simulations and Atomic Tests; `Launch assessment` needs only Access |
-| `Access threat arsenal` | Access, Manage, Delete, Approve content | Threat Arsenal actions; `Approve content` needs only Access: approve or reject payload versions, and the versions its holders create are approved automatically (see [Approval of payloads](../usage/build/threat-arsenals/threat-arsenals.md#approval-of-payloads)). A content decision, separate from `Launch assessment` |
+| `Access threat arsenal` | Access, Manage, Delete, Approve content | Threat Arsenal actions; `Approve content` needs only Access: approve or reject payload versions, reject an approved version or move it back to pending approval, and the versions its holders create are approved automatically (see [Approval of payloads](../usage/build/threat-arsenals/threat-arsenals.md#approval-of-payloads)). A content decision, separate from `Launch assessment` |
 | `Access teams & persons` | Access, Manage, Delete | Teams and Players |
 | `Access assets` | Access, Manage, Delete | Assets and asset groups |
 | `Access security platforms` | Access, Manage, Delete | Security platform integrations |

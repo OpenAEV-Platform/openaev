@@ -19,6 +19,7 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionUpdateInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalApproveInput;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalRejectInput;
+import io.openaev.api.threat_arsenal.dto.ThreatArsenalReopenInput;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -423,6 +424,127 @@ class ThreatArsenalApprovalApiTest extends IntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(asJsonString(new ThreatArsenalApproveInput(null))))
           .andExpect(status().isBadRequest());
+    }
+  }
+
+  @Nested
+  @DisplayName("Taking a decision back")
+  class TakingBack {
+
+    private ResultActions rejectAs(Authentication as, String actionId, String reason)
+        throws Exception {
+      return mvc.perform(
+          post(url("/" + actionId + "/reject"))
+              .with(authentication(as))
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(asJsonString(new ThreatArsenalRejectInput(reason))));
+    }
+
+    private ResultActions reopenAs(Authentication as, String actionId, String note)
+        throws Exception {
+      return mvc.perform(
+          post(url("/" + actionId + "/reopen"))
+              .with(authentication(as))
+              .with(csrf())
+              .contentType(MediaType.APPLICATION_JSON)
+              .content(asJsonString(new ThreatArsenalReopenInput(note))));
+    }
+
+    private String latestApprovedPayloadId(String actionId) {
+      entityManager.flush();
+      entityManager.clear();
+      InjectorContract contract = injectorContractRepository.findById(actionId).orElseThrow();
+      return contract.getPayload().getIdentity().getLatestApprovedPayloadId();
+    }
+
+    private String payloadIdOf(String actionId) {
+      return injectorContractRepository.findById(actionId).orElseThrow().getPayload().getId();
+    }
+
+    @Test
+    @DisplayName("an approver rejects an approved version with a reason, recorded in its history")
+    void given_approvedVersion_should_beRejectedByApprover() throws Exception {
+      String actionId = createAction(approver);
+
+      rejectAs(approver, actionId, "").andExpect(status().isBadRequest());
+      String response =
+          rejectAs(approver, actionId, "Approved by mistake")
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat((String) JsonPath.read(response, "$.action_approval_status"))
+          .isEqualTo("REJECTED");
+      assertThat((String) JsonPath.read(response, "$.action_approval_latest.approval_comment"))
+          .isEqualTo("Approved by mistake");
+      assertThat(approvalStatus(actionId)).isEqualTo("REJECTED");
+    }
+
+    @Test
+    @DisplayName(
+        "an approver moves an approved version back to pending, then it can be approved again")
+    void given_approvedVersion_should_moveBackToPendingThenApprove() throws Exception {
+      String actionId = createAction(approver);
+
+      String response =
+          reopenAs(approver, actionId, "Second review")
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThat((String) JsonPath.read(response, "$.action_approval_status")).isEqualTo("PENDING");
+      assertThat((String) JsonPath.read(response, "$.action_approval_latest.approval_origin"))
+          .isEqualTo("REOPEN");
+      approveAs(approver, actionId).andExpect(status().isOk());
+      assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
+    }
+
+    @Test
+    @DisplayName("a rejected version can be moved back to pending; a pending one cannot")
+    void given_rejectedVersion_should_moveBackToPending() throws Exception {
+      String actionId = createAction(author);
+
+      reopenAs(approver, actionId, null).andExpect(status().isBadRequest());
+      rejectAs(approver, actionId, "Unsafe").andExpect(status().isOk());
+      rejectAs(approver, actionId, "Again").andExpect(status().isBadRequest());
+      reopenAs(approver, actionId, null).andExpect(status().isOk());
+
+      assertThat(approvalStatus(actionId)).isEqualTo("PENDING");
+    }
+
+    @Test
+    @DisplayName(
+        "an author cannot reject an approved version nor move it back to pending: it stays"
+            + " approved")
+    void given_author_should_notTakeBackDecisions() throws Exception {
+      String actionId = createAction(approver);
+
+      rejectAs(author, actionId, "Not mine to decide").andExpect(status().isForbidden());
+      reopenAs(author, actionId, null).andExpect(status().isForbidden());
+
+      assertThat(approvalStatus(actionId)).isEqualTo("APPROVED");
+    }
+
+    @Test
+    @DisplayName(
+        "taking back the latest approved version makes the previous approved version the one"
+            + " offered")
+    void given_latestApprovedTakenBack_should_fallBackToPreviousApproved() throws Exception {
+      String first = createAction(approver);
+      String second = updateAs(approver, first, update(first, "echo second", null));
+      assertThat(latestApprovedPayloadId(first)).isEqualTo(payloadIdOf(second));
+
+      reopenAs(approver, second, null).andExpect(status().isOk());
+      assertThat(latestApprovedPayloadId(first)).isEqualTo(payloadIdOf(first));
+
+      approveAs(approver, second).andExpect(status().isOk());
+      assertThat(latestApprovedPayloadId(first)).isEqualTo(payloadIdOf(second));
+
+      rejectAs(approver, second, "Breaks the target").andExpect(status().isOk());
+      assertThat(latestApprovedPayloadId(first)).isEqualTo(payloadIdOf(first));
     }
   }
 

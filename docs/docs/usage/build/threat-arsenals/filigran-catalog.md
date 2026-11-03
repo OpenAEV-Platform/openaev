@@ -106,6 +106,8 @@ Revoke a version when it is no longer safe to run, for example after you find a 
 
 1. Open the menu of the Action and click **Revoke**.
 2. Pick the version and give a reason.
+3. Optionally, keep **Move the injects using this version to another version** checked and pick the approved version
+   they move to. Only the Injects you can edit move; the others stay and are reported.
 
 A revoked version no longer runs in your tenant:
 
