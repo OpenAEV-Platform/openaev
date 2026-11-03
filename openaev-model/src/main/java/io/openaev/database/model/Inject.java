@@ -321,12 +321,15 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @Schema(implementation = String[].class)
   @Getter
+  // Batch fetching instead of @Fetch(SUBSELECT): same Hibernate SubselectFetch bug as on
+  // Inject.expectations, this time with Asset (a SINGLE_TABLE inheritance root) as the element
+  // type.
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injects_assets",
       joinColumns = @JoinColumn(name = "inject_id"),
       inverseJoinColumns = @JoinColumn(name = "asset_id"))
-  @Fetch(FetchMode.SUBSELECT)
+  @BatchSize(size = 1000)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_assets")
@@ -361,8 +364,11 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @Schema(implementation = String[].class)
   @Getter
+  // Batch fetching instead of @Fetch(SUBSELECT): same Hibernate SubselectFetch bug as on
+  // Inject.expectations, this time with SecretReference (a SINGLE_TABLE inheritance root) as the
+  // element type.
   @ManyToMany(fetch = FetchType.EAGER)
-  @Fetch(FetchMode.SUBSELECT)
+  @BatchSize(size = 1000)
   @JoinTable(
       name = "injects_secret_references",
       joinColumns = @JoinColumn(name = "inject_id"),
