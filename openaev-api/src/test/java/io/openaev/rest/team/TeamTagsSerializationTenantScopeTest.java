@@ -376,7 +376,8 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
       mvc.perform(
               put(PLAYER_URI + "/{userId}", player.getId())
                   .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(playerEditInput(player, editedTags)))
+                  .content(
+                      asJsonString(playerEditInput(player, seeded.organizationId(), editedTags)))
                   .with(csrf()))
           .andExpect(status().isOk());
 
@@ -390,12 +391,12 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
           });
     }
 
-    private PlayerInput playerEditInput(User player, List<String> tagIds) {
+    private PlayerInput playerEditInput(User player, String organizationId, List<String> tagIds) {
       PlayerInput input = new PlayerInput();
       input.setEmail(player.getEmail());
       input.setFirstname(player.getFirstname());
       input.setLastname(player.getLastname());
-      input.setOrganizationId(player.getOrganization().getId());
+      input.setOrganizationId(organizationId);
       input.setTagIds(tagIds);
       return input;
     }
