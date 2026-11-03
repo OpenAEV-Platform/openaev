@@ -1,11 +1,11 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { lazy, type ReactNode, Suspense, useEffect, useRef, useState } from 'react';
 
-import { onBulkOperationEnd, onConnectionLost, onConnectionOpen, onEntityChange } from '../stream/streamClient';
-import bulkEntityTypes from './bulkOperationEntities';
+import connectStreamToLiveRouter from '../stream/connectStreamToLiveRouter';
 import { createLiveRouter } from './liveRouter';
 import { LiveRouterContext } from './liveRouterContext';
 import { createAppQueryClient } from './queryClient';
+import { rightsKey, rightsShrank, type SessionRights } from './sessionRights';
 
 // Dev-only: the DEV guard removes this import from production builds.
 const ReactQueryDevtools = import.meta.env.DEV
@@ -14,44 +14,48 @@ const ReactQueryDevtools = import.meta.env.DEV
 
 interface Props {
   children: ReactNode;
-  /** Changes when the user's rights change: every cached query is then refetched. */
-  rightsKey: string;
+  /** The logged-in user's rights; none on anonymous pages. */
+  rights?: SessionRights;
 }
 
 /**
- * One query cache per mount. `Root` mounts it only for a logged-in user, keyed by that user and
- * tenant, so a session that ends or changes drops the cache. A change of rights keeps the cache (and
- * the mounted tree) but refetches every query. It also routes the stream's entity changes to the
- * live queries.
+ * One query cache per mount, with its live router. `Root` mounts one for anonymous pages and one per
+ * logged-in user and tenant (keyed by them), so a session that ends or changes drops the cache. A
+ * change of rights keeps the mounted tree: lost rights reset every query, new ones refetch them.
  */
-const AppQueryProvider = ({ children, rightsKey }: Props) => {
+const AppQueryProvider = ({ children, rights }: Props) => {
   const [queryClient] = useState(createAppQueryClient);
   const [router] = useState(() => createLiveRouter(queryClient));
 
-  const previousRightsKey = useRef(rightsKey);
+  const currentRightsKey = rights ? rightsKey(rights) : '';
+  const previousRights = useRef(rights);
   useEffect(() => {
-    if (previousRightsKey.current === rightsKey) return;
-    previousRightsKey.current = rightsKey;
-    router.invalidateAll();
-  }, [router, rightsKey]);
+    const previous = previousRights.current;
+    previousRights.current = rights;
+    if (!previous || !rights || rightsKey(previous) === currentRightsKey) return;
+    if (rightsShrank(previous, rights)) {
+      router.resetAll();
+    } else {
+      router.invalidateAll();
+    }
+    // `rights` is a new object on every render: only its key says whether it changed.
+  }, [router, currentRightsKey]);
 
+  const pendingClear = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
-    const unsubscribes = [
-      onEntityChange(change => router.applyChanges([change])),
-      onBulkOperationEnd(entity => router.invalidateType(bulkEntityTypes(entity))),
-      // Any data read before the server registered this connection may have missed changes: the
-      // queries loaded while the stream was connecting, or during an outage. Queries still fetching
-      // refetch once their fetch settles.
-      onConnectionOpen(() => router.invalidateAllLive()),
-      // Marking stale without a request re-arms the fallback polling: while the platform is down,
-      // fetching right away would only fail.
-      onConnectionLost(() => router.markAllLiveStale()),
-    ];
+    clearTimeout(pendingClear.current);
+    const disconnect = connectStreamToLiveRouter(router);
     return () => {
-      unsubscribes.forEach(unsubscribe => unsubscribe());
+      disconnect();
       router.dispose();
+      // The session ended: drop its data and stop its fetches. Deferred, so that StrictMode's
+      // simulated unmount, followed at once by a remount, keeps the cache.
+      pendingClear.current = setTimeout(() => {
+        queryClient.cancelQueries();
+        queryClient.clear();
+      }, 0);
     };
-  }, [router]);
+  }, [queryClient, router]);
 
   return (
     <QueryClientProvider client={queryClient}>

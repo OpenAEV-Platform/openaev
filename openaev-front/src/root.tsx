@@ -33,7 +33,7 @@ import useRefreshMe from './utils/hooks/useRefreshMe';
 import useTenant, { pickDefaultTenantId } from './utils/hooks/useTenant';
 import PermissionsProvider from './utils/permissions/PermissionsProvider';
 import AppQueryProvider from './utils/query/AppQueryProvider';
-import PublicQueryProvider from './utils/query/PublicQueryProvider';
+import { rightsOf, sessionCacheKey } from './utils/query/sessionRights';
 import { buildTenantUrl, DEFAULT_TENANT_UUID, extractTenantFromUrl } from './utils/url-helper';
 
 const RootPublic = lazy(() => import('./public/Root'));
@@ -50,20 +50,6 @@ const PhishingPage = lazy(() => import('./public/components/phishing/PhishingPag
 const SimulationChallengesPreview = lazy(() => import('./admin/components/simulations/simulation/challenges/SimulationChallengesPreview'));
 const ScenarioChallengesPreview = lazy(() => import('./admin/components/scenarios/scenario/challenges/ScenarioChallengesPreview'));
 const ReportingRender = lazy(() => import('./admin/components/reporting/render/ReportingRender'));
-
-// The cache belongs to one user in one tenant: a change of either drops it.
-const sessionCacheKey = (me: { user_id: string }) => `${me.user_id}|${extractTenantFromUrl() ?? ''}`;
-
-// A change of rights refetches every query, without dropping the cache nor remounting the tree.
-const rightsKey = (me: {
-  user_admin?: boolean;
-  user_capabilities?: string[];
-  user_grants?: unknown;
-}) => [
-  me.user_admin ? 'admin' : '',
-  [...(me.user_capabilities ?? [])].sort().join(','),
-  JSON.stringify(me.user_grants ?? null),
-].join('|');
 
 const Root = () => {
   const { logged, me, settings, tenantAccessDenied } = useHelper((helper: LoggedHelper) => {
@@ -131,11 +117,11 @@ const Root = () => {
 
   if (!logged || !me || !settings || isReachable === undefined) {
     return (
-      <Suspense fallback={<Loader />}>
-        <PublicQueryProvider>
+      <AppQueryProvider>
+        <Suspense fallback={<Loader />}>
           <RootPublic />
-        </PublicQueryProvider>
-      </Suspense>
+        </Suspense>
+      </AppQueryProvider>
     );
   }
 
@@ -175,7 +161,7 @@ const Root = () => {
   }
 
   return (
-    <AppQueryProvider key={sessionCacheKey(me)} rightsKey={rightsKey(me)}>
+    <AppQueryProvider key={sessionCacheKey(me.user_id, extractTenantFromUrl())} rights={rightsOf(me)}>
       <PermissionsProvider capabilities={me.user_capabilities} grants={me.user_grants} isAdmin={me.user_admin}>
         <UserContext.Provider value={userContextValue}>
           <StyledEngineProvider injectFirst>

@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as StreamClientModule from '../../../utils/stream/streamClient';
@@ -27,13 +27,14 @@ describe('useLiveStream', () => {
   });
 
   afterEach(() => {
+    cleanup();
     client.stopStream();
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
   it('given_aMount_should_startTheStreamWithASingleEventSource', () => {
-    // Arrange / Act
+    // Act
     renderHook(() => useLiveStream());
 
     // Assert

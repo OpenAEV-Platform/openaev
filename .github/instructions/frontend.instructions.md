@@ -88,18 +88,36 @@ Docs: <https://silver-doodle-mnyv84e.pages.github.io> (machine-readable: `/llms-
 
 ## Data Loading & State
 
-- **Server data** (new pattern): TanStack Query. Redux (`useDataLoader` + `useHelper`) stays for existing screens only; a migrated screen reads its server data from queries alone, never from both
-- **Query options**: one `actions/{feature}/{feature}-queries.ts` per feature, with a key factory (`{feature}Keys`) and `queryOptions` (`{feature}Queries.list()`, `.detail(id)`). Reference: `actions/executors/executor-queries.ts`, used by `admin/components/agents/Agents.tsx`
-- **Live queries**: a query shown on a live screen sets `meta: liveMeta<TData>({ refs, collections, throttleMs })` (`utils/query/live.ts`): `refs(data)` lists the entities it shows (a change on one refetches it), `collections` the stream types it lists (a create or delete of that type refetches it), `throttleMs` the minimum delay between two refetches (1 s by default). Type names come from `STREAM_TYPES` (`utils/stream/streamTypes.ts`). A query without `meta.live` is never refreshed by the stream
-- **Invalidation only**: never write to the cache (`setQueryData`, `removeQueries`, optimistic updates) and never call `invalidateQueries` directly: `utils/query/liveRouter.ts` is its only caller. A mutation uses `useLiveMutation({ mutationFn, changes })` and describes what changed; the router refetches the matching queries, the same way it does for stream events, before the mutation resolves:
+- **Server data** (new pattern): TanStack Query, with its defaults (stale at once, refetch on mount, focus and reconnect, garbage collected after 5 min); override them per query only for a reason, and never raise `staleTime` because a query is live (the stream misses some changes, e.g. lost permissions). The client only adds: no retry on a 4xx, one toast per failure streak. Redux (`useDataLoader` + `useHelper`) stays for existing screens only; a migrated screen reads its server data from queries alone, never from both
+- **Query and mutation functions**: new plain calls in the feature's action file (`actions/{feature}/{feature}-action.ts`, or the existing `-actions.ts`) that resolve to the data and never dispatch, e.g. `simpleCall(uri, { signal }, false).then(response => response.data)`. Never `dispatch(thunk)`: the `*Referential` thunks resolve even on an HTTP error and write to Redux. A `queryFn` passes TanStack's `signal` and turns the toast off (the query cache shows one per failure streak, none for a 404 or a 401); a `mutationFn` keeps the default toast
+- **Query options**: one `actions/{feature}/{feature}-queries.ts` per feature, with a key factory (`{feature}Keys`) whose keys start with the entity type and carry every parameter of the query, and `queryOptions` (`{feature}Queries.list(filters)`, `.detail(id)`). Never mutate the query's `data` (sort in `select`, with a stable function) nor copy it into state. Reference: `actions/assets/asset-queries.ts`, used by `admin/components/assets/asset/AssetDetail.tsx`
+- **Live queries**: every query that a change can make stale, the user's own mutations included, sets `meta: liveMeta<TData>({ refs, collections, watch, throttleMs })` (`utils/query/live.ts`):
+  - `refs(data)`: the entities its data shows, embedded ones included (a change on one refetches it)
+  - `collections`: the types it lists (a create or delete of that type refetches it)
+  - `watch`: the types any change of which can change the result although the query does not show the entity (a count by status, a list filtered or sorted on a field that changes)
+  - `throttleMs`: the minimum delay between two refetches (1 s by default; raise it for high-frequency types)
+
+  Type names come from `ENTITY_TYPES` (`utils/query/entityChange.ts`, which explains how a name is derived; add a missing one before using it). A query without `meta.live` is refreshed by TanStack's defaults only. A change also updates the `parents` it lists (an agent → its asset): mutations list them in their changes, and the stream adapter derives them in `PARENTS_OF` (`utils/stream/streamClient.ts`)
+- **Invalidation only**: never write to the cache (`setQueryData`, `removeQueries`, optimistic updates) and never call `invalidateQueries` directly (a team rule: `utils/query/liveRouter.ts` is its only caller, so the stream and mutations refresh the same way). A mutation uses `useLiveMutation({ mutationFn, changes })` and describes what changed; the queries showing it are refetched before the mutation resolves (and once more, throttled, when the stream echoes the change):
   ```ts
-  useLiveMutation({ mutationFn: createTag, changes: tag => [{ type: STREAM_TYPES.TAGS, id: tag.tag_id, action: 'create' }] });
-  useLiveMutation({ mutationFn: deleteTag, changes: (_result, tagId) => [{ type: STREAM_TYPES.TAGS, id: tagId, action: 'delete' }] });
+  // tag-action.ts
+  export const updateTagCall = (tagId: string, input: TagUpdateInput): Promise<Tag> =>
+    simplePutCall(`/api/tags/${tagId}`, input).then(response => response.data);
+  export const deleteTagCall = (tagId: string) => simpleDelCall(`/api/tags/${tagId}`);
+  // in the component
+  const update = useLiveMutation({
+    mutationFn: ({ tagId, input }: { tagId: string; input: TagUpdateInput }) => updateTagCall(tagId, input),
+    changes: tag => [{ type: ENTITY_TYPES.TAGS, id: tag.tag_id, action: 'update' }],
+  });
+  const remove = useLiveMutation({
+    mutationFn: (tagId: string) => deleteTagCall(tagId),
+    changes: (_result, tagId) => [{ type: ENTITY_TYPES.TAGS, id: tagId, action: 'delete' }],
+  });
   ```
-  `useApplyChanges()` does the same outside a mutation (e.g. after an import that changed many entities)
-- **Errors**: a `queryFn` calls its action with error notification off (`simpleCall(uri, undefined, false)`): the query cache notifies a failure once, only when the query has no data and it is not a 404. A 404 on a detail is the deleted state (`isNotFoundError(error)` from `utils/query/httpErrors.ts`). A `mutationFn` keeps the default toast of its action
-- **Paginated lists stay on `PaginationComponentV2`** for now: it owns its fetching (`fetch` / `setContent`), so a paginated screen moves to queries only once the component can be driven by a query
-- **Stream**: `utils/stream/streamClient.ts` owns the one platform stream, kept open by the admin and private layouts (`useLiveStream`). Never open another `EventSource`. Consume entity changes through live queries, or `subscribeStreamEvent` for a named event; only the Redux adapter (`useDataLoader.js`) reads raw messages (`onStreamMessage`)
-- **Paginated lists** (new pattern): `useQueryableWithLocalStorage` + `PaginationComponentV2` + `SortHeadersComponentV2`
-- **Feature hook**: `use{Feature}s.ts` with `useState` + `useCallback` for local state (add/update/remove)
-- **Actions**: simple API calls in `actions/{feature}/{feature}-actions.ts` using `simpleCall` / `simplePostCall`
+  `useApplyChanges()` describes changes made outside a `useLiveMutation` (a legacy drawer's `onUpdate`, an import); pass `{ immediate: true }` to refetch at once and wait for it, otherwise the changes are batched and throttled like the stream's
+- **States**: render `isPending` (first load) and `isError` before `data`: a failed refetch keeps the previous data. A 404 on a detail is the deleted state (`isNotFoundError(error)` from `utils/query/httpErrors.ts`); errors are typed `unknown` (the API client rejects with `{ status, ...body }` or `false`)
+- **Background tabs**: a change received while the tab is hidden only marks the query stale, and TanStack refetches it when the tab is shown again: a live query never turns `refetchOnWindowFocus` off
+- **Paginated lists stay on `PaginationComponentV2`** (`useQueryableWithLocalStorage` + `PaginationComponentV2` + `SortHeadersComponentV2`): it owns its fetching (`fetch` / `setContent`), so a paginated screen moves to queries only once the component can be driven by a query
+- **Live sources**: changes reach the router through `utils/stream/connectStreamToLiveRouter.ts`, today from the platform stream (`utils/stream/streamClient.ts`, kept open by the admin and private layouts through `useLiveStream`). Queries never depend on where changes come from. Never open another `EventSource` for platform data changes; only the Redux adapter (`useDataLoader.js`) reads raw stream messages (`onStreamMessage`)
+- **Feature hook**: `use{Feature}s.ts` with `useState` + `useCallback` for UI-only local state, never a copy of server data
+- **Actions**: simple API calls in the feature's action file using `simpleCall` / `simplePostCall`

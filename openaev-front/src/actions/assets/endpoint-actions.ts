@@ -1,7 +1,7 @@
 import { type Dispatch } from 'redux';
 
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
-import { type AssetBulkProcessingInput, type AssetBulkReplaceMarkingsInput, type AssetUpdateMarkingsInput, type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
+import { type AssetBulkProcessingInput, type AssetBulkReplaceMarkingsInput, type AssetUpdateMarkingsInput, type Endpoint, type EndpointInput, type EndpointOutput, type EndpointOverviewOutput, type SearchPaginationInput } from '../../utils/api-types';
 import { arrayOfEndpoints, endpoint } from './asset-schema';
 
 const ENDPOINT_URI = '/api/endpoints';
@@ -65,12 +65,30 @@ export const bulkReplaceAssetMarkings = (input: AssetBulkReplaceMarkingsInput) =
   return simplePutCall('/api/assets/markings/bulk', input);
 };
 
-// Generic asset overview for the unified detail page: any asset type, with its category-specific fields.
-export const fetchAssetOverview = (assetId: string) => {
-  return simpleCall(`/api/assets/${assetId}`);
+// The backend's EndpointOverviewOutput now also carries the AI target connection metadata and the
+// asset's markings; until the API types are regenerated (needs a backend restart) they are
+// declared here so the page can render them. Regenerating later makes these redundant but
+// harmless.
+export type AssetOverview = EndpointOverviewOutput & {
+  ai_target_provider?: string;
+  ai_target_modality?: string;
+  ai_target_endpoint?: string;
+  ai_target_model?: string;
+  ai_target_system_prompt?: string;
+  asset_markings?: string[];
 };
 
-// "Injects played" for the asset detail page: every inject concerning it, same scope as the posture score.
+// Plain read backing the query cache: no store dispatch, no toast (the query cache notifies), and
+// cancellable through the query's signal.
+export const getAssetOverview = ({ assetId, signal }: {
+  assetId: string;
+  signal?: AbortSignal;
+}): Promise<AssetOverview> =>
+  simpleCall(`/api/assets/${assetId}`, { signal }, false).then(response => response.data);
+
+// "Injects played" for the asset detail page: every inject (atomic testing or simulation inject)
+// that concerns the asset - targeted directly, through an asset group (static or dynamic) or
+// evidenced by the expectations persisted at execution time. Same scope as the posture score.
 export const searchInjectsForAsset = (assetId: string, searchPaginationInput: SearchPaginationInput) => {
   return simplePostCall(`/api/assets/${assetId}/injects/search`, searchPaginationInput);
 };
