@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,12 +9,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type NewsFeedSettingsOutput } from '../../../../utils/api-types';
 
 let enabled = false;
+let canManageTenantSettings = true;
 const { mockFetchSettings, mockUpdateSettings } = vi.hoisted(() => ({
   mockFetchSettings: vi.fn(),
   mockUpdateSettings: vi.fn(),
 }));
 
 vi.mock('../../../../utils/utils', () => ({ isFeatureEnabled: () => enabled }));
+vi.mock('../../../../utils/permissions/permissionsContext', () => ({ useAbility: () => ({ can: (action: string, subject: string) => canManageTenantSettings && action === 'MANAGE' && subject === 'TENANT_SETTINGS' }) }));
 vi.mock('../../../../actions/news_feed/news-feed-actions', () => ({
   fetchMyNewsFeedSettings: mockFetchSettings,
   updateMyNewsFeedSettings: mockUpdateSettings,
@@ -46,6 +48,7 @@ const renderPage = (tab: 'items' | 'settings') => render(
 describe('NewsFeed page', () => {
   beforeEach(() => {
     enabled = true;
+    canManageTenantSettings = true;
     mockFetchSettings.mockResolvedValue({ data: buildSettings() });
     mockUpdateSettings.mockImplementation(async input => ({ data: buildSettings({ news_feed_settings_subscribed_types: input.news_feed_settings_subscribed_types }) }));
   });
@@ -101,6 +104,19 @@ describe('NewsFeed page', () => {
       renderPage(tab);
       expect(await screen.findByText(DISCONNECTED)).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Connect product to XTM Hub' })).toHaveAttribute('href', '/redirect/connect-xtm-hub');
+    });
+
+    it.each(['items', 'settings'] as const)('is not shown on the %s tab to a user who cannot connect XTM Hub', async (tab) => {
+      canManageTenantSettings = false;
+      mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_hub_registered: false }) });
+      renderPage(tab);
+      await waitFor(() => expect(mockFetchSettings).toHaveBeenCalled());
+      // let the settings land in the page before checking that the banner stays absent
+      await act(async () => {
+        await mockFetchSettings.mock.results[0].value;
+      });
+      expect(screen.queryByText(DISCONNECTED)).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Connect product to XTM Hub' })).not.toBeInTheDocument();
     });
 
     it('is not shown when the tenant is registered', async () => {

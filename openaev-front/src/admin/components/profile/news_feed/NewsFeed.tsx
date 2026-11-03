@@ -1,6 +1,8 @@
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
 import NotFound from '../../../../components/NotFound';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import NewsFeedHubBanner from './NewsFeedHubBanner';
 import NewsFeedList from './NewsFeedList';
@@ -13,6 +15,9 @@ interface Props { tab: NewsFeedTab }
 /** The settings are loaded for both tabs: they tell whether the banner inviting to connect XTM Hub shows. */
 const NewsFeedPage = ({ tab }: Props) => {
   const { t } = useFormatter();
+  const ability = useAbility();
+  // Same permission as the connect flow: the banner is pointless for a user who cannot follow it.
+  const canConnectXtmHub = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   const {
     settings,
     failed,
@@ -29,7 +34,7 @@ const NewsFeedPage = ({ tab }: Props) => {
           current: true,
         }]}
       />
-      {settings && !settings.news_feed_settings_hub_registered && <NewsFeedHubBanner />}
+      {canConnectXtmHub && settings && !settings.news_feed_settings_hub_registered && <NewsFeedHubBanner />}
       <NewsFeedTabs current={tab} />
       {tab === 'items'
         ? <NewsFeedList />
