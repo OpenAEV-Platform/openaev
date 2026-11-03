@@ -42,7 +42,7 @@ const NewsFeedHubBanner = ({ unreachable = false }: Props) => {
           <Text variant="content-compact" className="text-default-secondary">
             {unreachable
               ? t('XTM Hub is unreachable and connection can\'t be established')
-              : t('Please connect yourself so you can receive News Feeds')}
+              : t('Please connect your product so you can receive News Feeds')}
           </Text>
         </div>
         {!unreachable && (
