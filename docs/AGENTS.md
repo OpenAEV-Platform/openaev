@@ -18,7 +18,8 @@ docs/docs/            → Markdown source files (the documentation)
 docs/overrides/       → MkDocs Material template overrides
 docs/site/            → Generated output (do NOT edit)
 docs/mkdocs.yml       → MkDocs configuration and nav tree
-docs/requirements.txt → Python dependencies
+docs/requirements.in  → Python dependencies (direct)
+docs/requirements.txt → Generated from requirements.in (do NOT edit)
 ```
 
 ## Writing style rules
