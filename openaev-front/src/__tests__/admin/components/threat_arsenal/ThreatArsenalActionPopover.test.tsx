@@ -13,8 +13,9 @@ import { setNotifyErrorHandler } from '../../../../utils/error/errorHandlerUtil'
 // The HTTP layer is real (Action.ts helpers and the network.ts interceptor, which rejects with
 // `{ status, ...body }`): only the transport is stubbed, so the test sees the error shape the app
 // really gets.
-const { requests, responses, submitErrors, permissions } = vi.hoisted(() => ({
+const { requests, responses, submitErrors, permissions, versionList } = vi.hoisted(() => ({
   permissions: { canApprove: true },
+  versionList: [] as unknown[],
   requests: [] as InternalAxiosRequestConfig[],
   responses: [] as {
     status: number;
@@ -32,11 +33,11 @@ vi.mock('../../../../network', async (importOriginal) => {
       const instance = original.api(...args);
       instance.defaults.adapter = async (config: InternalAxiosRequestConfig) => {
         requests.push(config);
-        // The version list the popover loads is not under test: no other version.
+        // The version list the popover and its dialogs load: none unless a test sets some.
         if (config.url?.endsWith('/versions')) {
           return {
             status: 200,
-            data: [],
+            data: versionList,
             statusText: '',
             headers: {},
             config,
@@ -242,6 +243,149 @@ describe('ThreatArsenalActionPopover: saving an action (payload versions and app
     // Assert
     await waitFor(() => expect(onUpdate).toHaveBeenCalled());
     expect(screen.queryByText('New version v{version}')).toBeNull();
+    expect(requests.some(request => request.url?.endsWith('/change-version'))).toBe(false);
+  });
+});
+
+// v1.1.0 is the version shown (approved, used by 2 injects); v1.0.0 is an older approved version.
+const approvedVersions = [
+  {
+    payload_id: 'payload-1',
+    payload_action_id: 'action-1',
+    payload_version: '1.1.0',
+    payload_is_latest: true,
+    payload_installed: true,
+    payload_revoked: false,
+    payload_usage_count: 2,
+    payload_approval_status: 'APPROVED',
+  },
+  {
+    payload_id: 'payload-0',
+    payload_action_id: 'action-0',
+    payload_version: '1.0.0',
+    payload_is_latest: false,
+    payload_installed: true,
+    payload_revoked: false,
+    payload_usage_count: 0,
+    payload_approval_status: 'APPROVED',
+  },
+];
+
+const posts = () => requests.filter(request => request.method === 'post');
+
+const openMenu = () => fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+
+describe('ThreatArsenalActionPopover: taking an approval back', () => {
+  beforeEach(() => {
+    requests.length = 0;
+    responses.length = 0;
+    versionList.length = 0;
+    versionList.push(...approvedVersions);
+    permissions.canApprove = true;
+    notifyError.mockReset();
+    setNotifyErrorHandler(notifyError);
+    document.cookie = 'XSRF-TOKEN=test-token';
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('offers Reject and Move to pending approval to an approver, next to Revoke', async () => {
+    // Arrange
+    renderPopover();
+
+    // Act
+    openMenu();
+
+    // Assert
+    expect(await screen.findByRole('menuitem', { name: 'Reject' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Move to pending approval' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Revoke' })).toBeTruthy();
+  });
+
+  it('shows neither to a user without Approve content', async () => {
+    // Arrange
+    permissions.canApprove = false;
+    renderPopover();
+
+    // Act
+    openMenu();
+
+    // Assert
+    expect(await screen.findByRole('menuitem', { name: 'Revoke' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Reject' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Move to pending approval' })).toBeNull();
+  });
+
+  it('rejects with a required reason, then moves the injects to the chosen approved version', async () => {
+    // Arrange
+    responses.push(
+      {
+        status: 200,
+        data: { action_approval_status: 'REJECTED' },
+      },
+      {
+        status: 200,
+        data: [{
+          usage_id: 'inject-1',
+          usage_type: 'inject',
+        }, {
+          usage_id: 'step-1',
+          usage_type: 'step',
+        }],
+      },
+      {
+        status: 200,
+        data: {
+          moved_ids: ['inject-1', 'step-1'],
+          refused: [],
+        },
+      },
+    );
+    renderPopover();
+    openMenu();
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Reject' }));
+    const submit = await screen.findByRole('button', { name: 'Reject' });
+    await screen.findByText('Used by 2 injects');
+
+    // Act
+    expect((submit as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByPlaceholderText('Reason'), { target: { value: 'Approved by mistake' } });
+    expect((screen.getByRole('checkbox', { name: 'Move the injects using this version to another version' }) as HTMLButtonElement).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(submit);
+
+    // Assert
+    await waitFor(() => expect(posts().some(request => request.url?.endsWith('/change-version'))).toBe(true));
+    const reject = posts().find(request => request.url?.endsWith('/action-1/reject'));
+    expect(JSON.parse(reject?.data as string)).toEqual({ approval_reason: 'Approved by mistake' });
+    const move = posts().find(request => request.url?.endsWith('/action-1/change-version'));
+    expect(JSON.parse(move?.data as string)).toEqual({
+      target_payload_id: 'payload-0',
+      inject_ids: ['inject-1'],
+      step_ids: ['step-1'],
+    });
+  });
+
+  it('moves a version back to pending with an optional note, without moving the injects when unticked', async () => {
+    // Arrange
+    responses.push({
+      status: 200,
+      data: { action_approval_status: 'PENDING' },
+    });
+    renderPopover();
+    openMenu();
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Move to pending approval' }));
+    await screen.findByText('Used by 2 injects');
+
+    // Act
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Move the injects using this version to another version' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Move to pending approval' }));
+
+    // Assert
+    await waitFor(() => expect(posts().some(request => request.url?.endsWith('/action-1/reopen'))).toBe(true));
+    const reopen = posts().find(request => request.url?.endsWith('/action-1/reopen'));
+    expect(JSON.parse(reopen?.data as string)).toEqual({});
     expect(requests.some(request => request.url?.endsWith('/change-version'))).toBe(false);
   });
 });

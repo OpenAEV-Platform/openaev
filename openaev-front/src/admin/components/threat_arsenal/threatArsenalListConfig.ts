@@ -10,9 +10,8 @@ export const THREAT_ARSENAL_LIST_INLINE_STYLES: Record<string, CSSProperties> = 
   action_labels: { width: '25%' },
   action_domains: { width: '16%' },
   action_platforms: { width: '13%' },
-  action_tags: { width: '15%' },
-  action_status: { width: '8%' },
-  action_approval: { width: '13%' },
+  action_tags: { width: '21%' },
+  action_status: { width: '15%' },
   action_updated_at: { width: '10%' },
 };
 
@@ -42,11 +41,6 @@ export const THREAT_ARSENAL_LIST_HEADERS: Header[] = [
   {
     field: 'action_status',
     label: 'Status',
-    isSortable: false,
-  },
-  {
-    field: 'action_approval',
-    label: 'Approval',
     isSortable: false,
   },
   {

@@ -12,6 +12,8 @@ import {
   duplicateThreatArsenalAction,
   exportThreatArsenalAction,
   fetchThreatArsenalAction,
+  rejectThreatArsenalAction,
+  reopenThreatArsenalAction,
   updateThreatArsenalAction,
 } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import { fetchThreatArsenalVersions } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
@@ -25,6 +27,7 @@ import {
   type ThreatArsenalAction,
   type ThreatArsenalActionFullOutput,
   type ThreatArsenalActionUpdateInput,
+  type ThreatArsenalApprovalDecisionOutput,
 } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import { MESSAGING$ } from '../../../utils/Environment';
@@ -35,8 +38,8 @@ import InjectorContractForm, { type InjectorContractFormValues } from '../integr
 import { type DetectionRemediationForm } from '../payloads/utils/payloadFormToPayloadInput';
 import { buildInitialValues, handleCleanupCommandValue, handleCleanupExecutorValue } from './actionFormValues';
 import PayloadNewVersionDialog from './PayloadNewVersionDialog';
-import payloadRevocationChoices from './payloadRevocationChoices';
-import PayloadRevocationDialog from './PayloadRevocationDialog';
+import payloadVersionDecisionChoices from './payloadVersionDecisionChoices';
+import PayloadVersionDecisionDialog from './PayloadVersionDecisionDialog';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 import PayloadVariantEditor from './variants/PayloadVariantEditor';
@@ -58,6 +61,8 @@ interface PayloadPopoverNewProps {
   // A customized catalogue payload: changed through its overrides, not "Update".
   variantIdentityId?: string;
   onRevocationChange?: (revoked: boolean, status?: ThreatArsenalActionFullOutput['action_status']) => void;
+  // The approval status of the version shown changed (rejected or moved back to pending).
+  onApprovalChange?: (status: ThreatArsenalActionFullOutput['action_approval_status']) => void;
 }
 
 const ThreatArsenalActionPopover = ({
@@ -75,6 +80,7 @@ const ThreatArsenalActionPopover = ({
   managed,
   variantIdentityId,
   onRevocationChange,
+  onApprovalChange,
 }: PayloadPopoverNewProps) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [openEdit, setOpenEdit] = useState(false);
@@ -84,6 +90,8 @@ const ThreatArsenalActionPopover = ({
   const [editingVariant, setEditingVariant] = useState<string | null>(null);
   const [revocation, setRevocation] = useState(false);
   const [lifting, setLifting] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [reopening, setReopening] = useState(false);
   const [fetchedAction, setFetchedAction] = useState<ThreatArsenalActionFullOutput | null>(null);
 
   const { t, tPick } = useFormatter();
@@ -250,21 +258,45 @@ const ThreatArsenalActionPopover = ({
   const hasUpdateCapability = hasDuplicateCapability || ability.can(ACTIONS.MANAGE, SUBJECTS.RESOURCE, payloadId);
   const hasDeleteCapability = ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS) || ability.can(ACTIONS.DELETE, SUBJECTS.RESOURCE, payloadId);
   const hasRevokeCapability = ability.can(ACTIONS.REVOKE, SUBJECTS.THREAT_ARSENALS);
+  // Without "Approve content", the approval actions are not shown at all.
+  const hasApproveCapability = ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS);
 
-  // Revoke and Lift revocation only show when some version can take them.
+  // Revoke, Lift revocation, Reject and Move to pending approval only show when some version can
+  // take them.
   const [versions, setVersions] = useState<PayloadVersionOutput[]>([]);
   useEffect(() => {
-    if (anchorEl && hasRevokeCapability && payloadId) {
+    if (anchorEl && (hasRevokeCapability || hasApproveCapability) && payloadId) {
       fetchThreatArsenalVersions(actionId).then((response: { data: PayloadVersionOutput[] }) => setVersions(response.data));
     }
   }, [anchorEl]);
-  const canRevoke = payloadRevocationChoices(versions, false, false).length > 0;
-  const canLift = payloadRevocationChoices(versions, true, !!variantIdentityId).length > 0;
+  const canRevoke = hasRevokeCapability && payloadVersionDecisionChoices(versions, 'revoke').length > 0;
+  const canLift = hasRevokeCapability && payloadVersionDecisionChoices(versions, 'lift', !!variantIdentityId).length > 0;
+  const canReject = hasApproveCapability && payloadVersionDecisionChoices(versions, 'reject').length > 0;
+  const canReopen = hasApproveCapability && payloadVersionDecisionChoices(versions, 'reopen').length > 0;
+
+  // -- Approval: an approver takes a decision back, on the version they pick --
+  const submitRejection = async (rejectedId: string, reason: string) => {
+    const actionOf = versions.find(v => v.payload_id === rejectedId)?.payload_action_id ?? actionId;
+    const response = await rejectThreatArsenalAction(actionOf, { approval_reason: reason });
+    if (rejectedId === payloadId) {
+      onApprovalChange?.((response.data as ThreatArsenalApprovalDecisionOutput).action_approval_status);
+    }
+    setRejecting(false);
+  };
+
+  const submitReopen = async (reopenedId: string, note: string) => {
+    const actionOf = versions.find(v => v.payload_id === reopenedId)?.payload_action_id ?? actionId;
+    const response = await reopenThreatArsenalAction(actionOf, { approval_comment: note || undefined });
+    if (reopenedId === payloadId) {
+      onApprovalChange?.((response.data as ThreatArsenalApprovalDecisionOutput).action_approval_status);
+    }
+    setReopening(false);
+  };
 
   const duplicateOff = !hasDuplicateCapability || !!disableDuplicate;
   const updateOff = !hasUpdateCapability || !!disableUpdate;
   const deleteOff = !hasDeleteCapability || !!disableDelete;
-  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff && !hasRevokeCapability;
+  const allDisabled = duplicateOff && !!disableJsonExport && updateOff && deleteOff && !hasRevokeCapability && !hasApproveCapability;
 
   // -- Export --
   const handleExportJsonSingle = async () => {
@@ -313,7 +345,7 @@ const ThreatArsenalActionPopover = ({
         {hasDeleteCapability && !managed && (
           <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
-        {((hasDeleteCapability && managed) || (hasRevokeCapability && (canRevoke || canLift))) && <Divider />}
+        {((hasDeleteCapability && managed) || canRevoke || canLift || canReject || canReopen) && <Divider />}
         {hasDeleteCapability && managed && (
           <MenuItem onClick={() => {
             handlePopoverClose();
@@ -323,16 +355,34 @@ const ThreatArsenalActionPopover = ({
             {t('Uninstall')}
           </MenuItem>
         )}
-        {hasRevokeCapability && !!payloadId && canRevoke && (
+        {!!payloadId && canRevoke && (
           <MenuItem onClick={handleOpenRevocation}>{t('Revoke')}</MenuItem>
         )}
-        {hasRevokeCapability && !!payloadId && canLift && (
+        {!!payloadId && canLift && (
           <MenuItem onClick={() => {
             handlePopoverClose();
             setLifting(true);
           }}
           >
             {t('Lift revocation')}
+          </MenuItem>
+        )}
+        {!!payloadId && canReject && (
+          <MenuItem onClick={() => {
+            handlePopoverClose();
+            setRejecting(true);
+          }}
+          >
+            {t('Reject')}
+          </MenuItem>
+        )}
+        {!!payloadId && canReopen && (
+          <MenuItem onClick={() => {
+            handlePopoverClose();
+            setReopening(true);
+          }}
+          >
+            {t('Move to pending approval')}
           </MenuItem>
         )}
       </Menu>
@@ -359,19 +409,40 @@ const ThreatArsenalActionPopover = ({
         />
       )}
 
-      <PayloadRevocationDialog
+      <PayloadVersionDecisionDialog
         open={revocation}
         name={name}
+        decision="revoke"
         actionId={actionId}
         payloadId={payloadId}
         onClose={() => setRevocation(false)}
         onSubmit={submitRevocation}
       />
 
-      <PayloadRevocationDialog
+      <PayloadVersionDecisionDialog
+        open={rejecting}
+        name={name}
+        decision="reject"
+        actionId={actionId}
+        payloadId={payloadId}
+        onClose={() => setRejecting(false)}
+        onSubmit={submitRejection}
+      />
+
+      <PayloadVersionDecisionDialog
+        open={reopening}
+        name={name}
+        decision="reopen"
+        actionId={actionId}
+        payloadId={payloadId}
+        onClose={() => setReopening(false)}
+        onSubmit={submitReopen}
+      />
+
+      <PayloadVersionDecisionDialog
         open={lifting}
         name={name}
-        lift
+        decision="lift"
         customized={!!variantIdentityId}
         actionId={actionId}
         payloadId={payloadId}

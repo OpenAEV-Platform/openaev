@@ -38,8 +38,9 @@ import org.springframework.stereotype.Service;
  *   <li>A built-in version created by the platform itself is APPROVED.
  *   <li>A new version supersedes the older pending versions of the same payload: they can no longer
  *       be approved, and their authors are told.
- *   <li>Only a PENDING version can be approved or rejected, by a holder of "Approve content"; a
- *       rejection needs a reason.
+ *   <li>A holder of "Approve content" approves a PENDING version, rejects a PENDING or APPROVED one
+ *       (a reason is required), and can move an APPROVED or REJECTED one back to PENDING to review
+ *       it again.
  * </ul>
  *
  * <p>Injects stay on the version they run: the approver of a version is the one asked whether the
@@ -141,8 +142,8 @@ public class PayloadApprovalService {
    */
   public PayloadApproval approve(
       @NotNull final Payload version, @NotNull final User decider, @Nullable final String comment) {
-    requirePending(version);
-    User author = pendingAuthor(version);
+    require(version, "approved", PAYLOAD_APPROVAL_STATUS.PENDING);
+    User author = authorOf(version);
     PayloadApproval approval =
         apply(
             version,
@@ -166,16 +167,20 @@ public class PayloadApprovalService {
     return approval;
   }
 
-  /** Rejects a pending version. The reason is mandatory and shown to the author. */
+  /**
+   * Rejects a pending version, or an approved one when the approver changes their mind: it can no
+   * longer be picked or run. The reason is mandatory and shown to the author.
+   */
   public PayloadApproval reject(
       @NotNull final Payload version, @NotNull final User decider, @Nullable final String reason) {
-    requirePending(version);
+    require(version, "rejected", PAYLOAD_APPROVAL_STATUS.PENDING, PAYLOAD_APPROVAL_STATUS.APPROVED);
     String trimmed = blankToNull(reason);
     if (trimmed == null) {
       throw new BadRequestException("A reason is required to reject a payload.");
     }
     String boundedReason = bounded(trimmed);
-    User author = pendingAuthor(version);
+    boolean wasApproved = version.getApprovalStatus() == PAYLOAD_APPROVAL_STATUS.APPROVED;
+    User author = authorOf(version);
     PayloadApproval rejection =
         apply(
             version,
@@ -191,7 +196,37 @@ public class PayloadApprovalService {
         author,
         hasOtherApprovedVersion(version),
         boundedReason);
+    if (wasApproved) {
+      payloadVersionService.refreshLatest(version.getIdentity());
+    }
     return rejection;
+  }
+
+  /**
+   * Moves an approved or rejected version back to pending, when an approver wants it reviewed again
+   * (the review is asked outside the platform: nobody is notified). It can no longer be picked or
+   * run until approved again.
+   */
+  public PayloadApproval reopen(
+      @NotNull final Payload version, @NotNull final User decider, @Nullable final String comment) {
+    require(
+        version,
+        "moved back to pending approval",
+        PAYLOAD_APPROVAL_STATUS.APPROVED,
+        PAYLOAD_APPROVAL_STATUS.REJECTED);
+    boolean wasApproved = version.getApprovalStatus() == PAYLOAD_APPROVAL_STATUS.APPROVED;
+    PayloadApproval entry =
+        apply(
+            version,
+            PAYLOAD_APPROVAL_STATUS.PENDING,
+            ORIGIN.REOPEN,
+            false,
+            decider,
+            bounded(blankToNull(comment)));
+    if (wasApproved) {
+      payloadVersionService.refreshLatest(version.getIdentity());
+    }
+    return entry;
   }
 
   /**
@@ -216,11 +251,10 @@ public class PayloadApprovalService {
             });
   }
 
-  // Who sent the version to pending (told the outcome): null for a collector.
-  User pendingAuthor(Payload version) {
+  // Who created the version (told the outcome): null for a collector or the platform.
+  User authorOf(Payload version) {
     return payloadApprovalRepository
-        .findFirstByPayloadIdAndStatusOrderByCreatedAtDesc(
-            version.getId(), PAYLOAD_APPROVAL_STATUS.PENDING)
+        .findFirstByPayloadIdOrderByCreatedAtAsc(version.getId())
         .map(PayloadApproval::getActor)
         .orElse(null);
   }
@@ -254,7 +288,7 @@ public class PayloadApprovalService {
 
   private void supersedeOlderPending(Payload version, User actor) {
     for (Payload older : olderPending(version)) {
-      User author = pendingAuthor(older);
+      User author = authorOf(older);
       apply(
           older,
           PAYLOAD_APPROVAL_STATUS.SUPERSEDED,
@@ -300,12 +334,11 @@ public class PayloadApprovalService {
     return payloadApprovalRepository.save(entry);
   }
 
-  private static void requirePending(Payload version) {
-    if (version.getApprovalStatus() != PAYLOAD_APPROVAL_STATUS.PENDING) {
+  private static void require(
+      Payload version, String decision, PAYLOAD_APPROVAL_STATUS... allowed) {
+    if (!List.of(allowed).contains(version.getApprovalStatus())) {
       throw new BadRequestException(
-          "Only a pending version can be approved or rejected; this one is "
-              + version.getApprovalStatus()
-              + ".");
+          "This version cannot be " + decision + ": it is " + version.getApprovalStatus() + ".");
     }
   }
 

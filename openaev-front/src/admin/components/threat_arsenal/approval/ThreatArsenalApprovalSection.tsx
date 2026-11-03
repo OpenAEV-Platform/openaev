@@ -1,7 +1,7 @@
-import { Button, Text, Textarea, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Text, Textarea } from '@filigran/design-system';
 import { CheckCircleOutlined, DoNotDisturbOnOutlined, FactCheckOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactElement, useEffect, useState } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchMe } from '../../../../actions/Application';
 import {
@@ -24,7 +24,7 @@ import { type Error as ApiError, notifyErrorHandler } from '../../../../utils/er
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../../../utils/fdsLayer';
 import { useAppDispatch } from '../../../../utils/hooks';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
-import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../utils/permissions/types';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import ApprovalStatusChip from './ApprovalStatusChip';
 import { APPROVAL_COMMENT_MAX_LENGTH, approvalOriginLabel, isPayloadUsed } from './approvalStatusUtils';
 import PayloadUsage from './PayloadUsage';
@@ -63,7 +63,7 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
   const isPending = status === 'PENDING';
 
   // Capabilities are loaded at app start: refresh them before offering a decision, so a user whose
-  // Approve content was removed meanwhile sees the buttons disabled (the server refuses anyway).
+  // Approve content was removed meanwhile no longer sees the buttons (the server refuses anyway).
   useEffect(() => {
     if (isPending) {
       dispatch(fetchMe());
@@ -125,48 +125,31 @@ const ThreatArsenalApprovalSection: FunctionComponent<Props> = ({ action, onDeci
     }).catch(error => onDecisionError(error, closeReject));
   };
 
-  // A disabled button fires no pointer event, so the tooltip hangs on an enabled wrapper.
-  const withPermissionTooltip = (button: ReactElement) => (canApprove
-    ? button
-    : (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span style={{ display: 'inline-flex' }}>{button}</span>
-          </TooltipTrigger>
-          <TooltipContent>{t(PERMISSION_REQUIRED)}</TooltipContent>
-        </Tooltip>
-      ));
-
-  const decisionActions = isPending && (
+  // Without "Approve content", the decisions are not shown at all (the API refuses them anyway).
+  const decisionActions = isPending && canApprove && (
     <div style={{
       display: 'flex',
       gap: theme.spacing(1),
     }}
     >
-      {withPermissionTooltip(
-        <Button
-          type="button"
-          size="sm"
-          priority="secondary"
-          variant="destructive"
-          startIcon={<DoNotDisturbOnOutlined fontSize="small" />}
-          disabled={!canApprove}
-          onClick={() => setRejectOpen(true)}
-        >
-          {t('Reject')}
-        </Button>,
-      )}
-      {withPermissionTooltip(
-        <Button
-          type="button"
-          size="sm"
-          startIcon={<CheckCircleOutlined fontSize="small" />}
-          disabled={!canApprove}
-          onClick={() => setApproveOpen(true)}
-        >
-          {t('Approve')}
-        </Button>,
-      )}
+      <Button
+        type="button"
+        size="sm"
+        priority="secondary"
+        variant="destructive"
+        startIcon={<DoNotDisturbOnOutlined fontSize="small" />}
+        onClick={() => setRejectOpen(true)}
+      >
+        {t('Reject')}
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        startIcon={<CheckCircleOutlined fontSize="small" />}
+        onClick={() => setApproveOpen(true)}
+      >
+        {t('Approve')}
+      </Button>
     </div>
   );
 

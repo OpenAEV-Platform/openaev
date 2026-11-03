@@ -35,18 +35,20 @@ columns:
 | **Name**     | The name assigned to the Action.                                                                                |
 | **Domains**  | The domains the Action operates on, such as Endpoint, Network, Web App, or E-mail infiltration.                 |
 | **Platform** | The platforms the Action supports, such as Windows, Linux, or macOS.                                            |
-| **Tags**     | Tags that help you categorize and search for Actions.                                                           |
-| **Status**   | The reliability or lifecycle state of the Action. See [Action status logic](#action-status-logic).              |
-| **Approval** | Whether the payload content is trusted. See [Approval of payloads](#approval-of-payloads).                      |
+| **Tags**     | Tags that help you categorize and search for Actions, with the *Filigran verified* or *Deprecated* tag. See [Action tags](#action-tags). |
+| **Status**   | Whether the Action's version can be used: *Approved*, *Pending approval*, *Rejected*, *Superseded* or *Revoked*. See [Approval of payloads](#approval-of-payloads). |
 | **Updated**  | The date of the last modification.                                                                              |
 
-### Action status logic
+### Action tags
 
-| Status          | Description                                                                                                     |
-|-----------------|-----------------------------------------------------------------------------------------------------------------|
-| **Verified**    | OpenAEV has tested the Action and confirmed that it works as expected.                                          |
-| **Unverified**  | OpenAEV has not tested the Action. It may or may not work.                                                      |
-| **Deprecated**  | The original source marked the Action as deprecated. It remains available for reference, but OpenAEV does not guarantee that it still works. |
+Whether Filigran verified an Action is shown as a tag, not as a status: it never decides whether the Action can be used.
+
+| Tag                   | Description                                                                                                     |
+|-----------------------|-----------------------------------------------------------------------------------------------------------------|
+| **Filigran verified** | Filigran has tested the Action and confirmed that it works as expected.                                         |
+| **Deprecated**        | The original source marked the Action as deprecated. It remains available for reference, but OpenAEV does not guarantee that it still works. |
+
+An Action without either tag has not been tested by Filigran. It may or may not work.
 
 ## Approval of payloads
 
@@ -58,6 +60,9 @@ Each version of a payload-based Action carries an **approval status** that tells
 | **Approved**   | The content is trusted: Injects can run this version. |
 | **Rejected**   | An approver refused the version, with a reason. Its author can save a new version. |
 | **Superseded** | A newer version of the same Action was saved before anyone decided on this one: it can no longer be approved. |
+| **Revoked**    | The version was revoked (see [Revoke a version](filigran-catalog.md#revoke-a-version)): it no longer runs. |
+
+Only an **Approved** version can be picked, used as a move target, or run.
 
 How the status of a new version is set:
 
@@ -71,14 +76,27 @@ How the status of a new version is set:
 
 **Who approves by default.** When payload approval is introduced, every tenant role that can manage threat arsenal actions also receives *Approve content*, and so does the default *Manager* role of new tenants. Their authors' versions stay approved, so nothing changes for them. Maker-checker is **opt-in**: remove *Approve content* from the roles of the authors who must be checked, and their new versions become **Pending** until someone else approves them.
 
+Users without *Approve content* do not see **Approve**, **Reject** or **Move to pending approval** anywhere; every edit they make creates a new **Pending** version, and they cannot change the status of an existing version.
+
 To approve or reject, open the Action (the list shows its latest version), then use **Approve** or **Reject** in its *Approval* section. A rejection requires a reason. The *History* tab shows what the version changes compared with the previous one. The *Approval* section also shows the latest decision (who approved or rejected it, when, with the comment) and, as information, where the Action is used (*Used in*: Atomic Tests, Scenarios and Simulations still to run, with links for users who can open them). The list can be filtered by approval status, and the *Versions* tab shows the status of every version.
+
+### Taking a decision back
+
+An approver who approved a version by mistake, or wants it reviewed again, uses the Action's menu, like **Revoke**:
+
+* **Reject**: pick a pending or approved version and give a reason. The version can no longer be picked or run, and its author is notified with the reason.
+* **Move to pending approval**: pick an approved or rejected version and add an optional note. The version waits for approval again and can no longer be picked or run until an approver approves it. Nobody is notified: ask for the review yourself.
+
+Both entries appear only for users whose role holds *Approve content*, and only when a version can take them. Each change is recorded in the approval history and the audit log. When the latest approved version is taken back, pickers and automatic selection offer the previous approved version again.
+
+Injects still using a version that is not approved cannot launch. The **Revoke**, **Reject** and **Move to pending approval** dialogs show how many Injects use the chosen version and offer, checked by default, to **move the injects using this version to another version**: pick an approved, non-revoked version in the list. Only the Injects and chained steps you can edit move; the others stay on their version and are reported.
 
 ### Notifications
 
 Approvers and authors are notified in the [Notification Center](../../run-and-evaluate/notifications/notification-center.md#payload-approval-notifications), without any Trigger to configure:
 
 * users whose role in the Tenant explicitly holds *Approve content* are told when a Payload, or a new version of an approved Payload, waits for approval (never about their own edits, and not again for each newer version while one already waits);
-* authors are told when their version is approved, rejected (with the reason), or superseded by someone else's newer version.
+* authors are told when their version is approved, rejected (with the reason, also when an approved version is rejected afterwards), or superseded by someone else's newer version.
 
 Notifications are batched every minute and link to the version's Action. Each user chooses in-app and email delivery in the Notification Center's **Preferences** tab (in-app on, email off by default).
 

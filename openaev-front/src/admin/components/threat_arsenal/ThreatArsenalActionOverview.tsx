@@ -45,16 +45,15 @@ import {
   type ThreatArsenalExpectationDetail,
 } from '../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
-import { tint } from '../../../utils/tint';
 import expectationIconByType, { expectationTypeColor } from '../common/ExpectationIconByType';
 import { isTechnicalExpectation } from '../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
-import ApprovalStatusChip from './approval/ApprovalStatusChip';
 import PayloadRevocationBanner from './PayloadRevocationBanner';
-import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
+import PayloadVerificationTag from './PayloadVerificationTag';
+import ThreatArsenalStatusChip from './ThreatArsenalStatusChip';
 
 // Human labels for the predefined expectation types carried by a payload/contract.
 const EXPECTATION_TYPE_LABELS: Record<string, string> = {
@@ -140,13 +139,6 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
   const revokedPayloadId = action.action_payload?.payload_revoked || payload?.payload_status === 'REVOKED'
     ? action.action_payload?.payload_id ?? payload?.payload_id
     : undefined;
-  const status = action.action_payload?.payload_revoked ? 'REVOKED' : action.action_payload?.payload_status ?? payload?.payload_status;
-  const statusColor = status ? getStatusColor(theme, status) : undefined;
-  const statusLabel = getStatusLabel(status);
-  // A version that is not approved shows its approval status instead of Verified / Unverified /
-  // Deprecated: the approval decides whether it can be used.
-  const approvalStatus = action.action_payload?.payload_approval_status ?? payload?.payload_approval_status;
-  const approvalWins = approvalStatus === 'PENDING' || approvalStatus === 'REJECTED' || approvalStatus === 'SUPERSEDED';
   const name = tPick(action.action_labels);
   const description = payload?.payload_description ?? '';
   const platforms = payload?.payload_platforms ?? action.action_platforms ?? [];
@@ -288,38 +280,12 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               >
                 {name || '-'}
               </Typography>
-              {approvalWins && <ApprovalStatusChip status={approvalStatus} />}
-              {!approvalWins && statusLabel && statusColor && (
-                <Box
-                  sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    paddingInline: 1,
-                    paddingBlock: 0.25,
-                    borderRadius: 1,
-                    backgroundColor: tint(statusColor, 18),
-                    color: statusColor,
-                    border: `1px solid ${tint(statusColor, 45)}`,
-                    fontSize: 10.5,
-                    fontWeight: 700,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Box
-                    aria-hidden
-                    sx={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      backgroundColor: statusColor,
-                      boxShadow: `0 0 6px ${tint(statusColor, 80)}`,
-                    }}
-                  />
-                  {t(statusLabel)}
-                </Box>
+              <PayloadVerificationTag status={action.action_payload?.payload_status ?? payload?.payload_status} />
+              {(action.action_payload || payload) && (
+                <ThreatArsenalStatusChip
+                  revoked={action.action_payload?.payload_revoked || payload?.payload_status === 'REVOKED'}
+                  approvalStatus={action.action_payload?.payload_approval_status ?? payload?.payload_approval_status}
+                />
               )}
             </Box>
 

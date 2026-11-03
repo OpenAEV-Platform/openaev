@@ -1,4 +1,4 @@
-import { Checkbox, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Checkbox, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { type FunctionComponent, type MouseEvent } from 'react';
 import { makeStyles } from 'tss-react/mui';
@@ -10,10 +10,10 @@ import ItemTags from '../../../components/ItemTags';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type ThreatArsenalAction } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
-import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
-import ApprovalStatusChip from './approval/ApprovalStatusChip';
+import PayloadVerificationTag from './PayloadVerificationTag';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
+import ThreatArsenalStatusChip from './ThreatArsenalStatusChip';
 
 const useStyles = makeStyles()(() => ({ item: { height: 50 } }));
 
@@ -45,7 +45,7 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
   disableDelete,
 }) => {
   const { classes } = useStyles();
-  const { t, tPick, nsdt } = useFormatter();
+  const { tPick, nsdt } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
   const name = tPick(action.action_labels);
 
@@ -74,6 +74,13 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
               ...action.action_payload,
               payload_revoked: revoked,
               payload_status: status ?? action.action_payload.payload_status,
+            },
+          })}
+          onApprovalChange={status => action.action_payload && onUpdate({
+            ...action,
+            action_payload: {
+              ...action.action_payload,
+              payload_approval_status: status ?? action.action_payload.payload_approval_status,
             },
           })}
         />
@@ -147,25 +154,27 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
                 ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_tags,
               }}
               >
-                <ItemTags variant="reduced-view" tags={action.action_tags_ids} />
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  minWidth: 0,
+                }}
+                >
+                  <PayloadVerificationTag status={action.action_payload?.payload_status} />
+                  <ItemTags variant="reduced-view" tags={action.action_tags_ids} />
+                </div>
               </div>
               <div style={{
                 ...bodyItemsStyles.bodyItem,
                 ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_status,
               }}
               >
-                {action.action_payload?.payload_revoked
-                  ? <Chip label={t('Revoked')} severity="critical" />
-                  : <PayloadStatusComponent status={action.action_payload?.payload_status} />}
-              </div>
-              <div style={{
-                ...bodyItemsStyles.bodyItem,
-                ...THREAT_ARSENAL_LIST_INLINE_STYLES.action_approval,
-              }}
-              >
                 {/* Payload-less built-in actions need no approval: they show a dash. */}
-                {/* A new version waiting shows as Pending (the latest version's status). */}
-                <ApprovalStatusChip status={action.action_payload?.payload_approval_status} />
+                <ThreatArsenalStatusChip
+                  revoked={action.action_payload?.payload_revoked}
+                  approvalStatus={action.action_payload?.payload_approval_status}
+                />
               </div>
               <Typography
                 component="div"

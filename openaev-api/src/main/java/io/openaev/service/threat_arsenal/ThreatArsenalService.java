@@ -424,13 +424,28 @@ public class ThreatArsenalService {
         offer.map(PayloadApprovalService.MoveOffer::usages).orElse(null));
   }
 
-  /** Rejects the pending payload version of an action; its injects stay where they are. */
+  /**
+   * Rejects the pending or approved payload version of an action; its injects stay where they are
+   * and can no longer run it.
+   */
   public ThreatArsenalApprovalDecisionOutput reject(
       String actionId, ThreatArsenalRejectInput input) {
     Payload version = payloadForDecision(actionId);
     PayloadApproval rejection =
         payloadApprovalService.reject(version, userService.currentUser(), input.reason());
     return decision(actionId, version, rejection, null, null);
+  }
+
+  /**
+   * Moves the approved or rejected payload version of an action back to pending approval; its
+   * injects stay where they are and can no longer run it until it is approved again.
+   */
+  public ThreatArsenalApprovalDecisionOutput reopen(
+      String actionId, ThreatArsenalReopenInput input) {
+    Payload version = payloadForDecision(actionId);
+    PayloadApproval entry =
+        payloadApprovalService.reopen(version, userService.currentUser(), input.comment());
+    return decision(actionId, version, entry, null, null);
   }
 
   private static ThreatArsenalApprovalDecisionOutput decision(

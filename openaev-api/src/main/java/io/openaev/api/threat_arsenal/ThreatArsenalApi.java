@@ -301,15 +301,16 @@ public class ThreatArsenalApi {
       actionPerformed = Action.APPROVE,
       resourceType = ResourceType.THREAT_ARSENAL)
   @Operation(
-      summary = "Reject the pending payload version of an action",
+      summary = "Reject the pending or approved payload version of an action",
       description =
-          "Requires Approve content. The injects stay on the version they run. A reason is"
-              + " required.")
+          "Requires Approve content. The injects stay on the version they run and can no longer"
+              + " run it. A reason is required.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "The decision"),
     @ApiResponse(
         responseCode = "400",
-        description = "The version is not pending, the action has no payload, or no reason")
+        description =
+            "The version is neither pending nor approved, the action has no payload, or no reason")
   })
   public ThreatArsenalApprovalDecisionOutput rejectAction(
       @RequireTenantSelector TxCtx ctx,
@@ -317,6 +318,34 @@ public class ThreatArsenalApi {
       @Valid @RequestBody ThreatArsenalRejectInput input) {
     writeScopeResolver.tenantForWrite(ctx, null);
     return threatArsenalService.reject(actionId, input);
+  }
+
+  @PostMapping({
+    THREAT_ARSENAL_URL + "/{actionId}/reopen",
+    TENANT_THREAT_ARSENAL_URL + "/{actionId}/reopen"
+  })
+  @Transactional
+  @AccessControl(
+      resourceId = "#actionId",
+      actionPerformed = Action.APPROVE,
+      resourceType = ResourceType.THREAT_ARSENAL)
+  @Operation(
+      summary = "Move the approved or rejected payload version of an action back to pending",
+      description =
+          "Requires Approve content. The version can no longer be picked or run until it is"
+              + " approved again; the injects stay on the version they run. Nobody is notified.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "The decision"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "The version is neither approved nor rejected, or the action has no payload")
+  })
+  public ThreatArsenalApprovalDecisionOutput reopenAction(
+      @RequireTenantSelector TxCtx ctx,
+      @NotBlank @PathVariable final String actionId,
+      @Valid @RequestBody ThreatArsenalReopenInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
+    return threatArsenalService.reopen(actionId, input);
   }
 
   @GetMapping({

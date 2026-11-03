@@ -38,7 +38,8 @@ export interface PayloadApprovalOutput {
     | "MIGRATION"
     | "APPROVE"
     | "REJECT"
-    | "SUPERSEDE";
+    | "SUPERSEDE"
+    | "REOPEN";
   /** Status set by this entry */
   approval_status: "PENDING" | "APPROVED" | "REJECTED" | "SUPERSEDED";
 }
@@ -88,6 +89,15 @@ export interface ThreatArsenalApprovalDecisionOutput {
 export interface ThreatArsenalApproveInput {
   /**
    * Optional comment recorded in the approval history
+   * @minLength 0
+   * @maxLength 2000
+   */
+  approval_comment?: string;
+}
+
+export interface ThreatArsenalReopenInput {
+  /**
+   * Optional note recorded in the approval history
    * @minLength 0
    * @maxLength 2000
    */

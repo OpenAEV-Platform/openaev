@@ -35,6 +35,7 @@ const ORIGIN_LABELS: Record<ApprovalOrigin, string> = {
   APPROVE: 'Approved',
   REJECT: 'Rejected',
   SUPERSEDE: 'Replaced by a newer version',
+  REOPEN: 'Moved back to pending approval',
 };
 
 export const approvalStatusSeverity = (status: ApprovalStatus): ChipSeverity => STATUS_SEVERITIES[status] ?? 'neutral';

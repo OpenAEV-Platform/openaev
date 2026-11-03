@@ -87,7 +87,7 @@ describe('ThreatArsenalApprovalSection', () => {
   });
 
   describe('permissions', () => {
-    it('disables approve and reject without Approve content', () => {
+    it('shows no approve or reject without Approve content', () => {
       // Arrange
       mockCan.mockReturnValue(false);
 
@@ -95,8 +95,8 @@ describe('ThreatArsenalApprovalSection', () => {
       renderSection(pendingAction);
 
       // Assert
-      expect((screen.getByRole('button', { name: /Approve/ }) as HTMLButtonElement).disabled).toBe(true);
-      expect((screen.getByRole('button', { name: /Reject/ }) as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.queryByRole('button', { name: /Approve/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Reject/ })).toBeNull();
       expect(mockCan).toHaveBeenCalledWith('APPROVE', 'THREAT_ARSENALS');
     });
 

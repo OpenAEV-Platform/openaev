@@ -4,7 +4,7 @@ import { getReferential, simpleCall, simpleDelCall, simplePostCall, simplePutCal
 import type {
   InjectorContractSearchPaginationInput, SearchPaginationInput,
   ThreatArsenalActionCreateInput, ThreatArsenalActionUpdateInput,
-  ThreatArsenalApproveInput, ThreatArsenalRejectInput,
+  ThreatArsenalApproveInput, ThreatArsenalRejectInput, ThreatArsenalReopenInput,
 } from '../../utils/api-types';
 import { arrayOfSecurityPlatforms } from '../assets/asset-schema';
 
@@ -54,6 +54,11 @@ export const approveThreatArsenalAction = (actionId: string, data: ThreatArsenal
 
 export const rejectThreatArsenalAction = (actionId: string, data: ThreatArsenalRejectInput, notifyError = true) => {
   return simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/reject`, data, undefined, notifyError);
+};
+
+// Moves an approved or rejected version back to pending approval, to review it again.
+export const reopenThreatArsenalAction = (actionId: string, data: ThreatArsenalReopenInput, notifyError = true) => {
+  return simplePostCall(`${THREAT_ARSENAL_URI}/${actionId}/reopen`, data, undefined, notifyError);
 };
 
 export const fetchThreatArsenalActionUsage = (actionId: string) => {
