@@ -15,12 +15,14 @@ import io.openaev.rest.exception.UnprocessableContentException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.scenario.form.InjectsImportInput;
+import io.openaev.rest.scenario.response.ImportPostSummary;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +39,21 @@ public class ExerciseImportApi extends RestBehavior {
   private final InjectImportService injectImportService;
   private final ImportMapperRepository importMapperRepository;
   private final ExerciseService exerciseService;
+
+  @PostMapping(TENANT_EXERCISE_URI + "/{exerciseId}/xls/store")
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
+  @Transactional(rollbackFor = Exception.class)
+  @Operation(summary = "Store an xls file to import injects into a simulation")
+  public ImportPostSummary storeXlsFile(
+      TxCtx ctx,
+      @PathVariable @NotBlank final String exerciseId,
+      @RequestPart("file") @NotNull MultipartFile file) {
+    this.exerciseService.existsByIdAndTenantId(exerciseId);
+    return injectImportService.storeXlsFileForImport(file);
+  }
 
   @PostMapping({
     EXERCISE_URI + "/{exerciseId}/xls/{importId}/dry",
