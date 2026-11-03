@@ -1,6 +1,7 @@
 package io.openaev.telemetry.metric_collectors;
 
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -10,6 +11,7 @@ import io.openaev.database.model.CredentialSecretReference.CREDENTIAL_TYPE;
 import io.openaev.database.model.SecretReference.SECRET_REFERENCE_TYPE;
 import io.openaev.database.model.SecretReference.SECRET_STATUS;
 import io.openaev.service.credential.CredentialService;
+import io.opentelemetry.api.common.Attributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -44,8 +46,12 @@ class CredentialMetricTenantScopeTest extends IntegrationTest {
 
   private JdbcTemplate jdbc;
   private final List<String> seededTenants = new ArrayList<>();
+  private final List<String> seededUsers = new ArrayList<>();
   private long credentialBaseline;
   private long injectBaseline;
+  private long attachedCredentialBaseline;
+  private long userBaseline;
+  private long awsWithoutInjectorUsageBaseline;
 
   @BeforeEach
   void seedTwoTenantsWithOneCredentialAndInjectEach() {
@@ -63,9 +69,40 @@ class CredentialMetricTenantScopeTest extends IntegrationTest {
         requireNonNull(
             jdbc.queryForObject(
                 "SELECT count(DISTINCT inject_id) FROM injects_secret_references", Long.class));
+    attachedCredentialBaseline =
+        requireNonNull(
+            jdbc.queryForObject(
+                "SELECT count(DISTINCT isr.secret_reference_id) FROM injects_secret_references isr"
+                    + " JOIN secret_references sr"
+                    + " ON sr.secret_reference_id = isr.secret_reference_id"
+                    + " WHERE sr.secret_reference_type = ?",
+                Long.class,
+                SECRET_REFERENCE_TYPE.CREDENTIAL_VALUE));
+    userBaseline =
+        requireNonNull(
+            jdbc.queryForObject(
+                "SELECT count(DISTINCT i.inject_user) FROM injects i"
+                    + " JOIN injects_secret_references isr ON isr.inject_id = i.inject_id"
+                    + " JOIN secret_references sr"
+                    + " ON sr.secret_reference_id = isr.secret_reference_id"
+                    + " WHERE sr.secret_reference_type = ?",
+                Long.class,
+                SECRET_REFERENCE_TYPE.CREDENTIAL_VALUE));
+    awsWithoutInjectorUsageBaseline =
+        requireNonNull(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM injects i"
+                    + " JOIN injects_secret_references isr ON isr.inject_id = i.inject_id"
+                    + " JOIN secret_references sr"
+                    + " ON sr.secret_reference_id = isr.secret_reference_id"
+                    + " WHERE sr.secret_reference_type = ? AND sr.secret_reference_credential_type = ?"
+                    + " AND i.inject_injector IS NULL",
+                Long.class,
+                SECRET_REFERENCE_TYPE.CREDENTIAL_VALUE,
+                CREDENTIAL_TYPE.CLOUD_AWS.name()));
     for (String name : List.of("credential-telemetry-a-", "credential-telemetry-b-")) {
       String tenantId = seedTenant(name + UUID.randomUUID());
-      seedInjectUsing(tenantId, seedCredential(tenantId));
+      seedInjectUsing(tenantId, seedCredential(tenantId), seedUser(name));
     }
   }
 
@@ -77,6 +114,10 @@ class CredentialMetricTenantScopeTest extends IntegrationTest {
       jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", tenantId);
     }
     seededTenants.clear();
+    for (String userId : seededUsers) {
+      jdbc.update("DELETE FROM users WHERE user_id = ?", userId);
+    }
+    seededUsers.clear();
   }
 
   @Nested
@@ -114,6 +155,75 @@ class CredentialMetricTenantScopeTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("Credentials attached to injects gauge")
+  class CredentialsAttachedToInjects {
+
+    @Test
+    @DisplayName("given credentials attached in two tenants, should count both")
+    void given_credentialsAttachedInTwoTenants_should_countBoth() {
+      // Act
+      long counted = collector.countCredentialsAttachedToInjects();
+
+      // Assert
+      assertThat(counted)
+          .as("credentials_attached_to_injects_total must span every tenant")
+          .isEqualTo(attachedCredentialBaseline + 2);
+    }
+  }
+
+  @Nested
+  @DisplayName("Users with injects using credentials gauge")
+  class UsersWithInjectsUsingCredentials {
+
+    @Test
+    @DisplayName("given an inject author in each of two tenants, should count both")
+    void given_injectAuthorsInTwoTenants_should_countBoth() {
+      // Act
+      long counted = collector.countUsersWithInjectsUsingCredentials();
+
+      // Assert
+      assertThat(counted)
+          .as("users_with_injects_using_credentials_total must span every tenant")
+          .isEqualTo(userBaseline + 2);
+    }
+  }
+
+  @Nested
+  @DisplayName("Credential usage gauge")
+  class CredentialUsages {
+
+    @Test
+    @DisplayName("given usages without injector in two tenants, should count both as unknown")
+    void given_usagesWithoutInjectorInTwoTenants_should_countBothAsUnknown() {
+      // Act
+      Long counted =
+          collector
+              .collectCredentialUsages()
+              .get(
+                  Attributes.of(
+                      stringKey("credential_type"),
+                      CREDENTIAL_TYPE.CLOUD_AWS.name(),
+                      stringKey("injector_type"),
+                      "unknown"));
+
+      // Assert
+      assertThat(counted)
+          .as("credential_usages_total must span every tenant, not only the ambient one")
+          .isEqualTo(awsWithoutInjectorUsageBaseline + 2);
+    }
+  }
+
+  private String seedUser(String emailPrefix) {
+    String id = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO users (user_id, user_email, user_admin, user_status) VALUES (?, ?, false, 0)",
+        id,
+        emailPrefix + id + "@openaev.test");
+    seededUsers.add(id);
+    return id;
+  }
+
   private String seedTenant(String name) {
     String id = UUID.randomUUID().toString();
     jdbc.update(
@@ -144,13 +254,14 @@ class CredentialMetricTenantScopeTest extends IntegrationTest {
     return id;
   }
 
-  private void seedInjectUsing(String tenantId, String credentialId) {
+  private void seedInjectUsing(String tenantId, String credentialId, String userId) {
     String injectId = UUID.randomUUID().toString();
     jdbc.update(
         "INSERT INTO injects (inject_id, inject_title, inject_all_teams, inject_enabled,"
-            + " inject_depends_duration, tenant_id)"
-            + " VALUES (?, 'credential-telemetry-inject', false, true, 0, ?)",
+            + " inject_depends_duration, inject_user, tenant_id)"
+            + " VALUES (?, 'credential-telemetry-inject', false, true, 0, ?, ?)",
         injectId,
+        userId,
         tenantId);
     jdbc.update(
         "INSERT INTO injects_secret_references (inject_id, secret_reference_id) VALUES (?, ?)",
