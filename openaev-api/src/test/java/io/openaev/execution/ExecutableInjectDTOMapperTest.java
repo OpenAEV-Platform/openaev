@@ -13,6 +13,7 @@ import io.openaev.rest.inject.service.InjectService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,11 +45,15 @@ class ExecutableInjectDTOMapperTest {
   }
 
   private EndpointTargetOutput outputForEndpoint(Endpoint endpoint) {
-    return EndpointTargetOutput.builder().id(endpoint.getId()).assetGroupIds(Set.of()).build();
+    return EndpointTargetOutput.builder().id(endpoint.getId()).assetGroups(Set.of()).build();
   }
 
-  private EndpointTargetOutput outputForEndpoint(Endpoint endpoint, Set<String> assetGroupIds) {
-    return EndpointTargetOutput.builder().id(endpoint.getId()).assetGroupIds(assetGroupIds).build();
+  private EndpointTargetOutput outputForEndpoint(Endpoint endpoint, Set<AssetGroup> assetGroups) {
+    return EndpointTargetOutput.builder()
+        .id(endpoint.getId())
+        .assetGroups(
+            assetGroups.stream().map(this::outputForAssetGroup).collect(Collectors.toSet()))
+        .build();
   }
 
   private AssetGroupSimple outputForAssetGroup(AssetGroup assetGroup) {
@@ -165,8 +170,8 @@ class ExecutableInjectDTOMapperTest {
                 endpointInTwoGroups, false, new ArrayList<>(List.of(groupA, groupB))),
             new AssetToExecute(directEndpoint)));
 
-    when(endpointMapper.toEndpointTargetOutput(endpointInTwoGroups, Set.of("group-a", "group-b")))
-        .thenReturn(outputForEndpoint(endpointInTwoGroups, Set.of("group-a", "group-b")));
+    when(endpointMapper.toEndpointTargetOutput(endpointInTwoGroups, Set.of(groupA, groupB)))
+        .thenReturn(outputForEndpoint(endpointInTwoGroups, Set.of(groupA, groupB)));
     when(endpointMapper.toEndpointTargetOutput(directEndpoint, Set.of()))
         .thenReturn(outputForEndpoint(directEndpoint));
     when(assetGroupMapper.toAssetGroupSimple(groupA)).thenReturn(outputForAssetGroup(groupA));
@@ -182,15 +187,18 @@ class ExecutableInjectDTOMapperTest {
         .containsExactlyInAnyOrder("endpoint-two-groups", "endpoint-direct");
 
     assertThat(dto.getAssets())
-        .extracting(EndpointTargetOutput::getAssetGroupIds)
+        .extracting(
+            target ->
+                target.getAssetGroups().stream()
+                    .map(AssetGroupSimple::getId)
+                    .collect(Collectors.toSet()))
         .containsExactlyInAnyOrder(Set.of("group-a", "group-b"), Set.of());
 
     assertThat(dto.getAssetGroups())
         .extracting(AssetGroupSimple::getId)
         .containsExactlyInAnyOrder("group-a", "group-b");
 
-    verify(endpointMapper)
-        .toEndpointTargetOutput(endpointInTwoGroups, Set.of("group-a", "group-b"));
+    verify(endpointMapper).toEndpointTargetOutput(endpointInTwoGroups, Set.of(groupA, groupB));
     verify(endpointMapper).toEndpointTargetOutput(directEndpoint, Set.of());
     verify(assetGroupMapper).toAssetGroupSimple(groupA);
     verify(assetGroupMapper).toAssetGroupSimple(groupB);

@@ -2,6 +2,7 @@ package io.openaev.rest.asset.endpoint.output;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.rest.asset.endpoint.form.AgentOutput;
+import io.openaev.rest.asset_group.form.AssetGroupSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Set;
@@ -37,10 +38,7 @@ public class EndpointTargetOutput {
 
   @Schema(
       description =
-          "IDs of the asset groups this asset was targeted through, by static membership or the"
-              + " group's dynamic filter: the requested ones (assetGroups filter) on a target"
-              + " search, the inject's targeted ones in an inject payload. Empty for an asset"
-              + " targeted directly.")
-  @JsonProperty("asset_group_ids")
-  private Set<String> assetGroupIds;
+          "List of asset groups this asset was targeted through. Empty for an asset targeted directly.")
+  @JsonProperty("asset_groups")
+  private Set<AssetGroupSimple> assetGroups;
 }

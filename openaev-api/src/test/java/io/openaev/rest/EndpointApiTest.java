@@ -699,11 +699,15 @@ class EndpointApiTest extends IntegrationTest {
       List<String> windowsGroupIds =
           JsonPath.read(
               response,
-              "$.content[?(@.asset_id == '" + windowsEndpoint.getId() + "')].asset_group_ids[*]");
+              "$.content[?(@.asset_id == '"
+                  + windowsEndpoint.getId()
+                  + "')].asset_groups[*].asset_group_id");
       List<String> linuxGroupIds =
           JsonPath.read(
               response,
-              "$.content[?(@.asset_id == '" + linuxEndpoint.getId() + "')].asset_group_ids[*]");
+              "$.content[?(@.asset_id == '"
+                  + linuxEndpoint.getId()
+                  + "')].asset_groups[*].asset_group_id");
       assertThat(windowsGroupIds)
           .containsExactlyInAnyOrder(staticGroup.getId(), dynamicGroup.getId());
       assertThat(linuxGroupIds).containsExactly(staticGroup.getId());
@@ -731,7 +735,7 @@ class EndpointApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.numberOfElements").value(1))
-          .andExpect(jsonPath("$.content.[0].asset_group_ids").isEmpty());
+          .andExpect(jsonPath("$.content.[0].asset_groups").isEmpty());
     }
   }
 

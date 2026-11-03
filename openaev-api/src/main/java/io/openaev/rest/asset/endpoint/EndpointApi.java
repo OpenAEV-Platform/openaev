@@ -262,7 +262,7 @@ public class EndpointApi extends RestBehavior {
                 endpoint ->
                     endpointMapper.toEndpointTargetOutput(
                         endpoint,
-                        targets.assetGroupIdsByEndpoint().getOrDefault(endpoint.getId(), Set.of())))
+                        targets.assetGroupsByEndpoint().getOrDefault(endpoint.getId(), Set.of())))
             .toList();
     return new PageImpl<>(
         endpointTargetOutputs, endpointPage.getPageable(), endpointPage.getTotalElements());

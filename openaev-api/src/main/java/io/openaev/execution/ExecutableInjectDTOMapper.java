@@ -1,11 +1,11 @@
 package io.openaev.execution;
 
-import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
 import io.openaev.rest.inject.service.AssetToExecute;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.mapper.AssetGroupMapper;
 import io.openaev.utils.mapper.EndpointMapper;
+import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -51,9 +51,7 @@ public class ExecutableInjectDTOMapper {
                     assetToExecute ->
                         endpointMapper.toEndpointTargetOutput(
                             (Endpoint) Hibernate.unproxy(assetToExecute.asset()),
-                            assetToExecute.assetGroups().stream()
-                                .map(AssetGroup::getId)
-                                .collect(Collectors.toSet())))
+                            new HashSet<>(assetToExecute.assetGroups())))
                 .collect(Collectors.toSet()))
         // Attention: should only be used by AI Read Team injector for now since it follows a
         // different resolution path.

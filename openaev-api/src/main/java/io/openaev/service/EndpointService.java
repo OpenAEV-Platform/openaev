@@ -354,11 +354,11 @@ public class EndpointService implements AuditLoggedService {
    * A page of managed endpoints, with the requested asset groups each one belongs to.
    *
    * @param endpoints the page of endpoints
-   * @param assetGroupIdsByEndpoint for each endpoint ID, the IDs of the requested asset groups it
-   *     belongs to; endpoints in none of them are absent
+   * @param assetGroupsByEndpoint for each endpoint ID, the requested asset groups it belongs to;
+   *     endpoints in none of them are absent
    */
   public record EndpointTargets(
-      Page<Endpoint> endpoints, Map<String, Set<String>> assetGroupIdsByEndpoint) {}
+      Page<Endpoint> endpoints, Map<String, Set<AssetGroup>> assetGroupsByEndpoint) {}
 
   /**
    * Searches managed endpoints like {@link #searchManagedEndpoints}, and resolves which of the
@@ -380,20 +380,20 @@ public class EndpointService implements AuditLoggedService {
             .orElse(List.of());
     Page<Endpoint> endpoints = searchManagedEndpoints(searchPaginationInput);
     return new EndpointTargets(
-        endpoints, findAssetGroupIdsByEndpoint(endpoints.getContent(), requestedAssetGroupIds));
+        endpoints, findAssetGroupsByEndpoint(endpoints.getContent(), requestedAssetGroupIds));
   }
 
   /**
    * For each endpoint, the given asset groups it belongs to. One query per asset group, bounded to
    * the given endpoints.
    */
-  private Map<String, Set<String>> findAssetGroupIdsByEndpoint(
+  private Map<String, Set<AssetGroup>> findAssetGroupsByEndpoint(
       List<Endpoint> endpoints, List<String> assetGroupIds) {
     if (endpoints.isEmpty() || assetGroupIds.isEmpty()) {
       return Map.of();
     }
     List<String> endpointIds = endpoints.stream().map(Endpoint::getId).toList();
-    Map<String, Set<String>> assetGroupIdsByEndpoint = new HashMap<>();
+    Map<String, Set<AssetGroup>> assetGroupIdsByEndpoint = new HashMap<>();
     for (AssetGroup assetGroup : assetGroupRepository.findAllById(assetGroupIds)) {
       endpointRepository
           .findAll(fromIds(endpointIds).and(assetGroupMembership(assetGroup)))
@@ -401,7 +401,7 @@ public class EndpointService implements AuditLoggedService {
               endpoint ->
                   assetGroupIdsByEndpoint
                       .computeIfAbsent(endpoint.getId(), id -> new HashSet<>())
-                      .add(assetGroup.getId()));
+                      .add(assetGroup));
     }
     return assetGroupIdsByEndpoint;
   }
