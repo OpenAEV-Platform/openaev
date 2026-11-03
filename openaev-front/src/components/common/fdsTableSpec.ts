@@ -1,13 +1,21 @@
 import { type CSSProperties } from 'react';
 
+import { fdsLayerClass } from '../../utils/fdsLayer';
 import { tint } from '../../utils/tint';
 
 // FDS-WORKAROUND: MUI Table dressed as the Figma DS Table (8582:34772) — remove when the library ships Table — see sf-approval-card-ooux.md §7
 
 const BORDER = '1px solid var(--border-elevation-subtle-soft)';
 
+/**
+ * The Figma Table sits on the base surface (layer 0): put this class on the table (or its frame)
+ * so its tokens resolve to layer 0 inside a drawer or a dialog too, as in the Figma dark theme.
+ */
+export const FDS_TABLE_LAYER_CLASS = fdsLayerClass(0);
+
 /** `sx` of a MUI Table: compact rows (40px), header cells content-compact-bold, DS hover and selected. */
 export const FDS_TABLE_SX = {
+  'backgroundColor': 'var(--bg-elevation-default)',
   '& .MuiTableCell-root': {
     padding: '8px',
     borderBottom: BORDER,
@@ -29,6 +37,7 @@ export const FDS_TABLE_SX = {
 /** The frame around a table (and its group rows): one soft border, rounded. */
 export const FDS_TABLE_FRAME_STYLE: CSSProperties = {
   border: BORDER,
+  backgroundColor: 'var(--bg-elevation-default)',
   borderRadius: 4,
   overflow: 'hidden',
 };

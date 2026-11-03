@@ -23,7 +23,7 @@ import {
   fetchThreatArsenalUsages,
   fetchThreatArsenalVersions,
 } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
-import { FDS_GROUP_ROW_STYLE, FDS_SELECT_ALL_BANNER_STYLE, FDS_TABLE_SX } from '../../../components/common/fdsTableSpec';
+import { FDS_GROUP_ROW_STYLE, FDS_SELECT_ALL_BANNER_STYLE, FDS_TABLE_LAYER_CLASS, FDS_TABLE_SX } from '../../../components/common/fdsTableSpec';
 import { useFormatter } from '../../../components/i18n';
 import {
   type PayloadUsageOutput,
@@ -172,14 +172,17 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
   };
 
   const renderTable = () => (
-    <div style={{
-      maxHeight: 360,
-      overflowY: 'auto',
-      border: '1px solid var(--border-elevation-subtle-soft)',
-      borderRadius: theme.shape.borderRadius,
-    }}
+    <div
+      className={FDS_TABLE_LAYER_CLASS}
+      style={{
+        backgroundColor: 'var(--bg-elevation-default)',
+        maxHeight: 360,
+        overflowY: 'auto',
+        border: '1px solid var(--border-elevation-subtle-soft)',
+        borderRadius: theme.shape.borderRadius,
+      }}
     >
-      <Table size="small" stickyHeader sx={FDS_TABLE_SX} aria-label={t('Injects on older versions')}>
+      <Table size="small" stickyHeader sx={FDS_TABLE_SX} className={FDS_TABLE_LAYER_CLASS} aria-label={t('Injects on older versions')}>
         <TableHead>
           <TableRow>
             {canMigrate && (
@@ -231,12 +234,15 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
   // Large list (A): one row per older version with one tick for all of it, its injects on demand,
   // and "Select all" across versions, as in Gmail.
   const renderSummary = () => (
-    <div style={{
-      border: '1px solid var(--border-elevation-subtle-soft)',
-      borderRadius: theme.shape.borderRadius,
-      maxHeight: 420,
-      overflowY: 'auto',
-    }}
+    <div
+      className={FDS_TABLE_LAYER_CLASS}
+      style={{
+        backgroundColor: 'var(--bg-elevation-default)',
+        border: '1px solid var(--border-elevation-subtle-soft)',
+        borderRadius: theme.shape.borderRadius,
+        maxHeight: 420,
+        overflowY: 'auto',
+      }}
     >
       {canMigrate && (
         <div style={FDS_SELECT_ALL_BANNER_STYLE}>
@@ -299,7 +305,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
             </div>
             {visible > 0 && (
               <>
-                <Table size="small" sx={FDS_TABLE_SX} aria-label={t('Injects on v{version}', { version: source.version.payload_version ?? '' })}>
+                <Table size="small" sx={FDS_TABLE_SX} className={FDS_TABLE_LAYER_CLASS} aria-label={t('Injects on v{version}', { version: source.version.payload_version ?? '' })}>
                   <TableBody>{usageRows(source.usages.slice(0, visible))}</TableBody>
                 </Table>
                 {visible < ids.length && (

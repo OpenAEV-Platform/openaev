@@ -11,7 +11,7 @@ import {
   fetchThreatArsenalVersions,
 } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
 import { SkeletonRows } from '../../../components/common/content_versions/ContentVersionsTable';
-import { FDS_GROUP_ROW_STYLE, FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../../../components/common/fdsTableSpec';
+import { FDS_GROUP_ROW_STYLE, FDS_TABLE_FRAME_STYLE, FDS_TABLE_LAYER_CLASS, FDS_TABLE_SX } from '../../../components/common/fdsTableSpec';
 import { useFormatter } from '../../../components/i18n';
 import {
   type PayloadUsageOutput,
@@ -191,7 +191,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
           </Box>
         )}
         {source.payload_installed && ((loading && usageCount > 0) || usages.length > 0) && (
-          <Table size="small" sx={FDS_TABLE_SX} aria-label={t('Injects on v{version}', { version: source.payload_version ?? '-' })}>
+          <Table size="small" sx={FDS_TABLE_SX} className={FDS_TABLE_LAYER_CLASS} aria-label={t('Injects on v{version}', { version: source.payload_version ?? '-' })}>
             <TableHead>
               <TableRow>
                 {canMigrate && (
@@ -395,7 +395,7 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onA
       {loading && versions.length === 0 && [0, 1].map(key => <Skeleton key={key} variant="rounded" height={96} />)}
       {/* One DS table: each version a group row, its injects the rows under it. */}
       {pageVersions.length > 0 && (
-        <div style={FDS_TABLE_FRAME_STYLE}>
+        <div className={FDS_TABLE_LAYER_CLASS} style={FDS_TABLE_FRAME_STYLE}>
           {pageVersions.map(source => (
             <VersionUsages
               key={source.payload_version}
