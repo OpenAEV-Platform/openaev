@@ -159,15 +159,15 @@ public class UserService {
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    // A tenant creator sets the organization itself, once it knows its tenant.
-    if (scope == UserCreationScope.PLATFORM) {
-      applyPlatformOrganization(user, input.organizationId());
-    }
     user.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
     String password = input.plainPassword();
     User createdUser = createUser(user, password, UUID.randomUUID().toString(), scope);
+    // A tenant creator sets the organization itself, once it knows its tenant.
+    if (scope == UserCreationScope.PLATFORM) {
+      applyPlatformOrganization(createdUser, input.organizationId());
+    }
     if (!CollectionUtils.isEmpty(tenantIds)) {
       tenantMembershipCacheManager.evictForUser(createdUser.getId(), tenantIds);
     }
@@ -320,7 +320,7 @@ public class UserService {
   private void applyPlatformOrganization(User user, String organizationId) {
     Organization organization = referenceResolver.resolve(organizationId, Organization.class);
     if (organization != null) {
-      user.setOrganizationForTenant(organization.getTenant().getId(), organization);
+      userRepository.assignOrganization(user, organization.getTenant().getId(), organization);
     }
   }
 

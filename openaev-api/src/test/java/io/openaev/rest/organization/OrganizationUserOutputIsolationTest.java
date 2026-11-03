@@ -92,8 +92,7 @@ class OrganizationUserOutputIsolationTest extends IntegrationTest {
   /** Seeds a player belonging to {@code organization}, member of every given tenant. */
   private User seedPlayer(Organization organization, Tenant... memberships) {
     User player = UserFixture.getUser("Player", "Shared", prefix + "@filigran.io");
-    player.setOrganizationForTenant(organization.getTenant().getId(), organization);
-    player = userComposer.forUser(player).persist().get();
+    player = userComposer.forUser(player).withOrganization(organization).persist().get();
     for (Tenant tenant : memberships) {
       tenantRepository.addUserToTenant(player.getId(), tenant.getId());
     }

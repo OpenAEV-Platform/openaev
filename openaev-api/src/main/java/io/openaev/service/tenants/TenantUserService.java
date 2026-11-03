@@ -70,7 +70,6 @@ public class TenantUserService implements DependenciesManager {
     }
     User user = userService.createUser(input, UserCreationScope.TENANT);
     applyOrganization(user, input.organizationId());
-    userRepository.save(user);
     attachToTenant(user.getId(), tenantId);
     userService.assignAutoAssignGroups(user.getId(), List.of(tenantId));
     // Reload user after @Modifying queries cleared the persistence context
@@ -161,7 +160,7 @@ public class TenantUserService implements DependenciesManager {
     if (organization != null && !tenantId.equals(organization.getTenant().getId())) {
       organization = null;
     }
-    user.setOrganizationForTenant(tenantId, organization);
+    userRepository.assignOrganization(user, tenantId, organization);
   }
 
   // -- OUTPUT --

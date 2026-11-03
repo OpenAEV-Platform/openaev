@@ -1118,7 +1118,18 @@ public class V1_DataImporter implements Importer {
               baseIds.put(
                   id,
                   Objects.requireNonNullElseGet(
-                      existingUser, () -> this.userRepository.save(createUser(nodeUser, baseIds))));
+                      existingUser,
+                      () -> {
+                        User savedUser = this.userRepository.save(createUser(nodeUser, baseIds));
+                        Base userOrganization =
+                            baseIds.get(nodeUser.get("user_organization").textValue());
+                        if (userOrganization != null) {
+                          Organization organization = (Organization) userOrganization;
+                          this.userRepository.assignOrganization(
+                              savedUser, organization.getTenant().getId(), organization);
+                        }
+                        return savedUser;
+                      }));
             });
   }
 
@@ -1132,11 +1143,6 @@ public class V1_DataImporter implements Importer {
     user.setPgpKey(getNodeValue(jsonNode.get("user_pgp_key")));
     user.setCountry(getNodeValue(jsonNode.get("user_country")));
     user.setCity(getNodeValue(jsonNode.get("user_city")));
-    Base userOrganization = baseIds.get(jsonNode.get("user_organization").textValue());
-    if (userOrganization != null) {
-      Organization organization = (Organization) userOrganization;
-      user.setOrganizationForTenant(organization.getTenant().getId(), organization);
-    }
     user.setTags(
         resolveJsonIds(jsonNode, "user_tags").stream()
             .map(baseIds::get)

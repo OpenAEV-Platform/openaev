@@ -181,14 +181,14 @@ public class User implements Base {
 
   /**
    * A user is platform-level while an organization belongs to one tenant, so a user holds at most
-   * one organization per tenant. Never mutate this set directly: go through {@link
-   * #setOrganizationForTenant(String, Organization)}, the only place that keeps that invariant.
+   * one organization per tenant.
+   *
+   * <p>Inverse side of {@code users_organizations}: Hibernate never writes it, this set is only a
+   * read view. A flush of the owning collection would delete every row of the user as soon as the
+   * organizations in scope are all removed, wiping the ones of the tenants out of scope. The table
+   * is written by {@link io.openaev.database.repository.UserRepository#assignOrganization}.
    */
-  @ManyToMany(fetch = FetchType.LAZY)
-  @JoinTable(
-      name = "users_organizations",
-      joinColumns = @JoinColumn(name = "user_id"),
-      inverseJoinColumns = @JoinColumn(name = "organization_id"))
+  @ManyToMany(mappedBy = "users", fetch = FetchType.LAZY)
   @Fetch(FetchMode.SUBSELECT)
   @JsonIgnore
   @Getter(NONE)
@@ -233,9 +233,10 @@ public class User implements Base {
   }
 
   /**
-   * Sets the organization of the user in the given tenant. Organizations of the other tenants are
-   * left untouched, which is the whole point of the many-to-many: linking a user in one tenant must
-   * never unlink it in another.
+   * Updates the in-memory view of the organization of the user in the given tenant, so the entity
+   * answers {@link #getOrganization()} correctly for the rest of the request. It does not persist
+   * anything: use {@link io.openaev.database.repository.UserRepository#assignOrganization}, which
+   * calls it. Organizations of the other tenants are left untouched.
    *
    * @param tenantId the tenant whose organization is replaced
    * @param organization the new organization of that tenant, or {@code null} to clear it

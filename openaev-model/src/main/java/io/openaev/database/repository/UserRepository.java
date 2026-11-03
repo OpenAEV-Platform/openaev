@@ -1,5 +1,6 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.raw.RawPlayer;
@@ -76,7 +77,13 @@ public interface UserRepository
 
   @Query(
       value =
-          "select us.*, "
+          "select us.user_id, us.user_firstname, us.user_lastname, us.user_email, us.user_phone, "
+              // The organization of the tenant, read from the join table: the legacy column of "us"
+              // is no longer maintained.
+              + "       (select uo.organization_id from users_organizations uo "
+              + "         join organizations org on org.organization_id = uo.organization_id "
+              + "         where uo.user_id = us.user_id and org.tenant_id = :tenantId "
+              + "         limit 1) as user_organization, "
               + "       array_remove(array_agg(tg.tag_id), null) as user_tags,"
               + "       array_remove(array_agg(grp.group_id), null) as user_groups,"
               + "       array_remove(array_agg(tm.team_id), null) as user_teams from users us"
@@ -155,20 +162,22 @@ public interface UserRepository
       value =
           "select us.user_id, us.user_email, "
               + "us.user_firstname, us.user_lastname, "
-              + "us.user_country, us.user_phone, us.user_admin, org.organization_id as user_organization,"
+              + "us.user_country, us.user_phone, us.user_admin, "
+              // A user holds one organization per tenant: a correlated sub-query keeps the current
+              // tenant's one only, without a join that would split a multi-tenant user in groups.
+              + "(select uo.organization_id from users_organizations uo "
+              + "  join organizations org on org.organization_id = uo.organization_id "
+              + "  where uo.user_id = us.user_id "
+              + "  and org.tenant_id = :#{#tenantContext.currentTenant} limit 1) as user_organization, "
               + "array_remove(array_agg(tg.tag_id), null) as user_tags "
               + "from users us "
               + "left join users_tags usr_tg on us.user_id = usr_tg.user_id "
               + "left join tags tg on usr_tg.tag_id = tg.tag_id "
               + "left join users_tenants ut on us.user_id = ut.user_id "
-              // A user holds one organization per tenant: only the current tenant's one is listed.
-              + "left join users_organizations uo on us.user_id = uo.user_id "
-              + "left join organizations org on org.organization_id = uo.organization_id "
-              + "and org.tenant_id = :#{#tenantContext.currentTenant} "
               + "where ut.tenant_id = :#{#tenantContext.currentTenant} "
               // Reserved service/connector accounts are system users, never players.
               + "and us.user_email not ilike '%@openaev.invalid' "
-              + "group by us.user_id, org.organization_id;",
+              + "group by us.user_id;",
       nativeQuery = true)
   List<RawPlayer> rawAllPlayers();
 
@@ -247,6 +256,58 @@ public interface UserRepository
 
   @Query("SELECT u FROM User u JOIN Token t ON u.id = t.user.id WHERE t.value = :token")
   Optional<User> findByToken(@Param("token") String token);
+
+  // -- ORGANIZATIONS --
+
+  /**
+   * Sets the organization of a user in a tenant, leaving the ones it holds in other tenants
+   * untouched, and keeps the in-memory view of {@code user} in sync. Must run in the caller's
+   * transaction, and the user must already be saved.
+   *
+   * <p>It is a SQL write rather than a change of {@code User#organizations}: Hibernate only knows
+   * the organizations in the scope of the transaction, so clearing the last one would delete every
+   * row of the user, the ones of the tenants out of scope included. The row of the user is locked
+   * first, so two concurrent assignments in a tenant cannot both insert a different organization.
+   *
+   * @param user the saved user
+   * @param tenantId the tenant whose organization is replaced
+   * @param organization the new organization of that tenant, or {@code null} to clear it
+   */
+  default void assignOrganization(User user, String tenantId, Organization organization) {
+    lockRow(user.getId());
+    removeOrganizationsOfTenant(user.getId(), tenantId);
+    if (organization != null) {
+      addOrganization(user.getId(), organization.getId());
+    }
+    user.setOrganizationForTenant(tenantId, organization);
+  }
+
+  // Native: a no-op UPDATE is the lightest row lock, and no entity column changes, so no
+  // listener, index or audit side effect is lost.
+  @Modifying(flushAutomatically = true)
+  @Query(value = "UPDATE users SET user_id = user_id WHERE user_id = :userId", nativeQuery = true)
+  void lockRow(@Param("userId") String userId);
+
+  // Native: a set-based delete scoped by tenant through a sub-query. It touches a join table that
+  // is not indexed, audited nor streamed, so no session side effect is lost.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM users_organizations WHERE user_id = :userId AND organization_id IN ("
+              + "SELECT organization_id FROM organizations WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeOrganizationsOfTenant(
+      @Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  // Native: atomic upsert (ON CONFLICT) on a join table that is not indexed, audited nor streamed.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "INSERT INTO users_organizations (user_id, organization_id)"
+              + " VALUES (:userId, :organizationId) ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addOrganization(
+      @Param("userId") String userId, @Param("organizationId") String organizationId);
 
   // -- DELETE --
 

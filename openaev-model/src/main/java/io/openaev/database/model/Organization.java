@@ -56,7 +56,17 @@ public class Organization implements TenantBase {
   @Queryable(sortable = true)
   private Instant updatedAt = now();
 
-  @ManyToMany(mappedBy = "organizations", fetch = FetchType.LAZY)
+  /**
+   * Owning side of {@code users_organizations}, never written through this collection: a user holds
+   * one organization per tenant, and Hibernate cannot update that table safely, since it only sees
+   * the organizations of the tenants in scope. See {@link
+   * io.openaev.database.repository.UserRepository#assignOrganization}.
+   */
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+      name = "users_organizations",
+      joinColumns = @JoinColumn(name = "organization_id"),
+      inverseJoinColumns = @JoinColumn(name = "user_id"))
   @JsonIgnore
   private List<User> users = new ArrayList<>();
 

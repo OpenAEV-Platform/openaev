@@ -21,6 +21,7 @@ public class UserComposer extends ComposerBase<User> {
   public class Composer extends InnerComposerBase<User> {
     private final User user;
     private OrganizationComposer.Composer organizationComposer;
+    private Organization organization;
     private final List<TagComposer.Composer> tagComposers = new ArrayList<>();
     private final List<InnerComposerBase<Group>> groupComposers = new ArrayList<>();
     private final List<TokenComposer.Composer> tokenComposers = new ArrayList<>();
@@ -40,10 +41,15 @@ public class UserComposer extends ComposerBase<User> {
 
     public Composer withOrganization(OrganizationComposer.Composer organizationComposer) {
       this.organizationComposer = organizationComposer;
-      Organization organization = organizationComposer.get();
+      return withOrganization(organizationComposer.get());
+    }
+
+    /** Links the user to an already persisted organization, in the tenant of that organization. */
+    public Composer withOrganization(Organization organization) {
       if (organization.getTenant() == null) {
         organization.setTenant(new Tenant(TenantContext.getCurrentTenant()));
       }
+      this.organization = organization;
       this.user.setOrganizationForTenant(organization.getTenant().getId(), organization);
       return this;
     }
@@ -75,6 +81,9 @@ public class UserComposer extends ComposerBase<User> {
       }
       this.groupComposers.forEach(InnerComposerBase::persist);
       userRepository.save(user);
+      if (organization != null) {
+        userRepository.assignOrganization(user, organization.getTenant().getId(), organization);
+      }
       this.tokenComposers.forEach(TokenComposer.Composer::persist);
       return this;
     }

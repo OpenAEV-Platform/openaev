@@ -1,5 +1,6 @@
 package io.openaev.rest.organization;
 
+import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.rest.user.TenantUserApi.USER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -7,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -24,6 +26,7 @@ import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.OrganizationComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -134,6 +137,107 @@ class UserOrganizationPerTenantTest extends IntegrationTest {
     return value == null || value.isNull() ? null : value.asText();
   }
 
+  private static List<JsonNode> entriesOf(JsonNode array, String userId) {
+    List<JsonNode> entries = new java.util.ArrayList<>();
+    array.forEach(
+        node -> {
+          if (userId.equals(node.get("user_id").asText())) {
+            entries.add(node);
+          }
+        });
+    return entries;
+  }
+
+  private static String organizationOf(JsonNode entry) {
+    JsonNode value = entry.get("user_organization");
+    return value == null || value.isNull() ? null : value.asText();
+  }
+
+  @Test
+  @DisplayName("The users of tenant A expose the organization of A for a user also linked in B")
+  void given_organizationsInAAndB_when_listUsersInA_should_exposeTheOneOfA() throws Exception {
+    // Arrange
+    Organization organizationA = seedOrganization(tenantA);
+    Organization organizationB = seedOrganization(tenantB);
+    User player = seedPlayer();
+    link(tenantA, player, organizationA.getId());
+    link(tenantB, player, organizationB.getId());
+
+    // Act
+    JsonNode users = response(get(tenantUri(tenantA, USER_URI)));
+
+    // Assert
+    List<JsonNode> entries = entriesOf(users, player.getId());
+    assertThat(entries).hasSize(1);
+    assertThat(organizationOf(entries.get(0))).isEqualTo(organizationA.getId());
+  }
+
+  @Test
+  @DisplayName("The players of tenant A list a user once, with the organization of A")
+  void given_organizationsInAAndB_when_listPlayersInA_should_listTheUserOnce() throws Exception {
+    // Arrange
+    Organization organizationA = seedOrganization(tenantA);
+    Organization organizationB = seedOrganization(tenantB);
+    User player = seedPlayer();
+    link(tenantA, player, organizationA.getId());
+    link(tenantB, player, organizationB.getId());
+
+    // Act
+    JsonNode players = response(get(tenantUri(tenantA, PLAYER_URI)));
+
+    // Assert
+    List<JsonNode> entries = entriesOf(players, player.getId());
+    assertThat(entries).hasSize(1);
+    assertThat(organizationOf(entries.get(0))).isEqualTo(organizationA.getId());
+  }
+
+  @Test
+  @DisplayName("The players of tenant A list a user linked only in B once, without organization")
+  void given_organizationInBOnly_when_listPlayersInA_should_listTheUserOnceWithoutOrganization()
+      throws Exception {
+    // Arrange
+    Organization organizationB = seedOrganization(tenantB);
+    User player = seedPlayer();
+    link(tenantB, player, organizationB.getId());
+
+    // Act
+    JsonNode players = response(get(tenantUri(tenantA, PLAYER_URI)));
+
+    // Assert
+    List<JsonNode> entries = entriesOf(players, player.getId());
+    assertThat(entries).hasSize(1);
+    assertThat(organizationOf(entries.get(0))).isNull();
+  }
+
+  @Test
+  @DisplayName("The player search of tenant A returns a user once, with the organization of A")
+  void given_organizationsInAAndB_when_searchPlayersInA_should_returnTheUserOnce()
+      throws Exception {
+    // Arrange
+    Organization organizationA = seedOrganization(tenantA);
+    Organization organizationB = seedOrganization(tenantB);
+    User player = seedPlayer();
+    link(tenantA, player, organizationA.getId());
+    link(tenantB, player, organizationB.getId());
+    SearchPaginationInput search = new SearchPaginationInput();
+    search.setPage(0);
+    search.setSize(100);
+    search.setTextSearch(player.getEmail());
+
+    // Act
+    JsonNode page =
+        response(
+            post(tenantUri(tenantA, PLAYER_URI) + "/search")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(search))
+                .with(csrf()));
+
+    // Assert
+    List<JsonNode> entries = entriesOf(page.get("content"), player.getId());
+    assertThat(entries).hasSize(1);
+    assertThat(organizationOf(entries.get(0))).isEqualTo(organizationA.getId());
+  }
+
   @Test
   @DisplayName("Linking the user in B keeps its organization in A")
   void given_organizationLinkedInA_when_linkedInB_should_keepBothOrganizations() throws Exception {
@@ -167,6 +271,65 @@ class UserOrganizationPerTenantTest extends IntegrationTest {
     // Assert
     assertThat(organizationIn(tenantA, player)).isEqualTo(organizationA.getId());
     assertThat(organizationIn(tenantB, player)).isNull();
+  }
+
+  /** Ids of the organizations the user is linked to, whatever their tenant, read from the table. */
+  private List<String> storedOrganizationIds(User player) {
+    entityManager.flush();
+    @SuppressWarnings("unchecked")
+    List<String> ids =
+        entityManager
+            .createNativeQuery(
+                "SELECT organization_id FROM users_organizations WHERE user_id = :id")
+            .setParameter("id", player.getId())
+            .getResultList();
+    return ids;
+  }
+
+  private void restrictCallerToTenantB() {
+    String callerId = testUserHolder.get().getId();
+    tenantRepository.removeUserFromTenant(callerId, tenantA.getId());
+    tenantMembershipCacheManager.evict(callerId, tenantA.getId());
+  }
+
+  @Test
+  @DisplayName("A caller who only sees tenant B clearing the organization keeps the one of A")
+  void given_callerOnlyInB_when_organizationClearedInB_should_keepOrganizationOfA()
+      throws Exception {
+    // Arrange
+    Organization organizationA = seedOrganization(tenantA);
+    Organization organizationB = seedOrganization(tenantB);
+    User player = seedPlayer();
+    link(tenantA, player, organizationA.getId());
+    link(tenantB, player, organizationB.getId());
+    restrictCallerToTenantB();
+
+    // Act
+    link(tenantB, player, null);
+
+    // Assert
+    assertThat(storedOrganizationIds(player)).containsExactly(organizationA.getId());
+  }
+
+  @Test
+  @DisplayName("A caller who only sees tenant B replacing the organization keeps the one of A")
+  void given_callerOnlyInB_when_organizationReplacedInB_should_keepOrganizationOfA()
+      throws Exception {
+    // Arrange
+    Organization organizationA = seedOrganization(tenantA);
+    Organization firstB = seedOrganization(tenantB);
+    Organization secondB = seedOrganization(tenantB);
+    User player = seedPlayer();
+    link(tenantA, player, organizationA.getId());
+    link(tenantB, player, firstB.getId());
+    restrictCallerToTenantB();
+
+    // Act
+    link(tenantB, player, secondB.getId());
+
+    // Assert
+    assertThat(storedOrganizationIds(player))
+        .containsExactlyInAnyOrder(organizationA.getId(), secondB.getId());
   }
 
   @Test

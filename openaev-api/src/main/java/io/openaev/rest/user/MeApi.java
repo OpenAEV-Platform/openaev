@@ -78,7 +78,8 @@ public class MeApi extends RestBehavior {
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     user.setUpdateAttributes(input);
     String tenantId = TenantContext.getCurrentTenant();
-    user.setOrganizationForTenant(
+    userRepository.assignOrganization(
+        user,
         tenantId,
         resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
     User savedUser = userRepository.save(user);

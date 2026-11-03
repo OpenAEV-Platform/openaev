@@ -195,11 +195,8 @@ public class PlayerService {
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    String tenantId = TenantContext.getCurrentTenant();
-    user.setOrganizationForTenant(
-        tenantId,
-        resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
     User savedUser = userRepository.save(user);
+    assignOrganization(savedUser, input.getOrganizationId());
     userService.createUserToken(savedUser);
     tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
     return savedUser;
@@ -230,10 +227,7 @@ public class PlayerService {
               .toList();
       existingUser.setTeams(fromIterable(teamRepository.findAllById(teams)));
       if (StringUtils.hasText(input.getOrganizationId())) {
-        String tenantId = TenantContext.getCurrentTenant();
-        existingUser.setOrganizationForTenant(
-            tenantId,
-            resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
+        assignOrganization(existingUser, input.getOrganizationId());
       }
       tenantUserService.attachToTenant(existingUser.getId(), TenantContext.getCurrentTenant());
       return userRepository.save(existingUser);
@@ -241,17 +235,25 @@ public class PlayerService {
       User newUser = new User();
       newUser.setUpdateAttributes(input);
       newUser.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-      String newUserTenantId = TenantContext.getCurrentTenant();
-      newUser.setOrganizationForTenant(
-          newUserTenantId,
-          resolveTenantOrganization(
-              input.getOrganizationId(), newUserTenantId, organizationRepository));
       newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
       User savedUser = userRepository.save(newUser);
+      assignOrganization(savedUser, input.getOrganizationId());
       userService.createUserToken(savedUser);
       tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
       return savedUser;
     }
+  }
+
+  /**
+   * Sets the organization of the user in the current tenant, an empty id clearing it. The ones the
+   * user holds in other tenants are left untouched.
+   */
+  public void assignOrganization(@NotNull final User user, final String organizationId) {
+    String tenantId = TenantContext.getCurrentTenant();
+    userRepository.assignOrganization(
+        user,
+        tenantId,
+        resolveTenantOrganization(organizationId, tenantId, organizationRepository));
   }
 
   private boolean requireUpdate(

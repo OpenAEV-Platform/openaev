@@ -139,7 +139,8 @@ public class PlayerApi extends RestBehavior {
     user.setCountry(input.getCountry());
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     String tenantId = TenantContext.getCurrentTenant();
-    user.setOrganizationForTenant(
+    userRepository.assignOrganization(
+        user,
         tenantId,
         resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
   }
