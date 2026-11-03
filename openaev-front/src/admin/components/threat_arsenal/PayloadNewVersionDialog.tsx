@@ -331,10 +331,18 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
         <DialogBody>
           {sources === null ? <Spinner /> : (
             <>
-              <Text variant="content-base">
-                {t('{count} scenario injects, atomic tests or chained steps use older versions:', { count: String(allUsages.length) })}
-              </Text>
-              {large ? renderSummary() : renderTable()}
+              {/* The sentence introduces the table: 8px apart (DS spacing token). */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'calc(var(--spacing) * 2)',
+              }}
+              >
+                <Text variant="content-base">
+                  {t('{count} scenario injects, atomic tests or chained steps use older versions:', { count: String(allUsages.length) })}
+                </Text>
+                {large ? renderSummary() : renderTable()}
+              </div>
               {pendingApproval && (
                 <Text variant="content-compact" className="text-default-secondary">
                   {t('v{version} is waiting for approval: they stay on their versions until it is approved, then you can move them from the Versions tab.', { version: newVersion })}
