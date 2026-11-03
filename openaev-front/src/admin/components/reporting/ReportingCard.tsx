@@ -14,6 +14,9 @@ import {
 import { ReportingFormatFragment, ReportingStatusChip } from './ReportingFragments';
 import ReportingPopover from './ReportingPopover';
 
+// Height of the Figma card (Design_System_2026, node 8461:13185).
+const CARD_HEIGHT = 250;
+
 interface Props {
   reporting: Reporting;
   onUpdate?: (result: Reporting) => void;
@@ -27,14 +30,22 @@ const ReportingCard: FunctionComponent<Props> = ({ reporting, onUpdate, onDelete
   const downloadable = generation?.reporting_generation_status === 'SUCCESS' && generation.reporting_generation_document;
 
   return (
+    // DS 2026 layout (Figma Design_System_2026, node 8461:13185): framed icon,
+    // context and title, description, last update line, then a footer band with
+    // the format and the generation status on the left, download and ⋮ on the right.
     <EntityCard
       testId="reporting-card"
+      layout="ds2026"
+      ds2026Height={CARD_HEIGHT}
       to={`/admin/reporting/${reporting.reporting_id}`}
-      icon={<ContextIcon sx={{ fontSize: 32 }} />}
+      icon={<ContextIcon sx={{ fontSize: 24 }} />}
       overline={t(REPORTING_CONTEXT_LABELS[reporting.reporting_context_type])}
       title={reporting.reporting_name}
       description={reporting.reporting_description}
-      caption={`${t('Updated at')} ${fldt(reporting.reporting_updated_at)}`}
+      meta={{
+        label: `${t('Updated')}:`,
+        value: fldt(reporting.reporting_updated_at),
+      }}
       menu={<ReportingPopover reporting={reporting} onUpdate={onUpdate} onDelete={onDelete} inList />}
       footerStart={(
         <div style={{

@@ -16,6 +16,10 @@ interface Props {
   stats: Stat[];
   rightSlot?: ReactNode;
   bottomSlot?: ReactNode;
+  /** Page title, also the section's accessible name. Defaults to "Threat Arsenal". */
+  title?: string;
+  /** Label of the total pill (already translated). Defaults to "total actions". */
+  totalLabel?: string;
 }
 
 const ThreatArsenalHero: FunctionComponent<Props> = ({
@@ -23,16 +27,20 @@ const ThreatArsenalHero: FunctionComponent<Props> = ({
   stats,
   rightSlot,
   bottomSlot,
+  title,
+  totalLabel,
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
+  // The section header of the cards pages (Threat Arsenal, Findings).
+  const heading = title ?? t('Threat Arsenal');
 
   const primary = theme.palette.primary.main;
 
   return (
     <Box
       component="section"
-      aria-label={t('Threat Arsenal')}
+      aria-label={heading}
       sx={{
         // Same hero surface as the Integrations marketplace (shared visual language).
         position: 'relative',
@@ -93,7 +101,7 @@ const ThreatArsenalHero: FunctionComponent<Props> = ({
               whiteSpace: 'nowrap',
             }}
           >
-            {t('Threat Arsenal')}
+            {heading}
           </Typography>
 
           <Box sx={{
@@ -128,7 +136,7 @@ const ThreatArsenalHero: FunctionComponent<Props> = ({
                 fontSize: 13,
               }}
               >
-                {t('total actions')}
+                {totalLabel ?? t('total actions')}
               </Typography>
             </Box>
             {stats.map(stat => (

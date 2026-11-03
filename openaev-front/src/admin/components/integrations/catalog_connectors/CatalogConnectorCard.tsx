@@ -1,6 +1,7 @@
 import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined, HelpCenterOutlined } from '@mui/icons-material';
 import { Box, Stack, SvgIcon } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { LogoFiligranIcon } from 'filigran-icon';
 import { type ReactNode } from 'react';
 
@@ -11,9 +12,14 @@ import useChipOverflow from './useChipOverflow';
 
 interface Props {
   connector: ConnectorItem;
-  /** Right side of the card footer (deploy button, instance status, migrate action...). */
+  /** Right side of the card footer (deploy button, migrate action...). */
   footerAction?: ReactNode;
+  /** Left side of the card footer, before the support logo (health, last seen, status). */
+  footerStatus?: ReactNode;
 }
+
+// Height of the Figma card (Design_System_2026, node 8461:13814).
+const CARD_HEIGHT = 274;
 
 // Use-case chips for the footer-left; exported for the lines view.
 // Chips that fit are shown, the rest collapse into "+N" — never clipped mid-label.
@@ -87,42 +93,9 @@ export const UseCaseChips = ({ useCases }: { useCases: string[] }) => {
   );
 };
 
-const CollapsedUseCaseChips = ({ useCases }: { useCases: string[] }) => {
-  if (useCases.length === 0) return null;
-  const [first, ...others] = useCases.map(prettifyUseCase);
-  return (
-    <Stack
-      direction="row"
-      spacing={1}
-      sx={{
-        flex: '1 1 0',
-        minWidth: 'min-content',
-      }}
-    >
-      <Box sx={{ display: 'flex' }}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Chip label={first} severity="info" style={{ maxWidth: '100%' }} />
-          </TooltipTrigger>
-          {first && <TooltipContent>{first}</TooltipContent>}
-        </Tooltip>
-      </Box>
-      {others.length > 0 && (
-        <Box sx={{ flexShrink: 0 }}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Chip label={`+${others.length}`} severity="info" />
-            </TooltipTrigger>
-            <TooltipContent>{others.join(', ')}</TooltipContent>
-          </Tooltip>
-        </Box>
-      )}
-    </Stack>
-  );
-};
-
-const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
+const CatalogConnectorCard = ({ connector, footerAction, footerStatus }: Props) => {
   const { t } = useFormatter();
+  const theme = useTheme();
 
   const typeLabels: Record<ConnectorItemType, string> = {
     COLLECTOR: t('Collector'),
@@ -132,65 +105,71 @@ const CatalogConnectorCard = ({ connector, footerAction }: Props) => {
   };
 
   return (
+    // DS 2026 layout (Figma Design_System_2026, node 8461:13814): thumbnail,
+    // type and title, use-case chips, description, then a footer band with the
+    // status and the support logo on the left and the action on the right.
     <EntityCard
       testId="connector-card"
+      layout="ds2026"
+      ds2026Height={CARD_HEIGHT}
       to={connector.detailUrl}
-      icon={connector.logoSrc ? (
-        <img
-          src={connector.logoSrc}
-          alt={connector.title}
-          style={{
-            width: 56,
-            height: 56,
-            objectFit: 'contain',
-            borderRadius: 4,
-          }}
-        />
-      ) : (
+      // A logo fills the thumbnail; without one, a 24px glyph in the frame.
+      image={connector.logoSrc ? {
+        src: connector.logoSrc,
+        alt: connector.title,
+      } : undefined}
+      icon={(
         <HelpCenterOutlined sx={{
-          fontSize: 32,
+          fontSize: 24,
           color: 'text.secondary',
         }}
         />
       )}
       overline={typeLabels[connector.type]}
       title={connector.title}
+      tags={connector.useCases.length > 0 ? <UseCaseChips useCases={connector.useCases} /> : undefined}
       description={connector.description}
-      // Support semantics (same as OpenCTI): the verified flag means
-      // supported by Filigran, otherwise supported by the community.
-      badge={(
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="inline-flex">
-              {connector.verified ? (
-                <SvgIcon
-                  component={LogoFiligranIcon}
-                  inheritViewBox
-                  color="primary"
-                  sx={{
-                    fontSize: 20,
-                    flexShrink: 0,
-                  }}
-                />
-              ) : (
-                <GroupsOutlined
-                  sx={{
-                    fontSize: 20,
-                    flexShrink: 0,
-                    // Who supports the connector is a category, not a
-                    // state: the secondary ink, not the disabled one.
-                    color: 'var(--text-default-secondary)',
-                  }}
-                />
-              )}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>{connector.verified ? t('Supported by Filigran') : t('Supported by Community')}</TooltipContent>
-        </Tooltip>
+      footerStart={(
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: theme.spacing(1),
+          minWidth: 0,
+        }}
+        >
+          {footerStatus}
+          {/* Support semantics (same as OpenCTI): the verified flag means
+              supported by Filigran, otherwise supported by the community. */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                {connector.verified ? (
+                  <SvgIcon
+                    component={LogoFiligranIcon}
+                    inheritViewBox
+                    color="primary"
+                    sx={{
+                      fontSize: 24,
+                      flexShrink: 0,
+                    }}
+                  />
+                ) : (
+                  <GroupsOutlined
+                    sx={{
+                      fontSize: 24,
+                      flexShrink: 0,
+                      // Who supports the connector is a category, not a
+                      // state: the secondary ink, not the disabled one.
+                      color: 'var(--text-default-secondary)',
+                    }}
+                  />
+                )}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{connector.verified ? t('Supported by Filigran') : t('Supported by Community')}</TooltipContent>
+          </Tooltip>
+        </div>
       )}
-      // Use-case (category) chips on the left, deploy / status on the right -
-      // mirrors the OpenCTI CardActions layout.
-      footerStart={<CollapsedUseCaseChips useCases={connector.useCases} />}
       footerEnd={footerAction}
     />
   );

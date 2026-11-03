@@ -96,26 +96,26 @@ describe('ThreatArsenalCard', () => {
   });
 
   describe('content', () => {
-    it('given_aPayload_should_showItsTypeStatusAndDomains', () => {
+    it('given_aPayload_should_showItsStatusAndDomains', () => {
       // Arrange / Act
       renderCard();
 
       // Assert
-      expect(screen.getByText('Command')).toBeInTheDocument();
       expect(screen.getByText('Dump credentials')).toBeInTheDocument();
       expect(screen.getByText('Verified')).toBeInTheDocument();
       expect(screen.getByText('Endpoint')).toBeInTheDocument();
-      // "To classify" is not a domain to show: only Network is behind the +1.
-      expect(screen.getByText('+1')).toBeInTheDocument();
+      // "To classify" is not a domain to show: Endpoint and Network fit, no +N.
+      expect(screen.getByText('Network')).toBeInTheDocument();
+      expect(screen.queryByText('+1')).not.toBeInTheDocument();
       expect(screen.queryByText('To classify')).not.toBeInTheDocument();
     });
 
-    it('given_noPayload_should_showTheInjectorOverlineWithoutStatus', () => {
+    it('given_noPayload_should_showNoStatus', () => {
       // Arrange / Act
       renderCard({ action: buildAction({ action_payload: undefined }) });
 
       // Assert
-      expect(screen.getByText('Injector')).toBeInTheDocument();
+      expect(screen.getByText('Dump credentials')).toBeInTheDocument();
       expect(screen.queryByText('Verified')).not.toBeInTheDocument();
     });
 
