@@ -13,6 +13,14 @@ type ZodImplements<Model> = {
       : z.ZodType<Model[key]>;
 };
 
+// TextFieldController stores its value as a string, even with type="number": coerce it back to a
+// number before validation, an emptied input becoming `undefined` so it fails the required check.
+// 0 counts as empty too.
+export const requiredNumber = (message: string) => z.preprocess(
+  value => (value === '' || value === null ? undefined : value),
+  z.coerce.number({ error: () => message }).refine(value => value !== 0, { message }),
+) as unknown as z.ZodType<number, number>;
+
 export function zodImplement<Model = never>() {
   return {
     with: <

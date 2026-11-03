@@ -1,8 +1,7 @@
 import { Chip, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { BallotOutlined, CastForEducationOutlined, HelpOutlined } from '@mui/icons-material';
 import { Box, LinearProgress, List, ListItem, ListItemButton, ListItemText, Typography } from '@mui/material';
-import { alpha, type Theme, useTheme } from '@mui/material/styles';
-import { type SystemStyleObject } from '@mui/system';
+import { alpha, useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useContext } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
@@ -28,7 +27,6 @@ interface Props {
   teamsMap: Record<string, Team>;
   teams: Team[];
   isReport?: boolean;
-  style?: SystemStyleObject<Theme>;
 }
 
 // One block per category: a title row followed by a responsive three-column
@@ -42,7 +40,6 @@ const LessonsCategories: FunctionComponent<Props> = ({
   teamsMap,
   teams,
   isReport,
-  style = {},
 }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -89,15 +86,13 @@ const LessonsCategories: FunctionComponent<Props> = ({
         display: 'flex',
         flexDirection: 'column',
         gap: 2,
-        ...style,
       }}
     >
       {sortedCategories.map((category) => {
         const questions = lessonsQuestions
           .filter(n => n.lessons_question_category === category.lessonscategory_id)
           .sort((a, b) => (a.lessons_question_order ?? 0) - (b.lessons_question_order ?? 0));
-        // The API types the team list as optional: default it once so the column renders its empty
-        // state instead of throwing, as it would have before.
+        // The API types the team list as optional: default it so the column renders its empty state.
         const categoryTeams = category.lessons_category_teams ?? [];
         return (
           <section key={category.lessonscategory_id}>

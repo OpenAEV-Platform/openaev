@@ -13,7 +13,7 @@ import { resolveUserName } from '../../../utils/String';
 import { LessonContext } from '../common/Context';
 
 interface Props {
-  objectiveId: string | null;
+  objectiveId: string;
   handleClose: () => void;
   isUpdatable: boolean;
 }
@@ -40,41 +40,30 @@ const ObjectiveEvaluations: FunctionComponent<Props> = ({ objectiveId, handleClo
       return {
         me: helper.getMe(),
         usersMap: helper.getUsersMap(),
-        objective: helper.getObjective(objectiveId ?? ''),
-        evaluations: helper.getObjectiveEvaluations(objectiveId ?? ''),
+        objective: helper.getObjective(objectiveId),
+        evaluations: helper.getObjectiveEvaluations(objectiveId),
       };
     },
   );
 
   useDataLoader(() => {
-    onFetchEvaluation(objectiveId ?? '');
+    onFetchEvaluation(objectiveId);
   });
   const currentUserEvaluation = evaluations.find(n => n.evaluation_user === me.user_id);
+  const score = value ?? (currentUserEvaluation?.evaluation_score || 10);
   const submitEvaluation = () => {
     setSubmitting(true);
-    const data = { evaluation_score: value ?? undefined };
-    if (currentUserEvaluation) {
-      return onUpdateEvaluation(
-        objectiveId ?? '',
-        currentUserEvaluation.evaluation_id,
-        data,
-      ).then((result) => {
-        // The thunk resolves the normalised `{ result, entities }` payload, whereas the context
-        // types it as the `Evaluation`: keep the original runtime check on `result`.
-        if ((result as unknown as { result?: string }).result) {
-          return handleClose();
+    const data = { evaluation_score: score };
+    const request = currentUserEvaluation
+      ? onUpdateEvaluation(objectiveId, currentUserEvaluation.evaluation_id, data)
+      : onAddEvaluation(objectiveId, data);
+    return request
+      .then((result) => {
+        if (result.result) {
+          handleClose();
         }
-        return result;
-      });
-    }
-    return onAddEvaluation(objectiveId ?? '', data).then(
-      (result) => {
-        if ((result as unknown as { result?: string }).result) {
-          return handleClose();
-        }
-        return result;
-      },
-    );
+      })
+      .finally(() => setSubmitting(false));
   };
   if (!objective) {
     return <Loader variant="inElement" />;
@@ -173,11 +162,7 @@ const ObjectiveEvaluations: FunctionComponent<Props> = ({ objectiveId, handleClo
           <Typography variant="h4">{t('My evaluation')}</Typography>
           <Slider
             aria-label={t('Score')}
-            value={
-              value === null
-                ? currentUserEvaluation?.evaluation_score || 10
-                : value
-            }
+            value={score}
             onChange={(_, val) => setValue(Array.isArray(val) ? val[0] : val)}
             valueLabelDisplay="auto"
             step={5}

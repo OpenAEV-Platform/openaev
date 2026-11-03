@@ -46,7 +46,7 @@ const SendLessonsForm: FunctionComponent<Props> = ({
   const {
     control,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = methods;
 
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
@@ -77,7 +77,7 @@ const SendLessonsForm: FunctionComponent<Props> = ({
           marginTop: 20,
         }}
         >
-          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting || Object.keys(errors).length > 0} style={{ marginRight: 10 }}>
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 10 }}>
             {t('Cancel')}
           </Button>
           <Button type="submit" disabled={isSubmitting}>
