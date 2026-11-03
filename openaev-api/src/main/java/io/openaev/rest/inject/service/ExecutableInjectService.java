@@ -301,7 +301,8 @@ public class ExecutableInjectService {
     try {
       payloadToExecute = getExecutablePayloadInject(injectId, agentId);
     } catch (CommandBindingException e) {
-      this.injectStatusService.setImplantErrorTrace(injectId, agentId, e.getMessage());
+      this.injectStatusService.setImplantErrorTrace(
+          injectId, agentId, "Unable to prepare the command. %s".formatted(e.getMessage()));
       throw e;
     }
     this.injectStatusService.addStartImplantExecutionTraceByInject(
