@@ -1,8 +1,11 @@
 package io.openaev.rest.catalog_connector;
 
+import static io.openaev.aop.lock.LockResourceType.CATALOG_CONNECTOR_ACCOUNT;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.service.account.CatalogConnectorPrivilegeService.ACCOUNT_LOCK_KEY;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.lock.Lock;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
@@ -112,6 +115,7 @@ public class CatalogConnectorApi extends RestBehavior {
     TENANT_CATALOG_CONNECTOR_URI + "/token/rotate"
   })
   @Transactional(rollbackFor = Exception.class)
+  @Lock(type = CATALOG_CONNECTOR_ACCOUNT, key = ACCOUNT_LOCK_KEY)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
   public ResponseEntity<Void> rotateCatalogConnectorToken(@RequireTenantSelector TxCtx ctx) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);

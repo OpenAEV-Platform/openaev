@@ -22,6 +22,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
   private static final String CATALOG_CONNECTOR_FIRSTNAME = "Catalog connectors";
 
+  /**
+   * Key of the {@code @Lock} taken by the deployment and rotation entrypoints, which open the
+   * transaction: the lock must wrap their commit so a deployment never stores a token being
+   * revoked.
+   */
+  public static final String ACCOUNT_LOCK_KEY = "catalog-connector-account";
+
   private final SessionManager sessionManager;
 
   @Autowired
@@ -40,14 +47,18 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
     return ReservedServiceAccount.CATALOG_CONNECTOR.access();
   }
 
+  /** Email of the tenant's catalog connector account. */
+  public static String accountEmail(String tenantId) {
+    return ReservedServiceAccount.CATALOG_CONNECTOR.emailPattern().formatted(tenantId);
+  }
+
   /**
    * Returns the tenant's catalog connector token, creating the account on the first call. The role
    * and group are resynced at every call.
    */
   @Transactional
   public String getOrCreateToken(String tenantId) {
-    String email = ReservedServiceAccount.CATALOG_CONNECTOR.emailPattern().formatted(tenantId);
-    userService.lockServiceAccount(email);
+    String email = accountEmail(tenantId);
     Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(tenantId), tenantId);
 
     Optional<User> existingUser = userService.findByEmailIgnoreCase(email);
@@ -79,11 +90,9 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
   /** Replaces the tenant's catalog connector token and returns the new one. */
   @Transactional
   public String rotateTokenForTenant(String tenantId) {
-    String email = ReservedServiceAccount.CATALOG_CONNECTOR.emailPattern().formatted(tenantId);
-    userService.lockServiceAccount(email);
     User user =
         userService
-            .findByEmailIgnoreCase(email)
+            .findByEmailIgnoreCase(accountEmail(tenantId))
             .orElseThrow(
                 () -> new ElementNotFoundException("Catalog connector service account not found"));
     new ArrayList<>(user.getTokens()).forEach(userService::deleteUserToken);

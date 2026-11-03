@@ -1,8 +1,11 @@
 package io.openaev.rest.connector_instance;
 
+import static io.openaev.aop.lock.LockResourceType.CATALOG_CONNECTOR_ACCOUNT;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.service.account.CatalogConnectorPrivilegeService.ACCOUNT_LOCK_KEY;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.lock.Lock;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
@@ -46,6 +49,7 @@ public class ConnectorInstanceApi extends RestBehavior {
   private final ConnectorInstanceMapper connectorInstanceMapper;
 
   @PostMapping(value = {CONNECTOR_INSTANCE_URI, TENANT_CONNECTOR_INSTANCE_URI})
+  @Lock(type = CATALOG_CONNECTOR_ACCOUNT, key = ACCOUNT_LOCK_KEY)
   @Transactional
   @Operation(
       summary = "Create a new connector instance",

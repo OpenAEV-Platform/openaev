@@ -1,6 +1,6 @@
 package io.openaev.processor.core;
 
-import static io.openaev.service.account.ReservedServiceAccount.CATALOG_CONNECTOR;
+import static io.openaev.service.account.CatalogConnectorPrivilegeService.accountEmail;
 import static io.openaev.service.catalog_connectors.CatalogConnectorIngestionService.OPENAEV_KEY_TOKEN;
 import static io.openaev.utils.fixtures.CatalogConnectorFixture.createDefaultCatalogConnectorManagedByXtmComposer;
 import static io.openaev.utils.fixtures.ConnectorInstanceFixture.createConnectorInstanceConfiguration;
@@ -79,7 +79,7 @@ class V20261030_Move_catalog_connectors_to_service_accountTest extends Integrati
   }
 
   private Optional<User> serviceAccount(String tenantId) {
-    return userService.findByEmailIgnoreCase(CATALOG_CONNECTOR.emailPattern().formatted(tenantId));
+    return userService.findByEmailIgnoreCase(accountEmail(tenantId));
   }
 
   @Test

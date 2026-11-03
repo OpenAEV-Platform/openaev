@@ -5,17 +5,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
+import io.openaev.aop.lock.Lock;
+import io.openaev.aop.lock.LockResourceType;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.config.SessionManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
+import io.openaev.rest.catalog_connector.CatalogConnectorApi;
+import io.openaev.rest.connector_instance.ConnectorInstanceApi;
+import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.*;
 import io.openaev.service.tenants.TenantUserService;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -26,17 +33,18 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.annotation.Transactional;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Catalog connector service account")
 class CatalogConnectorPrivilegeServiceTest {
 
   private static final String TENANT_ID = "tenant-123";
-  private static final String ACCOUNT_EMAIL = CATALOG_CONNECTOR.emailPattern().formatted(TENANT_ID);
+  private static final String ACCOUNT_EMAIL =
+      CatalogConnectorPrivilegeService.accountEmail(TENANT_ID);
   private static final String ROLE_ID =
       AbstractPrivilegeService.getUUIDFromName(CATALOG_CONNECTOR.access().roleId(), TENANT_ID);
   private static final String GROUP_ID =
@@ -109,24 +117,6 @@ class CatalogConnectorPrivilegeServiceTest {
       assertThat(account.getUnscopedGroups()).containsExactly(group);
       verify(tenantUserService).attachToTenant(any(), eq(TENANT_ID));
       verify(userService).saveUser(account);
-    }
-
-    @Test
-    @DisplayName("Takes the creation lock before looking the account up")
-    void given_concurrentFirstDeployments_should_lockBeforeLookingTheAccountUp() {
-      // Arrange
-      givenExistingRoleAndGroup();
-      account.setTokens(new ArrayList<>(List.of(token("existing-token"))));
-      when(userService.findByEmailIgnoreCase(ACCOUNT_EMAIL)).thenReturn(Optional.of(account));
-
-      // Act
-      privilegeService.getOrCreateToken(TENANT_ID);
-
-      // Assert
-      InOrder inOrder = inOrder(userService, tenantRoleService);
-      inOrder.verify(userService).lockServiceAccount(ACCOUNT_EMAIL);
-      inOrder.verify(tenantRoleService).findByIdAndTenant(ROLE_ID, TENANT_ID);
-      inOrder.verify(userService).findByEmailIgnoreCase(ACCOUNT_EMAIL);
     }
 
     @Test
@@ -247,23 +237,6 @@ class CatalogConnectorPrivilegeServiceTest {
     }
 
     @Test
-    @DisplayName("Takes the account lock before looking the account up")
-    void given_concurrentDeployment_should_lockBeforeLookingTheAccountUp() {
-      // Arrange
-      account.setTokens(new ArrayList<>(List.of(token("old-token"))));
-      when(userService.findByEmailIgnoreCase(ACCOUNT_EMAIL)).thenReturn(Optional.of(account));
-      when(userService.createUserToken(eq(account), anyString())).thenReturn(token("new-token"));
-
-      // Act
-      privilegeService.rotateTokenForTenant(TENANT_ID);
-
-      // Assert
-      InOrder inOrder = inOrder(userService);
-      inOrder.verify(userService).lockServiceAccount(ACCOUNT_EMAIL);
-      inOrder.verify(userService).findByEmailIgnoreCase(ACCOUNT_EMAIL);
-    }
-
-    @Test
     @DisplayName("Fails when the tenant has no catalog connector account yet")
     void given_noAccount_should_throwNotFound() {
       // Arrange
@@ -311,6 +284,32 @@ class CatalogConnectorPrivilegeServiceTest {
       // Act & Assert
       assertThatThrownBy(() -> ReservedKeyValidator.validateGroupId(GROUP_ID))
           .isInstanceOf(BadRequestException.class);
+    }
+  }
+
+  @Nested
+  @DisplayName("Account lock")
+  class AccountLock {
+
+    @Test
+    @DisplayName(
+        "Deployment and rotation take the same lock, on the method opening the transaction")
+    void given_deploymentAndRotationEntrypoints_should_shareTheAccountLock() throws Exception {
+      // Arrange
+      Method deployment =
+          ConnectorInstanceApi.class.getMethod(
+              "createConnectorInstance", TxCtx.class, CreateConnectorInstanceInput.class);
+      Method rotation =
+          CatalogConnectorApi.class.getMethod("rotateCatalogConnectorToken", TxCtx.class);
+
+      // Act & Assert
+      for (Method entrypoint : List.of(deployment, rotation)) {
+        assertThat(entrypoint.getAnnotation(Transactional.class)).isNotNull();
+        Lock lock = entrypoint.getAnnotation(Lock.class);
+        assertThat(lock).isNotNull();
+        assertThat(lock.type()).isEqualTo(LockResourceType.CATALOG_CONNECTOR_ACCOUNT);
+        assertThat(lock.key()).isEqualTo(CatalogConnectorPrivilegeService.ACCOUNT_LOCK_KEY);
+      }
     }
   }
 }

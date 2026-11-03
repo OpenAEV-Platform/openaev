@@ -560,19 +560,33 @@ public class ConnectorInstanceService implements AuditLoggedService {
     return conf;
   }
 
+  private static boolean isSensitive(CatalogConnectorConfiguration definition) {
+    return CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.PASSWORD.equals(
+        definition.getConnectorConfigurationFormat());
+  }
+
   // --- /!\ ---  SECURITY: Do not log value until this function is DONE
   private JsonNode encryptIfSensitive(
       JsonNode value,
       CatalogConnectorConfiguration definition,
       EncryptionService encryptionService) {
-    boolean isEncrypted =
-        CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.PASSWORD.equals(
-            definition.getConnectorConfigurationFormat());
+    return isSensitive(definition) ? encrypt(value, encryptionService) : value;
+  }
 
-    if (!isEncrypted) {
-      return value;
-    }
+  /** Sets a plain value on a stored configuration, encrypted if the configuration is. */
+  private void setConfigurationValue(
+      ConnectorInstanceConfiguration configuration, String plainValue) {
+    JsonNode value = objectMapper.getNodeFactory().textNode(plainValue);
+    configuration.setValue(
+        configuration.isEncrypted()
+            ? encrypt(
+                value,
+                encryptionFactory.getEncryptionService(
+                    configuration.getConnectorInstance().getCatalogConnector()))
+            : value);
+  }
 
+  private JsonNode encrypt(JsonNode value, EncryptionService encryptionService) {
     try {
       return objectMapper.getNodeFactory().textNode(encryptionService.encrypt(value.asText()));
     } catch (Exception e) {
@@ -636,11 +650,9 @@ public class ConnectorInstanceService implements AuditLoggedService {
     for (CreateConnectorInstanceInput.ConfigurationInput confInput : input.getConfigurations()) {
       CatalogConnectorConfiguration definition =
           configurationDefinitionsMap.get(confInput.getKey());
-      boolean isEncrypted =
-          CatalogConnectorConfiguration.CONNECTOR_CONFIGURATION_FORMAT.PASSWORD.equals(
-              definition.getConnectorConfigurationFormat());
       ConnectorInstanceConfiguration config =
-          createConfiguration(confInput.getKey(), confInput.getValue(), isEncrypted, instance);
+          createConfiguration(
+              confInput.getKey(), confInput.getValue(), isSensitive(definition), instance);
       configurations.add(config);
     }
 
@@ -767,19 +779,19 @@ public class ConnectorInstanceService implements AuditLoggedService {
     rotateOpenAevToken(findOpenAevTokenConfigurations(tenantId), token);
   }
 
-  /** Replaces the OpenAEV token of the given configurations. */
+  /** Replaces the OpenAEV token among the given configurations. */
   public void rotateOpenAevToken(
-      List<ConnectorInstanceConfiguration> tokenConfigurations, String token) {
+      List<ConnectorInstanceConfiguration> configurations, String token) {
     // Skips the instances already holding the token, so XTM Composer does not redeploy them
     List<ConnectorInstanceConfiguration> outdated =
-        tokenConfigurations.stream()
+        configurations.stream()
+            .filter(configuration -> OPENAEV_KEY_TOKEN.equals(configuration.getKey()))
             .filter(
                 configuration ->
                     configuration.getValue() == null
                         || !token.equals(configuration.getValue().asText()))
             .toList();
-    outdated.forEach(
-        configuration -> configuration.setValue(objectMapper.getNodeFactory().textNode(token)));
+    outdated.forEach(configuration -> setConfigurationValue(configuration, token));
     connectorInstanceConfigurationRepository.saveAll(outdated);
   }
 
