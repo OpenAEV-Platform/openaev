@@ -6,10 +6,10 @@ import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type AssetOverview } from '../../../../../actions/assets/endpoint-actions';
 import AssetDetail from '../../../../../admin/components/assets/asset/AssetDetail';
 import { DATA_DELETE_SUCCESS, DATA_FETCH_SUCCESS, DATA_UPDATE_SUCCESS } from '../../../../../constants/ActionTypes';
 import { type AgentOutput, type EndpointOverviewOutput } from '../../../../../utils/api-types';
+import { notifyErrorHandler } from '../../../../../utils/error/errorHandlerUtil';
 import AppQueryProvider from '../../../../../utils/query/AppQueryProvider';
 import { startStream, stopStream } from '../../../../../utils/stream/streamClient';
 import FakeEventSource from '../../../../utils/stream/fakeEventSource';
@@ -80,7 +80,7 @@ vi.mock('@tanstack/react-query-devtools', () => ({ ReactQueryDevtools: () => nul
 
 const agent = (id: string) => ({ agent_id: id }) as AgentOutput;
 
-const asset = (overrides: Partial<AssetOverview> = {}): AssetOverview => ({
+const asset = (overrides: Partial<EndpointOverviewOutput> = {}): EndpointOverviewOutput => ({
   asset_id: ASSET_ID,
   asset_name: 'Web server',
   asset_hostname: 'web-01.corp',
@@ -143,6 +143,7 @@ describe('AssetDetail', () => {
     mocks.getAssetOverview.mockReset();
     mocks.getAssetOverview.mockResolvedValue(asset());
     mocks.onUpdate = undefined;
+    vi.mocked(notifyErrorHandler).mockClear();
     FakeEventSource.reset();
     vi.stubGlobal('EventSource', FakeEventSource);
   });
@@ -157,8 +158,8 @@ describe('AssetDetail', () => {
   describe('loading', () => {
     it('given_theAssetLoading_should_showTheLoaderThenTheTitleAndTheHostname', async () => {
       // Arrange
-      let answer: (value: AssetOverview) => void = () => {};
-      mocks.getAssetOverview.mockReturnValue(new Promise<AssetOverview>((resolve) => {
+      let answer: (value: EndpointOverviewOutput) => void = () => {};
+      mocks.getAssetOverview.mockReturnValue(new Promise<EndpointOverviewOutput>((resolve) => {
         answer = resolve;
       }));
 
@@ -226,6 +227,47 @@ describe('AssetDetail', () => {
       // Assert
       await waitFor(() => expect(screen.getByTestId('agents')).toHaveTextContent('agent-1,agent-2'));
       expect(mocks.getAssetOverview).toHaveBeenCalledTimes(callsBefore + 1);
+    });
+
+    it('given_aChangeOfAGroupThePageDoesNotShow_should_refetchTheAsset', async () => {
+      // Arrange: joining a static group, or matching a dynamic one, only streams the group's change
+      const callsBefore = await renderLivePage();
+      mocks.getAssetOverview.mockResolvedValue(asset({
+        asset_asset_groups: [{
+          asset_group_id: 'group-1',
+          asset_group_name: 'Web servers',
+        }],
+      }));
+
+      // Act
+      streamMessage({
+        event_type: DATA_UPDATE_SUCCESS,
+        attribute_id: 'asset_group_id',
+        attribute_schema: 'assetgroups',
+        instance: { asset_group_id: 'group-1' },
+      });
+      await act(() => vi.advanceTimersByTimeAsync(250));
+
+      // Assert
+      await waitFor(() => expect(screen.getByText('Web servers')).toBeInTheDocument());
+      expect(mocks.getAssetOverview).toHaveBeenCalledTimes(callsBefore + 1);
+    });
+
+    it('given_aFailedRefetch_should_keepTheAssetOnScreen', async () => {
+      // Arrange: a 5xx, retried 3 times, then given up
+      const callsBefore = await renderLivePage();
+      mocks.getAssetOverview.mockRejectedValue({ status: 503 });
+
+      // Act
+      assetMessage(DATA_UPDATE_SUCCESS);
+      await act(() => vi.advanceTimersByTimeAsync(250));
+      await act(() => vi.advanceTimersByTimeAsync(10_000));
+
+      // Assert: the previous data and one toast, no alert in place of the page
+      await waitFor(() => expect(notifyErrorHandler).toHaveBeenCalledTimes(1));
+      expect(mocks.getAssetOverview).toHaveBeenCalledTimes(callsBefore + 4);
+      expect(title('Web server')).toBeInTheDocument();
+      expect(screen.queryByText('Asset is currently unavailable or you do not have sufficient permissions to access it.')).not.toBeInTheDocument();
     });
 
     it('given_aDeleteOfTheAssetOnTheStream_should_showTheDeletedState', async () => {

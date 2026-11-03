@@ -38,7 +38,8 @@ let started = false;
 let hasOpened = false;
 let source: EventSource | undefined;
 let lastPingDate = new Date().getTime();
-// Set from the moment the connection is seen broken until the next open.
+// Set from the moment the connection is seen broken until it delivers again (its first ping): a
+// connection that opens but stays silent is still the same outage.
 let down = false;
 // When the current outage began, kept across reconnection attempts: the backoff grows with the
 // outage, which a per-connection clock would always see as just started. A device sleep is not an
@@ -285,7 +286,6 @@ const connect = (): void => {
   client.addEventListener('open', () => {
     const first = !hasOpened;
     hasOpened = true;
-    down = false;
     emit(connectionOpenHandlers, { first });
   });
   client.addEventListener('message', handleMessage);
@@ -297,6 +297,7 @@ const connect = (): void => {
   });
   client.addEventListener('ping', () => {
     lastPingDate = new Date().getTime();
+    down = false;
   });
   client.onerror = () => {
     if (watchdogIntervalId !== undefined) {
@@ -360,7 +361,7 @@ export const onBulkOperationEnd = (handler: (entity: string | undefined) => void
 export const onConnectionOpen = (handler: (info: ConnectionOpenInfo) => void): (() => void) =>
   subscribeTo(connectionOpenHandlers, handler);
 
-/** The connection broke (error or silent watchdog): emitted once per outage, until the next open. */
+/** The connection broke (error or silent watchdog): emitted once per outage, which ends at the next ping. */
 export const onConnectionLost = (handler: () => void): (() => void) =>
   subscribeTo(connectionLostHandlers, handler);
 
@@ -369,6 +370,9 @@ export const isStreamStarted = (): boolean => started;
 
 /** Whether the stream opened at least once since the last `startStream`. */
 export const hasStreamOpened = (): boolean => hasOpened;
+
+/** Whether the connection is seen broken: from a failure or a silent watchdog until the next ping. */
+export const isStreamDown = (): boolean => down;
 
 /**
  * Named, feature-scoped stream events (e.g. 'attack-path-version').

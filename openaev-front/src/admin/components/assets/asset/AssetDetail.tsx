@@ -35,7 +35,7 @@ import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import useSearchTotal from '../../../../utils/hooks/useSearchTotal';
 import { ENTITY_TYPES } from '../../../../utils/query/entityChange';
-import { isNotFoundError } from '../../../../utils/query/httpErrors';
+import { isClientError, isNotFoundError } from '../../../../utils/query/httpErrors';
 import { useApplyChanges } from '../../../../utils/query/live';
 import { emptyFilled, formatIp, formatMacAddress } from '../../../../utils/String';
 import { isFeatureEnabled } from '../../../../utils/utils';
@@ -68,7 +68,7 @@ const AssetDetail = () => {
 
   // Live: the asset renamed, updated, deleted elsewhere, or one of its agents or groups changing,
   // shows without reloading the page.
-  const { data: asset, isPending, isError, error } = useQuery(assetQueries.detail(id));
+  const { data: asset, isPending, error } = useQuery(assetQueries.detail(id));
   const applyChanges = useApplyChanges();
 
   // Gates the Markings field (and its data fetch below) so the flag-off platform looks exactly as
@@ -121,8 +121,9 @@ const AssetDetail = () => {
   if (isPending) {
     return <Loader />;
   }
-  // Before the data: a failed refetch keeps the previous data, and a deleted asset answers 404.
-  if (isError) {
+  // A failed refetch keeps the previous data on screen (the query cache shows a toast), unless the
+  // server refused it: the asset was deleted (404) or is no longer the user's to see.
+  if (asset === undefined || isClientError(error)) {
     return (
       <Alert severity="warning">
         <AlertTitle>{t('Warning')}</AlertTitle>

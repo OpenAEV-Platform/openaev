@@ -727,6 +727,21 @@ describe('liveRouter', () => {
       expect(invalidate).not.toHaveBeenCalled();
     });
 
+    it('given_moreChangedEntitiesThanTheParkingCapDuringAFetch_should_refetchOnceItSettles', async () => {
+      // Arrange: a fetch that can stay in flight for long (paused in a background tab)
+      const { response, refetch } = await refetchList();
+
+      // Act: changes of entities the response does not show, past the cap
+      router.applyChanges(Array.from({ length: 501 }, (_, index) => assetUpdate(`elsewhere-${index}`)));
+      await vi.advanceTimersByTimeAsync(250);
+      response.resolve([{ id: 'a1' }]);
+      await refetch;
+      await vi.advanceTimersByTimeAsync(1000);
+
+      // Assert: the changes are no longer kept to match, one refetch replaces them
+      expect(invalidatedKeys()).toEqual(['list']);
+    });
+
     it('given_aStreamChangeWhileAMountedQueryFetches_should_letTheFetchFinish', async () => {
       // Arrange: a refetch in flight of data that shows the changed entity
       const list = mount(['list'], live);
@@ -879,6 +894,30 @@ describe('liveRouter', () => {
 
       // Assert: the leading and the immediate runs only
       expect(invalidate).toHaveBeenCalledTimes(2);
+    });
+
+    it('given_anImmediateChangeMatchingAnInactiveQueryInFlight_should_leaveItInvalidatedOnceItSettles', async () => {
+      // Arrange: a prefetch in flight, with no observer: invalidateQueries would not refetch it
+      const live: LiveMeta = { refs: itemRefs('assets') };
+      seed(['list'], [{ id: 'a1' }], live);
+      const response = deferred<unknown>();
+      const prefetch = queryClient.prefetchQuery({
+        queryKey: ['list'],
+        queryFn: () => response.promise,
+        meta: { live },
+      });
+
+      // Act: the prefetched response predates the change
+      await router.applyChanges([assetUpdate()], { immediate: true });
+      response.resolve([{
+        id: 'a1',
+        version: 'before the change',
+      }]);
+      await prefetch;
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Assert: the next mount refetches it
+      expect(queryClient.getQueryState(['list'])?.isInvalidated).toBe(true);
     });
 
     it('given_anImmediateChangeMatchingAQueryInItsFirstLoad_should_refetchItOnceThatLoadSettles', async () => {

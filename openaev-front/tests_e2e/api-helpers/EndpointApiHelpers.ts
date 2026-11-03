@@ -1,11 +1,7 @@
 import type { APIRequestContext } from '@playwright/test';
 
+import { type Endpoint, type EndpointInput } from '../../src/utils/api-types';
 import { tenantApiPath } from '../utils/url';
-
-export interface E2eEndpoint {
-  asset_id: string;
-  asset_name: string;
-}
 
 export interface EndpointFields {
   name: string;
@@ -13,7 +9,7 @@ export interface EndpointFields {
   macAddress: string;
 }
 
-const endpointInput = ({ name, hostname, macAddress }: EndpointFields) => ({
+const endpointInput = ({ name, hostname, macAddress }: EndpointFields): EndpointInput => ({
   asset_name: name,
   asset_hostname: hostname,
   asset_tags: [],
@@ -33,7 +29,7 @@ class EndpointApiHelpers {
   readonly assetUri = tenantApiPath('/api/assets');
   constructor(private request: APIRequestContext) {}
 
-  async createAgentlessEndpoint(fields: EndpointFields): Promise<E2eEndpoint> {
+  async createAgentlessEndpoint(fields: EndpointFields): Promise<Endpoint> {
     const response = await this.request.post(`${this.endpointUri}/agentless`, { data: endpointInput(fields) });
     if (!response.ok()) {
       throw new Error(`Endpoint creation failed: ${response.status()} ${await response.text()}`);
@@ -49,7 +45,18 @@ class EndpointApiHelpers {
   }
 
   async deleteAsset(id: string) {
-    await this.request.delete(`${this.assetUri}/${id}`);
+    const response = await this.request.delete(`${this.assetUri}/${id}`);
+    if (!response.ok()) {
+      throw new Error(`Asset deletion failed: ${response.status()} ${await response.text()}`);
+    }
+  }
+
+  /** Teardown: an asset the test already deleted answers 404. */
+  async deleteAssetIfPresent(id: string) {
+    const response = await this.request.delete(`${this.assetUri}/${id}`);
+    if (!response.ok() && response.status() !== 404) {
+      throw new Error(`Asset cleanup failed: ${response.status()} ${await response.text()}`);
+    }
   }
 }
 

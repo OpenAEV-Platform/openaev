@@ -6,6 +6,9 @@ import { type LiveMeta } from './live';
 /** Changes received within this window are routed together. */
 const BATCH_WINDOW_MS = 250;
 const DEFAULT_THROTTLE_MS = 1000;
+// Past this many changed entities, the changes parked for a fetch are traded for one refetch once
+// it settles: a fetch paused in a background tab can wait for hours while the stream delivers.
+const MAX_PARKED_KEYS = 500;
 
 export interface ApplyOptions {
   /**
@@ -177,9 +180,18 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
   };
 
   const park = (hash: string, index: ChangeIndex) => {
-    const parkedIndex = parked.get(hash);
-    if (parkedIndex === undefined) parked.set(hash, copyIndex(index));
-    else mergeInto(parkedIndex, index);
+    if (afterFetch.has(hash)) return;
+    let parkedIndex = parked.get(hash);
+    if (parkedIndex === undefined) {
+      parkedIndex = copyIndex(index);
+      parked.set(hash, parkedIndex);
+    } else {
+      mergeInto(parkedIndex, index);
+    }
+    if (parkedIndex.keys.size > MAX_PARKED_KEYS) {
+      parked.delete(hash);
+      afterFetch.add(hash);
+    }
   };
 
   // eslint-disable-next-line prefer-const -- assigned below, used by the cache subscription
@@ -283,7 +295,8 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
   // The user's own change: the queries showing it are refetched now and the caller waits for them.
   // A fetch in flight is restarted (`cancelRefetch`, TanStack's default; the stream path avoids it so
   // that a steady flow of changes cannot keep restarting a slow fetch), except a first load, which
-  // TanStack never cancels: that one is refetched once it settles.
+  // TanStack never cancels, and the fetch of an inactive query, which `invalidateQueries` does not
+  // refetch: those are invalidated once they settle.
   const applyNow = (changes: EntityChange[]) => {
     const index = indexChanges(expand(changes));
     const now = Date.now();
@@ -296,7 +309,7 @@ export const createLiveRouter = (queryClient: QueryClient): LiveRouter => {
         if (isFetching(query)) park(hash, index);
         return;
       }
-      if (isFetching(query) && query.state.data === undefined) {
+      if (isFetching(query) && (query.state.data === undefined || !query.isActive())) {
         afterFetch.add(hash);
         return;
       }

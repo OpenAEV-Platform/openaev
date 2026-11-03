@@ -48,12 +48,9 @@ const AppQueryProvider = ({ children, rights }: Props) => {
     return () => {
       disconnect();
       router.dispose();
-      // The session ended: drop its data and stop its fetches. Deferred, so that StrictMode's
-      // simulated unmount, followed at once by a remount, keeps the cache.
-      pendingClear.current = setTimeout(() => {
-        queryClient.cancelQueries();
-        queryClient.clear();
-      }, 0);
+      // The session ended: drop its data, which also cancels its fetches. Deferred, so that
+      // StrictMode's simulated unmount, followed at once by a remount, keeps the cache.
+      pendingClear.current = setTimeout(() => queryClient.clear(), 0);
     };
   }, [queryClient, router]);
 

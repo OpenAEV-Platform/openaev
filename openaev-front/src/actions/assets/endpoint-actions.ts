@@ -65,25 +65,14 @@ export const bulkReplaceAssetMarkings = (input: AssetBulkReplaceMarkingsInput) =
   return simplePutCall('/api/assets/markings/bulk', input);
 };
 
-// The backend's EndpointOverviewOutput now also carries the AI target connection metadata and the
-// asset's markings; until the API types are regenerated (needs a backend restart) they are
-// declared here so the page can render them. Regenerating later makes these redundant but
-// harmless.
-export type AssetOverview = EndpointOverviewOutput & {
-  ai_target_provider?: string;
-  ai_target_modality?: string;
-  ai_target_endpoint?: string;
-  ai_target_model?: string;
-  ai_target_system_prompt?: string;
-  asset_markings?: string[];
-};
-
+// Generic asset overview for the unified detail page: returns any asset type with its
+// category-relevant fields (endpoints keep agents/platform; AI targets expose connection metadata).
 // Plain read backing the query cache: no store dispatch, no toast (the query cache notifies), and
 // cancellable through the query's signal.
 export const getAssetOverview = ({ assetId, signal }: {
   assetId: string;
   signal?: AbortSignal;
-}): Promise<AssetOverview> =>
+}): Promise<EndpointOverviewOutput> =>
   simpleCall(`/api/assets/${assetId}`, { signal }, false).then(response => response.data);
 
 // "Injects played" for the asset detail page: every inject (atomic testing or simulation inject)

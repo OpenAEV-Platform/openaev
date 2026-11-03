@@ -1,8 +1,9 @@
 import { queryOptions } from '@tanstack/react-query';
 
+import { type EndpointOverviewOutput } from '../../utils/api-types';
 import { ENTITY_TYPES } from '../../utils/query/entityChange';
 import { liveMeta } from '../../utils/query/live';
-import { type AssetOverview, getAssetOverview } from './endpoint-actions';
+import { getAssetOverview } from './endpoint-actions';
 
 // Every parameter of a query is part of its key.
 export const assetKeys = {
@@ -18,9 +19,11 @@ export const assetQueries = {
       assetId,
       signal,
     }),
-    // Refetched when the asset, one of its agents or one of its groups changes. A deleted asset
-    // answers 404: the page shows it as deleted.
-    meta: liveMeta<AssetOverview>({
+    // Refetched when the asset or one of its agents changes, and on any asset group change: group
+    // membership is owned by the group (static assets, dynamic filter), so joining a group only
+    // streams a change of that group. A deleted asset answers 404: the page shows it as deleted.
+    meta: liveMeta<EndpointOverviewOutput>({
+      watch: [ENTITY_TYPES.ASSET_GROUPS],
       refs: asset => [
         {
           type: ENTITY_TYPES.ASSETS,
@@ -29,10 +32,6 @@ export const assetQueries = {
         ...asset.asset_agents.map(agent => ({
           type: ENTITY_TYPES.AGENTS,
           id: agent.agent_id,
-        })),
-        ...(asset.asset_asset_groups ?? []).map(group => ({
-          type: ENTITY_TYPES.ASSET_GROUPS,
-          id: group.asset_group_id,
         })),
       ],
     }),
