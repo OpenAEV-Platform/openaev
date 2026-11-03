@@ -113,7 +113,7 @@ class OrganizationExportIsolationTest extends IntegrationTest {
     Organization foreignOrganization = seedOrganization(foreignTenant, "foreign");
 
     User player = UserFixture.getUser("Player", "Shared", prefix + "@filigran.io");
-    player.setOrganization(foreignOrganization);
+    player.setOrganizationForTenant(foreignTenant.getId(), foreignOrganization);
     player = userComposer.forUser(player).persist().get();
     tenantRepository.addUserToTenant(player.getId(), ownerTenant.getId());
     tenantRepository.addUserToTenant(player.getId(), foreignTenant.getId());

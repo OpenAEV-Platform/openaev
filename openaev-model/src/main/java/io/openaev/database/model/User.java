@@ -34,7 +34,7 @@ import org.hibernate.annotations.UuidGenerator;
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Player.tags-organization",
-      attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("organization")})
+      attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("organizations")})
 })
 public class User implements Base {
 
@@ -178,14 +178,65 @@ public class User implements Base {
   @Schema(description = "Update date of the user", accessMode = Schema.AccessMode.READ_ONLY)
   private Instant updatedAt = now();
 
-  @Setter
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "user_organization")
-  @JsonSerialize(using = MonoIdSerializer.class)
+  /**
+   * A user is platform-level while an organization belongs to one tenant, so a user holds at most
+   * one organization per tenant. Never mutate this set directly: go through {@link
+   * #setOrganizationForTenant(String, Organization)}, the only place that keeps that invariant.
+   */
+  @ManyToMany(fetch = FetchType.LAZY)
+  @JoinTable(
+      name = "users_organizations",
+      joinColumns = @JoinColumn(name = "user_id"),
+      inverseJoinColumns = @JoinColumn(name = "organization_id"))
+  @Fetch(FetchMode.SUBSELECT)
+  @JsonIgnore
+  @Getter(NONE)
+  private Set<Organization> organizations = new HashSet<>();
+
+  /**
+   * Serialized as {@code user_organization}: the single organization of the user in the current
+   * tenant, or {@code null} when the user has none there (or when the organization is out of the
+   * caller's tenant scope).
+   */
   @JsonProperty("user_organization")
-  @Queryable(dynamicValues = true, filterable = true, sortable = true, path = "organization.id")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @Queryable(dynamicValues = true, filterable = true, path = "organizations.id")
   @Schema(description = "Organization ID of the user", type = "string")
-  private Organization organization;
+  public Organization getOrganization() {
+    return organizationOfTenant(TenantContext.getCurrentTenant());
+  }
+
+  /**
+   * Returns the organization the user holds in the given tenant, or {@code null}.
+   *
+   * @param tenantId the tenant the organization must belong to
+   */
+  public Organization organizationOfTenant(final String tenantId) {
+    if (tenantId == null) {
+      return null;
+    }
+    return organizations.stream()
+        .filter(org -> org.getTenant() != null && tenantId.equals(org.getTenant().getId()))
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * Sets the organization of the user in the given tenant. Organizations of the other tenants are
+   * left untouched, which is the whole point of the many-to-many: linking a user in one tenant must
+   * never unlink it in another.
+   *
+   * @param tenantId the tenant whose organization is replaced
+   * @param organization the new organization of that tenant, or {@code null} to clear it
+   */
+  public void setOrganizationForTenant(final String tenantId, final Organization organization) {
+    Objects.requireNonNull(tenantId, "tenantId must not be null");
+    organizations.removeIf(
+        org -> org.getTenant() != null && tenantId.equals(org.getTenant().getId()));
+    if (organization != null) {
+      organizations.add(organization);
+    }
+  }
 
   @Setter
   @Column(name = "user_admin")

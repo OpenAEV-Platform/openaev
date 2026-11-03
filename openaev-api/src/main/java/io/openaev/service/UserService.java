@@ -159,7 +159,10 @@ public class UserService {
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    // A tenant creator sets the organization itself, once it knows its tenant.
+    if (scope == UserCreationScope.PLATFORM) {
+      applyPlatformOrganization(user, input.organizationId());
+    }
     user.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
@@ -247,7 +250,7 @@ public class UserService {
                 spec,
                 specCount,
                 pageable,
-                (cq, root) -> UserQueryHelper.select(cb, cq, root),
+                (cq, root) -> UserQueryHelper.selectForPlatform(cb, cq, root),
                 UserQueryHelper::executionWithTenants),
         searchPaginationInput,
         User.class);
@@ -269,6 +272,7 @@ public class UserService {
             : List.of();
     PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
     applyProfile(existing, input);
+    applyPlatformOrganization(existing, input.organizationId());
     existing.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(
@@ -305,7 +309,19 @@ public class UserService {
     user.setPhone2(input.phone2());
     user.setPgpKey(input.pgpKey());
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+  }
+
+  /**
+   * Links the user to an organization from the platform level, in the tenant that organization
+   * belongs to: organizations are tenant-level, so a user keeps the ones it holds in other tenants.
+   * An empty value changes nothing, since the platform level has no tenant whose organization it
+   * could clear.
+   */
+  private void applyPlatformOrganization(User user, String organizationId) {
+    Organization organization = referenceResolver.resolve(organizationId, Organization.class);
+    if (organization != null) {
+      user.setOrganizationForTenant(organization.getTenant().getId(), organization);
+    }
   }
 
   /**

@@ -46,7 +46,7 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     Tag tag2 = tagRepository.save(TagFixture.getTagWithText("tag2"));
 
     User user = UserFixture.getUser("John", "Doe", "player@test.com");
-    user.setOrganization(organization);
+    user.setOrganizationForTenant(organization.getTenant().getId(), organization);
     user.setTags(Set.of(tag1, tag2));
     User savedUser = userRepository.save(user);
     tenantRepository.addUserToTenant(savedUser.getId(), TenantContext.getCurrentTenant());

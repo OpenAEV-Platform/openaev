@@ -56,7 +56,7 @@ public class Organization implements TenantBase {
   @Queryable(sortable = true)
   private Instant updatedAt = now();
 
-  @OneToMany(mappedBy = "organization", fetch = FetchType.LAZY)
+  @ManyToMany(mappedBy = "organizations", fetch = FetchType.LAZY)
   @JsonIgnore
   private List<User> users = new ArrayList<>();
 

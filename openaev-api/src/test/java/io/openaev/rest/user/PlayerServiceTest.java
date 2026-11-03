@@ -132,7 +132,7 @@ class PlayerServiceTest extends IntegrationTest {
       organizationComposer.forOrganization(newOrg).persist();
 
       User existingUser = UserFixture.getUserWithDefaultEmail();
-      existingUser.setOrganization(oldOrg);
+      existingUser.setOrganizationForTenant(oldOrg.getTenant().getId(), oldOrg);
       userComposer.forUser(existingUser).persist();
 
       PlayerInput playerInput = new PlayerInput();

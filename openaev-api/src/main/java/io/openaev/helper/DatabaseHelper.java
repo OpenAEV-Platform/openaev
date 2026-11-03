@@ -4,6 +4,7 @@ import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.hasLength;
 
 import io.openaev.database.model.Base;
+import io.openaev.database.model.Organization;
 import io.openaev.rest.exception.ElementNotFoundException;
 import java.util.Optional;
 import org.springframework.data.repository.CrudRepository;
@@ -21,6 +22,28 @@ import org.springframework.data.repository.CrudRepository;
 public final class DatabaseHelper {
 
   private DatabaseHelper() {}
+
+  /**
+   * Resolves the organization a user is being linked to in a tenant.
+   *
+   * <p>A user holds one organization per tenant, so an organization of another tenant is never a
+   * valid target: it resolves to {@code null}, exactly like an unknown id.
+   *
+   * @param organizationId the requested organization id (may be null or empty)
+   * @param tenantId the tenant the organization must belong to
+   * @param repository the organization repository
+   * @return the organization, or {@code null} when none is requested or it is not in the tenant
+   */
+  public static Organization resolveTenantOrganization(
+      String organizationId, String tenantId, CrudRepository<Organization, String> repository) {
+    if (!hasLength(organizationId)) {
+      return null;
+    }
+    return repository
+        .findById(organizationId)
+        .filter(org -> org.getTenant() != null && org.getTenant().getId().equals(tenantId))
+        .orElse(null);
+  }
 
   /**
    * Updates an entity relationship, handling the case where the relation may change or be removed.

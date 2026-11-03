@@ -3,13 +3,14 @@ package io.openaev.rest.user;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
+import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -76,8 +77,10 @@ public class MeApi extends RestBehavior {
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     user.setUpdateAttributes(input);
-    user.setOrganization(
-        updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
+    String tenantId = TenantContext.getCurrentTenant();
+    user.setOrganizationForTenant(
+        tenantId,
+        resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
     return hydrateUserForResponse(savedUser);

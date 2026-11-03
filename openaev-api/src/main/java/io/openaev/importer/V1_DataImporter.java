@@ -1134,7 +1134,8 @@ public class V1_DataImporter implements Importer {
     user.setCity(getNodeValue(jsonNode.get("user_city")));
     Base userOrganization = baseIds.get(jsonNode.get("user_organization").textValue());
     if (userOrganization != null) {
-      user.setOrganization((Organization) userOrganization);
+      Organization organization = (Organization) userOrganization;
+      user.setOrganizationForTenant(organization.getTenant().getId(), organization);
     }
     user.setTags(
         resolveJsonIds(jsonNode, "user_tags").stream()

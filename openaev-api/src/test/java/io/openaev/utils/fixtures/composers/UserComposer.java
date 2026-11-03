@@ -1,7 +1,10 @@
 package io.openaev.utils.fixtures.composers;
 
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
@@ -37,7 +40,11 @@ public class UserComposer extends ComposerBase<User> {
 
     public Composer withOrganization(OrganizationComposer.Composer organizationComposer) {
       this.organizationComposer = organizationComposer;
-      this.user.setOrganization(organizationComposer.get());
+      Organization organization = organizationComposer.get();
+      if (organization.getTenant() == null) {
+        organization.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+      }
+      this.user.setOrganizationForTenant(organization.getTenant().getId(), organization);
       return this;
     }
 

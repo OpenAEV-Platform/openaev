@@ -92,7 +92,7 @@ class OrganizationUserOutputIsolationTest extends IntegrationTest {
   /** Seeds a player belonging to {@code organization}, member of every given tenant. */
   private User seedPlayer(Organization organization, Tenant... memberships) {
     User player = UserFixture.getUser("Player", "Shared", prefix + "@filigran.io");
-    player.setOrganization(organization);
+    player.setOrganizationForTenant(organization.getTenant().getId(), organization);
     player = userComposer.forUser(player).persist().get();
     for (Tenant tenant : memberships) {
       tenantRepository.addUserToTenant(player.getId(), tenant.getId());
@@ -247,8 +247,8 @@ class OrganizationUserOutputIsolationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Caller member of B: the player's organization of B is exposed")
-    void given_organizationInCallerScope_should_readUserWithOrganization() throws Exception {
+    @DisplayName("Caller member of B: organizations are tenant-level, none is exposed")
+    void given_organizationInCallerScope_should_readUserWithoutOrganization() throws Exception {
       // Arrange
       tenantHelper.attachCurrentUserToTenant(tenantB.getId());
       Organization organizationB = seedOrganization(tenantB);
@@ -258,7 +258,7 @@ class OrganizationUserOutputIsolationTest extends IntegrationTest {
       JsonNode user = response(get(PLATFORM_USERS_URI + "/" + player.getId()));
 
       // Assert
-      assertOrganization(user, organizationB);
+      assertNoOrganization(user, organizationB);
     }
   }
 }

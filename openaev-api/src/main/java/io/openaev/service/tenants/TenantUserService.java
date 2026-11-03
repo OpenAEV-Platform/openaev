@@ -38,6 +38,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -68,6 +69,8 @@ public class TenantUserService implements DependenciesManager {
       return toOutput(reloaded);
     }
     User user = userService.createUser(input, UserCreationScope.TENANT);
+    applyOrganization(user, input.organizationId());
+    userRepository.save(user);
     attachToTenant(user.getId(), tenantId);
     userService.assignAutoAssignGroups(user.getId(), List.of(tenantId));
     // Reload user after @Modifying queries cleared the persistence context
@@ -143,7 +146,22 @@ public class TenantUserService implements DependenciesManager {
     ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
     PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
     userService.applyProfile(existing, input);
+    applyOrganization(existing, input.organizationId());
     return toOutput(userRepository.save(existing));
+  }
+
+  /**
+   * Sets the organization the user holds in the current tenant, leaving the ones it holds in other
+   * tenants untouched. An empty value clears the current tenant's organization.
+   */
+  private void applyOrganization(User user, String organizationId) {
+    String tenantId = tenantId();
+    Organization organization =
+        StringUtils.hasText(organizationId) ? organizationService.findById(organizationId) : null;
+    if (organization != null && !tenantId.equals(organization.getTenant().getId())) {
+      organization = null;
+    }
+    user.setOrganizationForTenant(tenantId, organization);
   }
 
   // -- OUTPUT --

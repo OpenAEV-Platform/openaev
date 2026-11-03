@@ -2,7 +2,7 @@ package io.openaev.rest.user;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.specification.UserSpecification.inTenant;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
+import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.user.PlayerQueryHelper.execution;
@@ -195,8 +195,10 @@ public class PlayerService {
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    user.setOrganization(
-        updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
+    String tenantId = TenantContext.getCurrentTenant();
+    user.setOrganizationForTenant(
+        tenantId,
+        resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
     User savedUser = userRepository.save(user);
     userService.createUserToken(savedUser);
     tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
@@ -228,9 +230,10 @@ public class PlayerService {
               .toList();
       existingUser.setTeams(fromIterable(teamRepository.findAllById(teams)));
       if (StringUtils.hasText(input.getOrganizationId())) {
-        existingUser.setOrganization(
-            updateRelation(
-                input.getOrganizationId(), existingUser.getOrganization(), organizationRepository));
+        String tenantId = TenantContext.getCurrentTenant();
+        existingUser.setOrganizationForTenant(
+            tenantId,
+            resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
       }
       tenantUserService.attachToTenant(existingUser.getId(), TenantContext.getCurrentTenant());
       return userRepository.save(existingUser);
@@ -238,9 +241,11 @@ public class PlayerService {
       User newUser = new User();
       newUser.setUpdateAttributes(input);
       newUser.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-      newUser.setOrganization(
-          updateRelation(
-              input.getOrganizationId(), newUser.getOrganization(), organizationRepository));
+      String newUserTenantId = TenantContext.getCurrentTenant();
+      newUser.setOrganizationForTenant(
+          newUserTenantId,
+          resolveTenantOrganization(
+              input.getOrganizationId(), newUserTenantId, organizationRepository));
       newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
       User savedUser = userRepository.save(newUser);
       userService.createUserToken(savedUser);

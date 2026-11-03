@@ -1,13 +1,14 @@
 package io.openaev.rest.user;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
+import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
@@ -137,8 +138,10 @@ public class PlayerApi extends RestBehavior {
     user.setPgpKey(input.getPgpKey());
     user.setCountry(input.getCountry());
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    user.setOrganization(
-        updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
+    String tenantId = TenantContext.getCurrentTenant();
+    user.setOrganizationForTenant(
+        tenantId,
+        resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
   }
 
   @DeleteMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
