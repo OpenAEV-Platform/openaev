@@ -908,12 +908,46 @@ public class HealthCheckUtilsTest {
 
     @Test
     void given_scope_team_and_all_teams_audience_should_not_warn() {
-      // -- PREPARE -- all-teams mode targets every scenario team, i.e. every scope team.
+      // -- PREPARE -- in a chained workflow, all-teams mode targets the whole scope audience.
       Workflow workflow = new Workflow();
       workflow.setWorkflowScopeRules(
           List.of(
               buildScopeRule(
                   ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.TEAM_ID, "team-1")));
+      workflow.setSteps(List.of(buildStep(EMAIL_STEP_WITH_ALL_TEAMS_DATA)));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+
+      // -- ASSERT --
+      assertTrue(checks.isEmpty());
+    }
+
+    @Test
+    void given_all_teams_step_and_technical_only_scope_should_return_missing_audience_error() {
+      // -- PREPARE -- all-teams mode targets the scope audience, and the scope has no team/player.
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(
+          List.of(
+              buildScopeRule(
+                  ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.ASSET_ID, "asset-1")));
+      workflow.setSteps(List.of(buildStep(EMAIL_STEP_WITH_ALL_TEAMS_DATA)));
+
+      // -- EXECUTE --
+      List<HealthCheck> checks = healthCheckUtils.runScopeDefinitionChecks(workflow);
+
+      // -- ASSERT --
+      assertTrue(hasDetail(checks, HealthCheck.Detail.MISSING_AUDIENCE_TARGETS));
+    }
+
+    @Test
+    void given_all_teams_step_and_player_only_scope_should_not_warn() {
+      // -- PREPARE -- all-teams mode targets the whole scope audience, individual players included.
+      Workflow workflow = new Workflow();
+      workflow.setWorkflowScopeRules(
+          List.of(
+              buildScopeRule(
+                  ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleValueType.PLAYER_ID, "player-1")));
       workflow.setSteps(List.of(buildStep(EMAIL_STEP_WITH_ALL_TEAMS_DATA)));
 
       // -- EXECUTE --

@@ -550,18 +550,17 @@ public class HealthCheckUtils {
    *       scope (no explicit assets/targets in its drawer, no target-feeding mapper) but the
    *       allowlist holds no technical entry;
    *   <li>{@code MISSING_AUDIENCE_TARGETS} (error) when at least one tabletop step relies on the
-   *       scope (no explicit audience in its drawer, no target-feeding mapper) but the allowlist
+   *       scope (no explicit audience in its drawer and no target-feeding mapper, or all-teams
+   *       mode, which targets the whole scope audience in a chained workflow) but the allowlist
    *       holds no team/player entry;
    *   <li>{@code INEFFECTIVE_TECHNICAL_TARGETS} (warning) when the allowlist holds technical
    *       entries but the workflow has no technical step: the scope fan-out never consumes them;
    *   <li>{@code INEFFECTIVE_AUDIENCE_TARGETS} (warning) when the allowlist holds team/player
-   *       entries that no tabletop step uses. Team entries are used by a step falling back to the
-   *       scope, and by a step whose drawer audience picks one of them or all teams: the drawer of
-   *       a chained scenario only offers its scope teams. Player entries are only used by the
-   *       fallback, which steps with an explicit drawer audience or a mapper-fed audience skip.
-   *       Technical entries differ: the per-asset fan-out consumes them for every technical step,
-   *       explicit drawer targets or not, so only a fully technical-step-less workflow makes them
-   *       ineffective.
+   *       entries that no tabletop step uses. Team and player entries are used by a step relying on
+   *       the scope (see above); team entries also by a step whose drawer audience picks one of
+   *       them: the drawer of a chained scenario only offers its scope teams. Technical entries
+   *       differ: the per-asset fan-out consumes them for every technical step, explicit drawer
+   *       targets or not, so only a fully technical-step-less workflow makes them ineffective.
    * </ul>
    *
    * <p>Only MAPPER conditions that feed actual execution targets (assets, manual targets, raw
@@ -620,7 +619,7 @@ public class HealthCheckUtils {
     boolean technicalStepNeedsScope = false;
     boolean audienceStepNeedsScope = false;
     // The teams a chained scenario offers in the Configure-action drawer are its scope teams, so an
-    // explicit drawer audience picking one of them (or all-teams mode) consumes the scope too.
+    // explicit drawer audience picking one of them consumes the scope too.
     boolean audienceStepUsesScopeTeams = false;
     for (Step step : steps) {
       List<Condition> stepConditions =
@@ -633,17 +632,18 @@ public class HealthCheckUtils {
                     && !stepTargetingService.hasTargetFeedingMapperConditions(
                         step, stepConditions, true));
       } else {
+        // All-teams mode targets the whole scope audience (teams and players) at execution.
         audienceStepNeedsScope =
             audienceStepNeedsScope
+                || stepTargetingService.targetsAllTeams(step)
                 || (!stepTargetingService.hasExplicitAudience(step)
                     && !stepTargetingService.hasTargetFeedingMapperConditions(
                         step, stepConditions, false));
         audienceStepUsesScopeTeams =
             audienceStepUsesScopeTeams
                 || (!scopeTeamIds.isEmpty()
-                    && (stepTargetingService.targetsAllTeams(step)
-                        || stepTargetingService.getExplicitAudienceTeamIds(step).stream()
-                            .anyMatch(scopeTeamIds::contains)));
+                    && stepTargetingService.getExplicitAudienceTeamIds(step).stream()
+                        .anyMatch(scopeTeamIds::contains));
       }
     }
 
@@ -683,8 +683,8 @@ public class HealthCheckUtils {
                 HealthCheck.Status.WARNING,
                 now()));
       }
-      // Scope teams are consumed by the fallback or by an explicit drawer audience picking them;
-      // scope players only by the fallback, which explicit-drawer and mapper-fed steps skip.
+      // Scope teams are consumed by a step relying on the scope (fallback or all-teams mode) or by
+      // an explicit drawer audience picking them; scope players only by a step relying on it.
       boolean scopeTeamsIgnored =
           !scopeTeamIds.isEmpty() && !audienceStepNeedsScope && !audienceStepUsesScopeTeams;
       boolean scopePlayersIgnored = hasPlayerEntries && !audienceStepNeedsScope;

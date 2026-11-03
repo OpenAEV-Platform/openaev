@@ -177,8 +177,8 @@ public class StepTargetingService {
   }
 
   /**
-   * Returns {@code true} when the step data is in all-teams mode: the inject targets every team of
-   * the scenario/simulation, which for a chained workflow are the teams of its scope.
+   * Returns {@code true} when the step data is in all-teams mode. In a chained workflow the inject
+   * then targets the whole scope audience: its valid teams and individual players.
    */
   public boolean targetsAllTeams(Step step) {
     JsonObject data = parseStepData(step);

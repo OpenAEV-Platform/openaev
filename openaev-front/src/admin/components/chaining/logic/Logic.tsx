@@ -147,6 +147,12 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
     void syncShape({ force: true });
   }, [syncShape]);
 
+  // Deleting or (un)linking nodes in the graph changes the workflow shape: re-sync right away so the
+  // header healthchecks refresh without waiting for the next poll (which stops with the tab).
+  const handleGraphMutated = useCallback(() => {
+    void syncShape({ force: true });
+  }, [syncShape]);
+
   const handleOpenDrawer = useCallback(() => {
     setCompatibleActionFilter(undefined);
     setLinkToEventId(undefined);
@@ -236,6 +242,7 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
                   onEditEvent={handleEditEvent}
                   onAddActionToEvent={handleAddActionToEvent}
                   onEventMetasChange={setEventMetas}
+                  onGraphMutated={handleGraphMutated}
                   readOnly={readOnly}
                 />
                 {!readOnly && (
