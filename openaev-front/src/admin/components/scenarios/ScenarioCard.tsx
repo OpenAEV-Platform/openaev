@@ -1,11 +1,13 @@
-import { Button, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import MarketplaceCard from '../../../components/common/marketplace/MarketplaceCard';
+import MarketplaceCardBanner from '../../../components/common/marketplace/MarketplaceCardBanner';
 import { useFormatter } from '../../../components/i18n';
+import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import { type CatalogItemOutput, type Domain } from '../../../utils/api-types';
 import handle from '../../../utils/period/Period';
@@ -89,16 +91,36 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
               : [])]}
           />
         )}
+        // DS Card anatomy, as on the Threat Arsenal cards (Figma 8467:4560), with the content this card
+        // already had: "Update available" in the banner, version and last run in the info row, status
+        // and platforms bottom left, Launch right.
+        height="100%"
+        banner={updateAvailable && catalogItem && (
+          <MarketplaceCardBanner
+            tone="info"
+            message={t('Update available')}
+            action={canManage
+              ? {
+                  label: t('Update'),
+                  onClick: () => setUpdating(true),
+                }
+              : undefined}
+          />
+        )}
+        info={[
+          {
+            label: t('Version'),
+            value: version ? `v${version}` : '–',
+          },
+          {
+            label: t('Last run'),
+            value: lastRunAt ? nsd(lastRunAt) : t('Never'),
+          },
+        ]}
         chips={null}
         platforms={scenario.scenario_platforms ?? []}
-        footerRight={(
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-          >
-            {updateAvailable && <Chip label={t('Update available')} severity="medium" />}
+        metaStart={(
+          <>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="inline-flex">
@@ -107,15 +129,12 @@ const ScenarioCard: FunctionComponent<Props> = ({ scenario, catalogItem, onDelet
               </TooltipTrigger>
               <TooltipContent>{recurrence ?? t('Not scheduled')}</TooltipContent>
             </Tooltip>
-          </div>
+            {(scenario.scenario_platforms ?? []).slice(0, 3).map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
+          </>
         )}
         action={canLaunch && (
           <Button size="sm" onClick={launch}>{t('Launch')}</Button>
         )}
-        caption={[
-          version ? `v${version}` : null,
-          lastRunAt ? `${t('Last run')} ${nsd(lastRunAt)}` : t('Never run'),
-        ].filter(Boolean).join(' · ')}
       />
     </>
   );

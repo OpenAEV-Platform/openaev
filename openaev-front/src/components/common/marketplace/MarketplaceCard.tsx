@@ -133,8 +133,9 @@ const MarketplaceCard: FunctionComponent<Props> = ({
         chips={chips}
         platforms={platforms}
         target={target}
-        caption={caption}
-        footerRight={(footerRight || action) && (
+        // A card on the DS anatomy has no caption: the list shows its info values under the name.
+        caption={caption ?? (info?.length ? info.map(item => item.value).filter(value => value !== '–').join(' · ') : undefined)}
+        footerRight={(footerRight || statusRow || action) && (
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -149,7 +150,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
               overflow: 'hidden',
             }}
             >
-              {footerRight}
+              {footerRight ?? statusRow}
             </div>
             <div style={{
               display: 'flex',
@@ -418,12 +419,13 @@ const MarketplaceCard: FunctionComponent<Props> = ({
               {badge}
               {chips}
             </div>
+            {/* On the DS anatomy the platforms are in the footer strip (metaStart); the list still reads them here. */}
             <div>
-              {target}
-              {platforms.slice(0, 4).map(platform => (
+              {!metaStart && target}
+              {!metaStart && platforms.slice(0, 4).map(platform => (
                 <PlatformIcon key={platform} width={16} platform={platform} tooltip />
               ))}
-              {platforms.length > 4 && (
+              {!metaStart && platforms.length > 4 && (
                 <Text variant="content-caption" className="text-default-secondary">
                   {`+${platforms.length - 4}`}
                 </Text>

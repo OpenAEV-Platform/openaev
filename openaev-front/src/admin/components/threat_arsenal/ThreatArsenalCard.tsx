@@ -6,6 +6,7 @@ import { type FunctionComponent, type ReactNode, useMemo } from 'react';
 import type { AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import MarketplaceCard from '../../../components/common/marketplace/MarketplaceCard';
+import MarketplaceCardBanner from '../../../components/common/marketplace/MarketplaceCardBanner';
 import usePlatformVersion from '../../../components/common/marketplace/usePlatformVersion';
 import { useFormatter } from '../../../components/i18n';
 import PlatformIcon from '../../../components/PlatformIcon';
@@ -18,7 +19,6 @@ import { isBuiltinConnector } from '../integrations/common/builtinConnectorDescr
 import { approvalStatusSeverity, displayedApprovalStatus, NEW_ACTION_HINT, NEW_VERSION_HINT } from './approval/approvalStatusUtils';
 import { PAYLOAD_ORIGIN_LABELS, payloadOrigin } from './payloadOrigin';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
-import ThreatArsenalCardBanner from './ThreatArsenalCardBanner';
 import { actionDomains } from './threatArsenalDomainSections';
 import { getStatusHint, getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from './threatArsenalStatusUtils';
 
@@ -138,7 +138,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
     banner = null;
   } else if (action.action_payload?.payload_revoked) {
     banner = (
-      <ThreatArsenalCardBanner
+      <MarketplaceCardBanner
         tone="critical"
         message={t('Injects using it are skipped')}
         link={{
@@ -149,7 +149,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
     );
   } else if (olderInUse > 0) {
     banner = (
-      <ThreatArsenalCardBanner
+      <MarketplaceCardBanner
         tone="warning"
         message={olderInUse === 1 ? t('1 inject runs an older version') : t('{count} injects run an older version', { count: String(olderInUse) })}
         link={{
@@ -234,7 +234,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
           <HintChip label={approvalState} hint={stateHint} severity={approvalStatusSeverity(approvalStatus)} maxWidth={120} />
         </>
       )}
-      platforms={[]}
+      platforms={action.action_targets_teams ? [] : action.action_platforms ?? []}
       // Figma Card footer (DS "Threat arsenal" in situ): statuses and platforms bottom left, the action
       // and the menu bottom right, on the full-bleed strip.
       metaStart={(

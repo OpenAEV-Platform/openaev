@@ -62,7 +62,7 @@ const ThreatArsenalCatalogCard: FunctionComponent<Props> = ({ item, installed, i
         },
       ]}
       chips={null}
-      platforms={[]}
+      platforms={item.catalog_item_platforms ?? []}
       statusRow={(installed || olderInstalled.length > 0) && (
         installed
           ? <Chip label={t('Installed')} severity="low" />
