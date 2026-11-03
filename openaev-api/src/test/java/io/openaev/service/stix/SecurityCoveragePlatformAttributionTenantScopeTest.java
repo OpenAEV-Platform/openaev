@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.BaseInjectExpectation;
@@ -53,7 +54,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -61,12 +63,20 @@ import org.springframework.transaction.annotation.Transactional;
  * built in (assets is a v2 table, the security coverage job builds each bundle under its tenant's
  * {@link TxCtx}). A result whose source asset is another tenant's security platform must therefore
  * never surface in {@code coverage_platforms} nor as an identity of the bundle.
+ *
+ * <p>The class runs with the production list of isolated tables (which holds {@code assets}), so
+ * the scope is exercised the way production applies it.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 @WithMockUser(isAdmin = true)
 @DisplayName("coverage_platforms only references security platforms of the bundle's tenant")
 class SecurityCoveragePlatformAttributionTenantScopeTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   private static final String TECHNIQUE_EXTERNAL_ID = "T9201";
 
