@@ -1,4 +1,4 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import moment from 'moment-timezone';
@@ -57,6 +57,22 @@ interface Props {
  * expose the instance status plus the migrate flow for legacy external
  * connectors.
  */
+// What the health disk means: built-in connectors run inside the platform,
+// the others report a heartbeat.
+const healthTooltip = (
+  { builtIn, lastSeen }: ReturnType<typeof computeConnectorLiveliness>,
+  t: (key: string) => string,
+  nsdt: (date: string) => string,
+): string => {
+  if (builtIn) {
+    return t('Runs inside the platform');
+  }
+  if (lastSeen) {
+    return `${t('Last Seen')}: ${nsdt(lastSeen)}`;
+  }
+  return t('Never updated');
+};
+
 const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   const theme = useTheme();
   const dispatch = useAppDispatch();
@@ -179,42 +195,23 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
   // Uniform status on every card: a glowing health disk (green = started and
   // heartbeat within the 2-minute threshold, red otherwise), the last-seen
   // date in standard color, and a compact Started / Stopped chip.
-  const renderFooterAction = (item: ConnectorItem) => {
-    const deployed = metaById.get(item.id);
-    if (!deployed) return null;
-    const { connector } = deployed;
-    // A resolvable catalog entry is required to migrate: the drawer needs the
-    // catalog id and configuration schema to build the managed instance. Key the
-    // visibility on the entry actually resolved from the catalog list (not just
-    // the connector's embedded catalog ref) so a rendered button can never be a
-    // no-op click.
-    const canMigrate = connector.isExternal && connector.connectorInstance == null
-      && isXtmComposerUp && deployed.catalogConnector != null;
-    const { started, lastSeen, healthy, builtIn } = computeConnectorLiveliness(connector);
+  // Uniform status: a glowing health disk (green = started and heartbeat
+  // within the 2-minute threshold, red otherwise), the last-seen date and a
+  // compact Started / Stopped chip. Cards print the date as library compact
+  // text (DS 2026 footer), lines keep their body text.
+  const renderHealth = (connector: ConnectorOutput, view: 'card' | 'line') => {
+    const liveliness = computeConnectorLiveliness(connector);
+    const { started, lastSeen, healthy } = liveliness;
     const diskColor = healthy ? theme.palette.success.main : theme.palette.error.main;
-    let diskTooltip: string;
-    if (builtIn) {
-      diskTooltip = t('Runs inside the platform');
-    } else if (lastSeen) {
-      diskTooltip = `${t('Last Seen')}: ${nsdt(lastSeen)}`;
-    } else {
-      diskTooltip = t('Never updated');
-    }
+    const diskTooltip = healthTooltip(liveliness, t, nsdt);
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: theme.spacing(1),
-        minWidth: 0,
-      }}
-      >
-        {canMigrate && <MigrateButton onMigrateBtnClick={e => onMigrateBtnClick(e, deployed)} />}
+      <>
         <Tooltip>
           <TooltipTrigger asChild>
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: theme.spacing(0.75),
+              gap: theme.spacing(view === 'card' ? 1 : 0.75),
               minWidth: 0,
             }}
             >
@@ -227,7 +224,12 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
                 boxShadow: `0 0 6px ${diskColor}`,
               }}
               />
-              {lastSeen && (
+              {lastSeen && view === 'card' && (
+                <Text variant="content-compact" className="text-default-primary truncate">
+                  {moment(lastSeen).fromNow()}
+                </Text>
+              )}
+              {lastSeen && view === 'line' && (
                 <Typography
                   variant="body2"
                   sx={{
@@ -246,8 +248,44 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
           {diskTooltip && <TooltipContent>{diskTooltip}</TooltipContent>}
         </Tooltip>
         <ConnectorStatus variant={started ? 'started' : 'stopped'} />
+      </>
+    );
+  };
+
+  // Card: the health sits in the footer status slot (renderFooterStatus), the
+  // action slot only keeps the migrate button. Line: everything on the right.
+  const renderFooterAction = (item: ConnectorItem, view: 'card' | 'line') => {
+    const deployed = metaById.get(item.id);
+    if (!deployed) return null;
+    const { connector } = deployed;
+    // A resolvable catalog entry is required to migrate: the drawer needs the
+    // catalog id and configuration schema to build the managed instance. Key the
+    // visibility on the entry actually resolved from the catalog list (not just
+    // the connector's embedded catalog ref) so a rendered button can never be a
+    // no-op click.
+    const canMigrate = connector.isExternal && connector.connectorInstance == null
+      && isXtmComposerUp && deployed.catalogConnector != null;
+    const migrate = canMigrate ? <MigrateButton onMigrateBtnClick={e => onMigrateBtnClick(e, deployed)} /> : null;
+    if (view === 'card') {
+      return migrate;
+    }
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: theme.spacing(1),
+        minWidth: 0,
+      }}
+      >
+        {migrate}
+        {renderHealth(connector, 'line')}
       </div>
     );
+  };
+
+  const renderFooterStatus = (item: ConnectorItem) => {
+    const deployed = metaById.get(item.id);
+    return deployed ? renderHealth(deployed.connector, 'card') : null;
   };
 
   return (
@@ -255,6 +293,7 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
       <ConnectorMarketplace
         items={items}
         renderFooterAction={renderFooterAction}
+        renderFooterStatus={renderFooterStatus}
         searchPlaceholder={`${t('Search deployed integrations')}...`}
       />
       <CreateConnectorInstanceDrawer

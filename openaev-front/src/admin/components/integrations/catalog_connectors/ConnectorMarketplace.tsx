@@ -1,10 +1,8 @@
-import { Key, OnlinePredictionOutlined, SmartButtonOutlined, TerminalOutlined } from '@mui/icons-material';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactNode, useMemo, useState } from 'react';
 
 import CardGrid from '../../../../components/common/card/CardGrid';
-import { useFormatter } from '../../../../components/i18n';
 import {
   CONNECTOR_TYPE_ORDER,
   type ConnectorItem,
@@ -25,6 +23,8 @@ interface Props {
   /** Right side of each card footer (deploy button, instance status...). */
   /** The view is passed on: a card's footer shares its row with the use-case chips, a line's does not. */
   renderFooterAction?: (item: ConnectorItem, view: 'card' | 'line') => ReactNode;
+  /** Left side of each card footer, before the support logo (health, last seen, status). */
+  renderFooterStatus?: (item: ConnectorItem) => ReactNode;
   searchPlaceholder?: string;
 }
 
@@ -37,9 +37,8 @@ const VIEW_STORAGE_KEY = 'integrations_marketplace_view';
  * Filter state is persisted in the URL query string (per-tab, since each tab
  * has its own URL).
  */
-const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: Props) => {
+const ConnectorMarketplace = ({ items, renderFooterAction, renderFooterStatus, searchPlaceholder }: Props) => {
   const theme = useTheme();
-  const { t } = useFormatter();
 
   const { filters, keyword, setKeyword, sort, setSort, onToggleFacet, onClearFacets } = useCatalogFilters();
   // SearchFilter is uncontrolled; bumping this key remounts it to clear its value.
@@ -66,34 +65,12 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
     [items, filters, keyword, sort],
   );
 
-  const sections = useMemo(() => {
-    const sectionMeta = {
-      COLLECTOR: {
-        label: t('Collectors'),
-        icon: OnlinePredictionOutlined,
-      },
-      INJECTOR: {
-        label: t('Injectors'),
-        icon: SmartButtonOutlined,
-      },
-      EXECUTOR: {
-        label: t('Executors'),
-        icon: TerminalOutlined,
-      },
-      SECRETS_PROVIDER: {
-        label: t('Secrets Provider'),
-        icon: Key,
-      },
-    };
-    return CONNECTOR_TYPE_ORDER
-      .map(type => ({
-        type,
-        label: sectionMeta[type].label,
-        icon: sectionMeta[type].icon,
-        items: filteredItems.filter(c => c.type === type),
-      }))
-      .filter(section => section.items.length > 0);
-  }, [filteredItems, t]);
+  // No section headers: every connector in one grid, still grouped by type
+  // (collectors, injectors, executors, secrets providers), sorted within it.
+  const orderedItems = useMemo(
+    () => CONNECTOR_TYPE_ORDER.flatMap(type => filteredItems.filter(c => c.type === type)),
+    [filteredItems],
+  );
 
   return (
     // Below md the sidebar stacks full-width above the cards instead of
@@ -145,108 +122,43 @@ const ConnectorMarketplace = ({ items, renderFooterAction, searchPlaceholder }: 
           onToggleFacet={onToggleFacet}
           onClearAll={onClearFacets}
         />
-        {sections.length === 0 && (keyword !== '' || hasActiveFacetFilters(filters)) && (
+        {orderedItems.length === 0 && (keyword !== '' || hasActiveFacetFilters(filters)) && (
           <CatalogEmptyState onResetFilters={onResetAll} />
         )}
-        {sections.map((section) => {
-          const SectionIcon = section.icon;
-          return (
-            <section
-              key={section.type}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: theme.spacing(1.5),
-              }}
-            >
-              <header style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing(1.25),
-              }}
-              >
-                <div style={{
-                  width: 28,
-                  height: 28,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: theme.shape.borderRadius,
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                }}
-                >
-                  <SectionIcon sx={{
-                    fontSize: 16,
-                    color: 'primary.main',
-                  }}
-                  />
-                </div>
-                <Typography
-                  component="h2"
-                  sx={{
-                    fontFamily: theme.typography.h1.fontFamily,
-                    fontSize: 16,
-                    fontWeight: 600,
-                    margin: 0,
-                  }}
-                >
-                  {section.label}
-                </Typography>
-                <span style={{
-                  padding: '1px 6px',
-                  borderRadius: 2,
-                  backgroundColor: alpha(theme.palette.text.primary, 0.06),
-                  fontSize: 11,
-                  fontWeight: 500,
-                  fontVariantNumeric: 'tabular-nums',
-                  color: theme.palette.text.secondary,
-                }}
-                >
-                  {section.items.length}
-                </span>
-                <div style={{
-                  flex: 1,
-                  height: 1,
-                  backgroundColor: alpha(theme.palette.text.primary, 0.05),
-                }}
-                />
-              </header>
-              {view === 'list' ? (
-                <Box
-                  sx={{
-                    'borderRadius': 1,
-                    'border': `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
-                    'backgroundColor': theme.palette.background.paper,
-                    'overflow': 'hidden',
-                    // Row dividers live here (not on the row's own sx) so they
-                    // don't depend on adjacent rows sharing an emotion class.
-                    '& [data-testid="connector-line"] + [data-testid="connector-line"]': { borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}` },
-                  }}
-                >
-                  <CatalogConnectorLinesHeader />
-                  {section.items.map(item => (
-                    <CatalogConnectorLine
-                      key={item.id}
-                      connector={item}
-                      footerAction={renderFooterAction?.(item, 'line')}
-                    />
-                  ))}
-                </Box>
-              ) : (
-                <CardGrid>
-                  {section.items.map(item => (
-                    <CatalogConnectorCard
-                      key={item.id}
-                      connector={item}
-                      footerAction={renderFooterAction?.(item, 'card')}
-                    />
-                  ))}
-                </CardGrid>
-              )}
-            </section>
-          );
-        })}
+        {orderedItems.length > 0 && view === 'list' && (
+          <Box
+            sx={{
+              'borderRadius': 1,
+              'border': `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
+              'backgroundColor': theme.palette.background.paper,
+              'overflow': 'hidden',
+              // Row dividers live here (not on the row's own sx) so they
+              // don't depend on adjacent rows sharing an emotion class.
+              '& [data-testid="connector-line"] + [data-testid="connector-line"]': { borderTop: `1px solid ${alpha(theme.palette.text.primary, 0.05)}` },
+            }}
+          >
+            <CatalogConnectorLinesHeader />
+            {orderedItems.map(item => (
+              <CatalogConnectorLine
+                key={item.id}
+                connector={item}
+                footerAction={renderFooterAction?.(item, 'line')}
+              />
+            ))}
+          </Box>
+        )}
+        {orderedItems.length > 0 && view !== 'list' && (
+          <CardGrid>
+            {orderedItems.map(item => (
+              <CatalogConnectorCard
+                key={item.id}
+                connector={item}
+                footerAction={renderFooterAction?.(item, 'card')}
+                footerStatus={renderFooterStatus?.(item)}
+              />
+            ))}
+          </CardGrid>
+        )}
       </Box>
     </Box>
   );
