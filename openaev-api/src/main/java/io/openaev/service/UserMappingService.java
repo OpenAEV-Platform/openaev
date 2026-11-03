@@ -6,6 +6,7 @@ import static org.springframework.util.StringUtils.hasText;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -40,6 +41,7 @@ public class UserMappingService {
   private final TenantRepository tenantRepository;
   private final Environment env;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
+  private final TenantMembershipCacheManager tenantMembershipCacheManager;
   public static final String ROLES_PATH_SUFFIX = "roles_path";
   public static final String GROUPS_PATH_SUFFIX = "groups_path";
 
@@ -133,7 +135,7 @@ public class UserMappingService {
     Optional<Group> existing =
         tenant == null
             ? platformGroupService.findByName(userGroup)
-            : tenantGroupService.findByName(userGroup, tenant.getId());
+            : tenantGroupService.findByNameAndTenantId(userGroup, tenant.getId());
     if (existing.isPresent()) {
       return existing;
     }
@@ -150,9 +152,10 @@ public class UserMappingService {
             : tenantGroupService.createGroup(userGroup, tenant.getId()));
   }
 
-  private static void attachTenant(User user, Tenant tenant) {
+  private void attachTenant(User user, Tenant tenant) {
     if (user.getTenants().stream().noneMatch(t -> t.getId().equals(tenant.getId()))) {
       user.getTenants().add(tenant);
+      tenantMembershipCacheManager.evict(user.getId(), tenant.getId());
     }
   }
 
