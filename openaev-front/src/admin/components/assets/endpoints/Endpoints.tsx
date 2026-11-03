@@ -1,43 +1,43 @@
 import { Checkbox } from '@filigran/design-system';
 import { CenterFocusStrongOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useEffect, useRef, useState } from 'react';
+import { type CSSProperties, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { type EndpointHelper } from '../../../../actions/assets/asset-helper';
-import { bulkDeleteAssets, bulkReplaceAssetMarkings, searchAssets } from '../../../../actions/assets/endpoint-actions';
+import { assetQueries } from '../../../../actions/assets/asset-queries';
+import { bulkDeleteAssets, bulkReplaceAssetMarkings } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
 import AssetPlatformFragment from '../../../../components/common/list/fragments/AssetPlatformFragment';
 import EndpointActiveFragment from '../../../../components/common/list/fragments/EndpointActiveFragment';
 import { initSorting } from '../../../../components/common/queryable/Page';
-import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
+import QueryableToolbar from '../../../../components/common/queryable/QueryableToolbar';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
-import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
+import usePaginatedQuery from '../../../../components/common/queryable/usePaginatedQuery';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCriticality from '../../../../components/ItemCriticality';
 import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
-import { useHelper } from '../../../../store';
-import { type AssetBulkProcessingInput, type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type AssetBulkProcessingInput, type EndpointOutput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
 import useMarkingDefinitions from '../../../../utils/hooks/useMarkingDefinitions';
 import { Can, useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
+import { ENTITY_TYPES } from '../../../../utils/query/entityChange';
+import { type LiveChange, useApplyChanges } from '../../../../utils/query/live';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFragments';
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
 import ToolBar from '../../common/ToolBar';
 import { humanizeEnum } from '../asset-categories';
-import { keepStreamedChanges, patchRowsFromStore } from '../asset-stream-values';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import PostureScoreCell from '../PostureScoreCell';
 import usePostureScores from '../usePostureScores';
@@ -62,8 +62,6 @@ const inlineStyles: Record<string, CSSProperties> = {
   asset_tags: { width: '10%' },
   asset_markings: { width: '9%' },
 };
-
-const selectEndpointsMap = (helper: EndpointHelper) => helper.getEndpointsMap();
 
 const Endpoints = () => {
   // Standard hooks
@@ -104,26 +102,21 @@ const Endpoints = () => {
     ...(canAccessMarkingDefinitions ? ['asset_markings'] : []),
   ];
 
-  const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
-  const [reloadCount, setReloadCount] = useState<number>(0);
-  const { queryableHelpers, searchPaginationInput } = useQueryableWithLocalStorage('asset', buildSearchPagination({
+  // Live: assets created, updated or deleted elsewhere, or their agents changing, show without
+  // reloading the page.
+  const { query, items: endpoints, queryableHelpers, searchPaginationInput } = usePaginatedQuery('asset', buildSearchPagination({
     sorts: initSorting('asset_name'),
     textSearch: search,
-  }));
-
-  // Sync the value retrieved from Redux store (that have been updated thro Streaming) into the state
-  // "endpoints" (direct axios call).
-  const endpointsMap = useHelper(selectEndpointsMap);
-  const [previousEndpointsMap, setPreviousEndpointsMap] = useState(endpointsMap);
-  if (endpointsMap !== previousEndpointsMap) {
-    setPreviousEndpointsMap(endpointsMap);
-    setEndpoints(rows => patchRowsFromStore(rows, previousEndpointsMap, endpointsMap));
-  }
-  // Read when a search answers, to keep what the stream changed while it ran.
-  const storedEndpoints = useRef(endpointsMap);
-  useEffect(() => {
-    storedEndpoints.current = endpointsMap;
-  }, [endpointsMap]);
+  }), assetQueries.list);
+  const applyChanges = useApplyChanges();
+  const assetChanged = (assetId: string, action: LiveChange['action']) => applyChanges([{
+    type: ENTITY_TYPES.ASSETS,
+    id: assetId,
+    action,
+  }], { immediate: true });
+  // Another page, filter or sort shows the loader until its rows arrive, as before; a refetch of
+  // the same page keeps its rows.
+  const loading = query.isPending || query.isPlaceholderData;
 
   // Export
   const exportProps = {
@@ -132,14 +125,6 @@ const Endpoints = () => {
     exportData: endpoints,
     exportFileName: `${t('Endpoints')}.csv`,
     searchPaginationInput: searchPaginationInput,
-  };
-
-  const [loading, setLoading] = useState<boolean>(true);
-
-  const searchEndpointsToLoad = (input: SearchPaginationInput) => {
-    setLoading(true);
-    return keepStreamedChanges<EndpointOutput>(searchAssets, () => storedEndpoints.current)(input)
-      .finally(() => setLoading(false));
   };
 
   // Bulk selection
@@ -169,10 +154,12 @@ const Endpoints = () => {
   const bulkDelete = () => {
     bulkDeleteAssets(bulkSelectionInput).then((result) => {
       const deletedIds: string[] = result.data ?? [];
-      const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
-      setEndpoints(endpoints.filter(e => !deletedIds.includes(e.asset_id)));
-      queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
       handleClearSelectedElements();
+      return applyChanges(deletedIds.map(assetId => ({
+        type: ENTITY_TYPES.ASSETS,
+        id: assetId,
+        action: 'delete' as const,
+      })), { immediate: true });
     });
   };
 
@@ -181,10 +168,15 @@ const Endpoints = () => {
     return bulkReplaceAssetMarkings({
       ...bulkSelectionInput,
       marking_ids: markingIds,
-    }).then(() => {
+    }).then((result) => {
       setOpenEditMarkings(false);
       handleClearSelectedElements();
-      setReloadCount(count => count + 1);
+      const updatedIds: string[] = result.data ?? [];
+      return applyChanges(updatedIds.map(assetId => ({
+        type: ENTITY_TYPES.ASSETS,
+        id: assetId,
+        action: 'update' as const,
+      })), { immediate: true });
     });
   };
 
@@ -288,11 +280,8 @@ const Endpoints = () => {
           current: true,
         }]}
       />
-      <PaginationComponentV2
-        fetch={searchEndpointsToLoad}
+      <QueryableToolbar
         searchPaginationInput={searchPaginationInput}
-        setContent={setEndpoints}
-        reloadContentCount={reloadCount}
         entityPrefix="asset"
         availableFilterNames={availableFilterNames}
         queryableHelpers={queryableHelpers}
@@ -318,11 +307,8 @@ const Endpoints = () => {
             </Box>
             <Can I={ACTIONS.MANAGE} a={SUBJECTS.ASSETS}>
               <EndpointCreation
-                onCreate={(result) => {
-                  setEndpoints([result as EndpointOutput, ...endpoints]);
-                  queryableHelpers.paginationHelpers.incrementTotalElements(1);
-                }}
-                onAiTargetCreate={() => setReloadCount(count => count + 1)}
+                onCreate={result => assetChanged(result.asset_id, 'create')}
+                onAiTargetCreate={aiTargetId => assetChanged(aiTargetId, 'create')}
                 agentless={true}
               />
             </Can>
@@ -401,11 +387,8 @@ const Endpoints = () => {
                         inline
                         endpoint={{ ...endpoint }}
                         agentless={endpoint.asset_agents?.length === 0}
-                        onUpdate={result => setEndpoints(endpoints.map(e => (e.asset_id !== result.asset_id ? e : result as EndpointOutput)))}
-                        onDelete={(result) => {
-                          setEndpoints(endpoints.filter(e => (e.asset_id !== result)));
-                          queryableHelpers.paginationHelpers.incrementTotalElements(-1);
-                        }}
+                        onUpdate={result => assetChanged(result.asset_id, 'update')}
+                        onDelete={assetId => assetChanged(assetId, 'delete')}
                       />
                     )}
                     disablePadding
