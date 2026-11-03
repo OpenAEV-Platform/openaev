@@ -234,9 +234,10 @@ public class ScenarioToExerciseService {
     // exercise inject would lose its injector. Stamp the scenario's own tenant before the copy so
     // the lazy load resolves. The scope is derived from the scenario aggregate, not the ambient
     // TenantContext: toExercise runs from a cron, HTTP and autonomous callers, and the scenario is
-    // the authoritative owner of the injects being copied. Both scopes of the transaction are put
-    // back once the copy is done: the rest of the caller's transaction keeps the caller's tenant
-    // scope and marking clearance.
+    // the authoritative owner of the injects being copied. A transaction already scoped to that
+    // tenant (an HTTP request) is left as it is, so the request keeps its marking clearance. Both
+    // scopes of the transaction are put back once the copy is done: the rest of the caller's
+    // transaction keeps the caller's tenant scope and marking clearance.
     try (TenantScopedTransaction.CapturedScope callerScope =
         tenantTx.captureScopeOfCurrentTransaction()) {
       tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(scenario.getTenant().getId()));

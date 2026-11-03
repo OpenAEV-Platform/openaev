@@ -49,7 +49,9 @@ import org.springframework.transaction.annotation.Transactional;
  * the scenario's tenant carries a marking definition: the two clearances differ, which makes the
  * marking dimension observable. The class runs with the production list of active tables. {@link
  * LaunchScopeProbe} reads both settings of the request transaction right before and right after the
- * launch, inside that same transaction.
+ * launch, inside that same transaction. The launch is a faithful copy: the boundary it crosses is
+ * {@code FaithfulCopyTransaction}, which runs {@code toExercise} at system clearance, so the probe
+ * wraps that boundary rather than {@code toExercise} itself.
  */
 @Transactional
 @Import(ScenarioLaunchKeepsRequestScopeTest.LaunchScopeProbe.class)
@@ -193,7 +195,7 @@ class ScenarioLaunchKeepsRequestScopeTest extends IntegrationTest {
       this.entityManager = entityManager;
     }
 
-    @Around("execution(* io.openaev.service.ScenarioToExerciseService.toExercise(..))")
+    @Around("execution(* io.openaev.service.FaithfulCopyTransaction.execute(..))")
     public Object aroundLaunch(ProceedingJoinPoint joinPoint) throws Throwable {
       captured.add(currentScope());
       Object result = joinPoint.proceed();
