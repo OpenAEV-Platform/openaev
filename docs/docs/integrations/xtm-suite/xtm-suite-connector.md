@@ -80,9 +80,18 @@ Once the connector appears in OpenCTI, you can trigger it to run security covera
 4. Results (detection rate, prevention rate, findings) are pushed back to OpenCTI as enrichment data.
 5. The analyst sees the updated security posture directly in the OpenCTI interface.
 
+## Results sent back to OpenCTI
+
+The results are sent as a STIX 2.1 bundle. For each covered object (attack pattern, vulnerability, indicator or
+artifact), the bundle carries the overall detection and prevention scores, and the scores attributed to each security
+platform that reported on it (`coverage_platforms`), so OpenCTI shows which EDR (Endpoint Detection and Response), SIEM
+(Security Information and Event Management) or other security platform detected or prevented each technique. The [Security Coverage result bundle](../../reference/apis/security-coverage-results.md) reference
+documents every object and property of the bundle.
+
 ## What's next?
 
 - [XTM One](xtm-one.md) -- Connect OpenAEV to XTM One for its AI features
 - [Scenario generation from OpenCTI security coverage](../../usage/build/scenario/security-coverage.md) -- Create Scenarios from OpenCTI Security Coverage objects
 - [Configuration reference](../../reference/deployment/configuration.md#xtm-suite-opencti) -- All configuration parameters
+- [Security Coverage result bundle](../../reference/apis/security-coverage-results.md) -- Objects, properties and scores sent back to OpenCTI
 - [Scenarios and Simulations](../../usage/get-started/foundations/scenarios-and-simulations.md) -- How Scenarios and Simulations work

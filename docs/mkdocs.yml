@@ -298,6 +298,7 @@ nav:
     - Configuration: reference/deployment/configuration.md
     - REST API: reference/apis/rest-api.md
     - Filters: reference/apis/filters.md
+    - Security Coverage result bundle: reference/apis/security-coverage-results.md
     - Bulk snapshot export: reference/apis/bulk-snapshot.md
     - Telemetry: reference/deployment/telemetry.md
   - Troubleshooting: troubleshooting/index.md

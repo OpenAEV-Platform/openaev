@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 public enum ExtendedProperties {
   COVERED("covered"),
   COVERAGE("coverage"),
+  COVERAGE_PLATFORMS("coverage_platforms"),
   LAST_RESULT("last_result"),
   VALID_FROM("valid_from"),
   VALID_TO("valid_to"),
