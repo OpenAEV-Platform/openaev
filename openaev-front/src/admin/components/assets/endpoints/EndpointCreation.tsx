@@ -16,7 +16,7 @@ import AssetForm from '../AssetForm';
 interface Props {
   agentless?: boolean;
   onCreate?: (result: Endpoint) => void;
-  onAiTargetCreate?: () => void;
+  onAiTargetCreate?: (aiTargetId: string) => void;
 }
 
 const EndpointCreation: FunctionComponent<Props> = ({
@@ -54,11 +54,13 @@ const EndpointCreation: FunctionComponent<Props> = ({
   };
 
   const onSubmitAiTarget = (data: AiTargetInput) => {
-    // AI targets are base Assets, not Endpoints, so they are not prepended to the
-    // (endpoint-shaped) onCreate list: the caller refetches the inventory instead.
-    dispatch(addAiTarget(data)).then((result: { entities?: unknown }) => {
+    // AI targets are base Assets, not Endpoints: the caller only gets the new id.
+    dispatch(addAiTarget(data)).then((result: {
+      entities?: unknown;
+      result?: string;
+    }) => {
       if (result.entities) {
-        onAiTargetCreate?.();
+        if (result.result) onAiTargetCreate?.(result.result);
         handleClose();
       }
       return result;

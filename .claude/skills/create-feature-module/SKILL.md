@@ -147,10 +147,10 @@ Location: `openaev-api/src/test/java/io/openaev/api/{feature}/`
 Location: `openaev-front/src/actions/{feature}/` and `src/admin/components/`
 
 - `{feature}-action.ts` — API calls (CRUD + search), as plain calls resolving to the data
-- `{feature}-queries.ts` — key factory and `queryOptions` with `meta: liveMeta(...)` for details and non-paginated reads, read with `useQuery`; mutations through `useLiveMutation` (see Data Loading & State). Paginated lists stay on `PaginationComponentV2`, which fetches on its own
+- `{feature}-queries.ts` — key factory and `queryOptions` with `meta: liveMeta(...)`, read with `useQuery`, and with `usePaginatedQuery` + `QueryableToolbar` for a paginated list; mutations through `useLiveMutation` (see Data Loading & State)
 - `{feature}-helper.d.ts` — TypeScript types (or use auto-generated `api-types.d.ts`)
 - `{feature}-schema.ts` — Zod validation schema
-- List page with `Queryable` + `DataTable`
+- List page with `usePaginatedQuery` + `QueryableToolbar` + `SortHeadersComponentV2` (see `admin/components/assets/endpoints/Endpoints.tsx`)
 - Create/Edit form with React Hook Form + Zod
 - Permission guards with CASL (`ability.can(ACTIONS.MANAGE, SUBJECTS.X)`)
 - UI built from `@filigran/design-system` components (Button, IconButton, Tooltip, Chip, Paper, Text, form fields…); MUI only where the library has no equivalent (Dialog, Drawer, Alert…)
