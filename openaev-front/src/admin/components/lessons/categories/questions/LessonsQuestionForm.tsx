@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
-import { zodImplement } from '../../../../../utils/Zod';
+import { requiredNumber, zodImplement } from '../../../../../utils/Zod';
 
 // The form requires a content and an order, whereas the order is optional on the API inputs: the
 // dedicated form type keeps `handleSubmit` payloads assignable to
@@ -32,20 +32,13 @@ const LessonsQuestionForm: FunctionComponent<Props> = ({
 }) => {
   const { t } = useFormatter();
 
-  // TextFieldController stores its value as a string, even with type="number": coerce it back to a
-  // number before validation, an emptied input becoming `undefined` so it fails the required check.
-  const requiredNumber = z.preprocess(
-    value => (value === '' || value === null ? undefined : value),
-    z.coerce.number({ error: () => t('This field is required.') }),
-  ) as unknown as z.ZodType<number, number>;
-
   const methods = useForm<LessonsQuestionFormInputs>({
     mode: 'onChange',
     resolver: zodResolver(
       zodImplement<LessonsQuestionFormInputs>().with({
         lessons_question_content: z.string().min(1, { message: t('This field is required.') }),
         lessons_question_explanation: z.string().optional(),
-        lessons_question_order: requiredNumber,
+        lessons_question_order: requiredNumber(t('This field is required.')),
       }),
     ),
     defaultValues: {
@@ -63,7 +56,11 @@ const LessonsQuestionForm: FunctionComponent<Props> = ({
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    handleSubmit(onSubmit)(e);
+    // An empty explanation is left out of the payload so the API stores null, not ''.
+    handleSubmit((data, event) => onSubmit({
+      ...data,
+      lessons_question_explanation: data.lessons_question_explanation || undefined,
+    }, event))(e);
   };
 
   // Rendering

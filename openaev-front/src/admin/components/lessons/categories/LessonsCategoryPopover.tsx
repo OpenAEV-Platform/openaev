@@ -51,9 +51,7 @@ const LessonsCategoryPopover: FunctionComponent<Props> = ({ lessonsCategory }) =
   };
   const handleCloseDelete = () => setOpenDelete(false);
   const submitDelete = () => {
-    // The context types the deletion as synchronous whereas the thunk resolves a promise: wrapping
-    // keeps the original "close once deleted" sequencing without lying about the declared type.
-    Promise.resolve(onDeleteLessonsCategory(lessonsCategory.lessonscategory_id))
+    onDeleteLessonsCategory(lessonsCategory.lessonscategory_id)
       .then(() => handleCloseDelete());
   };
   // Rendering

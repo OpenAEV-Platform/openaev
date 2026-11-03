@@ -56,8 +56,7 @@ const LessonsCategories: FunctionComponent<Props> = ({
         const questions = lessonsQuestions
           .filter(n => n.lessons_question_category === category.lessonscategory_id)
           .sort((a, b) => (a.lessons_question_order ?? 0) - (b.lessons_question_order ?? 0));
-        // The API types the team list as optional: default it once so the column renders its empty
-        // state instead of throwing, as it would have before.
+        // The API types the team list as optional: default it so the column renders its empty state.
         const categoryTeams = category.lessons_category_teams ?? [];
         return (
           <section key={category.lessonscategory_id}>

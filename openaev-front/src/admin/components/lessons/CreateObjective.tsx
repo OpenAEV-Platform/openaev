@@ -21,9 +21,7 @@ const CreateObjective: FunctionComponent = () => {
 
   const onSubmit: SubmitHandler<ObjectiveFormInputs> = data => onAddObjective(data)
     .then((result) => {
-      // The thunk resolves the normalised `{ result, entities }` payload, whereas the context
-      // types it as the created `Objective`: keep the original runtime check on `result`.
-      if ((result as unknown as { result?: string }).result) {
+      if (result.result) {
         handleClose();
       }
       return result;

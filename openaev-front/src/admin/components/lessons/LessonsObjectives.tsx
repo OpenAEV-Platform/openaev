@@ -18,23 +18,6 @@ interface Props {
   setSelectedObjective?: (objectiveId: string) => void;
 }
 
-// Mirrors the previous `R.ascend(R.prop('objective_priority'))`: a missing priority compares equal
-// to everything, which leaves those objectives in their original order.
-const ascendByPriority = (a: Objective, b: Objective): number => {
-  const left = a.objective_priority;
-  const right = b.objective_priority;
-  if (left === undefined || right === undefined) {
-    return 0;
-  }
-  if (left < right) {
-    return -1;
-  }
-  if (left > right) {
-    return 1;
-  }
-  return 0;
-};
-
 const LessonsObjectives: FunctionComponent<Props> = ({
   objectives,
   source,
@@ -44,7 +27,9 @@ const LessonsObjectives: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const { permissions } = useContext(PermissionsContext);
 
-  const sortedObjectives = [...objectives].sort(ascendByPriority);
+  const sortedObjectives = [...objectives].sort(
+    (a, b) => (a.objective_priority ?? 0) - (b.objective_priority ?? 0),
+  );
   return (
     /* No surface here: ConfigurationSection owns it now, with the library
        header above it. Two Papers would nest — PAPER-GAP-INVENTORY §5.5. */

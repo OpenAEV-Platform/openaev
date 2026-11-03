@@ -1,5 +1,6 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
+// fds:keep-mui the lessons popovers share the MUI Menu (see LessonsCategoryPopover, LessonsQuestionPopover) until they move together
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
 import { type FunctionComponent, type MouseEvent, useContext, useState } from 'react';
 import { type SubmitHandler } from 'react-hook-form';

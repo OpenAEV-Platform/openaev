@@ -25,9 +25,7 @@ const CreateLessonsCategory: FunctionComponent<Props> = ({ onCreate, inline }) =
   const handleClose = () => setOpen(false);
   const onSubmit: SubmitHandler<LessonsCategoryFormInputs> = (data) => {
     return onAddLessonsCategory(data).then((result) => {
-      // The thunk resolves the normalised `{ result, entities }` payload, whereas the context
-      // types it as the created `LessonsCategory`: keep the original runtime check on `result`.
-      const createdId = (result as unknown as { result?: string }).result;
+      const createdId = result.result;
       if (createdId) {
         if (onCreate) {
           onCreate(createdId);
