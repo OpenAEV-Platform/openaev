@@ -4,6 +4,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +19,7 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private EntityManager entityManager;
+  @Autowired private RowTenantScope rowTenantScope;
 
   public class Composer extends InnerComposerBase<Exercise> {
     private final Exercise exercise;
@@ -165,21 +167,28 @@ public class ExerciseComposer extends ComposerBase<Exercise> {
       if (exercise.getTenant() == null) {
         exercise.setTenant(new Tenant(TenantContext.getCurrentTenant()));
       }
-      // Teams must be persisted (and so tenant-stamped) before the exercise: exercise.teams
-      // cascades on save, so saving the exercise first would try to insert an unattributed team.
-      this.teamComposers.forEach(TeamComposer.Composer::persist);
-      exerciseRepository.save(exercise);
-      this.articleComposers.forEach(ArticleComposer.Composer::persist);
-      this.categoryComposers.forEach(LessonsCategoryComposer.Composer::persist);
-      this.injectComposers.forEach(InjectComposer.Composer::persist);
-      this.objectiveComposers.forEach(ObjectiveComposer.Composer::persist);
-      this.tagComposers.forEach(TagComposer.Composer::persist);
-      this.documentComposers.forEach(DocumentComposer.Composer::persist);
-      this.variableComposers.forEach(VariableComposer.Composer::persist);
-      this.pauseComposers.forEach(PauseComposer.Composer::persist);
-      this.securityCoverageComposer.ifPresent(SecurityCoverageComposer.Composer::persist);
-      this.securityCoverageSendJobComposer.ifPresent(
-          SecurityCoverageSendJobComposer.Composer::persist);
+      // The children below update the simulation once it is saved (its injects, articles, tags...):
+      // those UPDATEs must run in the simulation's tenant scope.
+      rowTenantScope.write(
+          exercise.getTenant().getId(),
+          () -> {
+            // Teams must be persisted (and so tenant-stamped) before the exercise: exercise.teams
+            // cascades on save, so saving the exercise first would try to insert an unattributed
+            // team.
+            this.teamComposers.forEach(TeamComposer.Composer::persist);
+            exerciseRepository.save(exercise);
+            this.articleComposers.forEach(ArticleComposer.Composer::persist);
+            this.categoryComposers.forEach(LessonsCategoryComposer.Composer::persist);
+            this.injectComposers.forEach(InjectComposer.Composer::persist);
+            this.objectiveComposers.forEach(ObjectiveComposer.Composer::persist);
+            this.tagComposers.forEach(TagComposer.Composer::persist);
+            this.documentComposers.forEach(DocumentComposer.Composer::persist);
+            this.variableComposers.forEach(VariableComposer.Composer::persist);
+            this.pauseComposers.forEach(PauseComposer.Composer::persist);
+            this.securityCoverageComposer.ifPresent(SecurityCoverageComposer.Composer::persist);
+            this.securityCoverageSendJobComposer.ifPresent(
+                SecurityCoverageSendJobComposer.Composer::persist);
+          });
       return this;
     }
 

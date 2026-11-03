@@ -31,6 +31,11 @@ import org.springframework.transaction.annotation.Transactional;
  * issued straight from this test, so the gate (which keys on a production entry frame) waives them;
  * the assertions read the raw recorder, which records regardless.
  *
+ * <p>The vehicle is {@code injects}: a strict table the trigger covers and the statement inspector
+ * does not rewrite yet, so the shapes above reach the database as written. The inspector refuses
+ * some of them (INSERT ... SELECT, ALTER) on an activated table, so the vehicle moves to another
+ * table that is not activated, or to a dedicated one, when {@code injects} is activated.
+ *
  * <p>Everything runs in a rolled-back transaction: the trigger install, the constraint drop in the
  * null case and the table creation in the drift case are all undone at test end, so nothing here
  * changes the shared schema.
@@ -42,6 +47,10 @@ import org.springframework.transaction.annotation.Transactional;
 class WriteAttrDetectorNearMissTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
+  private static final String VEHICLE_TABLE = "injects";
+  private static final String VEHICLE_COLUMNS =
+      "inject_id, inject_title, inject_all_teams, inject_enabled, inject_depends_duration,"
+          + " tenant_id";
 
   @Autowired private TenantIsolationTestHelper tenantHelper;
 
@@ -66,53 +75,55 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
     String id = UUID.randomUUID().toString();
     entityManager
         .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
-                + " SELECT :id, :name, :tenant")
+            "INSERT INTO injects ("
+                + VEHICLE_COLUMNS
+                + ") SELECT :id, :name, false, true, 0, :tenant")
         .setParameter("id", id)
         .setParameter("name", "nm-select-" + id)
         .setParameter("tenant", DEFAULT_TENANT)
         .executeUpdate();
-    assertFlagged("scenarios", Relation.DEFAULT);
+    assertFlagged(VEHICLE_TABLE, Relation.DEFAULT);
   }
 
   @Test
   @DisplayName(
       "INSERT ... ON CONFLICT DO UPDATE SET tenant_id: the upsert's update path is flagged")
   void upsertUpdatePathIsFlagged() {
-    String id = seedScenario(tenantB); // in scope, not flagged
+    String id = seedInject(tenantB); // in scope, not flagged
     startScoped(tenantB);
     entityManager
         .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
-                + " VALUES (:id, :name, :inscope)"
-                + " ON CONFLICT (scenario_id) DO UPDATE SET tenant_id = :outscope")
+            "INSERT INTO injects ("
+                + VEHICLE_COLUMNS
+                + ") VALUES (:id, :name, false, true, 0, :inscope)"
+                + " ON CONFLICT (inject_id) DO UPDATE SET tenant_id = :outscope")
         .setParameter("id", id)
         .setParameter("name", "nm-upsert-" + id)
         .setParameter("inscope", tenantB)
         .setParameter("outscope", DEFAULT_TENANT)
         .executeUpdate();
-    assertFlagged("scenarios", Relation.DEFAULT);
+    assertFlagged(VEHICLE_TABLE, Relation.DEFAULT);
   }
 
   @Test
   @DisplayName("UPDATE ... SET tenant_id: moving a row out of scope is flagged")
   void updateSetTenantIsFlagged() {
-    String id = seedScenario(tenantB);
+    String id = seedInject(tenantB);
     startScoped(tenantB);
     entityManager
-        .createNativeQuery("UPDATE scenarios SET tenant_id = :outscope WHERE scenario_id = :id")
+        .createNativeQuery("UPDATE injects SET tenant_id = :outscope WHERE inject_id = :id")
         .setParameter("outscope", DEFAULT_TENANT)
         .setParameter("id", id)
         .executeUpdate();
-    assertFlagged("scenarios", Relation.DEFAULT);
+    assertFlagged(VEHICLE_TABLE, Relation.DEFAULT);
   }
 
   @Test
   @DisplayName("a native INSERT with the tenant supplied by the caller is flagged")
   void nativeInsertIsFlagged() {
     startScoped(tenantB);
-    seedScenario(DEFAULT_TENANT);
-    assertFlagged("scenarios", Relation.DEFAULT);
+    seedInject(DEFAULT_TENANT);
+    assertFlagged(VEHICLE_TABLE, Relation.DEFAULT);
   }
 
   @Test
@@ -122,18 +133,19 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
     // null write. Drop the constraint in this rolled-back transaction to reach the state the
     // migration ends in (listener removed, column nullable), and prove the detector then flags it.
     entityManager
-        .createNativeQuery("ALTER TABLE scenarios ALTER COLUMN tenant_id DROP NOT NULL")
+        .createNativeQuery("ALTER TABLE injects ALTER COLUMN tenant_id DROP NOT NULL")
         .executeUpdate();
     startScoped(tenantB);
     String id = UUID.randomUUID().toString();
     entityManager
         .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
-                + " VALUES (:id, :name, NULL)")
+            "INSERT INTO injects ("
+                + VEHICLE_COLUMNS
+                + ") VALUES (:id, :name, false, true, 0, NULL)")
         .setParameter("id", id)
         .setParameter("name", "nm-null-" + id)
         .executeUpdate();
-    assertFlagged("scenarios", Relation.NULL);
+    assertFlagged(VEHICLE_TABLE, Relation.NULL);
   }
 
   @Test
@@ -177,13 +189,13 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
     startScoped("");
 
     // Act
-    seedScenario(tenantB);
+    seedInject(tenantB);
 
     // Assert: the raw recorder sees it now, where it used to stay silent. If the trigger's guard is
     // restored to exclude the empty scope again, this assertion goes red.
     WriteAttrDetectorRecorder.stop();
     assertTrue(
-        flagged("scenarios", Relation.OTHER),
+        flagged(VEHICLE_TABLE, Relation.OTHER),
         "an empty-scope write must now be recorded by the trigger, got "
             + WriteAttrDetectorRecorder.violations());
   }
@@ -206,12 +218,13 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
         .getSingleResult();
   }
 
-  private String seedScenario(String tenantId) {
+  private String seedInject(String tenantId) {
     String id = UUID.randomUUID().toString();
     entityManager
         .createNativeQuery(
-            "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
-                + " VALUES (:id, :name, :tenant)")
+            "INSERT INTO injects ("
+                + VEHICLE_COLUMNS
+                + ") VALUES (:id, :name, false, true, 0, :tenant)")
         .setParameter("id", id)
         .setParameter("name", "nm-seed-" + id)
         .setParameter("tenant", tenantId)

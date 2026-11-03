@@ -171,7 +171,7 @@ public interface UserRepository
   @Query(
       value =
           "SELECT us.user_id, us.user_email, "
-              + "us.user_firstname, us.user_lastname "
+              + "us.user_firstname, us.user_lastname, us.user_admin "
               + "FROM users us "
               + "JOIN users_teams ON us.user_id = users_teams.user_id "
               + "JOIN teams ON users_teams.team_id = teams.team_id "
@@ -179,7 +179,7 @@ public interface UserRepository
               + "WHERE exercises_teams.exercise_id = :exerciseId "
               + "UNION "
               + "SELECT us.user_id, us.user_email, "
-              + "us.user_firstname, us.user_lastname "
+              + "us.user_firstname, us.user_lastname, us.user_admin "
               + "FROM users us "
               + "JOIN evaluations ev ON us.user_id = ev.evaluation_user "
               + "JOIN objectives ob ON ob.objective_id = ev.evaluation_objective "
@@ -190,7 +190,7 @@ public interface UserRepository
   @Query(
       value =
           "SELECT us.user_id, us.user_email, "
-              + "us.user_firstname, us.user_lastname "
+              + "us.user_firstname, us.user_lastname, us.user_admin "
               + "FROM users us "
               + "JOIN users_teams ON us.user_id = users_teams.user_id "
               + "JOIN teams ON users_teams.team_id = teams.team_id "
@@ -198,7 +198,7 @@ public interface UserRepository
               + "WHERE scenarios_teams.scenario_id = :scenarioId "
               + "UNION "
               + "SELECT us.user_id, us.user_email, "
-              + "us.user_firstname, us.user_lastname "
+              + "us.user_firstname, us.user_lastname, us.user_admin "
               + "FROM users us "
               + "JOIN evaluations ev ON us.user_id = ev.evaluation_user "
               + "JOIN objectives ob ON ob.objective_id = ev.evaluation_objective "

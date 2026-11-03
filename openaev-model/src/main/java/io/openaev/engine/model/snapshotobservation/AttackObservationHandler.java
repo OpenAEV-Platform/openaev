@@ -3,6 +3,7 @@ package io.openaev.engine.model.snapshotobservation;
 import static io.openaev.engine.EsUtils.buildRestrictions;
 import static org.springframework.util.CollectionUtils.isEmpty;
 
+import io.openaev.database.helper.QueryPlanHelper;
 import io.openaev.database.raw.RawAttackObservationIndexing;
 import io.openaev.database.repository.AttackObservationRepository;
 import io.openaev.engine.BulkSnapshotExportCondition;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 public class AttackObservationHandler implements Handler<EsAttackObservation> {
 
   private final AttackObservationRepository attackObservationRepository;
+  private final QueryPlanHelper queryPlanHelper;
 
   @Override
   public List<EsAttackObservation> fetch(Instant from, int limit) {
@@ -29,6 +31,7 @@ public class AttackObservationHandler implements Handler<EsAttackObservation> {
   @Override
   public List<EsAttackObservation> fetch(Instant from, String fromId, int limit) {
     Instant queryFrom = from != null ? from : Instant.EPOCH;
+    queryPlanHelper.forceCustomPlan();
     List<RawAttackObservationIndexing> forIndexing =
         this.attackObservationRepository.findForIndexing(queryFrom, fromId, limit);
     return forIndexing.stream().map(this::toEsAttackObservation).toList();

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.utils.fixtures.InjectorContractFixture;
@@ -36,6 +37,7 @@ class InjectCrudTest extends IntegrationTest {
     // -- PREPARE --
     Exercise exercise = new Exercise();
     exercise.setName("Exercise name");
+    exercise.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     exercise.setReplyTos(List.of("test@test.com"));
     Exercise exerciseCreated = this.exerciseRepository.save(exercise);
     Inject inject = new Inject();

@@ -59,8 +59,7 @@ public class TenantScopedTransaction {
   private final EntityManager entityManager;
   private final TenantScopeIntentionResolver intentionResolver;
   // A provider, as in the scope aspect: the implementation lives in openaev-api and reaches
-  // services
-  // that are themselves built on this primitive.
+  // services that are themselves built on this primitive.
   private final ObjectProvider<MarkingScopeSupplier> markingScopeSupplier;
 
   /** Opens a background transaction carrying {@code ctx}; refuses to run inside an active one. */
@@ -207,6 +206,64 @@ public class TenantScopedTransaction {
   }
 
   /**
+   * Captures the tenant scope and the marking scope of the CURRENT, already-active transaction, for
+   * a caller that narrows that transaction with {@link #setScopeOnCurrentTransaction} for part of
+   * its work only. Open it in a try-with-resources around that part: closing the handle puts both
+   * scopes back, so the rest of the transaction reads and writes with the scope and clearance it
+   * had before.
+   *
+   * <p>Capturing flushes the caller's pending changes first, while its scope and clearance still
+   * apply, and closing flushes again before putting them back, so every statement runs under the
+   * scope its change was made in. When the flush on closing fails, both scopes are still put back
+   * and the flush failure is the one thrown.
+   *
+   * <p>Refuses to run outside an active transaction: there is no scope to capture.
+   */
+  public CapturedScope captureScopeOfCurrentTransaction() {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.captureScopeOfCurrentTransaction() has nothing to capture: no"
+              + " transaction is active.");
+    }
+    entityManager.flush();
+    return new CapturedScope(currentScope(), currentMarkingScope());
+  }
+
+  /** The scopes of a transaction, put back by {@link #close()}. */
+  public final class CapturedScope implements AutoCloseable {
+
+    private final String tenants;
+    private final String markings;
+
+    private CapturedScope(String tenants, String markings) {
+      this.tenants = tenants;
+      this.markings = markings;
+    }
+
+    @Override
+    public void close() {
+      RuntimeException flushFailure = null;
+      try {
+        entityManager.flush();
+      } catch (RuntimeException failure) {
+        flushFailure = failure;
+      }
+      try {
+        setScope(tenants);
+        setMarkingScope(markings);
+      } catch (RuntimeException restoreFailure) {
+        if (flushFailure == null) {
+          throw restoreFailure;
+        }
+        flushFailure.addSuppressed(restoreFailure);
+      }
+      if (flushFailure != null) {
+        throw flushFailure;
+      }
+    }
+  }
+
+  /**
    * The per-tenant loop idiom: runs {@code work} once for every active tenant, each in its OWN
    * top-level transaction scoped to that tenant. This is the FLAT loop, not a nested one: a tenant
    * that fails is rolled back and cannot poison the others (unlike catching an exception inside a
@@ -324,6 +381,16 @@ public class TenantScopedTransaction {
     return markingScopeSupplier.getObject().systemClearanceFor(restricted);
   }
 
+  // The scope queries touch no table, so they must not trigger Hibernate's auto-flush.
+  private String currentSetting(String name) {
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT coalesce(current_setting(:name, true), '')")
+            .setFlushMode(FlushModeType.COMMIT)
+            .setParameter("name", name)
+            .getSingleResult();
+  }
+
   private void setScope(String scope) {
     entityManager
         .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
@@ -332,21 +399,12 @@ public class TenantScopedTransaction {
         .getSingleResult();
   }
 
-  // The scope queries touch no table, so they must not trigger Hibernate's auto-flush.
   private String currentScope() {
-    return (String)
-        entityManager
-            .createNativeQuery("SELECT coalesce(current_setting('app.current_tenants', true), '')")
-            .setFlushMode(FlushModeType.COMMIT)
-            .getSingleResult();
+    return currentSetting("app.current_tenants");
   }
 
   private String currentMarkingScope() {
-    return (String)
-        entityManager
-            .createNativeQuery("SELECT coalesce(current_setting('app.current_markings', true), '')")
-            .setFlushMode(FlushModeType.COMMIT)
-            .getSingleResult();
+    return currentSetting("app.current_markings");
   }
 
   private static Set<String> tenants(String guc) {

@@ -136,7 +136,7 @@ Required sections, in this order:
 |---|---|
 | `### Proposed changes` | Bullet list of what changed, one bullet per file or logical group, with the *why* — not a diff paraphrase |
 | `### Testing Instructions` | Numbered, reproducible steps + environment/config notes (services to start, commands run) |
-| `### Related issues` | `* Related #ISSUE-NUMBER` — mandatory, every PR must be linked to an issue |
+| `### Related issues` | Mandatory, every PR must be linked to an issue: `* Closes #ISSUE-NUMBER` when the PR finishes it (closed at merge), `* Related #ISSUE-NUMBER` when the PR is one step of it (sub-task, epic, `feature-flag` issue before the flag is removed) |
 | `### Checklist` | Reproduce every line unchecked (`[ ]`); never delete a line and never tick a box — the human author does that |
 | `### Further comments` | Design rationale, alternatives considered, explicit out-of-scope items. Omit only for trivial PRs |
 

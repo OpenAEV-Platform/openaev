@@ -28,6 +28,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -48,10 +49,8 @@ import org.quartz.JobExecutionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -84,7 +83,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private AgentRepository agentRepository;
-  @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private RowTenantScope rowTenantScope;
   @MockitoSpyBean private ManagerFactory managerFactory;
   @MockitoSpyBean private InjectStatusService injectStatusService;
 
@@ -111,8 +110,13 @@ class InjectsExecutionJobTest extends IntegrationTest {
    * flush) run in their own short-lived transaction via this helper; rows are committed for real,
    * hence the manual cleanup in each test's {@code finally} block.
    */
+  /**
+   * Runs fixture writes, clean-ups and reads in the default tenant's scope, where every fixture of
+   * this class lives: in a transaction of their own when the test runs outside one, in the test's
+   * transaction otherwise.
+   */
   private void inTransaction(Runnable work) {
-    new TransactionTemplate(transactionManager).executeWithoutResult(status -> work.run());
+    rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, work);
   }
 
   /** Removes the committed simulation and scenario of a scheduled-start test. */
