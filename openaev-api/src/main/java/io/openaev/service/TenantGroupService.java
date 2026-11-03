@@ -58,11 +58,6 @@ public class TenantGroupService {
   private final MarkingMetricCollector markingMetricCollector;
   @PersistenceContext private EntityManager entityManager;
 
-  // PermissionService pulls in InjectService -> EndpointService ->
-  // AgentServiceAccountPrivilegeService -> AbstractPrivilegeService -> TenantGroupService, so a
-  // plain constructor-injected field here is a circular bean dependency. @Lazy setter injection
-  // (same pattern as InjectService.setInjectStatusService) defers resolving the PermissionService
-  // bean until first use, breaking the cycle without restructuring either service.
   private PermissionService permissionService;
 
   @Autowired
@@ -213,8 +208,6 @@ public class TenantGroupService {
     if (users.size() != uniqueUserIds.size()) {
       throw new ElementNotFoundException("One or more users not found in the current tenant");
     }
-    // Union of before and after: a user dropped from the group loses clearance (fail-open if the
-    // stale entry survives), a user added gains it (fail-closed, but still wrong until evicted).
     Set<String> affected = new LinkedHashSet<>(group.getUsers().stream().map(User::getId).toList());
     affected.addAll(uniqueUserIds);
 
@@ -300,8 +293,6 @@ public class TenantGroupService {
 
   public void delete(@NotBlank final String groupId) {
     Group group = this.findByIdInTenantForWrite(groupId);
-    // Clear bidirectional associations before delete to avoid TransientObjectException
-    // (User entities in the persistence context would otherwise still reference the removed Group)
     List<String> members = group.getUsers().stream().map(User::getId).toList();
     group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
     groupRepository.delete(group);

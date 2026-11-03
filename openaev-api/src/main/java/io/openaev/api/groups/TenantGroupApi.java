@@ -131,12 +131,11 @@ public class TenantGroupApi extends RestBehavior {
                 "Missing MANAGE_MARKING_ASSIGNMENT, or assigning a marking the caller lacks"),
         @ApiResponse(responseCode = "404", description = "Group or marking not found")
       })
-  // MANAGE_MARKING_ASSIGNMENT and escalation are checked in TenantGroupService.updateGroupMarkings
-  // instead - see its doc.
+  // MANAGE_MARKING_ASSIGNMENT and escalation are checked in TenantGroupService instead - see its
+  // doc.
   public TenantGroupMarkingsOutput updateGroupMarkings(
       TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateMarkingsInput input) {
-    // Tenant resolved here and passed down, per the multi-tenancy convention: the service never
-    // touches TenantContext. It is the tenant whose clearance the caller is checked against.
+    // Tenant resolved here and passed down - the service never touches TenantContext directly.
     return TenantGroupMarkingsOutput.from(
         tenantGroupService.updateGroupMarkings(
             writeScopeResolver.tenantForWrite(ctx, null), groupId, input));

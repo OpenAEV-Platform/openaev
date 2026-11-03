@@ -72,16 +72,13 @@ const Endpoints = () => {
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
   const canManageMarkingAssignment = ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_ASSIGNMENT);
   const canBulkEditMarkings = markingEnabled && canManage && canManageMarkingAssignment;
-  // Resolved once for the whole page; the Markings column maps ids per row. Needs no capability,
-  // only the feature flag - see the gating note above.
+  // Resolved once for the whole page; the Markings column maps ids per row.
   const markingDefinitions = useMarkingDefinitions({
     skip: !markingEnabled,
     assignableOnly: true,
   });
 
-  // Load the executors once for the whole page; the per-row Executors column
-  // reads them from the store (previously each row fetched them, firing
-  // GET /api/executors once per endpoint).
+  // Load executors once for the whole page; previously each row fetched its own.
   useDataLoader(() => {
     dispatch(fetchExecutors());
   });
@@ -90,8 +87,7 @@ const Endpoints = () => {
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
 
-  // Base Asset facets only: the unified inventory queries the base assets table, so endpoint-only
-  // fields (platform / arch) cannot be resolved as filters here (single-table inheritance).
+  // Base Asset facets only: endpoint-only fields like platform/arch can't be resolved as filters here.
   const availableFilterNames = [
     'asset_category',
     'asset_subcategory',
@@ -143,8 +139,7 @@ const Endpoints = () => {
     endpoints.map(endpoint => endpoint.asset_id),
   );
 
-  // Select-all-with-exclusions scope shared by every bulk asset operation (delete, marking
-  // replacement): either an explicit id list, or a search input with the deselected ids excluded.
+  // Select-all-with-exclusions scope shared by every bulk asset operation (delete, marking replacement).
   const bulkSelectionInput: AssetBulkProcessingInput = {
     search_pagination_input: selectAll ? searchPaginationInput : undefined,
     asset_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
@@ -161,13 +156,6 @@ const Endpoints = () => {
     });
   };
 
-  // Bulk marking replacement: every selected asset ends up carrying exactly the chosen markings
-  // server-side (see bulkReplaceAssetMarkings's backend doc). Unlike bulkDelete, this cannot be
-  // mirrored by patching `endpoints` in place: the new markings can push a row out of (or into) an
-  // active asset_markings filter, which a local patch has no way to detect - it would leave a
-  // GREEN-filtered row displayed, and counted in the pagination total, after replacing it with
-  // YELLOW. Bumping reloadCount re-runs the current search server-side instead, so the filter and
-  // totalElements both reflect the new markings.
   const [openEditMarkings, setOpenEditMarkings] = useState(false);
   const bulkEditMarkings = (markingIds: string[]) => {
     return bulkReplaceAssetMarkings({
@@ -254,9 +242,6 @@ const Endpoints = () => {
       isSortable: false,
       value: (endpoint: EndpointOutput) => <ItemTags variant="list" tags={endpoint.asset_tags ?? []} />,
     },
-    // Rendered whenever MARKING is enabled, regardless of ACCESS_MARKING_DEFINITION: a row's
-    // markings are already clearance-filtered server-side (see the gating note above), so there is
-    // nothing left to gate here beyond the feature flag.
     ...(markingEnabled
       ? [{
           field: 'asset_markings',
@@ -329,8 +314,7 @@ const Endpoints = () => {
           classes={{ root: classes.itemHead }}
           sx={numberOfSelectedElements > 0
             ? {
-                // Massive-operations toolbar: symmetric vertical padding keeps the
-                // checkbox and actions vertically centered in the accent band.
+                // Massive-operations toolbar: symmetric padding keeps checkbox and actions centered.
                 backgroundColor: 'background.accent',
                 paddingBlock: 0.5,
               }

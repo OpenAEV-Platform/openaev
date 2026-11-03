@@ -115,12 +115,8 @@ class AssetMarkingsApiTest extends IntegrationTest {
     group.setUsers(new ArrayList<>(List.of(user)));
     groupRepository.save(group);
 
-    // The rows must exist in the database, not just in the persistence context, before the raw-JDBC
-    // grant below can reference them.
     entityManager.flush();
 
-    // The caller holds GREEN and YELLOW, and nothing above them — the whole point of the negative
-    // cases (RED is never granted here).
     jdbc.update(
         "INSERT INTO groups_markings (group_id, marking_id) VALUES (?, ?)",
         group.getId(),
@@ -150,11 +146,8 @@ class AssetMarkingsApiTest extends IntegrationTest {
     @DisplayName("given a marking the caller does not hold, should refuse with 403")
     void given_unheldMarking_should_forbid() throws Exception {
       // -- ACT / ASSERT --
-      // The guard that makes marking a boundary at all: without it, anyone able to edit an asset
-      // could label it RED and then read every other RED row by joining a group they control.
       assignMarkings(List.of(red.getId())).andExpect(status().isForbidden());
 
-      // The refusal must also be a no-op, not a partial write.
       assertEquals(0, storedMarkings().length, "a refused assignment must not touch the column");
     }
 
@@ -167,10 +160,6 @@ class AssetMarkingsApiTest extends IntegrationTest {
       entityManager.clear();
 
       // -- ACT / ASSERT --
-      // 🔴 Self-lockout is impossible BY CONSTRUCTION, and this pins that reasoning. The escalation
-      // guard enforces requested ⊆ clearance, and a row is visible iff row_markings ⊆ clearance —
-      // so the asset you just marked is still yours to read. There is no separate check for it, and
-      // this test is what would catch the guard being loosened to allow one.
       mvc.perform(get(ASSET_URI + "/" + asset.getId())).andExpect(status().is2xxSuccessful());
     }
 
@@ -196,9 +185,6 @@ class AssetMarkingsApiTest extends IntegrationTest {
       assignMarkings(List.of()).andExpect(status().is2xxSuccessful());
 
       // -- ASSERT --
-      // Declassification is allowed here precisely because the caller could already read the row;
-      // it is logged rather than blocked. An empty set is contained in every clearance, so the
-      // asset becomes visible to everyone again.
       assertEquals(0, storedMarkings().length);
     }
 
@@ -206,8 +192,6 @@ class AssetMarkingsApiTest extends IntegrationTest {
     @DisplayName("given an asset marked above the caller's clearance, should not find it")
     void given_assetAboveClearance_should_notFound() throws Exception {
       // -- ARRANGE --
-      // Seeded out of band: an ORM write of RED would itself be blocked, which is the guard working
-      // but useless for arranging the fixture.
       entityManager.flush();
       jdbc.update(
           "UPDATE assets SET marking_ids = ? WHERE asset_id = ?",
@@ -216,8 +200,6 @@ class AssetMarkingsApiTest extends IntegrationTest {
       entityManager.clear();
 
       // -- ACT / ASSERT --
-      // 404 rather than 403: you cannot declassify what you cannot see, and the response must not
-      // confirm that a RED asset exists at this id.
       assignMarkings(List.of()).andExpect(status().isNotFound());
     }
   }
@@ -230,8 +212,6 @@ class AssetMarkingsApiTest extends IntegrationTest {
     @DisplayName("given an asset with existing markings, should replace the whole set")
     void given_existingMarkings_should_replaceWholeSet() throws Exception {
       // -- ARRANGE --
-      // Set out of band, bypassing the single-asset escalation guard, purely to arrange fixture
-      // state - GREEN must not survive the replace, unlike a merge.
       entityManager.flush();
       jdbc.update(
           "UPDATE assets SET marking_ids = ? WHERE asset_id = ?",
@@ -289,8 +269,6 @@ class AssetMarkingsApiTest extends IntegrationTest {
     @WithMockUser(withCapabilities = {Capability.MANAGE_ASSETS})
     void given_noMarkingCapability_withAddition_should_forbid() throws Exception {
       // -- ACT / ASSERT --
-      // The asset starts unmarked, so replacing with GREEN is a pure addition - still gated by
-      // MANAGE_MARKING_ASSIGNMENT, mirrored from the single-asset endpoint's own diff.
       bulkReplaceMarkings(List.of(asset.getId()), List.of(green.getId()))
           .andExpect(status().isForbidden());
       assertEquals(0, storedMarkings().length);
@@ -321,8 +299,6 @@ class AssetMarkingsApiTest extends IntegrationTest {
             + " scope")
     void given_assetAboveClearance_should_excludeFromScope() throws Exception {
       // -- ARRANGE --
-      // Seeded out of band: an ORM write of RED would itself be blocked, which is the guard
-      // working but useless for arranging the fixture.
       entityManager.flush();
       jdbc.update(
           "UPDATE assets SET marking_ids = ? WHERE asset_id = ?",
@@ -331,8 +307,6 @@ class AssetMarkingsApiTest extends IntegrationTest {
       entityManager.clear();
 
       // -- ACT / ASSERT --
-      // The scope-resolution query is itself marking-filtered (is_marking_set_allowed), so this
-      // asset is invisible to it - a no-op, not an error: 2xx with nothing touched.
       bulkReplaceMarkings(List.of(asset.getId()), List.of(green.getId()))
           .andExpect(status().is2xxSuccessful());
       assertArrayEquals(new String[] {red.getId()}, storedMarkings());
