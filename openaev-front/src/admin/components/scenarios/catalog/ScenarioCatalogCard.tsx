@@ -43,14 +43,21 @@ const ScenarioCatalogCard: FunctionComponent<Props> = ({ item, canInstall, canLa
       display: 'flex',
       alignItems: 'center',
       gap: 8,
+      minWidth: 0,
     }}
     >
       {installed && <Chip label={t('Installed')} severity="low" />}
       {!installed && missing.length > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="inline-flex">
-              <Chip label={needs} severity="high" />
+            <span
+              className="inline-flex"
+              style={{
+                minWidth: 0,
+                maxWidth: '100%',
+              }}
+            >
+              <Chip label={needs} severity="high" style={{ maxWidth: '100%' }} />
             </span>
           </TooltipTrigger>
           <TooltipContent>{missing.join(', ')}</TooltipContent>

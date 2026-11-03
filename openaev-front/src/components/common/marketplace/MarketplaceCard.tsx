@@ -139,10 +139,25 @@ const MarketplaceCard: FunctionComponent<Props> = ({
             display: 'flex',
             alignItems: 'center',
             gap: 8,
+            minWidth: 0,
           }}
           >
-            {footerRight}
-            {action}
+            {/* Status chips give way (truncate) before the buttons do. */}
+            <div style={{
+              display: 'flex',
+              minWidth: 0,
+              overflow: 'hidden',
+            }}
+            >
+              {footerRight}
+            </div>
+            <div style={{
+              display: 'flex',
+              flexShrink: 0,
+            }}
+            >
+              {action}
+            </div>
           </div>
         )}
         badge={badge}
