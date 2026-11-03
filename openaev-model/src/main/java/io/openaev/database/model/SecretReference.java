@@ -19,9 +19,8 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.Data;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Fetch;
-import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -116,6 +115,9 @@ public class SecretReference implements TenantBase {
   @Queryable(filterable = true, sortable = true)
   private Instant lastVerifiedAt;
 
+  // Batch fetching instead of @Fetch(SUBSELECT): same Hibernate SubselectFetch bug as on
+  // BaseInjectExpectation.results, with SecretReference (a SINGLE_TABLE inheritance root) as the
+  // collection owner.
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "secret_reference_tags",
@@ -123,7 +125,7 @@ public class SecretReference implements TenantBase {
       inverseJoinColumns = @JoinColumn(name = "tag_id"))
   @JsonProperty("secret_reference_tags")
   @Queryable(filterable = true, dynamicValues = true, path = "tags.id")
-  @Fetch(FetchMode.SUBSELECT)
+  @BatchSize(size = 1000)
   private Set<Tag> tags = new HashSet<>();
 
   @ManyToOne
