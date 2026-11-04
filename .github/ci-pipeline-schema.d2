@@ -116,14 +116,19 @@ wave0.build -> gated.bp: "needs: Backend Compile\n+ Frontend Build\n+ Prepare Bu
 wave0.build -> gated.bpm: "needs: same three" {class: needs}
 
 # ═══ 4. Aggregation ══════════════════════════════════════════════════════════
-cov: "📊 Coverage Upload ×3 (backend · frontend · e2e)\none job per Codecov flag, each starting when its own tests finish\nbest-effort, and deliberately NOT wired into the Gate\nbackend uploads only after green API tests\nCodecov backend: patch red under 80%, project red on a drop over 0.2 point" {
+cov: "📊 Coverage Upload ×3 (backend · frontend · e2e)\none job per Codecov flag, each starting when its own tests finish\nbest-effort, and deliberately NOT wired into the Gate\nbackend: report from green API tests only, Codecov comments, front and E2E statuses informational" {
 style: {fill: "#FCE4EC"; stroke: "#AD1457"; stroke-width: 3                                                                                                     ; border-radius: 8; font-size: 21}
 }
 
 wave0.tests -> cov: "backend needs: API Tests\ne2e needs: E2E" {class: needs}
 wave0.quality -> cov: "frontend needs: Frontend Quality" {class: needs}
 
-gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 19 jobs  ·  Coverage excluded" {
+bcov: "🔎 Backend Coverage Check\ntimeout 10 min · pull requests only\ndiff-cover ≥ 80% of changed lines\nline coverage drop ≤ 0.2 point vs base\nadvisory in the Gate" {class: quality}
+
+cov -> bcov: "needs: Coverage Report (backend)\nruns next to the upload" {class: needs}
+bcov -> gate: "advisory" {class: needs}
+
+gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 20 jobs  ·  Coverage upload excluded" {
 style: {fill: "#FFCDD2"; stroke: "#B71C1C"; stroke-width: 5                                                                                                                             ; border-radius: 8; font-size: 28; bold: true}
 }
 
