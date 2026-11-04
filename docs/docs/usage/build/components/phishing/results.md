@@ -9,7 +9,7 @@ Every phishing action declares five predefined expectations, all enabled by defa
 | Expectation | Family | Scored by |
 |---|---|---|
 | `Email not opened` | Human response | The recipient's tracking pixel loading. |
-| `Link not clicked` | Human response | The recipient's Landing Page loading. |
+| `Link not clicked` | Human response | The recipient interacting with the Landing Page (mouse, touch, keyboard or scroll). |
 | `Credentials not submitted` | Human response | The recipient submitting the form. |
 | `Detection` | Security control | An email-security platform reporting that the lure was detected. |
 | `Prevention` | Security control | An email-security platform reporting that the lure was blocked. |
@@ -42,6 +42,17 @@ Every flip records the forensic origin of the request that triggered it, shown o
 | Automation hint | A **Possibly automated** chip when the request came from a mail client image proxy, which carries both genuine recipient opens and provider-side pre-fetches. The hint is advisory: it never changes the score, it only helps you weigh the row. |
 
 Each step keeps the origin of *its own* triggering request, so a red *Email not opened* from an image proxy and a red *Link not clicked* from a real browser stay distinguishable.
+
+## Mail scanners and automated hits
+
+Mail security products such as Microsoft Defender Safe Links fetch the tracking pixel and open the link before the recipient reads the email. These automated hits must not count as the recipient falling for the lure, so:
+
+- Loading the Landing Page is **not** a click by itself. The page reports the visitor's first interaction (mouse, touch, keyboard or scroll), at least 0.8 seconds after it rendered, and that interaction scores *Link not clicked*. A scanner renders the page but never interacts with it.
+- A hit from a known scanner user agent, a hit within seconds of delivery, a browser driven by automation (`navigator.webdriver`) and an interaction faster than a person could react are not scored. The step stays green and the backend logs `Phishing automated open|click ignored for scoring`.
+- A recipient who opens the page and closes it without any interaction is not counted as a click.
+- Links created before this behavior (legacy tracking links) keep scoring the click when the page loads.
+
+The detection relies on signals sent by the visitor's browser: software that emulates input and hides its automation flag is counted as a person.
 
 ## Captured credentials
 

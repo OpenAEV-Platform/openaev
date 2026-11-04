@@ -78,14 +78,12 @@ const PhishingPage = () => {
   useEffect(() => {
     if (!page || tenantId) return undefined;
     const renderedAt = Date.now();
+    const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const interactionEvents = ['pointermove', 'pointerdown', 'touchstart', 'keydown', 'scroll'];
 
-    const stopListening = () => {
-      interactionEvents.forEach((name) => window.removeEventListener(name, onInteraction, true));
-    };
-    function onInteraction() {
-      stopListening();
+    const onInteraction = () => {
+      controller.abort();
       const wait = Math.max(0, MIN_DWELL_MS - (Date.now() - renderedAt));
       timer = setTimeout(() => {
         api().post(confirmUrl, {
@@ -95,11 +93,15 @@ const PhishingPage = () => {
           // Silently ignore: the visitor should never see an application error.
         });
       }, wait);
-    }
+    };
 
-    interactionEvents.forEach((name) => window.addEventListener(name, onInteraction, { capture: true, passive: true }));
+    interactionEvents.forEach(name => window.addEventListener(name, onInteraction, {
+      capture: true,
+      passive: true,
+      signal: controller.signal,
+    }));
     return () => {
-      stopListening();
+      controller.abort();
       clearTimeout(timer);
     };
   }, [page]);
