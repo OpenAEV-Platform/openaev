@@ -11,11 +11,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
+import io.openaev.rest.exception.TenantScopeForbiddenException;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
@@ -31,6 +33,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -222,11 +225,8 @@ class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
 
     @ParameterizedTest(name = "{0}")
     @EnumSource(Create.class)
-    @DisplayName(
-        "Known gap until the exercises and scenarios tables are tenant-active: on the non-prefixed"
-            + " route with a header naming B, it is written in the ambient tenant")
-    void given_headerNamingOtherTenant_should_writeInAmbientTenantUntilTablesAreTenantActive(
-        Create create) throws Exception {
+    @DisplayName("On the non-prefixed route with a header naming B, the row is written in B")
+    void given_headerNamingOtherTenant_should_writeInThatTenant(Create create) throws Exception {
       // Arrange
       String tenantB = createTenantWithCreateCapabilityInBoth();
 
@@ -234,10 +234,83 @@ class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
       int status = perform(nonPrefixed(create).header(TENANT_IDS_HEADER, tenantB));
 
       // Assert
-      // Known gap, accepted until the exercises and scenarios tables are tenant-active: these
-      // creates stamp their row from the ambient tenant, which the non-prefixed route leaves to the
-      // default one whatever the header names. Activating the tables must flip this to tenant B.
-      assertWrittenIn(create, status, DEFAULT_TENANT);
+      assertWrittenIn(create, status, tenantB);
+    }
+  }
+
+  @Nested
+  @DisplayName("Caller in the default tenant and tenant B, no tenant selector")
+  class NoTenantSelector {
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Create.class)
+    @DisplayName("With the create capability in both, the create is refused for want of a tenant")
+    void given_createCapabilityInBothWithoutSelector_should_refuseWithBadRequest(Create create)
+        throws Exception {
+      // Arrange
+      createTenantWithCreateCapabilityInBoth();
+
+      // Act
+      MockHttpServletResponse response = performForResponse(nonPrefixed(create));
+
+      // Assert
+      assertRefusedWithoutRow(create, response, HttpStatus.BAD_REQUEST, "TENANT_WRITE_SCOPE");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Create.class)
+    @DisplayName("With the create capability in the default tenant only, the create is forbidden")
+    void given_createCapabilityInDefaultTenantOnlyWithoutSelector_should_refuseWithForbidden(
+        Create create) throws Exception {
+      // Arrange
+      createTenantWithReadOnly(DEFAULT_TENANT);
+
+      // Act
+      MockHttpServletResponse response = performForResponse(nonPrefixed(create));
+
+      // Assert
+      assertRefusedWithoutRow(
+          create, response, HttpStatus.FORBIDDEN, TenantScopeForbiddenException.MESSAGE);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Create.class)
+    @DisplayName("With the create capability in tenant B only, the create is forbidden")
+    void given_createCapabilityInOtherTenantOnlyWithoutSelector_should_refuseWithForbidden(
+        Create create) throws Exception {
+      // Arrange
+      createTenantWithCreateCapability();
+
+      // Act
+      MockHttpServletResponse response = performForResponse(nonPrefixed(create));
+
+      // Assert
+      assertAll(
+          () -> assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatus(), "the status"),
+          () -> assertEquals(List.of(), rowTenants(create), "a refused create writes no row"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Caller in tenant B only, with the create capability there, no tenant selector")
+  class SingleNonDefaultTenantWithoutSelector {
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Create.class)
+    @DisplayName("The create is forbidden, since the default tenant is checked on this route")
+    void given_singleNonDefaultTenantCallerWithoutSelector_should_refuseWithForbidden(Create create)
+        throws Exception {
+      // Arrange
+      tenantHelper.createTenantWithCapabilities(
+          "capability-only-b", Set.of(Capability.MANAGE_ASSESSMENT));
+
+      // Act
+      MockHttpServletResponse response = performForResponse(nonPrefixed(create));
+
+      // Assert
+      assertAll(
+          () -> assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatus(), "the status"),
+          () -> assertEquals(List.of(), rowTenants(create), "a refused create writes no row"));
     }
   }
 
@@ -288,6 +361,25 @@ class NonPrefixedCreateCapabilityTenantTest extends IntegrationTest {
     int status = mvc.perform(request).andReturn().getResponse().getStatus();
     entityManager.flush();
     return status;
+  }
+
+  private MockHttpServletResponse performForResponse(MockHttpServletRequestBuilder request)
+      throws Exception {
+    MockHttpServletResponse response = mvc.perform(request).andReturn().getResponse();
+    entityManager.flush();
+    return response;
+  }
+
+  private void assertRefusedWithoutRow(
+      Create create, MockHttpServletResponse response, HttpStatus status, String message) {
+    assertAll(
+        () -> assertEquals(status.value(), response.getStatus(), "the status"),
+        () ->
+            assertEquals(
+                message,
+                JsonPath.read(response.getContentAsString(), "$.message"),
+                "the error body"),
+        () -> assertEquals(List.of(), rowTenants(create), "a refused create writes no row"));
   }
 
   private void assertRefusedWithoutRow(Create create, int status) {
