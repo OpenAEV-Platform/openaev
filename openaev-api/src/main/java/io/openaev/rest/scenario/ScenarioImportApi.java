@@ -51,7 +51,7 @@ public class ScenarioImportApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @RequestPart("file") @NotNull MultipartFile file) {
-    scenarioService.existsByIdAndTenantId(scenarioId);
+    scenarioService.existsInScope(ctx, scenarioId);
     return injectImportService.storeXlsFileForImport(file);
   }
 

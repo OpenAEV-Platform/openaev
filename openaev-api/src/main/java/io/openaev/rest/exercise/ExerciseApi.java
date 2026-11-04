@@ -571,8 +571,7 @@ public class ExerciseApi extends RestBehavior {
     // under their clearance. The copy starts from a cleared persistence context, so the simulation
     // is resolved in the request scope by id inside it.
     String duplicateId =
-        faithfulCopy.execute(
-            ctx, () -> exerciseService.duplicateExercise(ctx, exerciseId).getId());
+        faithfulCopy.execute(ctx, () -> exerciseService.duplicateExercise(ctx, exerciseId).getId());
     return hydrateForResponse(exerciseService.exercise(duplicateId));
   }
 

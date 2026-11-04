@@ -212,8 +212,7 @@ public class ScenarioApi extends RestBehavior {
     // under their clearance. The copy starts from a cleared persistence context, so the scenario is
     // resolved in the request scope by id inside it.
     String duplicateId =
-        faithfulCopy.execute(
-            ctx, () -> scenarioService.duplicateScenario(ctx, scenarioId).getId());
+        faithfulCopy.execute(ctx, () -> scenarioService.duplicateScenario(ctx, scenarioId).getId());
     return hydrateForResponse(scenarioService.scenario(duplicateId));
   }
 
