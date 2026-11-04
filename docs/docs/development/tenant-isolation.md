@@ -123,6 +123,12 @@ every other caller:
 | regular path with `X-Tenant-Ids` | the default tenant, and every tenant the header names |
 | regular path with no selector | the default tenant, and every tenant the caller is a member of |
 
+To work in one tenant, use the tenant path, `/api/tenants/{tenantId}/...`: the request is checked
+in and runs in the tenant it names. `X-Tenant-Ids` narrows the scope but does not set the ambient
+tenant (`TenantContext`), so on the regular path an endpoint that still reads its data through
+`TenantContext.getCurrentTenant()` reads the default tenant, whatever the header names
+([#7967](https://github.com/OpenAEV-Platform/openaev/issues/7967)).
+
 On an endpoint whose `TxCtx` parameter is annotated `@RequireTenantSelector`, a caller with
 several memberships and no selector gets the default tenant as its scope when it belongs to it, so
 the last row checks the default tenant only. A caller that does not belong to the default tenant
@@ -133,12 +139,14 @@ tenant of the scope returns an HTTP 403 whose message starts with `TENANT_SCOPE_
 message states the rule and the remedy, and never names the tenant that refused, so the response
 discloses no membership beyond what the caller sent.
 
-!!! warning "API clients that belong to several tenants"
+!!! warning "API clients on the regular path"
     A client that belongs to several tenants and calls the regular path with no selector is
     refused as soon as one of its tenants lacks the right, even for rows of a tenant where it
     holds the right. Use the tenant path, which checks that tenant only. Sending `X-Tenant-Ids`
     naming only tenants where the right is held works only when the right is also held in the
-    default tenant, which the regular path always checks. The web interface sends every call whose
+    default tenant, which the regular path always checks. A client that does not hold the right in
+    the default tenant, even with a single membership, is refused on the regular path with or
+    without `X-Tenant-Ids`; it must use the tenant path. The web interface sends every call whose
     decision depends on the tenant to the tenant path of the tenant it is working in, except the
     mail attachment download. That call stays on the regular path until mail attachments are
     stored under their simulation's tenant
@@ -469,9 +477,14 @@ never work around the inspector with raw JDBC.
 row under an ambiguous multi-tenant scope. Use the tenant path (`/api/tenants/{tenantId}/...`) or
 a single-tenant selector so the platform knows which tenant owns the new row.
 
+**An HTTP 403 "Access denied" on the regular path while the right is held in the tenant you work
+in.** The regular path also checks the default tenant, where the caller does not hold the right.
+Use the tenant path (`/api/tenants/{tenantId}/...`).
+
 **An HTTP 403 with `TENANT_SCOPE_FORBIDDEN`.** The caller holds the right the endpoint needs in
-the tenant of the request context, but not in another tenant of its scope. Use the tenant path,
-or narrow `X-Tenant-Ids` to tenants where the right is held. See
+the tenant of the request context, but not in another tenant of its scope. Use the tenant path.
+Narrowing `X-Tenant-Ids` to tenants where the right is held only helps callers who also hold the
+right in the default tenant, which the regular path always checks too. See
 [Authorization covers every tenant of the scope](#authorization-covers-every-tenant-of-the-scope).
 
 **A `UnexpectedRollbackException` at commit in a background job.** Something inside the
