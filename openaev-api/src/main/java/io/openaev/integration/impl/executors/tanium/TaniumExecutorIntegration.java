@@ -11,6 +11,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
+import io.openaev.docs.DocsLinks;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.exception.ExecutorException;
@@ -40,8 +41,6 @@ public class TaniumExecutorIntegration extends Integration {
   public static final String TANIUM_EXECUTOR_DEFAULT_ID = "722ddfb1-6c3b-4b97-91e3-9f606d05892e";
   public static final String TANIUM_EXECUTOR_TYPE = "openaev_tanium";
   public static final String TANIUM_EXECUTOR_NAME = "Tanium";
-  private static final String TANIUM_EXECUTOR_DOCUMENTATION_LINK =
-      "https://docs.openaev.io/latest/deployment/ecosystem/executors/#tanium-agent";
   private static final String TANIUM_EXECUTOR_BACKGROUND_COLOR = "#E03E41";
 
   @QualifiedComponent(identifier = TANIUM_EXECUTOR_NAME)
@@ -127,7 +126,7 @@ public class TaniumExecutorIntegration extends Integration {
             executorId,
             TANIUM_EXECUTOR_TYPE,
             executorName,
-            TANIUM_EXECUTOR_DOCUMENTATION_LINK,
+            DocsLinks.EXECUTORS_TANIUM,
             TANIUM_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-tanium.png"),
             getClass().getResourceAsStream("/img/banner-tanium.png"),

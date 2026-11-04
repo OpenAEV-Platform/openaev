@@ -61,6 +61,7 @@ Then:
 | **Error handling** | Service throws a domain exception (`io.openaev.rest.exception`)? No try/catch or `ResponseStatusException` in a controller (status set only in `RestBehavior`)? |
 | **Logging** | Uses `@Slf4j`? No `System.out.println`? No sensitive data in logs? |
 | **CI scripts** | No `${{ }}` inside a `run:` or `github-script` script? Values passed through the step `env:` and quoted? (🔴 when the value can come from a PR, branch name or other untrusted input) |
+| **Docs links** | No `docs.openaev.io` URL in code: Java uses a `DocsLinks` constant, the front `docsUrl('<key>')`. A new link adds its key to `docs/links.json`, pointing to the real page (not a redirect source), with the regenerated `DocsLinks.java` in the same PR (never hand-edited; the URL guard allows that generated file) |
 
 > Full rules: `backend.instructions.md` → Layering, Entities.
 

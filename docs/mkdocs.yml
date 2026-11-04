@@ -118,8 +118,8 @@ plugins:
         'usage/rest-api.md': 'reference/apis/rest-api.md'
   - macros
   # The contributors and dates shown on each page come from git history and the GitHub API.
-  # The Docs Check of pull requests only needs the pages, so it sets DOCS_GIT_PLUGINS=false (true or false)
-  # to skip both. Nightly builds with them.
+  # check.py only needs the pages, so it sets DOCS_GIT_PLUGINS=false (true or false) to skip both,
+  # unless the environment sets it. Nightly sets it to true and builds with them.
   - git-committers:
       enabled: !ENV [DOCS_GIT_PLUGINS, true]
       repository: OpenAEV-Platform/openaev
@@ -129,6 +129,23 @@ plugins:
       enable_creation_date: true
       type: timeago
   - glightbox
+
+# Checks of every build and serve. `--strict` (check.py, CI) fails on any warning.
+# MkDocs validates the Markdown links between pages: every problem below is a warning.
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: warn
+    unrecognized_links: warn
+# What MkDocs does not check: built pages, images, search index, absolute links to the docs
+# site, page URIs and links.json. See the docstring of hooks/checks.py.
+hooks:
+  - hooks/checks.py
 
 # Extensions
 markdown_extensions:

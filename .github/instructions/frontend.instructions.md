@@ -21,6 +21,7 @@ description: "Frontend React/TypeScript conventions: components, Filigran Design
 - Prefer a default export for a module's main component; helpers, constants and hooks modules may use named exports
 - Never export a mutable binding (`export let` / `export var`): export a `const`, or a getter/setter function (enforced by `custom-rules/no-mutable-exports`)
 - No Ramda: write native JavaScript (array methods, spread, optional chaining). Ramda is being removed; the files that still import it are listed in `legacyRamdaFiles` in `eslint.config.js`. Never add a file to that list: a cleaned file leaves it
+- **Docs links**: never write a `docs.openaev.io` URL (a CI guard fails on it) — use `docsUrl('<key>')` from `utils/docsUrl.ts`, a key of `docs/links.json` (an unknown key fails `yarn check-ts`). A new page or anchor gets a `snake_case` key in that file, pointing to the real page and not to an old path kept as a redirect; `yarn check-docs-links` (needs [Python](https://www.python.org/downloads/), at least the version in `docs/.python-version` (3.11), plus `python3-venv` on Debian/Ubuntu; `PYTHON` chooses it) checks every key against the built docs and fails on a missing page, anchor or redirect
 
 ## Design System & Layout
 
