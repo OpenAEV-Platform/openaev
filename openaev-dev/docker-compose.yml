@@ -194,7 +194,7 @@ services:
   openaev-dev-elasticsearch8:
     profiles: ["es8"]
     container_name: openaev-dev-elasticsearch8
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.15
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.24
     environment:
       - discovery.type=single-node
       - xpack.ml.enabled=false
