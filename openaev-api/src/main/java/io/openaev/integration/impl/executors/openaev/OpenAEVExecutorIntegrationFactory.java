@@ -6,6 +6,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.repository.AssetAgentJobRepository;
+import io.openaev.docs.DocsLinks;
 import io.openaev.executors.ExecutorService;
 import io.openaev.integration.BuiltinIntegrationFactory;
 import io.openaev.integration.ComponentRequestEngine;
@@ -85,7 +86,7 @@ public class OpenAEVExecutorIntegrationFactory extends BuiltinIntegrationFactory
         OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_ID,
         OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_TYPE,
         OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_NAME,
-        OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_DOCUMENTATION_LINK,
+        DocsLinks.OPENAEV_AGENT,
         OpenAEVExecutorIntegration.OPENAEV_EXECUTOR_BACKGROUND_COLOR,
         getClass().getResourceAsStream("/img/icon-openaev.png"),
         getClass().getResourceAsStream("/img/banner-openaev.png"),

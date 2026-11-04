@@ -93,8 +93,14 @@ fairly easy to implement. This is a great place to get started.
 ### Development
 
 If you want to actively help OpenAEV, we created
-a [dedicated documentation](https://docs.openaev.io/latest/development/environment_ubuntu/) about the
+a [dedicated documentation](https://docs.openaev.io/latest/development/environment-ubuntu/) about the
 deployment of a development environment and how to start the source code modification.
+
+Besides Java, Maven and Node.js, a development environment needs [Python](https://www.python.org/downloads/), at
+least the version in `docs/.python-version` (3.11), plus the `python3-venv` package on Debian and Ubuntu: the
+backend build checks the documentation links of the platform by building the documentation, a Python project that
+`docs/run.py` installs with its pinned packages in its own virtual environment. Pass
+`-Dopenaev.docs.check.skip=true` to Maven to build without it.
 
 ## Community
 

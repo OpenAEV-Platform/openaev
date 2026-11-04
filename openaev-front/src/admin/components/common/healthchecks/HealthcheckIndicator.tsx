@@ -7,14 +7,13 @@ import { useNavigate } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import type { HealthCheck } from '../../../../utils/api-types';
+import docsUrl from '../../../../utils/docsUrl';
 
 interface Props {
   healthchecks: HealthCheck[];
   scenarioId?: string;
   exerciseId?: string;
 }
-
-const DOCUMENTATION_ROOT_URL = 'https://docs.openaev.io';
 
 /**
  * Discrete, hero-friendly replacement for the bulky Healthchecks accordion:
@@ -41,16 +40,16 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
     setAnchorEl(null);
     switch (healthcheckType) {
       case 'SMTP':
-        window.open(`${DOCUMENTATION_ROOT_URL}/latest/deployment/configuration/?h=smtp#mail-services`);
+        window.open(docsUrl('configuration_mail_services'));
         break;
       case 'IMAP':
-        window.open(`${DOCUMENTATION_ROOT_URL}/latest/deployment/configuration/?h=smtp#imap`);
+        window.open(docsUrl('configuration_imap'));
         break;
       case 'AGENT_OR_EXECUTOR':
         navigate('/admin/agents');
         break;
       case 'SECURITY_SYSTEM_COLLECTOR':
-        window.open(`${DOCUMENTATION_ROOT_URL}/latest/integrations/collectors/collectors/?h=collector`);
+        window.open(docsUrl('collectors'));
         break;
       case 'INJECT':
       case 'TEAMS':
@@ -58,7 +57,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
         break;
       case 'NMAP':
       case 'NUCLEI':
-        window.open(`${DOCUMENTATION_ROOT_URL}/latest/integrations/injectors/injectors/`);
+        window.open(docsUrl('injectors'));
         break;
       case 'SCOPE_DEFINITION':
         navigate(exerciseId ? `/admin/simulations/${exerciseId}/scope` : `/admin/scenarios/${scenarioId}/scope`);

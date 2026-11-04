@@ -1,0 +1,28 @@
+{
+  "base": "https://docs.openaev.io/latest/",
+  "links": {
+    "home": "",
+    "collectors": "integrations/collectors/collectors/",
+    "configuration_ai_service": "reference/deployment/configuration/#ai-service",
+    "configuration_imap": "reference/deployment/configuration/#imap",
+    "configuration_mail_services": "reference/deployment/configuration/#mail-services",
+    "configuration_postgresql": "reference/deployment/configuration/#postgresql",
+    "configuration_rabbitmq": "reference/deployment/configuration/#rabbitmq",
+    "configuration_s3_bucket": "reference/deployment/configuration/#s3-bucket",
+    "executors_crowdstrike": "integrations/executors/executors/#crowdstrike-falcon-agent",
+    "executors_deploy_agents": "integrations/executors/executors/#deploy-agents",
+    "executors_mde": "integrations/executors/executors/#microsoft-defender-for-endpoint",
+    "executors_paloalto_cortex": "integrations/executors/executors/#paloaltocortex-agent",
+    "executors_sentinelone": "integrations/executors/executors/#sentinelone-agent",
+    "executors_tanium": "integrations/executors/executors/#tanium-agent",
+    "injectors": "integrations/injectors/injectors/",
+    "integration_manager": "deployment/integration-manager/overview/",
+    "openaev_agent": "integrations/agents/openaev-agent/",
+    "output_parsers": "usage/build/threat-arsenals/output-parsers/",
+    "parameters": "administration/parameters/",
+    "run_modes": "deployment/platform/run-modes/",
+    "scenarios_and_simulations": "usage/get-started/foundations/scenarios-and-simulations/",
+    "teams": "usage/build/people/#teams",
+    "users_and_rbac": "administration/users-and-rbac/"
+  }
+}

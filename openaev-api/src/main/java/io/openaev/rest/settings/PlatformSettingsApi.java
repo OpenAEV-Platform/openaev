@@ -5,6 +5,7 @@ import io.openaev.aop.UserRoleDescription;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.docs.DocsLinks;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.settings.form.*;
 import io.openaev.rest.settings.response.CalderaSettings;
@@ -32,7 +33,7 @@ import org.springframework.web.bind.annotation.*;
     externalDocs =
         @ExternalDocumentation(
             description = "Documentation about settings",
-            url = "https://docs.openaev.io/latest/administration/parameters/"))
+            url = DocsLinks.PARAMETERS))
 @RequiredArgsConstructor
 public class PlatformSettingsApi extends RestBehavior {
 

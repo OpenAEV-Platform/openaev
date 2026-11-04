@@ -11,6 +11,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
+import io.openaev.docs.DocsLinks;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.exception.ExecutorException;
@@ -42,8 +43,6 @@ public class SentinelOneExecutorIntegration extends Integration {
       "b586bc98-839c-45bd-b9e4-c10830ebfefa";
   public static final String SENTINELONE_EXECUTOR_TYPE = "openaev_sentinelone_executor";
   public static final String SENTINELONE_EXECUTOR_NAME = "SentinelOne";
-  private static final String SENTINELONE_EXECUTOR_DOCUMENTATION_LINK =
-      "https://docs.openaev.io/latest/deployment/ecosystem/executors/#sentinelone-agent";
   private static final String SENTINELONE_EXECUTOR_BACKGROUND_COLOR = "#6001FC";
 
   @QualifiedComponent(identifier = SENTINELONE_EXECUTOR_NAME)
@@ -129,7 +128,7 @@ public class SentinelOneExecutorIntegration extends Integration {
             executorId,
             SENTINELONE_EXECUTOR_TYPE,
             executorName,
-            SENTINELONE_EXECUTOR_DOCUMENTATION_LINK,
+            DocsLinks.EXECUTORS_SENTINELONE,
             SENTINELONE_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-sentinelone.png"),
             getClass().getResourceAsStream("/img/banner-sentinelone.png"),

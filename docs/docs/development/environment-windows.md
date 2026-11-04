@@ -80,6 +80,34 @@ npm install -g corepack
 corepack enable
 ```
 
+## Documentation check
+
+The backend build and `yarn check-docs-links` build the documentation to check that every
+documentation link of the application, listed in `docs/links.json`, points to an existing page and
+section. They need Python with its `venv` module, at least the version in `docs/.python-version`
+(3.11): on first use, they create a virtual environment in `docs/.venv` and install the pinned
+documentation dependencies in it.
+
+Install Python from [python.org](https://www.python.org/downloads/windows/) or with a package manager. The installer
+includes `venv` and the `py` launcher:
+
+```bash
+winget install Python.Python.3.12
+```
+
+Verify the installation, which must report the version in `docs/.python-version` (3.11) or later:
+
+```bash
+py -3 --version
+```
+
+The checks use the first Python recent enough among the `py -3` launcher, `python3` and `python`, then `python3.N` from the newest
+version down. To choose one, set the `PYTHON` environment variable to its path, or pass
+`-Dopenaev.docs.python=<path>` to Maven. A Python chosen this way is never replaced by another one:
+when it is not found or too old, the check fails and names it.
+
+To build the backend without it, add `-Dopenaev.docs.check.skip=true` to the Maven command.
+
 ## What's next?
 
 - [Build from source](build-from-source.md) -- Start the services, then build and run OpenAEV

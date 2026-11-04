@@ -15,6 +15,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
     <commons-lang3.version>3.21.0</commons-lang3.version>
+    <!-- Same version as the googleJavaFormat of the spotless configuration in the root pom: the tests
+         check that the generated DocsLinks class is formatted as spotless wants it. -->
+    <google-java-format.version>1.24.0</google-java-format.version>
   </properties>
   <dependencyManagement>
     <dependencies>
@@ -91,6 +94,12 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>com.google.googlejavaformat</groupId>
+      <artifactId>google-java-format</artifactId>
+      <version>${google-java-format.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <version>1.18.48</version>
@@ -106,6 +115,21 @@
         <configuration>
           <source>21</source>
           <target>21</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- google-java-format uses the javac internals, closed to other modules since Java 16 -->
+          <argLine>
+            --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED
+            --add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED
+            --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED
+            --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED
+            --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED
+            --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED
+          </argLine>
         </configuration>
       </plugin>
     </plugins>

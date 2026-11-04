@@ -4,6 +4,7 @@ import static io.openaev.helper.MailHelper.resolveFromName;
 import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.openaev.docs.DocsLinks;
 import io.openaev.ee.License;
 import io.swagger.v3.oas.annotations.ExternalDocumentation;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -105,8 +106,7 @@ public class PlatformSettings extends PublicPlatformSettings {
       externalDocs =
           @ExternalDocumentation(
               description = "How to configure AI service",
-              url =
-                  "https://docs.openaev.io/latest/deployment/configuration/?h=ai+type#ai-service"))
+              url = DocsLinks.CONFIGURATION_AI_SERVICE))
   private String aiType;
 
   @JsonProperty("platform_ai_model")

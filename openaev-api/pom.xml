@@ -566,6 +566,32 @@
                             <goal>migration</goal>
                         </goals>
                     </execution>
+                    <!-- Checks docs/links.json against the built docs site (docs/run.py check, with the system Python).
+                         Bound to validate so it runs on every local build, including spring-boot:run, which
+                         forks the lifecycle up to test-compile. Skipped when the CI variable is set (the Docs
+                         Check job covers CI) or with -Dopenaev.docs.check.skip=true. -->
+                    <execution>
+                        <id>docs-check</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>docs-check</goal>
+                        </goals>
+                    </execution>
+                    <!-- Keeps the committed io.openaev.docs.DocsLinks (one constant per key of docs/links.json)
+                         up to date: rewrites it locally, fails in CI when it is stale. Also checks that the docs
+                         URLs of the listed files are links of docs/links.json. -->
+                    <execution>
+                        <id>docs-links</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>docs-links</goal>
+                        </goals>
+                        <configuration>
+                            <linkedFiles>
+                                <linkedFile>${project.basedir}/src/main/resources/application.properties</linkedFile>
+                            </linkedFiles>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>

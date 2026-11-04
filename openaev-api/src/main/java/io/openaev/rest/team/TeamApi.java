@@ -19,6 +19,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawTeamIndexing;
 import io.openaev.database.repository.*;
+import io.openaev.docs.DocsLinks;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.AlreadyExistingException;
 import io.openaev.rest.exception.BadRequestException;
@@ -69,9 +70,7 @@ import org.springframework.web.bind.annotation.*;
     name = "Teams management",
     description = "Endpoints to manage teams",
     externalDocs =
-        @ExternalDocumentation(
-            description = "Documentation about teams",
-            url = "https://docs.openaev.io/latest/usage/build/people/#teams"))
+        @ExternalDocumentation(description = "Documentation about teams", url = DocsLinks.TEAMS))
 public class TeamApi extends RestBehavior {
 
   public static final String TEAM_URI = "/api/teams";

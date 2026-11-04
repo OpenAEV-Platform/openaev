@@ -3,11 +3,12 @@ import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../components/i18n';
 import { type PlatformSettings } from '../../../utils/api-types';
+import docsUrl from '../../../utils/docsUrl';
 import { isEmptyField, recordEntries, recordKeys } from '../../../utils/utils';
 import { type BannerMessage } from './utils';
 
 const SAFE_MODE_MESSAGE_KEY = 'Safe mode is active: background processing is disabled.';
-const SAFE_MODE_DOCUMENTATION_URL = 'https://docs.openaev.io/latest/deployment/platform/run-modes/';
+const SAFE_MODE_DOCUMENTATION_URL = docsUrl('run_modes');
 
 /* eslint-disable */
 /* Avoid auto-lint removal using --fix with false positive finding of: */

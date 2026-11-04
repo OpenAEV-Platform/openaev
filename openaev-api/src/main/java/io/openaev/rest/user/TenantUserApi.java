@@ -12,6 +12,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.raw.RawUser;
+import io.openaev.docs.DocsLinks;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.tenants.TenantUserService;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -38,7 +39,7 @@ import org.springframework.web.bind.annotation.*;
     externalDocs =
         @ExternalDocumentation(
             description = "Documentation about users",
-            url = "https://docs.openaev.io/latest/administration/users-and-rbac/"))
+            url = DocsLinks.USERS_AND_RBAC))
 @RequestMapping({USER_URI, TENANT_USER_URI})
 public class TenantUserApi extends RestBehavior {
 

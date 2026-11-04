@@ -18,6 +18,7 @@ import ItemTags from '../../../components/ItemTags';
 import PlatformIconGroup from '../../../components/PlatformIconGroup';
 import { SCENARIO_BASE_URL } from '../../../constants/BaseUrls';
 import { type FilterGroup, type Scenario } from '../../../utils/api-types';
+import docsUrl from '../../../utils/docsUrl';
 import GettingStartedSectionHeader from './GettingStartedSectionHeader';
 
 // A starter-pack scenario rendered as a marketplace card: category + severity
@@ -131,7 +132,7 @@ const ScenarioCard = ({ scenario }: { scenario: Scenario }) => {
         )}
         <div style={{ flex: 1 }} />
         <MUILink
-          href="https://docs.openaev.io/latest/usage/foundations/scenarios-and-simulations/ "
+          href={docsUrl('scenarios_and_simulations')}
           target="_blank"
           rel="noopener noreferrer"
           underline="hover"

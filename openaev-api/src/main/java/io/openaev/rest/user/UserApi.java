@@ -11,6 +11,7 @@ import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.docs.DocsLinks;
 import io.openaev.rest.exception.InputValidationException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.login.LoginUserInput;
@@ -47,7 +48,7 @@ import org.springframework.web.bind.annotation.*;
     externalDocs =
         @ExternalDocumentation(
             description = "Documentation about users",
-            url = "https://docs.openaev.io/latest/administration/users-and-rbac/"))
+            url = DocsLinks.USERS_AND_RBAC))
 public class UserApi extends RestBehavior {
 
   public static final String USER_URI = "/api/users";

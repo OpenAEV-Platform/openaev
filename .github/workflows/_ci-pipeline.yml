@@ -173,8 +173,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/fds-conformity
 
-  # Reported through the Pipeline Gate as advisory, never blocking, until it has run clean for a while
-  # on real PRs. Making it blocking means taking the job out of the advisory list in the gate below.
+  # Blocking: the single docs check. The backend and the front open the docs by key of
+  # docs/links.json, and a docs change that breaks one of them, or a link between pages, fails here.
   docs-check:
     name: "📖 Docs Check"
     runs-on: ubuntu-24.04
@@ -193,6 +193,21 @@ jobs:
           no-cache: ${{ inputs.no-cache }}
           git-plugins: ${{ inputs.docs-git-plugins }}
           github-token: ${{ inputs.docs-git-plugins && github.token || '' }}
+
+  # Blocking: the backend and the front open the docs by key of docs/links.json, which the Docs
+  # Check resolves against the site. A raw docs.openaev.io URL in the code escapes that check.
+  docs-urls-guard:
+    name: "🔎 Docs URLs Guard"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    # Reads the checkout only: no write scope, and no token left in .git/config.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/docs-urls-guard
 
   # Pull requests only: the gate reads what a PR adds against its target branch, and a push or a
   # scheduled run has no target branch. Skipped counts as passed in the Pipeline Gate.
@@ -722,6 +737,7 @@ jobs:
       - fds-conformity
       - fds-mui-regression
       - docs-check
+      - docs-urls-guard
       - api-tests
       # tenant-shadow-report is deliberately absent: it is the shadow runs' verdict, and those
       # report rather than gate. Adding it here would fail the Nightly run and page the on-call.
@@ -758,7 +774,7 @@ jobs:
             case "$job" in
               # A new check lands here first so a false positive cannot block a merge. Take the job
               # out of this list to make it blocking.
-              bom-override-guard|docs-check)
+              bom-override-guard)
                 advisory=1
                 ;;
             esac
