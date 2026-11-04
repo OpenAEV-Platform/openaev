@@ -10032,6 +10032,12 @@ export interface PayloadsDeprecateInput {
   payload_external_ids: string[];
 }
 
+export interface PhishingConfirmInput {
+  /** @format int64 */
+  dwell_ms?: number;
+  webdriver?: boolean;
+}
+
 export interface PhishingEmailTemplate {
   listened?: boolean;
   phishing_email_template_add_tracking_pixel?: boolean;
