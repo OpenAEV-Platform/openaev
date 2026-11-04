@@ -3,12 +3,16 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.TeamRepository;
@@ -17,8 +21,11 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.AssetService;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -396,6 +403,139 @@ class ScopeSnapshotServiceTest {
     }
   }
 
+  // -- ASSETS THE READER CANNOT SEE --
+
+  @Nested
+  @DisplayName("assets the reader cannot see")
+  class HiddenAssetTests {
+
+    private ScopeRuleSnapshot groupPhoto(String... assetIds) {
+      return ScopeRuleSnapshot.builder()
+          .label("Servers")
+          .assets(
+              java.util.Arrays.stream(assetIds)
+                  .map(
+                      id ->
+                          ScopeRuleSnapshot.AssetSnapshot.builder()
+                              .id(id)
+                              .name(id)
+                              .agentsCount(0)
+                              .executors(List.of())
+                              .build())
+                  .toList())
+          .build();
+    }
+
+    private WorkflowScopeRule groupRule(ScopeRuleSnapshot launch, ScopeRuleSnapshot end) {
+      return WorkflowScopeRule.builder()
+          .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+          .ruleSource(ScopeRuleSource.ASSET_GROUP)
+          .valueType(ScopeRuleValueType.ASSET_GROUP_ID)
+          .ruleValue("grp")
+          .snapshotStart(launch)
+          .snapshotEnd(end)
+          .build();
+    }
+
+    private void liveGroupHolds(Asset... members) {
+      AssetGroup group = new AssetGroup();
+      group.setId("grp");
+      group.setName("Servers");
+      when(assetGroupService.assetGroup("grp")).thenReturn(group);
+      when(assetGroupService.assetsFromAssetGroup(group)).thenReturn(List.of(members));
+    }
+
+    @Test
+    @DisplayName("should report as hidden an asset that exists but the reader cannot see")
+    void given_assetThatExistsButIsNotVisible_should_beHidden() {
+      // Arrange: a1 is visible to the reader, a2 exists but is restricted, a3 is gone.
+      when(assetService.visibleAssetIds(List.of("a1", "a2", "a3"))).thenReturn(Set.of("a1"));
+      Set<String> lookedUpAtSystemClearance = new java.util.HashSet<>();
+      when(assetService.visibleAssetIds(Set.of("a2", "a3")))
+          .thenAnswer(
+              invocation -> {
+                lookedUpAtSystemClearance.addAll(invocation.getArgument(0));
+                return Set.of("a2");
+              });
+
+      // Act
+      Set<String> hidden =
+          scopeSnapshotService.hiddenAssetIds("tenant-1", List.of("a1", "a2", "a3"));
+
+      // Assert
+      assertEquals(Set.of("a2"), hidden, "a deleted asset is not a restricted one");
+      assertEquals(Set.of("a2", "a3"), lookedUpAtSystemClearance);
+      verify(tenantTx).executeNew(eq(TxCtx.forTenant("tenant-1")), any(Supplier.class));
+    }
+
+    @Test
+    @DisplayName("should open no extra transaction when the reader sees every asset")
+    void given_everyAssetVisible_should_notLookAgain() {
+      // Arrange
+      when(assetService.visibleAssetIds(List.of("a1", "a2"))).thenReturn(Set.of("a1", "a2"));
+
+      // Act
+      Set<String> hidden = scopeSnapshotService.hiddenAssetIds("tenant-1", List.of("a1", "a2"));
+
+      // Assert
+      assertTrue(hidden.isEmpty());
+      verify(tenantTx, never()).executeNew(any(), any(Supplier.class));
+    }
+
+    @Test
+    @DisplayName("should not cut a photo when nothing is hidden, and never change the frozen photo")
+    void given_hiddenMember_should_cutACopyOfThePhoto() {
+      // Arrange
+      ScopeRuleSnapshot frozen = groupPhoto("green", "red");
+
+      // Act
+      ScopeRuleSnapshot cut = ScopeSnapshotService.withoutHidden(frozen, Set.of("red"));
+
+      // Assert
+      assertEquals(List.of("green"), cut.getAssets().stream().map(a -> a.getId()).toList());
+      assertEquals("Servers", cut.getLabel());
+      assertEquals(2, frozen.getAssets().size(), "the frozen photo is untouched");
+      assertSame(frozen, ScopeSnapshotService.withoutHidden(frozen, Set.of()));
+      assertNull(ScopeSnapshotService.withoutHidden(null, Set.of("red")));
+    }
+
+    @Test
+    @DisplayName("should not read a group as modified because the reader cannot see one member")
+    void given_groupWithHiddenMember_should_notReadAsModifiedForTheReader() {
+      // Arrange: both photos were frozen at the system clearance and hold the restricted member;
+      // the live group is read under the reader's clearance and lacks it.
+      ScopeRuleSnapshot photo = groupPhoto("green", "red");
+      WorkflowScopeRule rule = groupRule(photo, photo);
+      liveGroupHolds(asset("green", "green"));
+
+      // Act
+      ScopeRuleSnapshotStatus withoutTheCut = scopeSnapshotService.computeStatus(rule);
+      ScopeRuleSnapshotStatus withTheCut = scopeSnapshotService.computeStatus(rule, Set.of("red"));
+
+      // Assert
+      assertEquals(
+          ScopeRuleSnapshotStatus.MODIFIED_AFTER_EXECUTION,
+          withoutTheCut,
+          "the bug: a restricted member makes the group read as modified");
+      assertEquals(ScopeRuleSnapshotStatus.RESOLVED, withTheCut);
+    }
+
+    @Test
+    @DisplayName("should still read a group as modified when a visible member changed")
+    void given_visibleMemberRemoved_should_stillReadAsModified() {
+      // Arrange
+      ScopeRuleSnapshot photo = groupPhoto("green", "red");
+      WorkflowScopeRule rule = groupRule(photo, photo);
+      liveGroupHolds();
+
+      // Act
+      ScopeRuleSnapshotStatus status = scopeSnapshotService.computeStatus(rule, Set.of("red"));
+
+      // Assert
+      assertEquals(ScopeRuleSnapshotStatus.MODIFIED_AFTER_EXECUTION, status);
+    }
+  }
+
   // -- FREEZE --
 
   @Nested
@@ -457,6 +597,105 @@ class ScopeSnapshotServiceTest {
       // Missing target: the photo degrades to the raw id label instead of staying null.
       assertEquals("gone", unresolvable.getSnapshotStart().getLabel());
       assertNull(unresolvable.getSnapshotStart().getAssets());
+    }
+
+    /**
+     * Stubs the isolated transaction so a test can tell whether a lookup ran inside it, and which
+     * scope it was opened with.
+     */
+    private void recordSystemClearanceTransactions(
+        AtomicBoolean insideTransaction, List<TxCtx> openedScopes) {
+      when(tenantTx.executeNew(any(), any(Supplier.class)))
+          .thenAnswer(
+              invocation -> {
+                openedScopes.add(invocation.getArgument(0));
+                insideTransaction.set(true);
+                try {
+                  return ((Supplier<?>) invocation.getArgument(1)).get();
+                } finally {
+                  insideTransaction.set(false);
+                }
+              });
+    }
+
+    @Test
+    @DisplayName("should resolve the launch photo at the system clearance of the run's tenant")
+    void given_restrictedLauncher_should_resolveLaunchPhotoAtSystemClearance() {
+      // Arrange
+      AtomicBoolean insideTransaction = new AtomicBoolean(false);
+      List<TxCtx> openedScopes = new ArrayList<>();
+      recordSystemClearanceTransactions(insideTransaction, openedScopes);
+      List<Boolean> lookedUpInsideTransaction = new ArrayList<>();
+      when(assetService.asset("a1"))
+          .thenAnswer(
+              invocation -> {
+                lookedUpInsideTransaction.add(insideTransaction.get());
+                return asset("a1", "Prod server");
+              });
+      when(collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(anyString()))
+          .thenReturn(List.of());
+      WorkflowScopeRule rule = assetRule("a1", null, null);
+      Workflow run = Workflow.builder().status(WorkflowStatus.RUN).build();
+      run.getWorkflowScopeRules().add(rule);
+
+      // Act
+      scopeSnapshotService.freezeLaunch(run, "tenant-1");
+
+      // Assert
+      assertEquals(List.of(TxCtx.forTenant("tenant-1")), openedScopes);
+      assertEquals(
+          List.of(true),
+          lookedUpInsideTransaction,
+          "the asset is read inside the system-clearance transaction, not under the caller's");
+      assertEquals("Prod server", rule.getSnapshotStart().getLabel());
+    }
+
+    @Test
+    @DisplayName("should resolve the end photo at the system clearance of the simulation's tenant")
+    void given_runWithSimulation_should_resolveEndPhotoAtSystemClearance() {
+      // Arrange
+      AtomicBoolean insideTransaction = new AtomicBoolean(false);
+      List<TxCtx> openedScopes = new ArrayList<>();
+      recordSystemClearanceTransactions(insideTransaction, openedScopes);
+      List<Boolean> lookedUpInsideTransaction = new ArrayList<>();
+      when(assetService.asset("a1"))
+          .thenAnswer(
+              invocation -> {
+                lookedUpInsideTransaction.add(insideTransaction.get());
+                return asset("a1", "Prod server");
+              });
+      Tenant tenant = new Tenant();
+      tenant.setId("tenant-1");
+      Exercise simulation = new Exercise();
+      simulation.setTenant(tenant);
+      WorkflowScopeRule rule = assetRule("a1", assetPhoto("a1", "Prod server"), null);
+      Workflow run = Workflow.builder().status(WorkflowStatus.RUN).simulation(simulation).build();
+      run.getWorkflowScopeRules().add(rule);
+
+      // Act
+      scopeSnapshotService.freezeEnd(run, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+
+      // Assert
+      assertEquals(List.of(TxCtx.forTenant("tenant-1")), openedScopes);
+      assertEquals(List.of(true), lookedUpInsideTransaction);
+      assertEquals("Prod server", rule.getSnapshotEnd().getLabel());
+    }
+
+    @Test
+    @DisplayName("should resolve in the caller's scope when the run has no simulation to scope it")
+    void given_runWithoutSimulation_should_resolveEndPhotoInTheCallersScope() {
+      // Arrange
+      when(assetService.asset("a1")).thenReturn(asset("a1", "Prod server"));
+      WorkflowScopeRule rule = assetRule("a1", assetPhoto("a1", "Prod server"), null);
+      Workflow run = Workflow.builder().status(WorkflowStatus.RUN).build();
+      run.getWorkflowScopeRules().add(rule);
+
+      // Act
+      scopeSnapshotService.freezeEnd(run, WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+
+      // Assert
+      verify(tenantTx, never()).executeNew(any(), any(Supplier.class));
+      assertEquals("Prod server", rule.getSnapshotEnd().getLabel());
     }
 
     @Test

@@ -81,6 +81,7 @@ class InjectLaunchClearanceOutsideSessionTest extends IntegrationTest {
 
   private JdbcTemplate jdbc;
   private String tenantId;
+  private User launcherUser;
   private String launcherId;
   private String groupId;
   private String tlpGreen;
@@ -111,6 +112,7 @@ class InjectLaunchClearanceOutsideSessionTest extends IntegrationTest {
                   .withGroup(group)
                   .persist()
                   .get();
+          launcherUser = launcher;
           launcherId = launcher.getId();
           groupId = group.get().getId();
 
@@ -183,6 +185,52 @@ class InjectLaunchClearanceOutsideSessionTest extends IntegrationTest {
     // -- ASSERT --
     assertThat(dispatched.assetsAgentless())
         .extracting(Asset::getId)
+        .containsExactly(green.getId());
+  }
+
+  @Test
+  @DisplayName(
+      "given an inject its own transaction has not committed yet (a chained step run),"
+          + " should dispatch to its GREEN target from an isolated transaction")
+  void given_injectNotCommittedYet_should_resolveTheLauncherClearance() {
+    // -- ARRANGE / ACT --
+    // A chained step creates its inject in the run's transaction, then records the attack path in
+    // an isolated one (REQUIRES_NEW) that resolves the targets again. The row of the inject is
+    // not visible to that second transaction.
+    AgentsAndAssetsAgentless dispatched =
+        inTenant(
+            () -> {
+              Inject inject = InjectFixture.getInjectWithoutContract();
+              // Loaded again: the endpoints of the set-up were marked straight in the database,
+              // so the ones in memory carry no marking.
+              inject.setAssets(
+                  new ArrayList<>(
+                      List.of(
+                          entityManager.find(Endpoint.class, green.getId()),
+                          entityManager.find(Endpoint.class, red.getId()))));
+              InjectComposer.Composer composed =
+                  injectComposer
+                      .forInject(inject)
+                      .withInjectorContract(
+                          injectorContractComposer
+                              .forInjectorContract(
+                                  InjectorContractFixture.createDefaultInjectorContract())
+                              .withInjector(
+                                  InjectorFixture.createDefaultInjector(
+                                      "launch-clearance-" + UUID.randomUUID())));
+              Exercise simulation = ExerciseFixture.createDefaultExercise();
+              simulation.setLaunchedBy(launcherUser);
+              exerciseComposer.forExercise(simulation).withInject(composed).persist();
+              entityManager.flush();
+              return tenantTx.executeNew(
+                  TxCtx.forTenant(tenantId),
+                  () -> injectService.getAgentsAndAgentlessAssetsByInject(composed.get()));
+            });
+
+    // -- ASSERT --
+    assertThat(dispatched.assetsAgentless())
+        .extracting(Asset::getId)
+        .as("the launcher is found although its inject is not committed yet")
         .containsExactly(green.getId());
   }
 
