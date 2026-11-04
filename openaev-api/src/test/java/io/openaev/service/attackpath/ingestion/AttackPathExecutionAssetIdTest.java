@@ -11,7 +11,7 @@ import io.openaev.database.model.Injector;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
-import io.openaev.migration.V6_20261103100000000__Add_attackpath_execution_asset_id;
+import io.openaev.migration.V6_20261103120000000__Add_attackpath_execution_asset_id;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
@@ -49,7 +49,7 @@ class AttackPathExecutionAssetIdTest extends IntegrationTest {
 
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private EndpointComposer endpointComposer;
-  @Autowired private V6_20261103100000000__Add_attackpath_execution_asset_id migration;
+  @Autowired private V6_20261103120000000__Add_attackpath_execution_asset_id migration;
 
   private Tenant tenant;
 

@@ -33,7 +33,7 @@ import org.springframework.stereotype.Component;
  * duration. No Elasticsearch-indexed entity is touched, so no {@code indexing_status} reset.
  */
 @Component
-public class V6_20261103100000000__Add_attackpath_execution_asset_id extends BaseJavaMigration {
+public class V6_20261103120000000__Add_attackpath_execution_asset_id extends BaseJavaMigration {
 
   /** The asset the row is about, from the columns of {@code row} (a table alias or NEW). */
   private static String assetOf(String row) {
