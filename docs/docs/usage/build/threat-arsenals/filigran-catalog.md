@@ -28,7 +28,7 @@ Integration from **Integrations**.
 ### Install new actions automatically
 
 The **Install new actions automatically** switch, in the **Available** tab, controls what happens when Filigran publishes
-a release:
+a release. It is on by default:
 
 | Situation                                   | Switch off                 | Switch on                        |
 |---------------------------------------------|----------------------------|----------------------------------|

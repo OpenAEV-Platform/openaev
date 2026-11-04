@@ -22,7 +22,7 @@ Integration you have not deployed are skipped: install them one by one.
 ### Install new scenarios automatically
 
 The **Install new scenarios automatically** switch, in the **Available** tab, installs every new Scenario that a Filigran
-release brings, with the same rule as **Install all**. It is off by default. A Scenario you uninstalled is never
+release brings, with the same rule as **Install all**. It is on by default. A Scenario you uninstalled is never
 installed again by itself.
 
 ## Update a Scenario
