@@ -31,6 +31,7 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
+import io.openaev.database.raw.RawScenarioWorkflowFields;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.database.specification.SpecificationUtils;
@@ -588,7 +589,7 @@ public class ScenarioService {
    */
   public ScenarioOutput getScenarioById(
       @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
-    existsInScope(ctx, scenarioId);
+    Scenario scenario = this.scenario(ctx, scenarioId);
     RawScenario rawScenario = rawScenario(scenarioId);
     Set<KillChainPhaseOutput> killChainPhases = new HashSet<>();
     if (rawScenario.getScenario_kill_chain_phases() != null) {
@@ -609,7 +610,13 @@ public class ScenarioService {
         log.error("Error reading scenarioTeamUsers from scenario id {}", scenarioId, e);
       }
     }
-    return scenarioMapper.toScenarioOutput(rawScenario, killChainPhases, scenarioTeamUsers);
+    RawScenarioWorkflowFields workflowFields = workflowFields(scenario, scenarioId);
+    return scenarioMapper.toScenarioOutput(
+        rawScenario,
+        killChainPhases,
+        scenarioTeamUsers,
+        workflowId(workflowFields),
+        platforms(rawScenario, workflowFields));
   }
 
   /**
@@ -624,22 +631,42 @@ public class ScenarioService {
   @Transactional(readOnly = true)
   public List<TeamOutput> getScenarioTeams(
       @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
-    existsInScope(ctx, scenarioId);
-    String workflowId = rawScenario(scenarioId).getScenario_workflow_id();
+    Scenario scenario = this.scenario(ctx, scenarioId);
+    String workflowId = workflowId(workflowFields(scenario, scenarioId));
     return hasText(workflowId)
         ? getWorkflowScenarioTeams(scenarioId, workflowId)
         : getTimeBasedScenarioTeams(scenarioId);
   }
 
-  // The detail names the scenario's workflow, read in the scenario's own tenant.
+  // The detail aggregate (kill chain phases, teams, tags and the rest) is read under the request's
+  // own scope, like any other tenant-active data the request's scope resolves: only the workflow
+  // fields below are read in the owner's tenant.
   private RawScenario rawScenario(final String scenarioId) {
-    RawScenario rawScenario =
-        workflowOwnerScope.call(
-            scenario(scenarioId), () -> scenarioRepository.getScenarioByIdAndTenantId(scenarioId));
+    RawScenario rawScenario = scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
     if (rawScenario == null) {
       throw new ElementNotFoundException("Scenario not found");
     }
     return rawScenario;
+  }
+
+  // A workflow inherits its owner's tenant and can never move, so its id and the platforms its
+  // template steps target are read in the scenario's own tenant, whatever the caller's scope.
+  private RawScenarioWorkflowFields workflowFields(Scenario scenario, final String scenarioId) {
+    return workflowOwnerScope.call(
+        scenario, () -> scenarioRepository.getScenarioWorkflowFields(scenarioId));
+  }
+
+  private static String workflowId(RawScenarioWorkflowFields workflowFields) {
+    return workflowFields != null ? workflowFields.getWorkflow_id() : null;
+  }
+
+  // The time-based platforms fall back to the ones derived from the scenario's own injects,
+  // read under the request's scope, when the scenario carries no workflow template step platforms.
+  private static Set<String> platforms(
+      RawScenario rawScenario, RawScenarioWorkflowFields workflowFields) {
+    Set<String> workflowPlatforms =
+        workflowFields != null ? workflowFields.getWorkflow_platforms() : null;
+    return workflowPlatforms != null ? workflowPlatforms : rawScenario.getScenario_platforms();
   }
 
   private List<TeamOutput> getWorkflowScenarioTeams(
