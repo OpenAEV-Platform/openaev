@@ -367,6 +367,21 @@ public class InjectExpectationUtils {
   }
 
   /**
+   * Keeps the collectors that answer the given expectation type: a pending result is only seeded
+   * for a collector able to fill it. A collector that declared no type answers Detection and
+   * Prevention only, so it is never awaited on a newer type such as Logging.
+   *
+   * @param collectors the candidate collectors
+   * @param expectationType the type of the expectation being seeded
+   * @return the collectors that declared (or, by default, answer) this type
+   */
+  public static List<Collector> filterCollectorsSupportingType(
+      final List<Collector> collectors,
+      final BaseInjectExpectation.EXPECTATION_TYPE expectationType) {
+    return collectors.stream().filter(c -> c.supportsExpectationType(expectationType)).toList();
+  }
+
+  /**
    * Expiration ordering guarantee: when specific security platforms are expected, make sure the
    * expectation's expiration is long enough for the real collectors to answer first (at least two
    * of their poll cycles), so the expiration manager only ever acts as a fallback for genuinely

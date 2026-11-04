@@ -14,7 +14,9 @@ import io.openaev.rest.exercise.form.InjectExpectationUpdateFromUIInput;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationBulkUpdateInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.expectation.ExpectationVerdict;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -39,6 +41,7 @@ public class ExpectationApi extends RestBehavior {
       TENANT_PREFIX + "/injects/expectations";
 
   private final InjectExpectationService injectExpectationService;
+  private final PreviewFeatureService previewFeatureService;
 
   @Transactional(rollbackFor = Exception.class)
   @PutMapping({EXPECTATIONS_URI + "/{expectationId}", TENANT_EXPECTATIONS_URI + "/{expectationId}"})
@@ -244,6 +247,29 @@ public class ExpectationApi extends RestBehavior {
         tenantId,
         results.size());
     return results;
+  }
+
+  @Operation(
+      summary = "Get Logging Inject Expectations for a Specific Source",
+      description =
+          "Retrieves the Logging inject expectations (agent and agentless targets) not yet answered by"
+              + " a given source, with their signatures. Returns an empty list while the Logging"
+              + " expectation feature is disabled.")
+  @GetMapping({
+    INJECTS_EXPECTATIONS_URI + "/logging/{sourceId}",
+    TENANT_INJECTS_EXPECTATIONS_URI + "/logging/{sourceId}"
+  })
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.SIMULATION)
+  @Transactional
+  public List<InjectExpectationOutput> getInjectLoggingExpectationsNotFilledForSource(
+      TxCtx ctx, @PathVariable String sourceId) {
+    // An empty list, not an error, while the flag is off: collectors poll this route
+    // unconditionally and must simply find nothing to answer.
+    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION)) {
+      return List.of();
+    }
+    String tenantId = TenantContext.getCurrentTenant();
+    return toOutputs(injectExpectationService.loggingExpectationsNotFill(tenantId, sourceId));
   }
 
   @Operation(
