@@ -250,7 +250,7 @@ public interface ScenarioRepository
               + "), "
               + "kill_chain AS ( "
               + "  SELECT i.inject_scenario AS scenario_id, "
-              + "         json_agg(DISTINCT kcp.*) FILTER (WHERE kcp IS NOT NULL) AS scenario_kill_chain_phases "
+              + "         json_agg(DISTINCT kcp.*) FILTER (WHERE kcp.phase_id IS NOT NULL) AS scenario_kill_chain_phases "
               + "  FROM injects i "
               + "  JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract "
               + "  JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
