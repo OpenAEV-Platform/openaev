@@ -5,6 +5,7 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
+import io.openaev.processor.datapack.PresetTenantData;
 import io.openaev.service.*;
 import io.openaev.service.platform.groups.PlatformGroupService;
 import io.openaev.service.platform.roles.PlatformRoleService;
@@ -49,11 +50,11 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
   public static final WellKnownAccess ADMIN_ACCESS =
       new WellKnownAccess(
           "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
-          "Admin",
+          PresetTenantData.ADMIN,
           "Full administrative access to the tenant.",
           Set.of(Capability.BYPASS),
           "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
-          "Admin",
+          PresetTenantData.ADMIN,
           "Tenant administrators.");
 
   /** Platform-scoped (tenant = null): its ids are stored as is, not derived per tenant. */
@@ -135,8 +136,7 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
   private Group resolveAdminGroup(String tenantId) {
     String groupId = adminGroupId(tenantId);
     Optional<Group> wellKnown = tenantGroupService.findByIdAndTenant(groupId, tenantId);
-    if (wellKnown.isPresent()
-        && wellKnown.get().getRoles().stream().anyMatch(AdminPrivilegeService::hasBypass)) {
+    if (wellKnown.isPresent() && wellKnown.get().getRoles().stream().anyMatch(Role::hasBypass)) {
       log.info("Kept admin group {} of tenant {}", groupId, tenantId);
       return wellKnown.get();
     }
@@ -195,12 +195,8 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
     boolean needsBypass = ADMIN_ACCESS.roleName().equals(name);
     return tenantRoles.stream()
         .filter(role -> name.equals(role.getName()))
-        .filter(role -> !needsBypass || hasBypass(role))
+        .filter(role -> !needsBypass || role.hasBypass())
         .min(Comparator.comparing(Role::getCreatedAt).thenComparing(Role::getId));
-  }
-
-  private static boolean hasBypass(Role role) {
-    return role.getCapabilities().contains(Capability.BYPASS);
   }
 
   /**
