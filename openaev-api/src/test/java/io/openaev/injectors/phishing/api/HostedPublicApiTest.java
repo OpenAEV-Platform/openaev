@@ -1,6 +1,7 @@
 package io.openaev.injectors.phishing.api;
 
 import static io.openaev.injectors.phishing.api.HostedPublicApi.HOSTED_URI;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -201,6 +202,95 @@ class HostedPublicApiTest extends IntegrationTest {
                   .content(objectMapper.writeValueAsString(new HashMap<>())))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.redirect_url").value(redirectUrl));
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/hosted/confirm/{token}")
+  class Confirm {
+
+    private boolean isSet(String token, String column) {
+      return Boolean.TRUE.equals(
+          jdbc.queryForObject(
+              "SELECT "
+                  + column
+                  + " IS NOT NULL FROM phishing_results"
+                  + " WHERE phishing_result_token = ?",
+              Boolean.class,
+              token));
+    }
+
+    private void confirm(String token, long dwellMs, boolean webdriver) throws Exception {
+      mvc.perform(
+              post(HOSTED_URI + "/confirm/{token}", token)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"dwell_ms\":" + dwellMs + ",\"webdriver\":" + webdriver + "}"))
+          .andExpect(status().isNoContent());
+    }
+
+    private String seedToken() {
+      String landingPageId = seedLandingPage(Tenant.DEFAULT_TENANT_UUID, "Confirm page", null);
+      return seedPhishingResult(Tenant.DEFAULT_TENANT_UUID, landingPageId);
+    }
+
+    @Test
+    @DisplayName("given human-looking signals, should record the click for the recipient")
+    void given_humanSignals_should_recordUserClick() throws Exception {
+      // Arrange
+      String token = seedToken();
+
+      // Act
+      confirm(token, 2300, false);
+
+      // Assert
+      assertThat(isSet(token, "phishing_result_clicked_at")).isTrue();
+    }
+
+    @Test
+    @DisplayName("given navigator.webdriver, should not record a user click")
+    void given_webdriver_should_notRecordUserClick() throws Exception {
+      // Arrange
+      String token = seedToken();
+
+      // Act
+      confirm(token, 2300, true);
+
+      // Assert
+      assertThat(isSet(token, "phishing_result_clicked_at")).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a confirmation faster than a human, should not record a user click")
+    void given_tooFastConfirmation_should_notRecordUserClick() throws Exception {
+      // Arrange
+      String token = seedToken();
+
+      // Act
+      confirm(token, 50, false);
+
+      // Assert
+      assertThat(isSet(token, "phishing_result_clicked_at")).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a bot click then a human one, should still record the human click")
+    void given_botThenHuman_should_recordHumanClick() throws Exception {
+      // Arrange
+      String token = seedToken();
+
+      // Act
+      confirm(token, 50, false);
+      confirm(token, 2300, false);
+
+      // Assert
+      assertThat(isSet(token, "phishing_result_clicked_at")).isTrue();
+    }
+
+    @Test
+    @DisplayName("given an unknown token, should answer no content and record nothing")
+    void given_unknownToken_should_answerNoContent() throws Exception {
+      // Act & Assert
+      confirm("unknown-" + UUID.randomUUID(), 2300, false);
     }
   }
 
