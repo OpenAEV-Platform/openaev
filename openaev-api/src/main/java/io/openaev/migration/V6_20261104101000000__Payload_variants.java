@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
  * conflicts with, and the lift of a revocation a variant version inherits from its base.
  */
 @Component
-public class V6_20261027101000000__Payload_variants extends BaseJavaMigration {
+public class V6_20261104101000000__Payload_variants extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

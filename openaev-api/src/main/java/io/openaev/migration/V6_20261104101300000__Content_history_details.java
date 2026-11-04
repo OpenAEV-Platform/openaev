@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** What a history entry changed: fields before and after, merge choices, reasons. */
 @Component
-public class V6_20261027101300000__Content_history_details extends BaseJavaMigration {
+public class V6_20261104101300000__Content_history_details extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

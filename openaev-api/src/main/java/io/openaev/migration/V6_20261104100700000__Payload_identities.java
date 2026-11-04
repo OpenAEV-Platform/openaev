@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
  * version.
  */
 @Component
-public class V6_20261027100700000__Payload_identities extends BaseJavaMigration {
+public class V6_20261104100700000__Payload_identities extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

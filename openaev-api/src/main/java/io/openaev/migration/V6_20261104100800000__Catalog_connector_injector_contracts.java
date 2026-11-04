@@ -5,15 +5,16 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-/** What a catalogue item needs to run: OpenAEV version, edition, injectors and executors. */
+/** Contracts each catalogue injector registers, listed in the Threat Arsenal before it runs. */
 @Component
-public class V6_20261027100600000__Catalog_items_requires extends BaseJavaMigration {
+public class V6_20261104100800000__Catalog_connector_injector_contracts extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
       statement.execute(
-          "ALTER TABLE catalog_items ADD COLUMN IF NOT EXISTS catalog_item_requires TEXT");
+          "ALTER TABLE catalog_connectors ADD COLUMN IF NOT EXISTS"
+              + " catalog_connector_injector_contracts JSONB NOT NULL DEFAULT '[]'::jsonb");
     }
   }
 }

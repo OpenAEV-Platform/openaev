@@ -5,15 +5,19 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-/** Number of injects a version change moved. */
+/** Lookup of payloads by content hash (zip import, migration, sync). */
 @Component
-public class V6_20261027100900000__Content_history_count extends BaseJavaMigration {
+public class V6_20261104100200000__Payload_content_hash_index extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
       statement.execute(
-          "ALTER TABLE content_history ADD COLUMN IF NOT EXISTS content_history_count INTEGER");
+          """
+          CREATE INDEX IF NOT EXISTS idx_payloads_content_hash
+            ON payloads (tenant_id, payload_content_hash)
+            WHERE payload_content_hash IS NOT NULL;
+          """);
     }
   }
 }

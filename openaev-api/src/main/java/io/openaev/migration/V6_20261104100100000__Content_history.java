@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** History of catalogue content per tenant (ADR-018): installs, updates, rollbacks, copies. */
 @Component
-public class V6_20261027100100000__Content_history extends BaseJavaMigration {
+public class V6_20261104100100000__Content_history extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

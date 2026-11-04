@@ -5,16 +5,15 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-/** A refused revoked payload is a plain error trace; its message still says it was revoked. */
+/** Number of injects a version change moved. */
 @Component
-public class V6_20261029100200000__Payload_revoked_traces_as_errors extends BaseJavaMigration {
+public class V6_20261104100900000__Content_history_count extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
     try (Statement statement = context.getConnection().createStatement()) {
       statement.execute(
-          "UPDATE execution_traces SET execution_status = 'ERROR'"
-              + " WHERE execution_status = 'PAYLOAD_REVOKED';");
+          "ALTER TABLE content_history ADD COLUMN IF NOT EXISTS content_history_count INTEGER");
     }
   }
 }

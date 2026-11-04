@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** Revoking an action needed the delete right; roles that have it keep revoking. */
 @Component
-public class V6_20261029100100000__Revoke_threat_arsenals_capability extends BaseJavaMigration {
+public class V6_20261104101500000__Revoke_threat_arsenals_capability extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  * against, a soft uninstall, and the revisions that keep past contents.
  */
 @Component
-public class V6_20261027101200000__Scenario_revisions extends BaseJavaMigration {
+public class V6_20261104101200000__Scenario_revisions extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** Catalogue content is authored by its publisher organization, Filigran when none is given. */
 @Component
-public class V6_20261029100000000__Catalog_content_author extends BaseJavaMigration {
+public class V6_20261104101400000__Catalog_content_author extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

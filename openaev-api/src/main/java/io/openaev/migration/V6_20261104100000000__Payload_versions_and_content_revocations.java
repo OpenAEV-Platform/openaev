@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 
 /** Versioned payloads (ADR-018): version columns and platform-level revocations. */
 @Component
-public class V6_20261027100000000__Payload_versions_and_content_revocations
+public class V6_20261104100000000__Payload_versions_and_content_revocations
     extends BaseJavaMigration {
 
   @Override
