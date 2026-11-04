@@ -22,7 +22,6 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.expectation.ExpectationSignature;
-import io.openaev.expectation.ExpectationType;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
@@ -90,7 +89,8 @@ class InjectExpectationServiceTest {
   private void mockExpectation(BaseInjectExpectation expectation) {
     doReturn(expectation)
         .when(injectExpectationService)
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
+        .updateInjectExpectationFromCollector(
+            any(), any(InjectExpectationUpdateFromCollectorInput.class));
   }
 
   private ExecutionProcessingContext createContext(InjectExecutionInput input) {
@@ -118,7 +118,8 @@ class InjectExpectationServiceTest {
   private InjectExpectationUpdateFromCollectorInput captureSingleVerdict() {
     ArgumentCaptor<InjectExpectationUpdateFromCollectorInput> captor =
         ArgumentCaptor.forClass(InjectExpectationUpdateFromCollectorInput.class);
-    verify(injectExpectationService, times(1)).updateInjectExpectation(any(), captor.capture());
+    verify(injectExpectationService, times(1))
+        .updateInjectExpectationFromCollector(any(), captor.capture());
     return captor.getValue();
   }
 
@@ -325,7 +326,6 @@ class InjectExpectationServiceTest {
 
     InjectExpectationUpdateFromCollectorInput input = captureSingleVerdict();
     assertEquals(Boolean.TRUE, input.getIsSuccess());
-    assertEquals(ExpectationType.VULNERABILITY.successLabel, input.getResult());
   }
 
   @Test
@@ -353,7 +353,6 @@ class InjectExpectationServiceTest {
 
     InjectExpectationUpdateFromCollectorInput input = captureSingleVerdict();
     assertEquals(Boolean.FALSE, input.getIsSuccess());
-    assertEquals(ExpectationType.VULNERABILITY.failureLabel, input.getResult());
     assertEquals(EXPECTATIONS_VULNERABILITY_COLLECTOR_ID, input.getCollectorId());
   }
 
@@ -370,7 +369,8 @@ class InjectExpectationServiceTest {
         createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
     verify(injectExpectationService, never())
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
+        .updateInjectExpectationFromCollector(
+            any(), any(InjectExpectationUpdateFromCollectorInput.class));
   }
 
   @Test
@@ -387,7 +387,8 @@ class InjectExpectationServiceTest {
         createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
     verify(injectExpectationService, never())
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
+        .updateInjectExpectationFromCollector(
+            any(), any(InjectExpectationUpdateFromCollectorInput.class));
   }
 
   @Test
@@ -403,7 +404,8 @@ class InjectExpectationServiceTest {
         createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
     verify(injectExpectationService, never())
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
+        .updateInjectExpectationFromCollector(
+            any(), any(InjectExpectationUpdateFromCollectorInput.class));
   }
 
   @Test
@@ -415,7 +417,8 @@ class InjectExpectationServiceTest {
         createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
     verify(injectExpectationService, never())
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
+        .updateInjectExpectationFromCollector(
+            any(), any(InjectExpectationUpdateFromCollectorInput.class));
   }
 
   @Test
@@ -427,14 +430,16 @@ class InjectExpectationServiceTest {
     inject.setExpectations(List.of(exp1, exp2));
     doReturn(exp1)
         .when(injectExpectationService)
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
+        .updateInjectExpectationFromCollector(
+            any(), any(InjectExpectationUpdateFromCollectorInput.class));
 
     injectExpectationService.matchesVulnerabilityExpectations(
         createContext(buildDefaultInput(null)), mapper.createObjectNode());
 
     // updateInjectExpectation called once per expectation
     verify(injectExpectationService, times(2))
-        .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
+        .updateInjectExpectationFromCollector(
+            any(), any(InjectExpectationUpdateFromCollectorInput.class));
   }
 
   @Nested
@@ -474,7 +479,8 @@ class InjectExpectationServiceTest {
       lenient()
           .doReturn(expectationAssetOne)
           .when(injectExpectationService)
-          .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
+          .updateInjectExpectationFromCollector(
+              any(), any(InjectExpectationUpdateFromCollectorInput.class));
     }
 
     private ExecutionProcessingContext injectorContext(ArrayNode structuredOutput) {
@@ -485,15 +491,19 @@ class InjectExpectationServiceTest {
     private InjectExpectationUpdateFromCollectorInput capturedVerdict(String expectationId) {
       ArgumentCaptor<InjectExpectationUpdateFromCollectorInput> captor =
           ArgumentCaptor.forClass(InjectExpectationUpdateFromCollectorInput.class);
-      verify(injectExpectationService).updateInjectExpectation(eq(expectationId), captor.capture());
+      verify(injectExpectationService)
+          .updateInjectExpectationFromCollector(eq(expectationId), captor.capture());
       return captor.getValue();
     }
 
-    // Without a security platform, the group score is derived from its assets by the behaviors
+    // The group score is derived from its assets by the behaviors: no source answers it directly
     private void assertGroupNotAnsweredDirectly() {
       verify(injectExpectationService, never())
-          .updateInjectExpectation(
+          .updateInjectExpectationFromCollector(
               eq("exp-group"), any(InjectExpectationUpdateFromCollectorInput.class));
+      verify(injectExpectationService, never())
+          .updateInjectExpectationFromSecurityPlatform(
+              eq("exp-group"), anyBoolean(), any(SecurityPlatform.class));
     }
 
     @Test
@@ -573,7 +583,7 @@ class InjectExpectationServiceTest {
 
     @Test
     @DisplayName(
-        "Verdicts are attributed to the injector's security platform for assets AND their group")
+        "Asset verdicts are attributed to the injector's security platform, the group is derived")
     void shouldAttributeVerdictsToInjectorSecurityPlatform() {
       Injector injector = new Injector();
       injector.setType("openaev_nuclei");
@@ -586,9 +596,7 @@ class InjectExpectationServiceTest {
       doReturn(expectationAssetOne)
           .when(injectExpectationService)
           .updateInjectExpectationFromSecurityPlatform(
-              any(),
-              any(InjectExpectationUpdateFromCollectorInput.class),
-              any(SecurityPlatform.class));
+              any(), anyBoolean(), any(SecurityPlatform.class));
 
       ArrayNode structuredOutput = mapper.createArrayNode();
       ObjectNode cve = structuredOutput.addObject();
@@ -598,32 +606,19 @@ class InjectExpectationServiceTest {
       injectExpectationService.matchesVulnerabilityExpectations(
           injectorContext(structuredOutput), structuredOutput);
 
-      // The vulnerable asset AND its group are both concluded through the security platform
-      // path, so the group row is immediately attributed to the Nuclei platform.
-      ArgumentCaptor<InjectExpectationUpdateFromCollectorInput> assetInput =
-          ArgumentCaptor.forClass(InjectExpectationUpdateFromCollectorInput.class);
+      // Each asset gets its own verdict through the security platform path: the group is never
+      // answered directly, it is derived from its assets
       verify(injectExpectationService)
           .updateInjectExpectationFromSecurityPlatform(
-              eq("exp-asset-1"), assetInput.capture(), eq(securityPlatform));
-      assertEquals(Boolean.FALSE, assetInput.getValue().getIsSuccess());
-      assertNull(assetInput.getValue().getCollectorId());
-
-      ArgumentCaptor<InjectExpectationUpdateFromCollectorInput> groupInput =
-          ArgumentCaptor.forClass(InjectExpectationUpdateFromCollectorInput.class);
+              eq("exp-asset-1"), eq(false), eq(securityPlatform));
       verify(injectExpectationService)
           .updateInjectExpectationFromSecurityPlatform(
-              eq("exp-group"), groupInput.capture(), eq(securityPlatform));
-      assertEquals(Boolean.FALSE, groupInput.getValue().getIsSuccess());
-      assertNull(groupInput.getValue().getCollectorId());
-
-      verify(injectExpectationService)
-          .updateInjectExpectationFromSecurityPlatform(
-              eq("exp-asset-2"),
-              any(InjectExpectationUpdateFromCollectorInput.class),
-              eq(securityPlatform));
+              eq("exp-asset-2"), eq(true), eq(securityPlatform));
+      assertGroupNotAnsweredDirectly();
       // No verdict falls back to the generic Expectations Vulnerability Manager collector.
       verify(injectExpectationService, never())
-          .updateInjectExpectation(any(), any(InjectExpectationUpdateFromCollectorInput.class));
+          .updateInjectExpectationFromCollector(
+              any(), any(InjectExpectationUpdateFromCollectorInput.class));
     }
 
     @Test
@@ -1227,8 +1222,9 @@ class InjectExpectationServiceTest {
     @Test
     @DisplayName("A direct result persisted on the group row itself stays visible")
     void directGroupResultStaysVisible() {
-      // Assessment injectors (e.g. Nuclei) write their verdict directly on the group row: the
-      // display union must keep it next to the children's platforms.
+      // Legacy data: assessment injectors (e.g. Nuclei) used to write their verdict directly on the
+      // group row (verdicts now land on the leaves): the display union must keep it next to the
+      // children's platforms.
       DetectionInjectExpectation groupExpectation = new DetectionInjectExpectation();
       groupExpectation.setId("group-expectation");
       InjectExpectationResult directResult =

@@ -2,7 +2,6 @@ package io.openaev.service;
 
 import static io.openaev.collectors.expectations_expiration_manager.service.ExpectationsExpirationManagerService.EXPIRED;
 import static io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE.*;
-import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.expireEmptyResults;
 import static java.util.Optional.ofNullable;
 
 import io.openaev.collectors.expectations_expiration_manager.config.ExpectationsExpirationManagerConfig;
@@ -13,12 +12,9 @@ import io.openaev.model.inject.form.Expectation;
 import io.openaev.utils.StringUtils;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -78,14 +74,16 @@ public class InjectExpectationUtils {
    *
    * <p>VULNERABILITY has an inverted signal polarity compared to detection/prevention: the
    * meaningful signal is a FAILURE (a scanner proved the target vulnerable), while a success ("Not
-   * vulnerable") is merely the absence of a finding. Assessment injectors such as Nuclei write
-   * their verdict directly on the asset/asset-group row (agent == null execution), so when the
-   * untouched agent children later expire to the default "Not vulnerable", the children rollup must
-   * not overwrite the proven vulnerable verdict with an absence-of-signal default.
+   * vulnerable") is merely the absence of a finding, so the worst vulnerable score wins.
+   *
+   * <p>A vulnerability leaf applies this rule to its own results: a finding settles it at once,
+   * even while other sources are pending or after its expiration. Verdicts are written on the
+   * leaves only, so a parent row carries a direct result only from legacy data (assessment
+   * injectors such as Nuclei used to answer the asset / asset-group row itself): the rule keeps
+   * such a proven vulnerable verdict from being overwritten by the children rollup.
    *
    * <p>Rows attributed to the expiration manager and rows expired to "Expired" are defaults, not
-   * signals, and are ignored. A vulnerability leaf applies the same rule to its own results, so a
-   * finding reported after its expiration still wins.
+   * signals, and are ignored.
    *
    * @param expectation the parent expectation whose score is being recomputed from children, or the
    *     vulnerability leaf whose score is computed from its results
@@ -146,118 +144,6 @@ public class InjectExpectationUtils {
       }
     }
     return score;
-  }
-
-  public static void computeScores(
-      @NotNull final List<? extends BaseInjectExpectation> childrenExpectations,
-      @NotNull final List<? extends BaseInjectExpectation> parentExpectations,
-      @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @Nullable final Function<Double, InjectExpectationResult> addResult) {
-    @NotNull Double expectedScore = baseInjectExpectation.getExpectedScore();
-    boolean isGroup = baseInjectExpectation.isExpectationGroup();
-
-    final boolean noExpectationScore = noExpectationScore(childrenExpectations);
-    final boolean allSuccess =
-        allExpectationsMatch(childrenExpectations, score -> score >= expectedScore);
-    final boolean anySuccess =
-        anyExpectationsMatch(childrenExpectations, score -> score >= expectedScore);
-    final boolean allError =
-        allExpectationsMatch(childrenExpectations, score -> score < expectedScore);
-    final boolean anyError =
-        anyExpectationsMatch(childrenExpectations, score -> score < expectedScore);
-
-    parentExpectations.forEach(
-        expectation -> {
-          if (noExpectationScore) {
-            // Children still pending: keep a definitive direct vulnerable verdict (e.g. Nuclei
-            // answered the asset row itself) instead of resetting the parent to pending.
-            expectation.setScore(reconcileWithDirectVulnerableVerdict(expectation, null));
-            return;
-          }
-
-          Double score = null;
-          if (isGroup) {
-            if (anySuccess) {
-              score = InjectExpectationUtils.computeScore(expectation, true);
-            } else if (allError) {
-              score = InjectExpectationUtils.computeScore(expectation, false);
-            }
-          } else {
-            if (allSuccess) {
-              score = InjectExpectationUtils.computeScore(expectation, true);
-            } else if (anyError) {
-              score = InjectExpectationUtils.computeScore(expectation, false);
-            }
-          }
-          Double reconciledScore = reconcileWithDirectVulnerableVerdict(expectation, score);
-          expectation.setScore(reconciledScore);
-          // When the direct vulnerable verdict overrode the children rollup, stamping the
-          // triggering result (an expiration "Not vulnerable") would contradict the verdict the
-          // parent just kept: skip it, the genuine platform row already explains the score.
-          if (addResult != null && Objects.equals(reconciledScore, score)) {
-            // An expectation that never received any result can carry a null results list (see
-            // expireEmptyResults): initialize it before inspecting / mutating it below.
-            if (expectation.getResults() == null) {
-              expectation.setResults(new ArrayList<>());
-            }
-            InjectExpectationResult newResultToAdd = addResult.apply(score);
-            boolean isExpirationManagerResult =
-                ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
-                    newResultToAdd.getSourceId());
-            // The copied result is the raw triggering CHILD result (e.g. an agent expiring to the
-            // vulnerability default "Not vulnerable", success polarity). When the parent itself
-            // concluded the OPPOSITE verdict (e.g. the asset group rolls up VULNERABLE because an
-            // asset carries a genuine Nuclei finding), stamping that row would display a
-            // contradictory "Not vulnerable" entry next to the real platform rows and plant a
-            // success score that any own-results max computation would later pick up. Skip it:
-            // the children rows already explain the parent verdict.
-            Double parentExpectedScore = expectation.getExpectedScore();
-            Double resultScore = newResultToAdd.getScore();
-            boolean contradictsParentVerdict =
-                score != null
-                    && resultScore != null
-                    && parentExpectedScore != null
-                    && (score >= parentExpectedScore) != (resultScore >= parentExpectedScore);
-            // A VULNERABILITY parent already answered by a genuine platform (e.g. Nuclei wrote
-            // its verdict, vulnerable or not, directly on the asset / asset-group row) needs no
-            // expiration entry at all: the expiration default is the absence-of-signal fallback,
-            // stamping it next to a real scan verdict is redundant at best and misleading at
-            // worst. Detection/prevention keep their expiration stamps - silence IS the verdict
-            // there.
-            boolean vulnerabilityAlreadyAnswered =
-                isExpirationManagerResult
-                    && VULNERABILITY.equals(expectation.getType())
-                    && expectation.getResults().stream()
-                        .anyMatch(
-                            result ->
-                                !ExpectationsExpirationManagerConfig.COLLECTOR_ID.equals(
-                                        result.getSourceId())
-                                    && result.getResult() != null
-                                    && !result.getResult().isBlank()
-                                    && !EXPIRED.equals(result.getResult()));
-            if (!contradictsParentVerdict && !vulnerabilityAlreadyAnswered) {
-              Optional<InjectExpectationResult> existingResult =
-                  expectation.getResults().stream()
-                      .filter(result -> newResultToAdd.getSourceId().equals(result.getSourceId()))
-                      .findFirst();
-              existingResult.ifPresent(
-                  injectExpectationResult ->
-                      expectation.getResults().remove(injectExpectationResult));
-              expectation.addResult(newResultToAdd.clone());
-            }
-
-            // IF RESULT TO ADD IS EXPIRATION MANAGER => SO I EXPIRE ALL the inject expectation with
-            // no result to expired, using the type's default polarity (silence means "Not
-            // vulnerable" for VULNERABILITY, failure for the other types)
-            if (isExpirationManagerResult) {
-              Double expiredScore =
-                  VULNERABILITY.equals(expectation.getType())
-                      ? expectation.getExpectedScore()
-                      : Double.valueOf(FAILED_SCORE_VALUE);
-              expireEmptyResults(expectation.getResults(), expiredScore, EXPIRED);
-            }
-          }
-        });
   }
 
   /**
