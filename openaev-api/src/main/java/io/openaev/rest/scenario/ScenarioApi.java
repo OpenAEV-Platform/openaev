@@ -715,8 +715,11 @@ public class ScenarioApi extends RestBehavior {
       // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
       // stale: clear a settled run so the scenario reverts to its normal overview / hero (the AI
       // plan or run outcome is no longer the latest activity). No-op when the scenario carries no
-      // run or the feature is off, and never tears down a still-active run.
-      autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId);
+      // run or the feature is off, and never tears down a still-active run. Read and written in
+      // the scenario's own tenant, like its workflow: the run follows its scenario, whatever the
+      // caller's scope.
+      workflowOwnerScope.run(
+          scenario, () -> autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId));
     } else {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
     }
