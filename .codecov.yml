@@ -1,53 +1,48 @@
 codecov:
   notify:
+    # Backend and frontend always upload on green tests; E2E only when every shard passes.
     after_n_builds: 2
 
 coverage:
   status:
-    # No fixed target on the whole project: a status only reports a drop of more than half
-    # a point against the base commit. The patch rule lives in the coverage-backend job.
+    # The org Global YAML adds a `default` status to project and patch, merged into this file.
+    # It reads every flag at once, Java and TypeScript together, so it is turned off here.
+    # Project statuses are not informational: a drop of more than half a point against the base
+    # commit turns them red. They are not required checks, so they never block a merge.
     project:
+      default: false
       backend:
         target: auto
         threshold: 0.5%
-        informational: true
         flags:
           - backend
       frontend:
         target: auto
         threshold: 0.5%
-        informational: true
         flags:
           - frontend
-      e2e:
-        target: auto
-        informational: true
-        flags:
-          - e2e
-    patch:
-      backend:
-        target: 80%
-        informational: true
-        flags:
-          - backend
-      frontend:
-        target: 80%
-        informational: true
-        flags:
-          - frontend
-      e2e:
-        target: auto
-        informational: true
-        flags:
-          - e2e
+    # The backend patch rule lives in the coverage-backend-gate job (diff-cover). The PR comment
+    # still shows patch coverage for every flag.
+    patch: false
 
-flags:
-  backend:
-    paths:
-      - openaev-api/src/main/java/
-  frontend:
-    paths:
-      - openaev-front/src/
-  e2e:
-    paths:
-      - openaev-front/src/
+flag_management:
+  # A flag with no upload on a commit keeps its coverage from the base commit instead of
+  # dropping to zero.
+  default_rules:
+    carryforward: true
+  individual_flags:
+    - name: backend
+      paths:
+        - openaev-api/src/main/java/
+    - name: frontend
+      paths:
+        - openaev-front/src/
+    - name: e2e
+      paths:
+        - openaev-front/src/
+
+comment:
+  layout: "condensed_header, flags, condensed_files, condensed_footer"
+  hide_project_coverage: true
+  # No comment on a PR that leaves coverage as it was.
+  require_changes: "coverage_drop OR uncovered_patch"

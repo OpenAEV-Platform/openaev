@@ -52,16 +52,17 @@ The Docker handoff checks producer conclusions every 15 seconds and aborts on an
 terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 `skipped`, so consumers stop promptly instead of waiting for artifacts that cannot arrive.
 
-### The six real `needs:` edges
+### The seven real `needs:` edges
 
 | Job | `needs:` | Why a hard dependency is correct |
 |-----|----------|----------------------------------|
 | **Backend Package (glibc)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Needs all three outputs on disk before packaging |
 | **Backend Package (musl)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Same, inside an Alpine Maven container |
-| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec; runs on success or failure |
+| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec; runs on success or failure, uploads to Codecov only on success |
+| **Backend Patch Coverage** | API Tests, Coverage Upload (backend) | Reads the merged `jacoco.xml`; pull requests with green API tests only |
 | **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
 | **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
-| **Pipeline Gate** | 16 jobs (see below) | Aggregates results; runs `if: always()` |
+| **Pipeline Gate** | 20 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
 
@@ -122,6 +123,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 📦 **Backend Package (glibc)** | 15 min | Fat JAR for standard Linux → `openaev-api-jar` |
 | 📦 **Backend Package (musl)** | 15 min | Fat JAR for Alpine, built in `maven:3.9-eclipse-temurin-21-alpine` |
 | 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → Codecov flag `backend` |
+| 🔎 **Backend Patch Coverage** | 10 min | diff-cover on the lines the PR changes, fails under 80% |
 | 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
 | 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
 | 🔐 **Tenant shadow verdict** | 10 min | Nightly only. Collects the shadow shards' pass or fail into one table |
@@ -134,14 +136,19 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 ⚠️ **Required status check for branch protection.** Full name: `pipeline / ✅ Pipeline Gate`.
 If the caller's job key changes, the branch-protection rule must be updated.
 
-It `needs:` these 16 jobs:
+It `needs:` these 20 jobs:
 
-`ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
-`spotless-check`, `bom-override-guard`, `frontend-quality`, `api-tests`, `e2e-tests`, `api-types-check`,
-`backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `container-vulnerability-scan`
+`adr-numbering`, `ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`,
+`prepare-bundled-assets`, `spotless-check`, `bom-override-guard`, `frontend-quality`, `fds-conformity`,
+`fds-mui-regression`, `api-tests`, `coverage-backend-gate`, `e2e-tests`, `api-types-check`, `backend-package`,
+`backend-package-musl`, `docker-build`, `docker-merge`, `container-vulnerability-scan`
 
-**Coverage is deliberately excluded.** Coverage upload is best-effort reporting and must
-never hold a merge.
+**Advisory jobs.** `bom-override-guard` and `coverage-backend-gate` show ⚠️ in the gate when they fail,
+and never fail it. A new check starts there so a false positive cannot block a merge; taking it out of
+the advisory list in the gate makes it blocking.
+
+**Coverage upload is deliberately excluded.** It is best-effort reporting and must never hold a
+merge. Only the backend patch coverage check (`coverage-backend-gate`) is in the gate.
 
 **The tenant shadow verdict is deliberately excluded too.** It only exists when the caller's
 `api-matrix` carries shadow entries, which today means Nightly, and it is red whenever a shadow
