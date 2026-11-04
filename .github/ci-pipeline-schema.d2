@@ -123,7 +123,7 @@ style: {fill: "#FCE4EC"; stroke: "#AD1457"; stroke-width: 3                     
 wave0.tests -> cov: "backend needs: API Tests\ne2e needs: E2E" {class: needs}
 wave0.quality -> cov: "frontend needs: Frontend Quality" {class: needs}
 
-bcov: "🔎 Backend Coverage Check\ntimeout 10 min · pull requests only\ndiff-cover ≥ 80% of changed lines\nline coverage drop ≤ 0.2 point vs base\nadvisory in the Gate" {class: quality}
+bcov: "🔎 Backend Coverage Check\ntimeout 10 min · pull requests only\ndiff-cover ≥ 80% of changed lines\nline coverage drop ≤ 0.1 point vs base\nadvisory in the Gate" {class: quality}
 
 cov -> bcov: "needs: Coverage Report (backend)\nruns next to the upload" {class: needs}
 bcov -> gate: "advisory" {class: needs}

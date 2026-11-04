@@ -125,7 +125,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 📦 **Backend Package (musl)** | 15 min | Fat JAR for Alpine, built in `maven:3.9-eclipse-temurin-21-alpine` |
 | 📊 **Coverage Report (backend)** | 15 min | Merges JaCoCo shards → artifact `jacoco-api` |
 | 📊 **Coverage Upload (backend)** | 5 min | `jacoco-api` → Codecov flag `backend` |
-| 🔎 **Backend Coverage Check** | 10 min | diff-cover ≥ 80% of changed lines, line coverage drop ≤ 0.2 point against the base commit; posts a `Backend Coverage (advisory)` check that explains the result (not on fork PRs) |
+| 🔎 **Backend Coverage Check** | 10 min | diff-cover ≥ 80% of changed lines, line coverage drop ≤ 0.1 point against the base commit; on a failure, posts a `Backend Coverage (advisory)` check that explains it (not on fork PRs). Steps in `.github/actions/backend-coverage-check` |
 | 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
 | 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
 | 🔐 **Tenant shadow verdict** | 10 min | Nightly only. Collects the shadow shards' pass or fail into one table |

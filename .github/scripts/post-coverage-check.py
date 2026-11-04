@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Post a check run that explains the result of the backend coverage rules on a pull request.
+"""Post a check run that explains why the backend coverage rules failed on a pull request.
 
-The coverage-backend-gate job runs the two rules (diff-cover on the changed lines, then
-check-coverage-drop.py on the whole backend) and only passes or fails. This check run says, in
-words, which rule failed, with the tool output, how to fix it, and why Codecov's comment can show
-other numbers. It is posted with the PR checks app, like the PR title check, so it shows as its
-own check on the pull request.
+The backend-coverage-check action runs the two rules (diff-cover on the changed lines, then
+check-coverage-drop.py on the whole backend) and only passes or fails. When one fails, this check
+run says, in words, which one, with the tool output, how to fix it, and why Codecov's comment can
+show other numbers. It is posted with the PR checks app, like the PR title check, so it shows as
+its own check on the pull request.
 
 Needs `gh`, GH_TOKEN with checks:write, and GITHUB_REPOSITORY.
 """
@@ -22,25 +22,30 @@ NAME = "Backend Coverage (advisory)"
 # GitHub caps a check run summary at 65535 characters; the tool output is cut well before that.
 MAX_LOG = 20000
 
-RULES = """\
+
+def rules(min_coverage: str, max_drop: str) -> str:
+    return f"""\
 This pull request is checked against two backend coverage rules:
 
-- **Changed lines**: at least 80% of the backend lines it adds or changes, in \
+- **Changed lines**: at least {min_coverage}% of the backend lines it adds or changes, in \
 `openaev-api/src/main/java`, run during the API tests.
-- **Whole backend**: backend line coverage does not drop by more than 0.2 point against the \
-latest report of the branch it targets.
+- **Whole backend**: backend line coverage does not drop by more than {max_drop} point against \
+the latest report of the branch it targets.
 """
 
-FIX = """\
+
+def fix(min_coverage: str) -> str:
+    return f"""\
 ### How to fix it
 
 - **Changed lines**: add or extend tests that run the lines listed above. To check locally after \
 `mvn test`: `pipx run --spec diff-cover==11.0.0 diff-cover \
 openaev-api/target/site/jacoco/jacoco.xml --compare-branch=origin/main \
---src-roots openaev-api/src/main/java --fail-under 80`.
+--src-roots openaev-api/src/main/java --fail-under {min_coverage}`.
 - **Whole backend**: the drop usually comes from the same untested lines, or from tests that were \
 removed or no longer reach the code. Covering the changed lines is often enough.
 """
+
 
 CODECOV = """\
 ### Why Codecov can show other numbers
@@ -52,14 +57,6 @@ missing, in Codecov.
 - This check compares with the latest report of the target branch, Codecov with the pull \
 request's base commit, which can be older.
 """
-
-
-def section(passed: bool, label: str, log: str) -> str:
-    icon = "✅" if passed else "❌"
-    text = log.strip() or "(no output)"
-    if len(text) > MAX_LOG:
-        text = text[:MAX_LOG] + "\n…"
-    return f"{icon} **{label}**\n\n```\n{text}\n```\n"
 
 
 def patch_figure(log: str) -> str:
@@ -81,6 +78,14 @@ def project_figure(log: str) -> str:
     return "?"
 
 
+def section(passed: bool, label: str, log: str) -> str:
+    icon = "✅" if passed else "❌"
+    text = log.strip() or "(no output)"
+    if len(text) > MAX_LOG:
+        text = text[:MAX_LOG] + "\n…"
+    return f"{icon} **{label}**\n\n```\n{text}\n```\n"
+
+
 def read(path: str) -> str:
     try:
         with open(path, encoding="utf-8") as log:
@@ -92,6 +97,8 @@ def read(path: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--sha", required=True, help="head commit of the pull request")
+    parser.add_argument("--min-coverage", required=True, help="changed lines rule, in percent")
+    parser.add_argument("--max-drop", required=True, help="whole backend rule, in points")
     parser.add_argument("--patch-outcome", required=True, help="outcome of the changed lines step")
     parser.add_argument("--patch-log", required=True, help="output of diff-cover")
     parser.add_argument("--project-outcome", required=True, help="outcome of the drop step")
@@ -104,17 +111,18 @@ def main() -> int:
     project_log = read(args.project_log)
     # The PR checks list shows about 100 characters of "name — title": the figures come first.
     title = (
-        f"{'✅' if patch_ok else '❌'} changed lines {patch_figure(patch_log)} (min 80%) · "
-        f"{'✅' if project_ok else '❌'} backend {project_figure(project_log)} (max -0.2)"
+        f"{'✅' if patch_ok else '❌'} changed lines {patch_figure(patch_log)} "
+        f"(min {args.min_coverage}%) · "
+        f"{'✅' if project_ok else '❌'} backend {project_figure(project_log)} "
+        f"(max -{args.max_drop})"
     )
-
     summary = "\n".join(
         [
-            RULES,
+            rules(args.min_coverage, args.max_drop),
             "### Result\n",
             section(patch_ok, "Changed lines (diff-cover)", patch_log),
             section(project_ok, "Whole backend", project_log),
-            "" if patch_ok and project_ok else FIX,
+            fix(args.min_coverage),
             CODECOV,
             "This check is advisory for now: it does not block the merge.",
         ]

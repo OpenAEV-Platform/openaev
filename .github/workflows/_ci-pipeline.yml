@@ -518,7 +518,7 @@ jobs:
         continue-on-error: true
 
   # The backend coverage rules, on pull requests: at least 80% of the backend lines the pull request
-  # changes are covered, and backend line coverage does not drop by more than 0.2 point against
+  # changes are covered, and backend line coverage does not drop by more than 0.1 point against
   # the base commit. Reported through the Pipeline Gate as advisory, never blocking, until it has
   # run clean for a while on real PRs. Making it blocking means taking the job out of the
   # advisory list in the gate below.
@@ -531,7 +531,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      # Depth 2: the checkout is the merge of the pull request into its base, and both checks
+      # Depth 2: the checkout is the merge of the pull request into its base, and both rules
       # compare it with its first parent.
       - uses: actions/checkout@v7
         with:
@@ -543,66 +543,12 @@ jobs:
           name: jacoco-api
           path: openaev-api/target/site/jacoco
 
-      # The explanation check is posted with the PR checks app, like the PR title check. Its
-      # secrets are not available to pull requests from forks, which only get the job log.
-      - name: Generate a token
-        id: generate-token
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-        uses: actions/create-github-app-token@v3
+      - uses: ./.github/actions/backend-coverage-check
         with:
+          min-coverage: "80"
+          max-drop: "0.1"
           app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
           private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
-
-      # Both rules run to the end, so that the explanation check can report both; the last step
-      # fails the job. diff-cover counts a line as covered once it ran, even when one of its
-      # branches did not: Codecov calls that line partial, so its patch figure can read lower.
-      - name: Check backend patch coverage
-        id: patch
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          pipx run --spec diff-cover==11.0.0 diff-cover openaev-api/target/site/jacoco/jacoco.xml \
-            --compare-branch=HEAD^1 \
-            --src-roots openaev-api/src/main/java \
-            --fail-under 80 | tee "$RUNNER_TEMP/patch-coverage.txt"
-
-      - name: Check backend project coverage
-        id: project
-        continue-on-error: true
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          set -o pipefail
-          python3 .github/scripts/check-coverage-drop.py \
-            --report openaev-api/target/site/jacoco/jacoco.xml \
-            --base-sha "$(git rev-parse HEAD^1)" \
-            --base-branch "$BASE_REF" \
-            --max-drop 0.2 | tee "$RUNNER_TEMP/project-coverage.txt"
-
-      - name: Explain the result in a check
-        if: ${{ steps.generate-token.outputs.token != '' }}
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PATCH_OUTCOME: ${{ steps.patch.outcome }}
-          PROJECT_OUTCOME: ${{ steps.project.outcome }}
-        run: |
-          python3 .github/scripts/post-coverage-check.py \
-            --sha "$HEAD_SHA" \
-            --patch-outcome "$PATCH_OUTCOME" \
-            --patch-log "$RUNNER_TEMP/patch-coverage.txt" \
-            --project-outcome "$PROJECT_OUTCOME" \
-            --project-log "$RUNNER_TEMP/project-coverage.txt"
-
-      - name: Fail on a broken coverage rule
-        if: ${{ steps.patch.outcome != 'success' || steps.project.outcome != 'success' }}
-        env:
-          PATCH_OUTCOME: ${{ steps.patch.outcome }}
-          PROJECT_OUTCOME: ${{ steps.project.outcome }}
-        run: |
-          echo "Backend coverage rules: changed lines $PATCH_OUTCOME, whole backend $PROJECT_OUTCOME."
-          exit 1
 
   coverage-frontend:
     name: "📊 Coverage Upload (frontend)"

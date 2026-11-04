@@ -78,7 +78,7 @@ For every feature, ensure coverage of:
 
 - **Changed lines**: a PR covers at least 80% of the backend lines it changes. CI checks it with diff-cover
   in the `coverage-backend-gate` job (advisory in the Pipeline Gate for now).
-- **Project**: a PR does not drop backend line coverage by more than 0.2 point against its base commit.
+- **Project**: a PR does not drop backend line coverage by more than 0.1 point against its base commit.
   The same job checks it.
 - **Check it locally** after `mvn test`, which writes `openaev-api/target/site/jacoco/jacoco.xml`:
   `pipx run --spec diff-cover==11.0.0 diff-cover openaev-api/target/site/jacoco/jacoco.xml --compare-branch=origin/main --src-roots openaev-api/src/main/java --fail-under 80`

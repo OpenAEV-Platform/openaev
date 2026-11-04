@@ -171,7 +171,7 @@ Examples:
 6. **Java 21 is mandatory**: The project will not compile with earlier versions.
 7. **Node.js version**: Check `openaev-front/package.json` engines field for the minimum required version.
 8. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.
-9. **Coverage enforcement**: a PR must cover at least 80% of the backend lines it changes and must not drop backend line coverage by more than 0.2 point (`coverage-backend-gate` job in CI, advisory for now).
+9. **Coverage enforcement**: a PR must cover at least 80% of the backend lines it changes and must not drop backend line coverage by more than 0.1 point (`coverage-backend-gate` job in CI, advisory for now).
 10. **Scope confirmation**: For multi-file or cross-layer changes (entity + migration + service + controller + frontend), state which files you plan to modify and why, then wait for confirmation before writing code.
 
 

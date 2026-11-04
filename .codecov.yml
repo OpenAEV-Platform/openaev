@@ -15,7 +15,7 @@ coverage:
       # does a failed project status add its line to the comment.
       backend:
         target: auto
-        threshold: 0.2%
+        threshold: 0.1%
         informational: true
         removed_code_behavior: adjust_base
         flags:
@@ -53,6 +53,7 @@ flag_management:
 comment:
   layout: "condensed_header, flags, condensed_files"
   hide_project_coverage: true
-  # Comment only when the pull request changes lines that no test runs. With no project status
-  # there is no threshold, so `coverage_drop` would fire on every 0.01 point of noise.
+  # Comment only when the pull request changes lines that no test runs. `coverage_drop` reads its
+  # threshold at the top level of `project`, which holds only named statuses here, so it would fire
+  # on every 0.01 point of noise.
   require_changes: "uncovered_patch"

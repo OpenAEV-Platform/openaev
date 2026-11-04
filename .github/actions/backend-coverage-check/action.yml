@@ -1,0 +1,98 @@
+name: Backend Coverage Check
+description: >
+  Check the backend coverage rules of a pull request on the JaCoCo report the coverage-backend job
+  builds: at least min-coverage percent of the backend lines it changes are covered (diff-cover),
+  and backend line coverage does not drop by more than max-drop points against the latest report
+  of the target branch (check-coverage-drop.py). Both rules run to the end, then the step fails if
+  one of them failed. When one fails, a "Backend Coverage (advisory)" check explains why, posted
+  with the PR checks app like the PR title check; pull requests from forks only get the job log.
+  Expects a checkout of the pull request's merge commit with at least its first parent, and the
+  report at openaev-api/target/site/jacoco/jacoco.xml. Requires the job to set GH_TOKEN, which
+  reads the target branch's reports.
+
+inputs:
+  min-coverage:
+    description: "Smallest share of the changed backend lines that must be covered, in percent"
+    required: true
+  max-drop:
+    description: "Largest drop of backend line coverage allowed, in points"
+    required: true
+  app-id:
+    description: "PR checks app id; empty on pull requests from forks, which then get no explanation check"
+    required: false
+    default: ""
+  private-key:
+    description: "PR checks app private key"
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Generate a token
+      id: generate-token
+      if: ${{ inputs.app-id != '' && github.event.pull_request.head.repo.full_name == github.repository }}
+      uses: actions/create-github-app-token@v3
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}
+
+    # diff-cover counts a line as covered once it ran, even when one of its branches did not:
+    # Codecov calls that line partial, so its patch figure can read lower.
+    - name: Check backend patch coverage
+      id: patch
+      continue-on-error: true
+      shell: bash
+      env:
+        MIN_COVERAGE: ${{ inputs.min-coverage }}
+      run: |
+        pipx run --spec diff-cover==11.0.0 diff-cover openaev-api/target/site/jacoco/jacoco.xml \
+          --compare-branch=HEAD^1 \
+          --src-roots openaev-api/src/main/java \
+          --fail-under "$MIN_COVERAGE" | tee "$RUNNER_TEMP/patch-coverage.txt"
+
+    - name: Check backend project coverage
+      id: project
+      continue-on-error: true
+      shell: bash
+      env:
+        BASE_REF: ${{ github.base_ref }}
+        MAX_DROP: ${{ inputs.max-drop }}
+      run: |
+        python3 "$GITHUB_WORKSPACE/.github/scripts/check-coverage-drop.py" \
+          --report openaev-api/target/site/jacoco/jacoco.xml \
+          --base-sha "$(git rev-parse HEAD^1)" \
+          --base-branch "$BASE_REF" \
+          --max-drop "$MAX_DROP" | tee "$RUNNER_TEMP/project-coverage.txt"
+
+    # Only when a rule failed: a passing pull request gets no extra check.
+    - name: Explain the failure in a check
+      if: ${{ steps.generate-token.outputs.token != '' && (steps.patch.outcome != 'success' || steps.project.outcome != 'success') }}
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        MIN_COVERAGE: ${{ inputs.min-coverage }}
+        MAX_DROP: ${{ inputs.max-drop }}
+        PATCH_OUTCOME: ${{ steps.patch.outcome }}
+        PROJECT_OUTCOME: ${{ steps.project.outcome }}
+      run: |
+        python3 "$GITHUB_WORKSPACE/.github/scripts/post-coverage-check.py" \
+          --sha "$HEAD_SHA" \
+          --min-coverage "$MIN_COVERAGE" \
+          --max-drop "$MAX_DROP" \
+          --patch-outcome "$PATCH_OUTCOME" \
+          --patch-log "$RUNNER_TEMP/patch-coverage.txt" \
+          --project-outcome "$PROJECT_OUTCOME" \
+          --project-log "$RUNNER_TEMP/project-coverage.txt"
+
+    - name: Fail on a broken coverage rule
+      if: ${{ steps.patch.outcome != 'success' || steps.project.outcome != 'success' }}
+      shell: bash
+      env:
+        PATCH_OUTCOME: ${{ steps.patch.outcome }}
+        PROJECT_OUTCOME: ${{ steps.project.outcome }}
+      run: |
+        echo "Backend coverage rules: changed lines $PATCH_OUTCOME, whole backend $PROJECT_OUTCOME."
+        exit 1
