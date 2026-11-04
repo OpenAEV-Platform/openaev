@@ -110,7 +110,7 @@ public class TenantGroupService {
   }
 
   @Transactional(readOnly = true)
-  public List<Group> findAll(@NotBlank final String tenantId) {
+  public List<Group> findAllByTenantId(@NotBlank final String tenantId) {
     return groupRepository.findAllByTenantId(tenantId);
   }
 

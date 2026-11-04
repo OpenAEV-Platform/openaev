@@ -144,7 +144,7 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
         pickDefaultRole(tenantRoleService.findAll(tenantId), ADMIN_ACCESS.roleName())
             .orElseGet(() -> createAdminRole(tenantId));
     Optional<Group> existing =
-        tenantGroupService.findAll(tenantId).stream()
+        tenantGroupService.findAllByTenantId(tenantId).stream()
             .filter(g -> ADMIN_ACCESS.groupName().equals(g.getName()))
             .filter(g -> g.getRoles().stream().anyMatch(r -> r.getId().equals(role.getId())))
             .min(
