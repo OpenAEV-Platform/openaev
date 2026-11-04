@@ -56,19 +56,16 @@ public abstract class ExecutorContextService {
    * @param dispatch the vendor call for one action
    * @param agentReference the agent external reference of an action, for the log
    * @param executorName the executor name, for the log
-   * @return the number of actions whose dispatch failed
    */
-  protected static <T> int dispatchEach(
+  protected static <T> void dispatchEach(
       List<T> actions,
       Consumer<T> dispatch,
       Function<T, String> agentReference,
       String executorName) {
-    int failures = 0;
     for (T action : actions) {
       try {
         dispatch.accept(action);
       } catch (RuntimeException e) {
-        failures++;
         DISPATCH_LOG.error(
             "{} dispatch failed for agent {}, continuing with the rest of the page: {}",
             executorName,
@@ -77,6 +74,5 @@ public abstract class ExecutorContextService {
             e);
       }
     }
-    return failures;
   }
 }
