@@ -107,8 +107,9 @@ The rule: when the handler takes a `TxCtx` that lists tenants, the aspect evalua
 `@AccessControl` decision in the tenant of the request context, then in every other tenant of the
 scope. The request is authorized only if the caller holds the right in each of them. In each
 tenant, the decision reads the capabilities and the tenant bypass the caller holds in that tenant.
-A grant on a resource is not tied to a tenant, so it answers the same in every tenant of the
-scope.
+A grant on a resource applies in the tenant of the group that holds it, so in each tenant the
+decision reads the grants of the caller's groups in that tenant. A grant held by a platform group
+applies in every tenant.
 
 The tenant of the request context is the tenant in the path on the tenant route. On the regular
 path, it is the default tenant, except for the XTM One orchestrator callbacks: when the verified
