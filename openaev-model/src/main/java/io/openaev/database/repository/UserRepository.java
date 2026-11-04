@@ -275,12 +275,24 @@ public interface UserRepository
    * @param organization the new organization of that tenant, or {@code null} to clear it
    */
   default void assignOrganization(User user, String tenantId, Organization organization) {
+    Organization previous = user.organizationOfTenant(tenantId);
+    boolean changed =
+        !Objects.equals(
+            previous == null ? null : previous.getId(),
+            organization == null ? null : organization.getId());
+    // In-memory view first: the queries below flush the pending profile changes of the user, and
+    // the update event published by that flush serializes the user as it is at that moment.
+    user.setOrganizationForTenant(tenantId, organization);
+    if (changed) {
+      // The join table is written in SQL, so the user row would stay untouched and no update event
+      // would reach the connected clients: marking the user updated makes Hibernate publish it.
+      user.setUpdatedAt(Instant.now());
+    }
     lockRow(user.getId());
     removeOrganizationsOfTenant(user.getId(), tenantId);
     if (organization != null) {
       addOrganization(user.getId(), organization.getId());
     }
-    user.setOrganizationForTenant(tenantId, organization);
   }
 
   // Native: JPA only exposes FOR UPDATE (PESSIMISTIC_WRITE), which would block the inserts of rows

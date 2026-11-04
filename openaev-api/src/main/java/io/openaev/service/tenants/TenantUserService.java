@@ -3,6 +3,7 @@ package io.openaev.service.tenants;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.specification.UserSpecification.fromIds;
 import static io.openaev.database.specification.UserSpecification.inTenant;
+import static io.openaev.database.specification.UserSpecification.organizationsInTenant;
 import static io.openaev.utils.pagination.CriteriaBuilderPagination.paginate;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
@@ -114,14 +115,16 @@ public class TenantUserService implements DependenciesManager {
   @Transactional(readOnly = true)
   public Page<UserOutput> search(SearchPaginationInput searchPaginationInput) {
     Specification<User> tenantSpec = inTenant(tenantId());
+    // After the filters, which may join the organizations of the user (see organizationsInTenant).
+    Specification<User> organizationsOfTenant = organizationsInTenant(tenantId());
     var cb = entityManager.getCriteriaBuilder();
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             paginate(
                 entityManager,
                 User.class,
-                tenantSpec.and(spec),
-                tenantSpec.and(specCount),
+                tenantSpec.and(spec).and(organizationsOfTenant),
+                tenantSpec.and(specCount).and(organizationsOfTenant),
                 pageable,
                 (cq, root) -> UserQueryHelper.select(cb, cq, root),
                 UserQueryHelper::execution),
@@ -151,14 +154,17 @@ public class TenantUserService implements DependenciesManager {
 
   /**
    * Sets the organization the user holds in the current tenant, leaving the ones it holds in other
-   * tenants untouched. An empty value clears the current tenant's organization.
+   * tenants untouched. An empty value clears the current tenant's organization; an unknown
+   * organization, or one of another tenant, is rejected rather than cleared.
    */
   private void applyOrganization(User user, String organizationId) {
     String tenantId = tenantId();
-    Organization organization =
-        StringUtils.hasText(organizationId) ? organizationService.findById(organizationId) : null;
-    if (organization != null && !tenantId.equals(organization.getTenant().getId())) {
-      organization = null;
+    Organization organization = null;
+    if (StringUtils.hasText(organizationId)) {
+      organization = organizationService.findById(organizationId);
+      if (!tenantId.equals(organization.getTenant().getId())) {
+        throw new ElementNotFoundException("Organization not found: " + organizationId);
+      }
     }
     userRepository.assignOrganization(user, tenantId, organization);
   }

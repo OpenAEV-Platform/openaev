@@ -1,5 +1,6 @@
 import { DATA_DELETE_SUCCESS } from '../../constants/ActionTypes';
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simplePostCall } from '../../utils/Action';
+import { getCurrentTenantId } from '../../utils/url-helper';
 import * as schema from '../Schema';
 
 // region players
@@ -58,7 +59,9 @@ export const updateMeEmail = (currentPassword, newEmail) => dispatch => putRefer
   user_email: newEmail,
 })(dispatch);
 
-export const updateMeProfile = data => dispatch => putReferential(schema.user, '/api/me/profile', data)(dispatch);
+// Tenant-prefixed: the organization of the profile is the one of the tenant the user is browsing
+// ('/api/me' is exempt from the automatic tenant prefix, so it is built here).
+export const updateMeProfile = data => dispatch => putReferential(schema.user, `/api/tenants/${getCurrentTenantId()}/me/profile`, data)(dispatch);
 
 export const updateMeInformation = data => dispatch => putReferential(schema.user, '/api/me/information', data)(dispatch);
 

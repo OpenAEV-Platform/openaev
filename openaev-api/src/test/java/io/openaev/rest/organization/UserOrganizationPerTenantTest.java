@@ -1,5 +1,6 @@
 package io.openaev.rest.organization;
 
+import static io.openaev.rest.user.MeApi.ME_URI;
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.rest.user.TenantUserApi.USER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
@@ -16,10 +17,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
+import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.model.Filters;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.rest.user.form.me.UpdateProfileInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -38,6 +43,8 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,9 +57,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @WithMockUser(isAdmin = true)
+@RecordApplicationEvents
 @DisplayName("User organization per tenant")
 class UserOrganizationPerTenantTest extends IntegrationTest {
 
+  @Autowired private ApplicationEvents applicationEvents;
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private OrganizationComposer organizationComposer;
@@ -110,7 +119,8 @@ class UserOrganizationPerTenantTest extends IntegrationTest {
     return mapper.readTree(body);
   }
 
-  private JsonNode link(Tenant tenant, User player, String organizationId) throws Exception {
+  private MockHttpServletRequestBuilder linkRequest(
+      Tenant tenant, User player, String organizationId) {
     UserInput input =
         new UserInput(
             player.getEmail(),
@@ -124,11 +134,14 @@ class UserOrganizationPerTenantTest extends IntegrationTest {
             List.of(),
             false,
             List.of());
-    return response(
-        put(tenantUri(tenant, USER_URI) + "/" + player.getId())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(asJsonString(input))
-            .with(csrf()));
+    return put(tenantUri(tenant, USER_URI) + "/" + player.getId())
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(asJsonString(input))
+        .with(csrf());
+  }
+
+  private JsonNode link(Tenant tenant, User player, String organizationId) throws Exception {
+    return response(linkRequest(tenant, player, organizationId));
   }
 
   private String organizationIn(Tenant tenant, User player) throws Exception {
@@ -346,5 +359,120 @@ class UserOrganizationPerTenantTest extends IntegrationTest {
 
     // Assert
     assertThat(organizationIn(tenantA, player)).isEqualTo(second.getId());
+  }
+
+  @Test
+  @DisplayName("Linking an organization of another tenant fails and keeps the current one")
+  void given_organizationOfTenantB_when_linkedInA_should_failAndKeepTheOrganizationOfA()
+      throws Exception {
+    // Arrange
+    Organization organizationA = seedOrganization(tenantA);
+    Organization organizationB = seedOrganization(tenantB);
+    User player = seedPlayer();
+    link(tenantA, player, organizationA.getId());
+
+    // Act
+    mvc.perform(linkRequest(tenantA, player, organizationB.getId()))
+        // Assert
+        .andExpect(status().isNotFound());
+    assertThat(organizationIn(tenantA, player)).isEqualTo(organizationA.getId());
+  }
+
+  @Test
+  @DisplayName("The profile of the user sets the organization of the tenant it is made in")
+  void given_profileUpdatedInTenantB_should_setTheOrganizationOfB() throws Exception {
+    // Arrange
+    Organization organizationA = seedOrganization(tenantA);
+    Organization organizationB = seedOrganization(tenantB);
+    User me = testUserHolder.get();
+    UpdateProfileInput profile = new UpdateProfileInput();
+    profile.setFirstname("Profile");
+    profile.setLastname("Tenant");
+    profile.setLang("en");
+    profile.setTheme("dark");
+    profile.setOrganizationId(organizationA.getId());
+    mvc.perform(
+            put(tenantUri(tenantA, ME_URI) + "/profile")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(profile))
+                .with(csrf()))
+        .andExpect(status().isOk());
+    profile.setOrganizationId(organizationB.getId());
+
+    // Act
+    mvc.perform(
+            put(tenantUri(tenantB, ME_URI) + "/profile")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(profile))
+                .with(csrf()))
+        .andExpect(status().isOk());
+
+    // Assert
+    assertThat(storedOrganizationIds(me))
+        .containsExactlyInAnyOrder(organizationA.getId(), organizationB.getId());
+  }
+
+  private JsonNode searchPlayersInA(String organizationId) throws Exception {
+    Filters.Filter filter = new Filters.Filter();
+    filter.setKey("user_organization");
+    filter.setValues(List.of(organizationId));
+    filter.setOperator(Filters.FilterOperator.eq);
+    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
+    filterGroup.setMode(Filters.FilterMode.and);
+    filterGroup.setFilters(List.of(filter));
+    SearchPaginationInput search = new SearchPaginationInput();
+    search.setPage(0);
+    search.setSize(100);
+    search.setFilterGroup(filterGroup);
+    return response(
+        post(tenantUri(tenantA, PLAYER_URI) + "/search")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(asJsonString(search))
+            .with(csrf()));
+  }
+
+  @Test
+  @DisplayName("The organization filter of tenant A ignores the organizations held in tenant B")
+  void given_organizationOfBHeldByUserOfA_when_filterPlayersInAByIt_should_notMatch()
+      throws Exception {
+    // Arrange
+    Organization organizationA = seedOrganization(tenantA);
+    Organization organizationB = seedOrganization(tenantB);
+    User player = seedPlayer();
+    link(tenantA, player, organizationA.getId());
+    link(tenantB, player, organizationB.getId());
+
+    // Act
+    JsonNode byOrganizationB = searchPlayersInA(organizationB.getId());
+    JsonNode byOrganizationA = searchPlayersInA(organizationA.getId());
+
+    // Assert
+    assertThat(entriesOf(byOrganizationB.get("content"), player.getId())).isEmpty();
+    assertThat(entriesOf(byOrganizationA.get("content"), player.getId())).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("Changing only the organization of a user publishes its update with the new one")
+  void given_organizationOnlyChange_should_publishUserUpdateCarryingTheNewOrganization()
+      throws Exception {
+    // Arrange
+    Organization organizationA = seedOrganization(tenantA);
+    User player = seedPlayer();
+
+    // Act
+    link(tenantA, player, organizationA.getId());
+
+    // Assert
+    assertThat(
+            applicationEvents.stream(BaseEvent.class)
+                .filter(event -> ModelBaseListener.DATA_UPDATE.equals(event.getType()))
+                .filter(
+                    event ->
+                        event.getInstance() instanceof User user
+                            && player.getId().equals(user.getId()))
+                .map(event -> event.getInstanceData().get("user_organization"))
+                .filter(value -> value != null && !value.isNull())
+                .map(JsonNode::asText))
+        .contains(organizationA.getId());
   }
 }

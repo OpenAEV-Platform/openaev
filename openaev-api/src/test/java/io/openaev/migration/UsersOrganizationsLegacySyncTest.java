@@ -138,6 +138,23 @@ class UsersOrganizationsLegacySyncTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("An older pod moving the organization from a tenant to another keeps both links")
+  void given_legacyChangeFromTenantAToTenantB_should_keepTheLinkOfTenantA() {
+    // Arrange
+    Organization organizationA = seedOrganization(tenantA);
+    Organization organizationB = seedOrganization(tenantB);
+    User user = seedUser();
+    legacyWrite(user, organizationA);
+
+    // Act
+    legacyWrite(user, organizationB);
+
+    // Assert
+    assertThat(storedOrganizationIds(user))
+        .containsExactlyInAnyOrder(organizationA.getId(), organizationB.getId());
+  }
+
+  @Test
   @DisplayName("An older pod clearing the organization removes the link it pointed to only")
   void given_legacyClear_should_removeOnlyTheLinkItPointedTo() {
     // Arrange

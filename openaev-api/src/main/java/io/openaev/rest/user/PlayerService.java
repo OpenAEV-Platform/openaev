@@ -2,6 +2,7 @@ package io.openaev.rest.user;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.specification.UserSpecification.inTenant;
+import static io.openaev.database.specification.UserSpecification.organizationsInTenant;
 import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -105,7 +106,10 @@ public class PlayerService {
               }
               // Users are a platform-level (dual-scope) entity: scope explicitly to the current
               // tenant, like the players list search does.
-              specification = specification.and(inTenant(TenantContext.getCurrentTenant()));
+              specification =
+                  specification
+                      .and(inTenant(TenantContext.getCurrentTenant()))
+                      .and(organizationsInTenant(TenantContext.getCurrentTenant()));
               if (!CollectionUtils.isEmpty(input.getUserIdsToIgnore())) {
                 List<String> idsToIgnore = input.getUserIdsToIgnore();
                 specification =
@@ -136,10 +140,15 @@ public class PlayerService {
         inTenant(TenantContext.getCurrentTenant()).and(excludeReservedAccounts);
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
+    // After the filters, which may join the organizations of the user (see organizationsInTenant).
+    Specification<User> organizationsOfTenant =
+        organizationsInTenant(TenantContext.getCurrentTenant());
     playersFunction =
         (specification, specificationCount, pageable) ->
             this.paginate(
-                tenantSpec.and(specification), tenantSpec.and(specificationCount), pageable);
+                tenantSpec.and(specification).and(organizationsOfTenant),
+                tenantSpec.and(specificationCount).and(organizationsOfTenant),
+                pageable);
     return buildPaginationCriteriaBuilder(playersFunction, searchPaginationInput, User.class);
   }
 

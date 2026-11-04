@@ -26,7 +26,11 @@ public class V6_20261103110000000__Sync_users_organizations_from_legacy_column
           """
           CREATE OR REPLACE FUNCTION sync_users_organizations_from_legacy() RETURNS trigger AS $$
           BEGIN
-            IF TG_OP = 'UPDATE' AND OLD.user_organization IS NOT NULL THEN
+            -- Only a cleared column removes the link it pointed to. A change to another
+            -- organization replaces the one of its own tenant below, and must keep the ones the
+            -- user holds in other tenants.
+            IF TG_OP = 'UPDATE' AND OLD.user_organization IS NOT NULL
+               AND NEW.user_organization IS NULL THEN
               DELETE FROM users_organizations
               WHERE user_id = NEW.user_id AND organization_id = OLD.user_organization;
             END IF;

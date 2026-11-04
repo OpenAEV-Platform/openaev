@@ -67,7 +67,8 @@ public class MeApi extends RestBehavior {
             .orElseThrow(() -> new ElementNotFoundException("Current user not found")));
   }
 
-  @PutMapping(ME_URI + "/profile")
+  // The tenant variant scopes the organization: a user holds one organization per tenant.
+  @PutMapping({ME_URI + "/profile", TENANT_ME_URI + "/profile"})
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
