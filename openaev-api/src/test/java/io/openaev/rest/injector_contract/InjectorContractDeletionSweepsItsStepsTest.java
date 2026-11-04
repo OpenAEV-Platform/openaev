@@ -8,6 +8,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
@@ -44,15 +46,20 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Deleting an injector contract removes the chaining step templates that reference it, in the
- * contract's own tenant, whatever the caller's scope, on the single delete and on the threat
- * arsenal bulk delete.
+ * Deleting an injector contract removes the chaining step templates that reference it.
+ *
+ * <p>The single delete acts in the contract's own tenant, whatever the caller's scope: a platform
+ * admin who is a member of another tenant only, of no tenant at all, or of both tenants while
+ * naming only the other one in {@code X-Tenant-Ids}, reaches the same outcome as a member of the
+ * contract's own tenant.
+ *
+ * <p>The threat arsenal bulk delete instead acts in exactly one tenant, the request's resolved
+ * write tenant: a scope that cannot designate one unambiguously is refused, and a write tenant
+ * other than the contract's own matches nothing, leaving the contract and its step template in
+ * place.
  *
  * <p>The contract and the scenario whose logic map references it live in the default tenant. The
- * deletion is sent on the non-prefixed route by a caller whose scope excludes that tenant (a
- * platform admin who is a member of another tenant only, of no tenant at all, or of both tenants
- * while naming only the other one in {@code X-Tenant-Ids}) and by a member of the contract's
- * tenant: the outcome is the same.
+ * deletion is sent on the non-prefixed route.
  *
  * <p>The production active tables are armed, so the class follows what production enforces. The
  * rows are committed, as a real request sees them, and removed after each test. Quartz is off so
@@ -62,6 +69,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @TestInstance(PER_CLASS)
 @DisplayName("Deleting an injector contract removes the step templates that reference it")
 class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
+
+  private static final String WRITE_SCOPE_ERROR = "TENANT_WRITE_SCOPE";
 
   @DynamicPropertySource
   static void productionActiveTables(DynamicPropertyRegistry registry) {
@@ -154,9 +163,16 @@ class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
   }
 
   private int send(MockHttpServletRequestBuilder request) throws Exception {
+    return sendRaw(request).getStatus();
+  }
+
+  /**
+   * Sends the request from the request thread's empty ambient tenant, keeping the full response.
+   */
+  private MockHttpServletResponse sendRaw(MockHttpServletRequestBuilder request) throws Exception {
     TenantContext.clearCurrentTenant();
     assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
-    return mvc.perform(request.with(csrf())).andReturn().getResponse().getStatus();
+    return mvc.perform(request.with(csrf())).andReturn().getResponse();
   }
 
   // Read outside the tenant inspector: the assertions are about the stored rows, not about what a
@@ -212,6 +228,27 @@ class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
     assertThat(count("SELECT count(*) FROM steps WHERE step_id = ?", rows.stepTemplateId()))
         .as("no step template keeps a reference to the deleted contract")
         .isZero();
+  }
+
+  /** The write tenant matched nothing: the contract and its step template are both kept. */
+  private void assertContractAndStepTemplateKept(ContractInLogicMap rows) {
+    assertThat(
+            count(
+                "SELECT count(*) FROM injectors_contracts WHERE injector_contract_id = ?",
+                rows.contractId()))
+        .as("the contract is kept")
+        .isEqualTo(1);
+    assertThat(count("SELECT count(*) FROM steps WHERE step_id = ?", rows.stepTemplateId()))
+        .as("the step template keeps its reference to the contract")
+        .isEqualTo(1);
+  }
+
+  /** The request's scope could not designate a single write tenant: the bulk delete is refused. */
+  private void assertRefusedForWriteScope(MockHttpServletResponse response) throws Exception {
+    assertThat(response.getStatus()).as("the bulk delete is refused").isEqualTo(400);
+    assertThat(JsonPath.<String>read(response.getContentAsString(), "$.message"))
+        .as("the refusal names the write scope")
+        .isEqualTo(WRITE_SCOPE_ERROR);
   }
 
   @Nested
@@ -298,16 +335,18 @@ class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given no tenant membership should remove the step template")
-    void given_bulkDeleteWithNoTenantMembership_should_removeTheStepTemplate() throws Exception {
+    @DisplayName("given no tenant membership should refuse and keep the step template")
+    void given_bulkDeleteWithNoTenantMembership_should_refuseAndKeepTheStepTemplate()
+        throws Exception {
       // Arrange
       ContractInLogicMap rows = commitContractInLogicMap(false);
       try {
         // Act
-        int httpStatus = bulkDeleteContract(rows.contractId());
+        MockHttpServletResponse response = sendRaw(bulkDeleteRequest(rows.contractId()));
 
         // Assert
-        assertContractAndStepTemplateRemoved(httpStatus, rows);
+        assertRefusedForWriteScope(response);
+        assertContractAndStepTemplateKept(rows);
       } finally {
         remove(rows);
       }
@@ -315,9 +354,10 @@ class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given a scope without its tenant should remove the step template")
-    void given_bulkDeleteWithScopeWithoutItsTenant_should_removeTheStepTemplate() throws Exception {
-      // Arrange
+    @DisplayName("given a scope without its tenant should keep the step template")
+    void given_bulkDeleteWithScopeWithoutItsTenant_should_keepTheStepTemplate() throws Exception {
+      // Arrange: the caller's single-tenant scope resolves the write tenant unambiguously, but
+      // to the other tenant, not the contract's own.
       joinOtherTenantOnly();
       ContractInLogicMap rows = commitContractInLogicMap(false);
       try {
@@ -325,7 +365,10 @@ class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
         int httpStatus = bulkDeleteContract(rows.contractId());
 
         // Assert
-        assertContractAndStepTemplateRemoved(httpStatus, rows);
+        assertThat(httpStatus)
+            .as("the bulk delete succeeds in the caller's own tenant")
+            .isEqualTo(200);
+        assertContractAndStepTemplateKept(rows);
       } finally {
         remove(rows);
       }
@@ -333,10 +376,11 @@ class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-    @DisplayName("given a header naming another tenant only should remove the step template")
-    void given_bulkDeleteWithHeaderNamingAnotherTenantOnly_should_removeTheStepTemplate()
+    @DisplayName("given a header naming another tenant only should keep the step template")
+    void given_bulkDeleteWithHeaderNamingAnotherTenantOnly_should_keepTheStepTemplate()
         throws Exception {
-      // Arrange
+      // Arrange: the header designates the other tenant as the write tenant, not the contract's
+      // own.
       joinOtherTenantOnly();
       ContractInLogicMap rows = commitContractInLogicMap(false);
       try {
@@ -345,7 +389,8 @@ class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
             send(bulkDeleteRequest(rows.contractId()).header("X-Tenant-Ids", otherTenantId));
 
         // Assert
-        assertContractAndStepTemplateRemoved(httpStatus, rows);
+        assertThat(httpStatus).as("the bulk delete succeeds in the named tenant").isEqualTo(200);
+        assertContractAndStepTemplateKept(rows);
       } finally {
         remove(rows);
       }

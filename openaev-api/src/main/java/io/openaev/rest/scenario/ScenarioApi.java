@@ -742,7 +742,9 @@ public class ScenarioApi extends RestBehavior {
               if (chaining) {
                 workflowOwnerScope.run(
                     scenario,
-                    () -> workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation));
+                    () ->
+                        workflowService.startWorkflowByScenarioIdAndSimulation(
+                            scenarioId, simulation));
               }
               return simulation.getId();
             });
