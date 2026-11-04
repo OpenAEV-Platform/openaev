@@ -8,12 +8,14 @@ import {
   type ScenarioChallengesReader,
   type SimulationChallengesReader, type TenantSettingsOutput,
   type TenantXtmHubRegistration,
+  type Token,
   type User,
 } from '../utils/api-types';
 
 export interface UserHelper {
   getMe: () => User;
   getMeAdmin: () => boolean;
+  getMeTokens: () => Token[];
   getUsersMap: () => Record<string, User>;
 }
 
