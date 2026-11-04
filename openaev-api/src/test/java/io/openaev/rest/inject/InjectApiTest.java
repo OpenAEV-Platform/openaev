@@ -51,7 +51,7 @@ import io.openaev.secrets.provider.SecretsProviderResolver;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.scenario.ScenarioService;
-import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
+import io.openaev.telemetry.metric_collectors.CredentialResolutionMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -152,7 +152,7 @@ class InjectApiTest extends IntegrationTest {
   @MockitoBean private SecretsProviderResolver secretsProviderResolver;
 
   @Autowired private InjectTestHelper injectTestHelper;
-  @Autowired private CredentialMetricCollector credentialMetricCollector;
+  @Autowired private CredentialResolutionMetricCollector credentialResolutionMetricCollector;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
@@ -506,7 +506,8 @@ class InjectApiTest extends IntegrationTest {
     void given_refusedResolution_should_countErrorCodeInTelemetry() throws Exception {
       credentialReference.setStatus(SecretReference.SECRET_STATUS.NETWORK_ERROR);
       secretReferenceRepository.save(credentialReference);
-      credentialMetricCollector.collectResolutionFailures();
+      credentialResolutionMetricCollector.collectResolutionFailures();
+      credentialResolutionMetricCollector.collectResolutionSuccesses();
 
       mvc.perform(
               post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
@@ -516,9 +517,10 @@ class InjectApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().isBadRequest());
 
-      assertThat(credentialMetricCollector.collectResolutionFailures())
+      assertThat(credentialResolutionMetricCollector.collectResolutionFailures())
           .containsExactlyEntriesOf(
               Map.of(Attributes.of(stringKey("error_code"), "CREDENTIAL_INACTIVE"), 1L));
+      assertThat(credentialResolutionMetricCollector.collectResolutionSuccesses()).isZero();
     }
 
     @Test
@@ -534,6 +536,31 @@ class InjectApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A successful resolution should be counted as a success in the telemetry")
+    void given_successfulResolution_should_countSuccessInTelemetry() throws Exception {
+      SecretsProvider provider = mock(SecretsProvider.class);
+      when(provider.getResolvedSecret(any()))
+          .thenReturn(SecretResolvedValue.forUsernamePassword("alice", "secret123"));
+      when(secretsProviderResolver.resolveByConnectorInstanceId(
+              Tenant.DEFAULT_TENANT_UUID, "connector-instance-id"))
+          .thenReturn(provider);
+      credentialResolutionMetricCollector.collectResolutionSuccesses();
+      credentialResolutionMetricCollector.collectResolutionFailures();
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      assertThat(credentialResolutionMetricCollector.collectResolutionSuccesses()).isEqualTo(1L);
+      assertThat(credentialResolutionMetricCollector.collectResolutionFailures()).isEmpty();
     }
   }
 

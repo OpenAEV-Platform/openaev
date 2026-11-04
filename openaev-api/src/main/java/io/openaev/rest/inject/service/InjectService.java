@@ -72,7 +72,7 @@ import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
-import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
+import io.openaev.telemetry.metric_collectors.CredentialResolutionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectUtils;
@@ -159,7 +159,7 @@ public class InjectService {
   private final ApplicationEventPublisher eventPublisher;
   private final BulkOperationMonitor bulkOperationMonitor;
   private final InjectStatusService injectStatusService;
-  private final CredentialMetricCollector credentialMetricCollector;
+  private final CredentialResolutionMetricCollector credentialResolutionMetricCollector;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -1954,7 +1954,7 @@ public class InjectService {
       return (CredentialSecretReference) secretReference;
     } catch (CredentialResolutionException e) {
       // Every refusal carrying a credential error code feeds the telemetry failure breakdown.
-      credentialMetricCollector.addResolutionFailure(e.getErrorCode());
+      credentialResolutionMetricCollector.addResolutionFailure(e.getErrorCode());
       throw e;
     }
   }

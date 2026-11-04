@@ -2,15 +2,12 @@ package io.openaev.telemetry.metric_collectors;
 
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
-import io.openaev.rest.exception.CredentialResolutionException;
 import io.openaev.service.credential.CredentialService;
 import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,12 +16,11 @@ import org.springframework.stereotype.Service;
 /**
  * Telemetry on credentials: how many there are, which kinds (identity, AWS, Azure, GCP) and auth
  * methods are used, whether their connectivity check passes, how many injects, users and injectors
- * rely on them, and why their resolutions are refused. Counts only, no credential name, user
- * identity or secret is ever collected.
+ * rely on them. Counts only, no credential name, user identity or secret is ever collected.
+ * Resolution failures live in {@link CredentialResolutionMetricCollector}.
  *
  * <p>The counts are platform-wide: {@link CredentialService} opens the {@code TxCtx.allTenants()}
- * scope, without which the v2-active {@code secret_references} table reads as empty. Resolution
- * failures are in-memory counters, reset at each export.
+ * scope, without which the v2-active {@code secret_references} table reads as empty.
  */
 @Slf4j
 @Service
@@ -35,13 +31,9 @@ public class CredentialMetricCollector {
   private static final String ATTRIBUTE_AUTH_METHOD = "auth_method";
   private static final String ATTRIBUTE_STATUS = "status";
   private static final String ATTRIBUTE_INJECTOR_TYPE = "injector_type";
-  private static final String ATTRIBUTE_ERROR_CODE = "error_code";
 
   private final MetricRegistry metricRegistry;
   private final CredentialService credentialService;
-
-  private final Map<Attributes, AtomicLong> resolutionFailuresByErrorCode =
-      new ConcurrentHashMap<>();
 
   @PostConstruct
   public void init() {
@@ -67,40 +59,6 @@ public class CredentialMetricCollector {
         "credential_usages_total",
         "Inject-credential links broken down by credential type and injector type",
         this::collectCredentialUsages);
-    metricRegistry.registerMultiGauge(
-        "credential_resolution_failures_count",
-        "Credential resolutions refused since the last export, broken down by error code",
-        this::collectResolutionFailures);
-  }
-
-  /**
-   * Counts a credential resolution refused with the given error code.
-   *
-   * @param errorCode the error code the resolution was refused with
-   */
-  public void addResolutionFailure(CredentialResolutionException.ErrorCode errorCode) {
-    resolutionFailuresByErrorCode
-        .computeIfAbsent(
-            Attributes.of(stringKey(ATTRIBUTE_ERROR_CODE), errorCode.name()),
-            key -> new AtomicLong())
-        .incrementAndGet();
-  }
-
-  /**
-   * Returns the refused resolutions counted since the last call, by error code, and resets them.
-   *
-   * @return the refused resolution count per error code
-   */
-  public Map<Attributes, Long> collectResolutionFailures() {
-    Map<Attributes, Long> snapshot = new HashMap<>();
-    resolutionFailuresByErrorCode.forEach(
-        (attributes, value) -> {
-          long collected = value.getAndSet(0);
-          if (collected > 0) {
-            snapshot.put(attributes, collected);
-          }
-        });
-    return snapshot;
   }
 
   Map<Attributes, Long> collectCredentials() {

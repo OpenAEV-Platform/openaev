@@ -17,6 +17,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.secrets.provider.*;
 import io.openaev.secrets.service.SecretValidationService;
 import io.openaev.service.UserService;
+import io.openaev.telemetry.metric_collectors.CredentialResolutionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -59,6 +60,7 @@ public class CredentialService {
   private final SecretValidationService secretValidationService;
   private final UserService userService;
   private final TenantScopedTransaction tenantTx;
+  private final CredentialResolutionMetricCollector credentialResolutionMetricCollector;
 
   @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
   public long globalCount() {
@@ -486,7 +488,9 @@ public class CredentialService {
     SecretsProvider secretProvider =
         secretsProviderResolver.resolveByConnectorInstanceId(
             credential.getTenant().getId(), credential.getConnectorInstanceId());
-    return secretProvider.getResolvedSecret(credential);
+    SecretResolvedValue resolved = secretProvider.getResolvedSecret(credential);
+    credentialResolutionMetricCollector.addResolutionSuccess();
+    return resolved;
   }
 
   /**
