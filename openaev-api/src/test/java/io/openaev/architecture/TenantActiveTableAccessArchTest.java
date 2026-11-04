@@ -20,7 +20,6 @@ import io.openaev.api.notification_trigger.NotificationTriggerMapper;
 import io.openaev.api.notifier.NotifierApi;
 import io.openaev.api.payload.PayloadApiExporter;
 import io.openaev.api.xtmhub.XtmHubApi;
-import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CatalogConnector;
@@ -559,18 +558,6 @@ class TenantActiveTableAccessArchTest {
               // as the two datapacks above (MigrationProcessor -> tenantTx.execute/
               // setScopeOnCurrentTransaction with TxCtx.forTenant(...)), so it needs no waiver.
               V20261002_Default_group_markings.class,
-              // Background primitive: reads the tenant's markings to assign the system clearance a
-              // background transaction runs at (all markings of the tenants in scope — a scheduler
-              // is not a user). Scoped, and in the strongest sense the rule asks for: the read
-              // happens INSIDE the transaction and AFTER setScope() has written
-              // app.current_tenants, so the inspector rewrites it with can_access_tenant, and the
-              // query additionally binds the same tenant ids explicitly. Cannot deadlock against
-              // its own dimension either: marking_definitions is deliberately NOT on
-              // openaev.marking.active-tables (design Q13 — the clearance source must not itself
-              // require a clearance), so no marking predicate applies to this read while the
-              // marking scope is still being computed. Pinned by
-              // TenantScopedTransactionMarkingScopeTest:
-              TenantScopedTransaction.class,
               // Resolves the markings a group is being told to grant. Runs on the HTTP path inside
               // a @Transactional method that takes a TxCtx, so app.current_tenants is already set
               // and the inspector rewrites the read with can_access_tenant: a marking id belonging

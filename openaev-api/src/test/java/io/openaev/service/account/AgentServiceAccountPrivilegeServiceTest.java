@@ -146,7 +146,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
 
   // endregion
 
-  // region createWellKnownGroupWithRole
+  // region ensureWellKnownGroupWithRole
 
   @Test
   @DisplayName("Should create new group when no existing group found")
@@ -201,7 +201,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
 
   // endregion
 
-  // region createWellKnownRole
+  // region ensureWellKnownRole
 
   @Test
   @DisplayName("Should create new role when no existing role found")
