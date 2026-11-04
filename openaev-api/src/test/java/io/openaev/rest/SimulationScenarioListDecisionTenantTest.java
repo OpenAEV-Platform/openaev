@@ -1,5 +1,6 @@
 package io.openaev.rest;
 
+import static io.openaev.rest.exception.TenantScopeForbiddenException.MESSAGE;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
@@ -190,9 +191,16 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT, Capability.DELETE_ASSESSMENT})
   class ScenarioBulkDelete {
 
+    /**
+     * The bulk delete is gated by DELETE_ASSESSMENT, the very right this contrast withholds in B,
+     * so a request authorized in every tenant of its scope is refused and neither row is deleted.
+     * The per-row decision stays pinned by the member contrast below and, on rows of both tenants,
+     * by {@code PermissionServiceTenantDecisionTest} and the scenario service tests.
+     */
     @Test
-    @DisplayName("given the delete right only outside B should delete the default scenario only")
-    void given_deleteRightOnlyOutsideB_should_deleteDefaultScenarioOnly() throws Exception {
+    @DisplayName("given the delete right only outside B should refuse the delete over both tenants")
+    void given_deleteRightOnlyOutsideB_should_refuseTheScenarioDeleteOverBothTenants()
+        throws Exception {
       // -- ARRANGE --
       String scenarioOfDefault = scenarioIn(Tenant.DEFAULT_TENANT_UUID);
       String scenarioOfB = scenarioIn(tenantB);
@@ -204,11 +212,10 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
                       asJsonString(
                           Map.of(
                               "scenario_ids_to_process", List.of(scenarioOfDefault, scenarioOfB)))))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$[?(@ == '" + scenarioOfDefault + "')]").isNotEmpty())
-          .andExpect(jsonPath("$[?(@ == '" + scenarioOfB + "')]").isEmpty());
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value(MESSAGE));
+      assertThat(rowCount("scenarios", "scenario_id", scenarioOfDefault)).isEqualTo(1);
       assertThat(rowCount("scenarios", "scenario_id", scenarioOfB)).isEqualTo(1);
-      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test
@@ -312,9 +319,16 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT, Capability.DELETE_ASSESSMENT})
   class SimulationBulkDelete {
 
+    /**
+     * The bulk delete is gated by DELETE_ASSESSMENT, the very right this contrast withholds in B,
+     * so a request authorized in every tenant of its scope is refused and neither row is deleted.
+     * The per-row decision stays pinned by the member contrast below and, on rows of both tenants,
+     * by {@code PermissionServiceTenantDecisionTest} and the simulation service tests.
+     */
     @Test
-    @DisplayName("given the delete right only outside B should delete the default simulation only")
-    void given_deleteRightOnlyOutsideB_should_deleteDefaultSimulationOnly() throws Exception {
+    @DisplayName("given the delete right only outside B should refuse the delete over both tenants")
+    void given_deleteRightOnlyOutsideB_should_refuseTheSimulationDeleteOverBothTenants()
+        throws Exception {
       // -- ARRANGE --
       String simulationOfDefault = simulationIn(Tenant.DEFAULT_TENANT_UUID);
       String simulationOfB = simulationIn(tenantB);
@@ -327,11 +341,10 @@ class SimulationScenarioListDecisionTenantTest extends IntegrationTest {
                           Map.of(
                               "exercise_ids_to_process",
                               List.of(simulationOfDefault, simulationOfB)))))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$[?(@ == '" + simulationOfDefault + "')]").isNotEmpty())
-          .andExpect(jsonPath("$[?(@ == '" + simulationOfB + "')]").isEmpty());
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value(MESSAGE));
+      assertThat(rowCount("exercises", "exercise_id", simulationOfDefault)).isEqualTo(1);
       assertThat(rowCount("exercises", "exercise_id", simulationOfB)).isEqualTo(1);
-      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
     }
 
     @Test

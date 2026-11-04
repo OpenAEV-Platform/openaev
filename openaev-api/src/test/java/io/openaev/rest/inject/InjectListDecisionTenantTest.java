@@ -4,6 +4,7 @@ import static io.openaev.rest.asset.endpoint.EndpointApi.ASSET_URI;
 import static io.openaev.rest.asset.endpoint.EndpointApi.TENANT_ASSET_URI;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.TENANT_ATOMIC_TESTING_URI;
+import static io.openaev.rest.exception.TenantScopeForbiddenException.MESSAGE;
 import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.rest.inject.InjectApi.TENANT_INJECT_URI;
 import static io.openaev.rest.organization.OrganizationApi.ORGANIZATION_URI;
@@ -171,22 +172,26 @@ class InjectListDecisionTenantTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT, Capability.ACCESS_ASSETS})
   class AssetInjectSearch {
 
+    /**
+     * This search is gated by ACCESS_ASSETS on the asset it is rooted on, which this contrast
+     * withholds in B, so a request authorized in every tenant of its scope is refused before any
+     * row is read. The per-tenant decision stays pinned by the member contrast below and, on rows
+     * of both tenants, by {@code PermissionServiceTenantDecisionTest}.
+     */
     @Test
-    @DisplayName("given the access right only outside B should search the default inject only")
-    void given_accessRightOnlyOutsideB_should_searchDefaultInjectOnly() throws Exception {
+    @DisplayName("given the access right only outside B should refuse the search over both tenants")
+    void given_accessRightOnlyOutsideB_should_refuseTheSearchOverBothTenants() throws Exception {
       // -- ARRANGE --
       Endpoint endpoint = endpointIn(Tenant.DEFAULT_TENANT_UUID);
-      String injectOfDefault = atomicTestingIn(Tenant.DEFAULT_TENANT_UUID, endpoint);
-      String injectOfB = atomicTestingIn(tenantB, endpoint);
+      atomicTestingIn(Tenant.DEFAULT_TENANT_UUID, endpoint);
+      atomicTestingIn(tenantB, endpoint);
 
       // -- ACT & ASSERT --
       mvc.perform(
               inBothTenants(post(ASSET_URI + "/" + endpoint.getId() + "/injects/search"))
                   .content(largeSearch()))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath(searched(injectOfDefault)).isNotEmpty())
-          .andExpect(jsonPath(searched(injectOfB)).isEmpty());
-      assertDecidedIn(permissionService, Tenant.DEFAULT_TENANT_UUID, tenantB);
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value(MESSAGE));
     }
 
     @Test
