@@ -13,7 +13,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-/** Catalogue content: what is installed, updated and revoked, and how fast revocations land. */
+/**
+ * Catalogue content: what is installed, updated and revoked, how fast revocations land and how fast
+ * a published scenario is installed.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -24,6 +27,8 @@ public class ContentMetricCollector {
   private final AtomicLong revokedInjects = new AtomicLong(0);
   private final AtomicLong revocationDelaySeconds = new AtomicLong(0);
   private final AtomicLong revocationsReceived = new AtomicLong(0);
+  private final AtomicLong installDelaySeconds = new AtomicLong(0);
+  private final AtomicLong installsReceived = new AtomicLong(0);
 
   @PostConstruct
   public void init() {
@@ -38,7 +43,12 @@ public class ContentMetricCollector {
     metricRegistry.registerGauge(
         "content_revocation_delay_average",
         "Average time between a revocation's publication and its arrival on the platform",
-        this::collectAverageDelay,
+        () -> average(revocationDelaySeconds, revocationsReceived),
+        "s");
+    metricRegistry.registerGauge(
+        "content_publication_to_install_delay_average",
+        "Average time between a scenario's publication and its install on the platform",
+        () -> average(installDelaySeconds, installsReceived),
         "s");
   }
 
@@ -69,6 +79,11 @@ public class ContentMetricCollector {
     revocationsReceived.incrementAndGet();
   }
 
+  public void addInstallDelay(Duration delay) {
+    installDelaySeconds.addAndGet(Math.max(0, delay.toSeconds()));
+    installsReceived.incrementAndGet();
+  }
+
   private Map<Attributes, Long> collectActions() {
     Map<Attributes, Long> snapshot = new HashMap<>();
     actions.forEach(
@@ -81,9 +96,9 @@ public class ContentMetricCollector {
     return snapshot;
   }
 
-  private long collectAverageDelay() {
-    long count = revocationsReceived.getAndSet(0);
-    long total = revocationDelaySeconds.getAndSet(0);
-    return count == 0 ? 0 : total / count;
+  private static long average(AtomicLong totalSeconds, AtomicLong count) {
+    long collected = count.getAndSet(0);
+    long total = totalSeconds.getAndSet(0);
+    return collected == 0 ? 0 : total / collected;
   }
 }

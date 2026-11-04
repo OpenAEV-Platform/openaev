@@ -42,6 +42,7 @@ import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.scenario.revision.ScenarioApplyService;
 import io.openaev.service.settings.TenantSettingsService;
+import io.openaev.telemetry.metric_collectors.ContentMetricCollector;
 import io.openaev.utils.SemanticVersion;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.io.ByteArrayInputStream;
@@ -50,6 +51,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
@@ -109,6 +111,7 @@ public class CatalogInstallService {
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final ObjectMapper mapper;
   private final InjectorContractRepository injectorContractRepository;
+  private final ContentMetricCollector contentMetricCollector;
 
   // -- LIST --
 
@@ -279,6 +282,10 @@ public class CatalogInstallService {
     }
     scenarioApplyService.recordInstall(scenario, item);
     contentHistoryService.scenarioInstalled(scenario, null);
+    if (item.getPublishedAt() != null) {
+      contentMetricCollector.addInstallDelay(
+          Duration.between(item.getPublishedAt(), Instant.now()));
+    }
     return new CatalogInstallOutput(scenario.getId(), version);
   }
 
