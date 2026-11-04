@@ -15,26 +15,36 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Workflow;
+import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.ZipUtils;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.KillChainPhaseFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
+import io.openaev.utils.fixtures.composers.AttackPatternComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.TagComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
+import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -77,6 +87,9 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
   @Autowired private StepComposer stepComposer;
   @Autowired private TagComposer tagComposer;
   @Autowired private WorkflowComposer workflowComposer;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private AttackPatternComposer attackPatternComposer;
+  @Autowired private KillChainPhaseRepository killChainPhaseRepository;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private EntityManager manager;
 
@@ -92,6 +105,8 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
     stepComposer.reset();
     tagComposer.reset();
     workflowComposer.reset();
+    injectorContractComposer.reset();
+    attackPatternComposer.reset();
   }
 
   private record ChainedScenario(Scenario scenario, Workflow template, Tag tag) {}
@@ -109,6 +124,50 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
    */
   private ChainedScenario chainedScenarioWithAStep() {
     return chainedScenario(true);
+  }
+
+  private record ChainedScenarioWithAKillChainPhase(
+      Scenario scenario, Workflow template, KillChainPhase phase) {}
+
+  /**
+   * A chained scenario of the default tenant whose inject carries an attack pattern with a kill
+   * chain phase, both of that tenant: the scenario's detail is read under the request's scope, the
+   * same table the export already pins through {@link #assertNoTagRead}.
+   */
+  private ChainedScenarioWithAKillChainPhase chainedScenarioWithAKillChainPhase() {
+    KillChainPhase phase =
+        KillChainPhaseFixture.getKillChainPhase(
+            "chained-scenario-kill-chain-phase", 1L, Tenant.DEFAULT_TENANT_UUID);
+    // The detail query's own kill-chain aggregation drops a phase whose description or STIX id is
+    // null (json_agg(DISTINCT kcp.*) FILTER (WHERE kcp IS NOT NULL): a composite row reference is
+    // IS NOT NULL only when every field is non-null), a pre-existing defect unrelated to tenant
+    // scoping. Fill both so this fixture exercises the scoping rule, not that defect.
+    phase.setDescription("chained-scenario-kill-chain-phase-description");
+    phase.setStixId("kill-chain-phase--chained-scenario-kill-chain-phase");
+    phase = killChainPhaseRepository.save(phase);
+    AttackPattern attackPattern =
+        AttackPatternFixture.createDefaultAttackPattern(Tenant.DEFAULT_TENANT_UUID);
+    attackPattern.setKillChainPhases(new ArrayList<>(List.of(phase)));
+    ScenarioComposer.Composer scenario =
+        scenarioComposer
+            .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+            .withInject(
+                injectComposer
+                    .forInject(InjectFixture.getDefaultInject())
+                    .withInjectorContract(
+                        injectorContractComposer
+                            .forInjectorContract(
+                                InjectorContractFixture.createDefaultInjectorContract())
+                            .withAttackPattern(
+                                attackPatternComposer.forAttackPattern(attackPattern))));
+    WorkflowComposer.Composer workflow =
+        workflowComposer
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .withScenario(scenario);
+    Workflow template = workflow.persist().get();
+    manager.flush();
+    manager.clear();
+    return new ChainedScenarioWithAKillChainPhase(scenario.get(), template, phase);
   }
 
   /**
@@ -248,6 +307,42 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
 
       // Assert
       assertThatJson(json).node("scenario_workflow_id").isEqualTo(rows.template().getId());
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "given a scope without its tenant should name its workflow but not its kill chain phases")
+    void given_scopeWithoutItsTenant_should_notNameItsKillChainPhases() throws Exception {
+      // Arrange
+      joinOtherTenantOnly();
+      ChainedScenarioWithAKillChainPhase rows = chainedScenarioWithAKillChainPhase();
+
+      // Act
+      String json = detail(rows.scenario().getId());
+
+      // Assert
+      assertThatJson(json).node("scenario_workflow_id").isEqualTo(rows.template().getId());
+      assertThatJson(json).node("scenario_kill_chain_phases").isArray().isEmpty();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given a membership of its tenant should name its workflow and its kill chain phases")
+    void given_membershipOfItsTenant_should_nameItsKillChainPhases() throws Exception {
+      // Arrange
+      ChainedScenarioWithAKillChainPhase rows = chainedScenarioWithAKillChainPhase();
+
+      // Act
+      String json = detail(rows.scenario().getId());
+
+      // Assert
+      assertThatJson(json).node("scenario_workflow_id").isEqualTo(rows.template().getId());
+      assertThatJson(json).node("scenario_kill_chain_phases").isArray().hasSize(1);
+      assertThatJson(json)
+          .node("scenario_kill_chain_phases[0].phase_id")
+          .isEqualTo(rows.phase().getId());
     }
   }
 
