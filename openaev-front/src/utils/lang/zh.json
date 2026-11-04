@@ -2502,6 +2502,8 @@
   "Manual expectations": "手动期望",
   "Manual expectations will appear here when injects require human review": "当注入需要人工审核时，手动期望将显示在此处",
   "Manual launch": "手动启动",
+  "Manual target": "手动目标",
+  "Manual targets": "手动目标",
   "Manual targets (comma-separated)": "手动目标（逗号分隔）",
   "Manual template path (-t)": "手动模板路径 (-t)",
   "Manual validations": "手动验证",

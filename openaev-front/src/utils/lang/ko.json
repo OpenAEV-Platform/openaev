@@ -2502,6 +2502,8 @@
   "Manual expectations": "수동 기대치",
   "Manual expectations will appear here when injects require human review": "인젝트에 사람의 검토가 필요하면 수동 기대치가 여기에 표시됩니다",
   "Manual launch": "수동 실행",
+  "Manual target": "수동 대상",
+  "Manual targets": "수동 대상",
   "Manual targets (comma-separated)": "수동 대상(쉼표로 구분)",
   "Manual template path (-t)": "수동 템플릿 경로(-t)",
   "Manual validations": "수동 검증",

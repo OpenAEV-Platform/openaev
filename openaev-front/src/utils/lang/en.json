@@ -2502,6 +2502,8 @@
   "Manual expectations": "Manual expectations",
   "Manual expectations will appear here when injects require human review": "Manual expectations will appear here when injects require human review",
   "Manual launch": "Manual launch",
+  "Manual target": "Manual target",
+  "Manual targets": "Manual targets",
   "Manual targets (comma-separated)": "Manual targets (comma-separated)",
   "Manual template path (-t)": "Manual template path (-t)",
   "Manual validations": "Manual validations",

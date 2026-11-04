@@ -2502,6 +2502,8 @@
   "Manual expectations": "手動の期待値",
   "Manual expectations will appear here when injects require human review": "インジェクトに人による確認が必要になると、手動の期待値がここに表示されます",
   "Manual launch": "手動起動",
+  "Manual target": "手動ターゲット",
+  "Manual targets": "手動ターゲット",
   "Manual targets (comma-separated)": "手動ターゲット（カンマ区切り）",
   "Manual template path (-t)": "手動テンプレートパス (-t)",
   "Manual validations": "手動検証",
