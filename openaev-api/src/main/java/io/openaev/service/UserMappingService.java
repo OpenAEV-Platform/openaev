@@ -95,7 +95,8 @@ public class UserMappingService {
    * lose the admin role. Admins get their markings from this group, not from {@code user_admin}.
    */
   public void mapAdminGroup(User user, String tenantId, boolean isAdmin) {
-    Optional<Group> adminGroup = tenantGroupService.findByName(PresetTenantData.ADMIN, tenantId);
+    Optional<Group> adminGroup =
+        tenantGroupService.findByNameAndTenantId(PresetTenantData.ADMIN, tenantId);
     if (adminGroup.isEmpty()) {
       log.warn(
           "No '{}' group in tenant {}, SSO admin role ignored", PresetTenantData.ADMIN, tenantId);
