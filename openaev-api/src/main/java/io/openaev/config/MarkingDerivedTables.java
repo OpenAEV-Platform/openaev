@@ -53,7 +53,29 @@ public final class MarkingDerivedTables {
           // An agent belongs to its asset, and a trace (the agent's output) to its agent.
           // Traces with no agent are the inject's global traces and stay visible.
           linkedTo("agents", "agent_asset", "assets", "asset_id"),
-          linkedTo("execution_traces", "execution_agent_id", "agents", "agent_id"));
+          linkedTo("execution_traces", "execution_agent_id", "agents", "agent_id"),
+          // An attack-path execution is about one asset, held by a column a trigger fills (a team
+          // row keeps its team id in source_asset_id, which is why it is not linked on the raw
+          // columns). Rows with no asset (a discovered host, a team, a player) stay visible, and
+          // so do the rows of a deleted asset: the foreign key sets the column to NULL.
+          linkedTo("attackpath_execution", "attackpath_execution_asset_id", "assets", "asset_id"),
+          // The links to an execution and the collector lines of an execution go with it.
+          linkedTo(
+              "attackpath_execution_finding",
+              "execution_id",
+              "attackpath_execution",
+              "attackpath_execution_id"),
+          linkedTo(
+              "attackpath_execution_collector",
+              "attackpath_execution_id",
+              "attackpath_execution",
+              "attackpath_execution_id"),
+          // A finding is visible when it has no execution, or at least one visible execution.
+          throughLinkRows(
+              "attackpath_finding",
+              "attackpath_finding_id",
+              "attackpath_execution_finding",
+              "finding_id"));
 
   /** Every derived table, in no particular order: {@link MarkedTables} resolves the chains. */
   public static final List<MarkedTable> ALL =

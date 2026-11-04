@@ -3,6 +3,8 @@ package io.openaev.api.chaining;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.api.chaining.dto.MapperConditionOutput;
 import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.database.model.ChainingTypeRegistry;
@@ -17,11 +19,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Mapper for Step template API DTOs. */
 public final class StepMapper {
 
+  private static final String INJECT_ASSETS = "inject_assets";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final Map<String, ContractOutputType> CONTRACT_OUTPUT_TYPE_BY_LABEL =
       Arrays.stream(ContractOutputType.values())
@@ -34,6 +38,42 @@ public final class StepMapper {
   private StepMapper() {}
 
   public static StepOutput toOutput(Step step) {
+    return toOutput(step, Set.of());
+  }
+
+  /**
+   * The asset ids a step template carries in its data ({@code inject_assets}): the asset perimeter
+   * copied from the workflow scope when the action is configured.
+   */
+  public static List<String> assetIdsOf(Step step) {
+    if (step.getData() == null) {
+      return List.of();
+    }
+    try {
+      return assetIdsOf(OBJECT_MAPPER.readTree(step.getData()));
+    } catch (JsonProcessingException e) {
+      return List.of();
+    }
+  }
+
+  private static List<String> assetIdsOf(JsonNode dataNode) {
+    JsonNode assets = dataNode == null ? null : dataNode.get(INJECT_ASSETS);
+    if (assets == null || !assets.isArray()) {
+      return List.of();
+    }
+    List<String> ids = new java.util.ArrayList<>();
+    assets.forEach(asset -> ids.add(asset.asText()));
+    return ids;
+  }
+
+  /**
+   * Same as {@link #toOutput(Step)} for a reader who may not see every asset: the template's asset
+   * perimeter is stored as a JSON list of ids, so the marking filter does not reach it, and the ids
+   * of the assets the reader is not cleared for are taken out of the returned data.
+   *
+   * @param hiddenAssetIds the ids of the assets that exist but the reader cannot see
+   */
+  public static StepOutput toOutput(Step step, Set<String> hiddenAssetIds) {
     try {
       List<String> rootConditionIds =
           step.getConditionSteps().stream()
@@ -57,7 +97,10 @@ public final class StepMapper {
                           .build())
               .toList();
 
-      JsonNode dataNode = step.getData() == null ? null : OBJECT_MAPPER.readTree(step.getData());
+      JsonNode dataNode =
+          withoutHiddenAssets(
+              step.getData() == null ? null : OBJECT_MAPPER.readTree(step.getData()),
+              hiddenAssetIds);
       List<String> outputTypes = extractOutputTypes(dataNode);
 
       return StepOutput.builder()
@@ -74,6 +117,26 @@ public final class StepMapper {
     } catch (JsonProcessingException e) {
       throw new IllegalArgumentException("Unable to parse step data as JSON", e);
     }
+  }
+
+  private static JsonNode withoutHiddenAssets(JsonNode dataNode, Set<String> hiddenAssetIds) {
+    if (hiddenAssetIds == null || hiddenAssetIds.isEmpty()) {
+      return dataNode;
+    }
+    JsonNode assets = dataNode == null ? null : dataNode.get(INJECT_ASSETS);
+    if (assets == null || !assets.isArray() || !(dataNode instanceof ObjectNode objectNode)) {
+      return dataNode;
+    }
+    ArrayNode visible = OBJECT_MAPPER.createArrayNode();
+    assets.forEach(
+        asset -> {
+          if (!hiddenAssetIds.contains(asset.asText())) {
+            visible.add(asset);
+          }
+        });
+    ObjectNode copy = objectNode.deepCopy();
+    copy.set(INJECT_ASSETS, visible);
+    return copy;
   }
 
   /**
