@@ -35,10 +35,6 @@ Automatic Expectations are validated by technical signals from connected securit
 | Vulnerability | A CVE is present on the target |
 | Article | Targets read or acknowledge a media pressure article |
 
-!!! note "Preview"
-
-    Logging Expectations are a preview feature: they exist only when the `LOGGING_EXPECTATION` preview feature is enabled. A Collector fills them only if it declares the Logging type, for example the [Splunk Enterprise Security](https://github.com/OpenAEV-Platform/collectors/tree/main/splunk-es) Collector with Logging enabled. Their result is **Logged** or **Not Logged**.
-
 ![Expectations list on an Inject](assets/expectations-list.png)
 
 ## Add an Expectation to an Inject
