@@ -35,8 +35,8 @@ class V20261028GroupsReceivingEveryMarkingTest {
 
   @Test
   @DisplayName(
-      "given the agent, OpenCTI and Admin groups, should make all three receive every marking")
-  void given_agentOpenCtiAndAdminGroups_should_makeAllThreeReceiveEveryMarking() {
+      "given the service account and Admin groups, should make them all receive every marking")
+  void given_serviceAccountAndAdminGroups_should_makeThemAllReceiveEveryMarking() {
     // Arrange
     Group agentGroup =
         groupWithId(
@@ -45,11 +45,17 @@ class V20261028GroupsReceivingEveryMarkingTest {
         groupWithId(
             getUUIDFromName(
                 ReservedServiceAccount.OPENCTI_CONNECTOR.access().groupId(), TENANT.getId()));
+    Group catalogGroup =
+        groupWithId(
+            getUUIDFromName(
+                ReservedServiceAccount.CATALOG_CONNECTOR.access().groupId(), TENANT.getId()));
     Group adminGroup = groupWithId("admin-group");
     when(tenantGroupService.findByIdAndTenant(agentGroup.getId(), TENANT.getId()))
         .thenReturn(Optional.of(agentGroup));
     when(tenantGroupService.findByIdAndTenant(openCtiGroup.getId(), TENANT.getId()))
         .thenReturn(Optional.of(openCtiGroup));
+    when(tenantGroupService.findByIdAndTenant(catalogGroup.getId(), TENANT.getId()))
+        .thenReturn(Optional.of(catalogGroup));
     when(tenantGroupService.findByNameAndTenantId(PresetTenantData.ADMIN, TENANT.getId()))
         .thenReturn(Optional.of(adminGroup));
 
@@ -59,6 +65,7 @@ class V20261028GroupsReceivingEveryMarkingTest {
     // Assert
     verify(tenantGroupService).receiveEveryMarking(agentGroup, TENANT.getId());
     verify(tenantGroupService).receiveEveryMarking(openCtiGroup, TENANT.getId());
+    verify(tenantGroupService).receiveEveryMarking(catalogGroup, TENANT.getId());
     verify(tenantGroupService).receiveEveryMarking(adminGroup, TENANT.getId());
     verify(dataPackService).registerDataPack(dataPack.getPackId(), TENANT);
   }

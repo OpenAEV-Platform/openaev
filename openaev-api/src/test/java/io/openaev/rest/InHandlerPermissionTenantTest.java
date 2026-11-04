@@ -51,6 +51,7 @@ import io.openaev.utils.fixtures.composers.ReportingComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -597,7 +598,7 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
   private Group groupInB(List<MarkingDefinition> markings, List<User> members) {
     Group group = TenantGroupFixture.getGroup("in-handler-" + UUID.randomUUID());
     group.setUsers(new ArrayList<>(members));
-    group.setMarkings(new ArrayList<>(markings));
+    group.setMarkings(new HashSet<>(markings));
     // The group composer attributes the group to the ambient tenant.
     String previousTenant = TenantContext.getCurrentTenant();
     TenantContext.setCurrentTenant(tenantB);
@@ -614,7 +615,7 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
   /** An asset of B carrying the marking the caller is cleared for through its group in B. */
   private String markedAssetInB() {
     Group group = markedGroupInB();
-    return assetInB(new String[] {group.getMarkings().getFirst().getId()});
+    return assetInB(new String[] {group.getMarkings().iterator().next().getId()});
   }
 
   private String assetInB(String[] markingIds) {

@@ -10,7 +10,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/** Makes the existing agent, OpenCTI and "Admin" groups receive every marking of the tenant. */
+/** Makes the existing service account and "Admin" groups receive every marking of the tenant. */
 @Component
 @Slf4j
 public class V20261028_Groups_receiving_every_marking extends DataPack {
@@ -28,7 +28,10 @@ public class V20261028_Groups_receiving_every_marking extends DataPack {
     try {
       String tenantId = tenant.getId();
       for (ReservedServiceAccount account :
-          List.of(ReservedServiceAccount.AGENT, ReservedServiceAccount.OPENCTI_CONNECTOR)) {
+          List.of(
+              ReservedServiceAccount.AGENT,
+              ReservedServiceAccount.OPENCTI_CONNECTOR,
+              ReservedServiceAccount.CATALOG_CONNECTOR)) {
         tenantGroupService
             .findByIdAndTenant(getUUIDFromName(account.access().groupId(), tenantId), tenantId)
             .ifPresent(group -> tenantGroupService.receiveEveryMarking(group, tenantId));
