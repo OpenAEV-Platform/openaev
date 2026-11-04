@@ -532,6 +532,15 @@ public class RestBehavior {
     return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.BAD_REQUEST);
   }
 
+  // A credential resolution refused with one of the error codes,
+  // so the injector can report it in the inject execution trace.
+  @ExceptionHandler(CredentialResolutionException.class)
+  public ResponseEntity<ErrorMessage> handleCredentialResolutionException(
+          CredentialResolutionException ex) {
+    return new ResponseEntity<>(
+            new ErrorMessage(ex.getErrorCode().name()), ex.getErrorCode().getStatus());
+  }
+
   // A chaining lifecycle operation refused by product decision (e.g. pausing a chained
   // simulation): a client error, not a platform failure, so it must carry its business message
   // with a 400 instead of the 500 the checked ChainingException produced. ChainingException itself

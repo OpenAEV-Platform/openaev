@@ -11,6 +11,9 @@ import static io.openaev.database.specification.InjectSpecification.*;
 import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.rest.exception.CredentialResolutionException.ErrorCode.CREDENTIAL_ACCESS_DENIED;
+import static io.openaev.rest.exception.CredentialResolutionException.ErrorCode.CREDENTIAL_INACTIVE;
+import static io.openaev.rest.exception.CredentialResolutionException.ErrorCode.CREDENTIAL_NOT_FOUND;
 import static io.openaev.service.InjectExpectationUtils.extractAssetIdsFromInjectExpectationsResults;
 import static io.openaev.utils.AgentUtils.isPrimaryAgent;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
@@ -50,6 +53,7 @@ import io.openaev.rest.atomic_testing.form.InjectStatusOutput;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.CredentialResolutionException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.LicenseRestrictionException;
@@ -68,6 +72,7 @@ import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectUtils;
@@ -109,8 +114,6 @@ import org.springframework.util.CollectionUtils;
 @Service
 @Slf4j
 public class InjectService {
-  private static final String CREDENTIAL_ACCESS_DENIED = "CREDENTIAL_ACCESS_DENIED";
-  private static final String CREDENTIAL_INACTIVE = "CREDENTIAL_INACTIVE";
   static final String AGENT_ACCESS_DENIED = "Agent is not allowed to act on this inject";
 
   private final TeamRepository teamRepository;
@@ -156,6 +159,7 @@ public class InjectService {
   private final ApplicationEventPublisher eventPublisher;
   private final BulkOperationMonitor bulkOperationMonitor;
   private final InjectStatusService injectStatusService;
+  private final CredentialMetricCollector credentialMetricCollector;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -1900,14 +1904,14 @@ public class InjectService {
         inject.getSecretReferences().stream()
             .filter(ref -> ref.getId().equals(attachmentId))
             .findFirst()
-            .orElseThrow(() -> new ElementNotFoundException("CREDENTIAL_NOT_FOUND"));
+            .orElseThrow(() -> new CredentialResolutionException(CREDENTIAL_NOT_FOUND));
 
     SecretReference.SECRET_STATUS status = secretReference.getStatus();
     if (isCredentialAccessDeniedStatus(status)) {
-      throw new ForbiddenException(CREDENTIAL_ACCESS_DENIED);
+      throw new CredentialResolutionException(CREDENTIAL_ACCESS_DENIED);
     }
     if (isCredentialInactiveStatus(status)) {
-      throw new BadRequestException(CREDENTIAL_INACTIVE);
+      throw new CredentialResolutionException(CREDENTIAL_INACTIVE);
     }
     return secretReference;
   }
@@ -1928,22 +1932,30 @@ public class InjectService {
    * @param injectId the identifier of the owning inject
    * @param input the attachment identifier and authorisation code supplied by the injector
    * @return the validated credential reference to resolve
-   * @throws ElementNotFoundException when the inject or credential cannot be found in this scope
-   * @throws ForbiddenException when the authorisation is invalid or the credential is access denied
-   * @throws BadRequestException when the credential exists but is currently inactive
+   * @throws ElementNotFoundException when the inject cannot be found in this scope
+   * @throws CredentialResolutionException with {@code CREDENTIAL_NOT_FOUND} when the credential is
+   *     not on the inject, {@code CREDENTIAL_ACCESS_DENIED} when the authorisation is invalid or
+   *     the credential is access denied, {@code CREDENTIAL_INACTIVE} when the credential is
+   *     inactive
    */
   public CredentialSecretReference getSecretReferenceOrThrow(
       String injectId, InjectAttachmentInput input) {
     Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
 
-    if (!verifyInjectStatusIsInProgress(inject)
-        || !verifyAuthorisationCode(injectId, input.getAuthorisation())) {
-      throw new ForbiddenException(CREDENTIAL_ACCESS_DENIED);
+    try {
+      if (!verifyInjectStatusIsInProgress(inject)
+          || !verifyAuthorisationCode(injectId, input.getAuthorisation())) {
+        throw new CredentialResolutionException(CREDENTIAL_ACCESS_DENIED);
+      }
+
+      SecretReference secretReference =
+          getResolvableInjectSecretReferenceOrThrow(inject, input.getAttachmentId());
+
+      return (CredentialSecretReference) secretReference;
+    } catch (CredentialResolutionException e) {
+      // Every refusal carrying a credential error code feeds the telemetry failure breakdown.
+      credentialMetricCollector.addResolutionFailure(e.getErrorCode());
+      throw e;
     }
-
-    SecretReference secretReference =
-        getResolvableInjectSecretReferenceOrThrow(inject, input.getAttachmentId());
-
-    return (CredentialSecretReference) secretReference;
   }
 }

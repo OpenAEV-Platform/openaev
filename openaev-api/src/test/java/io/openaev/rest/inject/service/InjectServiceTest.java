@@ -29,6 +29,8 @@ import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.CredentialResolutionException;
+import io.openaev.rest.exception.CredentialResolutionException.ErrorCode;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
@@ -40,6 +42,7 @@ import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -131,6 +134,7 @@ class InjectServiceTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private ObjectProvider<PermissionService> permissionServiceProvider;
   @Mock private PermissionService permissionService;
+  @Mock private CredentialMetricCollector credentialMetricCollector;
 
   ObjectMapper mapper;
 
@@ -2145,6 +2149,55 @@ class InjectServiceTest {
           .extracting(Agent::getExternalReference)
           .containsExactly("agent-red");
       assertThat(result.assetsWithoutClearance()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Credential resolution failure telemetry")
+  class CredentialResolutionFailureTelemetry {
+
+    private InjectAttachmentInput attachmentInput() {
+      InjectAttachmentInput input = new InjectAttachmentInput();
+      input.setAttachmentId("credential-id");
+      input.setAuthorisation("auth-code");
+      return input;
+    }
+
+    @Test
+    @DisplayName("given an inject not in progress, should count an access denied refusal")
+    void given_injectNotInProgress_should_countAccessDeniedRefusal() {
+      // -- ARRANGE --
+      Inject inject = new Inject();
+      inject.setId("inject-draft");
+      InjectStatus status = new InjectStatus();
+      status.setName(ExecutionStatus.DRAFT);
+      inject.setStatus(status);
+      when(injectRepository.findById("inject-draft")).thenReturn(Optional.of(inject));
+
+      // -- ACT --
+      CredentialResolutionException thrown =
+          assertThrows(
+              CredentialResolutionException.class,
+              () -> injectService.getSecretReferenceOrThrow("inject-draft", attachmentInput()));
+
+      // -- ASSERT --
+      assertEquals(ErrorCode.CREDENTIAL_ACCESS_DENIED, thrown.getErrorCode());
+      verify(credentialMetricCollector).addResolutionFailure(ErrorCode.CREDENTIAL_ACCESS_DENIED);
+    }
+
+    @Test
+    @DisplayName("given an unknown inject, should not count a credential refusal")
+    void given_unknownInject_should_notCountCredentialRefusal() {
+      // -- ARRANGE --
+      when(injectRepository.findById("inject-unknown")).thenReturn(Optional.empty());
+
+      // -- ACT --
+      assertThrows(
+          ElementNotFoundException.class,
+          () -> injectService.getSecretReferenceOrThrow("inject-unknown", attachmentInput()));
+
+      // -- ASSERT --
+      verifyNoInteractions(credentialMetricCollector);
     }
   }
 }
