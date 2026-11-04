@@ -7,23 +7,47 @@ coverage:
   status:
     # The org Global YAML adds a `default` status to project and patch, merged into this file.
     # It reads every flag at once, Java and TypeScript together, so it is turned off here.
-    # Project statuses are not informational: a drop of more than half a point against the base
-    # commit turns them red. They are not required checks, so they never block a merge.
+    # The backend project status turns red when backend coverage drops by more than 0.2 point
+    # against the base commit. Frontend and E2E only report: their drop shows in the description,
+    # and they stay green.
     project:
       default: false
       backend:
         target: auto
-        threshold: 0.5%
+        threshold: 0.2%
         flags:
           - backend
       frontend:
         target: auto
         threshold: 0.5%
+        informational: true
         flags:
           - frontend
-    # The backend patch rule lives in the coverage-backend-gate job (diff-cover). The PR comment
-    # still shows patch coverage for every flag.
-    patch: false
+      e2e:
+        target: auto
+        threshold: 0.5%
+        informational: true
+        flags:
+          - e2e
+    # The backend patch status is the coverage rule: it turns red under 80% of the backend lines
+    # a pull request changes, partly covered lines counting as missing. Frontend and E2E only
+    # report until the front end has a test strategy.
+    patch:
+      default: false
+      backend:
+        target: 80%
+        flags:
+          - backend
+      frontend:
+        target: 80%
+        informational: true
+        flags:
+          - frontend
+      e2e:
+        target: auto
+        informational: true
+        flags:
+          - e2e
 
 flag_management:
   # A flag with no upload on a commit keeps its coverage from the base commit instead of

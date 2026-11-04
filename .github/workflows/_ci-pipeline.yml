@@ -498,45 +498,6 @@ jobs:
           fail_ci_if_error: false
         continue-on-error: true
 
-  # Fails under 80% of the backend lines the pull request changes. Reported through the Pipeline
-  # Gate as advisory, never blocking, until it has run clean for a while on real PRs. Making it
-  # blocking means taking the job out of the advisory list in the gate below.
-  # Only after green API tests: a failed shard leaves a partial report, and the lines its tests
-  # cover would read as missing.
-  coverage-backend-gate:
-    name: "🔎 Backend Patch Coverage"
-    needs: [api-tests, coverage-backend]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.api-tests.result == 'success' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      # Depth 2: the checkout is the merge of the pull request into its base, and diff-cover
-      # compares it with its first parent.
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 2
-
-      # A missing report fails the job: a patch that cannot be measured is not a covered one.
-      - name: Download API coverage
-        uses: actions/download-artifact@v8
-        with:
-          name: jacoco-api
-          path: openaev-api/target/site/jacoco
-
-      # diff-cover counts a line as covered once it ran, even when one of its branches did not:
-      # Codecov calls that line partial, so its patch figure can read lower.
-      - name: Check backend patch coverage
-        run: |
-          set +e
-          pipx run --spec diff-cover==11.0.0 diff-cover openaev-api/target/site/jacoco/jacoco.xml \
-            --compare-branch=HEAD^1 \
-            --src-roots openaev-api/src/main/java \
-            --fail-under 80 \
-            --markdown-report "$RUNNER_TEMP/patch-coverage.md"
-          status=$?
-          cat "$RUNNER_TEMP/patch-coverage.md" >> "$GITHUB_STEP_SUMMARY"
-          exit $status
-
   coverage-frontend:
     name: "📊 Coverage Upload (frontend)"
     needs: [frontend-quality]
@@ -737,8 +698,7 @@ jobs:
   # Pipeline gate
   #
   # Required branch-protection check: "<caller-job> / ✅ Pipeline Gate".
-  # Coverage upload is best-effort and stays out of it; the backend patch coverage check is in it,
-  # advisory. Scan enforcement is controlled by the caller.
+  # Coverage upload is best-effort; scan enforcement is controlled by the caller.
   # ════════════════════════════════════════════════════════════════════
 
   pipeline-gate:
@@ -756,7 +716,6 @@ jobs:
       - fds-conformity
       - fds-mui-regression
       - api-tests
-      - coverage-backend-gate
       # tenant-shadow-report is deliberately absent: it is the shadow runs' verdict, and those
       # report rather than gate. Adding it here would fail the Nightly run and page the on-call.
       - e2e-tests
@@ -797,7 +756,7 @@ jobs:
                 ;;
               # A new check lands here first so a false positive cannot block a merge. Take the job
               # out of this list to make it blocking.
-              bom-override-guard|coverage-backend-gate)
+              bom-override-guard)
                 advisory=1
                 ;;
             esac
