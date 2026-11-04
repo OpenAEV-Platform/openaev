@@ -1,5 +1,9 @@
 package io.openaev.service;
 
+import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
+import static java.time.Instant.now;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -13,15 +17,6 @@ import io.openaev.database.model.*;
 import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
 import io.openaev.service.utils.BulkOperationMonitor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
-import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.event.TransactionalEventListener;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -31,10 +26,14 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-
-import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
-import static java.time.Instant.now;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
+import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionalEventListener;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 
 @Service
 @Slf4j
