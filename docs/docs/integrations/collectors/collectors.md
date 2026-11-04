@@ -38,10 +38,6 @@ Expectation first.
 The [Splunk Enterprise Security](https://github.com/OpenAEV-Platform/collectors/tree/main/splunk-es) Collector does this
 when Logging is enabled in its configuration.
 
-!!! note "Preview"
-
-    Logging Expectations are a preview feature, available only when the `LOGGING_EXPECTATION` preview feature is enabled.
-
 ### Threat intelligence
 
 These Collectors import threat intelligence data such as kill chains, Scenarios, TTPs (Tactics, Techniques, and Procedures), Threat Arsenal Actions, etc.
