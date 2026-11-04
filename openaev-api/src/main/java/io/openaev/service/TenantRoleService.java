@@ -12,7 +12,6 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
-import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
@@ -98,20 +97,6 @@ public class TenantRoleService {
   @Transactional(readOnly = true)
   public List<Role> findAll(@NotBlank final String tenantId) {
     return roleRepository.findAllByTenantId(tenantId);
-  }
-
-  /**
-   * The role a default group of this name binds to, as role names are not unique: the oldest of the
-   * tenant, lowest id on a tie, and an Admin role only when it holds BYPASS.
-   */
-  @Transactional(readOnly = true)
-  public Optional<Role> findDefaultRole(
-      @NotBlank final String name, @NotBlank final String tenantId) {
-    boolean needsBypass = AdminPrivilegeService.ADMIN_ACCESS.roleName().equals(name);
-    return roleRepository.findAllByTenantId(tenantId).stream()
-        .filter(role -> name.equals(role.getName()))
-        .filter(role -> !needsBypass || role.getCapabilities().contains(Capability.BYPASS))
-        .min(Comparator.comparing(Role::getCreatedAt).thenComparing(Role::getId));
   }
 
   @Transactional(readOnly = true)

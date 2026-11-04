@@ -109,19 +109,9 @@ public class TenantGroupService {
     return groupRepository.findByIdAndTenantId(groupId, tenantId);
   }
 
-  /**
-   * The group of this name bound to the role, as group names are not unique: the one with the most
-   * members, lowest id on a tie.
-   */
   @Transactional(readOnly = true)
-  public Optional<Group> findLargestByNameAndRole(
-      @NotBlank final String name, final Role role, @NotBlank final String tenantId) {
-    return groupRepository.findAllByRoles(role).stream()
-        .filter(group -> group.getTenant() != null && tenantId.equals(group.getTenant().getId()))
-        .filter(group -> name.equals(group.getName()))
-        .min(
-            Comparator.comparingInt((Group group) -> -group.getUsers().size())
-                .thenComparing(Group::getId));
+  public List<Group> findAll(@NotBlank final String tenantId) {
+    return groupRepository.findAllByTenantId(tenantId);
   }
 
   @Transactional(readOnly = true)

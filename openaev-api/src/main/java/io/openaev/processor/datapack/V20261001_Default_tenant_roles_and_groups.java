@@ -75,8 +75,7 @@ public class V20261001_Default_tenant_roles_and_groups extends DataPack {
               return;
             }
             Role role =
-                tenantRoleService
-                    .findDefaultRole(roleName, tenantId)
+                AdminPrivilegeService.pickDefaultRole(roles, roleName)
                     .orElseGet(
                         () ->
                             tenantRoleService.createRoleInternal(

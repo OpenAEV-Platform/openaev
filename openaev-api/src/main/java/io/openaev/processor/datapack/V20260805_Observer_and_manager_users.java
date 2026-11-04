@@ -7,6 +7,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.service.DataPackService;
 import io.openaev.service.TenantRoleService;
 import io.openaev.service.UserService;
+import io.openaev.service.account.AdminPrivilegeService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
@@ -100,8 +101,7 @@ public class V20260805_Observer_and_manager_users extends DataPack {
   }
 
   private Role createRoleIfMissing(String roleName, Set<Capability> capabilities, String tenantId) {
-    return tenantRoleService
-        .findDefaultRole(roleName, tenantId)
+    return AdminPrivilegeService.pickDefaultRole(tenantRoleService.findAll(tenantId), roleName)
         .orElseGet(
             () ->
                 tenantRoleService.createRoleInternal(

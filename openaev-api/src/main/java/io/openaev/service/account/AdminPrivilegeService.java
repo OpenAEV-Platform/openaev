@@ -10,6 +10,7 @@ import io.openaev.service.platform.groups.PlatformGroupService;
 import io.openaev.service.platform.roles.PlatformRoleService;
 import io.openaev.service.tenants.TenantUserService;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -134,16 +135,21 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
   private Group resolveAdminGroup(String tenantId) {
     String groupId = adminGroupId(tenantId);
     Optional<Group> wellKnown = tenantGroupService.findByIdAndTenant(groupId, tenantId);
-    if (wellKnown.isPresent() && wellKnown.get().getRoles().stream().anyMatch(this::hasBypass)) {
+    if (wellKnown.isPresent()
+        && wellKnown.get().getRoles().stream().anyMatch(AdminPrivilegeService::hasBypass)) {
       log.info("Kept admin group {} of tenant {}", groupId, tenantId);
       return wellKnown.get();
     }
     Role role =
-        tenantRoleService
-            .findDefaultRole(ADMIN_ACCESS.roleName(), tenantId)
+        pickDefaultRole(tenantRoleService.findAll(tenantId), ADMIN_ACCESS.roleName())
             .orElseGet(() -> createAdminRole(tenantId));
     Optional<Group> existing =
-        tenantGroupService.findLargestByNameAndRole(ADMIN_ACCESS.groupName(), role, tenantId);
+        tenantGroupService.findAll(tenantId).stream()
+            .filter(g -> ADMIN_ACCESS.groupName().equals(g.getName()))
+            .filter(g -> g.getRoles().stream().anyMatch(r -> r.getId().equals(role.getId())))
+            .min(
+                Comparator.comparingInt((Group g) -> -g.getUsers().size())
+                    .thenComparing(Group::getId));
     if (existing.isPresent()) {
       log.info(
           "Reused admin group {} and role {} of tenant {}",
@@ -181,7 +187,19 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
         tenantId);
   }
 
-  private boolean hasBypass(Role role) {
+  /**
+   * Startup seeding only: picks among same-named default roles the oldest, lowest id on a tie, and
+   * an Admin role only when it holds BYPASS.
+   */
+  public static Optional<Role> pickDefaultRole(List<Role> tenantRoles, String name) {
+    boolean needsBypass = ADMIN_ACCESS.roleName().equals(name);
+    return tenantRoles.stream()
+        .filter(role -> name.equals(role.getName()))
+        .filter(role -> !needsBypass || hasBypass(role))
+        .min(Comparator.comparing(Role::getCreatedAt).thenComparing(Role::getId));
+  }
+
+  private static boolean hasBypass(Role role) {
     return role.getCapabilities().contains(Capability.BYPASS);
   }
 
