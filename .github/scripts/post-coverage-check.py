@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 
 NAME = "Backend Coverage (advisory)"
@@ -61,6 +62,25 @@ def section(passed: bool, label: str, log: str) -> str:
     return f"{icon} **{label}**\n\n```\n{text}\n```\n"
 
 
+def patch_figure(log: str) -> str:
+    """Changed lines coverage as diff-cover prints it, for the check title."""
+    if "No lines with coverage information" in log:
+        return "none"
+    found = re.search(r"^Coverage: ([\d.]+)%", log, re.MULTILINE)
+    return f"{found.group(1)}%" if found else "?"
+
+
+def project_figure(log: str) -> str:
+    """Whole backend change as check-coverage-drop.py prints it, for the check title."""
+    if found := re.search(r"drops by ([\d.]+) points", log):
+        return f"-{found.group(1)} pt"
+    if found := re.search(r"Change: ([+-][\d.]+) points", log):
+        return f"{found.group(1)} pt"
+    if "the drop cannot be measured" in log:
+        return "no base"
+    return "?"
+
+
 def read(path: str) -> str:
     try:
         with open(path, encoding="utf-8") as log:
@@ -80,21 +100,20 @@ def main() -> int:
 
     patch_ok = args.patch_outcome == "success"
     project_ok = args.project_outcome == "success"
-    if patch_ok and project_ok:
-        title = "Backend coverage rules pass"
-    elif not patch_ok and not project_ok:
-        title = "Changed backend lines under 80% covered, and backend coverage drops over 0.2 point"
-    elif not patch_ok:
-        title = "Less than 80% of the changed backend lines are covered by tests"
-    else:
-        title = "Backend line coverage drops by more than 0.2 point"
+    patch_log = read(args.patch_log)
+    project_log = read(args.project_log)
+    # The PR checks list shows about 100 characters of "name — title": the figures come first.
+    title = (
+        f"{'✅' if patch_ok else '❌'} changed lines {patch_figure(patch_log)} (min 80%) · "
+        f"{'✅' if project_ok else '❌'} backend {project_figure(project_log)} (max -0.2)"
+    )
 
     summary = "\n".join(
         [
             RULES,
             "### Result\n",
-            section(patch_ok, "Changed lines (diff-cover)", read(args.patch_log)),
-            section(project_ok, "Whole backend", read(args.project_log)),
+            section(patch_ok, "Changed lines (diff-cover)", patch_log),
+            section(project_ok, "Whole backend", project_log),
             "" if patch_ok and project_ok else FIX,
             CODECOV,
             "This check is advisory for now: it does not block the merge.",
