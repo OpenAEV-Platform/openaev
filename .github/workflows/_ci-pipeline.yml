@@ -486,7 +486,7 @@ jobs:
           if-no-files-found: warn
 
       # Only after green API tests: a failed shard leaves a partial report that reads as a drop.
-      # Codecov then carries the backend flag forward from the base commit.
+      # Without a backend upload, Codecov posts no backend status.
       - name: Upload backend coverage to Codecov
         if: ${{ needs.api-tests.result == 'success' && hashFiles('openaev-api/target/site/jacoco/jacoco.xml') != '' }}
         uses: codecov/codecov-action@v7

@@ -10,11 +10,14 @@ coverage:
     # The backend project status turns red when backend coverage drops by more than 0.2 point
     # against the base commit. Frontend and E2E only report: their drop shows in the description,
     # and they stay green.
+    # The backend statuses wait for a backend upload: without one, Codecov posts none instead of
+    # reporting on the frontend or E2E upload alone.
     project:
       default: false
       backend:
         target: auto
         threshold: 0.2%
+        flag_coverage_not_uploaded_behavior: exclude
         flags:
           - backend
       frontend:
@@ -36,6 +39,7 @@ coverage:
       default: false
       backend:
         target: 80%
+        flag_coverage_not_uploaded_behavior: exclude
         flags:
           - backend
       frontend:
@@ -50,10 +54,6 @@ coverage:
           - e2e
 
 flag_management:
-  # A flag with no upload on a commit keeps its coverage from the base commit instead of
-  # dropping to zero.
-  default_rules:
-    carryforward: true
   individual_flags:
     - name: backend
       paths:
