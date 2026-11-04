@@ -10,6 +10,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,7 @@ public class UserComposer extends ComposerBase<User> {
     private final User user;
     private OrganizationComposer.Composer organizationComposer;
     private Organization organization;
+    private String organizationTenantId;
     private final List<TagComposer.Composer> tagComposers = new ArrayList<>();
     private final List<InnerComposerBase<Group>> groupComposers = new ArrayList<>();
     private final List<TokenComposer.Composer> tokenComposers = new ArrayList<>();
@@ -44,13 +46,18 @@ public class UserComposer extends ComposerBase<User> {
       return withOrganization(organizationComposer.get());
     }
 
-    /** Links the user to an already persisted organization, in the tenant of that organization. */
+    /**
+     * Links the user to an organization, in the tenant of that organization or, for an organization
+     * not yet persisted and so without tenant, in the current one (the tenant the persist listener
+     * gives it). The organization is never modified.
+     */
     public Composer withOrganization(Organization organization) {
-      if (organization.getTenant() == null) {
-        organization.setTenant(new Tenant(TenantContext.getCurrentTenant()));
-      }
       this.organization = organization;
-      this.user.setOrganizationForTenant(organization.getTenant().getId(), organization);
+      this.organizationTenantId =
+          Optional.ofNullable(organization.getTenant())
+              .map(Tenant::getId)
+              .orElseGet(TenantContext::getCurrentTenant);
+      this.user.setOrganizationForTenant(this.organizationTenantId, organization);
       return this;
     }
 
@@ -82,7 +89,7 @@ public class UserComposer extends ComposerBase<User> {
       this.groupComposers.forEach(InnerComposerBase::persist);
       userRepository.save(user);
       if (organization != null) {
-        userRepository.assignOrganization(user, organization.getTenant().getId(), organization);
+        userRepository.assignOrganization(user, organizationTenantId, organization);
       }
       this.tokenComposers.forEach(TokenComposer.Composer::persist);
       return this;

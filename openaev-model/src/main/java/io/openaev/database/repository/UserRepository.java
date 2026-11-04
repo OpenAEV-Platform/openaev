@@ -83,7 +83,7 @@ public interface UserRepository
               + "       (select uo.organization_id from users_organizations uo "
               + "         join organizations org on org.organization_id = uo.organization_id "
               + "         where uo.user_id = us.user_id and org.tenant_id = :tenantId "
-              + "         limit 1) as user_organization, "
+              + "         order by uo.organization_id limit 1) as user_organization, "
               + "       array_remove(array_agg(tg.tag_id), null) as user_tags,"
               + "       array_remove(array_agg(grp.group_id), null) as user_groups,"
               + "       array_remove(array_agg(tm.team_id), null) as user_teams from users us"
@@ -168,7 +168,8 @@ public interface UserRepository
               + "(select uo.organization_id from users_organizations uo "
               + "  join organizations org on org.organization_id = uo.organization_id "
               + "  where uo.user_id = us.user_id "
-              + "  and org.tenant_id = :#{#tenantContext.currentTenant} limit 1) as user_organization, "
+              + "  and org.tenant_id = :#{#tenantContext.currentTenant} "
+              + "  order by uo.organization_id limit 1) as user_organization, "
               + "array_remove(array_agg(tg.tag_id), null) as user_tags "
               + "from users us "
               + "left join users_tags usr_tg on us.user_id = usr_tg.user_id "
@@ -282,11 +283,14 @@ public interface UserRepository
     user.setOrganizationForTenant(tenantId, organization);
   }
 
-  // Native: a no-op UPDATE is the lightest row lock, and no entity column changes, so no
-  // listener, index or audit side effect is lost.
-  @Modifying(flushAutomatically = true)
-  @Query(value = "UPDATE users SET user_id = user_id WHERE user_id = :userId", nativeQuery = true)
-  void lockRow(@Param("userId") String userId);
+  // Native: JPA only exposes FOR UPDATE (PESSIMISTIC_WRITE), which would block the inserts of rows
+  // referencing the user (tags, tokens...); FOR NO KEY UPDATE does not. Unlike a no-op UPDATE it
+  // writes no tuple and fires no UPDATE trigger. No entity is read or changed, so no listener,
+  // index or audit side effect is lost.
+  @Query(
+      value = "SELECT us.user_id FROM users us WHERE us.user_id = :userId FOR NO KEY UPDATE",
+      nativeQuery = true)
+  List<String> lockRow(@Param("userId") String userId);
 
   // Native: a set-based delete scoped by tenant through a sub-query. It touches a join table that
   // is not indexed, audited nor streamed, so no session side effect is lost.

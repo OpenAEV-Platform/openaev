@@ -27,12 +27,16 @@ public final class DatabaseHelper {
    * Resolves the organization a user is being linked to in a tenant.
    *
    * <p>A user holds one organization per tenant, so an organization of another tenant is never a
-   * valid target: it resolves to {@code null}, exactly like an unknown id.
+   * valid target. An unknown id and an organization of another tenant both fail, rather than
+   * resolving to {@code null}: the caller passes the result on to replace the organization of the
+   * user, and a silent {@code null} would clear it. {@code null} is reserved for "no organization
+   * requested", the explicit way to clear it.
    *
-   * @param organizationId the requested organization id (may be null or empty)
+   * @param organizationId the requested organization id (may be null or empty to clear it)
    * @param tenantId the tenant the organization must belong to
    * @param repository the organization repository
-   * @return the organization, or {@code null} when none is requested or it is not in the tenant
+   * @return the organization, or {@code null} when none is requested
+   * @throws ElementNotFoundException if the organization is unknown or is not in the tenant
    */
   public static Organization resolveTenantOrganization(
       String organizationId, String tenantId, CrudRepository<Organization, String> repository) {
@@ -42,7 +46,8 @@ public final class DatabaseHelper {
     return repository
         .findById(organizationId)
         .filter(org -> org.getTenant() != null && org.getTenant().getId().equals(tenantId))
-        .orElse(null);
+        .orElseThrow(
+            () -> new ElementNotFoundException("Organization not found: " + organizationId));
   }
 
   /**
