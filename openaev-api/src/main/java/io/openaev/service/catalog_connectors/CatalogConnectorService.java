@@ -9,6 +9,7 @@ import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.rest.catalog_connector.dto.CatalogConnectorOutput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.account.CatalogConnectorPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import java.util.*;
@@ -16,18 +17,18 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
 public class CatalogConnectorService {
   private static final Set<String> EXCLUDED_CONFIG_KEYS =
-      Stream.concat(
-              PROTECTED_KEYS.stream(),
-              Stream.of(OPENAEV_KEY_URL, OPENAEV_KEY_TOKEN, OPENAEV_KEY_TENANT_ID))
+      Stream.concat(PROTECTED_KEYS.stream(), PLATFORM_MANAGED_KEYS.stream())
           .collect(Collectors.toUnmodifiableSet());
   private final CatalogConnectorRepository catalogConnectorRepository;
   private final CatalogConnectorMapper catalogConnectorMapper;
   private final ConnectorInstanceService connectorInstanceService;
+  private final CatalogConnectorPrivilegeService catalogConnectorPrivilegeService;
 
   /**
    * Retrieves all catalog connectors in CatalogConnectorOutput format.
@@ -121,5 +122,12 @@ public class CatalogConnectorService {
 
   public Optional<CatalogConnector> findByFactoryClassName(String factoryClass) {
     return catalogConnectorRepository.findByClassName(factoryClass);
+  }
+
+  /** Rotates the tenant's catalog connector token and pushes it to its connector instances. */
+  @Transactional(rollbackFor = Exception.class)
+  public void rotateCatalogConnectorToken(String tenantId) {
+    String token = catalogConnectorPrivilegeService.rotateTokenForTenant(tenantId);
+    connectorInstanceService.rotateOpenAevToken(tenantId, token);
   }
 }

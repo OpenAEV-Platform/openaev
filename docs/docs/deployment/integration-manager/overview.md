@@ -99,6 +99,26 @@ The initial connector may be shut down at this point. Remove the container, or c
 - Updating the configuration of a managed instance is possible. Changes will take effect after a short delay.
 - For security reasons, API keys/tokens are encrypted when saved and never displayed in the UI afterward.
 
+### Rotating the catalog connector token
+
+Collectors, Injectors and Executors deployed from the catalog all authenticate with the token of a dedicated service account of the tenant.
+
+!!! note
+
+    Instances deployed before this service account existed used the token of the user who deployed them. At upgrade, OpenAEV moves them to the service account token, and the Integration Manager redeploys each of them once on its next synchronization with the platform. They keep working with the previous token until then.
+
+If this token is suspected to have leaked, rotate it:
+
+```http
+POST /api/catalog-connector/token/rotate
+```
+
+Rotating the token requires the **Manage tenant users, groups and roles** capability (see [Users and RBAC](../../administration/users-and-rbac.md#capabilities)). OpenAEV revokes the current token, issues a new one and pushes it to every instance deployed from the catalog in the tenant.
+
+!!! warning
+
+    The deployed instances keep using the revoked token until the Integration Manager redeploys them with the new one, which it does on its next synchronization with the platform. Wait a few minutes after the rotation: during that time, the instances cannot reach the platform.
+
 ## What's next?
 
 - [Quick start](quick-start.md) -- Install the Integration Manager in a few steps

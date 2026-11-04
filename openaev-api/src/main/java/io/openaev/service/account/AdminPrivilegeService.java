@@ -98,7 +98,7 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
    */
   @Transactional
   public Group ensureAdminGroup(String tenantId, User adminUser) {
-    Group group = createWellKnownGroupWithRole(createWellKnownRole(tenantId), tenantId);
+    Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(tenantId), tenantId);
     boolean alreadyMember =
         adminUser.getUnscopedGroups().stream().anyMatch(g -> g.getId().equals(group.getId()));
     if (!alreadyMember) {
