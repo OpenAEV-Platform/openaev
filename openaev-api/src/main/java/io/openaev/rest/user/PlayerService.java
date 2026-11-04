@@ -2,7 +2,8 @@ package io.openaev.rest.user;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.specification.UserSpecification.inTenant;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
+import static io.openaev.database.specification.UserSpecification.organizationsInTenant;
+import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.user.PlayerQueryHelper.execution;
@@ -105,7 +106,10 @@ public class PlayerService {
               }
               // Users are a platform-level (dual-scope) entity: scope explicitly to the current
               // tenant, like the players list search does.
-              specification = specification.and(inTenant(TenantContext.getCurrentTenant()));
+              specification =
+                  specification
+                      .and(inTenant(TenantContext.getCurrentTenant()))
+                      .and(organizationsInTenant(TenantContext.getCurrentTenant()));
               if (!CollectionUtils.isEmpty(input.getUserIdsToIgnore())) {
                 List<String> idsToIgnore = input.getUserIdsToIgnore();
                 specification =
@@ -136,10 +140,15 @@ public class PlayerService {
         inTenant(TenantContext.getCurrentTenant()).and(excludeReservedAccounts);
     TriFunction<Specification<User>, Specification<User>, Pageable, Page<PlayerOutput>>
         playersFunction;
+    // After the filters, which may join the organizations of the user (see organizationsInTenant).
+    Specification<User> organizationsOfTenant =
+        organizationsInTenant(TenantContext.getCurrentTenant());
     playersFunction =
         (specification, specificationCount, pageable) ->
             this.paginate(
-                tenantSpec.and(specification), tenantSpec.and(specificationCount), pageable);
+                tenantSpec.and(specification).and(organizationsOfTenant),
+                tenantSpec.and(specificationCount).and(organizationsOfTenant),
+                pageable);
     return buildPaginationCriteriaBuilder(playersFunction, searchPaginationInput, User.class);
   }
 
@@ -195,9 +204,8 @@ public class PlayerService {
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    user.setOrganization(
-        updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
     User savedUser = userRepository.save(user);
+    assignOrganization(savedUser, input.getOrganizationId());
     userService.createUserToken(savedUser);
     tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
     return savedUser;
@@ -228,9 +236,7 @@ public class PlayerService {
               .toList();
       existingUser.setTeams(fromIterable(teamRepository.findAllById(teams)));
       if (StringUtils.hasText(input.getOrganizationId())) {
-        existingUser.setOrganization(
-            updateRelation(
-                input.getOrganizationId(), existingUser.getOrganization(), organizationRepository));
+        assignOrganization(existingUser, input.getOrganizationId());
       }
       tenantUserService.attachToTenant(existingUser.getId(), TenantContext.getCurrentTenant());
       return userRepository.save(existingUser);
@@ -238,15 +244,25 @@ public class PlayerService {
       User newUser = new User();
       newUser.setUpdateAttributes(input);
       newUser.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-      newUser.setOrganization(
-          updateRelation(
-              input.getOrganizationId(), newUser.getOrganization(), organizationRepository));
       newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
       User savedUser = userRepository.save(newUser);
+      assignOrganization(savedUser, input.getOrganizationId());
       userService.createUserToken(savedUser);
       tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
       return savedUser;
     }
+  }
+
+  /**
+   * Sets the organization of the user in the current tenant, an empty id clearing it. The ones the
+   * user holds in other tenants are left untouched.
+   */
+  public void assignOrganization(@NotNull final User user, final String organizationId) {
+    String tenantId = TenantContext.getCurrentTenant();
+    userRepository.assignOrganization(
+        user,
+        tenantId,
+        resolveTenantOrganization(organizationId, tenantId, organizationRepository));
   }
 
   private boolean requireUpdate(

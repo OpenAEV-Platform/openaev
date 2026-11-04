@@ -3,13 +3,14 @@ package io.openaev.rest.user;
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
+import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.tenants.TenantMapper;
 import io.openaev.api.tenants.TenantOutput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -66,7 +67,8 @@ public class MeApi extends RestBehavior {
             .orElseThrow(() -> new ElementNotFoundException("Current user not found")));
   }
 
-  @PutMapping(ME_URI + "/profile")
+  // The tenant variant scopes the organization: a user holds one organization per tenant.
+  @PutMapping({ME_URI + "/profile", TENANT_ME_URI + "/profile"})
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
@@ -76,14 +78,18 @@ public class MeApi extends RestBehavior {
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
     user.setUpdateAttributes(input);
-    user.setOrganization(
-        updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
+    String tenantId = TenantContext.getCurrentTenant();
+    userRepository.assignOrganization(
+        user,
+        tenantId,
+        resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
     User savedUser = userRepository.save(user);
     sessionManager.refreshUserSessions(savedUser);
     return hydrateUserForResponse(savedUser);
   }
 
-  @PutMapping(ME_URI + "/information")
+  // Tenant variant: the response carries the organization of the tenant it is read in.
+  @PutMapping({ME_URI + "/information", TENANT_ME_URI + "/information"})
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
@@ -98,7 +104,7 @@ public class MeApi extends RestBehavior {
     return hydrateUserForResponse(savedUser);
   }
 
-  @PutMapping(ME_URI + "/password")
+  @PutMapping({ME_URI + "/password", TENANT_ME_URI + "/password"})
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
@@ -116,7 +122,7 @@ public class MeApi extends RestBehavior {
             httpRequest.getSession().getId()));
   }
 
-  @PutMapping(ME_URI + "/email")
+  @PutMapping({ME_URI + "/email", TENANT_ME_URI + "/email"})
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
