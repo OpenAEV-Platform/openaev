@@ -1401,11 +1401,16 @@ class EndpointApiTest extends IntegrationTest {
       @Test
       @DisplayName(
           "Asset agent job created in tenant X should be deletable by a caller who also belongs to"
-              + " tenant Y (no selector, plain TxCtx)")
+              + " tenant Y and holds the right in every tenant it belongs to (no selector, plain"
+              + " TxCtx)")
       void given_callerInTenantXAndY_should_beAbleToDeleteJobInTenantX_noSelector()
           throws Exception {
         // -------- Arrange --------
         Tenant[] tenants = twoTenants();
+        // With no selector the scope is every membership, the default tenant included (see
+        // setup()), and the caller must hold the right in each tenant of its scope.
+        tenantHelper.grantCapabilitiesInTenant(
+            Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.AGENT_RUNTIME_ACCESS));
         AssetAgentJob jobX = createTenantAssetAgentJob(tenants[0].getId());
 
         // -------- Act --------
