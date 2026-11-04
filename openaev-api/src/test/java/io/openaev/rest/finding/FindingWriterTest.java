@@ -12,6 +12,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
+import io.openaev.database.model.Inject;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.UUID;
@@ -55,6 +56,7 @@ class FindingWriterTest extends IntegrationTest {
   private String ownerTenant;
   private String otherTenant;
   private String injectId;
+  private Inject inject;
   private String assetId;
   private String secondAssetId;
   private final String field = "hostname";
@@ -68,6 +70,8 @@ class FindingWriterTest extends IntegrationTest {
     ownerTenant = seedTenant("writer-owner-");
     otherTenant = seedTenant("writer-other-");
     injectId = UUID.randomUUID().toString();
+    inject = new Inject();
+    inject.setId(injectId);
     assetId = UUID.randomUUID().toString();
     secondAssetId = UUID.randomUUID().toString();
     value = "writer-" + UUID.randomUUID();
@@ -130,7 +134,7 @@ class FindingWriterTest extends IntegrationTest {
                     type,
                     value,
                     new String[0],
-                    injectId,
+                    inject,
                     "writer probe",
                     assetId,
                     new String[0]));
@@ -160,7 +164,7 @@ class FindingWriterTest extends IntegrationTest {
         type,
         value,
         new String[0],
-        injectId,
+        inject,
         "writer probe",
         assetId,
         new String[0]);
@@ -191,7 +195,7 @@ class FindingWriterTest extends IntegrationTest {
         "Credentials",
         "admin:motdepasse",
         new String[0],
-        injectId,
+        inject,
         "writer probe",
         assetId,
         new String[0]);
@@ -216,7 +220,7 @@ class FindingWriterTest extends IntegrationTest {
         type,
         value,
         new String[0],
-        injectId,
+        inject,
         "writer probe",
         assetId,
         new String[0]);
@@ -243,7 +247,7 @@ class FindingWriterTest extends IntegrationTest {
                     type,
                     "unattributed-" + UUID.randomUUID(),
                     new String[0],
-                    injectId,
+                    inject,
                     "writer probe",
                     assetId,
                     new String[0]));
@@ -324,7 +328,7 @@ class FindingWriterTest extends IntegrationTest {
           type,
           findingValue,
           new String[0],
-          injectId,
+          inject,
           "writer probe",
           reportingAssetId,
           new String[0]);
