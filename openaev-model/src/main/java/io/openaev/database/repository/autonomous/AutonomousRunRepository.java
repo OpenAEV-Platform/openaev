@@ -15,13 +15,11 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 /**
- * Store for autonomous runs. {@code autonomous_runs} is onboarded to the tenant statement inspector
- * (listed in {@code openaev.tenant.active-tables}), so a read scoped by a {@code TxCtx} is filtered
- * there. The queries below carry an explicit {@code tenant_id} predicate as well, because they are
- * reached off the request thread (reconciliation, timeout and stall watchdogs) with one specific
- * tenant to act on, and a bulk {@code UPDATE}/{@code DELETE} must name that tenant itself rather
- * than relying on the ambient scope of its caller. Resource-level access is gated by {@code
- * AutonomousRunAccessControl}.
+ * Store for autonomous runs. {@code autonomous_runs} is listed in {@code
+ * openaev.tenant.active-tables}, so the statement inspector filters its reads and its bulk {@code
+ * UPDATE}/{@code DELETE} statements to the tenant scope of the transaction. The queries below that
+ * carry an explicit {@code tenant_id} predicate also target one tenant on top of that scope.
+ * Resource-level access is gated by {@code AutonomousRunAccessControl}.
  */
 @Repository
 public interface AutonomousRunRepository extends JpaRepository<AutonomousRun, String> {
