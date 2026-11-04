@@ -150,7 +150,7 @@ class SharedTenantKeySchemaCrossCheckTest extends IntegrationTest {
           "injectors_injector_contracts_pkey",
           "kill_chain_phases_shortname_tenant_unique",
           "kill_chain_phases_tenant_unique",
-          // Catalogue content (ADR-018): an external id is unique per repository, not on its own.
+          // Catalogue content (ADR-019): an external id is unique per repository, not on its own.
           "catalog_items_item_version_tenant_unique",
           "catalog_sync_state_repository_channel_tenant_unique",
           "payload_identities_collector_external_id_tenant_unique",

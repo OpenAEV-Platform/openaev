@@ -42,7 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-@DisplayName("Customized catalogue payloads (ADR-018, point 3)")
+@DisplayName("Customized catalogue payloads (ADR-019, point 3)")
 class PayloadVariantTest extends IntegrationTest {
 
   @Autowired private PayloadVariantService payloadVariantService;

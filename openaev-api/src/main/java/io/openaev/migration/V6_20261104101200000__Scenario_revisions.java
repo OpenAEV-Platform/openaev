@@ -7,7 +7,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 /**
- * One instance per installed catalogue scenario (ADR-018): the base content each update merges
+ * One instance per installed catalogue scenario (ADR-019): the base content each update merges
  * against, a soft uninstall, and the revisions that keep past contents.
  */
 @Component

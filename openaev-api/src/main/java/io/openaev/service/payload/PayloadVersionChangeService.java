@@ -350,7 +350,7 @@ public class PayloadVersionChangeService {
     return moved;
   }
 
-  // Catalogue scenarios keep a revision of their content before their injects move (ADR-018).
+  // Catalogue scenarios keep a revision of their content before their injects move (ADR-019).
   private List<Scenario> scenariosOf(PayloadVersionChangeInput input) {
     List<Scenario> scenarios = new ArrayList<>();
     input

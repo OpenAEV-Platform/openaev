@@ -33,7 +33,7 @@ import org.springframework.web.server.ResponseStatusException;
 @TestInstance(PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("Revisions and rollback of a catalogue scenario (ADR-018)")
+@DisplayName("Revisions and rollback of a catalogue scenario (ADR-019)")
 class ScenarioRevisionTest extends IntegrationTest {
 
   @Autowired private ScenarioApplyService scenarioApplyService;

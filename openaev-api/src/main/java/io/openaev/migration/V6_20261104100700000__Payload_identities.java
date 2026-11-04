@@ -7,7 +7,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 /**
- * Payload identities (ADR-018): what all versions of a payload share moves off the version rows,
+ * Payload identities (ADR-019): what all versions of a payload share moves off the version rows,
  * with the pointer to the default version and the uninstall flag (F26). Every payload has a
  * version.
  */
@@ -110,7 +110,7 @@ public class V6_20261104100700000__Payload_identities extends BaseJavaMigration 
                 + " AND table_name = 'payloads' AND column_name = 'payload_is_latest'")) {
       if (rows.next()) {
         throw new IllegalStateException(
-            "Database to reset: it ran an earlier draft of the ADR-018 migrations");
+            "Database to reset: it ran an earlier draft of the ADR-019 migrations");
       }
     }
     try (ResultSet rows =

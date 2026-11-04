@@ -93,7 +93,7 @@ export const fetchCatalogScenarioVersions = (scenarioId: string): Promise<{ data
   return simpleCall(`${CATALOG_URI}/installed-scenarios/${scenarioId}/versions`);
 };
 
-// -- UPDATE AND ROLLBACK (ADR-018) --
+// -- UPDATE AND ROLLBACK (ADR-019) --
 
 export type ScenarioMergeStatus = 'TAKE_APPLIED' | 'KEEP_MINE' | 'SAME' | 'CONFLICT';
 export type ScenarioMergeChoice = 'KEEP_MINE' | 'TAKE_APPLIED' | 'EDIT';

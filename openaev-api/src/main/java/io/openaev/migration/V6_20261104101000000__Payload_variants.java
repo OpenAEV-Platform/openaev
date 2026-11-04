@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 /**
- * Payload variants (ADR-018): the fields a tenant changed on a catalogue payload, the release it
+ * Payload variants (ADR-019): the fields a tenant changed on a catalogue payload, the release it
  * conflicts with, and the lift of a revocation a variant version inherits from its base.
  */
 @Component

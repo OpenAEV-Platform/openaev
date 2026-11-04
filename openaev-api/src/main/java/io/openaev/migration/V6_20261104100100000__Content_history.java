@@ -5,7 +5,7 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-/** History of catalogue content per tenant (ADR-018): installs, updates, rollbacks, copies. */
+/** History of catalogue content per tenant (ADR-019): installs, updates, rollbacks, copies. */
 @Component
 public class V6_20261104100100000__Content_history extends BaseJavaMigration {
 

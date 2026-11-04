@@ -20,7 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-/** Update and rollback of an installed catalogue scenario, and its revisions (ADR-018). */
+/** Update and rollback of an installed catalogue scenario, and its revisions (ADR-019). */
 @RestController
 @RequiredArgsConstructor
 public class ScenarioRevisionApi {
