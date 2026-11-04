@@ -39,20 +39,33 @@ public interface OrganizationRepository
   @Query(
       value =
           "SELECT org.*, "
-              + "array_agg(DISTINCT tags.tag_id) FILTER (WHERE tags.tag_id IS NOT NULL) AS organization_tags, "
-              + "array_agg(DISTINCT injects.inject_id) FILTER (WHERE injects.inject_id IS NOT NULL) AS organization_injects, "
-              + "coalesce(array_length(array_agg(DISTINCT injects.inject_id) FILTER (WHERE injects.inject_id IS NOT NULL), 1), 0) AS organization_injects_number "
+              + "(SELECT array_agg(ot.tag_id) FROM organizations_tags ot "
+              + " JOIN tags t ON t.tag_id = ot.tag_id AND t.tenant_id = org.tenant_id "
+              + " WHERE ot.organization_id = org.organization_id) AS organization_tags, "
+              + "oi.ids AS organization_injects, "
+              + "coalesce(array_length(oi.ids, 1), 0) AS organization_injects_number "
               + "FROM organizations org "
-              + "LEFT JOIN organizations_tags org_tags ON org.organization_id = org_tags.organization_id "
-              + "LEFT JOIN tags ON tags.tag_id = org_tags.tag_id AND tags.tenant_id = org.tenant_id "
-              + "LEFT JOIN users ON users.user_organization = org.organization_id "
-              + "LEFT JOIN users_teams ON users.user_id = users_teams.user_id "
-              + "LEFT JOIN teams ON teams.team_id = users_teams.team_id AND teams.tenant_id = org.tenant_id "
-              + "LEFT JOIN injects_teams ON injects_teams.team_id = teams.team_id "
-              + "LEFT JOIN injects ON (injects.inject_id = injects_teams.inject_id OR injects.inject_all_teams) "
-              + "AND injects.tenant_id = org.tenant_id "
-              + "WHERE org.tenant_id IN (:tenantIds) "
-              + "GROUP BY org.organization_id",
+              // Injects are aggregated in a lateral subquery: joining them with
+              // `OR inject_all_teams` multiplied every organization row by all the
+              // "all teams" injects of the tenant (#8926).
+              + "LEFT JOIN LATERAL ("
+              + " SELECT array_agg(DISTINCT x.inject_id) AS ids FROM ("
+              + "  SELECT it.inject_id FROM users u "
+              + "  JOIN users_teams ut ON ut.user_id = u.user_id "
+              + "  JOIN teams tm ON tm.team_id = ut.team_id AND tm.tenant_id = org.tenant_id "
+              + "  JOIN injects_teams it ON it.team_id = tm.team_id "
+              + "  JOIN injects i ON i.inject_id = it.inject_id AND i.tenant_id = org.tenant_id "
+              + "  WHERE u.user_organization = org.organization_id "
+              + "  UNION "
+              + "  SELECT i.inject_id FROM injects i "
+              + "  WHERE i.inject_all_teams AND i.tenant_id = org.tenant_id "
+              + "  AND EXISTS (SELECT 1 FROM users u "
+              + "   JOIN users_teams ut ON ut.user_id = u.user_id "
+              + "   JOIN teams tm ON tm.team_id = ut.team_id AND tm.tenant_id = org.tenant_id "
+              + "   WHERE u.user_organization = org.organization_id)"
+              + " ) x"
+              + ") oi ON true "
+              + "WHERE org.tenant_id IN (:tenantIds)",
       nativeQuery = true)
   List<RawOrganization> rawAll(@Param("tenantIds") Set<String> tenantIds);
 }
