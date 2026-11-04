@@ -91,6 +91,11 @@ final class HandledErrorRollbackRules {
               "read-only revocation check; a missing payload fails the request, no success is returned"),
           // --- Rethrows: the exception leaves the handler, so the rollback is honoured. ---
           entry(
+              "ExecutableInjectService#getExecutablePayloadAndUpdateInjectStatus"
+                  + " -> PayloadRevocationService.revocationMessage",
+              "read-only revocation check that never throws CommandBindingException; the catch"
+                  + " rethrows"),
+          entry(
               "AutonomousRunService#convertToManual -> WorkflowService.copyScenarioChainingWorkflowAsManual",
               "rethrows as ResponseStatusException(400)"),
           entry(
