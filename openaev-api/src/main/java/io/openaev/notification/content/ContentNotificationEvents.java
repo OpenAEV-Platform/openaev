@@ -11,6 +11,9 @@ public final class ContentNotificationEvents {
 
   public record PayloadInstalledAutomatically(String tenantId, String payloadId, String release) {}
 
+  public record ScenariosInstalledAutomatically(
+      String tenantId, String release, List<String> installed, List<String> failed) {}
+
   public record PayloadRevocationChanged(
       String tenantId, String payloadId, boolean revoked, String reason) {}
 

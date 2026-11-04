@@ -2583,6 +2583,11 @@ export interface CatalogInjectorContractOutput {
   contract_platforms?: string[];
 }
 
+export interface CatalogInstallAllOutput {
+  installed: string[];
+  skipped: string[];
+}
+
 export interface CatalogInstallInput {
   asset_group_ids?: string[];
   asset_ids?: string[];
@@ -2659,10 +2664,12 @@ export interface CatalogScenarioVersionsOutput {
 
 export interface CatalogSettingsInput {
   payload_auto_install?: boolean;
+  scenario_auto_install?: boolean;
 }
 
 export interface CatalogSettingsOutput {
   payload_auto_install?: boolean;
+  scenario_auto_install?: boolean;
 }
 
 export interface CatalogSyncOutput {
@@ -7289,7 +7296,7 @@ export interface InjectOutput {
   /** Injector contract of the inject */
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
-  /** The inject runs a revoked payload: it is skipped and blocks the launch */
+  /** The inject runs a revoked payload: it fails at execution */
   inject_payload_revoked?: boolean;
   /** Ready state of the inject */
   inject_ready?: boolean;

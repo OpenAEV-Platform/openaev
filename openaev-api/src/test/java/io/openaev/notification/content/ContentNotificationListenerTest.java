@@ -386,5 +386,22 @@ class ContentNotificationListenerTest {
                             + "\n- EASM Scenario v1.0.0: Archive hash mismatch");
               });
     }
+
+    @Test
+    @DisplayName("Scenarios installed by the release are listed with those that failed")
+    void given_scenariosInstalledAutomatically_should_sendReleaseReceived() {
+      // Act
+      listener.onScenariosInstalledAutomatically(
+          new ScenariosInstalledAutomatically(
+              TENANT, "2026.10.30", List.of("EASM Scenario"), List.of("Confluence")));
+
+      // Assert
+      verifySent(
+          NotificationResourceCatalog.CATALOG,
+          "2026.10.30",
+          RELEASE_RECEIVED,
+          "[catalog] Release 2026.10.30: 1 scenario installed automatically (EASM Scenario);"
+              + " 1 scenario failed to install (Confluence)");
+    }
   }
 }

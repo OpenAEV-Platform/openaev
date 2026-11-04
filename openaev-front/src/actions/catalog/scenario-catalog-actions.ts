@@ -1,5 +1,6 @@
 import { simpleCall, simpleDelCall, simplePostCall, simplePutCall } from '../../utils/Action';
 import {
+  type CatalogInstallAllOutput,
   type CatalogInstallInput,
   type CatalogInstallOutput,
   type CatalogInstallPreviewOutput,
@@ -73,6 +74,8 @@ export const fetchCatalogScenarioInstallPreview = (externalId: string, version: 
 export const installCatalogScenario = (externalId: string, version: string, input: CatalogInstallInput): Promise<{ data: CatalogInstallOutput }> => {
   return simplePostCall(`${CATALOG_URI}/scenarios/${encodeURIComponent(externalId)}/versions/${encodeURIComponent(version)}/install`, input);
 };
+
+export const installAllCatalogScenarios = (): Promise<{ data: CatalogInstallAllOutput }> => simplePostCall(`${CATALOG_URI}/scenarios/install-all`);
 
 export const uninstallCatalogScenario = (scenarioId: string) => {
   return simpleDelCall(`${CATALOG_URI}/installed-scenarios/${scenarioId}`);

@@ -248,7 +248,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
               {preview.revoked_payloads.length > 0 && (
                 <Alert
                   severity={version ? 'error' : 'warning'}
-                  title={`${version ? t('Runs a revoked payload') : t('Runs a revoked payload: launches will be refused')}: ${preview.revoked_payloads.join(', ')}`}
+                  title={`${version ? t('Runs a revoked payload') : t('Runs a revoked payload: its injects will fail')}: ${preview.revoked_payloads.join(', ')}`}
                 />
               )}
               {preview.payloads_to_install.length > 0 && (

@@ -1,9 +1,12 @@
+import { Button, Switch } from '@filigran/design-system';
 import { RouteOutlined } from '@mui/icons-material';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import { fetchCatalogSettings, updateCatalogSettings } from '../../../../actions/catalog/payload-catalog-actions';
 import {
   fetchCatalogScenarioFacets,
+  installAllCatalogScenarios,
   SCENARIO_AUTHOR_FILTER,
   SCENARIO_INSTALLATION_FILTER,
   SCENARIO_INSTALLED,
@@ -27,6 +30,7 @@ import PaginationComponentV2 from '../../../../components/common/queryable/pagin
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import { type CatalogItemOutput } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { SCENARIO_TYPE_LABELS } from '../constants';
@@ -56,8 +60,14 @@ const ScenariosAvailable = ({ tabs }: Props) => {
   const ability = useAbility();
   const canInstall = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
   const canLaunch = ability.can(ACTIONS.LAUNCH, SUBJECTS.ASSESSMENT);
+  const canChangeSettings = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
+  const [autoInstall, setAutoInstall] = useState(false);
+  useEffect(() => {
+    fetchCatalogSettings().then(({ data }) => setAutoInstall(!!data.scenario_auto_install));
+  }, []);
   const { launch, targetsDrawer } = useScenarioLaunch();
   const [launchAfterInstall, setLaunchAfterInstall] = useState(false);
+  const [installingAll, setInstallingAll] = useState(false);
   const install = (item: CatalogItemOutput, thenLaunch: boolean) => {
     setLaunchAfterInstall(thenLaunch);
     setInstalling(item);
@@ -80,6 +90,22 @@ const ScenariosAvailable = ({ tabs }: Props) => {
     search: searchCatalogScenarios,
     fetchFacets: fetchCatalogScenarioFacets,
   });
+
+  const installEverything = () => {
+    setInstallingAll(true);
+    installAllCatalogScenarios()
+      .then(({ data }) => {
+        const installed = String(t('{count} scenarios installed', { count: data.installed.length }));
+        MESSAGING$.notifySuccess(data.skipped.length > 0
+          ? `${installed}. ${t('{count} to install one by one', { count: data.skipped.length })}`
+          : installed);
+        return fetchItems({
+          ...searchPaginationInput,
+          page: 0,
+        }).then(({ data: page }) => setItems(page.content));
+      })
+      .finally(() => setInstallingAll(false));
+  };
 
   const facets: MarketplaceFacet[] = [
     {
@@ -112,6 +138,24 @@ const ScenariosAvailable = ({ tabs }: Props) => {
         <MarketplaceHero
           title={t('Scenarios')}
           subtitle={t('Browse, install and version ready-to-run scenarios.')}
+          rightSlot={(
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 16,
+            }}
+            >
+              {canChangeSettings && (
+                <Switch
+                  label={t('Install new scenarios automatically')}
+                  checked={autoInstall}
+                  onCheckedChange={(checked: boolean) => updateCatalogSettings({ scenario_auto_install: checked })
+                    .then(({ data }) => setAutoInstall(!!data.scenario_auto_install))}
+                />
+              )}
+              {canInstall && <Button onClick={installEverything} loading={installingAll}>{t('Install all')}</Button>}
+            </div>
+          )}
         />
       )}
       sidebar={(

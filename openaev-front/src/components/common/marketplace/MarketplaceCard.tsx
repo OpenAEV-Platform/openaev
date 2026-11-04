@@ -82,14 +82,11 @@ const MarketplaceCard: FunctionComponent<Props> = ({
   const href = useHref(linkTo ?? '.');
   const viewMode = useMarketplaceViewMode();
   const titleRef = useRef<HTMLDivElement>(null);
-  const descriptionRef = useRef<HTMLDivElement>(null);
-  const [fullText, setFullText] = useState<'title' | 'description' | null>(null);
+  const [fullText, setFullText] = useState<'title' | null>(null);
 
   // The card link covers the text, so the hover is read on the card.
   const showFullText = (event: MouseEvent<HTMLElement>) => {
-    if (isOverClampedText(titleRef.current?.querySelector<HTMLElement>('.truncate'), event)) setFullText('title');
-    else if (isOverClampedText(descriptionRef.current, event)) setFullText('description');
-    else setFullText(null);
+    setFullText(isOverClampedText(titleRef.current?.querySelector<HTMLElement>('.truncate'), event) ? 'title' : null);
   };
 
   // The card link is a plain anchor: a simple click stays in the app, a modified click opens a tab.
@@ -277,14 +274,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
           minHeight: 0,
         }}
         >
-          {description && (
-            <Tooltip open={fullText === 'description'}>
-              <TooltipTrigger asChild>
-                <CardContent ref={descriptionRef} clamp={subtitle || caption ? 3 : 4}>{description}</CardContent>
-              </TooltipTrigger>
-              <TooltipContent>{description}</TooltipContent>
-            </Tooltip>
-          )}
+          {description && <CardContent clamp={subtitle || caption ? 3 : 4}>{description}</CardContent>}
         </Box>
         <Box sx={{
           display: 'flex',

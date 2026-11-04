@@ -175,7 +175,7 @@ public class InjectOutput {
   private List<HealthCheck> healthchecks = new ArrayList<>();
 
   @JsonProperty("inject_payload_revoked")
-  @Schema(description = "The inject runs a revoked payload: it is skipped and blocks the launch")
+  @Schema(description = "The inject runs a revoked payload: it fails at execution")
   private boolean payloadRevoked;
 
   @JsonProperty("inject_contract_domains")

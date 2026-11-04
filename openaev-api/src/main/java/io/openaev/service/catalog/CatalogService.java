@@ -261,8 +261,8 @@ public class CatalogService {
   // -- SYNC --
 
   /**
-   * Checks each archive against the manifest and stores the valid ones once for every tenant. Runs
-   * outside any transaction: storage is network I/O. Returns why each refused item was refused.
+   * Checks each archive against the manifest and stores the valid ones once for every tenant.
+   * Returns why each refused item was refused.
    */
   public Map<String, String> verifyAndStore(
       CatalogManifest manifest, Map<String, byte[]> archives) {

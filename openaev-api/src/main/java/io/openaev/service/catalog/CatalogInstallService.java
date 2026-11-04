@@ -3,11 +3,13 @@ package io.openaev.service.catalog;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSETS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_ASSET_GROUPS;
 import static io.openaev.database.model.InjectorContract.CONTRACT_ELEMENT_CONTENT_KEY_TEAMS;
+import static io.openaev.database.model.TenantSettingKeys.CATALOG_SCENARIO_AUTO_INSTALL;
 import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.catalog.CatalogInstallAllOutput;
 import io.openaev.api.catalog.CatalogInstallInput;
 import io.openaev.api.catalog.CatalogInstallOutput;
 import io.openaev.api.catalog.CatalogInstallPreviewOutput;
@@ -23,6 +25,7 @@ import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.threat_arsenal.ContentHistoryOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.importer.ImportResult;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -38,6 +41,7 @@ import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload.PayloadVersionService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.scenario.revision.ScenarioApplyService;
+import io.openaev.service.settings.TenantSettingsService;
 import io.openaev.utils.SemanticVersion;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.io.ByteArrayInputStream;
@@ -78,6 +82,7 @@ public class CatalogInstallService {
 
   // Free-text hosts of an inject with a target selector (nmap, nuclei...).
   static final String MANUAL = "manual";
+  private static final String CHAINED = "chained";
   private static final String SELECTOR = "target_selector";
   private static final String MANUAL_TARGETS = "targets";
   private static final Map<String, String> SELECTOR_VALUES =
@@ -88,6 +93,7 @@ public class CatalogInstallService {
 
   private final CatalogService catalogService;
   private final CatalogRequirementsService catalogRequirementsService;
+  private final TenantSettingsService tenantSettingsService;
   private final ImportService importService;
   private final ScenarioApplyService scenarioApplyService;
   private final ScenarioService scenarioService;
@@ -102,6 +108,7 @@ public class CatalogInstallService {
   private final WorkflowService workflowService;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final ObjectMapper mapper;
+  private final InjectorContractRepository injectorContractRepository;
 
   // -- LIST --
 
@@ -211,6 +218,12 @@ public class CatalogInstallService {
     return new ScenarioTargetsOutput(injects);
   }
 
+  @Transactional(readOnly = true)
+  public boolean isAutoInstall(String tenantId) {
+    return Boolean.parseBoolean(
+        tenantSettingsService.resolveSettingValue(tenantId, CATALOG_SCENARIO_AUTO_INSTALL));
+  }
+
   // -- CREATE --
 
   /**
@@ -229,7 +242,6 @@ public class CatalogInstallService {
     if (instance.isPresent()) {
       return reinstall(ctx, instance.get(), version);
     }
-    Optional<Scenario> previous = Optional.empty();
     byte[] archive = readPackage(item);
 
     Instant start = Instant.now();
@@ -242,7 +254,10 @@ public class CatalogInstallService {
     Scenario scenario = scenarioService.scenario(result.scenarioId());
     Set<Inject> injects = injectService.findByScenarioId(scenario.getId());
 
-    bindPayloads(injects, item, tenantId, start);
+    List<Payload> payloads = new ArrayList<>();
+    injects.forEach(inject -> inject.getPayload().ifPresent(payloads::add));
+    payloads.addAll(stepPayloads(scenario.getId()));
+    bindPayloads(payloads, item, tenantId, start);
 
     scenario.setCatalogId(externalId);
     scenario.setCatalogRepository(item.getRepository());
@@ -252,8 +267,7 @@ public class CatalogInstallService {
       scenario.setAuthorOrganization(
           organizationService.findOrCreateByName(item.getAuthor(), tenantId));
     }
-    setTargets(
-        injects, previousInjects(previous), input == null ? CatalogInstallInput.empty() : input);
+    setTargets(injects, Map.of(), input == null ? CatalogInstallInput.empty() : input);
     if (input != null && input.workflowConfiguration() != null) {
       workflowService
           .findWorkflowTemplateByScenarioId(scenario.getId())
@@ -264,9 +278,44 @@ public class CatalogInstallService {
                       installConfiguration(workflow, input.workflowConfiguration())));
     }
     scenarioApplyService.recordInstall(scenario, item);
-    contentHistoryService.scenarioInstalled(
-        scenario, previous.map(Scenario::getVersion).orElse(null));
+    contentHistoryService.scenarioInstalled(scenario, null);
     return new CatalogInstallOutput(scenario.getId(), version);
+  }
+
+  /** Scenarios an install-all adds, and those left to install one by one. */
+  public record InstallAllPlan(List<CatalogItem> installable, List<CatalogItem> skipped) {}
+
+  /**
+   * The latest version of every catalogue scenario never installed. Chained scenarios, which need a
+   * scope, and scenarios missing a requirement are left to install one by one; uninstalled ones
+   * stay out.
+   */
+  public InstallAllPlan installAllPlan() {
+    List<CatalogItem> installable = new ArrayList<>();
+    List<CatalogItem> skipped = new ArrayList<>();
+    CatalogRequirementsService.Checker checker = catalogRequirementsService.checker();
+    for (CatalogItem item : latestScenarios()) {
+      if (instance(item).isPresent() || "REVOKED".equals(item.getStatus())) {
+        continue;
+      }
+      if (CHAINED.equals(item.getScenarioType()) || !checker.blockingInstall(item).isEmpty()) {
+        skipped.add(item);
+      } else {
+        installable.add(item);
+      }
+    }
+    return new InstallAllPlan(installable, skipped);
+  }
+
+  /** Installs the plan's scenarios with no targets: they are asked at launch. */
+  public CatalogInstallAllOutput installAll(TxCtx ctx, String tenantId) throws Exception {
+    InstallAllPlan plan = installAllPlan();
+    for (CatalogItem item : plan.installable()) {
+      install(ctx, tenantId, item.getExternalId(), item.getVersion(), null);
+    }
+    return new CatalogInstallAllOutput(
+        plan.installable().stream().map(CatalogItem::getExternalId).toList(),
+        plan.skipped().stream().map(CatalogItem::getExternalId).toList());
   }
 
   /**
@@ -350,6 +399,10 @@ public class CatalogInstallService {
     return targetsOf(scenarioId);
   }
 
+  public void setAutoInstall(String tenantId, boolean enabled) {
+    tenantSettingsService.updateCatalogScenarioAutoInstall(tenantId, enabled);
+  }
+
   // -- DELETE --
 
   /**
@@ -392,7 +445,28 @@ public class CatalogInstallService {
 
   // -- PAYLOADS --
 
-  private void bindPayloads(Set<Inject> injects, CatalogItem item, String tenantId, Instant start) {
+  // A chained scenario holds its payloads in the contracts of its template steps.
+  private List<Payload> stepPayloads(String scenarioId) throws Exception {
+    List<Payload> payloads = new ArrayList<>();
+    Optional<Workflow> workflow = workflowService.findWorkflowTemplateByScenarioId(scenarioId);
+    for (Step step : workflow.map(Workflow::getSteps).orElse(List.of())) {
+      JsonNode contract = mapper.readTree(step.getData()).path("inject_injector_contract");
+      String contractId =
+          contract.isObject()
+              ? contract.path("injector_contract_id").asText(null)
+              : contract.asText(null);
+      if (contractId != null) {
+        injectorContractRepository
+            .findById(contractId)
+            .map(InjectorContract::getPayload)
+            .ifPresent(payloads::add);
+      }
+    }
+    return payloads;
+  }
+
+  private void bindPayloads(
+      List<Payload> payloads, CatalogItem item, String tenantId, Instant start) {
     List<PayloadRef> refs = payloadRefs(item);
     Map<String, PayloadRef> byVersion =
         refs.stream()
@@ -405,8 +479,7 @@ public class CatalogInstallService {
                 Collectors.toMap(
                     r -> r.sha256().toLowerCase(Locale.ROOT), Function.identity(), (a, b) -> a));
     Map<String, Payload> managed = new HashMap<>();
-    for (Inject inject : injects) {
-      Payload payload = inject.getPayload().orElse(null);
+    for (Payload payload : payloads) {
       if (payload == null || managed.containsKey(payload.getId())) {
         continue;
       }
@@ -716,6 +789,19 @@ public class CatalogInstallService {
   }
 
   // -- PACKAGE --
+
+  private List<CatalogItem> latestScenarios() {
+    return catalogService.findAll(ContentType.SCENARIO).stream()
+        .collect(Collectors.groupingBy(CatalogItem::getExternalId))
+        .values()
+        .stream()
+        .map(
+            items ->
+                items.stream()
+                    .max(Comparator.comparing(CatalogItem::getVersion, SemanticVersion.ORDER))
+                    .orElseThrow())
+        .toList();
+  }
 
   private CatalogItem findInstallable(String externalId, String version) {
     return catalogService

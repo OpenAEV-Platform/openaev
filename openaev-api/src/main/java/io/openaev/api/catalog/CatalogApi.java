@@ -134,10 +134,11 @@ public class CatalogApi {
   @Operation(summary = "Catalogue settings of the tenant")
   @GetMapping({CATALOG_URI + "/settings", TENANT_CATALOG_URI + "/settings"})
   @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.THREAT_ARSENAL)
+  // Two switches shown on the Threat Arsenal and Scenarios pages: any user of the tenant reads
+  // them.
+  @AccessControl(skipRBAC = true)
   public CatalogSettingsOutput settings(TxCtx ctx) {
-    return new CatalogSettingsOutput(
-        catalogPayloadService.isAutoInstall(writeScopeResolver.tenantForWrite(ctx, null)));
+    return settingsOf(writeScopeResolver.tenantForWrite(ctx, null));
   }
 
   // -- CREATE --
@@ -201,18 +202,47 @@ public class CatalogApi {
     return catalogInstallService.install(ctx, tenantId, externalId, version, input);
   }
 
+  @LogExecutionTime
+  @Operation(
+      summary = "Install the latest version of every catalogue scenario not installed yet",
+      description =
+          "Installed without targets, asked at launch. Chained scenarios and scenarios missing a"
+              + " requirement are skipped: they are installed one by one.")
+  @PostMapping({
+    CATALOG_URI + "/scenarios/install-all",
+    TENANT_CATALOG_URI + "/scenarios/install-all"
+  })
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
+  @Transactional(rollbackFor = Exception.class)
+  public CatalogInstallAllOutput installAllScenarios(TxCtx ctx) throws Exception {
+    return catalogInstallService.installAll(ctx, writeScopeResolver.tenantForWrite(ctx, null));
+  }
+
   // -- UPDATE --
 
   @LogExecutionTime
-  @Operation(summary = "Turn the automatic install of new catalogue payloads on or off")
+  @Operation(
+      summary = "Turn the automatic install of new catalogue payloads or scenarios on or off",
+      description = "A setting left out of the body is kept.")
   @PutMapping({CATALOG_URI + "/settings", TENANT_CATALOG_URI + "/settings"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
   @Transactional(rollbackFor = Exception.class)
   public CatalogSettingsOutput updateSettings(
       TxCtx ctx, @Valid @RequestBody CatalogSettingsInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    catalogPayloadService.setAutoInstall(tenantId, input.payloadAutoInstall());
-    return new CatalogSettingsOutput(catalogPayloadService.isAutoInstall(tenantId));
+    if (input.payloadAutoInstall() != null) {
+      catalogPayloadService.setAutoInstall(tenantId, input.payloadAutoInstall());
+    }
+    if (input.scenarioAutoInstall() != null) {
+      catalogInstallService.setAutoInstall(tenantId, input.scenarioAutoInstall());
+    }
+    return settingsOf(tenantId);
+  }
+
+  private CatalogSettingsOutput settingsOf(String tenantId) {
+    return new CatalogSettingsOutput(
+        catalogPayloadService.isAutoInstall(tenantId),
+        catalogInstallService.isAutoInstall(tenantId));
   }
 
   @LogExecutionTime

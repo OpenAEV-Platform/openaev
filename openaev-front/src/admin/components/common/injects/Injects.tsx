@@ -197,7 +197,7 @@ const Injects: FunctionComponent<Props> = ({
       value: (inject: InjectOutputType, _: InjectorContractConverted['convertedContent']) => {
         let injectStatus;
         let injectTooltip = '';
-        // A revoked payload is skipped at execution and blocks the launch (F18).
+        // A revoked payload fails at execution (F18).
         const revoked = inject.inject_enabled && inject.inject_payload_revoked;
         if (!inject.inject_enabled) {
           injectStatus = t('Disabled');

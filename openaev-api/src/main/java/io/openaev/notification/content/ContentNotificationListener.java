@@ -231,6 +231,35 @@ public class ContentNotificationListener {
         });
   }
 
+  @Async("notificationEngineExecutor")
+  @TransactionalEventListener(fallbackExecution = true)
+  public void onScenariosInstalledAutomatically(ScenariosInstalledAutomatically event) {
+    List<String> parts = new ArrayList<>();
+    if (!event.installed().isEmpty()) {
+      parts.add(
+          count(event.installed().size(), "scenario")
+              + " installed automatically ("
+              + String.join(", ", event.installed())
+              + ")");
+    }
+    if (!event.failed().isEmpty()) {
+      parts.add(
+          count(event.failed().size(), "scenario")
+              + " failed to install ("
+              + String.join(", ", event.failed())
+              + ")");
+    }
+    emit(
+        event.tenantId(),
+        () ->
+            List.of(
+                new Emit(
+                    NotificationResourceCatalog.CATALOG,
+                    event.release(),
+                    RELEASE_RECEIVED,
+                    "[catalog] Release " + event.release() + ": " + String.join("; ", parts))));
+  }
+
   // -- RELEASES --
 
   @Async("notificationEngineExecutor")
