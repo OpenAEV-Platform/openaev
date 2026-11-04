@@ -25,6 +25,7 @@ import io.openaev.rest.finding.FindingService;
 import io.openaev.service.InjectExpectationUtils;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.finding.FindingOccurrenceService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.security.SecureRandom;
@@ -250,6 +251,7 @@ public class PhishingTrackingService {
   private final TeamRepository teamRepository;
   private final StepRepository stepRepository;
   private final FindingService findingService;
+  private final FindingOccurrenceService findingOccurrenceService;
   private final PhishingTrackingPublicLookupService publicLookupService;
   private final AttackPathFindingIngestionService attackPathFindingIngestion;
 
@@ -710,6 +712,8 @@ public class PhishingTrackingService {
     try {
       findingService.createFindings(List.of(finding), inject.getId());
       result.setFinding(finding);
+      result.setFindingOccurrence(
+          findingOccurrenceService.occurrence(finding.getId(), inject.getId()).orElse(null));
     } catch (Exception e) {
       log.error("Failed to create phishing credentials finding: {}", e.getMessage(), e);
       return;

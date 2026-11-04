@@ -147,6 +147,12 @@ public class PhishingResult implements TenantBase {
   @Schema(implementation = String.class)
   private Finding finding;
 
+  // Not exposed yet: the API keeps the finding until the findings screens read occurrences
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "phishing_result_finding_occurrence")
+  @JsonIgnore
+  private FindingOccurrence findingOccurrence;
+
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
