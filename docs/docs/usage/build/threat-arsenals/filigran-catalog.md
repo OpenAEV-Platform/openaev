@@ -112,8 +112,8 @@ A revoked version no longer runs in your tenant:
 To allow the version again, open the menu and click **Lift revocation**. **Revoke** and **Lift revocation** appear only
 when a version can take them, and only for users whose role has the **Revoke threat arsenal** capability.
 
-Filigran can also revoke a version in a release. The version then shows **Revoked** with the reason, and it no longer runs
-in your tenant.
+Filigran can also revoke a version with a revocation list, which a platform administrator sends to the instance. The
+version then shows **Revoked** with the reason, and it no longer runs in any tenant.
 
 !!! note "Customized copies"
 
@@ -133,14 +133,14 @@ the bell at the top of a Scenario to follow that Scenario only.
 | Payload          | **Revocation lifted**            | A revocation is lifted                                                       |
 | Payload          | **Installed automatically**      | A Filigran release installs a version by itself                              |
 | Payload          | **Filigran update available**    | Filigran publishes a new version of the Action a customized copy is based on |
-| Filigran catalog | **Release received**             | A Filigran release arrives: new Scenarios, updates of installed Scenarios, new Actions |
+| Filigran catalog | **Release received**             | A Filigran release arrives: new Scenarios, updates of installed Scenarios, new Actions, Scenarios installed automatically |
 
 The first release an instance receives fills its catalog without any notification. Linking a local Action to the
 identical Filigran version does not notify either. A recipient is only notified about Scenarios with the **Access
 assessment** capability, and about Actions and the Filigran catalog with the **Access threat arsenal** capability.
 
 When a Filigran release is partly refused, for example because an archive does not match its manifest, platform
-administrators receive a **Catalog sync blocked** alert without any trigger.
+administrators receive a **Sync blocked** alert without any trigger.
 
 ## Uninstall an Action
 
@@ -150,6 +150,7 @@ uses: move or delete them first.
 
 ## What's next?
 
+- [Filigran Scenarios](../scenario/scenario-catalog.md) -- Install and update Filigran Scenarios
 - [Actions](threat-arsenals.md) -- Create, update and run your own Actions
 - [Action properties](action-properties.md) -- Reference of every field of the Action form
 - [Injects](../../run-and-evaluate/injects/inject-overview.md) -- Use Actions in Injects

@@ -201,6 +201,7 @@ nav:
         - Injects and Expectations: usage/get-started/foundations/injects-and-expectations.md
     - Build:
       - Scenario: usage/build/scenario/scenario.md
+      - Filigran Scenarios: usage/build/scenario/scenario-catalog.md
       - Scenario generation from OpenCTI security coverage: usage/build/scenario/security-coverage.md
       - Importing injects into a Scenario: usage/build/scenario/scenario-import.md
       - Assets: usage/build/assets.md
