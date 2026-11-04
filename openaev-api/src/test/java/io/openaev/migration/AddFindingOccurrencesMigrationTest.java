@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
-import io.openaev.finding.identity.FindingLocation;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -27,8 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Verifies the migration that creates {@code finding_occurrences} (#7848): every existing finding
  * gets one occurrence with its own id, its inject, the inject's sent date and its field, phishing
- * results move to that occurrence, a re-run adds nothing, and the location table and the new
- * {@code findings} columns accept the stable shape.
+ * results move to that occurrence, a re-run adds nothing, and the location table and the new {@code
+ * findings} columns accept the stable shape.
  *
  * <p>Rows are seeded and read over raw JDBC, like the migration itself runs, so the statement
  * inspector does not apply. {@code @Transactional} so the seeded rows roll back.
@@ -66,7 +65,8 @@ class AddFindingOccurrencesMigrationTest extends IntegrationTest {
       assertThat(occurrences).hasSize(1);
       String occurrenceId = occurrences.getFirst();
       assertThat(occurrenceId).isNotEqualTo(findingId);
-      assertThat(occurrenceColumn(occurrenceId, "finding_occurrence_inject_id")).isEqualTo(injectId);
+      assertThat(occurrenceColumn(occurrenceId, "finding_occurrence_inject_id"))
+          .isEqualTo(injectId);
       assertThat(occurrenceColumn(occurrenceId, "finding_occurrence_field")).isEqualTo("cve");
     }
 
@@ -221,8 +221,8 @@ class AddFindingOccurrencesMigrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Should compute the location key the identity code computes for an asset")
-    void given_anAssetLocation_should_matchTheIdentityKey() {
+    @DisplayName("Should compute the location key from its asset")
+    void given_anAssetLocation_should_computeItsKey() {
       // Arrange
       runMigration();
       String assetId = insertAsset();
@@ -231,7 +231,7 @@ class AddFindingOccurrencesMigrationTest extends IntegrationTest {
       String locationId = insertLocation(assetId);
 
       // Assert
-      assertThat(locationKey(locationId)).isEqualTo(FindingLocation.of(assetId, null).key());
+      assertThat(locationKey(locationId)).isEqualTo("asset:" + assetId);
     }
 
     @Test
