@@ -128,10 +128,10 @@ public class AccessControlAspect {
     // and, with no selector, every tenant the caller belongs to, except that a
     // @RequireTenantSelector parameter then narrows a multi-tenant caller to the default tenant.
     // So the caller must be authorized in the ambient tenant and in each other tenant of the
-    // scope. In each tenant, the check reads the capabilities and the tenant bypass the caller
-    // holds there. A grant is not tied to a tenant by its lookup, so it answers the same in every
-    // tenant. The resource's parent is resolved once, in the ambient tenant, and never again per
-    // tenant.
+    // scope. In each tenant, the check reads the capabilities, the tenant bypass and the grants the
+    // caller holds there: a grant counts in the tenant of the group that holds it, and a platform
+    // group's grant in every tenant. The resource's parent is resolved once, in the ambient tenant,
+    // and never again per tenant.
     final User user = principal;
     String ambientTenant = TenantContext.getCurrentTenant();
     PermissionService.CheckedResource resource =
