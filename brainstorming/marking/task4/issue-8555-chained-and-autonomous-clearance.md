@@ -3,7 +3,7 @@
 > Brainstorm notes. Issue: https://github.com/OpenAEV-Platform/openaev/issues/8555
 > Parent: #8552 (US2) - Epic #8171 - Task.4 Chunk 7 (size M) - Labels: backend, feature, feature-flag
 > Assignee: damgouj - Branch: `issue/8555`
-> Status: scope confirmed (section 8), checklist decisions recorded (section 9), open points and checks in sections 9.2 and 10, **no code yet**. Elsewhere in this file, nothing is decided unless marked ✅.
+> Status: scope confirmed (section 8), checklist decisions recorded (section 9), open points and checks in sections 9.2 and 10. **Code of blocks 1 to 5 is written, tests of block 6 are partly written, nothing is committed** (D6 and D7 added since). Elsewhere in this file, nothing is decided unless marked ✅.
 
 ## 1. The issue in one paragraph
 
@@ -15,7 +15,7 @@ scenarios behave like time-based ones.
 
 ## TODO
 
-- [ ] Check with Eva for the next snapshot feature
+- [ ] Check with Eva for the next snapshot feature (asset deleted, my code)
 
 ## 2. Decisions
 
@@ -25,7 +25,9 @@ scenarios behave like time-based ones.
 | D2 | Marking must still be enforced on every chaining **read surface**: attack paths, execution page, findings page, statistics, allow/deny lists (section 3). | ✅ |
 | D3 | Rule for attack paths: if an asset is filtered out for a user by its clearance, **its attack path is hidden too**. | ✅ |
 | D4 | S1 is fixed by deriving `attackpath_execution` / `attackpath_finding` from `assets` in `MarkingDerivedTables` (section 5). Feasibility checked statically (section 5). | ✅ |
-| D5 | `attackpath_execution` is linked to `assets` through **one generated column** holding the row's single asset (`CASE` on the source kind, then source or target asset): real ingestion never writes two different assets in one row (5.4) | ✅ |
+| D5 | `attackpath_execution` is linked to `assets` through **one column** holding the row's single asset (`CASE` on the source kind, then source or target asset), filled by a trigger: real ingestion never writes two different assets in one row (5.4) | ✅ |
+| D6 | **An attack path stays visible after its asset is deleted.** The column of D5 has a foreign key `ON DELETE SET NULL`, and a NULL link already reads as "points to no asset, visible": the shared marking core is untouched. The trigger stores the id only when the asset exists, so a seeded demo id gives NULL too (5.4). Findings behave the same way today (their link rows cascade away) | ✅ |
+| D7 | **The launcher's clearance decides what a chained run executes on and not (allow and deny list)** An asset on the deny list is never executed, whoever launches: a RED launcher is stopped by the list, a GREEN launcher by the dispatch gate (6.3), so the list has no extra effect on what a GREEN user can reach. The same scenario still executes differently for a GREEN and a RED launcher, through the **allowlist** only: a RED asset that is allowed and not denied runs for a RED launcher and never for a GREEN one. The expansion does not run under one clearance (section 10): the launcher's own for the status change of a simulation and the creation of an autonomous run, the system clearance for a scenario launch (faithful copy), a scheduled start and every later step. So for such an asset a GREEN run has an inject plus an `ASSET_CLEARANCE_RESTRICTED` trace in a scenario launch and in later steps, and neither in a status change or an autonomous creation. Accepted: the dispatch gate is the single enforcement point, as in a classic simulation, and the expansion is not aligned | ✅ |
 
 ## 3. What must be filtered (chaining read surfaces)
 
@@ -122,26 +124,33 @@ So each row is judged alone by its one asset: no cascade between rows is needed.
 `source_asset_id`**. A plain link on that column would hide every team -> person row (phishing steps) from
 every non-bypass reader, because a team id matches no asset and the `EXISTS` is false. Hence the `CASE`.
 
-**Decision: a generated column**, linked to `assets` in `MarkingDerivedTables` (5.2):
+**Decision: a plain column filled by a trigger**, linked to `assets` in `MarkingDerivedTables` (5.2). A
+generated column was the first design, dropped because Postgres cannot put `ON DELETE SET NULL` on one, and
+the rows must outlive their asset (D6):
 
 ```sql
-ALTER TABLE attackpath_execution ADD COLUMN IF NOT EXISTS attackpath_execution_asset_id varchar(255)
-  GENERATED ALWAYS AS (
-    CASE WHEN attackpath_execution_source_kind = 'AGENT'
-         THEN COALESCE(attackpath_execution_source_asset_id, attackpath_execution_target_asset_id)
-         ELSE attackpath_execution_target_asset_id END) STORED;
+ALTER TABLE attackpath_execution ADD COLUMN IF NOT EXISTS attackpath_execution_asset_id varchar(255);
+-- FK ... REFERENCES assets (asset_id) ON DELETE SET NULL, + index on the column
+-- BEFORE INSERT OR UPDATE OF source_kind, source_asset_id, target_asset_id trigger:
+--   SELECT asset_id INTO NEW.attackpath_execution_asset_id FROM assets WHERE asset_id =
+--     CASE WHEN NEW.source_kind = 'AGENT' THEN COALESCE(NEW.source_asset_id, NEW.target_asset_id)
+--          ELSE NEW.target_asset_id END;   -- NULL when the asset does not exist
 ```
 
 Flyway Java migration (`add-migration` skill). The entity does not need to map the column: the marking
-predicate is SQL. Existing rows are computed by the table rewrite, no backfill.
+predicate is SQL, and the trigger means no writer (ingestion, seeders, raw SQL) has to set it. The migration
+backfills existing rows in one `UPDATE`, only for assets that exist, before the foreign key is added. The
+`SET NULL` update touches only the link column, which the trigger does not watch, so it does not put the id
+back. A row written before its asset exists would stay NULL (visible): not expected, an execution runs on an
+existing asset.
 
 | Point | Status |
 |---|---|
 | Discovery made from a hidden asset | Hidden: its row is an agent row, the source asset is on it |
 | Write side | `ScopeStatementInspector.rewriteInsert` validates only `INSERT ... SELECT`; a plain `VALUES` insert (what JPA writes) is not checked, and update / delete / read use the column of the existing row. Read from the code, **not run** |
 | Invariant it relies on | "A row never holds two different assets". If a future ingestion case breaks it, the source wins and the target may leak. **Guard test** on the real ingestion paths (6 cases above) |
-| Migration cost | `ADD COLUMN ... GENERATED ... STORED` rewrites the table under an exclusive lock. Tables date from `V6_20260723`, size unknown on large installs. Accepted unless they are big; alternative: plain nullable column, batched backfill, setters keeping it in sync (more code). Needs PostgreSQL 12+ (check the minimum supported version) |
-| Seed data | `AttackPathCausalSeedService` (reached through `AttackPathApi`, demo / test seeder) writes **fake asset ids** (`ep-dc-01`, transient endpoints not in `assets`): once marking is active these rows are hidden for non-bypass readers. Its `agentPivotExecution` is the only writer of two different assets (the source wins). The seed must create real assets, or reviewers must not rely on it |
+| Migration cost | Nullable column (no rewrite), then one backfill `UPDATE` joined on `assets`, an FK and an index: row locks on `attackpath_execution` for the duration of the backfill. Tables date from `V6_20260723`, size unknown on large installs. The trigger is plain PL/pgSQL, no PostgreSQL 12 requirement any more |
+| Seed data | `AttackPathCausalSeedService` (reached through `AttackPathApi`, demo / test seeder) writes **fake asset ids** (`ep-dc-01`, transient endpoints not in `assets`): the trigger stores NULL for them, so they stay visible to every reader (and unmarked). Its `agentPivotExecution` is the only writer of two different assets (the source wins) |
 | Rows to test | injector -> RED asset hidden for GREEN; agent on RED -> discovered hidden; agent on RED local hidden; team -> person visible to all; GREEN rows visible; hidden `ref` empty |
 
 ### 5.5 Remaining points (not blockers)
@@ -162,8 +171,13 @@ predicate is SQL. Existing rows are computed by the table rewrite, no backfill.
 1. Scope confirmed (section 8). In order: the generated-column migration and its guard test, then the attack-path entries in `MarkingDerivedTables`.
 2. Integration test: RED-launched simulation read as GREEN (graph, execution, findings, relations,
    picker counts) is empty; as RED it is complete (no admin case here: the bypass is handled by another PR).
-3. Separately, the empty-tab experiment (grep `Attack-path ingestion skipped`, count `attackpath_execution`
-   rows): it is not fixed by this change.
+3. The empty Attack Path tab: cause found and fixed in `InjectService.launcherIdOf`. A chained step creates its
+   inject in the run's transaction, then records its attack path from an isolated `REQUIRES_NEW` one that
+   resolves the targets again; that transaction does not see the uncommitted inject, finds no launcher, resolves
+   a zero clearance, and no attack-path row is written for a marked asset. The launcher is now also read from the
+   loaded inject when the database does not know it yet. Pinned by
+   `InjectLaunchClearanceOutsideSessionTest.given_injectNotCommittedYet_should_resolveTheLauncherClearance`
+   (written, not re-run in this session).
 
 
 ## 6. S5 brainstorm: allow / deny lists (static read only, nothing run)
@@ -312,12 +326,12 @@ Not written yet: setup (markings, RED / GREEN users, assets with agents), the ru
 
 | # | Commit | Content |
 |---|---|---|
-| 1 | **Generated column for the row's asset** | Flyway migration adding `attackpath_execution_asset_id` (generated, `CASE` on the source kind), `add-migration` skill. Guard test on the real ingestion paths: a row never holds two different assets, and a team row never gets an asset (5.4). Seed fix if kept (real assets) |
+| 1 | **Column for the row's asset** | Flyway migration adding `attackpath_execution_asset_id` (plain column, FK `ON DELETE SET NULL`, trigger with the `CASE` on the source kind), `add-migration` skill. Guard test on the real ingestion paths: a row never holds two different assets, a team row never gets an asset, an unknown or deleted asset gives NULL (5.4, D6). No seed fix needed |
 | 2 | **Attack-path tables (S1)** | `MarkingDerivedTables`: `attackpath_execution` linked through the new column, the finding link tables, `attackpath_execution_collector` (5.2, 5.5). Derived-table schema test, rows tests (5.4), attack-path read tests, GREEN reader only |
 | 3 | **Snapshots at system clearance** (test-first) | Test first (GREEN cancel / reset / start, snapshots unchanged). `ScopeSnapshotService` `freezeLaunch` (`WorkflowService:549`) and `freezeEnd` (`WorkflowEndService:225`), cancel / reset / start paths, `withSystemClearance` from #8767. Maybe `FaithfulCopyCallersArchTest` if the wrapper is reused. Flag-off test |
 | 4 | **Read path: hidden rules dropped** | `WorkflowConfigurationMapper`, `ScopeSnapshotService.computeStatus` (visible-set aware, group members cut), `StepMapper` (`inject_assets` cut). No front change, no new status |
 | 5 | **Write-path protection** | `WorkflowService.applyScopeRules` (never remove or update a rule the writer cannot see), `realignTemplateActionTargets` / `StepService.syncScopeAssetsOnStepTemplates` (keep hidden ids) |
-| 6 | **Tests** | Dispatch parity: chained and the 3 autonomous entry points (create, restart, promote to real run), GREEN launcher, RED launcher as control. Matrix of 6.5 step 5, GREEN reader and editor only |
+| 6 | **Tests** | Dispatch parity: chained and the 3 autonomous entry points (create, restart, promote to real run), GREEN launcher, RED launcher as control. Matrix of 6.5 step 5, GREEN reader and editor only. **Done for chained**: `ChainedRunDispatchParityTest` (expansion at system clearance and in the request of the launcher, dispatch gate, RED asset allowed then denied, GREEN launcher and RED control). **Still to write**: the 3 autonomous entry points (the stamping of restart and promote is covered in `AutonomousRunServiceTest`, create is not), the flag-off tests |
 
 **Checks and investigations, done in this PR**
 - Empty Attack Path tab: grep `Attack-path ingestion skipped`, count `attackpath_execution` rows, fix here (5.6 point 3).
@@ -355,7 +369,7 @@ Not written yet: setup (markings, RED / GREEN users, assets with agents), the ru
 | CL-D1 | Feature flag | No new flag. The `MARKING` preview feature (`openaev.enabled-dev-features`) already empties `MarkedTables`, so the SQL filter and derived tables switch off with it. The read-path filter works from "visible ids under the reader's scope", so it is inert when the flag is off. **Add flag-off tests**: no rule dropped, no group cut, and `withSystemClearance` stays a no-op (not checked yet: what `systemClearanceFor` returns when `MarkedTables` is empty) |
 | CL-D2 | Scope before code | Confirmed, see section 8 |
 | CL-D3 | Docs | No docs in this PR, done later (run `review-docs` once the code exists) |
-| CL-S1 | S1 design (D5) | **Generated column** (5.4), commit 1 is the migration. Why: a row never holds two different assets in real ingestion, and a team row stores a team id in `source_asset_id` (a plain link would hide it for everybody). Guard test on the ingestion paths; seed data hidden unless it uses real assets |
+| CL-S1 | S1 design (D5, D6) | **Trigger-filled column with `ON DELETE SET NULL`** (5.4), commit 1 is the migration. Why: a row never holds two different assets in real ingestion, a team row stores a team id in `source_asset_id` (a plain link would hide it for everybody), and the rows must stay visible after their asset is deleted. Guard test on the ingestion paths |
 | CL-D4 | Performance | No new index expected (the asset id columns have no FK, reads filter on `simulation_id` first, the predicate is one PK lookup per row). **Measure**: `EXPLAIN (ANALYZE)` on 100k+ rows after commit 2, predicate on and off. Add an index migration only if needed. Record the result in the PR description |
 
 ### 9.2 Still open
@@ -365,21 +379,3 @@ Not written yet: setup (markings, RED / GREEN users, assets with agents), the ru
 | A1 | Meeting with Vertical 1 / 3 | The DoD requires it to be held and the expected behaviour recorded in the issue. Status unknown, TODO "Check with Eva" is still there. Needs an issue comment recording the expected behaviour (9.1) and asking Vertical 1 to confirm three points: a discovery is hidden with the path of the hidden asset it was made from; a rule on a hidden asset is dropped, not shown as restricted; a finding produced by a visible and a hidden step stays visible |
 | A2 | Reviewer worked example | DoD 5. Not written yet (setup, RED / GREEN users, what to check per tab). Plan: PR description `### Testing Instructions` |
 | CL-D1 | `systemClearanceFor` with flag off | To check before commit 3 (see section 10) |
-
-
-## 10. To check before the implementation plan
-
-**Facts to verify in the code**
-- [ ] Locate the cancel, reset and start paths that must write snapshots at system clearance (commit 3): only `freezeLaunch` (`WorkflowService:549`) and `freezeEnd` (`WorkflowEndService:225`) are identified.
-- [ ] What `systemClearanceFor` returns when `MarkedTables` is empty (flag off): must stay a no-op.
-- [ ] Whether the scenario-launch path already runs `freezeLaunch` inside the faithful copy of #8767.
-- [ ] Re-confirm every line number quoted in these notes when opening the files (`InjectService ~565`, `InjectExecutionStep l.737`, `AutonomousRunService`, ...).
-- [ ] Generated column (commit 1): minimum supported PostgreSQL version (generated columns need 12+); size of `attackpath_execution` on big installs (table rewrite under an exclusive lock); run, not only read, that update / delete / read statements pass the inspector with the new column.
-- [ ] Seed data (`AttackPathCausalSeedService`, through `AttackPathApi`): fake asset ids are hidden once marking is active; decide to create real assets in the seed or to keep it out of the review flow.
-- [ ] Confirm on the code the `linkedTo(...)` call used in 5.2 (arguments: table, column, parent table, parent key).
-
-**Risks to decide**
-- [ ] Empty Attack Path tab: no known cause, so no size. Time-box it; if the fix is more than a small change, it becomes a sub-issue.
-
-**Process**
-- [ ] Signed commits, Conventional Commits with the issue reference, `format-java.ps1` after Java edits, Docker services up for `mvn test`, PR body from the template.

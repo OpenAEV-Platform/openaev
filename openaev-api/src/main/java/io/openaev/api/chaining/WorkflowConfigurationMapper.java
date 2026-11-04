@@ -12,8 +12,10 @@ import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowScopeRule;
 import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.utils.SensitiveValueMaskingUtils;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -36,6 +38,7 @@ public class WorkflowConfigurationMapper {
    */
   public WorkflowConfigurationOutput toOutput(Workflow workflow) {
     List<WorkflowScopeRule> rules = workflow.getWorkflowScopeRules();
+    Set<String> hidden = hiddenAssetIds(workflow, rules);
     return WorkflowConfigurationOutput.builder()
         .rateLimitEnabled(workflow.isRateLimitEnabled())
         .maxAttempts(workflow.getMaxAttempts())
@@ -43,27 +46,71 @@ public class WorkflowConfigurationMapper {
         .timeoutEnabled(workflow.isTimeoutEnabled())
         .timeoutSeconds(workflow.getTimeoutSeconds())
         .safeModeEnabled(workflow.isSafeModeEnabled())
-        .workflowScopeRules(toScopeRuleOutputs(rules))
+        .workflowScopeRules(toScopeRuleOutputs(rules, hidden))
         .securityPlatforms(toSecurityPlatformOutputs(rules))
         .workflowScopeVariables(toScopeVariableOutputList(workflow.getWorkflowScopeVariables()))
         .build();
   }
 
+  // -- ASSETS THE READER CANNOT SEE --
+
+  /**
+   * The assets a rule names that exist but the reader is not cleared for. The rules and their
+   * photos are stored copies, so the marking filter does not reach them: the reader's clearance is
+   * applied here instead, as it is to every other read of an asset. A rule on such an asset is not
+   * returned at all (as a hidden asset is absent from a classic simulation) and the photos of a
+   * group are returned without such members.
+   */
+  private Set<String> hiddenAssetIds(Workflow workflow, List<WorkflowScopeRule> rules) {
+    if (rules == null || rules.isEmpty()) {
+      return Set.of();
+    }
+    Set<String> assetIds = new HashSet<>();
+    for (WorkflowScopeRule rule : rules) {
+      if (isAssetRule(rule)) {
+        assetIds.add(rule.getRuleValue());
+      } else if (rule.getRuleSource() == ScopeRuleSource.ASSET_GROUP) {
+        collectAssetIds(rule.getSnapshotStart(), assetIds);
+        collectAssetIds(rule.getSnapshotEnd(), assetIds);
+      }
+    }
+    if (assetIds.isEmpty()) {
+      return Set.of();
+    }
+    String tenantId = workflow.getTenant() == null ? null : workflow.getTenant().getId();
+    return scopeSnapshotService.hiddenAssetIds(tenantId, assetIds);
+  }
+
+  private static boolean isAssetRule(WorkflowScopeRule rule) {
+    return rule.getRuleSource() == ScopeRuleSource.ASSET;
+  }
+
+  private static void collectAssetIds(ScopeRuleSnapshot photo, Set<String> into) {
+    if (photo != null && photo.getAssets() != null) {
+      photo.getAssets().forEach(asset -> into.add(asset.getId()));
+    }
+  }
+
   // -- SCOPE RULES (asset / group / manual) --
 
-  private List<WorkflowScopeRuleOutput> toScopeRuleOutputs(List<WorkflowScopeRule> rules) {
+  private List<WorkflowScopeRuleOutput> toScopeRuleOutputs(
+      List<WorkflowScopeRule> rules, Set<String> hidden) {
     if (rules == null) {
       return List.of();
     }
-    return rules.stream().map(this::toScopeRuleOutput).filter(Objects::nonNull).toList();
+    return rules.stream()
+        .filter(rule -> !(isAssetRule(rule) && hidden.contains(rule.getRuleValue())))
+        .map(rule -> toScopeRuleOutput(rule, hidden))
+        .filter(Objects::nonNull)
+        .toList();
   }
 
-  private WorkflowScopeRuleOutput toScopeRuleOutput(WorkflowScopeRule rule) {
+  private WorkflowScopeRuleOutput toScopeRuleOutput(WorkflowScopeRule rule, Set<String> hidden) {
     if (rule.getRuleSource() == ScopeRuleSource.SECURITY_PLATFORM) {
       return null;
     }
-    ScopeRuleSnapshot launch = rule.getSnapshotStart();
-    ScopeRuleSnapshot end = rule.getSnapshotEnd();
+    ScopeRuleSnapshot launch = ScopeSnapshotService.withoutHidden(rule.getSnapshotStart(), hidden);
+    ScopeRuleSnapshot end = ScopeSnapshotService.withoutHidden(rule.getSnapshotEnd(), hidden);
     return WorkflowScopeRuleOutput.builder()
         .id(rule.getId())
         .selectedMode(rule.getSelectedMode())
@@ -73,7 +120,7 @@ public class WorkflowConfigurationMapper {
         // draft / scenario rules); the launch-time display label is snapshotStartLabel below.
         .ruleValueLabel(rule.getRuleValueLabel())
         // null for draft / scenario / pre-ADR-006 rules (no launch snapshot); front resolves live.
-        .status(scopeSnapshotService.computeStatus(rule))
+        .status(scopeSnapshotService.computeStatus(rule, hidden))
         .snapshotStartLabel(displayLabel(rule, launch))
         .snapshotStartAssets(toAssetSnapshotOutputs(launch))
         .snapshotEndLabel(displayLabel(rule, end))
