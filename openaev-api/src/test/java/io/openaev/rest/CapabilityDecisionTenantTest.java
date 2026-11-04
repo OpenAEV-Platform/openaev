@@ -1,6 +1,7 @@
 package io.openaev.rest;
 
 import static io.openaev.rest.asset.endpoint.EndpointApi.ASSET_URI;
+import static io.openaev.rest.exception.TenantScopeForbiddenException.MESSAGE;
 import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
@@ -89,16 +90,22 @@ class CapabilityDecisionTenantTest extends IntegrationTest {
   @WithMockUser(withCapabilities = {Capability.ACCESS_PAYLOADS})
   class PayloadSearch {
 
+    /**
+     * The payload search is gated by ACCESS_PAYLOADS, the very right this contrast withholds in B,
+     * so a request authorized in every tenant of its scope is refused before the handler decides
+     * anything. The per-tenant decision itself stays pinned by the member contrast below and, on
+     * rows of both tenants, by {@code PermissionServiceTenantDecisionTest}.
+     */
     @Test
-    @DisplayName("given the access right only outside B should not search B's payload")
-    void given_accessRightOnlyOutsideB_should_notSearchBPayload() throws Exception {
+    @DisplayName("given the access right only outside B should refuse the search in B")
+    void given_accessRightOnlyOutsideB_should_refuseTheSearchInB() throws Exception {
       // -- ARRANGE --
-      String payloadId = payloadOfB();
+      payloadOfB();
 
       // -- ACT & ASSERT --
       mvc.perform(inB(post(PAYLOAD_URI + "/search")).content(defaultSearch()))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath(payloadPath(payloadId)).doesNotExist());
+          .andExpect(status().isForbidden())
+          .andExpect(jsonPath("$.message").value(MESSAGE));
     }
 
     @Test
