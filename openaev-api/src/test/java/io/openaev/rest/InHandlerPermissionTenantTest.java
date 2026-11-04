@@ -6,12 +6,15 @@ import static io.openaev.api.groups.TenantGroupApi.GROUP_URI;
 import static io.openaev.api.notifier.NotifierApi.NOTIFIER_URI;
 import static io.openaev.api.notifier.NotifierApi.TENANT_NOTIFIER_URI;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ASSET_URI;
+import static io.openaev.rest.exception.TenantScopeForbiddenException.MESSAGE;
 import static io.openaev.rest.reporting.ReportingApi.REPORTINGS_URI;
 import static io.openaev.rest.reporting.ReportingApi.TENANT_REPORTINGS_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -20,6 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.asset.dto.AssetUpdateMarkingsInput;
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
@@ -56,12 +60,13 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -304,23 +309,23 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given the reportings right only outside B should not search B's platform-wide reporting")
-    void given_reportingsRightOnlyOutsideB_should_notSearchBPlatformReporting() throws Exception {
+        "given the reportings right only outside B should refuse searching while B's"
+            + " platform-wide reporting is in scope")
+    void given_reportingsRightOnlyOutsideB_should_refuseSearchOfBPlatformReporting()
+        throws Exception {
       // -- ARRANGE --
-      String reportingId = seedPlatformReporting(tenantB);
+      seedPlatformReporting(tenantB);
 
       // -- ACT --
-      MvcResult result =
-          mvc.perform(inB(post(REPORTINGS_URI + "/search")).content(defaultSearch())).andReturn();
+      MockHttpServletResponse response =
+          mvc.perform(inB(post(REPORTINGS_URI + "/search")).content(defaultSearch()))
+              .andReturn()
+              .getResponse();
 
       // -- ASSERT --
-      // Not returned either way: once the scope-wide capability gate (#8654) lands, the whole
-      // request is refused before reaching this check; until then this row is filtered out of
-      // an ok response here.
-      assertThat(result.getResponse().getStatus()).isIn(200, 403);
-      if (result.getResponse().getStatus() == 200) {
-        jsonPath(reportingPath(reportingId)).doesNotExist().match(result);
-      }
+      // The scope-wide capability gate (#8654) refuses the whole request before the handler's own
+      // row filter ever runs: the row is never returned, but not through that filter.
+      assertScopeForbidden(response);
     }
 
     @Test
@@ -360,19 +365,24 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given the reportings right only outside B should not search B's subject-less player"
-            + " reporting")
-    void given_reportingsRightOnlyOutsideB_should_notSearchBSubjectlessPlayerReporting()
+        "given the reportings right only outside B should refuse searching while B's"
+            + " subject-less player reporting is in scope")
+    void given_reportingsRightOnlyOutsideB_should_refuseSearchOfBSubjectlessPlayerReporting()
         throws Exception {
       // -- ARRANGE --
       // No grant in B: PLAYER is an open resource, but a subject-less row of that type is
-      // decided like a platform-wide reporting, on the REPORTINGS capability alone.
-      String reportingId = seedPlayerReporting(tenantB);
+      // decided like a platform-wide reporting, on the REPORTINGS capability alone, which the
+      // scope-wide capability gate (#8654) now also requires in every tenant of the scope.
+      seedPlayerReporting(tenantB);
 
-      // -- ACT & ASSERT --
-      mvc.perform(inB(post(REPORTINGS_URI + "/search")).content(defaultSearch()))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath(reportingPath(reportingId)).doesNotExist());
+      // -- ACT --
+      MockHttpServletResponse response =
+          mvc.perform(inB(post(REPORTINGS_URI + "/search")).content(defaultSearch()))
+              .andReturn()
+              .getResponse();
+
+      // -- ASSERT --
+      assertScopeForbidden(response);
     }
 
     @Test
@@ -655,11 +665,25 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
 
   /**
    * A refusal taken before any row is read: not found, the shape a per-row RBAC check in this diff
-   * throws; or forbidden, the shape the scope-wide capability gate (#8654) throws when it lands
-   * ahead of the handler. Either way the row is not returned.
+   * throws; or forbidden, the shape the scope-wide capability gate (#8654) throws, which runs ahead
+   * of the handler. Either way the row is not returned.
    */
   private ResultMatcher refused() {
     return result -> assertThat(result.getResponse().getStatus()).isIn(404, 403);
+  }
+
+  /**
+   * The scope-wide capability gate (#8654) refusing a request before any row is read: 403 with the
+   * {@code TENANT_SCOPE_FORBIDDEN} body that names the rule and its remedy.
+   */
+  private void assertScopeForbidden(MockHttpServletResponse response) throws Exception {
+    assertAll(
+        () -> assertEquals(HttpStatus.FORBIDDEN.value(), response.getStatus(), "refused"),
+        () ->
+            assertEquals(
+                MESSAGE,
+                JsonPath.read(response.getContentAsString(), "$.message"),
+                "the body names the scope rule and its remedy"));
   }
 
   /**
