@@ -4,6 +4,7 @@ import static io.openaev.database.specification.CommunicationSpecification.fromI
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static java.time.Instant.now;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CommunicationRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -14,6 +15,7 @@ import io.openaev.rest.inject.form.InjectTeamsInput;
 import io.openaev.rest.inject.form.InjectUpdateActivationInput;
 import io.openaev.rest.inject.form.InjectUpdateStatusInput;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -110,9 +112,12 @@ public class SimulationInjectService {
   // -- DELETE --
 
   /** Deletes an inject that belongs to the given simulation. */
-  public void deleteInject(@NotBlank final String simulationId, @NotBlank final String injectId) {
+  public void deleteInject(
+      @NotNull final TxCtx ctx,
+      @NotBlank final String simulationId,
+      @NotBlank final String injectId) {
     checkInjectForSimulation(simulationId, injectId);
-    Exercise exercise = this.exerciseService.exercise(simulationId);
+    Exercise exercise = this.exerciseService.exercise(ctx, simulationId);
     injectService.delete(injectId);
     this.exerciseService.updateExercise(exercise);
   }

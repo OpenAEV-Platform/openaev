@@ -66,6 +66,7 @@ import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TeamOutputVisibilityUtils;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
@@ -206,7 +207,11 @@ public class ExerciseService {
 
   // -- READ --
 
-  /** Validates that the exercise exists for the current tenant. Throws if not found. */
+  /**
+   * Validates that the exercise exists for the current tenant. Throws if not found. For work that
+   * runs without a request scope and sets the ambient tenant itself; a request uses {@link
+   * #existsInScope(TxCtx, String)}.
+   */
   public void existsByIdAndTenantId(@NotBlank final String exerciseId) {
     if (!this.exerciseRepository.existsByIdAndTenantId(
         exerciseId, TenantContext.getCurrentTenant())) {
@@ -214,10 +219,57 @@ public class ExerciseService {
     }
   }
 
+  /**
+   * Loads an exercise in the current tenant. For work that runs without a request scope and sets
+   * the ambient tenant itself; a request uses {@link #exercise(TxCtx, String)}.
+   */
   public Exercise exercise(@NotBlank final String exerciseId) {
     return this.exerciseRepository
         .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
+  }
+
+  /**
+   * Looks an exercise up by id inside the request's tenant scope: the path tenant on the tenant
+   * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route.
+   * The v1 ambient tenant is set only on the tenant route, so it does not carry the request scope
+   * on the other one.
+   */
+  public Optional<Exercise> findInScope(
+      @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    return this.exerciseRepository.findByIdAndTenantIdIn(
+        exerciseId, TxCtxScopeUtils.requestReadScope(ctx));
+  }
+
+  /**
+   * Loads an exercise by primary key and keeps it only when its tenant lies in the request's tenant
+   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
+   * the default one on the non-prefixed route: a member reaches its own exercise in any tenant of
+   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
+   * them refuses only what lies outside the scope. Transactional with the {@link TxCtx}, so the
+   * lookup carries the request scope even from a caller that opens no transaction of its own.
+   */
+  @Transactional(readOnly = true)
+  public Optional<Exercise> findByIdInScope(
+      @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
+    return this.exerciseRepository
+        .findById(exerciseId)
+        .filter(exercise -> scope.contains(exercise.getTenant().getId()));
+  }
+
+  /** Loads an exercise inside the request's tenant scope. Throws if not found there. */
+  public Exercise exercise(@NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    return findInScope(ctx, exerciseId)
+        .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
+  }
+
+  /** Validates that the exercise exists inside the request's tenant scope. Throws if not. */
+  public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    if (!this.exerciseRepository.existsByIdAndTenantIdIn(
+        exerciseId, TxCtxScopeUtils.requestReadScope(ctx))) {
+      throw new ElementNotFoundException("Exercise not found");
+    }
   }
 
   /**
@@ -232,7 +284,14 @@ public class ExerciseService {
     return exercise;
   }
 
-  public RawSimulationIndexing rawSimulation(@NotBlank final String simulationId) {
+  /**
+   * Reads the details of a simulation found inside the request's tenant scope. The native read
+   * itself keys on the v1 ambient tenant, the default one on the non-prefixed route, so the scope
+   * is checked first.
+   */
+  public RawSimulationIndexing rawSimulation(
+      @NotNull final TxCtx ctx, @NotBlank final String simulationId) {
+    existsInScope(ctx, simulationId);
     RawSimulationIndexing rawSimulation = exerciseRepository.rawDetailsById(simulationId);
     if (rawSimulation == null) {
       throw new ElementNotFoundException("Simulation not found");
@@ -252,8 +311,9 @@ public class ExerciseService {
   }
 
   @Transactional(readOnly = true)
-  public List<TeamOutput> getExerciseTeams(@NotBlank final String exerciseId) {
-    String workflowId = rawSimulation(exerciseId).getExercise_workflow_id();
+  public List<TeamOutput> getExerciseTeams(
+      @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    String workflowId = rawSimulation(ctx, exerciseId).getExercise_workflow_id();
     return StringUtils.hasText(workflowId)
         ? getWorkflowExerciseTeams(exerciseId, workflowId)
         : getTimeBasedExerciseTeams(exerciseId);
@@ -290,8 +350,8 @@ public class ExerciseService {
    * @return the persisted duplicate
    */
   @Transactional
-  public Exercise duplicateExercise(@NotBlank String exerciseId) {
-    Exercise duplicate = copyExerciseContent(exerciseId);
+  public Exercise duplicateExercise(@NotNull TxCtx ctx, @NotBlank String exerciseId) {
+    Exercise duplicate = copyExerciseContent(ctx, exerciseId);
     duplicateChainingWorkflowIfAny(exerciseId, duplicate);
     return duplicate;
   }
@@ -322,7 +382,7 @@ public class ExerciseService {
 
   /**
    * Duplicates a simulation's authored content only, without its chaining logic map. Use {@link
-   * #duplicateExercise(String)} for the full duplicate.
+   * #duplicateExercise(TxCtx, String)} for the full duplicate.
    *
    * @param exerciseId the source simulation
    * @return the persisted duplicate
@@ -333,12 +393,21 @@ public class ExerciseService {
   }
 
   /**
-   * The metadata copy itself, shared by both public entry points. Free of {@code @Transactional} so
-   * neither trips the Spring self-invocation trap. Package-private so it can be stubbed when
-   * unit-testing the orchestration.
+   * The metadata copy itself, of a simulation found inside the request's tenant scope. Free of
+   * {@code @Transactional} so both public entry points can call it without tripping the Spring
+   * self-invocation trap. Package-private so it can be stubbed when unit-testing the orchestration.
    */
+  Exercise copyExerciseContent(@NotNull TxCtx ctx, @NotBlank String exerciseId) {
+    return copyExerciseContent(exercise(ctx, exerciseId));
+  }
+
+  /** The metadata copy of a simulation of the current tenant, for work without a request scope. */
   Exercise copyExerciseContent(@NotBlank String exerciseId) {
-    Exercise exerciseOrigin = exercise(exerciseId);
+    return copyExerciseContent(exercise(exerciseId));
+  }
+
+  private Exercise copyExerciseContent(@NotNull Exercise exerciseOrigin) {
+    String exerciseId = exerciseOrigin.getId();
     Exercise exercise = copyExercise(exerciseOrigin);
     Exercise exerciseDuplicate = exerciseRepository.save(exercise);
     actionMetricCollector.addSimulationCreatedCount();
@@ -656,14 +725,29 @@ public class ExerciseService {
   }
 
   /**
-   * Delete a simulation
+   * Delete a simulation found inside the request's tenant scope
+   *
+   * @param ctx the request's tenant scope
+   * @param simulationId ID of the simulation to delete
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteById(TxCtx ctx, String simulationId) {
+    existsInScope(ctx, simulationId);
+    delete(simulationId);
+  }
+
+  /**
+   * Delete a simulation of the current tenant, for work that runs without a request scope
    *
    * @param simulationId ID of the simulation to delete
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
     existsByIdAndTenantId(simulationId);
+    delete(simulationId);
+  }
 
+  private void delete(String simulationId) {
     if (workflowService.isSimulationChaining(simulationId)) {
       workflowService.deleteSimulationDeleteWorkflows(simulationId);
       log.info("[Chaining] Workflow TEMPLATE will be deleted for simulation {}", simulationId);
@@ -734,14 +818,39 @@ public class ExerciseService {
                   .toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
-        ctx, "simulations", exerciseIdsToDelete, chunk -> chunk.forEach(this::deleteById));
+        ctx,
+        "simulations",
+        exerciseIdsToDelete,
+        chunk ->
+            chunk.forEach(
+                id -> {
+                  existsInScope(ctx, id);
+                  delete(id);
+                }));
   }
 
+  /** Changes the status of an exercise found inside the request's tenant scope. */
   // Still declares ChainingException: startWorkflowBySimulationId (chaining engine start)
+  @Transactional(rollbackFor = Exception.class)
+  public Exercise changeExerciseStatus(TxCtx ctx, ExerciseStatus status, String exerciseId)
+      throws ChainingException {
+    return changeExerciseStatus(status, exerciseId, id -> this.exercise(ctx, id));
+  }
+
+  /**
+   * Changes the status of an exercise of the current tenant, for work that runs without a request
+   * scope.
+   */
   @Transactional(rollbackFor = Exception.class)
   public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId)
       throws ChainingException {
-    Exercise exercise = this.exercise(exerciseId);
+    return changeExerciseStatus(status, exerciseId, this::exercise);
+  }
+
+  private Exercise changeExerciseStatus(
+      ExerciseStatus status, String exerciseId, Function<String, Exercise> loadExercise)
+      throws ChainingException {
+    Exercise exercise = loadExercise.apply(exerciseId);
     // Check if next status is possible
     List<ExerciseStatus> nextPossibleStatus = exercise.nextPossibleStatus();
     if (!nextPossibleStatus.contains(status)) {
@@ -775,7 +884,7 @@ public class ExerciseService {
       entityManager.clear();
       // Reload exercise after clearing entity manager to avoid detached entity issues and to ensure
       // the reset values are re-applied on a fresh managed instance before the final save.
-      exercise = this.exercise(exerciseId);
+      exercise = loadExercise.apply(exerciseId);
       exercise.setStart(null);
       exercise.setEnd(null);
       exercise.setCurrentPause(null);
@@ -830,7 +939,7 @@ public class ExerciseService {
       if (workflowService.isSimulationChaining(exercise.getId())) {
         boolean isEnded = workflowPauseService.resumeSimulationWorkflowRuns(exercise.getId());
         if (isEnded) {
-          return this.exercise(
+          return loadExercise.apply(
               exerciseId); // Reload the exercise to get the updated status after the workflow has
           // ended
         }
@@ -964,8 +1073,8 @@ public class ExerciseService {
   }
 
   public List<InjectExpectationResultsByAttackPattern> extractExpectationResultsByAttackPattern(
-      String exerciseId) {
-    Exercise exercise = exercise(exerciseId);
+      @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    Exercise exercise = exercise(ctx, exerciseId);
     return resultUtils.computeInjectExpectationResults(exercise.getInjects());
   }
 
@@ -1201,7 +1310,11 @@ public class ExerciseService {
   // -- TEAMS --
   @Transactional(rollbackFor = Exception.class)
   public Iterable<TeamOutput> removeTeams(
-      @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
+      @NotNull final TxCtx ctx,
+      @NotBlank final String exerciseId,
+      @NotNull final List<String> teamIds) {
+    // The deletes below key on the exercise id alone
+    existsInScope(ctx, exerciseId);
     // Remove teams from exercise
     this.exerciseRepository.removeTeams(exerciseId, teamIds);
     // Remove only associations for this exercise
@@ -1219,8 +1332,10 @@ public class ExerciseService {
 
   @Transactional(rollbackFor = Exception.class)
   public List<TeamOutput> replaceTeams(
-      @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
-    Exercise exercise = this.exercise(exerciseId);
+      @NotNull final TxCtx ctx,
+      @NotBlank final String exerciseId,
+      @NotNull final List<String> teamIds) {
+    Exercise exercise = this.exercise(ctx, exerciseId);
     Set<String> previousTeamIds =
         exercise.getTeams().stream().map(Team::getId).collect(Collectors.toSet());
     Set<String> targetTeamIds = new LinkedHashSet<>(teamIds);
@@ -1252,7 +1367,7 @@ public class ExerciseService {
     teamsAdded.forEach(
         team -> {
           List<String> playerIds = team.getUsers().stream().map(User::getId).toList();
-          this.enablePlayers(exerciseId, team, playerIds);
+          this.enablePlayers(exercise, team, playerIds);
         });
 
     // You must return all the modified teams to ensure the frontend store updates correctly
@@ -1263,16 +1378,35 @@ public class ExerciseService {
     return teamService.find(fromIds(modifiedTeamIds));
   }
 
+  /** Enables players of a team on an exercise found inside the request's tenant scope. */
+  public Exercise enablePlayers(
+      @NotNull final TxCtx ctx,
+      @NotBlank final String exerciseId,
+      @NotNull final Team team,
+      @NotNull final List<String> playerIds) {
+    return enablePlayers(this.exercise(ctx, exerciseId), team, playerIds);
+  }
+
+  /**
+   * Enables players of a team on an exercise of the current tenant, for work that runs without a
+   * request scope.
+   */
   public Exercise enablePlayers(
       @NotBlank final String exerciseId,
       @NotNull final Team team,
       @NotNull final List<String> playerIds) {
-    Exercise exercise = this.exercise(exerciseId);
+    return enablePlayers(this.exercise(exerciseId), team, playerIds);
+  }
+
+  private Exercise enablePlayers(
+      @NotNull final Exercise exercise,
+      @NotNull final Team team,
+      @NotNull final List<String> playerIds) {
     playerIds.forEach(
         playerId -> {
           boolean alreadyLinked =
               this.exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
-                  exerciseId, team.getId(), playerId);
+                  exercise.getId(), team.getId(), playerId);
           if (alreadyLinked) {
             return;
           }

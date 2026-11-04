@@ -203,6 +203,7 @@ public class ChallengeServiceTest extends IntegrationTest {
     user.setId("test");
 
     Exercise exercise = ExerciseFixture.createDefaultExercise();
+    exercise.setId("test");
 
     Challenge challenge = ChallengeFixture.createDefaultChallenge();
     challenge.setId("test");
@@ -225,12 +226,11 @@ public class ChallengeServiceTest extends IntegrationTest {
         new ArrayList<>(List.of(expectation, expectation));
 
     // MOCK
-    when(exerciseRepository.findById("test")).thenReturn(Optional.of(exercise));
     when(injectExpectationRepository.findChallengeExpectationsByExerciseAndUser("test", "test"))
         .thenReturn(expectations);
 
     // EXECUTE
-    SimulationChallengesReader reader = challengeService.playerChallenges("test", user);
+    SimulationChallengesReader reader = challengeService.playerChallenges(exercise, user);
 
     // VERIFY
     assertNotNull(reader);
@@ -247,6 +247,7 @@ public class ChallengeServiceTest extends IntegrationTest {
   void shouldValidateChallenges() {
     // PREPARE
     Exercise exercise = ExerciseFixture.createDefaultExercise();
+    exercise.setId("test");
 
     User user = UserFixture.getUser();
     user.setId("test");
@@ -276,7 +277,6 @@ public class ChallengeServiceTest extends IntegrationTest {
     List<ChallengeInjectExpectation> playerExpectations = new ArrayList<>(List.of(expectation));
 
     // MOCK
-    when(exerciseRepository.findById("test")).thenReturn(Optional.of(exercise));
     when(injectExpectationRepository.findChallengeExpectationsByExerciseAndUser("test", "test"))
         .thenReturn(playerExpectations);
     when(challengeRepository.findById("test")).thenReturn(Optional.of(challenge));
@@ -289,7 +289,7 @@ public class ChallengeServiceTest extends IntegrationTest {
 
     // EXECUTE
     SimulationChallengesReader reader =
-        challengeService.validateChallenge("test", "test", input, user);
+        challengeService.validateChallenge(exercise, "test", input, user);
 
     // VERIFY
     assertNotNull(reader);
@@ -307,6 +307,7 @@ public class ChallengeServiceTest extends IntegrationTest {
   void shouldValidateChallengesEvenIfResultIsFalse() {
     // PREPARE
     Exercise exercise = ExerciseFixture.createDefaultExercise();
+    exercise.setId("test");
 
     User user = UserFixture.getUser();
     user.setId("test");
@@ -336,7 +337,6 @@ public class ChallengeServiceTest extends IntegrationTest {
     List<ChallengeInjectExpectation> playerExpectations = new ArrayList<>(List.of(expectation));
 
     // MOCK
-    when(exerciseRepository.findById("test")).thenReturn(Optional.of(exercise));
     when(injectExpectationRepository.findChallengeExpectationsByExerciseAndUser("test", "test"))
         .thenReturn(playerExpectations);
     when(challengeRepository.findById("test")).thenReturn(Optional.of(challenge));
@@ -347,7 +347,7 @@ public class ChallengeServiceTest extends IntegrationTest {
 
     // EXECUTE
     SimulationChallengesReader reader =
-        challengeService.validateChallenge("test", "test", input, user);
+        challengeService.validateChallenge(exercise, "test", input, user);
 
     // VERIFY
     assertNotNull(reader);

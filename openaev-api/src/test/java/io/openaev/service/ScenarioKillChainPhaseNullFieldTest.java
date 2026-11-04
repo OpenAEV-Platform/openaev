@@ -3,6 +3,7 @@ package io.openaev.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
@@ -88,7 +89,9 @@ class ScenarioKillChainPhaseNullFieldTest extends IntegrationTest {
     entityManager.clear();
 
     // Act
-    ScenarioOutput scenarioOutput = scenarioService.getScenarioById(scenario.getId());
+    ScenarioOutput scenarioOutput =
+        scenarioService.getScenarioById(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), scenario.getId());
 
     // Assert
     assertThat(scenarioOutput.getKillChainPhases())
