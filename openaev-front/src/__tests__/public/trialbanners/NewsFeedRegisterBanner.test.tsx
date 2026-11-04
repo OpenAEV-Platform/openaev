@@ -8,9 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type LoggedHelper } from '../../../actions/helper';
 import useBannerSettings from '../../../public/components/systembanners/useBannerSettings';
+import { TOP_BANNER_HEIGHT } from '../../../public/components/trialbanners/constants';
 import NewsFeedRegisterBanner from '../../../public/components/trialbanners/NewsFeedRegisterBanner';
 import NewsFeedRegisterBannerProvider from '../../../public/components/trialbanners/NewsFeedRegisterBannerProvider';
-import { TOP_BANNER_HEIGHT } from '../../../public/components/trialbanners/constants';
 import { useHelper } from '../../../store';
 import { type PlatformSettings, type User, type XtmHubRegistrationOutput } from '../../../utils/api-types';
 import { UserContext, type UserContextType } from '../../../utils/hooks/useAuth';
