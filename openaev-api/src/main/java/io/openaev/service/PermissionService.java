@@ -158,7 +158,7 @@ public class PermissionService {
   }
 
   /**
-   * Whether {@code decision} holds in {@code tenantId}: while it runs, the caller's capabilities
+   * Whether {@code decision} holds in {@code tenantId}: while it runs, the caller's capabilities,
    * tenant bypass and grants are the ones the caller holds in that tenant: a grant counts in the
    * tenant of the group that holds it, and a platform group's grant in every tenant.
    *
