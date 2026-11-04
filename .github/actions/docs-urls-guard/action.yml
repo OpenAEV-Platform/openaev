@@ -1,0 +1,19 @@
+name: Docs URLs Guard
+description: >
+  Fails when a tracked code or configuration file writes a docs.openaev.io URL instead of a key of
+  docs/links.json. The Docs Check resolves every key of that map against the built site, so a link
+  opened by key cannot break silently when the docs move; a raw URL can. Allowed: docs/**,
+  Markdown files, .github/**, comment lines of .properties files, DocsLinks.java (the backend
+  constants generated from docs/links.json), and the code that reads the map with its tests.
+  Stdlib Python only, no setup needed.
+
+runs:
+  using: composite
+  steps:
+    - name: Test the guard
+      shell: bash
+      run: python3 -m unittest discover -s .github/scripts/tests -p 'test_check_docs_urls.py'
+
+    - name: Check for docs.openaev.io URLs outside docs/links.json
+      shell: bash
+      run: python3 .github/scripts/check-docs-urls.py

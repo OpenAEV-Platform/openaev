@@ -4,6 +4,8 @@ USER root
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front ./
+# The front imports the docs links map from ../docs/links.json
+COPY docs/links.json /opt/openaev-build/docs/links.json
 RUN set -eux                             ; \
 npm install -g corepack                  ; \
 yarn install                             ; \
@@ -29,9 +31,12 @@ COPY openaev-opensearch-client ./openaev-opensearch-client
 COPY openaev-framework ./openaev-framework
 COPY openaev-api ./openaev-api
 COPY openaev-ocsf ./openaev-ocsf
+# Read by the docs-links goal, which generates the backend docs link constants
+COPY docs/links.json ./docs/links.json
 COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
-RUN mvn install -DskipTests -Pdev
+# The docs links are checked in CI, not in the image build (no docs toolchain here)
+RUN mvn install -DskipTests -Pdev -Dopenaev.docs.check.skip=true
 
 FROM registry.access.redhat.com/ubi9/openjdk-21-runtime AS app
 

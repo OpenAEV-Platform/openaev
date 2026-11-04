@@ -335,6 +335,45 @@
             ],
             rebaseWhen: 'auto',
         },
+        // mike is pinned to a commit of its main branch. Renovate reads that SHA as a coerced semver
+        // version and could propose a tag instead, so it is left out and bumped by hand.
+        {
+            description: 'mike is pinned to a commit and bumped by hand',
+            matchManagers: [
+                'pip-compile',
+            ],
+            matchDepNames: [
+                'mike',
+            ],
+            enabled: false,
+        },
+        // docs/.python-version is the oldest Python the docs support: CI runs it, docs/run.py refuses
+        // older ones, and the docs/requirements.txt header compiles the lock with the same
+        // --python-version. The pyenv manager would bump the file alone, so both change together by hand.
+        {
+            description: 'The docs Python version is bumped by hand with the requirements.txt header',
+            matchManagers: [
+                'pyenv',
+            ],
+            matchFileNames: [
+                'docs/.python-version',
+            ],
+            enabled: false,
+        },
+        // Lock file maintenance puts every manager in one branch by default. The docs one (pip-compile
+        // regenerates docs/requirements.txt) gets its own, so a docs build broken by a package it
+        // pulls in does not hold the weekly refresh of yarn.lock, and the other way round.
+        {
+            description: 'Docs lock file maintenance in its own PR, apart from yarn.lock',
+            matchManagers: [
+                'pip-compile',
+            ],
+            matchUpdateTypes: [
+                'lockFileMaintenance',
+            ],
+            branchTopic: 'docs-lock-file-maintenance',
+            commitMessageAction: 'Docs lock file maintenance',
+        },
         // The bulk of the volume, one PR at a time before this change. The cost of batching is that
         // one bad member holds the whole batch, and the exit is a rule below with groupName: null.
         {
