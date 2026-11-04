@@ -123,11 +123,10 @@ every other caller:
 | regular path with `X-Tenant-Ids` | the default tenant, and every tenant the header names |
 | regular path with no selector | the default tenant, and every tenant the caller is a member of |
 
-Only the tenant path, `/api/tenants/{tenantId}/...`, both checks and runs in the same tenant. On
-the regular path, an endpoint that still reads its data through the ambient tenant
-(`TenantContext.getCurrentTenant()`) reads the default tenant, whatever `X-Tenant-Ids` names,
-because nothing on the regular path sets that thread-local, except the XTM One orchestrator
-callbacks described above
+To work in one tenant, use the tenant path, `/api/tenants/{tenantId}/...`: the request is checked
+in and runs in the tenant it names. `X-Tenant-Ids` narrows the scope but does not set the ambient
+tenant (`TenantContext`), so on the regular path an endpoint that still reads its data through
+`TenantContext.getCurrentTenant()` reads the default tenant, whatever the header names
 ([#7967](https://github.com/OpenAEV-Platform/openaev/issues/7967)).
 
 On an endpoint whose `TxCtx` parameter is annotated `@RequireTenantSelector`, a caller with
