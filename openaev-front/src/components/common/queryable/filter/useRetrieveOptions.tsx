@@ -83,6 +83,7 @@ const useRetrieveOptions = () => {
       case 'action_domains':
       case 'injector_contract_domains':
       case 'inject_contract_domains':
+      case 'scenario_domains':
       case 'base_security_domains_side':
         searchDomainsByIdsAsOption(ids).then((response) => {
           setOptions(response.data);
@@ -246,6 +247,7 @@ const useRetrieveOptions = () => {
       // Author filter: an id may belong to a person, a team or an organization -
       // resolve across all three and merge (each id only matches its own type).
       case 'action_author':
+      case 'scenario_author':
         Promise.all([
           searchPlayerByIdAsOption(ids),
           searchTeamByIdAsOption(ids),

@@ -255,6 +255,7 @@ export interface AiAttack {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -288,8 +289,10 @@ export interface AiAttack {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -306,11 +309,13 @@ export interface AiAttack {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_source?: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -2142,6 +2147,7 @@ interface BasePayload {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -2175,8 +2181,10 @@ interface BasePayload {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -2193,11 +2201,13 @@ interface BasePayload {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_source?: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -2270,7 +2280,7 @@ interface BasePayloadCreateInput {
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_tags?: string[];
   /** @minLength 1 */
   payload_type: string;
@@ -2283,6 +2293,21 @@ type BasePayloadCreateInputPayloadTypeMapping<Key, Type> = {
 type BasePayloadPayloadTypeMapping<Key, Type> = {
   payload_type: Key;
 } & Type;
+
+export interface BlockChoice {
+  choice?: "KEEP_MINE" | "TAKE_CATALOG" | "EDIT";
+  values?: Record<string, any>;
+}
+
+export interface BlockPreviewOutput {
+  base?: Record<string, JsonNode>;
+  block?: "EXECUTION" | "PLATFORMS";
+  catalog?: Record<string, JsonNode>;
+  catalog_changed?: boolean;
+  conflict?: boolean;
+  mine?: Record<string, JsonNode>;
+  variant_changed?: boolean;
+}
 
 export interface BrokerConnectionInfo {
   host?: string;
@@ -2407,6 +2432,8 @@ export interface CatalogConnector {
   catalog_connector_deleted_at?: string;
   /** Connector description */
   catalog_connector_description?: string;
+  /** Contracts the injector registers once it runs */
+  catalog_connector_injector_contracts?: CatalogConnectorInjectorContract[];
   /** @uniqueItems true */
   catalog_connector_instances: ConnectorInstancePersisted[];
   /**
@@ -2498,6 +2525,14 @@ export interface CatalogConnectorConfiguration {
   listened?: boolean;
 }
 
+export interface CatalogConnectorInjectorContract {
+  attack_patterns?: string[];
+  contract_id?: string;
+  domains?: string[];
+  labels?: Record<string, string>;
+  platforms?: string[];
+}
+
 export interface CatalogConnectorOutput {
   /** Connector container version referenced in the catalog */
   catalog_connector_container_version?: string;
@@ -2532,6 +2567,121 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_id?: string;
   catalog_connector_logo_url?: string;
   catalog_connector_short_description?: string;
+}
+
+export interface CatalogInjectorContractOutput {
+  /** @minLength 1 */
+  catalog_connector_id: string;
+  catalog_connector_logo_url?: string;
+  catalog_connector_manager_supported?: boolean;
+  catalog_connector_slug?: string;
+  catalog_connector_title?: string;
+  contract_domains?: string[];
+  /** @minLength 1 */
+  contract_id: string;
+  contract_label?: string;
+  contract_platforms?: string[];
+}
+
+export interface CatalogInstallAllOutput {
+  installed: string[];
+  skipped: string[];
+}
+
+export interface CatalogInstallInput {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  manual_targets?: string[];
+  team_ids?: string[];
+  /** Input for creating or updating a workflow configuration. */
+  workflow_configuration?: WorkflowConfigurationInput;
+}
+
+export interface CatalogInstallOutput {
+  scenario_id: string;
+  scenario_version: string;
+}
+
+export interface CatalogInstallPreviewOutput {
+  injects: InjectPreview[];
+  missing_prerequisites: CatalogMissingRequirement[];
+  missing_requirements: string[];
+  previous_scenario_id?: string;
+  previous_version?: string;
+}
+
+export interface CatalogItemOutput {
+  catalog_item_author?: string;
+  catalog_item_category?: string;
+  catalog_item_changelog?: string;
+  catalog_item_description?: string;
+  /** @minLength 1 */
+  catalog_item_external_id: string;
+  /** @format int32 */
+  catalog_item_injects_count?: number;
+  catalog_item_installed_scenarios?: InstalledScenario[];
+  catalog_item_installed_versions?: string[];
+  catalog_item_main_focus?: string;
+  catalog_item_missing_prerequisites?: CatalogMissingRequirement[];
+  catalog_item_missing_requirements?: string[];
+  catalog_item_name?: string;
+  catalog_item_payloads?: PayloadUsed[];
+  catalog_item_platforms?: string[];
+  /** @format date-time */
+  catalog_item_published_at?: string;
+  catalog_item_scenario_type?: string;
+  catalog_item_severity?: string;
+  catalog_item_status?: string;
+  catalog_item_type?: "PAYLOAD" | "SCENARIO";
+  /** @minLength 1 */
+  catalog_item_version: string;
+  catalog_item_versions?: string[];
+}
+
+export interface CatalogMissingRequirement {
+  requirement_catalog_connector_id?: string;
+  requirement_catalog_connector_title?: string;
+  /** @minLength 1 */
+  requirement_key: string;
+  requirement_kind: "OPENAEV" | "EDITION" | "INJECTOR" | "EXECUTOR";
+  /** @minLength 1 */
+  requirement_label: string;
+  requirement_status?: "NOT_DEPLOYED" | "NOT_RUNNING";
+}
+
+export interface CatalogPayloadInstallOutput {
+  installed: string[];
+}
+
+export interface CatalogScenarioVersionsOutput {
+  /** @minLength 1 */
+  catalog_id: string;
+  /** @minLength 1 */
+  current_version: string;
+  history: ContentHistoryOutput[];
+  versions: Version[];
+}
+
+export interface CatalogSettingsInput {
+  payload_auto_install?: boolean;
+  scenario_auto_install?: boolean;
+}
+
+export interface CatalogSettingsOutput {
+  payload_auto_install?: boolean;
+  scenario_auto_install?: boolean;
+}
+
+export interface CatalogSyncOutput {
+  /** @format int32 */
+  added?: number;
+  applied?: boolean;
+  first_sync?: boolean;
+  refused?: Refusal[];
+  release?: string;
+  release_approver?: string;
+  /** @format int32 */
+  unchanged?: number;
 }
 
 export interface Challenge {
@@ -2600,6 +2750,19 @@ export interface ChallengeResult {
 
 export interface ChallengeTryInput {
   challenge_value: string;
+}
+
+export interface Change {
+  applied?: JsonNode;
+  base?: JsonNode;
+  block?: string;
+  editable?: boolean;
+  element?: string;
+  id?: string;
+  key?: string;
+  local?: JsonNode;
+  status?: "TAKE_APPLIED" | "KEEP_MINE" | "SAME" | "CONFLICT";
+  title?: string;
 }
 
 export interface ChangePasswordInput {
@@ -2816,6 +2979,7 @@ export interface Command {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -2849,8 +3013,10 @@ export interface Command {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -2867,11 +3033,13 @@ export interface Command {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_source?: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -3145,6 +3313,33 @@ export interface ConsumedFindingKeyDTO {
   matchedFindingIds?: string[];
   operator?: string;
   value?: string;
+}
+
+export interface ContentHistoryOutput {
+  content_history_action?:
+    | "INSTALL"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "DUPLICATE"
+    | "VERSION_CHANGE"
+    | "UNINSTALL"
+    | "REVOKE"
+    | "LIFT_REVOCATION"
+    | "CUSTOMIZE"
+    | "OVERRIDE"
+    | "REBASE"
+    | "CONFLICT";
+  content_history_automatic?: boolean;
+  /** @format int32 */
+  content_history_count?: number;
+  /** @format date-time */
+  content_history_created_at?: string;
+  content_history_details?: JsonNode;
+  content_history_from_version?: string;
+  /** @minLength 1 */
+  content_history_id: string;
+  content_history_user?: string;
+  content_history_version?: string;
 }
 
 export interface ContractOutputElement {
@@ -3899,6 +4094,7 @@ export interface DnsResolution {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -3932,8 +4128,10 @@ export interface DnsResolution {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -3950,11 +4148,13 @@ export interface DnsResolution {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_source?: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -4045,6 +4245,18 @@ export interface DomainBaseInput {
    * @minLength 1
    */
   domain_name: string;
+}
+
+export interface Element {
+  change?:
+    | "ADDED"
+    | "REMOVED"
+    | "REMOVED_CONFLICT"
+    | "STAYS_DELETED"
+    | "KEPT_USER";
+  id?: string;
+  kind?: string;
+  title?: string;
 }
 
 export interface Endpoint {
@@ -4955,6 +5167,13 @@ export interface EntitiesPaginationInput {
   parameters?: Record<string, string>;
 }
 
+export interface Entry {
+  external_id?: string;
+  reason?: string;
+  type?: string;
+  version?: string;
+}
+
 export interface EsAsset {
   asset_category?: string;
   asset_description?: string;
@@ -5514,6 +5733,7 @@ export interface Executable {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -5547,8 +5767,10 @@ export interface Executable {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -5565,11 +5787,13 @@ export interface Executable {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_source?: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -5973,6 +6197,7 @@ export interface FileDrop {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -6006,8 +6231,10 @@ export interface FileDrop {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -6024,11 +6251,13 @@ export interface FileDrop {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_source?: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -6391,7 +6620,8 @@ export interface HealthCheck {
     | "MISSING_TECHNICAL_TARGETS"
     | "MISSING_AUDIENCE_TARGETS"
     | "INEFFECTIVE_TECHNICAL_TARGETS"
-    | "INEFFECTIVE_AUDIENCE_TARGETS";
+    | "INEFFECTIVE_AUDIENCE_TARGETS"
+    | "REVOKED";
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
@@ -6413,6 +6643,7 @@ export interface HealthCheck {
     | "MESSAGE"
     | "SCOPE_DEFINITION"
     | "CREDENTIAL_REFERENCE"
+    | "PAYLOAD"
     | "UNKNOWN";
 }
 
@@ -6500,6 +6731,7 @@ export interface ImportPostSummary {
 
 export interface ImportResult {
   missingActions?: MissingImportedAction[];
+  scenarioId?: string;
 }
 
 export interface ImportTestSummary {
@@ -6511,6 +6743,11 @@ export interface ImportTestSummary {
   total_rows_analysed?: number;
 }
 
+export interface InheritedRevocationLiftInput {
+  /** @minLength 1 */
+  content_revocation_reason: string;
+}
+
 export interface Inject {
   footer?: string;
   header?: string;
@@ -6519,6 +6756,7 @@ export interface Inject {
   inject_assets?: string[];
   inject_attack_patterns?: AttackPattern[];
   inject_authorisation?: InjectAuthorisation;
+  inject_catalog_id?: string;
   inject_city?: string;
   inject_collect_status?: "COLLECTING" | "COMPLETED";
   inject_communications?: string[];
@@ -7058,6 +7296,8 @@ export interface InjectOutput {
   /** Injector contract of the inject */
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
+  /** The inject runs a revoked payload: it fails at execution */
+  inject_payload_revoked?: boolean;
   /** Ready state of the inject */
   inject_ready?: boolean;
   /** Scenario ID of the inject */
@@ -7087,6 +7327,16 @@ export interface InjectOutput {
   inject_users_number?: number;
   /** Stream listener value of the inject */
   listened?: boolean;
+}
+
+export interface InjectPreview {
+  current_targets: TargetLabel[];
+  inject_catalog_id?: string;
+  inject_title: string;
+  is_new?: boolean;
+  is_targeted?: boolean;
+  target_fields: string[];
+  target_selector?: string;
 }
 
 export interface InjectReceptionInput {
@@ -7343,7 +7593,11 @@ export interface InjectorContract {
   injector_contract_payload_author_organization?: Organization;
   injector_contract_payload_author_team?: Team;
   injector_contract_payload_author_user?: User;
-  injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  injector_contract_payload_status?:
+    | "UNVERIFIED"
+    | "VERIFIED"
+    | "DEPRECATED"
+    | "REVOKED";
   injector_contract_platforms?: (
     | "Linux"
     | "Windows"
@@ -7498,8 +7752,12 @@ export interface InjectorContractFullOutput {
   injector_contract_injectors?: string[];
   /** Labels */
   injector_contract_labels?: Record<string, string>;
+  /** Where the contract's payload comes from; empty without payload */
+  injector_contract_payload_origin?: "CATALOG" | "CUSTOMIZED" | "LOCAL";
   /** Payload type */
   injector_contract_payload_type?: string;
+  /** Version of the contract's payload; empty without payload */
+  injector_contract_payload_version?: string;
   /** Platforms */
   injector_contract_platforms?: (
     | "Linux"
@@ -7548,8 +7806,12 @@ export interface InjectorContractInput {
 }
 
 export interface InjectorContractSearchPaginationInput {
+  /** Leave out contracts whose payload is revoked (pickers, F9) */
+  exclude_revoked_payloads?: boolean;
   /** Filter object to search within filterable attributes */
   filterGroup?: FilterGroup;
+  /** Sort by primary domain first, to show the results in domain sections */
+  group_by_primary_domain?: boolean;
   /** Include the injector contract content on the returned object if set to true */
   include_content_details?: boolean;
   /** Allow the return of a full object if true, partial object if false */
@@ -7558,6 +7820,8 @@ export interface InjectorContractSearchPaginationInput {
   injector_contract_ids_to_ignore?: string[];
   /** List of all the ids to include on the search */
   injector_contract_ids_to_process?: string[];
+  /** Only contracts without payload and the latest non-revoked payload versions (pickers, F11) */
+  latest_versions_only?: boolean;
   /**
    * Page number to get
    * @format int32
@@ -7701,6 +7965,13 @@ export interface InstalledInjector {
   name?: string;
   /** True when the injector can carry custom payloads */
   payloads?: boolean;
+}
+
+export interface InstalledScenario {
+  /** @minLength 1 */
+  scenario_id: string;
+  /** @minLength 1 */
+  version: string;
 }
 
 export interface Internal {
@@ -8246,6 +8517,7 @@ export interface NetworkTraffic {
   payload_cleanup_command?: string;
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
+  payload_content_hash?: string;
   /** @format date-time */
   payload_created_at: string;
   payload_description?: string;
@@ -8279,8 +8551,10 @@ export interface NetworkTraffic {
   payload_external_id?: string;
   /** @minLength 1 */
   payload_id: string;
+  payload_is_latest?: boolean;
   /** @minLength 1 */
   payload_name: string;
+  payload_origin_id?: string;
   /** @uniqueItems true */
   payload_output_parsers?: OutputParser[];
   /** @minItems 1 */
@@ -8297,11 +8571,13 @@ export interface NetworkTraffic {
     | "Unknown"
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
-  payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_source?: "COMMUNITY" | "FILIGRAN" | "MANUAL";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_uninstalled?: boolean;
   /** @format date-time */
   payload_updated_at: string;
+  payload_version?: string;
   typeEnum?:
     | "COMMAND"
     | "EXECUTABLE"
@@ -8380,6 +8656,14 @@ export interface NotificationTriggerInput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "PAYLOAD_REVOKED"
+    | "NEW_PAYLOAD_VERSION"
+    | "REVOKED"
+    | "REVOCATION_LIFTED"
+    | "INSTALLED_AUTOMATICALLY"
+    | "BASE_UPDATE_AVAILABLE"
+    | "RELEASE_RECEIVED"
+    | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8450,6 +8734,8 @@ export interface NotificationTriggerInput {
     | "OBJECTIVE"
     | "EVALUATION"
     | "CATALOG"
+    | "CATALOG_SYNC"
+    | "PAYLOAD_REVOCATION"
     | "CONNECTOR_INSTANCE_LOG"
     | "SECRET_PROVIDER"
     | "TENANT"
@@ -8492,6 +8778,14 @@ export interface NotificationTriggerOutput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "PAYLOAD_REVOKED"
+    | "NEW_PAYLOAD_VERSION"
+    | "REVOKED"
+    | "REVOCATION_LIFTED"
+    | "INSTALLED_AUTOMATICALLY"
+    | "BASE_UPDATE_AVAILABLE"
+    | "RELEASE_RECEIVED"
+    | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8563,6 +8857,8 @@ export interface NotificationTriggerOutput {
     | "OBJECTIVE"
     | "EVALUATION"
     | "CATALOG"
+    | "CATALOG_SYNC"
+    | "PAYLOAD_REVOCATION"
     | "CONNECTOR_INSTANCE_LOG"
     | "SECRET_PROVIDER"
     | "TENANT"
@@ -8745,6 +9041,11 @@ export interface OutputParserSimple {
   output_parser_mode: "STDOUT" | "STDERR" | "READ_FILE";
   /** Type of parser, for now only REGEX is supported */
   output_parser_type: "REGEX";
+}
+
+export interface OverridesInput {
+  variant_overrides?: Record<string, any>;
+  variant_tags?: string[];
 }
 
 export interface PageAggregatedFindingOutput {
@@ -9838,6 +10139,8 @@ export interface PayloadOutput {
    * @minLength 1
    */
   payload_name: string;
+  /** Payload this local copy was duplicated from */
+  payload_origin_id?: string;
   /**
    * Parsers used to process payload outputs
    * @uniqueItems true
@@ -9858,10 +10161,17 @@ export interface PayloadOutput {
   )[];
   /** Prerequisites required before payload execution */
   payload_prerequisites?: PayloadPrerequisite[];
+  /** Version this save replaced as the latest one, when it created a version */
+  payload_previous_version_id?: string;
+  /**
+   * Injects and chained steps still on the previous version
+   * @format int32
+   */
+  payload_previous_version_usages?: number;
   /** Payload source origin */
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   /** Current payload lifecycle status */
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   /** Tags attached to the payload */
   payload_tags?: string[];
   /** Payload implementation type */
@@ -9871,6 +10181,8 @@ export interface PayloadOutput {
    * @format date-time
    */
   payload_updated_at: string;
+  /** Managed version from a repository release; null for a local copy */
+  payload_version?: string;
 }
 
 export interface PayloadPrerequisite {
@@ -9882,11 +10194,45 @@ export interface PayloadPrerequisite {
   get_command: string;
 }
 
+export interface PayloadRevocationInput {
+  /** @minLength 1 */
+  content_revocation_reason: string;
+}
+
+export interface PayloadRevocationOutput {
+  /** @minLength 1 */
+  content_revocation_id: string;
+  /** Set when a customized payload inherits the revocation of this base version */
+  content_revocation_inherited_from?: string;
+  content_revocation_reason?: string;
+  /** @format date-time */
+  content_revocation_revoked_at?: string;
+  content_revocation_revoked_by?: string;
+  /**
+   * tenant: revoked in this tenant; repository: from the revocation list
+   * @minLength 1
+   */
+  content_revocation_source: string;
+}
+
 export interface PayloadSimple {
+  payload_base_version?: string;
   payload_collector_type?: string;
+  payload_conflict?: boolean;
+  payload_description?: string;
   payload_id?: string;
-  payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_identity_id?: string;
+  /** @format int64 */
+  payload_installed_versions?: number;
+  payload_managed?: boolean;
+  payload_newer_base_version?: string;
+  /** @format int64 */
+  payload_older_versions_in_use?: number;
+  payload_revoked?: boolean;
+  payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_type?: string;
+  payload_variant?: boolean;
+  payload_version?: string;
 }
 
 export interface PayloadUpdateInput {
@@ -10021,10 +10367,62 @@ export interface PayloadUpsertInput {
   )[];
   payload_prerequisites?: PayloadPrerequisite[];
   payload_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  payload_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   payload_tags?: string[];
   /** @minLength 1 */
   payload_type: string;
+}
+
+export interface PayloadUsageOutput {
+  /** @minLength 1 */
+  usage_id: string;
+  usage_name?: string;
+  usage_scenario_id?: string;
+  usage_scenario_name?: string;
+  /**
+   * inject: scenario inject; atomic_testing; step: chained scenario step
+   * @minLength 1
+   */
+  usage_type: string;
+}
+
+export interface PayloadUsed {
+  /** @minLength 1 */
+  external_id: string;
+  name?: string;
+  version?: string;
+}
+
+export interface PayloadVersionChangeInput {
+  inject_ids?: string[];
+  step_ids?: string[];
+  /** @minLength 1 */
+  target_payload_id: string;
+}
+
+export interface PayloadVersionChangeOutput {
+  moved_ids?: string[];
+  refused?: Refusal[];
+}
+
+export interface PayloadVersionOutput {
+  payload_action_id?: string;
+  payload_changelog?: string;
+  /** @format date-time */
+  payload_created_at?: string;
+  payload_current?: boolean;
+  payload_external_id?: string;
+  payload_id?: string;
+  payload_installed?: boolean;
+  payload_is_latest?: boolean;
+  /** @format date-time */
+  payload_published_at?: string;
+  payload_revoked?: boolean;
+  payload_revoked_in_tenant?: boolean;
+  payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
+  /** @format int32 */
+  payload_usage_count: number;
+  payload_version?: string;
 }
 
 export interface PayloadsDeprecateInput {
@@ -10674,9 +11072,17 @@ export interface RawPaginationImportMapper {
 }
 
 export interface RawPaginationScenario {
+  scenario_author?: string;
+  scenario_author_name?: string;
+  scenario_author_type?: string;
+  scenario_catalog_id?: string;
   scenario_category?: string;
   scenario_description?: string;
+  /** @uniqueItems true */
+  scenario_domains?: string[];
   scenario_id?: string;
+  /** @format date-time */
+  scenario_last_run_at?: string;
   scenario_name?: string;
   /** @uniqueItems true */
   scenario_platforms?: string[];
@@ -10686,6 +11092,7 @@ export interface RawPaginationScenario {
   scenario_tags?: string[];
   /** @format date-time */
   scenario_updated_at?: string;
+  scenario_version?: string;
   scenario_workflow_id?: string;
 }
 
@@ -10700,6 +11107,28 @@ export interface RawUser {
   user_phone?: string;
   user_tags?: string[];
   user_teams?: string[];
+}
+
+export interface RebaseInput {
+  choices?: Record<string, BlockChoice>;
+  target_payload_id?: string;
+}
+
+export interface RebasePreviewOutput {
+  base_version?: string;
+  blocks?: BlockPreviewOutput[];
+  current_version?: string;
+  has_conflict?: boolean;
+  missing_variables?: string[];
+  target_payload_id?: string;
+  target_version?: string;
+}
+
+export interface Refusal {
+  /** @minLength 1 */
+  reason: string;
+  /** @minLength 1 */
+  usage_id: string;
 }
 
 export interface RegexGroup {
@@ -11009,6 +11438,34 @@ export interface ResultDistribution {
   value: number;
 }
 
+export interface RevocationList {
+  /** @format date-time */
+  expires_at?: string;
+  /** @format date-time */
+  issued_at?: string;
+  repository?: string;
+  revocations?: Entry[];
+  /** @format int64 */
+  serial?: number;
+}
+
+export interface RevocationListOutput {
+  /** @format int32 */
+  revocation_list_added?: number;
+  revocation_list_applied?: boolean;
+  /** @format date-time */
+  revocation_list_downloaded_at?: string;
+  /** @format date-time */
+  revocation_list_expires_at?: string;
+  /** @format date-time */
+  revocation_list_issued_at?: string;
+  /** @format int32 */
+  revocation_list_lifted?: number;
+  revocation_list_repository?: string;
+  /** @format int64 */
+  revocation_list_serial?: number;
+}
+
 export interface RoleInput {
   /** @uniqueItems true */
   role_capabilities?: (
@@ -11029,6 +11486,7 @@ export interface RoleInput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -11086,6 +11544,7 @@ export interface RoleInput {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -11115,6 +11574,7 @@ export interface RoleOutput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -11172,6 +11632,7 @@ export interface RoleOutput {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -11219,7 +11680,15 @@ export interface Scenario {
   /** @format int64 */
   scenario_all_users_number?: number;
   scenario_articles?: string[];
+  scenario_author?: string;
+  /** Organization author of the scenario */
+  scenario_author_organization?: string;
+  /** User author of the scenario */
+  scenario_author_user?: string;
   scenario_autonomous?: boolean;
+  scenario_base_pending?: boolean;
+  scenario_catalog_id?: string;
+  scenario_catalog_repository?: string;
   scenario_category?: string;
   /** @format int64 */
   scenario_communications_number?: number;
@@ -11281,11 +11750,13 @@ export interface Scenario {
   scenario_teams_users?: ScenarioTeamUser[];
   scenario_type?: string;
   scenario_type_affinity?: string;
+  scenario_uninstalled?: boolean;
   /** @format date-time */
   scenario_updated_at: string;
   scenario_users?: string[];
   /** @format int64 */
   scenario_users_number?: number;
+  scenario_version?: string;
 }
 
 export interface ScenarioAndInjectorContractsInputs {
@@ -11293,6 +11764,20 @@ export interface ScenarioAndInjectorContractsInputs {
   /** @minLength 1 */
   locale: string;
   scenario_input: ScenarioInput;
+}
+
+export interface ScenarioAuthorCountOutput {
+  /** Author id (user or organization) */
+  author?: string;
+  /** Author display name */
+  author_name?: string;
+  /** Author type: user or organization */
+  author_type?: string;
+  /**
+   * Scenarios by this author under the filters
+   * @format int64
+   */
+  count?: number;
 }
 
 export interface ScenarioBulkProcessingInput {
@@ -11349,8 +11834,16 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_all_users_number?: number;
+  /** Id of the scenario author (user or organization) */
+  scenario_author?: string;
+  /** Name of the scenario author: the user who made it or the publishing organization */
+  scenario_author_name?: string;
+  /** Type of the scenario author: user or organization */
+  scenario_author_type?: string;
   /** Whether the scenario is an autonomous (AI-driven) attack-path scenario */
   scenario_autonomous?: boolean;
+  /** Catalogue scenario this one was installed from */
+  scenario_catalog_id?: string;
   /** Category of the scenario */
   scenario_category?: string;
   /**
@@ -11428,6 +11921,8 @@ export interface ScenarioOutput {
    * @format int64
    */
   scenario_users_number?: number;
+  /** Installed catalogue version */
+  scenario_version?: string;
   /** Workflow ID associated with the scenario */
   scenario_workflow_id?: string;
 }
@@ -11440,6 +11935,21 @@ export interface ScenarioRecurrenceInput {
   scenario_recurrence_start?: string;
 }
 
+export interface ScenarioRevisionOutput {
+  scenario_revision_author?: string;
+  scenario_revision_catalog_version?: string;
+  /** @format date-time */
+  scenario_revision_created_at?: string;
+  scenario_revision_id?: string;
+  /** @format int32 */
+  scenario_revision_number?: number;
+  scenario_revision_reason?:
+    | "INSTALL"
+    | "UPDATE"
+    | "ROLLBACK"
+    | "PAYLOAD_VERSION_CHANGE";
+}
+
 export interface ScenarioSimple {
   scenario_id?: string;
   scenario_name?: string;
@@ -11449,6 +11959,10 @@ export interface ScenarioSimple {
 
 export interface ScenarioStatistic {
   simulations_results_latest: SimulationsResultsLatest;
+}
+
+export interface ScenarioTargetsOutput {
+  injects: InjectPreview[];
 }
 
 export interface ScenarioTeamPlayersEnableInput {
@@ -11468,6 +11982,30 @@ export interface ScenarioTeamUserOutput {
   team_id?: string;
   /** ID of the user */
   user_id?: string;
+}
+
+export interface ScenarioUpdateInput {
+  choices?: Record<string, "KEEP_MINE" | "TAKE_APPLIED" | "EDIT">;
+  edits?: Record<string, JsonNode>;
+  local_hash?: string;
+  revision_id?: string;
+  version?: string;
+}
+
+export interface ScenarioUpdatePreviewOutput {
+  changes?: Change[];
+  conflicts?: string[];
+  current_version?: string;
+  elements?: Element[];
+  /** @format int32 */
+  last_revision?: number;
+  local_hash?: string;
+  payloads_to_install?: string[];
+  revoked_payloads?: string[];
+  scenario_id?: string;
+  target_revision_id?: string;
+  target_version?: string;
+  warnings?: string[];
 }
 
 export interface ScenarioUpdateTagsInput {
@@ -12200,6 +12738,9 @@ export interface SortObject {
 }
 
 export interface StatusPayload {
+  ai_attack_category?: string;
+  ai_attack_content?: string;
+  ai_attack_engine?: string;
   dns_resolution_hostname?: string;
   executable_file?: StatusPayloadDocument;
   file_drop_file?: StatusPayloadDocument;
@@ -12210,14 +12751,18 @@ export interface StatusPayload {
   /** @format int32 */
   network_traffic_port_src: number;
   network_traffic_protocol: string;
+  payload_argument_values?: Record<string, string>;
   payload_arguments?: PayloadArgument[];
   payload_cleanup_executor?: string;
   payload_command_blocks?: PayloadCommandBlock[];
+  payload_content_hash?: string;
   payload_description?: string;
   payload_external_id?: string;
+  payload_id?: string;
   payload_name?: string;
   payload_prerequisites?: PayloadPrerequisite[];
   payload_type?: string;
+  payload_version?: string;
 }
 
 export interface StatusPayloadDocument {
@@ -12232,13 +12777,16 @@ export interface StatusPayloadOutput {
   executable_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
   executable_file?: StatusPayloadDocument;
   file_drop_file?: StatusPayloadDocument;
+  payload_argument_values?: Record<string, string>;
   payload_arguments?: PayloadArgument[];
   payload_attack_patterns?: AttackPatternSimple[];
   payload_cleanup_executor?: string;
   payload_collector_type?: string;
   payload_command_blocks?: PayloadCommandBlock[];
+  payload_content_hash?: string;
   payload_description?: string;
   payload_external_id?: string;
+  payload_id?: string;
   payload_name?: string;
   payload_obfuscator?: string;
   /** @uniqueItems true */
@@ -12259,12 +12807,14 @@ export interface StatusPayloadOutput {
   /** @uniqueItems true */
   payload_tags?: string[];
   payload_type?: string;
+  payload_version?: string;
 }
 
 export interface Step {
   listened?: boolean;
   /** Action executed by the step */
   step_action_class: "INJECT_EXECUTION";
+  step_catalog_id?: string;
   /** Condition evaluated to determine whether the step is executed */
   step_condition_executed?: string;
   step_condition_key_types?: (
@@ -12493,6 +13043,11 @@ export interface TagUpdateInput {
    * @minLength 1
    */
   tag_name: string;
+}
+
+export interface TargetLabel {
+  kind: string;
+  label: string;
 }
 
 export interface TargetSimple {
@@ -12891,11 +13446,20 @@ export interface ThreatArsenalAction {
     | "Internal"
     | "Unknown"
   )[];
+  /** Action of the version this save replaced, when it created a version */
+  action_previous_version_id?: string;
+  /**
+   * Injects and chained steps still on the previous version
+   * @format int32
+   */
+  action_previous_version_usages?: number;
   /**
    * Tags Ids
    * @uniqueItems true
    */
   action_tags_ids?: string[];
+  /** Whether the action targets teams (players) rather than assets */
+  action_targets_teams?: boolean;
   /** Injector contract external Id */
   injector_contract_external_id?: string;
   injector_contract_has_full_details?: boolean;
@@ -12969,7 +13533,7 @@ export interface ThreatArsenalActionCreateInput {
   )[];
   action_prerequisites?: PayloadPrerequisite[];
   action_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
-  action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   action_tags?: string[];
   /** @minLength 1 */
   action_type: string;
@@ -13091,7 +13655,7 @@ export interface ThreatArsenalActionFullOutput {
   /** Action source origin */
   action_source: "COMMUNITY" | "FILIGRAN" | "MANUAL";
   /** Current action lifecycle status */
-  action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
+  action_status: "UNVERIFIED" | "VERIFIED" | "DEPRECATED" | "REVOKED";
   /** Tags attached to the action */
   action_tags?: string[];
   /** Action implementation type */
@@ -13111,6 +13675,11 @@ export interface ThreatArsenalActionFullOutput {
   executable_file?: string;
   /** Dropped file path for file-drop actions */
   file_drop_file?: string;
+}
+
+export interface ThreatArsenalActionIdOutput {
+  /** @minLength 1 */
+  action_id: string;
 }
 
 export interface ThreatArsenalActionUpdateInput {
@@ -13403,6 +13972,7 @@ export interface User {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -13460,6 +14030,7 @@ export interface User {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -13636,6 +14207,46 @@ export interface VariableInput {
    */
   variable_key: string;
   variable_value?: string;
+}
+
+export interface VariantOutput {
+  base_action_id?: string;
+  base_external_id?: string;
+  base_payload_id?: string;
+  base_values?: Record<string, JsonNode>;
+  base_version?: string;
+  conflict_target_version?: string;
+  current_values?: Record<string, JsonNode>;
+  identity_id?: string;
+  newer_base_payload_id?: string;
+  newer_base_version?: string;
+  variant_action_id?: string;
+  variant_customizable_fields?: string[];
+  variant_overrides?: Record<string, any>;
+  variant_payload_id?: string;
+  variant_version?: string;
+}
+
+export interface VariantSaveOutput {
+  action?: ThreatArsenalAction;
+  new_version?: boolean;
+  previous_action_id?: string;
+  /** @format int32 */
+  previous_version_usages?: number;
+}
+
+export interface Version {
+  changelog?: string;
+  is_current?: boolean;
+  is_latest?: boolean;
+  /** @format date-time */
+  published_at?: string;
+  scenario_id?: string;
+  /** @format int32 */
+  simulation_count?: number;
+  status?: string;
+  /** @minLength 1 */
+  version: string;
 }
 
 export interface VulnerabilityBulkInsertInput {

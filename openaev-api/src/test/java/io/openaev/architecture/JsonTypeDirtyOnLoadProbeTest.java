@@ -19,6 +19,8 @@ import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.Command;
+import io.openaev.database.model.ContentHistory;
+import io.openaev.database.model.ContentType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Exercise;
@@ -34,6 +36,7 @@ import io.openaev.database.model.NotifierType;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
 import io.openaev.database.model.PayloadCommandBlock;
+import io.openaev.database.model.PayloadIdentity;
 import io.openaev.database.model.PayloadPrerequisite;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Reporting;
@@ -43,6 +46,8 @@ import io.openaev.database.model.ReportingModule;
 import io.openaev.database.model.ReportingModuleType;
 import io.openaev.database.model.ReportingSchedule;
 import io.openaev.database.model.ReportingSchedulePeriod;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.model.ScenarioRevision;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSnapshot;
 import io.openaev.database.model.ScopeRuleSnapshot.AssetSnapshot;
@@ -73,9 +78,11 @@ import io.openaev.engine.api.WidgetType;
 import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -159,7 +166,10 @@ class JsonTypeDirtyOnLoadProbeTest extends IntegrationTest {
           "AutonomousRun.agentModes",
           "AutonomousRun.stepMirror",
           "AutonomousRun.eventMirror",
-          "AutonomousEvent.data");
+          "AutonomousEvent.data",
+          "ContentHistory.details",
+          "PayloadIdentity.overrides",
+          "ScenarioRevision.snapshot");
 
   /**
    * Fields measured although their table is not tenant-active yet, because a dirty-on-load defect
@@ -180,6 +190,7 @@ class JsonTypeDirtyOnLoadProbeTest extends IntegrationTest {
   @Autowired private ObjectMapper objectMapper;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private ScenarioComposer scenarioComposer;
 
   // -- payloads: the known-positive control, fixed by #8236 --
 
@@ -394,6 +405,50 @@ class JsonTypeDirtyOnLoadProbeTest extends IntegrationTest {
     event.setData("{\"agent_name\":\"probe\",\"status\":\"start\"}");
 
     assertNoUpdateOnLoad("autonomous_events", event, AutonomousEvent.class);
+  }
+
+  @Test
+  @DisplayName("given a content history entry with details, when loaded, then no update")
+  void given_a_content_history_with_json_fields_should_not_update_on_load() {
+    ContentHistory history = new ContentHistory();
+    history.setType(ContentType.PAYLOAD);
+    history.setAction(ContentHistory.ACTION.UPDATE);
+    history.setEntityId(UUID.randomUUID().toString());
+    history.setVersion("1.1.0");
+    history.setFromVersion("1.0.0");
+    history.setCreatedAt(Instant.now());
+    history.setUpdatedAt(Instant.now());
+    history.setTenant(defaultTenant());
+    history.setDetails(objectMapper.valueToTree(nestedMap()));
+
+    assertNoUpdateOnLoad("content_history", history, ContentHistory.class);
+  }
+
+  @Test
+  @DisplayName("given a payload identity with overrides, when loaded, then no update")
+  void given_a_payload_identity_with_json_fields_should_not_update_on_load() {
+    PayloadIdentity identity = new PayloadIdentity();
+    identity.setTenant(defaultTenant());
+    identity.setExternalId("probe-external-id");
+    identity.setOverrides(nestedMap());
+
+    assertNoUpdateOnLoad("payload_identities", identity, PayloadIdentity.class);
+  }
+
+  @Test
+  @DisplayName("given a scenario revision with a snapshot, when loaded, then no update")
+  void given_a_scenario_revision_with_json_fields_should_not_update_on_load() {
+    scenarioComposer.reset();
+    Scenario scenario = scenarioComposer.forScenario(ScenarioFixture.getScenario()).persist().get();
+    ScenarioRevision revision = new ScenarioRevision();
+    revision.setScenario(scenario);
+    revision.setTenant(defaultTenant());
+    revision.setNumber(1);
+    revision.setCatalogVersion("1.0.0");
+    revision.setReason(ScenarioRevision.Reason.INSTALL);
+    revision.setSnapshot(objectMapper.valueToTree(nestedMap()));
+
+    assertNoUpdateOnLoad("scenario_revisions", revision, ScenarioRevision.class);
   }
 
   // -- tables not active yet, probed ahead of their activation --

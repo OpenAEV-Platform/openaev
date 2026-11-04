@@ -44,6 +44,11 @@ import org.springframework.transaction.annotation.Transactional;
 public interface InjectRepository
     extends JpaRepository<Inject, String>, JpaSpecificationExecutor<Inject>, StatisticRepository {
 
+  @Query(
+      "SELECT DISTINCT i.scenario.id, d.id FROM Inject i"
+          + " JOIN i.injectorContract c JOIN c.domains d WHERE i.scenario.id IN :scenarioIds")
+  List<Object[]> findDomainIdsByScenarioIds(@Param("scenarioIds") Collection<String> scenarioIds);
+
   @NotNull
   Optional<Inject> findById(@NotNull String id);
 
@@ -653,4 +658,28 @@ public interface InjectRepository
 
   @Query("SELECT i FROM Inject i WHERE i.exercise.id = :simulationId")
   List<Inject> findAllInjectBySimulationId(@Param("simulationId") String simulationId);
+
+  /**
+   * Injects of scenarios and atomic tests running this payload; simulation injects are left out.
+   */
+  @Query(
+      "SELECT i FROM Inject i WHERE i.injectorContract.payload.id = :payloadId AND i.exercise IS NULL")
+  List<Inject> findTemplateInjectsByPayloadId(@Param("payloadId") String payloadId);
+
+  /**
+   * Per payload identity, scenario and atomic testing injects still on a version that is not the
+   * default one.
+   */
+  @Query(
+      "SELECT pi.id, COUNT(i) FROM Inject i JOIN i.injectorContract c JOIN c.payload p"
+          + " JOIN p.identity pi WHERE pi.id IN :identityIds"
+          + " AND (pi.latestPayloadId IS NULL OR pi.latestPayloadId <> p.id)"
+          + " AND i.exercise IS NULL GROUP BY pi.id")
+  List<Object[]> countTemplateInjectsOnOlderVersions(
+      @Param("identityIds") Collection<String> identityIds);
+
+  // Bulk update on a row the importer has just inserted natively, by its fresh UUID.
+  @Modifying
+  @Query("UPDATE Inject i SET i.catalogId = :catalogId WHERE i.id = :injectId")
+  void setCatalogId(@Param("injectId") String injectId, @Param("catalogId") String catalogId);
 }

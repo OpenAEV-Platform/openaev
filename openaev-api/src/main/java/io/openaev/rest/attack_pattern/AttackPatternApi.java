@@ -138,7 +138,8 @@ public class AttackPatternApi extends RestBehavior {
     attackPatternRepository.findById(attackPatternId).orElseThrow(ElementNotFoundException::new);
     Iterable<InjectorContract> contracts =
         injectorContractRepository.findAll(
-            InjectorContractSpecification.fromAttackPattern(attackPatternId));
+            InjectorContractSpecification.fromAttackPattern(attackPatternId)
+                .and(InjectorContractSpecification.withLatestPayload()));
     // See AttackPatternInitializer: the contracts' attack patterns are serialized after this
     // transaction closed, so they are hydrated while the scope is still set.
     AttackPatternInitializer.initializeFromContracts(contracts);

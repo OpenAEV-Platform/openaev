@@ -217,6 +217,9 @@ public interface UserRepository
           + "AND (u.admin = true OR c IN :capabilities)")
   List<User> adminsOrUsersHavingCapabilities(@Param("capabilities") List<String> capabilities);
 
+  @Query("SELECT DISTINCT u FROM User u JOIN u.tenants t WHERE t.id = :tenantId AND u.admin = true")
+  List<User> findAdminsByTenantId(@Param("tenantId") String tenantId);
+
   // -- Tenant-scoped --
 
   @Query("SELECT u FROM User u JOIN u.tenants t WHERE u.id IN :ids AND t.id = :tenantId")

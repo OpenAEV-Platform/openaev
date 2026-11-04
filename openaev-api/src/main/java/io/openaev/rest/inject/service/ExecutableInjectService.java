@@ -12,12 +12,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.execution.PayloadRevokedException;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.utils.command.CommandArgumentBinder;
 import io.openaev.utils.command.CommandBindingException;
 import jakarta.annotation.Resource;
@@ -27,6 +29,7 @@ import java.util.Base64;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,6 +49,7 @@ public class ExecutableInjectService {
   private final InjectStatusService injectStatusService;
   private final InjectExpectationService injectExpectationService;
   private final PayloadService payloadService;
+  private final PayloadRevocationService payloadRevocationService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -287,7 +291,10 @@ public class ExecutableInjectService {
     return Base64.getEncoder().encodeToString(computedCommand.getBytes());
   }
 
-  @Transactional(rollbackFor = Exception.class, noRollbackFor = CommandBindingException.class)
+  // A revoked payload is refused with its trace committed, so the agent does not end in TIMEOUT.
+  @Transactional(
+      rollbackFor = Exception.class,
+      noRollbackFor = {CommandBindingException.class, PayloadRevokedException.class})
   public Payload getExecutablePayloadAndUpdateInjectStatus(String injectId, String agentId)
       throws Exception {
     // Need startTime to be defined before everything else to be the most accurate start time, as
@@ -325,6 +332,12 @@ public class ExecutableInjectService {
 
     if (contract.getPayload() == null) {
       throw new ElementNotFoundException("Payload not found");
+    }
+    Optional<String> revocation = payloadRevocationService.revocationMessage(inject);
+    if (revocation.isPresent()) {
+      injectStatusService.addCompleteAgentTraceByInject(
+          injectId, agentId, ExecutionTraceStatus.ERROR, revocation.get());
+      throw new PayloadRevokedException(revocation.get());
     }
     Payload payloadToExecute = payloadService.generateDuplicatedPayload(contract.getPayload());
     JsonNode injectorContractFieldsNode = contract.getConvertedContent().get("fields");

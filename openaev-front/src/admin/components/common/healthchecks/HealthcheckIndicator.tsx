@@ -54,6 +54,7 @@ const HealthcheckIndicator: FunctionComponent<Props> = ({ healthchecks, scenario
         break;
       case 'INJECT':
       case 'TEAMS':
+      case 'PAYLOAD':
         navigate(exerciseId ? `/admin/simulations/${exerciseId}/injects` : `/admin/scenarios/${scenarioId}/injects`);
         break;
       case 'NMAP':

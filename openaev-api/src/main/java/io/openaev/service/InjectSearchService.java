@@ -25,6 +25,7 @@ import io.openaev.rest.atomic_testing.form.InjectorContractSimple;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
 import io.openaev.rest.inject.output.InjectOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectExpectationResultUtils;
 import io.openaev.utils.TargetType;
@@ -64,6 +65,7 @@ public class InjectSearchService {
   private final InjectExpectationMapper injectExpectationMapper;
 
   private final HealthCheckUtils healthCheckUtils;
+  private final PayloadRevocationService payloadRevocationService;
 
   @PersistenceContext private EntityManager entityManager;
 
@@ -205,6 +207,28 @@ public class InjectSearchService {
   }
 
   private List<InjectOutput> execInject(TypedQuery<Tuple> query) {
+    List<InjectOutput> injects = toInjectOutputs(query);
+    // One query for the whole list, not one per inject.
+    Set<String> revoked =
+        payloadRevocationService.revokedIdsAmong(
+            injects.stream()
+                .map(InjectSearchService::payloadIdOf)
+                .filter(Objects::nonNull)
+                .toList());
+    injects.forEach(
+        inject -> {
+          String payloadId = payloadIdOf(inject);
+          inject.setPayloadRevoked(payloadId != null && revoked.contains(payloadId));
+        });
+    return injects;
+  }
+
+  private static String payloadIdOf(InjectOutput inject) {
+    InjectorContract contract = inject.getInjectorContract();
+    return contract == null || contract.getPayload() == null ? null : contract.getPayload().getId();
+  }
+
+  private List<InjectOutput> toInjectOutputs(TypedQuery<Tuple> query) {
     return query.getResultList().stream()
         .map(
             tuple -> {
@@ -663,7 +687,8 @@ public class InjectSearchService {
     Join<Base, Base> payloadJoin = injectorContractJoin.join("payload", JoinType.LEFT);
     joinMap.put("payload", payloadJoin);
 
-    Join<Base, Base> collectorTypeJoin = payloadJoin.join("collectorType", JoinType.LEFT);
+    Join<Base, Base> collectorTypeJoin =
+        payloadJoin.join("identity", JoinType.LEFT).join("collectorType", JoinType.LEFT);
     joinMap.put("collectorType", collectorTypeJoin);
 
     Join<Base, Base> statusJoin = injectRoot.join("status", JoinType.LEFT);

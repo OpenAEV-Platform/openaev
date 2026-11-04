@@ -154,6 +154,8 @@ public enum Capability {
       pair(ResourceType.THREAT_ARSENAL, Action.CREATE),
       pair(ResourceType.THREAT_ARSENAL, Action.DUPLICATE)),
   DELETE_THREAT_ARSENALS(MANAGE_THREAT_ARSENALS, pair(ResourceType.THREAT_ARSENAL, Action.DELETE)),
+  REVOKE_THREAT_ARSENALS(
+      MANAGE_THREAT_ARSENALS, pair(ResourceType.PAYLOAD_REVOCATION, Action.WRITE)),
 
   // Credentials -
   ACCESS_CREDENTIALS(
@@ -518,6 +520,13 @@ public enum Capability {
       CapabilityGroup.SECURITY,
       EnumSet.of(CapabilityScope.TENANT),
       pair(ResourceType.AGENT_INSTALLER, Action.READ)),
+
+  // Sends content releases to the catalogue: meant for the collector's account alone.
+  SYNC_CATALOG(
+      null,
+      CapabilityGroup.THREAT_ARSENALS,
+      EnumSet.of(CapabilityScope.TENANT),
+      pair(ResourceType.CATALOG_SYNC, Action.CREATE)),
 
   // STIX
   MANAGE_STIX_BUNDLE(

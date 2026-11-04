@@ -15,11 +15,14 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationEventRecordRepository;
+import io.openaev.service.UserService;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +39,7 @@ class NotificationEngineServiceTest {
   private NotificationDispatchService dispatchService;
   private NotificationEventRecordRepository eventRecordRepository;
   private TenantScopedTransaction tenantTx;
+  private UserService userService;
   private NotificationEngineService engineService;
 
   private static final String TENANT_A = "tenant-a";
@@ -48,6 +52,7 @@ class NotificationEngineServiceTest {
     dispatchService = mock(NotificationDispatchService.class);
     eventRecordRepository = mock(NotificationEventRecordRepository.class);
     tenantTx = mock(TenantScopedTransaction.class);
+    userService = mock(UserService.class);
     doAnswer(
             invocation -> {
               invocation.<Runnable>getArgument(1).run();
@@ -57,7 +62,12 @@ class NotificationEngineServiceTest {
         .execute(any(TxCtx.class), ArgumentMatchers.<Runnable>any());
     engineService =
         new NotificationEngineService(
-            cacheService, matchingService, dispatchService, eventRecordRepository, tenantTx);
+            cacheService,
+            matchingService,
+            dispatchService,
+            eventRecordRepository,
+            tenantTx,
+            userService);
   }
 
   private ResolvedNotificationTrigger liveTrigger(
@@ -83,6 +93,13 @@ class NotificationEngineServiceTest {
                 java.util.Map.of())));
   }
 
+  private static User user(String id, Set<Capability> capabilities) {
+    User user = mock(User.class);
+    when(user.getId()).thenReturn(id);
+    when(user.getCapabilities()).thenReturn(capabilities);
+    return user;
+  }
+
   @Test
   @DisplayName("A matching event records one outbox row per recipient and dispatches")
   void matchingEventRecordsAndDispatches() {
@@ -91,6 +108,11 @@ class NotificationEngineServiceTest {
             Set.of(NotificationTriggerEventType.CREATE), TENANT_A, List.of("user-1", "user-2"));
     when(cacheService.getLiveTriggers(ResourceType.SCENARIO)).thenReturn(List.of(trigger));
     when(matchingService.matches(eq(trigger), any(), anyString())).thenReturn(true);
+    List<User> users =
+        List.of(
+            user("user-1", Set.of(Capability.ACCESS_ASSESSMENT)),
+            user("user-2", Set.of(Capability.ACCESS_ASSESSMENT)));
+    when(userService.find(List.of("user-1", "user-2"))).thenReturn(users);
 
     engineService.handleEvent(
         NotificationResourceCatalog.SCENARIO,
@@ -109,6 +131,34 @@ class NotificationEngineServiceTest {
             eq(NotificationTriggerType.LIVE),
             eq(List.of("user-1", "user-2")),
             anyList());
+  }
+
+  @Test
+  @DisplayName("A recipient without access to the resource is not told about it")
+  void given_recipientWithoutAccess_should_beSkipped() {
+    ResolvedNotificationTrigger trigger =
+        liveTrigger(
+            Set.of(NotificationTriggerEventType.CREATE), TENANT_A, List.of("user-1", "user-2"));
+    when(cacheService.getLiveTriggers(ResourceType.SCENARIO)).thenReturn(List.of(trigger));
+    when(matchingService.matches(eq(trigger), any(), anyString())).thenReturn(true);
+    List<User> users =
+        List.of(
+            user("user-1", Set.of(Capability.ACCESS_ASSESSMENT)),
+            user("user-2", Set.of(Capability.ACCESS_THREAT_ARSENALS)));
+    when(userService.find(List.of("user-1", "user-2"))).thenReturn(users);
+
+    engineService.handleEvent(
+        NotificationResourceCatalog.SCENARIO,
+        "scenario-id",
+        TENANT_A,
+        NotificationTriggerEventType.CREATE,
+        "My scenario");
+
+    ArgumentCaptor<List<NotificationEventRecord>> recordsCaptor = ArgumentCaptor.captor();
+    verify(eventRecordRepository).saveAll(recordsCaptor.capture());
+    assertEquals(1, recordsCaptor.getValue().size());
+    verify(dispatchService)
+        .dispatch(eq(trigger), eq(NotificationTriggerType.LIVE), eq(List.of("user-1")), anyList());
   }
 
   @Test

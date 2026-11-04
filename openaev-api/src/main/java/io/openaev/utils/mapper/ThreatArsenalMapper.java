@@ -98,6 +98,10 @@ public class ThreatArsenalMapper {
         .domains(
             injectorContract.getDomains().stream().map(d -> d.getId()).collect(Collectors.toSet()))
         .platforms(injectorContract.getPlatforms())
+        .attackPatterns(
+            injectorContract.getAttackPatterns().stream()
+                .map(AttackPattern::getId)
+                .collect(Collectors.toSet()))
         .tags(injectorContract.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
         .updatedAt(injectorContract.getUpdatedAt())
         .payload(payloadMapper.toPayloadSimple(Optional.ofNullable(injectorContract.getPayload())))

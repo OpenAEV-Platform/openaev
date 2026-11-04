@@ -58,6 +58,10 @@
     "YYYY"
   ],
   "de": [
+    "Revision",
+    "Argument {key}",
+    "Variable {key}",
+    "Installation",
     "{count} teams",
     "Admin",
     "Administrator",
@@ -187,9 +191,12 @@
     "Video",
     "Vision",
     "Website",
-    "Workstation"
+    "Workstation",
+    "Filigran v{version}"
   ],
   "es": [
+    "Variable {key}",
+    "Local",
     "{count} roles",
     "{counts} tokens",
     "Audio",
@@ -227,9 +234,15 @@
     "Tenants",
     "total",
     "Variables",
-    "Vulnerable"
+    "Vulnerable",
+    "Filigran v{version}"
   ],
   "fr": [
+    "Argument {key}",
+    "Variable {key}",
+    "Local",
+    "Installation",
+    "Versions",
     "{count} / page",
     "{count} injects",
     "{count} pts",
@@ -362,7 +375,9 @@
     "Variables",
     "Version",
     "Vision",
-    "~{count} injects"
+    "~{count} injects",
+    "Filigran v{version}",
+    "Payloads"
   ],
   "it": [
     "Audio",
@@ -404,10 +419,19 @@
     "Test",
     "Thin Client",
     "Video",
-    "Workstation"
+    "Workstation",
+    "Filigran v{version}"
   ],
-  "ja": [],
-  "ko": [],
-  "ru": [],
-  "zh": []
+  "ja": [
+    "Filigran v{version}"
+  ],
+  "ko": [
+    "Filigran v{version}"
+  ],
+  "ru": [
+    "Filigran v{version}"
+  ],
+  "zh": [
+    "Filigran v{version}"
+  ]
 }

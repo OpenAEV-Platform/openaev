@@ -28,6 +28,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.form.InjectUpdateStatusInput;
+import io.openaev.service.payload.PayloadExecutionSnapshotService;
 import io.openaev.utils.ExecutionTraceUtils;
 import io.openaev.utils.InjectStatusUtils;
 import io.openaev.utils.InjectUtils;
@@ -55,6 +56,7 @@ public class InjectStatusService {
   private final AgentRepository agentRepository;
   private final InjectAgentResolverService injectAgentResolverService;
   private final InjectUtils injectUtils;
+  private final PayloadExecutionSnapshotService payloadExecutionSnapshotService;
   private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectStatusRepository injectStatusRepository;
   private final ExecutionTraceRepositoryHelper executionTraceRepositoryHelper;
@@ -112,6 +114,16 @@ public class InjectStatusService {
     deleteInjectAuthorisationIfExecutionEnded(injectStatus);
     logInjectStatusTransition(inject, previousStatus, newStatus, null);
     return saved;
+  }
+
+  /** Final trace of one agent, e.g. a refusal before the implant could run anything. */
+  public void addCompleteAgentTraceByInject(
+      String injectId, String agentId, ExecutionTraceStatus status, String message) {
+    InjectStatus injectStatus =
+        injectStatusRepository.findByInjectId(injectId).orElseThrow(ElementNotFoundException::new);
+    Agent agent = agentRepository.findById(agentId).orElseThrow(ElementNotFoundException::new);
+    injectStatus.addTrace(status, message, ExecutionTraceAction.COMPLETE, agent);
+    injectStatusRepository.save(injectStatus);
   }
 
   public void addStartImplantExecutionTraceByInject(
@@ -390,7 +402,8 @@ public class InjectStatusService {
   }
 
   private StatusPayload getPayloadOutput(Inject inject) {
-    return injectUtils.getStatusPayloadFromInject(inject);
+    return payloadExecutionSnapshotService.stamp(
+        injectUtils.getStatusPayloadFromInject(inject), inject);
   }
 
   public InjectStatus finalizeAsError(@NotNull InjectStatus injectStatus) {

@@ -201,6 +201,7 @@ nav:
         - Injects and Expectations: usage/get-started/foundations/injects-and-expectations.md
     - Build:
       - Scenario: usage/build/scenario/scenario.md
+      - Filigran Scenarios: usage/build/scenario/scenario-catalog.md
       - Scenario generation from OpenCTI security coverage: usage/build/scenario/security-coverage.md
       - Importing injects into a Scenario: usage/build/scenario/scenario-import.md
       - Assets: usage/build/assets.md
@@ -221,6 +222,7 @@ nav:
         - Lessons: usage/build/components/lessons.md
       - Threat Arsenal:
         - Actions: usage/build/threat-arsenals/threat-arsenals.md
+        - Filigran catalog and versions: usage/build/threat-arsenals/filigran-catalog.md
         - Action properties: usage/build/threat-arsenals/action-properties.md
         - Output parsers: usage/build/threat-arsenals/output-parsers.md
         - Domains: usage/build/threat-arsenals/domains.md

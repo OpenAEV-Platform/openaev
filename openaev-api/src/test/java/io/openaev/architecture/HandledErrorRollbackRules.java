@@ -82,7 +82,19 @@ final class HandledErrorRollbackRules {
    */
   static final Map<String, String> REVIEWED_SITES =
       Map.ofEntries(
+          // --- Reads that only throw when the payload row is gone; the run then fails whole. ---
+          entry(
+              "InjectExecutionStep#run -> PayloadRevocationService.revocationMessage",
+              "read-only revocation check; a missing payload fails the step, no success is returned"),
+          entry(
+              "SimulationInjectApi#executeInject -> PayloadRevocationService.revocationMessage",
+              "read-only revocation check; a missing payload fails the request, no success is returned"),
           // --- Rethrows: the exception leaves the handler, so the rollback is honoured. ---
+          entry(
+              "ExecutableInjectService#getExecutablePayloadAndUpdateInjectStatus"
+                  + " -> PayloadRevocationService.revocationMessage",
+              "read-only revocation check that never throws CommandBindingException; the catch"
+                  + " rethrows"),
           entry(
               "AutonomousRunService#convertToManual -> WorkflowService.copyScenarioChainingWorkflowAsManual",
               "rethrows as ResponseStatusException(400)"),

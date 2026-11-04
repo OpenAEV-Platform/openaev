@@ -52,6 +52,7 @@ import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
+import PayloadRevocationBanner from './PayloadRevocationBanner';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
 
 // Human labels for the predefined expectation types carried by a payload/contract.
@@ -132,7 +133,10 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
 
   const primaryDomain = domains[0];
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
-  const status = action.action_payload?.payload_status ?? payload?.payload_status;
+  const revokedPayloadId = action.action_payload?.payload_revoked || payload?.payload_status === 'REVOKED'
+    ? action.action_payload?.payload_id ?? payload?.payload_id
+    : undefined;
+  const status = action.action_payload?.payload_revoked ? 'REVOKED' : action.action_payload?.payload_status ?? payload?.payload_status;
   const statusColor = status ? getStatusColor(theme, status) : undefined;
   const statusLabel = getStatusLabel(status);
   const name = tPick(action.action_labels);
@@ -208,6 +212,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
       gap: 2,
     }}
     >
+      {revokedPayloadId && <PayloadRevocationBanner payloadId={revokedPayloadId} />}
       <Box
         sx={{
           position: 'relative',
@@ -473,7 +478,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               : <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>}
           </Field>
 
-          <Field label="Author">
+          <Field label="Provider">
             {authorName
               ? (
                   <Box sx={{

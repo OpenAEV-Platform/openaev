@@ -29,7 +29,7 @@ import ToolBar from '../../common/ToolBar';
 import NotificationCenterTabs from '../NotificationCenterTabs';
 import DigestNotificationDialog from './DigestNotificationDialog';
 import NotificationOperationChip from './NotificationOperationChip';
-import { eventsOf, eventUrl, getFirstOperation, operationIcon } from './notificationUtils';
+import { displayMessage, eventLinkState, eventsOf, eventUrl, getFirstOperation, operationIcon } from './notificationUtils';
 
 const useStyles = makeStyles()(() => ({
   itemHead: { textTransform: 'uppercase' },
@@ -37,8 +37,8 @@ const useStyles = makeStyles()(() => ({
 }));
 
 const inlineStyles: Record<string, CSSProperties> = {
-  notification_operation: { width: '12%' },
-  notification_message: { width: '45%' },
+  notification_operation: { width: '16%' },
+  notification_message: { width: '41%' },
   notification_created_at: { width: '20%' },
   notification_name: { width: '16%' },
 };
@@ -119,6 +119,13 @@ const Notifications = () => {
     });
   };
 
+  // Opening a notification reads it, as in OpenCTI.
+  const markRead = (notification: NotificationOutput) => {
+    if (!notification.notification_is_read) {
+      onToggleRead(notification);
+    }
+  };
+
   const onDelete = (notification: NotificationOutput) => {
     deleteNotification(notification.notification_id).then(() => {
       setNotifications(notifications.filter(existing => existing.notification_id !== notification.notification_id));
@@ -145,8 +152,12 @@ const Notifications = () => {
     return eventUrl(eventsOf(notification).at(0)) ?? null;
   };
 
+  const opensDetails = (notification: NotificationOutput) => (
+    notification.notification_type === 'DIGEST' || eventsOf(notification).at(0)?.resource_type === 'CATALOG_SYNC'
+  );
+
   const isRowClickable = (notification: NotificationOutput) => (
-    notification.notification_type === 'DIGEST' || rowUrl(notification) !== null
+    opensDetails(notification) || rowUrl(notification) !== null
   );
 
   // Headers
@@ -168,7 +179,16 @@ const Notifications = () => {
         if (notification.notification_type === 'DIGEST') {
           return <em>{t('Digest with {count} events', { count: String(events.length) })}</em>;
         }
-        return events.at(0)?.message ?? '-';
+        // A sync alert lists the refused items on the next lines: shown in the details dialog.
+        const message = displayMessage(events.at(0)?.message).split('\n')[0];
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>{message}</span>
+            </TooltipTrigger>
+            <TooltipContent>{message}</TooltipContent>
+          </Tooltip>
+        );
       },
     },
     {
@@ -345,8 +365,17 @@ const Notifications = () => {
                       ? {
                           component: Link,
                           to: url,
+                          state: eventLinkState(eventsOf(notification).at(0)),
+                          onClick: () => markRead(notification),
                         }
-                      : { onClick: () => notification.notification_type === 'DIGEST' && setDigestToOpen(notification) })}
+                      : {
+                          onClick: () => {
+                            if (opensDetails(notification)) {
+                              markRead(notification);
+                              setDigestToOpen(notification);
+                            }
+                          },
+                        })}
                     sx={clickable ? undefined : { cursor: 'default' }}
                   >
                     <ListItemIcon

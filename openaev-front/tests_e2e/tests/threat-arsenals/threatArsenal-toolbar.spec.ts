@@ -16,7 +16,7 @@ import { tenantUrl } from '../../utils/url';
  * covered by threatArsenal-list-header.spec.ts.
  *
  * The assertion below is deliberately arrangement-agnostic: no horizontal
- * overflow, and the pagination reachable — in BOTH views, the card view being
+ * overflow, and the end of the row reachable — in BOTH views, the card view being
  * the tight one since it carries the sort select the list view does not.
  */
 test.describe('Threat Arsenal list toolbar', () => {
@@ -46,9 +46,8 @@ test.describe('Threat Arsenal list toolbar', () => {
       });
       expect(overflow).toBe(0);
 
-      // The pagination controls are the ones that used to fall off the edge.
-      const nextPage = page.getByRole('button', { name: 'Go to next page' });
-      await expect(nextPage).toBeInViewport();
+      // The list loads on scroll: the view toggle ends the row, where the pagination used to fall off.
+      await expect(list.listViewButton).toBeInViewport();
     });
   }
 

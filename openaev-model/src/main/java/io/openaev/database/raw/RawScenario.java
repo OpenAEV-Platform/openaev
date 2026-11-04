@@ -14,6 +14,10 @@ import java.util.Set;
  */
 public interface RawScenario {
 
+  String getScenario_author_user();
+
+  String getScenario_author_organization();
+
   /**
    * Returns the unique identifier of the scenario.
    *
@@ -233,4 +237,8 @@ public interface RawScenario {
    * @return {@code true} if the scenario is autonomous
    */
   boolean getScenario_autonomous();
+
+  String getScenario_catalog_id();
+
+  String getScenario_version();
 }

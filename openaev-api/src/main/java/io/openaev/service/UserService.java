@@ -233,6 +233,12 @@ public class UserService {
     return userRepository.findAllById(userIds);
   }
 
+  /** Platform administrators who are members of this tenant. */
+  @Transactional(readOnly = true)
+  public List<User> findAdministrators(@NotBlank final String tenantId) {
+    return userRepository.findAdminsByTenantId(tenantId);
+  }
+
   // -- SEARCH --
 
   /** Searches users with pagination (platform scope, no tenant filtering). */

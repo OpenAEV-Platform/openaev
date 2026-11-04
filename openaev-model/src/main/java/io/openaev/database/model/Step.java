@@ -98,6 +98,15 @@ public class Step implements TenantBase {
   @JsonProperty("step_condition_key_types")
   private List<PrimitiveType> conditionKeyTypes;
 
+  @Column(name = "step_catalog_id")
+  @JsonProperty("step_catalog_id")
+  private String catalogId;
+
+  @Type(JsonType.class)
+  @Column(name = "step_base_content", columnDefinition = "jsonb")
+  @JsonIgnore
+  private com.fasterxml.jackson.databind.JsonNode baseContent;
+
   @Column(name = "step_created_at")
   @JsonProperty("step_created_at")
   @CreationTimestamp

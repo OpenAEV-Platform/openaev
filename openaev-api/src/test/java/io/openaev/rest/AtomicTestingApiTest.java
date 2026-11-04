@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.ContentRevocationRepository;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -59,6 +60,9 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private ExecutorFixture executorFixture;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private PayloadComposer payloadComposer;
+  @Autowired private ContentRevocationRepository contentRevocationRepository;
 
   @Autowired private MockMvc mvc;
   @Autowired private InjectRepository injectRepository;
@@ -270,6 +274,35 @@ public class AtomicTestingApiTest extends IntegrationTest {
     mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
         .andExpect(status().is2xxSuccessful())
         .andExpect(jsonPath("$.inject_status.status_name").value("QUEUING"));
+  }
+
+  @Test
+  @DisplayName("Launching an atomic testing whose payload is revoked is refused")
+  @WithMockUser(isAdmin = true)
+  void given_revokedPayload_should_refuseLaunch() throws Exception {
+    // Arrange
+    Inject atomicTesting =
+        getAtomicTestingWrapper(null, null)
+            .withInjectorContract(
+                injectorContractComposer
+                    .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                    .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand())))
+            .persist()
+            .get();
+    Payload payload = atomicTesting.getPayload().orElseThrow();
+    ContentRevocation revocation = new ContentRevocation();
+    revocation.setType(ContentType.PAYLOAD);
+    revocation.setPayload(payload);
+    revocation.setReason("Crashes our domain controllers");
+    revocation.setTenant(payload.getTenant());
+    contentRevocationRepository.save(revocation);
+    entityManager.flush();
+    entityManager.clear();
+
+    // Act & Assert
+    mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Payload revoked: Crashes our domain controllers"));
   }
 
   @Test

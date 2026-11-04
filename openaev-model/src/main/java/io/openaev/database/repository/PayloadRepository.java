@@ -4,6 +4,7 @@ import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.FileDrop;
 import io.openaev.database.model.Payload;
 import jakarta.validation.constraints.NotNull;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -28,7 +29,43 @@ public interface PayloadRepository
   Optional<Payload> findByIdAndTenantId(
       @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
-  Optional<Payload> findByExternalId(@NotNull String externalId);
+  /** Every version of a payload: resolve through PayloadVersionService. */
+  @Query("SELECT p FROM Payload p WHERE p.identity.id = :identityId")
+  List<Payload> findAllByIdentityId(@Param("identityId") @NotNull String identityId);
+
+  // The versions of one payload share its name.
+  @Query(
+      "SELECT COUNT(p) > 0 FROM Payload p WHERE LOWER(TRIM(p.name)) = LOWER(TRIM(:name))"
+          + " AND (:payloadId IS NULL OR p.id <> :payloadId)"
+          + " AND (:identityId IS NULL OR p.identity.id <> :identityId)")
+  boolean existsOtherPayloadWithName(
+      @Param("name") String name,
+      @Param("payloadId") String payloadId,
+      @Param("identityId") String identityId);
+
+  @Query("SELECT p FROM Payload p WHERE p.contentHash = :hash AND p.tenant.id = :tenantId")
+  List<Payload> findAllByContentHash(
+      @Param("hash") String hash, @Param("tenantId") String tenantId);
+
+  @Query(
+      "SELECT c.payload FROM InjectorContract c"
+          + " WHERE c.compositeId.id = :contractId AND c.compositeId.tenantId = :tenantId")
+  Optional<Payload> findByInjectorContractId(
+      @Param("contractId") String contractId, @Param("tenantId") String tenantId);
+
+  /** Scenario or simulation name per inject running this payload; null for an atomic test. */
+  @Query(
+      "SELECT DISTINCT COALESCE(s.name, e.name) FROM Inject i"
+          + " LEFT JOIN i.scenario s LEFT JOIN i.exercise e"
+          + " WHERE i.injectorContract.payload.id = :payloadId")
+  List<String> findUsageNamesByPayloadId(@Param("payloadId") String payloadId);
+
+  @Query(
+      "SELECT c.compositeId.id FROM InjectorContract c JOIN c.payload p"
+          + " WHERE c.compositeId.id IN :contractIds"
+          + " AND (p.identity.managed = true"
+          + " OR EXISTS (SELECT 1 FROM Inject i WHERE i.injectorContract = c))")
+  Set<String> findNotDeletableContractIds(@Param("contractIds") Collection<String> contractIds);
 
   /**
    * Icon metadata for a batch of payloads in one read: {@code [id, payloadType,
@@ -37,13 +74,14 @@ public interface PayloadRepository
    * icon (the collector logo, e.g. netexec / atomic-red-team) instead of the generic agent icon.
    */
   @Query(
-      "SELECT p.id, p.type, ct.name FROM Payload p LEFT JOIN p.collectorType ct WHERE p.id IN :ids")
+      "SELECT p.id, p.type, ct.name FROM Payload p JOIN p.identity pi"
+          + " LEFT JOIN pi.collectorType ct WHERE p.id IN :ids")
   List<Object[]> findIconMetadataByIds(@Param("ids") Set<String> ids);
 
   @Query(
       value =
-          "SELECT p.payload_external_id FROM payloads p"
-              + " JOIN collectors c ON c.collector_type_id = p.payload_collector_type"
+          "SELECT pi.payload_external_id FROM payload_identities pi"
+              + " JOIN collectors c ON c.collector_type_id = pi.payload_collector_type"
               + " WHERE c.collector_id = :collectorId",
       nativeQuery = true)
   List<String> findAllExternalIdsByCollectorId(@NotNull @Param("collectorId") String collectorId);
@@ -51,7 +89,9 @@ public interface PayloadRepository
   @Modifying
   @Query(
       value =
-          "UPDATE payloads SET payload_status = :payloadStatus WHERE payload_external_id IN :payloadExternalIds AND tenant_id = :#{#tenantContext.currentTenant}",
+          "UPDATE payloads p SET payload_status = :payloadStatus FROM payload_identities pi"
+              + " WHERE pi.identity_id = p.identity_id AND pi.payload_external_id IN :payloadExternalIds"
+              + " AND NOT pi.managed AND p.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)
   void setPayloadStatusByExternalIds(
       @Param("payloadStatus") String payloadStatus,
@@ -85,71 +125,20 @@ public interface PayloadRepository
   List<Payload> findOrphansByNameAndTenantId(
       @Param("name") String name, @Param("tenantId") String tenantId);
 
-  // -- Import de-duplication (chaining pipeline): find existing payloads equivalent to an imported
-  // one, matched by name + type-specific content, scoped to the current tenant. Return type is the
-  // base Payload so no subtype import is needed; the JPQL entity name selects the discriminator.
-  // These queries are a COARSE pre-filter only: the importer additionally compares the
-  // execution-relevant fields (platforms, arch, elevation, cleanup, arguments, prerequisites,
-  // expectations) in hasSameExecutionSemantics() before reusing a candidate.
+  @Query(
+      "SELECT DISTINCT p.identity FROM Payload p WHERE p.identity.overrides IS NOT NULL"
+          + " AND p.originId IN (SELECT b.id FROM Payload b WHERE b.identity.id = :identityId)")
+  List<io.openaev.database.model.PayloadIdentity> findVariantIdentitiesOf(
+      @Param("identityId") String catalogIdentityId);
+
+  /** Installed managed payload versions, as {external id, version} pairs (F5). */
+  @Query(
+      "SELECT pi.externalId, p.version FROM Payload p JOIN p.identity pi"
+          + " WHERE pi.managed = true AND pi.uninstalled = false")
+  List<Object[]> findInstalledManagedVersions();
 
   @Query(
-      "SELECT p FROM Command p "
-          + "WHERE p.name = :name AND p.executor = :executor AND p.content = :content "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findCommandDuplicates(
-      @Param("name") String name,
-      @Param("executor") String executor,
-      @Param("content") String content,
-      @Param("tenantId") String tenantId);
-
-  /**
-   * Executable dedup candidates are matched on the attached document ID (the importer resolves the
-   * imported file to a TARGET document before deduplicating), never on {@code Document.name}:
-   * document names are explicitly non-unique, so a name match could reuse a payload wrapping a
-   * different binary.
-   */
-  @Query(
-      "SELECT p FROM Executable p "
-          + "WHERE p.name = :name AND p.executableFile.id = :documentId "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findExecutableDuplicates(
-      @Param("name") String name,
-      @Param("documentId") String documentId,
-      @Param("tenantId") String tenantId);
-
-  /**
-   * Same document-ID matching rationale as {@link #findExecutableDuplicates(String, String,
-   * String)}.
-   */
-  @Query(
-      "SELECT p FROM FileDrop p "
-          + "WHERE p.name = :name AND p.fileDropFile.id = :documentId "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findFileDropDuplicates(
-      @Param("name") String name,
-      @Param("documentId") String documentId,
-      @Param("tenantId") String tenantId);
-
-  @Query(
-      "SELECT p FROM DnsResolution p "
-          + "WHERE p.name = :name AND p.hostname = :hostname "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findDnsResolutionDuplicates(
-      @Param("name") String name,
-      @Param("hostname") String hostname,
-      @Param("tenantId") String tenantId);
-
-  @Query(
-      "SELECT p FROM NetworkTraffic p "
-          + "WHERE p.name = :name AND p.ipSrc = :ipSrc AND p.ipDst = :ipDst "
-          + "AND p.portSrc = :portSrc AND p.portDst = :portDst AND p.protocol = :protocol "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findNetworkTrafficDuplicates(
-      @Param("name") String name,
-      @Param("ipSrc") String ipSrc,
-      @Param("ipDst") String ipDst,
-      @Param("portSrc") Integer portSrc,
-      @Param("portDst") Integer portDst,
-      @Param("protocol") String protocol,
-      @Param("tenantId") String tenantId);
+      "SELECT pi.id, COUNT(p) FROM Payload p JOIN p.identity pi WHERE pi.id IN :identityIds"
+          + " AND pi.uninstalled = false GROUP BY pi.id")
+  List<Object[]> countInstalledVersions(@Param("identityIds") Collection<String> identityIds);
 }

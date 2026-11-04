@@ -13,11 +13,15 @@ import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.domain.form.DomainBaseInput;
+import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.payload.service.PayloadService;
+import io.openaev.rest.payload.service.PayloadUpsertService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.service.ZipJsonService;
+import io.openaev.service.payload.PayloadVersionService;
 import jakarta.annotation.Resource;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +45,8 @@ public class PayloadImportService {
   private final TagService tagService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final AmbientTenantBridge ambientTenantBridge;
+  private final PayloadVersionService payloadVersionService;
+  private final PayloadUpsertService payloadUpsertService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -79,10 +85,73 @@ public class PayloadImportService {
         tenantId, () -> importPayloadInTenant(ctx, file, tenantId));
   }
 
+  /**
+   * Imports a catalogue payload package straight into its managed identity as this version, name
+   * and content untouched; the caller checks its hash against the release (F3).
+   */
+  public PayloadImportResult importCatalogPayload(
+      TxCtx ctx, byte[] archive, PayloadIdentity identity, String version) throws Exception {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return ambientTenantBridge.callInTenantChecked(
+        tenantId,
+        () ->
+            synchronise(
+                ctx,
+                zipJsonApi.handleImportAsExported(
+                    archive,
+                    "payload_name",
+                    IMPORT_OPTIONS,
+                    payload -> asCatalogVersion(payload, identity, version),
+                    tenantId)));
+  }
+
+  /** Same, from the JSON version file a release carries next to its archives. */
+  public Payload importCatalogVersionFile(
+      TxCtx ctx, byte[] file, PayloadIdentity identity, String version) throws Exception {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    PayloadUpsertInput input = mapper.readValue(file, PayloadUpsertInput.class);
+    // Taken as written: the input's default expectations would change the content and its hash.
+    if (!mapper.readTree(file).has("payload_expectations")) {
+      input.setExpectations(new BaseInjectExpectation.EXPECTATION_TYPE[0]);
+    }
+    return ambientTenantBridge.callInTenantChecked(
+        tenantId,
+        () -> payloadUpsertService.createCatalogVersion(tenantId, input, identity, version));
+  }
+
+  /** A catalogue version: the identity and number come from the release, not from the package. */
+  public static Payload asCatalogVersion(
+      Payload payload, PayloadIdentity identity, String version) {
+    payload.setIdentity(identity);
+    payload.setVersion(version);
+    payload.setContentHash(null);
+    payload.setOriginId(null);
+    payload.setStatus(Payload.PAYLOAD_STATUS.VERIFIED);
+    // The package carries the dates of the platform that built it; versions are ordered by ours.
+    Instant installedAt = Instant.now();
+    payload.setCreatedAt(installedAt);
+    payload.setUpdatedAt(installedAt);
+    return payload;
+  }
+
+  /** An imported file is a new local payload: its external ID is only claimed (F4). */
+  public static Payload asLocalImport(Payload payload) {
+    payload.setVersion(Payload.FIRST_VERSION);
+    payload.setContentHash(null);
+    payload.setOriginId(null);
+    return payload;
+  }
+
   private PayloadImportResult importPayloadInTenant(TxCtx ctx, MultipartFile file, String tenantId)
       throws Exception {
-    ZipJsonService.ImportOutput<Payload> response =
-        zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null, tenantId);
+    return synchronise(
+        ctx,
+        zipJsonApi.handleImport(
+            file, "payload_name", IMPORT_OPTIONS, PayloadImportService::asLocalImport, tenantId));
+  }
+
+  private PayloadImportResult synchronise(
+      TxCtx ctx, ZipJsonService.ImportOutput<Payload> response) {
 
     List<AttackPattern> attackPatterns =
         extractRelationshipObjects(
@@ -95,6 +164,7 @@ public class PayloadImportService {
         extractRelationshipObjects(
             "tags", object -> handleTagImport(ctx, object), response.sourceDocument());
 
+    payloadVersionService.refreshLatest(response.persistedData().getIdentity());
     InjectorContract injectorContract =
         payloadService.synchroniseInjectorContractBasedOnPayload(
             response.persistedData(),

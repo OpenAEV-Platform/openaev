@@ -149,7 +149,13 @@ class SharedTenantKeySchemaCrossCheckTest extends IntegrationTest {
           "injectors_contracts_vulnerabilities_pkey",
           "injectors_injector_contracts_pkey",
           "kill_chain_phases_shortname_tenant_unique",
-          "kill_chain_phases_tenant_unique");
+          "kill_chain_phases_tenant_unique",
+          // Catalogue content (ADR-019): an external id is unique per repository, not on its own.
+          "catalog_items_item_version_tenant_unique",
+          "catalog_sync_state_repository_channel_tenant_unique",
+          "payload_identities_collector_external_id_tenant_unique",
+          "payload_identities_repository_external_id_tenant_unique",
+          "scenarios_catalog_instance_unique");
 
   /**
    * The columns the derivation drops by the globally-unique rule alone: a single-column foreign key
@@ -188,15 +194,14 @@ class SharedTenantKeySchemaCrossCheckTest extends IntegrationTest {
        ORDER BY 1
       """;
 
-  // Empty today, and that is a result rather than an oversight. injectors_contracts
-  // injector_contract_payload was the only entry: it was dropped as globally unique because the
-  // table carried a total single-column unique index on it, and that index was replaced by a
-  // per-tenant one, so the column is now a shared key and appears in shared-tenant-keys.txt.
-  // users_tenants.user_id was here before that, wrongly: a foreign key onto users says
-  // users.user_id is unique in users, not that user_id is unique in users_tenants, where it
-  // repeats once per tenant the user belongs to. The assertion below still earns its place: it
-  // fails the moment a column starts being dropped again, which is a schema decision to look at.
-  private static final List<String> KNOWN_GLOBALLY_UNIQUE_EXCLUSIONS = List.of();
+  // users_tenants.user_id was here once, wrongly: a foreign key onto users says users.user_id is
+  // unique in users, not that user_id is unique in users_tenants, where it repeats once per tenant
+  // the user belongs to. The assertion below fails the moment a column starts being dropped, which
+  // is a schema decision to look at.
+  private static final List<String> KNOWN_GLOBALLY_UNIQUE_EXCLUSIONS =
+      List.of(
+          // Primary key; (identity_id, tenant_id) only exists as the target of the payloads FK.
+          "payload_identities identity_id");
 
   /**
    * Shared keys the derivation is right about and the join guard cannot enforce yet.

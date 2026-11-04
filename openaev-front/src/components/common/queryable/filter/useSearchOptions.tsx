@@ -67,6 +67,7 @@ const useSearchOptions = () => {
       // Single polymorphic "Author" filter: one autocomplete listing persons,
       // teams and organizations, grouped by type.
       case 'action_author':
+      case 'scenario_author':
         Promise.all([
           searchPlayersAsOption(search),
           searchTeamsAsOption(search),
@@ -124,6 +125,7 @@ const useSearchOptions = () => {
       case 'action_domains':
       case 'injector_contract_domains':
       case 'inject_contract_domains':
+      case 'scenario_domains':
       case 'base_security_domains_side':
         searchDomainsByNameAsOption(search).then((response) => {
           setOptions(response.data);

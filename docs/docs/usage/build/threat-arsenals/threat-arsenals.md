@@ -14,6 +14,9 @@ Depending on their source, Actions fall into three categories:
 | **Injector-provided**   | Inserted automatically by Injectors integrated into the platform, such as Nuclei.                                      | Domains, attack patterns, tags  |
 | **Collector-provided**  | Inserted by Collectors, such as Atomic Red Team. The Collector manages them entirely.                                  | Nothing -- these are read-only  |
 
+Filigran also publishes ready-to-use Actions in a catalog, with fixed versions. See
+[Filigran catalog and versions](filigran-catalog.md).
+
 ## Why use the Threat Arsenal?
 
 - Build custom attack Actions tailored to your environment and threat landscape.
@@ -135,7 +138,8 @@ The Action list view supports bulk operations, so you can act on several Actions
 
 ### Run a test from bulk selection
 
-When you click **Run a Test** in the bulk toolbar, a drawer opens with three execution options:
+When you click **Run a Test** in the bulk toolbar, a drawer opens with three execution options. The same drawer opens
+from the **Run a test** button of a card or of the Action details, for that single Action:
 
 | Option                       | Description                                                                          | Availability                 |
 |------------------------------|----------------------------------------------------------------------------------------|------------------------------|
@@ -183,6 +187,7 @@ development, test, and production environments.
 
 ## What's next?
 
+- [Filigran catalog and versions](filigran-catalog.md) -- Install, version, customize and revoke Filigran Actions
 - [Action properties](action-properties.md) -- Reference of every field of the Action form
 - [Output parsers](output-parsers.md) -- Extract structured data from execution output
 - [Domains](domains.md) -- Understand how Domains classify Actions by security control

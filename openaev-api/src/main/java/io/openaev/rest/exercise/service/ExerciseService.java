@@ -1432,6 +1432,10 @@ public class ExerciseService {
     }
 
     List<HealthCheck> healthChecks = new ArrayList<>();
+    Exercise exercise = exercise(exerciseId);
+    if (exercise.getStatus() == ExerciseStatus.SCHEDULED) {
+      healthChecks.addAll(injectService.runRevocationChecks(exercise.getInjects()));
+    }
 
     // Scope definition check
     workflowService

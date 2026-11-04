@@ -1,4 +1,5 @@
 import {
+  BlockOutlined,
   CancelOutlined,
   DomainOutlined,
   GroupsOutlined,
@@ -264,10 +265,15 @@ const statusFacetMeta = (t: (key: string) => string): {
     label: t('Deprecated'),
     icon: () => <CancelOutlined sx={{ fontSize: 16 }} />,
   },
+  {
+    value: 'REVOKED',
+    label: t('Revoked'),
+    icon: () => <BlockOutlined sx={{ fontSize: 16 }} />,
+  },
 ];
 
 /**
- * Payload-status facet rows (Verified / Unverified / Deprecated). Counts stay
+ * Payload-status facet rows (Verified / Unverified / Deprecated / Revoked). Counts stay
  * undefined (no badge, row clickable) until the aggregation endpoint answers;
  * afterwards zero-count rows grey out like the domain facet.
  */

@@ -12,6 +12,7 @@ import { useHelper } from '../../../../../store';
 import { type AttackPattern, type Domain, type InjectorContractFullOutput } from '../../../../../utils/api-types';
 import { TO_CLASSIFY } from '../../../../../utils/domains/domainUtils';
 import { isNotEmptyField } from '../../../../../utils/utils';
+import PayloadOriginChip from '../../../threat_arsenal/PayloadOriginChip';
 import InjectIcon from '../InjectIcon';
 
 export const LIST_GRID_COLUMNS = (selectable: boolean) =>
@@ -138,11 +139,13 @@ const InjectContractListRow: FunctionComponent<Props> = ({
               minWidth: 0,
             }}
           >
-            {name}
+            {contract.injector_contract_payload_version ? `${name} · v${contract.injector_contract_payload_version}` : name}
           </Typography>
         </TooltipTrigger>
         {name && <TooltipContent>{name}</TooltipContent>}
       </Tooltip>
+
+      <PayloadOriginChip origin={contract.injector_contract_payload_origin} />
 
       <Box sx={{
         display: 'flex',
