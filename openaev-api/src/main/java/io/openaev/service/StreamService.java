@@ -1,9 +1,5 @@
 package io.openaev.service;
 
-import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
-import static java.time.Instant.now;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -17,6 +13,15 @@ import io.openaev.database.model.*;
 import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
 import io.openaev.service.utils.BulkOperationMonitor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
+import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionalEventListener;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -26,14 +31,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
-import org.springframework.http.codec.ServerSentEvent;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.event.TransactionalEventListener;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
+
+import static io.openaev.config.SessionHelper.currentUser;
+import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
+import static java.time.Instant.now;
 
 @Service
 @Slf4j
@@ -338,7 +339,7 @@ public class StreamService {
         // one of the tenant the change was made in: the user is only loaded with the organizations
         // of that scope, so it would serialize as null here and overwrite the one the consumer
         // holds. The field is left out, the consumer keeps its cached value.
-        ObjectNode instanceData = serializedUser.deepCopy();
+        ObjectNode instanceData = mapper.valueToTree(event.getInstance());
         instanceData.remove(USER_ORGANIZATION_FIELD);
         sendStreamEvent(fluxSink, event.clone(), instanceData);
       } else {
