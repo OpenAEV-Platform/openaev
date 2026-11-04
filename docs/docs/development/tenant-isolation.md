@@ -144,9 +144,9 @@ discloses no membership beyond what the caller sent.
     refused as soon as one of its tenants lacks the right, even for rows of a tenant where it
     holds the right. Use the tenant path, which checks that tenant only. Sending `X-Tenant-Ids`
     naming only tenants where the right is held works only when the right is also held in the
-    default tenant, which the regular path always checks. A client that is not a member of the
-    default tenant, even with a single membership, is refused on the regular path with or without
-    `X-Tenant-Ids`; it must use the tenant path. The web interface sends every call whose
+    default tenant, which the regular path always checks. A client that does not hold the right in
+    the default tenant, even with a single membership, is refused on the regular path with or
+    without `X-Tenant-Ids`; it must use the tenant path. The web interface sends every call whose
     decision depends on the tenant to the tenant path of the tenant it is working in, except the
     mail attachment download. That call stays on the regular path until mail attachments are
     stored under their simulation's tenant
@@ -478,8 +478,8 @@ row under an ambiguous multi-tenant scope. Use the tenant path (`/api/tenants/{t
 a single-tenant selector so the platform knows which tenant owns the new row.
 
 **An HTTP 403 "Access denied" on the regular path while the right is held in the tenant you work
-in.** The regular path also checks the default tenant, where the caller lacks the right or is not
-a member. Use the tenant path (`/api/tenants/{tenantId}/...`).
+in.** The regular path also checks the default tenant, where the caller does not hold the right.
+Use the tenant path (`/api/tenants/{tenantId}/...`).
 
 **An HTTP 403 with `TENANT_SCOPE_FORBIDDEN`.** The caller holds the right the endpoint needs in
 the tenant of the request context, but not in another tenant of its scope. Use the tenant path.
