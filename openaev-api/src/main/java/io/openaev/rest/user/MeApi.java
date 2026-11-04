@@ -88,7 +88,8 @@ public class MeApi extends RestBehavior {
     return hydrateUserForResponse(savedUser);
   }
 
-  @PutMapping(ME_URI + "/information")
+  // Tenant variant: the response carries the organization of the tenant it is read in.
+  @PutMapping({ME_URI + "/information", TENANT_ME_URI + "/information"})
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
@@ -103,7 +104,7 @@ public class MeApi extends RestBehavior {
     return hydrateUserForResponse(savedUser);
   }
 
-  @PutMapping(ME_URI + "/password")
+  @PutMapping({ME_URI + "/password", TENANT_ME_URI + "/password"})
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)
@@ -121,7 +122,7 @@ public class MeApi extends RestBehavior {
             httpRequest.getSession().getId()));
   }
 
-  @PutMapping(ME_URI + "/email")
+  @PutMapping({ME_URI + "/email", TENANT_ME_URI + "/email"})
   // Adding actionPerformed in the AccessControl annotation allows this endpoint to be audit logged.
   @Transactional
   @AccessControl(skipRBAC = true, actionPerformed = Action.WRITE, resourceType = ResourceType.USER)

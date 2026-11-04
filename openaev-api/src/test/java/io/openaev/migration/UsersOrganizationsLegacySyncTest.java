@@ -154,6 +154,59 @@ class UsersOrganizationsLegacySyncTest extends IntegrationTest {
         .containsExactlyInAnyOrder(organizationA.getId(), organizationB.getId());
   }
 
+  /** What a newer pod does: it moves the link of the tenant, and leaves the legacy column alone. */
+  private void newerPodMoves(User user, Organization from, Organization to) {
+    entityManager
+        .createNativeQuery(
+            "DELETE FROM users_organizations WHERE user_id = :id AND organization_id = :org")
+        .setParameter("id", user.getId())
+        .setParameter("org", from.getId())
+        .executeUpdate();
+    entityManager
+        .createNativeQuery(
+            "INSERT INTO users_organizations (user_id, organization_id) VALUES (:id, :org)")
+        .setParameter("id", user.getId())
+        .setParameter("org", to.getId())
+        .executeUpdate();
+  }
+
+  @Test
+  @DisplayName("An older pod clearing the column removes the organization a newer pod moved to")
+  void given_newerPodMovedTheOrganization_when_legacyClear_should_removeTheCurrentOne() {
+    // Arrange
+    Organization first = seedOrganization(tenantA);
+    Organization second = seedOrganization(tenantA);
+    User user = seedUser();
+    legacyWrite(user, first);
+    newerPodMoves(user, first, second);
+
+    // Act
+    legacyWrite(user, null);
+
+    // Assert
+    assertThat(storedOrganizationIds(user)).isEmpty();
+  }
+
+  @Test
+  @DisplayName("Deleting the organization the legacy column points to keeps the one of the user")
+  void given_legacyOrganizationDeleted_should_keepTheOrganizationTheUserMovedTo() {
+    // Arrange
+    Organization first = seedOrganization(tenantA);
+    Organization second = seedOrganization(tenantA);
+    User user = seedUser();
+    legacyWrite(user, first);
+    newerPodMoves(user, first, second);
+
+    // Act: the foreign key sets the legacy column to NULL
+    entityManager
+        .createNativeQuery("DELETE FROM organizations WHERE organization_id = :id")
+        .setParameter("id", first.getId())
+        .executeUpdate();
+
+    // Assert
+    assertThat(storedOrganizationIds(user)).containsExactly(second.getId());
+  }
+
   @Test
   @DisplayName("An older pod clearing the organization removes the link it pointed to only")
   void given_legacyClear_should_removeOnlyTheLinkItPointedTo() {

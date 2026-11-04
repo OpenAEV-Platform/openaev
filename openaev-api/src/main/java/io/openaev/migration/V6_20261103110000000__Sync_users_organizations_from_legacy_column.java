@@ -26,13 +26,20 @@ public class V6_20261103110000000__Sync_users_organizations_from_legacy_column
           """
           CREATE OR REPLACE FUNCTION sync_users_organizations_from_legacy() RETURNS trigger AS $$
           BEGIN
-            -- Only a cleared column removes the link it pointed to. A change to another
-            -- organization replaces the one of its own tenant below, and must keep the ones the
-            -- user holds in other tenants.
+            -- Only a cleared column removes a link. A change to another organization replaces the
+            -- one of its own tenant below, and must keep the ones the user holds in other tenants.
+            -- The column is no longer written by the application, so it may still point to an
+            -- organization the user left: the clear removes the organization the user holds in the
+            -- tenant of that one, whichever it is. A depth above 1 is the foreign key setting the
+            -- column to NULL because its organization was deleted: that is no clear by the user.
             IF TG_OP = 'UPDATE' AND OLD.user_organization IS NOT NULL
-               AND NEW.user_organization IS NULL THEN
-              DELETE FROM users_organizations
-              WHERE user_id = NEW.user_id AND organization_id = OLD.user_organization;
+               AND NEW.user_organization IS NULL AND pg_trigger_depth() = 1 THEN
+              DELETE FROM users_organizations uo
+              USING organizations existing, organizations legacy
+              WHERE uo.user_id = NEW.user_id
+                AND existing.organization_id = uo.organization_id
+                AND legacy.organization_id = OLD.user_organization
+                AND existing.tenant_id = legacy.tenant_id;
             END IF;
             IF NEW.user_organization IS NOT NULL THEN
               DELETE FROM users_organizations uo
