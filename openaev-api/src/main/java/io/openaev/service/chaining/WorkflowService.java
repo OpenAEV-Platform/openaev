@@ -458,7 +458,33 @@ public class WorkflowService {
             .stream()
             .map(Asset::getId)
             .toList();
-    stepService.syncScopeAssetsOnStepTemplates(workflow, scopedAssetIds);
+    stepService.syncScopeAssetsOnStepTemplates(
+        workflow, withAssetsTheWriterCannotSee(workflow, scopedAssetIds));
+  }
+
+  /**
+   * The scope assets computed for the writer, plus the assets the templates already carry that the
+   * writer is not cleared for. The scope is resolved under the writer's clearance, so an asset it
+   * cannot see is never in it: rewriting the templates from it alone would strip those assets for
+   * everyone the next time a restricted user edits the scope.
+   */
+  private List<String> withAssetsTheWriterCannotSee(
+      Workflow workflow, List<String> scopedAssetIds) {
+    List<String> onTemplates = stepService.assetIdsOnStepTemplates(workflow.getId());
+    if (onTemplates.isEmpty()) {
+      return scopedAssetIds;
+    }
+    String tenantId = workflow.getTenant() == null ? null : workflow.getTenant().getId();
+    Set<String> hidden = scopeSnapshotService.hiddenAssetIds(tenantId, onTemplates);
+    if (hidden.isEmpty()) {
+      return scopedAssetIds;
+    }
+    List<String> kept = new ArrayList<>(scopedAssetIds);
+    onTemplates.stream()
+        .filter(hidden::contains)
+        .filter(id -> !kept.contains(id))
+        .forEach(kept::add);
+    return kept;
   }
 
   /**
@@ -1215,13 +1241,20 @@ public class WorkflowService {
     if (CollectionUtils.isEmpty(ruleInputs) && CollectionUtils.isEmpty(existing)) {
       return false;
     }
+    // The configuration read drops the rules of the assets the writer is not cleared for, so the
+    // list it sends back never holds them. Absent from the input does not mean removed by the
+    // writer: those rules are left as they are, and an input cannot rewrite one through its id.
+    Set<String> hiddenRuleIds = hiddenAssetRuleIds(workflow, existing);
     // SECURITY_PLATFORM rows are engine-written snapshot rows (frozen at launch, see ADR-006),
     // never a legitimate configuration input, so the reconciliation below must neither remove nor
     // create nor mutate them: a live-steering update (updateRunWorkflowConfiguration) or an
     // emptied scope would otherwise silently destroy the frozen security-platform photos of a RUN
     // workflow, and a crafted input could mint or overwrite protected rows.
     if (CollectionUtils.isEmpty(ruleInputs)) {
-      return existing.removeIf(r -> r.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM);
+      return existing.removeIf(
+          r ->
+              r.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM
+                  && !hiddenRuleIds.contains(r.getId()));
     }
 
     List<WorkflowScopeRuleInput> deduplicated =
@@ -1243,7 +1276,8 @@ public class WorkflowService {
         existing.removeIf(
             r ->
                 r.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM
-                    && !inputIds.contains(r.getId()));
+                    && !inputIds.contains(r.getId())
+                    && !hiddenRuleIds.contains(r.getId()));
 
     // Build new rules from inputs without an ID
     List<WorkflowScopeRule> newRules =
@@ -1268,6 +1302,7 @@ public class WorkflowService {
         WorkflowScopeRule existingRule = existingById.get(ruleId);
         if (existingRule != null
             && existingRule.getRuleSource() != ScopeRuleSource.SECURITY_PLATFORM
+            && !hiddenRuleIds.contains(ruleId)
             && hasRuleChanged(existingRule, ruleInput)) {
           updateScopeRule(existingRule, ruleInput);
           changed = true;
@@ -1276,6 +1311,30 @@ public class WorkflowService {
     }
 
     return changed;
+  }
+
+  /**
+   * The ids of the rules that name an asset which exists but the writer is not cleared for. The
+   * configuration read does not return them (see {@code WorkflowConfigurationMapper}), so a save
+   * must neither remove nor change them.
+   */
+  private Set<String> hiddenAssetRuleIds(Workflow workflow, List<WorkflowScopeRule> rules) {
+    Map<String, String> assetIdByRuleId = new HashMap<>();
+    for (WorkflowScopeRule rule : rules) {
+      if (rule.getRuleSource() == ScopeRuleSource.ASSET && rule.getId() != null) {
+        assetIdByRuleId.put(rule.getId(), rule.getRuleValue());
+      }
+    }
+    if (assetIdByRuleId.isEmpty()) {
+      return Set.of();
+    }
+    String tenantId = workflow.getTenant() == null ? null : workflow.getTenant().getId();
+    Set<String> hiddenAssetIds =
+        scopeSnapshotService.hiddenAssetIds(tenantId, assetIdByRuleId.values());
+    return assetIdByRuleId.entrySet().stream()
+        .filter(entry -> hiddenAssetIds.contains(entry.getValue()))
+        .map(Map.Entry::getKey)
+        .collect(Collectors.toSet());
   }
 
   /**

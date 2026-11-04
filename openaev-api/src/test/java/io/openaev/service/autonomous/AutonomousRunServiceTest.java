@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
@@ -45,6 +46,7 @@ import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.service.FaithfulCopyTransaction;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
@@ -93,6 +95,7 @@ class AutonomousRunServiceTest {
   @Mock private InjectExpectationRepository injectExpectationRepository;
   @Mock private ScenarioService scenarioService;
   @Mock private ScenarioToExerciseService scenarioToExerciseService;
+  @Mock private FaithfulCopyTransaction faithfulCopy;
   @Mock private XtmOneClient xtmOneClient;
   @Mock private OpenAEVConfig openAEVConfig;
   @Mock private TenantWriteScopeResolver writeScopeResolver;
@@ -104,6 +107,9 @@ class AutonomousRunServiceTest {
 
   private static final TxCtx TX = TxCtx.forTenant("tenant-1");
 
+  /** The user behind the current request: the launcher a run must stamp on its simulation. */
+  private final User operator = new User();
+
   @BeforeEach
   void stubTenantWriteScope() {
     lenient().when(writeScopeResolver.tenantForWrite(any(), any())).thenReturn("tenant-1");
@@ -113,7 +119,13 @@ class AutonomousRunServiceTest {
         new DefaultOpenAEVPrincipal("operator-1", List.of(), false, "en");
     SecurityContextHolder.getContext()
         .setAuthentication(new TestingAuthenticationToken(principal, null));
-    lenient().when(userRepository.findById("operator-1")).thenReturn(Optional.of(new User()));
+    operator.setId("operator-1");
+    lenient().when(userRepository.findById("operator-1")).thenReturn(Optional.of(operator));
+    // The faithful copy runs the copy it is given: its widening of the clearance is not under test.
+    lenient()
+        .when(faithfulCopy.execute(any(), any()))
+        .thenAnswer(
+            invocation -> ((FaithfulCopyTransaction.Copy<?>) invocation.getArgument(1)).run());
   }
 
   @AfterEach
@@ -144,7 +156,7 @@ class AutonomousRunServiceTest {
     run.setStatus(AutonomousRunStatus.RUNNING);
     when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
 
-    assertThatThrownBy(() -> service.promoteToRealRun("run-1"))
+    assertThatThrownBy(() -> service.promoteToRealRun(TX, "run-1"))
         .isInstanceOf(ResponseStatusException.class);
   }
 
@@ -156,7 +168,7 @@ class AutonomousRunServiceTest {
     run.setStatus(AutonomousRunStatus.PLANNING);
     when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
 
-    assertThatThrownBy(() -> service.promoteToRealRun("run-1"))
+    assertThatThrownBy(() -> service.promoteToRealRun(TX, "run-1"))
         .isInstanceOf(ResponseStatusException.class);
   }
 
@@ -785,6 +797,8 @@ class AutonomousRunServiceTest {
     when(scenarioToExerciseService.toExercise(
             eq(scenario), any(Instant.class), eq(true), any(User.class)))
         .thenReturn(freshSimulation);
+    // The simulation is read back by id once the copy is done.
+    when(exerciseService.exercise("sim-new")).thenReturn(freshSimulation);
     when(runRepository.save(any(AutonomousRun.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
   }
@@ -802,7 +816,7 @@ class AutonomousRunServiceTest {
     when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
-    AutonomousRun restarted = service.restart("run-1");
+    AutonomousRun restarted = service.restart(TX, "run-1");
 
     // The previous orchestration is stopped (and its coordination state purged) and the previous
     // simulation torn down before the fresh one is provisioned from the SAME scenario.
@@ -834,7 +848,7 @@ class AutonomousRunServiceTest {
     when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
-    AutonomousRun restarted = service.restart("run-1");
+    AutonomousRun restarted = service.restart(TX, "run-1");
 
     verify(xtmOneClient).cancelAutonomousRun(eq("run-1"), anyString(), eq(true));
     verify(exerciseService).deleteById("sim-old");
@@ -851,13 +865,100 @@ class AutonomousRunServiceTest {
     when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
-    AutonomousRun restarted = service.restart("run-1");
+    AutonomousRun restarted = service.restart(TX, "run-1");
 
     verify(exerciseService).deleteById("sim-old");
     verify(workflowService)
         .startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any(), eq(true));
     assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
     assertThat(restarted.getSimulationId()).isEqualTo("sim-new");
+  }
+
+  @Test
+  @DisplayName(
+      "restart stamps the operator who triggers it as the launcher of the fresh simulation")
+  void given_restart_should_stampTheCallerAsLauncher() throws Exception {
+    // Arrange
+    AutonomousRun run = restartableRun(AutonomousRunStatus.COMPLETED);
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
+    stubRestartCollaborators();
+
+    // Act
+    service.restart(TX, "run-1");
+
+    // Assert: the dispatch of every inject of the run is gated by this user's clearance
+    verify(scenarioToExerciseService)
+        .toExercise(any(Scenario.class), any(Instant.class), eq(true), same(operator));
+    // The copy keeps the targets the operator is not cleared for, as a scenario launch does
+    verify(faithfulCopy).execute(eq(TX), any());
+  }
+
+  @Test
+  @DisplayName(
+      "promote to a real run stamps the operator who triggers it as the launcher of the simulation")
+  void given_promoteToRealRun_should_stampTheCallerAsLauncher() throws Exception {
+    // Arrange
+    AutonomousRun run = restartableRun(AutonomousRunStatus.PLANNED);
+    run.setPlanMode(true);
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
+    stubRestartCollaborators();
+
+    // Act
+    service.promoteToRealRun(TX, "run-1");
+
+    // Assert
+    verify(scenarioToExerciseService)
+        .toExercise(any(Scenario.class), any(Instant.class), eq(true), same(operator));
+    // The copy keeps the targets the operator is not cleared for, as a scenario launch does
+    verify(faithfulCopy).execute(eq(TX), any());
+  }
+
+  @Test
+  @DisplayName(
+      "creating a run from a scenario stamps the operator who triggers it as the launcher of the"
+          + " simulation")
+  void given_launchFromScenario_should_stampTheCallerAsLauncher() {
+    // Arrange
+    when(workflowService.isScenarioChaining("scenario-1")).thenReturn(true);
+    Scenario scenario = new Scenario();
+    scenario.setId("scenario-1");
+    scenario.setName("Ransomware kill chain");
+    scenario.setTenant(new Tenant("tenant-1"));
+    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    Exercise simulation = new Exercise();
+    simulation.setId("sim-new");
+    when(scenarioToExerciseService.toExercise(
+            eq(scenario), any(Instant.class), eq(true), any(User.class)))
+        .thenReturn(simulation);
+    when(exerciseService.exercise("sim-new")).thenReturn(simulation);
+    // save() assigns the generated id and the follow-up start reloads it by that id.
+    final AutonomousRun[] savedHolder = new AutonomousRun[1];
+    when(runRepository.save(any(AutonomousRun.class)))
+        .thenAnswer(
+            invocation -> {
+              AutonomousRun saved = invocation.getArgument(0);
+              if (saved.getId() == null) {
+                saved.setId("run-new");
+              }
+              savedHolder[0] = saved;
+              return saved;
+            });
+    when(runRepository.findById("run-new"))
+        .thenAnswer(invocation -> Optional.ofNullable(savedHolder[0]));
+    AutonomousRunCreateInput input = new AutonomousRunCreateInput();
+    input.setObjective("Prove a path to the domain controller");
+    // Explicit (empty) agent selection so the tenant-default settings lookup is never hit.
+    input.setAgentIds(List.of());
+    input.setAgentModes(Map.of());
+
+    // Act
+    service.launchFromScenario(TX, "scenario-1", input);
+
+    // Assert: the dispatch of every inject of the run is gated by this user's clearance
+    verify(scenarioToExerciseService)
+        .toExercise(any(Scenario.class), any(Instant.class), eq(true), same(operator));
+    // The copy keeps the targets the operator is not cleared for, as a scenario launch does
+    verify(faithfulCopy).execute(eq(TX), any());
   }
 
   @Test
@@ -868,7 +969,7 @@ class AutonomousRunServiceTest {
     when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
-    AutonomousRun restarted = service.restart("run-1");
+    AutonomousRun restarted = service.restart(TX, "run-1");
 
     verify(workflowService).provisionSimulationTemplateWorkflow(eq("scenario-1"), any());
     verify(workflowService, never())

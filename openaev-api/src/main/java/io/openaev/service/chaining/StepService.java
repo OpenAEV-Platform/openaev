@@ -4,8 +4,10 @@ import com.google.gson.*;
 import io.openaev.api.chaining.ActionStep;
 import io.openaev.api.chaining.ConditionMapper;
 import io.openaev.api.chaining.InjectExecutionStep;
+import io.openaev.api.chaining.StepMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.StepInput;
+import io.openaev.api.chaining.dto.StepOutput;
 import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.StepRepository;
@@ -30,6 +32,7 @@ public class StepService {
 
   private final InjectExecutionStep injectExecutionStep;
   private final StepTargetingService stepTargetingService;
+  private final ScopeSnapshotService scopeSnapshotService;
 
   private final InjectService injectService;
   private final ConditionService conditionService;
@@ -1132,6 +1135,33 @@ public class StepService {
     return this.stepRepository.findAllByStepTemplateIdIsNullAndWorkflowId(idWorkflow);
   }
 
+  /** Maps a step template for the current reader, see {@link #toReaderOutputs}. */
+  public StepOutput toReaderOutput(Step step) {
+    return toReaderOutputs(List.of(step)).getFirst();
+  }
+
+  /**
+   * Maps the templates for the current reader. A template stores its asset perimeter as a list of
+   * ids in its data, outside the reach of the marking filter, so the ids of the assets the reader
+   * is not cleared for are taken out here (one lookup for every template).
+   */
+  public List<StepOutput> toReaderOutputs(List<Step> steps) {
+    Set<String> assetIds =
+        steps.stream()
+            .flatMap(step -> StepMapper.assetIdsOf(step).stream())
+            .collect(Collectors.toSet());
+    Set<String> hidden =
+        assetIds.isEmpty()
+            ? Set.of()
+            : scopeSnapshotService.hiddenAssetIds(tenantIdOf(steps.getFirst()), assetIds);
+    return steps.stream().map(step -> StepMapper.toOutput(step, hidden)).toList();
+  }
+
+  private static String tenantIdOf(Step step) {
+    Workflow workflow = step.getWorkflow();
+    return workflow == null || workflow.getTenant() == null ? null : workflow.getTenant().getId();
+  }
+
   /**
    * Re-aligns the asset perimeter baked into every asset-centric INJECT_EXECUTION step template of
    * a workflow with the workflow scope.
@@ -1168,6 +1198,35 @@ public class StepService {
           scopedAssetIds.size());
     }
     return updated.size();
+  }
+
+  /**
+   * The asset ids baked into the asset-centric step templates of a workflow, in no particular order
+   * and without duplicates. A caller that rewrites that perimeter from what it can see uses it to
+   * find the ids it does not see, and keeps them.
+   */
+  public List<String> assetIdsOnStepTemplates(String workflowId) {
+    Set<String> assetIds = new LinkedHashSet<>();
+    for (Step template : findAllStepTemplateByWorkflow(workflowId)) {
+      if (!StepActionClass.INJECT_EXECUTION.equals(template.getStepAction())
+          || template.getData() == null
+          || !stepTargetingService.isAssetCentric(template)) {
+        continue;
+      }
+      try {
+        JsonElement assets =
+            JsonParser.parseString(template.getData()).getAsJsonObject().get("inject_assets");
+        if (assets != null && assets.isJsonArray()) {
+          assets.getAsJsonArray().forEach(asset -> assetIds.add(asset.getAsString()));
+        }
+      } catch (Exception e) {
+        log.warn(
+            "[Chaining] Failed to read the scope assets of step template {}: {}",
+            template.getId(),
+            e.getMessage());
+      }
+    }
+    return List.copyOf(assetIds);
   }
 
   /**
