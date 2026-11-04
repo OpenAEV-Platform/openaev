@@ -410,12 +410,11 @@ jobs:
   # One upload per flag with explicit files: a single upload tags every file with every flag,
   # and .codecov.yml counts uploads (after_n_builds) before it comments on the PR.
   # Codecov only reports, in its PR comment. The backend coverage rules run in
-  # coverage-backend-gate, next to the backend upload and without waiting for it, and only pass
-  # or fail: their numbers stay in the job log.
+  # coverage-backend-gate, next to the backend upload and without waiting for it.
 
   # Only after green API tests: a failed shard leaves a partial report, which reads as a drop.
   coverage-backend:
-    name: "📊 Coverage Report (backend)"
+    name: "📊 Coverage Upload (backend)"
     needs: [api-tests]
     if: ${{ !cancelled() && needs.api-tests.result == 'success' }}
     runs-on: ubuntu-24.04
@@ -423,89 +422,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v6
+      - uses: ./.github/actions/backend-coverage-report
         with:
-          java-version: "21"
-          distribution: temurin
+          no-cache: ${{ inputs.no-cache }}
 
-      # Read-only: backend-compile is the sole writer of maven-v2.
-      - name: Restore Maven dependencies
-        if: ${{ !inputs.no-cache }}
-        uses: actions/cache/restore@v6
-        with:
-          path: ~/.m2/repository
-          key: maven-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            maven-v2-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Download compiled Maven artifacts
-        uses: actions/download-artifact@v8
-        with:
-          name: backend-compiled
-          path: ~/.m2/repository/io/openaev/
-        continue-on-error: true
-
-      - name: Download API build output
-        uses: actions/download-artifact@v8
-        with:
-          name: api-build-output
-          path: openaev-api/target
-        continue-on-error: true
-
-      - name: Download all JaCoCo exec shards
-        uses: actions/download-artifact@v8
-        with:
-          pattern: jacoco-exec-shard-*
-          path: jacoco-exec
-        continue-on-error: true
-
-      - name: Merge JaCoCo exec files
-        id: jacoco-merge
-        run: |
-          echo "📦 Merging JaCoCo exec files from all shards..."
-          EXEC_FILES=$(find jacoco-exec -name 'jacoco.exec' 2>/dev/null)
-          if [ -z "$EXEC_FILES" ]; then
-            # Expected when a shard failed before uploading: report no coverage rather than
-            # turning one red shard into a second red job.
-            echo "⚠️ No JaCoCo exec files found — skipping coverage report"
-            echo "merged=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          SHARD_COUNT=$(echo "$EXEC_FILES" | wc -l)
-          cat jacoco-exec/jacoco-exec-shard-*/jacoco.exec > openaev-api/target/jacoco.exec
-          echo "merged=true" >> "$GITHUB_OUTPUT"
-          echo "✅ Merged $SHARD_COUNT shard(s)"
-
-      - name: Coverage report
-        if: steps.jacoco-merge.outputs.merged == 'true'
-        run: mvn -B -ntp -pl openaev-api jacoco:report
-
-      # coverage-backend-gate also reads this artifact on the base branch, as the base commit's
+      # coverage-backend-gate reads this artifact on the base branch, as the base commit's
       # coverage.
       - name: Upload API coverage
-        if: ${{ !cancelled() && steps.jacoco-merge.outputs.merged == 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: jacoco-api
           path: openaev-api/target/site/jacoco/jacoco.xml
           if-no-files-found: error
-
-  coverage-backend-upload:
-    name: "📊 Coverage Upload (backend)"
-    needs: [coverage-backend]
-    if: ${{ !cancelled() && needs.coverage-backend.result == 'success' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      # Codecov maps the report's package paths onto the repository files.
-      - uses: actions/checkout@v7
-
-      - name: Download API coverage
-        uses: actions/download-artifact@v8
-        with:
-          name: jacoco-api
-          path: openaev-api/target/site/jacoco
 
       - name: Upload backend coverage to Codecov
         uses: codecov/codecov-action@v7
@@ -519,15 +447,16 @@ jobs:
 
   # The backend coverage rules, on pull requests: at least 80% of the backend lines the pull request
   # changes are covered, and backend line coverage does not drop by more than 0.1 point against
-  # the base commit. Reported through the Pipeline Gate as advisory, never blocking, until it has
-  # run clean for a while on real PRs. Making it blocking means taking the job out of the
-  # advisory list in the gate below.
+  # the base commit. It builds its own report, next to coverage-backend rather than after it.
+  # Reported through the Pipeline Gate as advisory, never blocking, until it has run clean for a
+  # while on real PRs. Making it blocking means taking the job out of the advisory list in the
+  # gate below.
   coverage-backend-gate:
     name: "🔎 Backend Coverage Check"
-    needs: [coverage-backend]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.coverage-backend.result == 'success' }}
+    needs: [api-tests]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.api-tests.result == 'success' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -537,11 +466,9 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Download API coverage
-        uses: actions/download-artifact@v8
+      - uses: ./.github/actions/backend-coverage-report
         with:
-          name: jacoco-api
-          path: openaev-api/target/site/jacoco
+          no-cache: ${{ inputs.no-cache }}
 
       - uses: ./.github/actions/backend-coverage-check
         with:

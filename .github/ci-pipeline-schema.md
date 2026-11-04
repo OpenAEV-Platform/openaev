@@ -52,15 +52,14 @@ The Docker handoff checks producer conclusions every 15 seconds and aborts on an
 terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 `skipped`, so consumers stop promptly instead of waiting for artifacts that cannot arrive.
 
-### The eight real `needs:` edges
+### The seven real `needs:` edges
 
 | Job | `needs:` | Why a hard dependency is correct |
 |-----|----------|----------------------------------|
 | **Backend Package (glibc)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Needs all three outputs on disk before packaging |
 | **Backend Package (musl)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Same, inside an Alpine Maven container |
-| **Coverage Report (backend)** | API Tests | Merges every shard's JaCoCo exec into `jacoco-api`; green API tests only |
-| **Coverage Upload (backend)** | Coverage Report (backend) | Uploads `jacoco-api` to Codecov |
-| **Backend Coverage Check** | Coverage Report (backend) | Reads `jacoco-api` next to the upload, without waiting for it; pull requests only |
+| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec, uploads `jacoco-api` and the Codecov flag; green API tests only |
+| **Backend Coverage Check** | API Tests | Builds the same report itself, next to the upload; pull requests with green API tests only |
 | **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
 | **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
 | **Pipeline Gate** | 20 jobs (see below) | Aggregates results; runs `if: always()` |
@@ -123,9 +122,8 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 |-----|-------------------|---------|
 | 📦 **Backend Package (glibc)** | 15 min | Fat JAR for standard Linux → `openaev-api-jar` |
 | 📦 **Backend Package (musl)** | 15 min | Fat JAR for Alpine, built in `maven:3.9-eclipse-temurin-21-alpine` |
-| 📊 **Coverage Report (backend)** | 15 min | Merges JaCoCo shards → artifact `jacoco-api` |
-| 📊 **Coverage Upload (backend)** | 5 min | `jacoco-api` → Codecov flag `backend` |
-| 🔎 **Backend Coverage Check** | 10 min | diff-cover ≥ 80% of changed lines, line coverage drop ≤ 0.1 point against the base commit; on a failure, posts a `Backend Coverage (advisory)` check that explains it (not on fork PRs). Steps in `.github/actions/backend-coverage-check` |
+| 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → artifact `jacoco-api` + Codecov flag `backend` |
+| 🔎 **Backend Coverage Check** | 15 min | diff-cover ≥ 80% of changed lines, line coverage drop ≤ 0.1 point against the base commit; on a failure, posts a `Backend Coverage (advisory)` check that explains it (not on fork PRs). Steps in `.github/actions/backend-coverage-check` |
 | 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
 | 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
 | 🔐 **Tenant shadow verdict** | 10 min | Nightly only. Collects the shadow shards' pass or fail into one table |
