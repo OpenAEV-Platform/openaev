@@ -1,7 +1,7 @@
 package io.openaev.rest.team;
 
 import static io.openaev.rest.team.TeamApi.TENANT_TEAM_URI;
-import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
+import static io.openaev.rest.user.PlayerApi.TENANT_PLAYER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.ExerciseFixture.createDefaultExercise;
 import static io.openaev.utils.fixtures.InjectFixture.getDefaultInject;
@@ -374,7 +374,7 @@ class TeamTagsSerializationTenantScopeTest extends IntegrationTest {
       // response, then the new tag is added.
       expectEveryPlayerLazyAssociation(getTeamPlayers(seeded.team()), seeded);
       mvc.perform(
-              put(PLAYER_URI + "/{userId}", player.getId())
+              put(TENANT_PLAYER_URI + "/{userId}", tenant, player.getId())
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(
                       asJsonString(playerEditInput(player, seeded.organizationId(), editedTags)))
