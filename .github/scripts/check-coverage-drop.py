@@ -10,10 +10,11 @@ Line coverage is JaCoCo's LINE counter for the whole report: a line counts as co
 its instructions ran.
 
 No base report (artifacts expired, or no green run on the base branch for a while) is not a
-failure: the check cannot measure a drop, says so in the job summary and passes.
+failure: the check cannot measure a drop, says so in its output and passes. Codecov reports the
+numbers on the pull request; this script only passes or fails.
 
 Needs `gh` with a token that can read the repository's Actions artifacts (GH_TOKEN), and
-GITHUB_REPOSITORY. Writes its result to GITHUB_STEP_SUMMARY when it is set.
+GITHUB_REPOSITORY.
 """
 
 from __future__ import annotations
@@ -75,14 +76,6 @@ def find_base_report(repo: str, base_sha: str, base_branch: str) -> tuple[str, b
     return None
 
 
-def summary(text: str) -> None:
-    print(text)
-    path = os.environ.get("GITHUB_STEP_SUMMARY")
-    if path:
-        with open(path, "a", encoding="utf-8") as out:
-            out.write(text + "\n")
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--report", required=True, help="JaCoCo XML report of the pull request")
@@ -98,12 +91,11 @@ def main() -> int:
         head_covered, head_total = line_coverage(report.read())
     head = 100 * head_covered / head_total
 
-    summary("## Backend project coverage\n")
     base = find_base_report(repo, args.base_sha, args.base_branch)
     if base is None:
-        summary(
-            f"⚠️ No `{ARTIFACT}` report found for `{args.base_branch}` at or before "
-            f"`{args.base_sha[:10]}`: the drop cannot be measured. Pull request: {head:.2f}%."
+        print(
+            f"No {ARTIFACT} report found for {args.base_branch} at or before "
+            f"{args.base_sha[:10]}: the drop cannot be measured. Pull request: {head:.2f}%."
         )
         return 0
 
@@ -111,21 +103,15 @@ def main() -> int:
     base_covered, base_total = line_coverage(base_xml)
     base_cov = 100 * base_covered / base_total
     drop = base_cov - head
-    compared = f"`{base_sha[:10]}`"
+    compared = base_sha[:10]
     if base_sha != args.base_sha:
-        compared += f", closest report before `{args.base_sha[:10]}`"
-    summary(
-        f"| | Lines covered | Coverage |\n|---|---|---|\n"
-        f"| Base ({compared}) | {base_covered} / {base_total} | {base_cov:.2f}% |\n"
-        f"| Pull request | {head_covered} / {head_total} | {head:.2f}% |\n"
-    )
+        compared += f", closest report before {args.base_sha[:10]}"
+    print(f"Base ({compared}): {base_covered} / {base_total} lines, {base_cov:.2f}%")
+    print(f"Pull request: {head_covered} / {head_total} lines, {head:.2f}%")
     if drop > args.max_drop:
-        summary(
-            f"❌ Backend line coverage drops by {drop:.2f} points, "
-            f"more than the {args.max_drop} allowed."
-        )
+        print(f"Backend line coverage drops by {drop:.2f} points, more than {args.max_drop}.")
         return 1
-    summary(f"✅ Change: {-drop:+.2f} points (largest drop allowed: {args.max_drop}).")
+    print(f"Change: {-drop:+.2f} points, largest drop allowed {args.max_drop}.")
     return 0
 
 

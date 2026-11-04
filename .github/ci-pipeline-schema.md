@@ -150,8 +150,8 @@ and never fail it. A new check starts there so a false positive cannot block a m
 the advisory list in the gate makes it blocking.
 
 **Coverage upload is deliberately excluded.** It is best-effort reporting and must never hold a
-merge. Codecov comments, and posts only informational frontend and E2E project statuses. The
-backend coverage rules run in our own `coverage-backend-gate` job.
+merge. Codecov reports in its PR comment, and all its statuses are informational. The backend
+coverage rules that pass or fail run in our own `coverage-backend-gate` job.
 
 **The tenant shadow verdict is deliberately excluded too.** It only exists when the caller's
 `api-matrix` carries shadow entries, which today means Nightly, and it is red whenever a shadow

@@ -409,8 +409,9 @@ jobs:
   # ════════════════════════════════════════════════════════════════════
   # One upload per flag with explicit files: a single upload tags every file with every flag,
   # and .codecov.yml counts uploads (after_n_builds) before it comments on the PR.
-  # Codecov only reports. The backend coverage rules run in coverage-backend-gate, next to the
-  # backend upload and without waiting for it.
+  # Codecov only reports, in its PR comment. The backend coverage rules run in
+  # coverage-backend-gate, next to the backend upload and without waiting for it, and only pass
+  # or fail: their numbers stay in the job log.
 
   # Only after green API tests: a failed shard leaves a partial report, which reads as a drop.
   coverage-backend:
@@ -546,17 +547,12 @@ jobs:
       # Codecov calls that line partial, so its patch figure can read lower.
       - name: Check backend patch coverage
         run: |
-          set +e
           pipx run --spec diff-cover==11.0.0 diff-cover openaev-api/target/site/jacoco/jacoco.xml \
             --compare-branch=HEAD^1 \
             --src-roots openaev-api/src/main/java \
-            --fail-under 80 \
-            --markdown-report "$RUNNER_TEMP/patch-coverage.md"
-          status=$?
-          cat "$RUNNER_TEMP/patch-coverage.md" >> "$GITHUB_STEP_SUMMARY"
-          exit $status
+            --fail-under 80
 
-      # Runs even when the patch check failed, so that both results reach the summary.
+      # Runs even when the patch check failed, so that both results show in the log.
       - name: Check backend project coverage
         if: ${{ !cancelled() }}
         env:

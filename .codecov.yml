@@ -5,13 +5,21 @@ codecov:
     after_n_builds: 3
 
 coverage:
-  # The backend coverage rules run in the coverage-backend-gate CI job, so Codecov posts no
-  # backend status. Frontend and E2E get a project status that only reports: its description
-  # shows the change against the base commit, and it never turns red. `default: false` and
-  # `patch: false` turn off the `default` statuses that the org Global YAML adds.
+  # Every status only reports and stays green: the backend coverage rules that pass or fail run in
+  # the coverage-backend-gate CI job. A backend status that Codecov counts as failed still adds a
+  # ":x:" line to the PR comment. `default: false` turns off the statuses the org Global YAML adds.
   status:
     project:
       default: false
+      # `removed_code_behavior: adjust_base` is Codecov's default, but only when it is written here
+      # does a failed project status add its line to the comment.
+      backend:
+        target: auto
+        threshold: 0.2%
+        informational: true
+        removed_code_behavior: adjust_base
+        flags:
+          - backend
       frontend:
         target: auto
         informational: true
@@ -22,7 +30,13 @@ coverage:
         informational: true
         flags:
           - e2e
-    patch: false
+    patch:
+      default: false
+      backend:
+        target: 80%
+        informational: true
+        flags:
+          - backend
 
 flag_management:
   individual_flags:
