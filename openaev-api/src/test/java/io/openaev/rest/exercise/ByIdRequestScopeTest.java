@@ -2,16 +2,11 @@ package io.openaev.rest.exercise;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.config.ProductionActiveTables;
-import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
  * Simulation and scenario by-id reads resolve the row inside the request's tenant scope, with the
@@ -22,16 +17,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Simulation and scenario by-id reads in the request scope, production tables")
-class ByIdRequestScopeTest extends ByIdRequestScopeTestBase {
-
-  // The autonomous launch is EE-gated; the mock's license checks default to "active".
-  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
 
   @Nested
   @DisplayName("Tenant route")

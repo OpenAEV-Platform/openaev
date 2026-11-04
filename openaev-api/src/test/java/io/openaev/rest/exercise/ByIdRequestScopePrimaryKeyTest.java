@@ -8,9 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
-import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.inject.form.DirectInjectInput;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
@@ -19,9 +17,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
@@ -37,17 +32,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  */
 @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
 @DisplayName("Simulation and scenario primary key loads in the request scope, production tables")
-class ByIdRequestScopePrimaryKeyTest extends ByIdRequestScopeTestBase {
+class ByIdRequestScopePrimaryKeyTest extends ByIdRequestScopeProductionTablesTestBase {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
-
-  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   // -- REQUESTS --
 
