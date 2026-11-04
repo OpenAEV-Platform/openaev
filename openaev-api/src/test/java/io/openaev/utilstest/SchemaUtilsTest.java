@@ -155,6 +155,6 @@ public class SchemaUtilsTest extends IntegrationTest {
 
     assertThat(payloadStatusProperty.isFilterable()).isTrue();
     assertThat(payloadStatusProperty.getAvailableValues())
-        .isEqualTo(List.of("UNVERIFIED", "VERIFIED", "DEPRECATED"));
+        .isEqualTo(List.of("UNVERIFIED", "VERIFIED", "DEPRECATED", "REVOKED"));
   }
 }

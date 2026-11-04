@@ -44,8 +44,8 @@ test.describe('Threat Arsenal list header', () => {
     await expect(threatArsenalList.addButton).toBeVisible();
   });
 
-  test('the create button is no longer inside the pagination row', async () => {
-    await expect(threatArsenalList.paginationRow).toBeVisible();
-    await expect(threatArsenalList.paginationRow.getByTestId('button-create')).toHaveCount(0);
+  test('the create button is not inside the results toolbar', async () => {
+    await expect(threatArsenalList.resultsCount).toBeVisible();
+    await expect(threatArsenalList.resultsCount.getByTestId('button-create')).toHaveCount(0);
   });
 });

@@ -21,13 +21,13 @@ const MarketplaceViewToggle: FunctionComponent<Props> = ({ value, onChange }) =>
     >
       <Tooltip>
         <TooltipTrigger asChild>
-          <ButtonGroupItem value="grid" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
+          <ButtonGroupItem value="grid" aria-label={t('Grid view')} data-testid="marketplace-view-cards" icon={<GridViewOutlined fontSize="small" />} />
         </TooltipTrigger>
         <TooltipContent>{t('Grid view')}</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+          <ButtonGroupItem value="list" aria-label={t('List view')} data-testid="marketplace-view-list" icon={<ViewListOutlined fontSize="small" />} />
         </TooltipTrigger>
         <TooltipContent>{t('List view')}</TooltipContent>
       </Tooltip>

@@ -256,7 +256,7 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "scenario_author_user")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonProperty("scenario_author_user")
+  @JsonProperty(value = "scenario_author_user", access = JsonProperty.Access.READ_ONLY)
   @Queryable(dynamicValues = true, filterable = true, path = "authorUser.id")
   @Schema(description = "User author of the scenario", type = "string")
   private User authorUser;
@@ -264,7 +264,7 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "scenario_author_organization")
   @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonProperty("scenario_author_organization")
+  @JsonProperty(value = "scenario_author_organization", access = JsonProperty.Access.READ_ONLY)
   @Queryable(dynamicValues = true, filterable = true, path = "authorOrganization.id")
   @Schema(description = "Organization author of the scenario", type = "string")
   private Organization authorOrganization;

@@ -113,9 +113,17 @@ class MakeInjectorContractUniqueIndexesTenantAwareMigrationTest extends Integrat
       // Arrange
       execute("DROP INDEX IF EXISTS " + PAYLOAD_INDEX);
       execute(
-          "INSERT INTO payloads (payload_id, payload_type, payload_name) VALUES ('"
+          "INSERT INTO payload_identities (identity_id, tenant_id, payload_source) VALUES"
+              + " ('colliding-identity-id', '"
+              + DEFAULT_TENANT_UUID
+              + "', 'MANUAL')");
+      execute(
+          "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id,"
+              + " payload_version, identity_id) VALUES ('"
               + COLLIDING_PAYLOAD_ID
-              + "', 'Command', 'colliding payload')");
+              + "', 'Command', 'colliding payload', '"
+              + DEFAULT_TENANT_UUID
+              + "', '1.0.0', 'colliding-identity-id')");
       insertContract("collision-a", null, COLLIDING_PAYLOAD_ID);
       insertContract("collision-b", null, COLLIDING_PAYLOAD_ID);
 

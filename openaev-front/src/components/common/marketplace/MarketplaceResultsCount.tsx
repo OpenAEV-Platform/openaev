@@ -6,7 +6,11 @@ import { useFormatter } from '../../i18n';
 // Result count of the marketplace toolbars (integrations, threat arsenal, scenarios).
 const MarketplaceResultsCount: FunctionComponent<{ count: number }> = ({ count }) => {
   const { t } = useFormatter();
-  return <Chip label={String(count === 1 ? t('1 result') : t('{count} results', { count }))} />;
+  return (
+    <span data-testid="marketplace-results-count">
+      <Chip label={String(count === 1 ? t('1 result') : t('{count} results', { count }))} />
+    </span>
+  );
 };
 
 export default MarketplaceResultsCount;

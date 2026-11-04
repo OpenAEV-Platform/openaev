@@ -9,7 +9,7 @@ class ThreatArsenalListPage {
   readonly searchContainer: Locator;
   readonly gridViewButton: Locator;
   readonly listViewButton: Locator;
-  readonly paginationRow: Locator;
+  readonly resultsCount: Locator;
   readonly filterField: Locator;
   readonly clearFiltersButton: Locator;
 
@@ -22,7 +22,7 @@ class ThreatArsenalListPage {
     this.searchContainer = page.getByPlaceholder('Search these results...');
     this.gridViewButton = page.getByRole('radio', { name: 'Grid view' });
     this.listViewButton = page.getByRole('radio', { name: 'List view' });
-    this.paginationRow = page.locator('.MuiTablePagination-root');
+    this.resultsCount = page.getByTestId('marketplace-results-count');
     this.filterField = page.getByPlaceholder('Add filter');
     // Anchored rather than named: the accessible name follows the UI language.
     this.clearFiltersButton = page.getByTestId('clear-filters');
@@ -64,7 +64,7 @@ class ThreatArsenalListPage {
 
   /**
    * The URL changes before the page mounts, so wait for the header and the
-   * pagination row here, once, instead of in the first action of each test.
+   * results count here, once, instead of in the first action of each test.
    * WebKit gets a longer budget: see WEBKIT_PAGE_LOAD_TIMEOUT.
    */
   async waitForLoad() {
@@ -76,7 +76,7 @@ class ThreatArsenalListPage {
       state: 'visible',
       timeout,
     });
-    await this.paginationRow.waitFor({
+    await this.resultsCount.waitFor({
       state: 'visible',
       timeout,
     });
