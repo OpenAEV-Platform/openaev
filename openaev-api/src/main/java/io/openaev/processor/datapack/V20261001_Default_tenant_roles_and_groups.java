@@ -10,12 +10,10 @@ import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.service.DataPackService;
 import io.openaev.service.TenantRoleService;
-import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.service.account.AdminPrivilegeService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -77,7 +75,8 @@ public class V20261001_Default_tenant_roles_and_groups extends DataPack {
               return;
             }
             Role role =
-                findDefaultRole(roles, roleName, tenantId)
+                tenantRoleService
+                    .findDefaultRole(roleName, tenantId)
                     .orElseGet(
                         () ->
                             tenantRoleService.createRoleInternal(
@@ -87,6 +86,12 @@ public class V20261001_Default_tenant_roles_and_groups extends DataPack {
                                 capabilities,
                                 tenantId));
             Group group = new Group();
+            if (PresetTenantData.ADMIN.equals(roleName)) {
+              String adminGroupId = AdminPrivilegeService.adminGroupId(tenantId);
+              if (groupRepository.findByIdAndTenantId(adminGroupId, tenantId).isEmpty()) {
+                group.setId(adminGroupId);
+              }
+            }
             group.setName(roleName);
             group.setDescription(roleName);
             group.setDefaultUserAssignation(false);
@@ -129,20 +134,5 @@ public class V20261001_Default_tenant_roles_and_groups extends DataPack {
         role.getName(),
         role.getId(),
         tenantId);
-  }
-
-  /**
-   * Skips the well-known "Admin" role owned by the bootstrap "Administrators" group (see {@link
-   * AdminPrivilegeService}), so the Admin group binds to the Flyway-seeded one instead of sharing
-   * it.
-   */
-  private Optional<Role> findDefaultRole(List<Role> roles, String roleName, String tenantId) {
-    String bootstrapAdminRoleId =
-        AbstractPrivilegeService.getUUIDFromName(
-            AdminPrivilegeService.ADMIN_ACCESS.roleId(), tenantId);
-    return roles.stream()
-        .filter(role -> roleName.equals(role.getName()))
-        .filter(role -> !bootstrapAdminRoleId.equals(role.getId()))
-        .findFirst();
   }
 }
