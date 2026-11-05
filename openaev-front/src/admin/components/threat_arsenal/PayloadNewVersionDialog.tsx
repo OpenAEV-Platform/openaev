@@ -45,7 +45,6 @@ interface Props {
 // Above this many, a list of every inject no longer fits a dialog: one row per older version (all
 // of it in one tick), its injects on demand, and the Versions tab for a finer choice.
 const LARGE_LIST = 10;
-const PAGE_SIZE = 10;
 
 interface Source {
   version: PayloadVersionOutput;
@@ -64,7 +63,6 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moving, setMoving] = useState(false);
   // Large list: how many injects of each older version are shown (0 = folded).
-  const [shown, setShown] = useState<Record<string, number>>({});
   // A few: every version open, each foldable from its group row.
   const [foldedSmall, setFoldedSmall] = useState<Set<string>>(new Set());
   const toggleFoldedSmall = (id: string) => setFoldedSmall((previous) => {
@@ -265,23 +263,9 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
         const id = source.version.payload_id ?? source.version.payload_version ?? '';
         const ids = source.usages.map(usage => usage.usage_id);
         const chosen = ids.filter(usageId => selected.has(usageId)).length;
-        const visible = shown[id] ?? 0;
         return (
           <div key={id}>
             <div style={FDS_GROUP_ROW_STYLE}>
-              <IconButton
-                size="sm"
-                priority="tertiary"
-                aria-expanded={visible > 0}
-                aria-label={visible > 0
-                  ? t('Hide the injects on v{version}', { version: source.version.payload_version ?? '' })
-                  : t('Show the injects on v{version}', { version: source.version.payload_version ?? '' })}
-                icon={visible > 0 ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                onClick={() => setShown({
-                  ...shown,
-                  [id]: visible > 0 ? 0 : PAGE_SIZE,
-                })}
-              />
               {canMigrate && (
                 <Checkbox
                   aria-label={t('Every inject on v{version}', { version: source.version.payload_version ?? '' })}
@@ -303,27 +287,6 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
                 </Text>
               )}
             </div>
-            {visible > 0 && (
-              <>
-                <Table size="small" sx={FDS_TABLE_SX} aria-label={t('Injects on v{version}', { version: source.version.payload_version ?? '' })}>
-                  <TableBody>{usageRows(source.usages.slice(0, visible))}</TableBody>
-                </Table>
-                {visible < ids.length && (
-                  <div style={{ padding: '4px 12px 8px' }}>
-                    <Button
-                      priority="tertiary"
-                      size="sm"
-                      onClick={() => setShown({
-                        ...shown,
-                        [id]: visible + PAGE_SIZE,
-                      })}
-                    >
-                      {t('Show {count} more', { count: String(Math.min(PAGE_SIZE, ids.length - visible)) })}
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
           </div>
         );
       })}
