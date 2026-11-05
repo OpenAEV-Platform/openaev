@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
@@ -167,7 +168,8 @@ class InjectAssetsMarkingUpdateTest extends IntegrationTest {
       input.setAssets(List.of(green.getId(), added.getId()));
 
       // -- ACT --
-      atomicTestingService.createOrUpdate(input, inject.getId());
+      atomicTestingService.createOrUpdate(
+          TxCtx.forTenant(TenantContext.getCurrentTenant()), input, inject.getId());
       entityManager.flush();
 
       // -- ASSERT --

@@ -53,6 +53,14 @@ public interface InjectRepository
   Optional<Inject> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   /**
+   * By-id read keyed on a request's resolved tenant scope rather than on the v1 ambient tenant,
+   * which is set only on the tenant-prefixed route.
+   */
+  Optional<Inject> findByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
+
+  boolean existsByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
+
+  /**
    * The inject's id and its tenant, and nothing else. For the one read that has to cross every
    * tenant because its input carries no tenant: an inbound email routed by the inject id in its
    * footer. Loading the entity there would pull its associations across the tenant boundary to

@@ -78,6 +78,7 @@ import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.JpaUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
@@ -291,6 +292,29 @@ public class InjectService {
     return this.injectRepository
         .findById(injectId)
         .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
+  }
+
+  /**
+   * Looks an inject up by id inside the request's tenant scope: the path tenant on the tenant
+   * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route.
+   */
+  public Optional<Inject> findInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
+    return this.injectRepository.findByIdAndTenantIdIn(
+        injectId, TxCtxScopeUtils.requestReadScope(ctx));
+  }
+
+  /** Loads an inject inside the request's tenant scope. Throws if not found there. */
+  public Inject inject(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
+    return findInScope(ctx, injectId)
+        .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
+  }
+
+  /** Validates that the inject exists inside the request's tenant scope. Throws if not. */
+  public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
+    if (!this.injectRepository.existsByIdAndTenantIdIn(
+        injectId, TxCtxScopeUtils.requestReadScope(ctx))) {
+      throw new ElementNotFoundException("Inject not found with id: " + injectId);
+    }
   }
 
   /**
