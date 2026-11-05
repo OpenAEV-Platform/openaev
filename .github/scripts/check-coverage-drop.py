@@ -6,8 +6,13 @@ that report as the `jacoco-api` artifact on every push to the base branch, so th
 the newest such artifact whose commit is the base commit or one of its ancestors: when the run on
 the base commit itself has not finished yet, the closest earlier one stands in for it.
 
-Line coverage is JaCoCo's LINE counter for the whole report: a line counts as covered once one of
-its instructions ran.
+The base commit is the tip of the target branch, the first parent of the merge commit CI checks
+out. Codecov compares with the commit the pull request branched from instead. The two are the
+same once the branch is up to date with its target, so a pull request that is behind and shows
+another drop in Codecov is fixed by a rebase.
+
+Line coverage is counted the way Codecov counts it (see jacoco_lines.py): a line where only some
+branches ran is partial, and partial lines are not covered.
 
 No base report (artifacts expired, or no green run on the base branch for a while) is not a
 failure: the check cannot measure a drop, says so in its output and passes. Codecov reports the
@@ -25,9 +30,11 @@ import json
 import os
 import subprocess
 import sys
-import xml.etree.ElementTree as ET
 import zipfile
 
+from jacoco_lines import line_totals, report_lines
+
+SRC_ROOT = "openaev-api/src/main/java"
 ARTIFACT = "jacoco-api"
 WORKFLOW = ".github/workflows/core-ci.yml"
 # Artifacts come newest first; past this many pages the base branch has had no usable run for long.
@@ -40,12 +47,8 @@ def gh_api(path: str) -> bytes:
 
 def line_coverage(xml: bytes) -> tuple[int, int]:
     """Covered and total lines of a JaCoCo XML report."""
-    root = ET.fromstring(xml)
-    for counter in root.findall("counter"):
-        if counter.get("type") == "LINE":
-            covered = int(counter.get("covered"))
-            return covered, covered + int(counter.get("missed"))
-    raise ValueError("the report has no LINE counter")
+    hits, partials, misses = line_totals(report_lines(xml, SRC_ROOT))
+    return hits, hits + partials + misses
 
 
 def is_ancestor(repo: str, sha: str, of: str) -> bool:

@@ -76,12 +76,13 @@ For every feature, ensure coverage of:
 
 ## Coverage Requirements
 
-- **Changed lines**: a PR covers at least 80% of the backend lines it changes. CI checks it with diff-cover
-  in the `coverage-backend-gate` job (advisory in the Pipeline Gate for now).
+- **Changed lines**: a PR covers at least 80% of the backend lines it changes. CI checks it in the
+  `coverage-backend-gate` job (advisory in the Pipeline Gate for now), counting lines like Codecov: a
+  line where only some branches ran is partial, and does not count as covered.
 - **Project**: a PR does not drop backend line coverage by more than 0.1 point against its base commit.
   The same job checks it.
 - **Check it locally** after `mvn test`, which writes `openaev-api/target/site/jacoco/jacoco.xml`:
-  `pipx run --spec diff-cover==11.0.0 diff-cover openaev-api/target/site/jacoco/jacoco.xml --compare-branch=origin/main --src-roots openaev-api/src/main/java --fail-under 80`
+  `python3 .github/scripts/check-patch-coverage.py --report openaev-api/target/site/jacoco/jacoco.xml --base origin/main --fail-under 80`
 
 ## Output Format
 
@@ -108,7 +109,7 @@ Test class: path/to/TestClass.java
 
 ## Verification
 - `mvn test -pl openaev-api -Dtest="{TestClass}"` → ✅ PASS
-- diff-cover on the changed lines → ✅ ≥ 80%
+- `check-patch-coverage.py` on the changed lines → ✅ ≥ 80%
 ```
 
 ## Boundaries
@@ -116,6 +117,6 @@ Test class: path/to/TestClass.java
 - Only create or modify test files, fixtures, and composers
 - Never change production code to make tests pass — flag the issue instead
 - Always verify: `mvn test -Dtest="{TestClass}"` after creating tests
-- Always check the coverage of the changed lines with diff-cover after adding tests
+- Always check the coverage of the changed lines with `check-patch-coverage.py` after adding tests
 - If a test requires a complex setup, create a dedicated fixture — never inline test data
 - For tenant isolation tests: write the tests, then flag `multi-tenancy-reviewer` to verify the isolation logic is correct

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Post a check run that explains why the backend coverage rules failed on a pull request.
 
-The backend-coverage-check action runs the two rules (diff-cover on the changed lines, then
-check-coverage-drop.py on the whole backend) and only passes or fails. When one fails, this check
-run says, in words, which one, with the tool output, how to fix it, and why Codecov's comment can
-show other numbers. It is posted with the PR checks app, like the PR title check, so it shows as
-its own check on the pull request.
+The backend-coverage-check action runs the two rules (check-patch-coverage.py on the changed
+lines, then check-coverage-drop.py on the whole backend) and only passes or fails. When one
+fails, this check run says, in words, which one, with the tool output, how to fix it, and why
+Codecov's comment can show slightly other numbers. It is posted with the PR checks app, like the
+PR title check, so it shows as its own check on the pull request.
 
 Needs `gh`, GH_TOKEN with checks:write, and GITHUB_REPOSITORY.
 """
@@ -39,28 +39,27 @@ def fix(min_coverage: str) -> str:
 ### How to fix it
 
 - **Changed lines**: add or extend tests that run the lines listed above. To check locally after \
-`mvn test`: `pipx run --spec diff-cover==11.0.0 diff-cover \
-openaev-api/target/site/jacoco/jacoco.xml --compare-branch=origin/main \
---src-roots openaev-api/src/main/java --fail-under {min_coverage}`.
+`mvn test`: `python3 .github/scripts/check-patch-coverage.py \
+--report openaev-api/target/site/jacoco/jacoco.xml --base origin/main \
+--fail-under {min_coverage}`. A line where only some branches ran is partial, and counts as \
+not covered: cover the other branches too.
 - **Whole backend**: the drop usually comes from the same untested lines, or from tests that were \
 removed or no longer reach the code. Covering the changed lines is often enough.
 """
 
 
 CODECOV = """\
-### Why Codecov can show other numbers
+### Codecov's numbers
 
-This check is the rule; Codecov's comment and checks only report. They can disagree:
-
-- A line where only one branch of an `if` ran counts as covered here, and as partial, so \
-missing, in Codecov.
-- This check compares with the latest report of the target branch, Codecov with the pull \
-request's base commit, which can be older.
+This check counts lines the way Codecov does, so its figures should match Codecov's comment. \
+Codecov compares with the commit the pull request branched from, this check with the latest \
+report of the target branch. They are the same once your branch is up to date with its target, so \
+when the two disagree and your branch is behind, rebase it or update it with the target branch.
 """
 
 
 def patch_figure(log: str) -> str:
-    """Changed lines coverage as diff-cover prints it, for the check title."""
+    """Changed lines coverage as check-patch-coverage.py prints it, for the check title."""
     if "No lines with coverage information" in log:
         return "none"
     found = re.search(r"^Coverage: ([\d.]+)%", log, re.MULTILINE)
@@ -100,7 +99,7 @@ def main() -> int:
     parser.add_argument("--min-coverage", required=True, help="changed lines rule, in percent")
     parser.add_argument("--max-drop", required=True, help="whole backend rule, in points")
     parser.add_argument("--patch-outcome", required=True, help="outcome of the changed lines step")
-    parser.add_argument("--patch-log", required=True, help="output of diff-cover")
+    parser.add_argument("--patch-log", required=True, help="output of check-patch-coverage.py")
     parser.add_argument("--project-outcome", required=True, help="outcome of the drop step")
     parser.add_argument("--project-log", required=True, help="output of check-coverage-drop.py")
     args = parser.parse_args()
@@ -120,7 +119,7 @@ def main() -> int:
         [
             rules(args.min_coverage, args.max_drop),
             "### Result\n",
-            section(patch_ok, "Changed lines (diff-cover)", patch_log),
+            section(patch_ok, "Changed lines", patch_log),
             section(project_ok, "Whole backend", project_log),
             fix(args.min_coverage),
             CODECOV,
