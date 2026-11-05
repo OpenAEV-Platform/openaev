@@ -55,7 +55,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -118,13 +117,6 @@ class InjectSpelPredicateReadScopeTest extends IntegrationTest {
 
     @Test
     @DisplayName("given a challenge played in B should enrich it with B's simulation on B's route")
-    @Disabled(
-        "Blocked by Inject.java's leftover v1 @Filter(\"tenantFilter\"): enrichChallengeWithExercisesOrScenarios"
-            + " calls injectRepository.findAllById, an HQL/Criteria read the filter still narrows to the"
-            + " ambient (default) tenant on this route, on top of the inspector's own correct scope. Proven"
-            + " green with @Filter removed from Inject (see T38.17 report); re-enable once the real injects"
-            + " activation removes it (confirmed its removal needs its own fix: it regresses"
-            + " AtomicTestingApiTest#given_atomicTestingInTenantX_should_notAppearInTenantYSearch).")
     void given_challengePlayedInB_should_enrichWithBSimulation() throws Exception {
       // -- ARRANGE --
       // A plain injector (no payload support, which otherwise cascades its own companion
@@ -374,11 +366,6 @@ class InjectSpelPredicateReadScopeTest extends IntegrationTest {
 
     @Test
     @DisplayName("given an endpoint targeted in B should list it from B's route")
-    @Disabled(
-        "Blocked by Inject.java's leftover v1 @Filter(\"tenantFilter\"): this is an HQL query (FROM Inject i"
-            + " JOIN i.assets a), which the filter still narrows to the ambient (default) tenant on this"
-            + " route, on top of the inspector's own correct scope. Proven green with @Filter removed from"
-            + " Inject (see T38.17 report); re-enable once the real injects activation removes it.")
     void given_endpointTargetedInB_should_listFromBRoute() throws Exception {
       // -- ARRANGE --
       Exercise exercise = ExerciseFixture.getExercise();
@@ -421,11 +408,6 @@ class InjectSpelPredicateReadScopeTest extends IntegrationTest {
 
     @Test
     @DisplayName("given an asset group targeted in B should list it from B's route")
-    @Disabled(
-        "Blocked by Inject.java's leftover v1 @Filter(\"tenantFilter\"): this is an HQL query (FROM Inject i"
-            + " JOIN i.assetGroups ag), which the filter still narrows to the ambient (default) tenant on"
-            + " this route, on top of the inspector's own correct scope. Proven green with @Filter removed"
-            + " from Inject (see T38.17 report); re-enable once the real injects activation removes it.")
     void given_assetGroupTargetedInB_should_listFromBRoute() throws Exception {
       // -- ARRANGE --
       Exercise exercise = ExerciseFixture.getExercise();
