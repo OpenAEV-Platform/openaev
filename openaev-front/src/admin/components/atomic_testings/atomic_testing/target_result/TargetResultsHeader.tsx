@@ -29,6 +29,7 @@ const TYPE_LABELS: Record<string, string> = {
   PLAYERS: 'Player',
   AGENT: 'Agent',
   AI_TARGETS: 'AI target',
+  MANUAL: 'Manual target',
 };
 
 const TargetResultsHeader: FunctionComponent<Props> = ({ target, position, total, onSelectPrevious, onSelectNext }) => {

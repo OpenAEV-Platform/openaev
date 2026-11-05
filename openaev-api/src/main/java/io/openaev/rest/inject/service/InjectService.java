@@ -1329,6 +1329,9 @@ public class InjectService {
           this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId);
       case TEAMS -> this.executionTraceRepository.findByInjectIdAndTeamId(injectId, targetId);
       case PLAYERS -> this.executionTraceRepository.findByInjectIdAndPlayerId(injectId, targetId);
+      // Network injectors report one inject-level trace for all their manual targets (raw IPs or
+      // hostnames from the content), so no trace belongs to a single manual target.
+      case MANUAL -> List.of();
       default -> throw new BadRequestException("Target type " + targetType + " is not supported");
     };
   }

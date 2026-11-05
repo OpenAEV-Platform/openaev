@@ -2502,6 +2502,8 @@
   "Manual expectations": "Ожидания от руководства",
   "Manual expectations will appear here when injects require human review": "Ручные ожидания появятся здесь, когда инъекции потребуют проверки человеком",
   "Manual launch": "Запуск руководства",
+  "Manual target": "Ручная цель",
+  "Manual targets": "Ручные цели",
   "Manual targets (comma-separated)": "Ручные цели (разделенные запятыми)",
   "Manual template path (-t)": "Путь к шаблону вручную (-t)",
   "Manual validations": "Ручные проверки",

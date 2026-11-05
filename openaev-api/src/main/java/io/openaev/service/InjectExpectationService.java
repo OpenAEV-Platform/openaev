@@ -765,6 +765,9 @@ public class InjectExpectationService {
             // resolved through the asset lookup.
             case ASSETS, AI_TARGETS ->
                 injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
+            // Expectations are created per asset / agent / team / player: a manual target (a raw
+            // IP or hostname from the inject content) never carries any.
+            case MANUAL -> Collections.<BaseInjectExpectation>emptyList();
             default ->
                 throw new RuntimeException(
                     "Target type "
@@ -808,6 +811,8 @@ public class InjectExpectationService {
                 injectId,
                 targetId,
                 injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, targetId));
+        // A manual target (a raw IP or hostname from the inject content) never carries any.
+        case MANUAL -> Collections.<BaseInjectExpectation>emptyList();
         default ->
             throw new RuntimeException(
                 "Target type "

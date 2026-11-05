@@ -2502,6 +2502,8 @@
   "Manual expectations": "Aspettative del manuale",
   "Manual expectations will appear here when injects require human review": "Le aspettative manuali appariranno qui quando le inject richiederanno una revisione umana",
   "Manual launch": "Manuale di lancio",
+  "Manual target": "Obiettivo manuale",
+  "Manual targets": "Obiettivi manuali",
   "Manual targets (comma-separated)": "Obiettivi manuali (separati da virgole)",
   "Manual template path (-t)": "Percorso manuale del template (-t)",
   "Manual validations": "Validazioni manuali",
