@@ -110,8 +110,7 @@ class SecurityCoverageInjectServiceWriteTenantContractTest extends IntegrationTe
 
     // Read the created placeholder inject straight from the database, not through the persistence
     // context: the inject<->contract association is a shared-tenant-key join keyed on the inject's
-    // own tenant_id (injects is not v2-active yet, so that tenant_id is the ambient default, not
-    // the scenario's), so re-reading it through Hibernate would silently re-derive whichever copy
+    // own tenant_id, so re-reading it through Hibernate would silently re-derive whichever copy
     // matches the inject's own tenant rather than proving a row was actually written against the
     // contract resolved for the scenario's tenant.
     Number placeholderInjectCount =
@@ -127,6 +126,27 @@ class SecurityCoverageInjectServiceWriteTenantContractTest extends IntegrationTe
         .as(
             "a placeholder inject for the missing vulnerability was created against the contract"
                 + " resolved for the scenario's own tenant")
+        .isEqualTo(1L);
+
+    // The inject's own tenant_id must be the scenario's tenant, not whatever the caller's ambient
+    // TenantContext happened to carry: TenantBaseListener only stamps a tenant when none is set
+    // explicitly, so an unset tenant here would silently land in the ambient default instead of
+    // the scenario's own (non-default) tenant.
+    Number placeholderInjectInScenarioTenant =
+        (Number)
+            entityManager
+                .createNativeQuery(
+                    "SELECT count(*) FROM injects WHERE inject_scenario = :scenarioId AND"
+                        + " inject_injector_contract = :contractId AND tenant_id = :tenantId")
+                .setParameter("scenarioId", scenario.getId())
+                .setParameter("contractId", ManualContract.MANUAL_DEFAULT)
+                .setParameter("tenantId", otherTenantId)
+                .getSingleResult();
+    assertThat(placeholderInjectInScenarioTenant.longValue())
+        .as(
+            "the placeholder inject's own tenant_id is the scenario's tenant ("
+                + otherTenantId
+                + "), not the caller's ambient default tenant")
         .isEqualTo(1L);
   }
 

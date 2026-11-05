@@ -444,7 +444,14 @@ public class SecurityCoverageInjectService {
                     Stream.of(
                         injectAssistantService.buildManualInject(
                             contractForPlaceholder, vulnerabilityId, null, null, null)))
-            .peek(inject -> inject.setScenario(scenario))
+            .peek(
+                inject -> {
+                  inject.setScenario(scenario);
+                  // Explicit, not left to TenantBaseListener's ambient fallback: this placeholder
+                  // belongs to the scenario regardless of which tenant the caller's thread-local
+                  // happens to carry.
+                  inject.setTenant(scenario.getTenant());
+                })
             .toList();
     injectService.saveAll(placeholdersInject);
 
