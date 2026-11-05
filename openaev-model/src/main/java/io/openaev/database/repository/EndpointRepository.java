@@ -106,14 +106,8 @@ public interface EndpointRepository
       @NotNull @Param("tenantId") String tenantId);
 
   @Query(
-      value =
-          "select e.*"
-              + ACTIVITY_STATUS_SELECT
-              + " from assets e where e.asset_type = '"
-              + AssetType.Values.ENDPOINT_TYPE
-              + "' and e.asset_external_reference in (:externalReferences) and e.tenant_id = :tenantId"
-              + " and not exists (select 1 from agents ag where ag.agent_asset = e.asset_id)",
-      nativeQuery = true)
+      "select e from Endpoint e where e.externalReference in :externalReferences"
+          + " and e.tenant.id = :tenantId and e.agents is empty")
   List<Endpoint> findAgentlessByExternalReferences(
       @NotNull @Param("externalReferences") Set<String> externalReferences,
       @NotNull @Param("tenantId") String tenantId);

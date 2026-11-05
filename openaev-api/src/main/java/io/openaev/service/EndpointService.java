@@ -475,9 +475,11 @@ public class EndpointService implements AuditLoggedService {
     }
     // Create new agents/endpoints
     if (!inputs.isEmpty()) {
-      // An endpoint left without agents (e.g. its executor was deleted) is taken back as is
+      // Reuse an endpoint left without agents, e.g. after its executor was recreated
       Map<String, Endpoint> agentlessEndpoints =
           findAgentlessEndpointsByExternalReference(inputs, tenantId);
+      endpointsToSave.forEach(
+          endpoint -> agentlessEndpoints.remove(endpoint.getExternalReference()));
       for (AgentRegisterInput inputToUpdate : inputs) {
         endpointToSave = agentlessEndpoints.remove(inputToUpdate.getExternalReference());
         if (endpointToSave != null) {
@@ -847,7 +849,7 @@ public class EndpointService implements AuditLoggedService {
     return endpointRepository
         .findAgentlessByExternalReferences(externalReferences, tenantId)
         .stream()
-        .collect(Collectors.toMap(Endpoint::getExternalReference, e -> e, (a, b) -> a));
+        .collect(Collectors.toMap(Endpoint::getExternalReference, e -> e));
   }
 
   private Endpoint newEndpoint(AgentRegisterInput input) {
