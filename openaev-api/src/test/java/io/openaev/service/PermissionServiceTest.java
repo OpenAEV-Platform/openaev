@@ -2,12 +2,15 @@ package io.openaev.service;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.aop.AccessControlAspect;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
@@ -316,7 +319,7 @@ public class PermissionServiceTest extends IntegrationTest {
     Inject inject = mock(Inject.class);
     when(inject.getParentResourceId()).thenReturn(RESOURCE_ID);
     when(inject.getParentResourceType()).thenReturn(ResourceType.SIMULATION);
-    when(injectService.inject(injectId)).thenReturn(inject);
+    when(injectService.inject(any(TxCtx.class), eq(injectId))).thenReturn(inject);
 
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
@@ -331,7 +334,7 @@ public class PermissionServiceTest extends IntegrationTest {
     Inject inject = mock(Inject.class);
     when(inject.getParentResourceId()).thenReturn(RESOURCE_ID);
     when(inject.getParentResourceType()).thenReturn(ResourceType.SIMULATION);
-    when(injectService.inject(injectId)).thenReturn(inject);
+    when(injectService.inject(any(TxCtx.class), eq(injectId))).thenReturn(inject);
 
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(false);
@@ -386,7 +389,7 @@ public class PermissionServiceTest extends IntegrationTest {
     Inject inject = mock(Inject.class);
     when(inject.getParentResourceId()).thenReturn(RESOURCE_ID);
     when(inject.getParentResourceType()).thenReturn(ResourceType.SIMULATION);
-    when(injectService.inject(injectId)).thenReturn(inject);
+    when(injectService.inject(any(TxCtx.class), eq(injectId))).thenReturn(inject);
 
     User user = getUser(USER_ID, false);
     when(grantService.hasWriteGrant(RESOURCE_ID, user)).thenReturn(true);
@@ -495,7 +498,7 @@ public class PermissionServiceTest extends IntegrationTest {
     Inject inject = mock(Inject.class);
     when(inject.getParentResourceId()).thenReturn(injectId);
     when(inject.getParentResourceType()).thenReturn(ResourceType.ATOMIC_TESTING);
-    when(injectService.inject(injectId)).thenReturn(inject);
+    when(injectService.inject(any(TxCtx.class), eq(injectId))).thenReturn(inject);
 
     User user = getUser(USER_ID, false);
     user.setGroups(List.of(getGroup(Capability.LAUNCH_ASSESSMENT)));
@@ -512,7 +515,7 @@ public class PermissionServiceTest extends IntegrationTest {
     Inject inject = mock(Inject.class);
     when(inject.getParentResourceId()).thenReturn(injectId);
     when(inject.getParentResourceType()).thenReturn(ResourceType.ATOMIC_TESTING);
-    when(injectService.inject(injectId)).thenReturn(inject);
+    when(injectService.inject(any(TxCtx.class), eq(injectId))).thenReturn(inject);
 
     User user = getUser(USER_ID, false);
     when(grantService.hasLaunchGrant(injectId, user)).thenReturn(false);

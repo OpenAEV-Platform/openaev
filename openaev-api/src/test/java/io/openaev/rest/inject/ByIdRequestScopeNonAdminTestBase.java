@@ -151,6 +151,23 @@ abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeTestBase
   }
 
   /**
+   * {@code GET /injects/execution-traces}: the handler itself resolves no inject and checks no
+   * scope (it defers that to the inject's own activation), so the status this returns is entirely
+   * the {@code @AccessControl} gate's decision, i.e. {@link
+   * io.openaev.service.PermissionService#resolveTarget}'s own by-id load.
+   */
+  int injectExecutionTraces(Route route, String injectId, String targetId, String targetType)
+      throws Exception {
+    String uri = injectsBaseUri(route) + "/execution-traces";
+    return performStatus(
+        route.with(
+            get(uri)
+                .param("injectId", injectId)
+                .param("targetId", targetId)
+                .param("targetType", targetType)));
+  }
+
+  /**
    * {@code PUT /injects/{exerciseId}/{injectId}}: updates {@code injectId} under {@code
    * exerciseId}.
    */

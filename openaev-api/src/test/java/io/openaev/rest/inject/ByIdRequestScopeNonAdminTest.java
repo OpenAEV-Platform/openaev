@@ -117,8 +117,11 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
   class GrantHolderReads {
 
     @Test
-    @DisplayName("given a grant on their own atomic testing, a foreign atomic testing is refused")
-    void given_grantOnOwnAtomicTesting_should_refuseForeignAtomicTesting() throws Exception {
+    @DisplayName(
+        "given a grant on their own atomic testing, an out-of-scope atomic testing is not found"
+            + " by id")
+    void given_grantOnOwnAtomicTesting_should_notFindOutOfScopeAtomicTestingById()
+        throws Exception {
       // Arrange
       String callerTenant = tenantHelper.createTenantWithCurrentUser("by-id-grant-holder").getId();
       String ownResourceId = seedAtomicTesting(callerTenant);
@@ -135,7 +138,10 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
       int readPlainInject = getInject(route, otherTenantAtomicTestingId);
 
       // Assert: a resource-specific grant does not reach a resource it was never named on.
-      assertThat(new int[] {read, readPlainInject}).containsExactly(403, 403);
+      // PermissionService#resolveTarget's own by-id load runs before the grant check and refuses
+      // an out-of-scope atomic testing with 404, the same answer every other by-id endpoint of
+      // this family gives for a row outside the caller's scope.
+      assertThat(new int[] {read, readPlainInject}).containsExactly(404, 404);
       assertThat(atomicTestingExists(otherTenantAtomicTestingId)).isTrue();
     }
 
@@ -187,8 +193,12 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
       int read = getAtomicTesting(route, injectId);
       int readPlainInject = getInject(route, injectId);
 
-      // Assert
-      assertThat(new int[] {read, readPlainInject}).containsExactly(403, 403);
+      // Assert: this used to be 403 for a reason this class never pinned down; with
+      // resolveTarget's own by-id load now in the request's scope, it is 404 instead, the same
+      // answer every other by-id endpoint of this family gives for an out-of-scope row. The "no
+      // selector" case right below is unaffected (its row is genuinely in the caller's only
+      // membership) and stays 403, so whatever still denies it there is unrelated to this fix.
+      assertThat(new int[] {read, readPlainInject}).containsExactly(404, 404);
       assertThat(atomicTestingExists(injectId)).isTrue();
     }
 
@@ -221,6 +231,49 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
       assertThat(readOnTenantRoute).isEqualTo(200);
       assertThat(new int[] {readOnNonPrefixedRoute, readPlainInjectOnNonPrefixedRoute})
           .containsExactly(403, 403);
+    }
+  }
+
+  @Nested
+  @DisplayName("The access-control gate's own by-id load, on an endpoint with no body-level guard")
+  class AccessControlGateReadsTheInjectInScope {
+
+    @Test
+    @DisplayName(
+        "given an out-of-scope inject, the capability holder is refused before the handler, not"
+            + " let through to an empty result")
+    void given_outOfScopeInject_should_refuseBeforeTheHandlerRuns() throws Exception {
+      // Arrange
+      String callerTenant =
+          memberWithEveryTenantCapability("by-id-execution-traces-capability-holder");
+      String otherTenantInjectId = seedAtomicTesting(otherTenant);
+      Route route = tenantRoute(callerTenant);
+
+      // Act
+      int status = injectExecutionTraces(route, otherTenantInjectId, "nonexistent-team", "TEAMS");
+
+      // Assert: the capability is role-level and would otherwise pass regardless of which tenant
+      // the inject belongs to (confirmed by the capability-holder's own-tenant case below), so a
+      // 404 here is PermissionService#resolveTarget's own by-id load, refusing an inject outside
+      // the caller's scope, not the handler's execution-trace query (which runs no scope check at
+      // all).
+      assertThat(status).isEqualTo(404);
+    }
+
+    @Test
+    @DisplayName("given the caller's own tenant's inject, the request reaches the handler")
+    void given_ownTenantInject_should_reachTheHandler() throws Exception {
+      // Arrange
+      String callerTenant = memberWithEveryTenantCapability("by-id-execution-traces-own");
+      String ownInjectId = seedAtomicTesting(callerTenant);
+      Route route = tenantRoute(callerTenant);
+
+      // Act
+      int status = injectExecutionTraces(route, ownInjectId, "nonexistent-team", "TEAMS");
+
+      // Assert: the capability reaches the caller's own tenant, so the refusal above is the by-id
+      // scope and not a setup mistake; 200 with an empty list, since no trace matches the team.
+      assertThat(status).isEqualTo(200);
     }
   }
 
