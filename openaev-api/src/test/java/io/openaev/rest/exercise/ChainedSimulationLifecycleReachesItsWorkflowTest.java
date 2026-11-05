@@ -51,14 +51,16 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * A status change or a deletion of a chained simulation reaches its workflow, whatever the caller's
- * scope: the workflow is read and written in the simulation's own tenant. A cancelled simulation
- * has no run left active, a started one has a run, a paused one has its run stopped, a reset one
- * has no executed run or chained inject left, and a deleted one leaves no attack path behind.
+ * A status change or a deletion of a chained simulation reaches its workflow: the workflow is read
+ * and written in the simulation's own tenant. A cancelled simulation has no run left active, a
+ * started one has a run, a paused one has its run stopped, a reset one has no executed run or
+ * chained inject left, and a deleted one leaves no attack path behind.
  *
  * <p>The simulation lives in the default tenant. Each call is sent on the non-prefixed route by a
- * caller whose scope excludes that tenant (a platform admin who is a member of another tenant only,
- * or of no tenant at all) and by a member of the simulation's tenant: the outcome is the same.
+ * member of the simulation's tenant, and by a caller whose scope excludes it (a platform admin who
+ * is a member of another tenant only). A by-id load is resolved in the request scope, so that
+ * second caller answers "not found" and changes nothing: the workflow follows the simulation's
+ * tenant for the callers that reach the simulation at all.
  *
  * <p>The production active tables are armed, so the class follows what production enforces. The
  * rows are committed, because the reset clears the persistence context, and removed after each
@@ -278,6 +280,27 @@ class ChainedSimulationLifecycleReachesItsWorkflowTest extends IntegrationTest {
         .containsExactly(WorkflowStatus.STOP);
   }
 
+  /**
+   * A caller whose scope excludes the simulation's tenant does not reach it: the by-id load is
+   * resolved in the request scope, so the call answers "not found" and leaves the simulation, its
+   * runs and its injects exactly as they were.
+   */
+  private void assertDidNotReachTheSimulation(
+      int httpStatus, Snapshot before, ChainedSimulation rows) {
+    assertThat(httpStatus).isEqualTo(404);
+    assertThat(snapshot(rows)).isEqualTo(before);
+  }
+
+  /** The state a status change moves, read before the call and compared with it after. */
+  private record Snapshot(ExerciseStatus status, List<WorkflowStatus> runs, int injects) {}
+
+  private Snapshot snapshot(ChainedSimulation rows) {
+    return new Snapshot(
+        simulationStatus(rows.simulationId()),
+        runStatuses(rows.simulationId()),
+        injectCount(rows.injectId()));
+  }
+
   private void assertResetReachedTheWorkflow(int httpStatus, ChainedSimulation rows) {
     assertThat(httpStatus).isEqualTo(200);
     assertThat(simulationStatus(rows.simulationId())).isEqualTo(ExerciseStatus.SCHEDULED);
@@ -295,19 +318,21 @@ class ChainedSimulationLifecycleReachesItsWorkflowTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given a scope without its tenant should cancel the run")
-    void given_scopeWithoutItsTenant_should_cancelTheRun() throws Exception {
+    @DisplayName("given a scope without its tenant should not reach the simulation")
+    void given_scopeWithoutItsTenant_should_notReachTheSimulation() throws Exception {
       // Arrange
       joinOtherTenantOnly();
       ChainedSimulation rows =
           commitChainedSimulation(
               ExerciseFixture.createRunningAttackExercise(), WorkflowStatus.RUN, false);
       try {
+        Snapshot before = snapshot(rows);
+
         // Act
         int httpStatus = changeStatus(rows.simulationId(), ExerciseStatus.CANCELED);
 
         // Assert
-        assertCancelReachedTheWorkflow(httpStatus, rows);
+        assertDidNotReachTheSimulation(httpStatus, before, rows);
       } finally {
         remove(rows);
       }
@@ -339,19 +364,21 @@ class ChainedSimulationLifecycleReachesItsWorkflowTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given a scope without its tenant should start a run")
-    void given_scopeWithoutItsTenant_should_startARun() throws Exception {
+    @DisplayName("given a scope without its tenant should not reach the simulation")
+    void given_scopeWithoutItsTenant_should_notReachTheSimulation() throws Exception {
       // Arrange
       joinOtherTenantOnly();
       ChainedSimulation rows =
           commitChainedSimulation(
               ExerciseFixture.createDefaultAttackExercise(Instant.now()), null, false);
       try {
+        Snapshot before = snapshot(rows);
+
         // Act
         int httpStatus = changeStatus(rows.simulationId(), ExerciseStatus.RUNNING);
 
         // Assert
-        assertStartReachedTheWorkflow(httpStatus, rows);
+        assertDidNotReachTheSimulation(httpStatus, before, rows);
       } finally {
         remove(rows);
       }
@@ -383,19 +410,21 @@ class ChainedSimulationLifecycleReachesItsWorkflowTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given a scope without its tenant should stop the run")
-    void given_scopeWithoutItsTenant_should_stopTheRun() throws Exception {
+    @DisplayName("given a scope without its tenant should not reach the simulation")
+    void given_scopeWithoutItsTenant_should_notReachTheSimulation() throws Exception {
       // Arrange
       joinOtherTenantOnly();
       ChainedSimulation rows =
           commitChainedSimulation(
               ExerciseFixture.createRunningAttackExercise(), WorkflowStatus.RUN, false);
       try {
+        Snapshot before = snapshot(rows);
+
         // Act
         int httpStatus = changeStatus(rows.simulationId(), ExerciseStatus.PAUSED);
 
         // Assert
-        assertPauseReachedTheWorkflow(httpStatus, rows);
+        assertDidNotReachTheSimulation(httpStatus, before, rows);
       } finally {
         remove(rows);
       }
@@ -427,8 +456,8 @@ class ChainedSimulationLifecycleReachesItsWorkflowTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given a scope without its tenant should clear the run")
-    void given_scopeWithoutItsTenant_should_clearTheRun() throws Exception {
+    @DisplayName("given a scope without its tenant should not reach the simulation")
+    void given_scopeWithoutItsTenant_should_notReachTheSimulation() throws Exception {
       // Arrange
       joinOtherTenantOnly();
       ChainedSimulation rows =
@@ -437,11 +466,13 @@ class ChainedSimulationLifecycleReachesItsWorkflowTest extends IntegrationTest {
               WorkflowStatus.END,
               true);
       try {
+        Snapshot before = snapshot(rows);
+
         // Act
         int httpStatus = changeStatus(rows.simulationId(), ExerciseStatus.SCHEDULED);
 
         // Assert
-        assertResetReachedTheWorkflow(httpStatus, rows);
+        assertDidNotReachTheSimulation(httpStatus, before, rows);
       } finally {
         remove(rows);
       }
@@ -496,8 +527,8 @@ class ChainedSimulationLifecycleReachesItsWorkflowTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given a scope without its tenant should delete its attack path")
-    void given_scopeWithoutItsTenant_should_deleteItsAttackPath() throws Exception {
+    @DisplayName("given a scope without its tenant should not reach the simulation")
+    void given_scopeWithoutItsTenant_should_notReachTheSimulation() throws Exception {
       // Arrange
       joinOtherTenantOnly();
       ChainedSimulation rows =
@@ -511,8 +542,10 @@ class ChainedSimulationLifecycleReachesItsWorkflowTest extends IntegrationTest {
         int httpStatus = deleteSimulation(rows.simulationId());
 
         // Assert
-        assertThat(httpStatus).isEqualTo(200);
-        assertThat(attackPathExecutionCount(rows.simulationId())).isZero();
+        assertThat(httpStatus).isEqualTo(404);
+        assertThat(attackPathExecutionCount(rows.simulationId()))
+            .as("the attack path of a simulation the caller does not reach is left behind")
+            .isEqualTo(1);
       } finally {
         remove(rows);
       }
