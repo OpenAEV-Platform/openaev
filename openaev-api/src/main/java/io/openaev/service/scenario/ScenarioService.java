@@ -64,6 +64,7 @@ import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.AuthorService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowService;
@@ -146,6 +147,7 @@ public class ScenarioService {
   private final TagRuleService tagRuleService;
   private final InjectService injectService;
   private final UserService userService;
+  private final AuthorService authorService;
   private final TenantSettingsService tenantSettingsService;
   private final CustomDashboardService customDashboardService;
 
@@ -177,11 +179,19 @@ public class ScenarioService {
     return computeAndCreateScenario(scenario);
   }
 
+  /** A scenario a user creates or imports is authored by them; system creations have no author. */
+  @Transactional
+  public Scenario createAuthoredScenario(@NotNull final Scenario scenario) {
+    authorService.authorByCurrentUser(scenario);
+    return computeAndCreateScenario(scenario);
+  }
+
   @Transactional
   public Scenario createScenarioChaining(@NotNull final Scenario scenario)
       throws ChainingException {
 
     computeEmails(scenario);
+    authorService.authorByCurrentUser(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
     Scenario savedScenario = this.scenarioRepository.save(scenario);
     workflowService.creationWorkflow(savedScenario);
@@ -197,7 +207,7 @@ public class ScenarioService {
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
     Scenario preparedScenario = prepareScenarioFromScenarioInput(tenantId, scenarioInput);
-    Scenario scenario = computeAndCreateScenario(preparedScenario);
+    Scenario scenario = createAuthoredScenario(preparedScenario);
     this.injectService.createInjectsFromInjectorContractInput(
         null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
     KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
@@ -1374,6 +1384,7 @@ public class ScenarioService {
   private Scenario copyScenario(Scenario scenario) {
     Scenario scenarioDuplicate = new Scenario();
     scenarioDuplicate.setTenant(scenario.getTenant());
+    authorService.authorByCurrentUser(scenarioDuplicate);
     scenarioDuplicate.setName(duplicateString(scenario.getName()));
     scenarioDuplicate.setCategory(scenario.getCategory());
     scenarioDuplicate.setDescription(scenario.getDescription());

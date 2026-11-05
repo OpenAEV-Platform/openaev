@@ -132,7 +132,7 @@ public class ScenarioApi extends RestBehavior {
               .map(this.customDashboardService::customDashboard)
               .orElse(null));
     }
-    Scenario savedScenario = this.scenarioService.createScenario(scenario);
+    Scenario savedScenario = this.scenarioService.createAuthoredScenario(scenario);
 
     // If the engine is chaining, create and link a workflow to the scenario.
     if (Boolean.TRUE.equals(input.getIsChaining())) {

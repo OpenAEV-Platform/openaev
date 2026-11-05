@@ -910,7 +910,7 @@ public class V1_DataImporter implements Importer {
                         .toArray(Scenario.Dependency[]::new))
             .orElse(new Scenario.Dependency[0]));
 
-    return scenarioService.createScenario(scenario);
+    return scenarioService.createAuthoredScenario(scenario);
   }
 
   private void importDocuments(

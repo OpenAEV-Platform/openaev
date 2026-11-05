@@ -6,7 +6,6 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -15,8 +14,9 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
+import io.openaev.database.model.author.Authored;
+import io.openaev.database.model.author.Authorship;
 import io.openaev.helper.CollectorTypeNameSerializer;
-import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.jsonapi.IncludeOption;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
@@ -67,7 +67,7 @@ import org.hibernate.type.SqlTypes;
       @DiscriminatorMapping(value = AiAttack.AI_ATTACK_TYPE, schema = AiAttack.class)
     })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
-public class Payload implements GrantableBase, TenantBase {
+public class Payload implements GrantableBase, TenantBase, Authored {
 
   private static final int DEFAULT_NUMBER_OF_ACTIONS_FOR_PAYLOAD = 1;
 
@@ -209,44 +209,34 @@ public class Payload implements GrantableBase, TenantBase {
   @Schema(implementation = String.class)
   private CollectorType collectorType;
 
-  // -- AUTHOR (polymorphic: a payload is authored by a user, a team OR an
-  // organization). The three FKs are mutually exclusive; collector-created
-  // payloads are authored by the collector's organization, manually created
-  // ones by the creating user. --
+  // -- AUTHOR --
+  @Embedded
+  @AssociationOverride(name = "user", joinColumns = @JoinColumn(name = "payload_author_user"))
+  @AssociationOverride(
+      name = "organization",
+      joinColumns = @JoinColumn(name = "payload_author_organization"))
+  @JsonIgnore
+  private Authorship author;
 
-  // The author must never travel with payload/action exports: the JSON:API
-  // exporter would embed the full user/team/organization resource and the
-  // import would then re-create it (duplicate email/name in the target
-  // environment). Authorship is environment-local by design.
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "payload_author_user")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
+  @Override
+  @JsonIgnore(false)
   @JsonProperty("payload_author_user")
-  @IncludeOption(key = "exclude from payload export")
-  @Queryable(dynamicValues = true, filterable = true, path = "authorUser.id")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @Queryable(dynamicValues = true, filterable = true, path = "author.user.id")
   @Schema(description = "User author of the payload", type = "string")
-  private User authorUser;
+  public User getAuthorUser() {
+    return Authored.super.getAuthorUser();
+  }
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "payload_author_team")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
-  @JsonProperty("payload_author_team")
-  @IncludeOption(key = "exclude from payload export")
-  @Queryable(dynamicValues = true, filterable = true, path = "authorTeam.id")
-  @Schema(description = "Team author of the payload", type = "string")
-  private Team authorTeam;
-
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "payload_author_organization")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
+  @Override
+  @JsonIgnore(false)
   @JsonProperty("payload_author_organization")
-  @IncludeOption(key = "exclude from payload export")
-  @Queryable(dynamicValues = true, filterable = true, path = "authorOrganization.id")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @Queryable(dynamicValues = true, filterable = true, path = "author.organization.id")
   @Schema(description = "Organization author of the payload", type = "string")
-  private Organization authorOrganization;
+  public Organization getAuthorOrganization() {
+    return Authored.super.getAuthorOrganization();
+  }
 
   @OneToMany(
       mappedBy = "payload",
