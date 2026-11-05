@@ -606,11 +606,13 @@ public class InjectApi extends RestBehavior {
       @RequestParam String injectId,
       @RequestParam String targetId,
       @RequestParam TargetType targetType) {
-    // No scope guard here: getInjectTracesOutputFromInjectAndTarget validates targetType before
-    // touching the inject at all (an unsupported type 400s regardless of whether injectId exists),
-    // and InjectApiTest#shouldReturn400WhenTargetTypeIsUnsupported pins that precedence with a
-    // nonexistent injectId. Scoping this read is left to the inject's own activation, same as the
-    // other execution-trace reads below it (ExecutionTrace keeps the v1 filter until then).
+    // Target-type validation runs first, so an unsupported type still 400s regardless of whether
+    // injectId exists (InjectApiTest#shouldReturn400WhenTargetTypeIsUnsupported pins that
+    // precedence with a nonexistent injectId), then the inject's own scope is checked explicitly:
+    // the admin and BYPASS callers this @AccessControl gate lets through with no parent load of
+    // their own still need it.
+    injectService.requireSupportedExecutionTraceTargetType(targetType);
+    requireInjectInScope(ctx, injectId);
     return this.injectService.getInjectTracesOutputFromInjectAndTarget(
         injectId, targetId, targetType);
   }
