@@ -451,6 +451,7 @@ class ExerciseServiceUnitTest {
         tc.when(TenantContext::getCurrentTenant).thenReturn("tenant-1");
         when(exerciseRepository.findByIdAndTenantId("id", "tenant-1"))
             .thenReturn(Optional.of(exercise));
+        when(exercise.getId()).thenReturn("id");
         runScopedWorkInPlace();
         OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
         when(principal.getId()).thenReturn("user-1");
