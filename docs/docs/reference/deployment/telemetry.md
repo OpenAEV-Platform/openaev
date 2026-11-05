@@ -48,7 +48,7 @@ Metrics are counts and flags, grouped by area:
 - **Usage**: Enterprise Edition status, users and logins, Tenants, Assets, deployed integrations, Scenarios, Simulations and Injects played.
 - **AI and ecosystem**: AI feature usage (no content), AI and XTM One configuration, XTM Hub registration, enabled authentication methods.
 - **Content inventory**: number of Payloads, Teams, Assets, Findings, vulnerabilities, Dashboards and other objects.
-- **Credentials**: number of credentials by type, authentication method and connectivity status, number of Injects using a credential, number of credentials attached to at least one Inject, number of distinct users owning an Inject that uses a credential, credential usage by credential type and injector type, and credential resolutions that succeeded or were refused, by error code. No credential name, user identity or secret is sent.
+- **Credentials**: number of credentials, number of credentials attached to at least one Inject, number of distinct users owning an Inject that uses a credential, credential usage by credential type and injector type, and credential resolutions that succeeded or were refused, by error code. No credential name, user identity or secret is sent.
 - **Results and automation**: expectation traces, security coverage processing, workflow runs, Payload creation and emails sent.
 
 ## What's next?

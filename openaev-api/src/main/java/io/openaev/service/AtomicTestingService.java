@@ -32,6 +32,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -144,6 +146,10 @@ public class AtomicTestingService {
     injectToSave.setAssets(fromIterable(this.assetRepository.findAllById(input.getAssets())));
     injectToSave.setAssetGroups(
         fromIterable(this.assetGroupRepository.findAllById(input.getAssetGroups())));
+    Set<String> previousSecretReferenceIds =
+        injectToSave.getSecretReferences().stream()
+            .map(SecretReference::getId)
+            .collect(Collectors.toSet());
     injectToSave.setSecretReferences(
         fromIterable(secretReferenceRepository.findAllById(input.getSecretReferences())));
 
@@ -178,6 +184,8 @@ public class AtomicTestingService {
       actionMetricCollector.addAtomicTestingCreatedCount();
     }
     injectToSave = injectRepository.save(injectToSave);
+    injectService.addNewlyAttachedCredentialsToInjectMetric(
+        finalInjectToSave, previousSecretReferenceIds);
     return injectMapper.toInjectResultOverviewOutput(injectToSave);
   }
 

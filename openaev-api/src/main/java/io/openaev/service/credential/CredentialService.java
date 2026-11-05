@@ -17,7 +17,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.secrets.provider.*;
 import io.openaev.secrets.service.SecretValidationService;
 import io.openaev.service.UserService;
-import io.openaev.telemetry.metric_collectors.CredentialResolutionMetricCollector;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -60,76 +60,7 @@ public class CredentialService {
   private final SecretValidationService secretValidationService;
   private final UserService userService;
   private final TenantScopedTransaction tenantTx;
-  private final CredentialResolutionMetricCollector credentialResolutionMetricCollector;
-
-  @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
-  public long globalCount() {
-    return tenantTx.execute(TxCtx.allTenants(), credentialSecretReferenceRepository::globalCount);
-  }
-
-  /**
-   * Counts the credentials of every tenant, grouped by type, auth method and connectivity status.
-   * Platform-wide on purpose, for telemetry.
-   *
-   * @return rows of {@code [credentialType, credentialAuthMethod, status, count]}
-   */
-  @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
-  public List<Object[]> globalCountByTypeAuthMethodAndStatus() {
-    return tenantTx.execute(
-        TxCtx.allTenants(),
-        credentialSecretReferenceRepository::globalCountByTypeAuthMethodAndStatus);
-  }
-
-  /**
-   * Counts the injects of every tenant that reference at least one credential. Platform-wide on
-   * purpose, for telemetry.
-   *
-   * @return the number of distinct injects with a credential
-   */
-  @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
-  public long globalCountInjectsWithCredentials() {
-    return tenantTx.execute(
-        TxCtx.allTenants(), credentialSecretReferenceRepository::globalCountInjectsWithCredentials);
-  }
-
-  /**
-   * Counts the credentials of every tenant attached to at least one inject. Platform-wide on
-   * purpose, for telemetry.
-   *
-   * @return the number of distinct credentials referenced by an inject
-   */
-  @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
-  public long globalCountCredentialsAttachedToInjects() {
-    return tenantTx.execute(
-        TxCtx.allTenants(),
-        credentialSecretReferenceRepository::globalCountCredentialsAttachedToInjects);
-  }
-
-  /**
-   * Counts the distinct authors, across every tenant, of the injects using a credential.
-   * Platform-wide on purpose, for telemetry.
-   *
-   * @return the number of distinct users owning an inject with a credential
-   */
-  @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
-  public long globalCountUsersWithInjectsUsingCredentials() {
-    return tenantTx.execute(
-        TxCtx.allTenants(),
-        credentialSecretReferenceRepository::globalCountUsersWithInjectsUsingCredentials);
-  }
-
-  /**
-   * Counts the inject-credential links of every tenant, grouped by credential type and injector
-   * type. Platform-wide on purpose, for telemetry.
-   *
-   * @return rows of {@code [credentialType, injectorType, count]}
-   */
-  @Transactional(readOnly = true, propagation = Propagation.NOT_SUPPORTED)
-  public List<Object[]> globalCountUsagesByCredentialTypeAndInjectorType() {
-    return tenantTx.execute(
-        TxCtx.allTenants(),
-        credentialSecretReferenceRepository::globalCountUsagesByCredentialTypeAndInjectorType);
-  }
+  private final CredentialMetricCollector credentialMetricCollector;
 
   /**
    * Returns supported credential form contracts.
@@ -489,7 +420,7 @@ public class CredentialService {
         secretsProviderResolver.resolveByConnectorInstanceId(
             credential.getTenant().getId(), credential.getConnectorInstanceId());
     SecretResolvedValue resolved = secretProvider.getResolvedSecret(credential);
-    credentialResolutionMetricCollector.addResolutionSuccess();
+    credentialMetricCollector.addResolutionSuccess();
     return resolved;
   }
 

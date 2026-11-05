@@ -42,7 +42,7 @@ import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
-import io.openaev.telemetry.metric_collectors.CredentialResolutionMetricCollector;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -134,7 +134,6 @@ class InjectServiceTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private ObjectProvider<PermissionService> permissionServiceProvider;
   @Mock private PermissionService permissionService;
-  @Mock private CredentialResolutionMetricCollector credentialResolutionMetricCollector;
   @Mock private CredentialMetricCollector credentialMetricCollector;
 
   ObjectMapper mapper;
@@ -2183,8 +2182,7 @@ class InjectServiceTest {
 
       // -- ASSERT --
       assertEquals(ErrorCode.CREDENTIAL_ACCESS_DENIED, thrown.getErrorCode());
-      verify(credentialResolutionMetricCollector)
-          .addResolutionFailure(ErrorCode.CREDENTIAL_ACCESS_DENIED);
+      verify(credentialMetricCollector).addResolutionFailure(ErrorCode.CREDENTIAL_ACCESS_DENIED);
     }
 
     @Test
@@ -2199,7 +2197,7 @@ class InjectServiceTest {
           () -> injectService.getSecretReferenceOrThrow("inject-unknown", attachmentInput()));
 
       // -- ASSERT --
-      verifyNoInteractions(credentialResolutionMetricCollector);
+      verifyNoInteractions(credentialMetricCollector);
     }
   }
 }

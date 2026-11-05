@@ -1,5 +1,6 @@
 package io.openaev.telemetry.metric_collectors;
 
+import static io.openaev.telemetry.metric_collectors.MetricRegistry.collectAndReset;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import io.openaev.context.TenantScopedTransaction;
@@ -106,18 +107,6 @@ public class MarkingMetricCollector {
             increment.run();
           }
         });
-  }
-
-  private Map<Attributes, Long> collectAndReset(Map<Attributes, AtomicLong> stats) {
-    Map<Attributes, Long> snapshot = new HashMap<>();
-    stats.forEach(
-        (attributes, value) -> {
-          long collected = value.getAndSet(0);
-          if (collected > 0) {
-            snapshot.put(attributes, collected);
-          }
-        });
-    return snapshot;
   }
 
   private Map<Attributes, Long> collectMarkings() {

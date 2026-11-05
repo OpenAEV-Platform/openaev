@@ -52,8 +52,8 @@ public class OpenTelemetryConfig {
   private final SettingRepository settingRepository;
   private final ThreadPoolTaskScheduler taskScheduler;
 
-  @Getter private final Duration collectInterval = Duration.ofMinutes(60);
-  @Getter private final Duration exportInterval = Duration.ofMinutes(6 * 60);
+  @Getter private final Duration collectInterval = Duration.ofMinutes(1);
+  @Getter private final Duration exportInterval = Duration.ofMinutes(2);
 
   @Bean
   public OpenTelemetry openTelemetry() {
@@ -100,12 +100,12 @@ public class OpenTelemetryConfig {
 
   // -- PRIVATE --
   private String getOTELEndpoint() {
-    String endpoint = "https://telemetry.oaev.filigran.io/v1/metrics";
-    if (Arrays.asList(environment.getActiveProfiles()).contains("dev")
-        || Arrays.asList(environment.getActiveProfiles()).contains("ci")) {
-      endpoint = "https://telemetry.oaev.staging.filigran.io/v1/metrics";
-    }
-    return endpoint;
+    //    String endpoint = "https://telemetry.oaev.filigran.io/v1/metrics";
+    //    if (Arrays.asList(environment.getActiveProfiles()).contains("dev")
+    //        || Arrays.asList(environment.getActiveProfiles()).contains("ci")) {
+    //      endpoint = "https://telemetry.oaev.staging.filigran.io/v1/metrics";
+    //    }
+    return "http://localhost:11010/v1/metrics";
   }
 
   private boolean isEndpointReachable(String url) {

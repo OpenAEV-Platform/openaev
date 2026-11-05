@@ -72,7 +72,7 @@ import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.service.utils.BulkOperationMonitor;
-import io.openaev.telemetry.metric_collectors.CredentialResolutionMetricCollector;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectUtils;
@@ -159,7 +159,7 @@ public class InjectService {
   private final ApplicationEventPublisher eventPublisher;
   private final BulkOperationMonitor bulkOperationMonitor;
   private final InjectStatusService injectStatusService;
-  private final CredentialResolutionMetricCollector credentialResolutionMetricCollector;
+  private final CredentialMetricCollector credentialMetricCollector;
 
   private final LicenseCacheManager licenseCacheManager;
   @Resource protected ObjectMapper mapper;
@@ -176,7 +176,10 @@ public class InjectService {
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {
-    return injectRepository.save(buildInject(exercise, scenario, input));
+    Inject inject = buildInject(exercise, scenario, input);
+    Inject savedInject = injectRepository.save(inject);
+    addNewlyAttachedCredentialsToInjectMetric(inject, Set.of());
+    return savedInject;
   }
 
   public List<Inject> createAndSaveInjectList(
@@ -186,7 +189,9 @@ public class InjectService {
 
     List<Inject> injects = new ArrayList<>();
     injectInputs.forEach(injectInput -> injects.add(buildInject(exercise, scenario, injectInput)));
-    return injectRepository.saveAll(injects);
+    List<Inject> savedInjects = injectRepository.saveAll(injects);
+    injects.forEach(inject -> addNewlyAttachedCredentialsToInjectMetric(inject, Set.of()));
+    return savedInjects;
   }
 
   private Inject buildInject(
@@ -1052,8 +1057,13 @@ public class InjectService {
       inject.setAssets(fromIterable(this.assetService.assets(input.getAssets())));
     }
     inject.setAssetGroups(fromIterable(this.assetGroupService.assetGroups(input.getAssetGroups())));
+    Set<String> previousSecretReferenceIds =
+        inject.getSecretReferences().stream()
+            .map(SecretReference::getId)
+            .collect(Collectors.toSet());
     inject.setSecretReferences(
         secretReferenceService.secretReferences(input.getSecretReferences()));
+    addNewlyAttachedCredentialsToInjectMetric(inject, previousSecretReferenceIds);
     inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
 
     // Set documents
@@ -1885,6 +1895,32 @@ public class InjectService {
     return authorisation.getCode().equals(hashWithSHA256(code));
   }
 
+  /**
+   * Counts in telemetry each credential the current user newly attached to the inject.
+   *
+   * @param inject the inject, with its new secret references
+   * @param previousSecretReferenceIds the secret references the inject held before, empty for a
+   *     created inject
+   */
+  public void addNewlyAttachedCredentialsToInjectMetric(
+      Inject inject, Set<String> previousSecretReferenceIds) {
+    List<CredentialSecretReference> attachedCredentials =
+        inject.getSecretReferences().stream()
+            .filter(ref -> !previousSecretReferenceIds.contains(ref.getId()))
+            .filter(CredentialSecretReference.class::isInstance)
+            .map(CredentialSecretReference.class::cast)
+            .toList();
+    if (attachedCredentials.isEmpty()) {
+      return;
+    }
+    String userId = userService.currentUser().getId();
+    String injectorType = inject.getInjector() == null ? null : inject.getInjector().getType();
+    attachedCredentials.forEach(
+        credential ->
+            credentialMetricCollector.addCredentialUsage(
+                userId, credential.getCredentialType().name(), injectorType));
+  }
+
   private boolean isCredentialAccessDeniedStatus(SecretReference.SECRET_STATUS status) {
     return status == SecretReference.SECRET_STATUS.AUTH_FAILED
         || status == SecretReference.SECRET_STATUS.PERMISSION_DENIED;
@@ -1954,7 +1990,7 @@ public class InjectService {
       return (CredentialSecretReference) secretReference;
     } catch (CredentialResolutionException e) {
       // Every refusal carrying a credential error code feeds the telemetry failure breakdown.
-      credentialResolutionMetricCollector.addResolutionFailure(e.getErrorCode());
+      credentialMetricCollector.addResolutionFailure(e.getErrorCode());
       throw e;
     }
   }
