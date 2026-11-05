@@ -7,9 +7,10 @@ import TextFieldFds from '../../../../components/fields/TextFieldFds';
 import TimeField from '../../../../components/fields/TimeField';
 import { useFormatter } from '../../../../components/i18n';
 import { type FilterGroup, type NotificationTriggerInput, type NotificationTriggerOutput } from '../../../../utils/api-types';
+import { isFeatureEnabled } from '../../../../utils/utils';
 import NotifierField from './NotifierField';
 import TriggerFilterField from './TriggerFilterField';
-import { buildTriggerTime, DIGEST_PERIODS, eventTypeLabel, parseTriggerTime, resourceTypeEntityPrefix, SCENARIO_ONLY_EVENT_TYPES, TRIGGER_EVENT_TYPES, TRIGGER_RESOURCE_TYPES, WEEK_DAYS } from './triggerUtils';
+import { buildTriggerTime, DIGEST_PERIODS, eventTypeLabel, eventTypesOf, parseTriggerTime, resourceTypeEntityPrefix, TRIGGER_RESOURCE_TYPES, WEEK_DAYS } from './triggerUtils';
 
 interface Props {
   triggerType: 'LIVE' | 'DIGEST';
@@ -47,6 +48,7 @@ const TriggerForm: FunctionComponent<Props> = ({
     initialValues?.notification_trigger_resource_type ?? 'SCENARIO',
   );
   const [eventTypes, setEventTypes] = useState<string[]>(initialValues?.notification_trigger_event_types ?? ['CREATE']);
+  const catalogEnabled = isFeatureEnabled('CATALOG');
   const [filters, setFilters] = useState<FilterGroup | undefined>(initialValues?.notification_trigger_filters);
   const [notifierIds, setNotifierIds] = useState<string[]>(initialValues?.notification_trigger_notifiers ?? []);
   const [period, setPeriod] = useState(initialValues?.notification_trigger_period ?? 'DAY');
@@ -135,10 +137,12 @@ const TriggerForm: FunctionComponent<Props> = ({
               onValueChange={(next) => {
                 setResourceType(next as NotificationTriggerInput['notification_trigger_resource_type']);
                 setFilters(undefined);
-                if (next !== 'SCENARIO') {
-                  // Score degradation is only available for scenarios
-                  setEventTypes(existing => existing.filter(eventType => eventType !== 'SCORE_DEGRADATION'));
-                }
+                // Keep the checked events the new resource sends, else check its first one
+                const offered: string[] = eventTypesOf(next);
+                setEventTypes((existing) => {
+                  const kept = existing.filter(eventType => offered.includes(eventType));
+                  return kept.length > 0 ? kept : offered.slice(0, 1);
+                });
               }}
               disabled={!!initialValues?.notification_trigger_instance_id}
             >
@@ -147,7 +151,7 @@ const TriggerForm: FunctionComponent<Props> = ({
                 <SelectValue placeholder={t('Resource type')} />
               </SelectTrigger>
               <SelectContent>
-                {TRIGGER_RESOURCE_TYPES.map(option => (
+                {TRIGGER_RESOURCE_TYPES.filter(option => option.value !== 'CATALOG_SYNC' || catalogEnabled).map(option => (
                   <SelectItem key={option.value} value={option.value}>
                     {t(option.label)}
                   </SelectItem>
@@ -162,11 +166,7 @@ const TriggerForm: FunctionComponent<Props> = ({
             marginTop: 20,
           }}
           >
-            {[
-              ...TRIGGER_EVENT_TYPES,
-              // Score degradation is a scenario-only semantic event
-              ...(resourceType === 'SCENARIO' ? SCENARIO_ONLY_EVENT_TYPES : []),
-            ].map(eventType => (
+            {eventTypesOf(resourceType).map(eventType => (
               <Checkbox
                 key={eventType}
                 checked={eventTypes.includes(eventType)}
