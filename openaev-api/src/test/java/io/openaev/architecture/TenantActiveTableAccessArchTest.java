@@ -21,6 +21,7 @@ import io.openaev.api.notification.NotificationApi;
 import io.openaev.api.notification_trigger.NotificationTriggerMapper;
 import io.openaev.api.notifier.NotifierApi;
 import io.openaev.api.payload.PayloadApiExporter;
+import io.openaev.api.threat_arsenal.ThreatArsenalApiExporter;
 import io.openaev.api.xtmhub.XtmHubApi;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.AttackPattern;
@@ -53,6 +54,7 @@ import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.ExecutorRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.ImportMapperRepository;
+import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.database.repository.KillChainPhaseRepository;
 import io.openaev.database.repository.LessonsTemplateRepository;
@@ -255,6 +257,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
 import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
+import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.PlatformAdoptionMetricCollector;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
@@ -2439,6 +2442,48 @@ class TenantActiveTableAccessArchTest {
           io.openaev.service.InjectorService.class);
 
   /**
+   * A built-in injector contract id/external id repeats across every tenant that holds a copy
+   * (#8485), so {@link InjectorContractService#injectorContract(String)} and the repository's bare
+   * {@link InjectorContractRepository#findById(String)} / {@link
+   * InjectorContractRepository#findByIdOrExternalId} / {@link
+   * InjectorContractRepository#findAllById} resolve a unique row only when the caller's scope is
+   * already pinned to exactly one tenant. #7905 round 3 found three callers that reached one of
+   * these from a scope that could legitimately span several ({@code ThreatArsenalApi
+   * #threatArsenal}, the four {@code InjectorContractApi} singular endpoints, {@code
+   * AttackPathGraphService#executionDetail}) and fixed each by pinning its own scope or resolving
+   * in a known parent's tenant instead. This rule closes the gap for every future caller: it is
+   * caught here rather than in a review.
+   */
+  @ArchTest
+  static final ArchRule injector_contract_bare_by_id_lookup_is_called_only_by =
+      bareByIdLookupIsCalledOnlyBy(
+          // The singular GET/PUT/mapping-PUT/DELETE endpoints: writeScopeResolver.tenantForWrite
+          // refuses any scope that does not pin exactly one tenant before reaching the lookup.
+          InjectorContractApi.class,
+          // updateInjectorContract, updateInjectorContractTTPDomainsAndTags and
+          // deleteInjectorContract each redo the same bare lookup internally instead of calling
+          // #injectorContract(String); reached only from InjectorContractApi's PUT/PUT-mapping/
+          // DELETE endpoints above, which pin the scope first.
+          InjectorContractService.class,
+          // Every endpoint reaching ThreatArsenalService's lookup pins the scope first: the plain
+          // GET via writeScopeResolver.tenantForWrite (#7905 round 3), update/duplicate via the
+          // same call, and security-platforms/export/delete are mapped on the tenant-prefixed
+          // route only, so the path itself pins exactly one tenant.
+          ThreatArsenalService.class,
+          // Mapped on the tenant-prefixed route only: the path pins exactly one tenant.
+          ThreatArsenalApiExporter.class,
+          // Exports, behind the scenario and simulation export endpoints:
+          io.openaev.export.WorkflowExportInitializer.class,
+          // Runtime migration, under the migration processor's forTenant scope:
+          io.openaev.processor.core.V20260725_Fix_starter_pack_payload_contracts.class,
+          // getInjectFromDataStep's bare lookup (InjectExecutionStep.java) runs only from #run,
+          // consumed off the ready-step queue under the worker's forTenant scope
+          // (StepEventService):
+          // the same reason this class is already allowlisted on the coarse-grained
+          // injectors_contracts_repository_access_is_reviewed rule above.
+          io.openaev.api.chaining.InjectExecutionStep.class);
+
+  /**
    * The five link tables of injectors_contracts have no repository of their own: an entity load of
    * the contract fetches them eagerly in the same scope, so the rule on the contract repository
    * covers that path. Their other readers are queries that name the table in SQL, mostly in the
@@ -2470,5 +2515,47 @@ class TenantActiveTableAccessArchTest {
             table
                 + " is tenant-active: a query naming it without a tenant scope silently reads zero"
                 + " rows. New callers must carry a scope and be allowlisted here");
+  }
+
+  /**
+   * Finds, by reflection on the call target rather than a fixed list, every call to the bare
+   * injector-contract by-id lookups whose uniqueness depends on the caller's scope being pinned to
+   * one tenant: {@link InjectorContractService#injectorContract(String)} and the repository's
+   * {@code findById}, {@code findByIdOrExternalId} and {@code findAllById}.
+   */
+  private static ArchRule bareByIdLookupIsCalledOnlyBy(Class<?>... allowed) {
+    DescribedPredicate<JavaMethodCall> callsBareByIdLookup =
+        DescribedPredicate.describe(
+            "a bare, tenant-ambiguous injector contract by-id lookup",
+            call ->
+                call.getTarget()
+                    .resolveMember()
+                    .map(
+                        method -> {
+                          String owner = method.getOwner().getFullName();
+                          String name = method.getName();
+                          if (owner.equals(InjectorContractService.class.getName())) {
+                            return name.equals("injectorContract");
+                          }
+                          if (owner.equals(InjectorContractRepository.class.getName())) {
+                            return name.equals("findById")
+                                || name.equals("findByIdOrExternalId")
+                                || name.equals("findAllById");
+                          }
+                          return false;
+                        })
+                    .orElse(false));
+    return noClasses()
+        .that()
+        .doNotBelongToAnyOf(allowed)
+        .should()
+        .callMethodWhere(callsBareByIdLookup)
+        .because(
+            "a built-in injector contract id/external id repeats across tenants (#8485): this"
+                + " lookup resolves a unique row only when the caller's scope is already pinned to"
+                + " one tenant. New callers must resolve the contract within a known tenant"
+                + " (injectorContractInTenant / findByContractIdAndTenant /"
+                + " findByIdOrExternalIdAndTenant) and be allowlisted here only if their own scope"
+                + " is pinned to exactly one tenant by construction");
   }
 }
