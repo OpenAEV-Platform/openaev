@@ -28,23 +28,47 @@ jobs:
             const headRepo = context.payload.pull_request.head.repo;
             const isFork = headRepo?.full_name !== `${context.repo.owner}/${context.repo.repo}`;
 
-            async function publishReport(body) {
-              if (isFork) {
-                await core.summary.addRaw(body.replace(MARKER, '').trim()).write();
-                return;
-              }
+            async function findReportComment() {
               const { data: comments } = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
                 per_page: 100,
               });
-              const existing = comments.find(c => c.body && c.body.includes(MARKER));
+              return comments.find(c => c.body && c.body.includes(MARKER));
+            }
+
+            async function publishReport(body) {
+              if (isFork) {
+                await core.summary.addRaw(body.replace(MARKER, '').trim()).write();
+                return;
+              }
+              const existing = await findReportComment();
               const params = { owner: context.repo.owner, repo: context.repo.repo };
               if (existing) {
                 await github.rest.issues.updateComment({ ...params, comment_id: existing.id, body });
               } else {
                 await github.rest.issues.createComment({ ...params, issue_number: context.issue.number, body });
+              }
+            }
+
+            // Nothing to report: post no comment, and remove one left by an
+            // earlier run (for example a failure that is now fixed).
+            async function clearReport(message) {
+              if (isFork) {
+                await core.summary.addRaw(message).write();
+                return;
+              }
+              const existing = await findReportComment();
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                });
+                core.info(`${message} Removed the earlier report comment.`);
+              } else {
+                core.info(`${message} No PR comment is needed.`);
               }
             }
 
@@ -110,12 +134,7 @@ jobs:
             // -- 4. no functional changes → pass --------------------------
 
             if (funcFiles.length === 0) {
-              await publishReport([
-                MARKER,
-                '📖 **Documentation check** — ✅ Passed',
-                '',
-                'No functional source changes detected.',
-              ].join('\n'));
+              await clearReport('No functional source changes detected.');
               return;
             }
 
@@ -204,14 +223,10 @@ jobs:
             // -- 6. no gaps → pass ----------------------------------------
 
             if (gaps.length === 0) {
-              await publishReport([
-                MARKER,
-                '📖 **Documentation check** — ✅ Passed',
-                '',
-                `**${funcFiles.length}** functional file(s), **${docFiles.length}** doc file(s) changed.`,
-                '',
-                'No documentation gaps detected.',
-              ].join('\n'));
+              await clearReport(
+                `${funcFiles.length} functional file(s), ${docFiles.length} doc file(s) changed. `
+                + 'No documentation gaps detected.'
+              );
               return;
             }
 
