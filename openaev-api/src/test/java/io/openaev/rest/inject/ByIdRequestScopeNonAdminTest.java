@@ -174,7 +174,8 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
 
     @Test
     @DisplayName(
-        "given a selector naming another tenant, that tenant's atomic testing is not found by id")
+        "given a selector naming another tenant the caller also belongs to, the atomic testing is"
+            + " found by id and the request is still refused for lacking the capability there")
     @WithMockUser(
         withCapabilities = {
           Capability.ACCESS_ASSESSMENT,
@@ -183,7 +184,8 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
           Capability.LAUNCH_ASSESSMENT
         },
         autoJoinDefaultTenant = true)
-    void given_selectorNamingAnotherTenant_should_notBeFoundById() throws Exception {
+    void given_selectorNamingAnotherTenant_should_beRefusedForLackOfCapabilityThere()
+        throws Exception {
       // Arrange
       tenantHelper.attachCurrentUserToTenant(otherTenant);
       String injectId = seedAtomicTesting(otherTenant);
@@ -193,12 +195,13 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
       int read = getAtomicTesting(route, injectId);
       int readPlainInject = getInject(route, injectId);
 
-      // Assert: this used to be 403 for a reason this class never pinned down; with
-      // resolveTarget's own by-id load now in the request's scope, it is 404 instead, the same
-      // answer every other by-id endpoint of this family gives for an out-of-scope row. The "no
-      // selector" case right below is unaffected (its row is genuinely in the caller's only
-      // membership) and stays 403, so whatever still denies it there is unrelated to this fix.
-      assertThat(new int[] {read, readPlainInject}).containsExactly(404, 404);
+      // Assert: the row lies inside the resolved scope (the caller belongs to otherTenant and the
+      // selector names it), so the by-id load now finds it instead of refusing it as out of scope.
+      // The request is still refused, 403 rather than 404, because AccessControlAspect checks the
+      // capability in every tenant of the scope and this role was only granted in the default
+      // tenant: the same final answer the "no selector" case below gives, for the same capability
+      // reason.
+      assertThat(new int[] {read, readPlainInject}).containsExactly(403, 403);
       assertThat(atomicTestingExists(injectId)).isTrue();
     }
 
