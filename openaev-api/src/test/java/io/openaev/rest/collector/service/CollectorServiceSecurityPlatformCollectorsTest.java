@@ -27,9 +27,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 /**
- * The security-platform collectors used to seed inject expectation results leave out the
- * collectors whose owning connector instance is paused (issue #4830): a paused collector never
- * reports, so a pending result seeded for it holds the expectation until it expires.
+ * The security-platform collectors used to seed inject expectation results leave out the collectors
+ * whose owning connector instance is paused (issue #4830): a paused collector never reports, so a
+ * pending result seeded for it holds the expectation until it expires.
  */
 @ExtendWith(MockitoExtension.class)
 class CollectorServiceSecurityPlatformCollectorsTest {
@@ -83,8 +83,8 @@ class CollectorServiceSecurityPlatformCollectorsTest {
     Collector unmanaged = securityPlatformCollector(UNMANAGED_ID);
     when(collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(TENANT_ID))
         .thenReturn(List.of(active, paused, unmanaged));
-    when(connectorInstanceConfigurationRepository
-            .findConnectorIdsOfPausedInstancesByKeyAndTenantId("COLLECTOR_ID", TENANT_ID))
+    when(connectorInstanceConfigurationRepository.findConnectorIdsOfPausedInstancesByKeyAndTenantId(
+            "COLLECTOR_ID", TENANT_ID))
         .thenReturn(List.of(PAUSED_ID));
 
     List<Collector> collectors = service.securityPlatformCollectors(TENANT_ID);
@@ -99,8 +99,8 @@ class CollectorServiceSecurityPlatformCollectorsTest {
     Collector unmanaged = securityPlatformCollector(UNMANAGED_ID);
     when(collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(TENANT_ID))
         .thenReturn(List.of(active, unmanaged));
-    when(connectorInstanceConfigurationRepository
-            .findConnectorIdsOfPausedInstancesByKeyAndTenantId("COLLECTOR_ID", TENANT_ID))
+    when(connectorInstanceConfigurationRepository.findConnectorIdsOfPausedInstancesByKeyAndTenantId(
+            "COLLECTOR_ID", TENANT_ID))
         .thenReturn(List.of());
 
     List<Collector> collectors = service.securityPlatformCollectors(TENANT_ID);
