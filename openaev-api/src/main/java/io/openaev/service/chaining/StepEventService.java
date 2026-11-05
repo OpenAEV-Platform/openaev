@@ -154,9 +154,9 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
           "[Chaining] Could not end step {} after its event was dropped, it stays READY.",
           stepEvent.getStepId(),
           e);
-      return;
+    } finally {
+      evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
     }
-    evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
   }
 
   /** Ends a step and gives its workflow run, which is evaluated once this is committed. */
