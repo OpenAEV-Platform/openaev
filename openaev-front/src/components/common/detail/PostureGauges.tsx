@@ -76,7 +76,8 @@ const Gauge: FunctionComponent<{
   const hasData = total > 0;
 
   const accent = (() => {
-    if (!hasData) return theme.palette.text.disabled;
+    // No result yet (empty or every expectation pending): grey, not a red failure.
+    if (!hasData || resolved === 0) return theme.palette.text.disabled;
     if (resilience >= 75) return theme.palette.success.main;
     if (resilience >= 50) return theme.palette.warning.main;
     if (resilience >= 25) return '#ff7043';
