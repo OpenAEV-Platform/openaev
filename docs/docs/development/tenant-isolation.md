@@ -161,12 +161,10 @@ Where the rule does not apply:
   tenant of the request context only.
 - Permission checks made inside a handler, through `PermissionService`, after the aspect has run,
   are evaluated in the tenant of the rows they decide on (`PermissionService#holdsInTenant`), or
-  in the tenant of the request context and every tenant of the scope when the rows are not known
-  yet (`holdsInScope`). The capability checks and the list decisions that still read the tenant of
-  the request context only are tracked in
-  [#8815](https://github.com/OpenAEV-Platform/openaev/issues/8815) and
-  [#8820](https://github.com/OpenAEV-Platform/openaev/issues/8820). Do not add a new check of this
-  kind that assumes a single tenant.
+  refuse the request when it is not granted in every tenant of the scope, for a capability check
+  or a list decision made before the rows are known (`holdsInScope`). No check of this kind is
+  left reading the tenant of the request context only. Do not add a new one that assumes a single
+  tenant.
 
 ## How the SQL is rewritten
 
