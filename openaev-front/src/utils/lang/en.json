@@ -3701,6 +3701,7 @@
   "Removed by this version, changed locally": "Removed by this version, changed locally",
   "Removed in v{version}": "Removed in v{version}",
   "Removed, changed locally": "Removed, changed locally",
+  "removed: {text}": "removed: {text}",
   "Rename": "Rename",
   "Rename conversation": "Rename conversation",
   "Rename folder": "Rename folder",

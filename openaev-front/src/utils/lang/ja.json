@@ -3701,6 +3701,7 @@
   "Removed by this version, changed locally": "このバージョンで削除、ローカルで変更あり",
   "Removed in v{version}": "v{version} で削除",
   "Removed, changed locally": "削除（ローカルで変更あり）",
+  "removed: {text}": "削除: {text}",
   "Rename": "名前を変更",
   "Rename conversation": "会話の名前を変更",
   "Rename folder": "フォルダー名を変更",

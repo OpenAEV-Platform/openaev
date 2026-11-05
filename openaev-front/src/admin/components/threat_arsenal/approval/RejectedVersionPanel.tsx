@@ -4,7 +4,6 @@ import { type FunctionComponent, useEffect, useState } from 'react';
 import { fetchThreatArsenalActionApprovals } from '../../../../actions/threat_arsenals/threatArsenal-actions';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadApprovalOutput, type PayloadVersionOutput } from '../../../../utils/api-types';
-import { tint } from '../../../../utils/tint';
 import PayloadVersionComparison from './PayloadVersionComparison';
 
 interface Props {
@@ -58,7 +57,6 @@ const RejectedVersionPanel: FunctionComponent<Props> = ({ version, baseline }) =
           padding: 12,
           borderRadius: 4,
           border: '1px solid var(--border-elevation-subtle-soft)',
-          background: tint('var(--text-default-primary)', 4),
         }}
         >
           <Text variant="content-caption" className="text-default-secondary" style={{ fontWeight: 600 }}>{t('Reason')}</Text>
@@ -82,7 +80,6 @@ const RejectedVersionPanel: FunctionComponent<Props> = ({ version, baseline }) =
             padding: 12,
             borderRadius: 4,
             border: '1px solid var(--border-elevation-subtle-soft)',
-            background: tint('var(--text-default-primary)', 4),
             fontFamily: 'monospace',
             fontSize: 12,
             whiteSpace: 'pre-wrap',

@@ -1,9 +1,9 @@
 import { Text } from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
 
-import { tint } from '../../../utils/tint';
 import { useFormatter } from '../../i18n';
 import TextDiff from './TextDiff';
+import { diffRuns } from './textDiffRuns';
 
 interface Props {
   /** Name of the field, above the two rows. */
@@ -17,8 +17,9 @@ interface Props {
 }
 
 /**
- * One changed field as two labelled rows: Before (grey) and After, the changed words on an amber
- * highlighter on both. The labels carry the meaning; colours are DS tokens and only support them.
+ * One changed field as two labelled rows: Before (grey) and After, the changed words highlighted on
+ * both. When words were only removed, the After row says what went ("removed: …"), so a change is
+ * always visible on After. The labels carry the meaning; colours are DS tokens as shipped.
  */
 const BeforeAfter: FunctionComponent<Props> = ({ label, before, after, beforeLabel, afterLabel }) => {
   const { t } = useFormatter();
@@ -28,6 +29,9 @@ const BeforeAfter: FunctionComponent<Props> = ({ label, before, after, beforeLab
     gap: 12,
     alignItems: 'baseline',
   };
+  // Words of Before that are not in After; shown on After when After itself has nothing new.
+  const removed = diffRuns(before, after).filter(run => run.changed).map(run => run.token.trim());
+  const onlyRemoved = !!before && removed.length > 0 && !diffRuns(after, before).some(run => run.changed);
   const empty = <Text variant="content-caption" className="text-default-secondary" style={{ fontStyle: 'italic' }}>{t('(empty)')}</Text>;
   return (
     <div
@@ -40,7 +44,6 @@ const BeforeAfter: FunctionComponent<Props> = ({ label, before, after, beforeLab
         padding: 12,
         borderRadius: 4,
         border: '1px solid var(--border-elevation-subtle-soft)',
-        background: tint('var(--text-default-primary)', 4),
       }}
     >
       <Text variant="content-caption" className="text-default-secondary" style={{ fontWeight: 600 }}>{label}</Text>
@@ -50,7 +53,14 @@ const BeforeAfter: FunctionComponent<Props> = ({ label, before, after, beforeLab
       </div>
       <div style={row}>
         <Text variant="content-caption" style={{ fontWeight: 600 }}>{afterLabel}</Text>
-        {after ? <TextDiff text={after} other={before} side="after" /> : empty}
+        <div>
+          {after ? <TextDiff text={after} other={before} side="after" /> : empty}
+          {onlyRemoved && (
+            <Text variant="content-caption" className="text-default-secondary">
+              {t('removed: {text}', { text: removed.join(' … ') })}
+            </Text>
+          )}
+        </div>
       </div>
     </div>
   );

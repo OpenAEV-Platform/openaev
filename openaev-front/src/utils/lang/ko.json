@@ -3701,6 +3701,7 @@
   "Removed by this version, changed locally": "이 버전에서 제거됨, 로컬에서 변경됨",
   "Removed in v{version}": "v{version}에서 제거됨",
   "Removed, changed locally": "제거됨, 로컬에서 변경됨",
+  "removed: {text}": "삭제됨: {text}",
   "Rename": "이름 변경",
   "Rename conversation": "대화 이름 변경",
   "Rename folder": "폴더 이름 변경",

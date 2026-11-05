@@ -3701,6 +3701,7 @@
   "Removed by this version, changed locally": "Удалено этой версией, изменено локально",
   "Removed in v{version}": "Удалено в v{version}",
   "Removed, changed locally": "Удалено, изменено локально",
+  "removed: {text}": "удалено: {text}",
   "Rename": "Переименовать",
   "Rename conversation": "Переименовать разговор",
   "Rename folder": "Переименовать папку",

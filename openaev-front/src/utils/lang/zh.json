@@ -3701,6 +3701,7 @@
   "Removed by this version, changed locally": "此版本已移除，本地已修改",
   "Removed in v{version}": "v{version} 中移除",
   "Removed, changed locally": "已移除，本地已修改",
+  "removed: {text}": "已删除：{text}",
   "Rename": "重命名",
   "Rename conversation": "重命名对话",
   "Rename folder": "重命名文件夹",

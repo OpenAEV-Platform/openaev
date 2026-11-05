@@ -3701,6 +3701,7 @@
   "Removed by this version, changed locally": "Retirado por esta versión, modificado localmente",
   "Removed in v{version}": "Eliminado en la v{version}",
   "Removed, changed locally": "Retirado, modificado localmente",
+  "removed: {text}": "eliminado: {text}",
   "Rename": "Renombrar",
   "Rename conversation": "Cambiar nombre de la conversación",
   "Rename folder": "Renombrar carpeta",
