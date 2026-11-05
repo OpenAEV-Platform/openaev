@@ -62,6 +62,10 @@ For every feature, ensure coverage of:
 - Exact error message wording — test status codes and error structure
 - Other team's code — only test the feature you're working on
 - Performance — leave that to the Performance Reviewer
+- Configuration restated as tests (one test per enum value or mapping entry)
+
+Write the fewest tests that cover all the new code: one integration test per flow, parameterized tests for
+the refusal and error cases, data in fixtures.
 - Whether production isolation logic is correct — leave that to the Multi-Tenancy Reviewer
 
 ## Test Structure Conventions
