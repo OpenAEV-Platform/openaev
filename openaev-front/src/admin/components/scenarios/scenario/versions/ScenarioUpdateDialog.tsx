@@ -396,7 +396,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
               {preview.warnings.length > 0 && (
                 <Alert severity="warning" title={t('{count} points to check after applying', { count: preview.warnings.length })} />
               )}
-              {conflicts.length === 0 && taken.length === 0 && preview.elements.length === 0 && (
+              {conflicts.length === 0 && taken.length === 0 && kept.length === 0 && preview.elements.length === 0 && (
                 <Text variant="content-base">{t('Nothing changes in the content.')}</Text>
               )}
             </div>

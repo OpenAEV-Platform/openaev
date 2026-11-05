@@ -8,7 +8,7 @@ import { Link } from 'react-router';
 import { type ContentHistoryOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
 import { FDS_ROW_DETAIL_CELL_SX, FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../fdsTableSpec';
-import TextDiff from '../update/TextDiff';
+import BeforeAfter from '../update/BeforeAfter';
 
 // Shape of content_history_details, a free JSON object on the API side.
 export interface HistoryChange {
@@ -158,67 +158,42 @@ const BLOCK_LABELS: Record<string, string> = {
   PLATFORMS: 'Platforms',
 };
 
+// Empty stays empty, so the Before / After block shows "(empty)".
 const valueText = (value: unknown) => {
   if (value === null || value === undefined || value === '') {
-    return '-';
+    return '';
   }
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 };
 
-// Field, before, after: words that changed between two texts are highlighted (before: struck through on
-// grey; after: brand tint). The headers say which version each side is, so colour only supports them.
+// What changed, field by field, in the same Before / After block as the Versions tab: labelled rows,
+// removed words struck through on grey, changed words on a brand tint.
 export const ChangesTable: FunctionComponent<{
   changes: HistoryChange[];
   beforeLabel?: string;
   afterLabel?: string;
 }> = ({ changes, beforeLabel, afterLabel }) => {
   const { t } = useFormatter();
-  const cell = {
-    whiteSpace: 'pre-wrap' as const,
-    overflowWrap: 'anywhere' as const,
-    fontFamily: 'monospace',
-    fontSize: 12,
-    verticalAlign: 'top',
-  };
   return (
-    <Table
-      size="small"
+    <div
       aria-label={t('Changes')}
-
-      sx={{
-        ...FDS_TABLE_SX,
-        tableLayout: 'fixed',
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10,
       }}
     >
-      <TableHead>
-        <TableRow>
-          <TableCell sx={{ width: '20%' }}>{t('Field')}</TableCell>
-          <TableCell sx={{ width: '40%' }}>{beforeLabel ?? t('Before')}</TableCell>
-          <TableCell sx={{ width: '40%' }}>{afterLabel ?? t('After')}</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {changes.map(change => (
-          <TableRow key={change.field}>
-            <TableCell sx={{ verticalAlign: 'top' }}>{t(FIELD_LABELS[change.field] ?? change.field)}</TableCell>
-            <TableCell sx={{
-              ...cell,
-              color: 'var(--text-default-secondary)',
-            }}
-            >
-              {typeof change.before === 'string' && typeof change.after === 'string'
-                ? <TextDiff text={change.before} other={change.after} side="before" />
-                : valueText(change.before)}
-            </TableCell>
-            <TableCell sx={cell}>
-              {typeof change.before === 'string' && typeof change.after === 'string'
-                ? <TextDiff text={change.after} other={change.before} side="after" />
-                : valueText(change.after)}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+      {changes.map(change => (
+        <BeforeAfter
+          key={change.field}
+          label={t(FIELD_LABELS[change.field] ?? change.field)}
+          before={valueText(change.before)}
+          after={valueText(change.after)}
+          beforeLabel={beforeLabel ?? t('Before')}
+          afterLabel={afterLabel ?? t('After')}
+        />
+      ))}
+    </div>
   );
 };
 
