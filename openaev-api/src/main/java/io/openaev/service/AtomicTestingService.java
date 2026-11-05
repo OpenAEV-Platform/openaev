@@ -32,6 +32,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -108,8 +109,10 @@ public class AtomicTestingService {
     return injectMapper.toInjectResultOverviewOutput(inject);
   }
 
+  /** Requires the inject inside the request's tenant scope, then maps its payload if it has one. */
   public StatusPayloadOutput findPayloadOutputByInjectId(TxCtx ctx, String injectId) {
-    return payloadMapper.getStatusPayloadOutputFromInject(injectService.findInScope(ctx, injectId));
+    Inject inject = injectService.inject(ctx, injectId);
+    return payloadMapper.getStatusPayloadOutputFromInject(Optional.of(inject));
   }
 
   @Transactional
