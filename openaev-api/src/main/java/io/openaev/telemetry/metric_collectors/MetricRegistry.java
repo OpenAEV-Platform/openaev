@@ -13,6 +13,8 @@ import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +31,27 @@ public class MetricRegistry {
    */
   public static String normalizeLabel(String value) {
     return value == null || value.isBlank() ? "unknown" : value.trim();
+  }
+
+  /**
+   * Runs a counter increment once the caller's transaction commits, or right away outside a
+   * transaction. A rolled-back action must not inflate an exported count, and Spring calls {@code
+   * afterCommit} only on a commit.
+   *
+   * @param increment the counter increment to run
+   */
+  public static void runAfterCommit(Runnable increment) {
+    if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+      increment.run();
+      return;
+    }
+    TransactionSynchronizationManager.registerSynchronization(
+        new TransactionSynchronization() {
+          @Override
+          public void afterCommit() {
+            increment.run();
+          }
+        });
   }
 
   /**

@@ -1918,7 +1918,7 @@ public class InjectService {
     attachedCredentials.forEach(
         credential ->
             credentialMetricCollector.addCredentialUsage(
-                userId, credential.getCredentialType().name(), injectorType));
+                userId, credential.getId(), credential.getCredentialType().name(), injectorType));
   }
 
   private boolean isCredentialAccessDeniedStatus(SecretReference.SECRET_STATUS status) {

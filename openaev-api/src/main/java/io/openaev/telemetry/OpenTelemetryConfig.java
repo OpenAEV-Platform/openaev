@@ -100,12 +100,12 @@ public class OpenTelemetryConfig {
 
   // -- PRIVATE --
   private String getOTELEndpoint() {
-    //    String endpoint = "https://telemetry.oaev.filigran.io/v1/metrics";
-    //    if (Arrays.asList(environment.getActiveProfiles()).contains("dev")
-    //        || Arrays.asList(environment.getActiveProfiles()).contains("ci")) {
-    //      endpoint = "https://telemetry.oaev.staging.filigran.io/v1/metrics";
-    //    }
-    return "http://localhost:11010/v1/metrics";
+    String endpoint = "https://telemetry.oaev.filigran.io/v1/metrics";
+    if (Arrays.asList(environment.getActiveProfiles()).contains("dev")
+        || Arrays.asList(environment.getActiveProfiles()).contains("ci")) {
+      endpoint = "https://telemetry.oaev.staging.filigran.io/v1/metrics";
+    }
+    return endpoint;
   }
 
   private boolean isEndpointReachable(String url) {
