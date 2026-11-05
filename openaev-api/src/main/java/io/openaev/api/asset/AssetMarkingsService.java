@@ -39,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The counterpart to {@code TenantGroupService.updateGroupMarkings}: that one grants a
  * <i>clearance</i> to a group, this one puts a <i>label</i> on a row. Both go through the same
- * {@link io.openaev.service.marking.MarkingEscalationValidator} and the same diff-based {@code
+ * {@link io.openaev.service.marking.MarkingEscalationValidator} and the same unconditional {@code
  * MANAGE_MARKING_ASSIGNMENT} capability check, for the same reason — a boundary you can widen for
  * yourself is not a boundary.
  */
@@ -70,8 +70,10 @@ public class AssetMarkingsService {
    *   <li><b>Escalation.</b> {@link io.openaev.service.marking.MarkingEscalationValidator} — you
    *       may not assign what you do not hold. Without it, "may write assets" would quietly mean
    *       "may read every marked row".
-   *   <li><b>Capability, only if the set actually changes.</b> Any add or remove requires {@code
-   *       MANAGE_MARKING_ASSIGNMENT}, additive to the asset's own {@code WRITE} control.
+   *   <li><b>Capability, unconditionally.</b> {@code MANAGE_MARKING_ASSIGNMENT}, additive to the
+   *       asset's own {@code WRITE} control — same upfront shape as {@link
+   *       #bulkReplaceAssetMarkings} (and {@code AssetService.bulkDeleteAssets}), so the two paths
+   *       cannot drift apart.
    * </ol>
    *
    * <p>🔴 <b>No cache eviction here, deliberately.</b> The rewritten predicate is {@code
@@ -113,76 +115,50 @@ public class AssetMarkingsService {
         markingClearanceCacheManager.findClearance(
             currentUser.getId(), tenantId, currentUser.isAdminOrBypass()),
         markings);
+    assertMarkingAssignmentCapability(currentUser);
 
-    // Diffed but not yet applied: the capability check must gate the mutation, so a refusal leaves
-    // no trace.
-    MarkingDiff diff = diffAssetMarkings(asset, uniqueMarkingIds);
-    assertMarkingAssignmentCapability(currentUser, diff.changed());
-    applyAssetMarkings(asset, currentUser, uniqueMarkingIds, diff);
-    return assetRepository.save(asset);
+    Set<String> removed = applyAssetMarkings(asset, uniqueMarkingIds);
+    Asset saved = assetRepository.save(asset);
+    // Only removals are logged (design §4.3): adding a marking narrows who can read the asset and
+    // needs no explaining, while removing one widens it, and widening is the direction that turns
+    // into an incident. Logged rather than raised as a domain event because the platform has no
+    // audit-event facility yet - when one lands this is the single call site to move.
+    if (!removed.isEmpty()) {
+      log.warn(
+          "Marking declassification: asset={} actor={} removedMarkings={} remainingMarkings={}",
+          asset.getId(),
+          currentUser.getId(),
+          removed,
+          uniqueMarkingIds);
+    }
+    return saved;
   }
 
-  /** Checks {@code MANAGE_MARKING_ASSIGNMENT} when a precomputed diff shows an actual change. */
-  private void assertMarkingAssignmentCapability(User currentUser, boolean anyChanged) {
-    if (anyChanged
-        && !permissionService.hasCapabilityPermission(
-            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
+  /** Checks {@code MANAGE_MARKING_ASSIGNMENT}. */
+  private void assertMarkingAssignmentCapability(User currentUser) {
+    if (!permissionService.hasCapabilityPermission(
+        currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
       throw new ForbiddenException("Missing the MANAGE_MARKING_ASSIGNMENT capability");
     }
   }
 
-  /** The added/removed markings between an asset's current set and a requested one. */
-  private record MarkingDiff(Set<String> previous, Set<String> added, Set<String> removed) {
-    boolean changed() {
-      return !added.isEmpty() || !removed.isEmpty();
-    }
-  }
-
-  /** Diffs {@code requested} against {@code asset}'s current marking set. No side effect. */
-  private MarkingDiff diffAssetMarkings(Asset asset, Set<String> requested) {
+  /**
+   * Writes {@code requested} to {@code asset}, records the assign/unassign metrics, and returns the
+   * markings that were removed, for the caller to log - the one place both {@link
+   * #updateAssetMarkings} and {@link #bulkReplaceAssetMarkings} apply a replace, so they cannot
+   * drift apart.
+   */
+  private Set<String> applyAssetMarkings(Asset asset, Set<String> requested) {
     Set<String> previous =
         asset.getMarkingIds() == null ? Set.of() : Set.copyOf(Arrays.asList(asset.getMarkingIds()));
-    Set<String> removed = new HashSet<>(previous);
-    removed.removeAll(requested);
     Set<String> added = new HashSet<>(requested);
     added.removeAll(previous);
-    return new MarkingDiff(previous, added, removed);
-  }
-
-  /**
-   * Writes {@code requested} to {@code asset}, logs any declassification and records the
-   * assign/unassign metrics - the one place both {@link #updateAssetMarkings} and {@link
-   * #bulkReplaceAssetMarkings} apply a replace, so they cannot drift apart.
-   */
-  private void applyAssetMarkings(
-      Asset asset, User actor, Set<String> requested, MarkingDiff diff) {
-    logDeclassification(asset, actor, diff.previous(), requested);
+    Set<String> removed = new HashSet<>(previous);
+    removed.removeAll(requested);
     asset.setMarkingIds(requested.toArray(String[]::new));
-    markingMetricCollector.recordAssetMarkingsAssigned(diff.added().size());
-    markingMetricCollector.recordAssetMarkingsUnassigned(diff.removed().size());
-  }
-
-  /**
-   * Records every marking <i>removal</i> and nothing else (design §4.3).
-   *
-   * <p>Only removals: adding a marking narrows who can read the asset and needs no explaining,
-   * while removing one widens it, and widening is the direction that turns into an incident. Logged
-   * rather than raised as a domain event because the platform has no audit-event facility yet —
-   * when one lands this is the single call site to move.
-   */
-  private void logDeclassification(
-      Asset asset, User actor, Set<String> previous, Set<String> requested) {
-    List<String> removed =
-        previous.stream().filter(id -> !requested.contains(id)).sorted().toList();
-    if (removed.isEmpty()) {
-      return;
-    }
-    log.warn(
-        "Marking declassification: asset={} actor={} removedMarkings={} remainingMarkings={}",
-        asset.getId(),
-        actor.getId(),
-        removed,
-        requested);
+    markingMetricCollector.recordAssetMarkingsAssigned(added.size());
+    markingMetricCollector.recordAssetMarkingsUnassigned(removed.size());
+    return removed;
   }
 
   /**
@@ -190,10 +166,10 @@ public class AssetMarkingsService {
    * BulkDeleteExecutor#processInChunks} - the same sorted-chunk / deadlock-retry / progress /
    * session-clear machinery the other bulk operations use, generalized past deletes.
    *
-   * <p>Unlike the single-asset path, {@code MANAGE_MARKING_ASSIGNMENT} is required unconditionally
-   * here, upfront - same shape as the other bulk operations' single capability gate (e.g. {@code
-   * AssetService.bulkDeleteAssets}) - instead of being diffed per asset. With no later conditional
-   * recheck, a chunk no longer needs a row lock either: plain {@code findAllById} is enough.
+   * <p>Same shape as the single-asset path and the other bulk operations' capability gate (e.g.
+   * {@code AssetService.bulkDeleteAssets}): {@code MANAGE_MARKING_ASSIGNMENT} is required
+   * unconditionally, upfront. With no later conditional recheck, a chunk needs no row lock either:
+   * plain {@code findAllById} is enough.
    *
    * @param tenantId the tenant whose clearance the caller is checked against
    * @return the ids of the assets whose markings were updated
@@ -222,22 +198,31 @@ public class AssetMarkingsService {
         markingClearanceCacheManager.findClearance(
             currentUser.getId(), tenantId, currentUser.isAdminOrBypass()),
         markings);
-    assertMarkingAssignmentCapability(currentUser, true);
+    assertMarkingAssignmentCapability(currentUser);
 
     List<String> assetIds = assetService.resolveBulkAssetIds(ctx, input);
 
     return bulkDeleteExecutor.processInChunks(
         ctx,
-        "replace-markings",
+        "update",
         "assets",
         assetIds,
         chunk -> {
           List<Asset> assets = fromIterable(assetRepository.findAllById(chunk));
+          List<String> declassified = new ArrayList<>();
           for (Asset asset : assets) {
-            MarkingDiff diff = diffAssetMarkings(asset, uniqueMarkingIds);
-            applyAssetMarkings(asset, currentUser, uniqueMarkingIds, diff);
+            if (!applyAssetMarkings(asset, uniqueMarkingIds).isEmpty()) {
+              declassified.add(asset.getId());
+            }
           }
           assetRepository.saveAll(assets);
+          if (!declassified.isEmpty()) {
+            log.warn(
+                "Marking declassification: actor={} assets={} remainingMarkings={}",
+                currentUser.getId(),
+                declassified,
+                uniqueMarkingIds);
+          }
         });
   }
 }
