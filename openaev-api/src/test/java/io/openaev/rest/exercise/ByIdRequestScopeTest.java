@@ -490,6 +490,43 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
   }
 
   @Nested
+  @DisplayName("Duplicating or launching a member tenant row on the non-prefixed route")
+  class DuplicateAndLaunchOfAMemberTenantRow {
+
+    @Test
+    @DisplayName(
+        "given a simulation of a member tenant and a selector naming it, its duplicate is found")
+    void given_simulationOfMemberTenantAndSelectorNamingIt_should_duplicateIt() throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(memberTenant);
+      int simulationsBefore = simulationCount();
+
+      // Act
+      int duplicate = duplicateSimulation(headerRoute(memberTenant), simulationId);
+
+      // Assert
+      assertThat(duplicate).isEqualTo(200);
+      assertThat(simulationCount()).isEqualTo(simulationsBefore + 1);
+    }
+
+    @Test
+    @DisplayName(
+        "given a scenario of a member tenant and a selector naming it, its duplicate is found")
+    void given_scenarioOfMemberTenantAndSelectorNamingIt_should_duplicateIt() throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(memberTenant);
+      int scenariosBefore = scenarioCount();
+
+      // Act
+      int duplicate = duplicateScenario(headerRoute(memberTenant), scenarioId);
+
+      // Assert
+      assertThat(duplicate).isEqualTo(200);
+      assertThat(scenarioCount()).isEqualTo(scenariosBefore + 1);
+    }
+  }
+
+  @Nested
   @DisplayName("Health checks and player lists of a simulation or scenario")
   class HealthChecksAndPlayerLists {
 
