@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.WorkflowUpdateEventAspect;
 import io.openaev.aop.audit_log.AuditEvent;
 import io.openaev.aop.audit_log.AuditEventOrigin;
 import io.openaev.aop.audit_log.AuditEventScope;
@@ -29,6 +30,7 @@ import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.chaining.WorkflowUpdateEventPublisher;
 import io.openaev.service.expectation.ExpectationBehavior;
 import io.openaev.service.expectation.ExpectationBehaviorResolver;
 import io.openaev.utils.fixtures.*;
@@ -47,6 +49,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -1272,6 +1275,48 @@ class InjectExpectationServiceTest {
       List<? extends BaseInjectExpectation> merged = merge();
 
       assertEquals(List.of(groupExpectation), merged);
+    }
+  }
+
+  @Nested
+  @DisplayName("Vulnerability verdicts notify the chaining engine")
+  class VulnerabilityVerdictWorkflowUpdateEvent {
+
+    @Mock private WorkflowUpdateEventPublisher workflowUpdateEventPublisher;
+
+    private InjectExpectationService proxiedService;
+    private BaseInjectExpectation expectation;
+
+    @BeforeEach
+    void setUpProxy() {
+      // The Spring bean is a proxy carrying the WorkflowUpdateEventAspect: rebuild that proxy
+      // around the service under test so the aspect runs as it does at runtime
+      AspectJProxyFactory factory = new AspectJProxyFactory(injectExpectationService);
+      factory.setProxyTargetClass(true);
+      factory.addAspect(new WorkflowUpdateEventAspect(workflowUpdateEventPublisher));
+      proxiedService = factory.getProxy();
+
+      inject.setId("vulnerability-inject-id");
+      expectation = createVulnerabilityInjectExpectation(inject, agent);
+      expectation.setId("vulnerability-expectation-id");
+      inject.setExpectations(List.of(expectation));
+      mockExpectation(expectation);
+    }
+
+    @Test
+    @DisplayName(
+        "given a vulnerability verdict from a structured output, should notify the step running"
+            + " the inject")
+    void given_vulnerabilityVerdictFromStructuredOutput_should_notifyStepRunningInject() {
+      // Act
+      proxiedService.matchesVulnerabilityExpectations(
+          createContext(buildDefaultInput(null)), mapper.createArrayNode());
+
+      // Assert
+      verify(injectExpectationService)
+          .updateInjectExpectationFromCollector(
+              eq(expectation.getId()), any(InjectExpectationUpdateFromCollectorInput.class));
+      verify(workflowUpdateEventPublisher).publishForInject(inject.getId());
     }
   }
 }
