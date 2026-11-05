@@ -1511,7 +1511,7 @@ public class AutonomousRunService {
    * re-provisions the TEMPLATE workflow so the AI rebuilds the plan from scratch.
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun restart(String runId) {
+  public AutonomousRun restart(TxCtx ctx, String runId) {
     // Row-locked read: the reset purges the decision timeline (deleteByRun takes the per-run event
     // advisory lock) and rewrites the run row, so it must hold the run ROW lock FIRST - the same
     // row -> advisory acquisition order as the settle paths (conditional row-locking UPDATE, then
@@ -1529,7 +1529,7 @@ public class AutonomousRunService {
       exerciseService.deleteById(run.getSimulationId());
     }
     // Fresh simulation from the SAME scenario - no new scenario is ever provisioned on restart.
-    Scenario scenario = scenarioService.scenario(run.getScenarioId());
+    Scenario scenario = scenarioService.scenario(ctx, run.getScenarioId());
     // Clear EVERY step on the scenario workflow (the seed the fresh simulation is copied from), not
     // just the ones tracked in the run's best-effort stepMirror. An un-mirrored step (a swallowed
     // mirror failure or a lost update on the run row) would otherwise survive and re-seed the
@@ -1598,7 +1598,7 @@ public class AutonomousRunService {
    * empty attack path. The caller then {@link #start}s it again.
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun promoteToRealRun(String runId) {
+  public AutonomousRun promoteToRealRun(TxCtx ctx, String runId) {
     // Row-locked read, like restart(): the promotion purges the decision timeline (deleteByRun
     // takes the per-run event advisory lock) and rewrites the run row, so the run ROW lock comes
     // first (row -> advisory, the settle paths' order). The plan-settled gate below also becomes
@@ -1618,7 +1618,7 @@ public class AutonomousRunService {
     if (hasText(run.getSimulationId())) {
       exerciseService.deleteById(run.getSimulationId());
     }
-    Scenario scenario = scenarioService.scenario(run.getScenarioId());
+    Scenario scenario = scenarioService.scenario(ctx, run.getScenarioId());
     // Clear EVERY step on the scenario workflow so the promoted (fresh) simulation starts with an
     // empty attack path and the orchestrator rebuilds it live (guided by planGuidance) rather than
     // replaying - or duplicating - the plan. A full clear rather than the best-effort stepMirror,
@@ -1691,7 +1691,7 @@ public class AutonomousRunService {
    *     DUPLICATE)
    */
   @Transactional(rollbackFor = Exception.class)
-  public Scenario convertToManual(String runId, ConvertToManualMode mode) {
+  public Scenario convertToManual(TxCtx ctx, String runId, ConvertToManualMode mode) {
     AutonomousRun run = require(runId);
     String scenarioId = run.getScenarioId();
     if (!hasText(scenarioId)) {
@@ -1739,7 +1739,7 @@ public class AutonomousRunService {
         // Already settled - leave the simulation state untouched.
       }
     }
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     scenario.setAutonomous(false);
     scenarioService.updateScenario(scenario);
     // A manual chained scenario runs-and-ends: drop the "park forever awaiting the orchestrator"
