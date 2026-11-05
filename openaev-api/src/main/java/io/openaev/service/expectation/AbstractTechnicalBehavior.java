@@ -163,8 +163,8 @@ public abstract class AbstractTechnicalBehavior
               // leaf (AI target, endpoint scanned by an assessment injector such as Nuclei) is
               // answered by a single direct verdict written on the row itself: seeding placeholder
               // rows next to it means the first real verdict never completes the row
-              // (computeScore waits for every seeded source), while the expiration manager skips
-              // agentless rows that already carry a result - so the expectation stays pending
+              // (computeLeafScore waits for every seeded source), while the expiration manager
+              // skips agentless rows that already carry a result - so the expectation stays pending
               // forever. The expiration ordering guarantee still applies to an agentless leaf a
               // collector may answer: the expiration manager must stay a fallback that acts only
               // after the expected collectors had their poll cycles. Signatures are computed for
@@ -215,7 +215,10 @@ public abstract class AbstractTechnicalBehavior
   public void initializeResults(BaseInjectExpectation expectation) {
     initializeResults(
         expectation,
-        collectorService.securityPlatformCollectors(expectation.getInject().getTenant().getId()));
+        filterCollectorsSupportingType(
+            collectorService.securityPlatformCollectors(
+                expectation.getInject().getTenant().getId()),
+            expectation.getType()));
   }
 
   /** Batch-friendly variant reusing tenant collectors already loaded by the caller. */
@@ -228,7 +231,9 @@ public abstract class AbstractTechnicalBehavior
 
   private List<Collector> resolveCollectors(
       String tenantId, TechnicalInjectExpectation expectation) {
-    List<Collector> tenantCollectors = collectorService.securityPlatformCollectors(tenantId);
+    List<Collector> tenantCollectors =
+        filterCollectorsSupportingType(
+            collectorService.securityPlatformCollectors(tenantId), expectation.getType());
     return filterCollectorsForExpectation(
         tenantCollectors, expectation.getExpectedSecurityPlatforms());
   }
@@ -408,8 +413,9 @@ public abstract class AbstractTechnicalBehavior
     }
     Double score =
         computeChildrenScore(parent.isExpectationGroup(), parent.getExpectedScore(), children);
-    // A definitive direct VULNERABLE verdict written on the parent row (e.g. by an assessment
-    // injector such as Nuclei) must survive the children rollup.
+    // A direct VULNERABLE verdict on the parent row comes from legacy data only (assessment
+    // injectors such as Nuclei used to answer the asset / asset-group row itself): it must survive
+    // the children rollup.
     parent.setScore(reconcileWithDirectVulnerableVerdict(parent, score));
     return Optional.of(parent);
   }

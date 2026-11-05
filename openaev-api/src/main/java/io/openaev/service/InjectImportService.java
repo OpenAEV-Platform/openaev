@@ -13,16 +13,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.FileTooBigException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.response.ImportMessage;
 import io.openaev.rest.scenario.response.ImportPostSummary;
 import io.openaev.rest.scenario.response.ImportTestSummary;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.mapper.InjectMapper;
@@ -51,11 +53,14 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.logging.log4j.util.Strings;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.reactive.function.UnsupportedMediaTypeException;
 
 @RequiredArgsConstructor
 @Service
@@ -69,8 +74,8 @@ public class InjectImportService {
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
 
-  private final ExerciseRepository exerciseRepository;
-  private final ScenarioRepository scenarioRepository;
+  private final ExerciseService exerciseService;
+  private final ScenarioService scenarioService;
   private final ImportService importService;
 
   private final List<String> importReservedField = List.of("description", "title", "trigger_time");
@@ -80,18 +85,24 @@ public class InjectImportService {
 
   public static final String BASE_DIR = System.getProperty("java.io.tmpdir");
   static final int FILE_STORAGE_DURATION = 60;
+  // 25mb in byte
+  private static final int MAXIMUM_FILE_SIZE_ALLOWED = 25 * 1000 * 1000;
+  private static final List<String> ACCEPTED_FILE_TYPES = List.of("xls", "xlsx");
 
   private final InjectMapper injectMapper;
   private final InjectService injectService;
   private final TenantWriteScopeResolver tenantWriteScopeResolver;
 
   /**
-   * Store a xls file for ulterior import. The file will be deleted on exit.
+   * Store a xls file for ulterior import. The file will be deleted on exit, or after a successful
+   * import.
    *
    * @param file MultipartFile
    * @return ImportPostSummary containing the importId and the list of available sheets
    */
   public ImportPostSummary storeXlsFileForImport(MultipartFile file) {
+    // Checked here so every upload route applies the same limits before the file is written.
+    validateUploadedFile(file);
     ImportPostSummary result = new ImportPostSummary();
     result.setAvailableSheets(new ArrayList<>());
     // Generating a UUID for identifying the file
@@ -128,6 +139,32 @@ public class InjectImportService {
     }
 
     return result;
+  }
+
+  /** Deletes a stored upload from disk. Safe to call twice. */
+  void deleteStoredFile(String importId) {
+    // Only an upload id is deleted: never the temp dir itself or a path outside it.
+    isValidUUID(importId);
+    FileUtils.deleteQuietly(validatePathTraversal(BASE_DIR, importId).toFile());
+  }
+
+  private void validateUploadedFile(MultipartFile file) {
+    validateExtension(file);
+    validateFileSize(file);
+  }
+
+  private void validateExtension(MultipartFile file) {
+    String extension = FilenameUtils.getExtension(file.getOriginalFilename());
+    if (!ACCEPTED_FILE_TYPES.contains(extension)) {
+      throw new UnsupportedMediaTypeException(
+          "Only the following file types are accepted : " + String.join(", ", ACCEPTED_FILE_TYPES));
+    }
+  }
+
+  private void validateFileSize(MultipartFile file) {
+    if (file.getSize() >= MAXIMUM_FILE_SIZE_ALLOWED) {
+      throw new FileTooBigException("File size cannot be greater than 25 Mb");
+    }
   }
 
   public ImportTestSummary importInjectIntoScenarioFromXLS(
@@ -188,6 +225,8 @@ public class InjectImportService {
               .peek(inject -> inject.setListened(false))
               .toList());
       Iterable<Inject> newInjects = injectRepository.saveAll(importTestSummary.getInjects());
+      // The file is no longer needed once its injects are saved.
+      deleteStoredFile(importId);
       if (exercise != null) {
         computeInjectInExercise(exercise, newInjects);
       } else if (scenario != null) {
@@ -1265,9 +1304,7 @@ public class InjectImportService {
   public void importInjectsForScenario(TxCtx ctx, MultipartFile file, String scenarioId)
       throws Exception {
     Scenario targetScenario =
-        scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
 
     this.importService.handleFileImport(ctx, file, null, targetScenario);
   }
@@ -1275,7 +1312,9 @@ public class InjectImportService {
   public void importInjectsForSimulation(TxCtx ctx, MultipartFile file, String simulationId)
       throws Exception {
     Exercise targetSimulation =
-        exerciseRepository.findById(simulationId).orElseThrow(ElementNotFoundException::new);
+        exerciseService
+            .findByIdInScope(ctx, simulationId)
+            .orElseThrow(ElementNotFoundException::new);
 
     this.importService.handleFileImport(ctx, file, targetSimulation, null);
   }

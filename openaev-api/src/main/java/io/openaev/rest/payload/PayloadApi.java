@@ -49,7 +49,7 @@ public class PayloadApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
   public Page<Payload> payloads(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return this.payloadService.searchPayloads(searchPaginationInput);
+    return this.payloadService.searchPayloads(ctx, searchPaginationInput);
   }
 
   @GetMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})

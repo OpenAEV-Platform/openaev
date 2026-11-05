@@ -25,6 +25,8 @@ Keep one line per issue:
 * Closes #ISSUE-NUMBER
 * Related #ISSUE-NUMBER
 
+<!-- If the related issue is in a private repository, do not link or reference it here. Use "* N/A" and link this public PR from the private issue instead. -->
+
 ### Checklist
 
 <!--

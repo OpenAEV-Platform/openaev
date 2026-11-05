@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -62,6 +63,8 @@ public class AtomicTestingService {
   private final AssetGroupService assetGroupService;
   private final InjectExpectationService injectExpectationService;
   private final UserService userService;
+  // Lazy: PermissionService is built from the inject services.
+  private final ObjectProvider<PermissionService> permissionServiceProvider;
   private final InjectSearchService injectSearchService;
   private final InjectService injectService;
   private final GrantService grantService;
@@ -218,7 +221,7 @@ public class AtomicTestingService {
             () -> {
               Specification<Inject> specification =
                   injectService
-                      .getInjectSpecification(input, Grant.GRANT_TYPE.PLANNER)
+                      .getInjectSpecification(ctx, input, Grant.GRANT_TYPE.PLANNER)
                       .and(InjectSpecification.isAtomicTesting());
               return injectRepository.findAll(specification).stream().map(Inject::getId).toList();
             });
@@ -239,11 +242,6 @@ public class AtomicTestingService {
     return injectService.launch(id);
   }
 
-  @Transactional
-  public InjectResultOverviewOutput relaunch(String id) {
-    return doRelaunch(id, true);
-  }
-
   /**
    * Relaunch an atomic testing (duplicate + queue new + delete old) and migrate its grants to the
    * new inject. Scheduled relaunches pass {@code checkLaunchable = false} to skip the Enterprise
@@ -251,13 +249,6 @@ public class AtomicTestingService {
    */
   @Transactional
   public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
-    return doRelaunch(id, checkLaunchable);
-  }
-
-  // Non-transactional body shared by both @Transactional entry points: an intra-class call to a
-  // @Transactional method bypasses the Spring proxy (self-invocation), so the overloads never call
-  // each other directly.
-  private InjectResultOverviewOutput doRelaunch(String id, boolean checkLaunchable) {
     findInject(id);
     // Relaunching an atomic testing is considered as creating a new one.
     // Therefore, any grants created on the current atomic testing will have to be updated with the
@@ -266,6 +257,30 @@ public class AtomicTestingService {
     grantService.updateGrantsForNewResource(
         id, relaunched.getId(), Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
     return relaunched;
+  }
+
+  /**
+   * The Enterprise executor gate of a user relaunch, checked on what the user can see: the targets
+   * they are not cleared for will not be executed, so their executors must not block the launch.
+   */
+  public void throwIfNotLaunchable(String id) {
+    injectService.throwIfInjectNotLaunchable(findInject(id));
+  }
+
+  /**
+   * A user relaunch, once {@link #throwIfNotLaunchable} passed: duplicates the atomic testing for
+   * the current user and migrates its grants to the new inject. Meant to run in a faithful copy, so
+   * the duplicate keeps every target.
+   *
+   * @return the id of the relaunched atomic testing
+   */
+  @Transactional
+  public String relaunchAsCurrentUser(String id) {
+    findInject(id);
+    String relaunchedId = injectService.relaunchAsCurrentUser(id);
+    grantService.updateGrantsForNewResource(
+        id, relaunchedId, Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
+    return relaunchedId;
   }
 
   /** Bulk update used by the recurring atomic testing job to self-clear outdated recurrences. */
@@ -334,26 +349,37 @@ public class AtomicTestingService {
    * part of any scenario or exercise (both fields are null). The search only fetches data according
    * to user permissions via the grant system.
    *
+   * @param ctx the request scope
    * @param searchPaginationInput Pagination and filtering parameters
    * @return A paginated list of atomic testing results
    */
   public Page<InjectResultOutput> searchAtomicTestingsForCurrentUser(
-      @NotNull final SearchPaginationInput searchPaginationInput) {
+      @NotNull final TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
 
     // Atomic testings are injects where scenario and exercise are null. They are also subject to
-    // the grant system.
+    // the grant system, which the access right bypasses in the tenants where the user holds it.
     User currentUser = userService.currentUser();
 
     Specification<Inject> customSpec =
         Specification.<Inject>unrestricted()
             .and(InjectSpecification.isAtomicTesting())
             .and(
-                SpecificationUtils.hasGrantAccess(
-                    currentUser.getId(),
-                    currentUser.isAdminOrBypass(),
-                    currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
-                    Grant.GRANT_TYPE.OBSERVER));
+                permissionServiceProvider
+                    .getObject()
+                    .filterInEachTenant(
+                        ctx,
+                        () ->
+                            currentUser.isAdminOrBypass()
+                                || currentUser
+                                    .getCapabilities()
+                                    .contains(Capability.ACCESS_ASSESSMENT),
+                        accessRight ->
+                            SpecificationUtils.hasGrantAccess(
+                                currentUser.getId(),
+                                false,
+                                accessRight,
+                                Grant.GRANT_TYPE.OBSERVER)));
 
     return buildPaginationCriteriaBuilder(
         (Specification<Inject> specification,

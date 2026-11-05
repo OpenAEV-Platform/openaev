@@ -6,10 +6,13 @@ import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.User;
+import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +21,14 @@ import org.springframework.stereotype.Component;
  *
  * <p>This is the API-side half of {@link MarkingScopeSupplier}: the aspect lives in {@code
  * openaev-model} and cannot reach the security context or the clearance cache, both of which live
- * here.
+ * here. It also supplies the system clearance ({@link #systemClearanceFor}): every marking of a
+ * tenant, resolved like a bypassing caller's clearance. It serves:
+ *
+ * <ul>
+ *   <li>background jobs, through {@code TenantScopedTransaction};
+ *   <li>faithful copies (duplicate, relaunch, scenario launch), through {@code
+ *       withSystemClearance}.
+ * </ul>
  *
  * <p><b>Fail-closed, and note what that means for marking.</b> No principal, an anonymous caller,
  * or a tenant scope that grants nothing all yield {@link MarkingCtx#none()} — which still admits
@@ -40,6 +50,15 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
   // that many of those services are themselves advised by.
   @Lazy private final UserService userService;
 
+  // PermissionService reaches the services those aspects advise: @Lazy setter injection, as in
+  // TenantGroupService.
+  private PermissionService permissionService;
+
+  @Autowired
+  public void setPermissionService(@Lazy PermissionService permissionService) {
+    this.permissionService = permissionService;
+  }
+
   @Override
   public MarkingCtx clearanceFor(TxCtx tenantScope) {
     if (!(tenantScope instanceof TxCtx.Restricted restricted)) {
@@ -50,6 +69,17 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
     if (currentUser == null) {
       return MarkingCtx.none();
     }
+    String userId = currentUser.getId();
+    // The capabilities are the ones the caller holds in the tenant whose clearance is computed.
+    return union(
+        restricted,
+        tenantId -> {
+          boolean bypass = permissionService.holdsInTenant(tenantId, () -> bypasses(currentUser));
+          return clearanceCache.findClearance(userId, tenantId, bypass);
+        });
+  }
+
+  private static boolean bypasses(User currentUser) {
     // AGENT_RUNTIME_ACCESS is the well-known capability of the per-tenant agent/implant service
     // account (AgentServiceAccountPrivilegeService). That account has no group-marking grants of
     // its own — it exists only to run the agent/implant API surface — so without this it would
@@ -62,17 +92,29 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
     // subset a marking-less user would see. This is the READ clearance of the request only - the
     // dispatch-time check (InjectService.resolveLaunchedByClearance) deliberately does not use it.
     Set<Capability> capabilities = currentUser.getCapabilities();
-    boolean bypass =
-        currentUser.isAdminOrBypass()
-            || capabilities.contains(Capability.AGENT_RUNTIME_ACCESS)
-            || capabilities.contains(Capability.MANAGE_STIX_BUNDLE);
+    return currentUser.isAdminOrBypass()
+        || capabilities.contains(Capability.AGENT_RUNTIME_ACCESS)
+        || capabilities.contains(Capability.MANAGE_STIX_BUNDLE);
+  }
 
-    // A marking definition belongs to exactly one tenant, so ids cannot collide across them and the
-    // union is unambiguous: acting on N tenants means holding each one's clearance in that tenant.
+  /**
+   * Every marking of the tenants in scope, read fresh (never from the cache) in one query for all
+   * of them. No principal is involved: a scheduler is not a user.
+   */
+  @Override
+  public MarkingCtx systemClearanceFor(TxCtx.Restricted tenantScope) {
+    return clearanceCache.findSystemClearance(tenantScope.tenantIds());
+  }
+
+  /**
+   * A marking definition belongs to exactly one tenant, so ids cannot collide across them and the
+   * union is unambiguous: acting on N tenants means holding each one's clearance in that tenant.
+   */
+  private static MarkingCtx union(
+      TxCtx.Restricted tenantScope, Function<String, MarkingCtx> perTenant) {
     Set<String> markingIds = new LinkedHashSet<>();
-    for (String tenantId : restricted.tenantIds()) {
-      MarkingCtx perTenant = clearanceCache.findClearance(currentUser.getId(), tenantId, bypass);
-      if (perTenant instanceof MarkingCtx.Restricted granted) {
+    for (String tenantId : tenantScope.tenantIds()) {
+      if (perTenant.apply(tenantId) instanceof MarkingCtx.Restricted granted) {
         markingIds.addAll(granted.markingIds());
       }
     }

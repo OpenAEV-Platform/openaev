@@ -94,6 +94,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -135,6 +136,8 @@ public class InjectService {
   private final InjectMapper injectMapper;
   private final MethodSecurityExpressionHandler methodSecurityExpressionHandler;
   private final UserService userService;
+  // Lazy: PermissionService is built from this service.
+  private final ObjectProvider<PermissionService> permissionServiceProvider;
   private final InjectorContractService injectorContractService;
   private final TagRuleService tagRuleService;
   private final TagService tagService;
@@ -698,11 +701,31 @@ public class InjectService {
     if (checkLaunchable) {
       this.throwIfInjectNotLaunchable(duplicatedInject);
     }
-    duplicatedInject.setLaunchedBy(
-        checkLaunchable ? userService.currentUser() : duplicatedInject.getScheduledBy());
-    Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
-    deleteForRelaunch(id, savedInject.getId());
+    Inject savedInject =
+        relaunchCopy(
+            id,
+            duplicatedInject,
+            checkLaunchable ? userService.currentUser() : duplicatedInject.getScheduledBy());
     return injectMapper.toInjectResultOverviewOutput(savedInject);
+  }
+
+  /**
+   * Relaunches an inject for the current user, whose launch was already checked ({@link
+   * #throwIfInjectNotLaunchable}) on what they can see: run in a faithful copy, the duplicate also
+   * carries the targets they are not cleared for, which the dispatch will not execute.
+   *
+   * @return the id of the relaunched inject
+   */
+  @Transactional
+  public String relaunchAsCurrentUser(String id) {
+    return relaunchCopy(id, findAndDuplicateInject(id), userService.currentUser()).getId();
+  }
+
+  private Inject relaunchCopy(String originId, Inject duplicatedInject, User launchedBy) {
+    duplicatedInject.setLaunchedBy(launchedBy);
+    Inject savedInject = saveInjectAndStatusAsQueuing(duplicatedInject);
+    deleteForRelaunch(originId, savedInject.getId());
+    return savedInject;
   }
 
   @Transactional
@@ -797,7 +820,9 @@ public class InjectService {
    *     provided
    */
   public Specification<Inject> getInjectSpecification(
-      final InjectBulkProcessingInput input, Grant.GRANT_TYPE requestedGrantLevel) {
+      final TxCtx ctx,
+      final InjectBulkProcessingInput input,
+      Grant.GRANT_TYPE requestedGrantLevel) {
     if ((CollectionUtils.isEmpty(input.getInjectIDsToProcess())
             && (input.getSearchPaginationInput() == null))
         || (!CollectionUtils.isEmpty(input.getInjectIDsToProcess())
@@ -826,7 +851,8 @@ public class InjectService {
     }
     // Filter out any injects not related to resources where the user is granted with the
     // appropriate level
-    filterSpecifications = filterSpecifications.and(hasGrantAccessForInject(requestedGrantLevel));
+    filterSpecifications =
+        filterSpecifications.and(hasGrantAccessForInject(ctx, requestedGrantLevel));
     return filterSpecifications;
   }
 
@@ -898,7 +924,7 @@ public class InjectService {
     // Control and format inputs
     // Specification building
     Specification<Inject> filterSpecifications =
-        getInjectSpecification(input, requested_grant_level);
+        getInjectSpecification(ctx, input, requested_grant_level);
 
     // Services calls
     // Bulk select, only on injects granted through scenario or simulation (or without grant for
@@ -1303,13 +1329,15 @@ public class InjectService {
           this.executionTraceRepository.findByInjectIdAndAssetId(injectId, targetId);
       case TEAMS -> this.executionTraceRepository.findByInjectIdAndTeamId(injectId, targetId);
       case PLAYERS -> this.executionTraceRepository.findByInjectIdAndPlayerId(injectId, targetId);
+      // Network injectors report one inject-level trace for all their manual targets (raw IPs or
+      // hostnames from the content), so no trace belongs to a single manual target.
+      case MANUAL -> List.of();
       default -> throw new BadRequestException("Target type " + targetType + " is not supported");
     };
   }
 
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(String injectId) {
-    return injectStatusMapper.toInjectStatusOutput(
-        injectStatusRepository.findInjectStatusWithGlobalExecutionTraces(injectId));
+    return injectStatusMapper.toInjectStatusOutput(injectStatusRepository.findByInjectId(injectId));
   }
 
   public InjectStatusOutput getInjectStatusWithAllExecutionTraces(String injectId) {
@@ -1447,22 +1475,33 @@ public class InjectService {
   /**
    * Check if a user is granted on an inject. A user can be granteed on an inject if: - The inject
    * is linked to a scenario or simulation that the user has access to - The inject is an atomic
-   * testing and the user has access to it
+   * testing and the user has access to it. The access capability bypasses the grants in the tenants
+   * where the user holds it.
    *
+   * @param ctx the request scope
    * @param grantType the grant type to check
    * @return a Specification that checks if the user has access to the inject
    */
-  public Specification<Inject> hasGrantAccessForInject(Grant.GRANT_TYPE grantType) {
-
+  public Specification<Inject> hasGrantAccessForInject(
+      final TxCtx ctx, Grant.GRANT_TYPE grantType) {
     User currentUser = userService.currentUser();
-    boolean hasCapabilityAccessAssessment =
-        currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
-            || currentUser.getCapabilities().contains(Capability.BYPASS);
+    return permissionServiceProvider
+        .getObject()
+        .filterInEachTenant(
+            ctx,
+            () ->
+                currentUser.isAdmin()
+                    || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
+                    || currentUser.getCapabilities().contains(Capability.BYPASS),
+            accessRight ->
+                accessRight
+                    ? (root, query, cb) -> cb.conjunction()
+                    : grantedInjects(currentUser, grantType));
+  }
 
+  private static Specification<Inject> grantedInjects(
+      User currentUser, Grant.GRANT_TYPE grantType) {
     return (root, query, cb) -> {
-      if (currentUser.isAdmin() || hasCapabilityAccessAssessment) {
-        return cb.conjunction();
-      }
 
       // Ensure distinct results (joins/subqueries can otherwise produce duplicates).
       query.distinct(true);
@@ -1482,6 +1521,7 @@ public class InjectService {
               query,
               cb,
               currentUser.getId(),
+              currentUser.scopedTenantId(),
               Grant.GRANT_RESOURCE_TYPE.SCENARIO,
               allowedGrantTypes);
       // Create subquery for accessible simulations
@@ -1490,6 +1530,7 @@ public class InjectService {
               query,
               cb,
               currentUser.getId(),
+              currentUser.scopedTenantId(),
               Grant.GRANT_RESOURCE_TYPE.SIMULATION,
               allowedGrantTypes);
       // Create subquery for accessible atomic testings
@@ -1498,6 +1539,7 @@ public class InjectService {
               query,
               cb,
               currentUser.getId(),
+              currentUser.scopedTenantId(),
               Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING,
               allowedGrantTypes);
 

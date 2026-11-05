@@ -23,7 +23,7 @@ public abstract class AbstractPrivilegeService {
 
   protected abstract WellKnownAccess wellKnownAccess();
 
-  protected Role createWellKnownRole(String tenantId) {
+  protected Role ensureWellKnownRole(String tenantId) {
     WellKnownAccess access = wellKnownAccess();
     String id = getUUIDFromName(access.roleId(), tenantId);
     Optional<Role> role = tenantRoleService.findByIdAndTenant(id, tenantId);
@@ -35,7 +35,7 @@ public abstract class AbstractPrivilegeService {
         id, access.roleName(), access.roleDescription(), access.capabilities(), tenantId);
   }
 
-  protected Group createWellKnownGroupWithRole(Role role, String tenantId) {
+  protected Group ensureWellKnownGroupWithRole(Role role, String tenantId) {
     WellKnownAccess access = wellKnownAccess();
     String groupId = getUUIDFromName(access.groupId(), tenantId);
     Optional<Group> group = tenantGroupService.findByIdAndTenant(groupId, tenantId);

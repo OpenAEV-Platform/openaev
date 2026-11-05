@@ -47,6 +47,12 @@ Then:
 | **Layering** | Controller → Service → Repository? No repository injection in controllers? |
 | **Naming** | PascalCase entities, camelCase methods, `snake_case` DB columns? |
 | **DTO pattern** | API never exposes JPA entities — always through Output records + Mapper |
+| **Tenant routes** | New endpoint on tenant-scoped data mapped on `TENANT_PREFIX` only, no `/api/...` alias |
+| **No unused code** | Every class, method, field and constant added has a caller in the PR? No default or option nobody decided? |
+| **One role per service** | Service split by job and transaction rule? Long methods read as named steps, no generic machinery? |
+| **Mapping** | Input → entity and entity → output copied in a mapper, DTOs in `api/{feature}/dto`? |
+| **Types** | Kinds with their own fields as `SINGLE_TABLE` subclasses? Type-dependent rules on the enum? |
+| **Preview features** | Checked in the endpoint with `PreviewFeatureService` (404), no `@Conditional`? |
 | **Service pattern** | Business logic in `@Service`, `@Transactional` on each method, `readOnly = true` on reads |
 | **No writes in read paths** | GET/list code never calls setters on managed entities (`readOnly = true` does NOT prevent the OSIV flush at response commit) — display-only values go into the output DTO via mapper parameters |
 | **Error handling** | Uses `ElementNotFoundException`? Returns proper HTTP status codes? |

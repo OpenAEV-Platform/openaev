@@ -9,7 +9,6 @@ import io.openaev.aop.LogExecutionTime;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.comparator.InjectExecutionComparator;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -24,6 +23,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.exports.ExportOptions;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.helper.ValidationErrorBag;
 import io.openaev.rest.inject.form.*;
@@ -35,11 +35,13 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.payload.form.DetectionRemediationOutput;
 import io.openaev.secrets.provider.SecretResolvedValue;
+import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.credential.CredentialService;
 import io.openaev.service.targets.TargetService;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.command.CommandBindingException;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -82,6 +84,7 @@ public class InjectApi extends RestBehavior {
 
   private final ExecutableInjectService executableInjectService;
   private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final InjectRepository injectRepository;
   private final InjectService injectService;
   private final InjectExecutionCallbackService injectExecutionCallbackService;
@@ -91,6 +94,7 @@ public class InjectApi extends RestBehavior {
   private final UserRepository userRepository;
   private final PayloadMapper payloadMapper;
   private final UserService userService;
+  private final PermissionService permissionService;
   private final DocumentService documentService;
 
   private final InjectMapper injectMapper;
@@ -153,11 +157,19 @@ public class InjectApi extends RestBehavior {
             Specification.<Inject>unrestricted()
                 .and(SpecificationUtils.hasIdIn(targetIds))
                 .and(
-                    SpecificationUtils.hasGrantAccess(
-                        currentUser.getId(),
-                        currentUser.isAdminOrBypass(),
-                        currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
-                        Grant.GRANT_TYPE.OBSERVER)));
+                    permissionService.filterInEachTenant(
+                        ctx,
+                        () ->
+                            currentUser.isAdminOrBypass()
+                                || currentUser
+                                    .getCapabilities()
+                                    .contains(Capability.ACCESS_ASSESSMENT),
+                        accessRight ->
+                            SpecificationUtils.hasGrantAccess(
+                                currentUser.getId(),
+                                false,
+                                accessRight,
+                                Grant.GRANT_TYPE.OBSERVER))));
     List<String> foundIds = injects.stream().map(Inject::getId).toList();
     List<String> missedIds =
         new ArrayList<>(targetIds.stream().filter(id -> !foundIds.contains(id)).toList());
@@ -436,7 +448,7 @@ public class InjectApi extends RestBehavior {
       summary = "Get the payload ready to be executed",
       description =
           "This endpoint is invoked by implants to retrieve a payload command that's pre-configured and ready for execution.")
-  @Transactional
+  @Transactional(noRollbackFor = CommandBindingException.class)
   public Payload getExecutablePayloadInject(
       TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
@@ -464,16 +476,12 @@ public class InjectApi extends RestBehavior {
               mediaType = "application/json",
               schema = @Schema(implementation = ValidationErrorBag.class)))
   public InjectOutput updateInject(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
-      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
       TxCtx ctx,
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     Inject inject = injectService.updateInject(injectId, input);
 
     // It should not be possible to add a EE executor on inject when the exercise is already

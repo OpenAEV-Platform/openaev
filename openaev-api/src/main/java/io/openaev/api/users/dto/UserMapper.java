@@ -26,12 +26,13 @@ public class UserMapper {
   /**
    * Maps a User entity to output with tenant information (platform-scoped APIs only).
    *
+   * <p>Organizations are not handled at platform level: a user holds one organization per tenant,
+   * so none is exposed here.
+   *
    * @param user the user to map
-   * @param visibleOrganizations the organizations the caller may see, keyed by id
    */
-  public static UserOutput toPlatformOutput(
-      User user, Map<String, Organization> visibleOrganizations) {
-    return toOutput(user, visibleOrganizations, true);
+  public static UserOutput toPlatformOutput(User user) {
+    return toOutput(user, Map.of(), true);
   }
 
   /**
@@ -54,12 +55,12 @@ public class UserMapper {
 
   private static UserOutput toOutput(
       User user, Map<String, Organization> visibleOrganizations, boolean includeTenants) {
-    // A user is platform-level but its organization belongs to one tenant: never initialize the
-    // lazy reference (fail-closed, it throws when out of scope), only expose a resolved one.
-    Organization org =
-        user.getOrganization() != null
-            ? visibleOrganizations.get(user.getOrganization().getId())
-            : null;
+    // A user is platform-level but holds one organization per tenant: only the current tenant's
+    // one is exposed, and only when the caller may see it. The platform output exposes none.
+    Organization org = null;
+    if (!includeTenants && user.getOrganization() != null) {
+      org = visibleOrganizations.get(user.getOrganization().getId());
+    }
     Set<String> tagIds =
         user.getTags() != null
             ? user.getTags().stream().map(Tag::getId).collect(Collectors.toSet())

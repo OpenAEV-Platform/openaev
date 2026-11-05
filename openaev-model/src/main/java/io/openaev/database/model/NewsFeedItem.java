@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
+import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -45,11 +46,13 @@ public class NewsFeedItem implements Base, UserScoped {
   @Column(name = "news_feed_item_title")
   @JsonProperty("news_feed_item_title")
   @NotBlank
+  @Queryable(searchable = true, sortable = true)
   private String title;
 
   @Column(name = "news_feed_item_type")
   @JsonProperty("news_feed_item_type")
   @NotBlank
+  @Queryable(sortable = true)
   private String type;
 
   @Type(StringArrayType.class)
@@ -64,10 +67,12 @@ public class NewsFeedItem implements Base, UserScoped {
   @Column(name = "news_feed_item_creation_date")
   @JsonProperty("news_feed_item_creation_date")
   @NotNull
+  @Queryable(sortable = true)
   private Instant creationDate;
 
   @Column(name = "news_feed_item_is_read")
   @JsonProperty("news_feed_item_is_read")
+  @Queryable(sortable = true)
   private boolean read = false;
 
   // EAGER: the owner id must stay readable after the session closes (SSE user scoping)

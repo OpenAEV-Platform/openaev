@@ -13,6 +13,13 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 
 > The `io.openaev.rest` package is **legacy** — it will be progressively migrated to `io.openaev.api`. **Never add new controllers, DTOs, or mappers in `rest/`**. All new API code goes in `io.openaev.api.*`.
 
+## Scope of a Pull Request
+
+- **No unused code**: every class, method, field and constant a PR adds has a caller in that PR. What a
+  later step needs comes with that step.
+- **No undecided concept**: no default value, option or notion nobody asked for (a "stable" channel, an
+  `isOffered()` that also accepts `null`). Add it when the need is real.
+
 ## Layering
 
 - **Controller (API)** → depends only on **Service** — never inject a Repository in a controller
@@ -24,7 +31,10 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 ## New Controllers (package `io.openaev.api.*`)
 
 - `@RestController @RequestMapping("/api/{entities}") @RequiredArgsConstructor`
-- Every endpoint: `@AccessControl` + `@LogExecutionTime` + `@Operation`
+- Tenant-scoped data: routes on `TENANT_PREFIX + "/{entities}"` only, no `/api/{entities}` alias (see multi-tenancy rule 9)
+- Every endpoint: `@AccessControl` + `@Operation`; `@LogExecutionTime` only on endpoints at risk of being slow (heavy queries, imports, exports)
+- Preview feature: check it in the endpoint with `PreviewFeatureService.isFeatureEnabled(...)` and throw
+  `ElementNotFoundException` (404) when it is off; no Spring `@Conditional` reading the properties
 - URI: lowercase, hyphens, nouns — HTTP method defines the action
 - Search: `@PostMapping("/search")`, Create: `201`, Delete: `204`
 - Organize endpoints with section comments: `// -- CREATE --`, `// -- READ --`, `// -- UPDATE --`, `// -- DELETE --`
@@ -32,11 +42,13 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 
 ## API DTOs, Mappers & Sub-resources
 
-For each entity exposed via REST, create three files in the same `io.openaev.api.*` package:
+For each entity exposed via REST, create these files in `io.openaev.api.{feature}`:
 
-- **`{Entity}Input.java`** — Java `record` for request body (`@JsonProperty`, `@NotBlank`, etc.)
-- **`{Entity}Output.java`** — Java `record` for response body (all fields the client needs)
-- **`{Entity}Mapper.java`** — Utility class with `private` constructor, static methods `toOutput(Entity)` and optionally `fromInput(String id, Input)`
+- **`dto/{Entity}Input.java`** — Java `record` for request body (`@JsonProperty`, `@NotBlank`, etc.)
+- **`dto/{Entity}Output.java`** — Java `record` for response body (see the output rules in `api.instructions.md`)
+- **`{Entity}Mapper.java`** — Utility class with `private` constructor, static methods `toOutput(Entity)` and optionally `fromInput(String id, Input)`. A `@Component` only when it needs another bean (e.g. `ObjectMapper`)
+
+Copying an input into an entity, or an entity into an output, belongs in the mapper, never in a service.
 
 ```java
 // DTOs — immutable Java record
@@ -70,6 +82,8 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - Column: `{entity_singular}_{field}` → `@JsonProperty("same")`
 - Tenant relation: always `@JsonIgnore`
 - Collections: mutable (`new ArrayList<>()`) + `@Fetch(FetchMode.SUBSELECT)`
+- Several kinds of one thing with their own fields: one table, one class per kind
+  (`@Inheritance(SINGLE_TABLE)`, as `Asset` / `Endpoint`), never one class whose fields only apply to some rows
 
 ## Hibernate
 
@@ -95,6 +109,14 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - JavaDoc on all public methods (what + why)
 - Fail fast: `Objects.requireNonNull()`, custom exceptions for business rules
 - **Resolving associations from IDs**: use `ReferenceResolver.resolve(ids, Entity.class, repo::countByIdIn)` — never loop `findById()` (see `performance.instructions.md`)
+- **One role per service**: split a service whose methods have different jobs or transaction rules
+  (check files outside a transaction, write in one, list read-only)
+- **A long method reads like a recipe**: named private steps (`latestRelease`, `refuseIfOlder`, `saveItems`),
+  plain loops; no generic `Supplier`/`Consumer` machinery to save a few lines
+- **A rule that depends on a type lives on its enum** (e.g. the resource an event type is limited to), not
+  in a chain of `if` in a service
+- **Notifications go through the notification engine**: add the resource to `NotificationResourceCatalog`
+  and the event to `NotificationTriggerEventType`, users subscribe; never write alerts to users directly
 
 ## Repositories
 

@@ -68,6 +68,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
@@ -128,6 +129,8 @@ class InjectServiceTest {
       new InjectorContractContentUtils(ObjectMapperHelper.openAEVJsonMapper());
 
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private ObjectProvider<PermissionService> permissionServiceProvider;
+  @Mock private PermissionService permissionService;
 
   ObjectMapper mapper;
 
@@ -137,6 +140,12 @@ class InjectServiceTest {
 
   @BeforeEach
   void setUp() {
+    // The grant filter is built tenant by tenant by PermissionService: a filter that keeps every
+    // row stands in for it here.
+    lenient().when(permissionServiceProvider.getObject()).thenReturn(permissionService);
+    lenient()
+        .when(permissionService.filterInEachTenant(any(), any(), any()))
+        .thenReturn(Specification.unrestricted());
     // InjectStatusService serializes the inject (Instant / Optional fields) into the SSE
     // BaseEvent payload on status transitions, so the mapper needs the JSR-310/JDK8 modules.
     mapper = new ObjectMapper().findAndRegisterModules();
@@ -275,7 +284,7 @@ class InjectServiceTest {
 
     // Act
     Specification<Inject> specification =
-        injectService.getInjectSpecification(input, Grant.GRANT_TYPE.OBSERVER);
+        injectService.getInjectSpecification(TxCtx.missing(), input, Grant.GRANT_TYPE.OBSERVER);
 
     // Assert
     assertNotNull(specification);
@@ -292,7 +301,7 @@ class InjectServiceTest {
 
     // Act
     Specification<Inject> specification =
-        injectService.getInjectSpecification(input, Grant.GRANT_TYPE.OBSERVER);
+        injectService.getInjectSpecification(TxCtx.missing(), input, Grant.GRANT_TYPE.OBSERVER);
 
     // Assert
     assertNotNull(specification);
@@ -310,7 +319,7 @@ class InjectServiceTest {
 
     // Act
     Specification<Inject> specification =
-        injectService.getInjectSpecification(input, Grant.GRANT_TYPE.OBSERVER);
+        injectService.getInjectSpecification(TxCtx.missing(), input, Grant.GRANT_TYPE.OBSERVER);
 
     // Assert
     assertNotNull(specification);
@@ -326,7 +335,9 @@ class InjectServiceTest {
     BadRequestException exception =
         assertThrows(
             BadRequestException.class,
-            () -> injectService.getInjectSpecification(input, Grant.GRANT_TYPE.OBSERVER));
+            () ->
+                injectService.getInjectSpecification(
+                    TxCtx.missing(), input, Grant.GRANT_TYPE.OBSERVER));
 
     // Assert
     assertEquals(

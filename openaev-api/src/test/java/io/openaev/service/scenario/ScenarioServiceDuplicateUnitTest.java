@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Scenario;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
@@ -27,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ScenarioServiceDuplicateUnitTest {
 
   private static final String SCENARIO_ID = "scenario-id";
+  private static final TxCtx CTX = TxCtx.forTenant("tenant-1");
 
   @Mock private WorkflowService workflowService;
   @Mock private EnterpriseEditionService enterpriseEditionService;
@@ -44,11 +46,11 @@ class ScenarioServiceDuplicateUnitTest {
         throws ChainingException {
       // -- ARRANGE --
       Scenario duplicate = new Scenario();
-      doReturn(duplicate).when(scenarioService).copyScenarioContent(SCENARIO_ID);
+      doReturn(duplicate).when(scenarioService).copyScenarioContent(CTX, SCENARIO_ID);
       when(workflowService.isScenarioChaining(SCENARIO_ID)).thenReturn(false);
 
       // -- ACT --
-      Scenario result = scenarioService.duplicateScenario(SCENARIO_ID);
+      Scenario result = scenarioService.duplicateScenario(CTX, SCENARIO_ID);
 
       // -- ASSERT --
       assertSame(duplicate, result);
@@ -69,13 +71,13 @@ class ScenarioServiceDuplicateUnitTest {
       // -- ARRANGE --
       Scenario duplicate = new Scenario();
       License license = new License();
-      doReturn(duplicate).when(scenarioService).copyScenarioContent(SCENARIO_ID);
+      doReturn(duplicate).when(scenarioService).copyScenarioContent(CTX, SCENARIO_ID);
       when(workflowService.isScenarioChaining(SCENARIO_ID)).thenReturn(true);
       when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
       when(enterpriseEditionService.isEnterpriseLicenseInactive(license)).thenReturn(false);
 
       // -- ACT --
-      Scenario result = scenarioService.duplicateScenario(SCENARIO_ID);
+      Scenario result = scenarioService.duplicateScenario(CTX, SCENARIO_ID);
 
       // -- ASSERT --
       assertSame(duplicate, result);
@@ -88,14 +90,15 @@ class ScenarioServiceDuplicateUnitTest {
         throws ChainingException {
       // -- ARRANGE --
       License license = new License();
-      doReturn(new Scenario()).when(scenarioService).copyScenarioContent(SCENARIO_ID);
+      doReturn(new Scenario()).when(scenarioService).copyScenarioContent(CTX, SCENARIO_ID);
       when(workflowService.isScenarioChaining(SCENARIO_ID)).thenReturn(true);
       when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
       when(enterpriseEditionService.isEnterpriseLicenseInactive(license)).thenReturn(true);
 
       // -- ACT & ASSERT --
       assertThrows(
-          EnterpriseEditionException.class, () -> scenarioService.duplicateScenario(SCENARIO_ID));
+          EnterpriseEditionException.class,
+          () -> scenarioService.duplicateScenario(CTX, SCENARIO_ID));
       verify(workflowService, never()).duplicateScenarioWorkflow(anyString(), any(Scenario.class));
     }
   }

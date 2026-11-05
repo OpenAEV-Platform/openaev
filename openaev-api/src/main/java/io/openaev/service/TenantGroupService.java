@@ -76,6 +76,13 @@ public class TenantGroupService {
     return groupRepository.save(createGroupInner(UUID.randomUUID().toString(), input));
   }
 
+  public Group createGroup(@NotBlank final String name, @NotBlank final String tenantId) {
+    Group group = new Group();
+    group.setName(name);
+    group.setTenant(entityManager.getReference(Tenant.class, tenantId));
+    return groupRepository.save(group);
+  }
+
   public Group createInternalGroupWithRole(
       @NotBlank final String id, TenantGroupCreateInput input, List<Role> roles, String tenantId) {
     Group group = createGroupInner(id, input);
@@ -100,6 +107,12 @@ public class TenantGroupService {
   public Optional<Group> findByIdAndTenant(
       @NotBlank final String groupId, @NotBlank final String tenantId) {
     return groupRepository.findByIdAndTenantId(groupId, tenantId);
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<Group> findByNameAndTenantId(
+      @NotBlank final String name, @NotBlank final String tenantId) {
+    return groupRepository.findByNameAndTenantId(name, tenantId);
   }
 
   /** Find a tenant group by ID, scoped to the current tenant. */
@@ -241,7 +254,8 @@ public class TenantGroupService {
    * keeps granting access: fail-open. Union of before and after, because {@code setMarkings}
    * replaces wholesale — a member losing a marking is only visible in the old set.
    *
-   * @param tenantId resolved in the API layer and passed in, per the multi-tenancy convention
+   * @param tenantId resolved in the API layer and passed in, per the multi-tenancy convention; the
+   *     tenant whose clearance and capabilities the caller is checked against
    */
   public Group updateGroupMarkings(
       @NotBlank final String tenantId,
@@ -273,13 +287,19 @@ public class TenantGroupService {
     addedIds.removeAll(currentMarkingIds);
 
     if (!removedIds.isEmpty()
-        && !permissionService.hasCapabilityPermission(
-            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.DELETE)) {
+        && !permissionService.holdsInTenant(
+            tenantId,
+            () ->
+                permissionService.hasCapabilityPermission(
+                    currentUser, ResourceType.MARKING_ASSIGNMENT, Action.DELETE))) {
       throw new ForbiddenException("Missing the DELETE_MARKING_ASSIGNMENT capability");
     }
     if (!addedIds.isEmpty()
-        && !permissionService.hasCapabilityPermission(
-            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
+        && !permissionService.holdsInTenant(
+            tenantId,
+            () ->
+                permissionService.hasCapabilityPermission(
+                    currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE))) {
       throw new ForbiddenException("Missing the ASSIGN_MARKING capability");
     }
 

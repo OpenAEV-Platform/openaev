@@ -2714,6 +2714,15 @@ export interface Collector {
   collector_period?: number;
   collector_security_platform?: SecurityPlatform;
   collector_state?: object;
+  collector_supported_expectation_types?: (
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "LOGGING"
+    | "VULNERABILITY"
+  )[];
   /** @minLength 1 */
   collector_type: string;
   /** @format date-time */
@@ -2730,6 +2739,7 @@ export interface CollectorCreateInput {
   /** @format int32 */
   collector_period?: number;
   collector_security_platform?: string;
+  collector_supported_expectation_types?: string[];
   /** @minLength 1 */
   collector_type: string;
 }
@@ -6889,6 +6899,7 @@ export interface InjectExpectationTrace {
   inject_expectation_trace_expectation?: string;
   /** @minLength 1 */
   inject_expectation_trace_id: string;
+  inject_expectation_trace_match_type?: "MARKER" | "SOURCE_IP" | "TARGET_IP";
   inject_expectation_trace_source_id?: string;
   /** @format date-time */
   inject_expectation_trace_updated_at: string;
@@ -6908,6 +6919,7 @@ export interface InjectExpectationTraceInput {
   inject_expectation_trace_date: string;
   /** @minLength 1 */
   inject_expectation_trace_expectation: string;
+  inject_expectation_trace_match_type?: "marker" | "source_ip" | "target_ip";
   /** @minLength 1 */
   inject_expectation_trace_source_id: string;
 }
@@ -7258,6 +7270,7 @@ export type InjectTarget = BaseInjectTarget &
     | BaseInjectTargetTargetTypeMapping<"PLAYERS", PlayerTarget>
     | BaseInjectTargetTargetTypeMapping<"AGENT", AgentTarget>
     | BaseInjectTargetTargetTypeMapping<"AI_TARGETS", AiTargetTarget>
+    | BaseInjectTargetTargetTypeMapping<"MANUAL", ManualTarget>
   );
 
 export interface InjectTeamsInput {
@@ -8100,6 +8113,47 @@ export interface LoginUserInput {
   tenantId?: string;
 }
 
+export interface ManualTarget {
+  target_category?: string;
+  target_detection_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_execution_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_human_response_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @minLength 1 */
+  target_id: string;
+  target_name?: string;
+  target_prevention_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_subtype?: string;
+  /** @uniqueItems true */
+  target_tags?: string[];
+  target_type?: string;
+  target_vulnerability_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+}
+
 export interface MapperConditionOutput {
   condition_key?: string;
   condition_key_types?: (
@@ -8309,6 +8363,37 @@ export interface NetworkTraffic {
     | "DNS_RESOLUTION"
     | "NETWORK_TRAFFIC"
     | "AI_ATTACK";
+}
+
+export interface NewsFeedItemOutput {
+  /**
+   * Creation date of the item
+   * @format date-time
+   */
+  news_feed_item_creation_date: string;
+  /**
+   * ID of the item in XTM Hub
+   * @minLength 1
+   */
+  news_feed_item_hub_id: string;
+  /**
+   * ID of the news feed item
+   * @minLength 1
+   */
+  news_feed_item_id: string;
+  /** Whether the item was read */
+  news_feed_item_is_read: boolean;
+  /** Tags of the item */
+  news_feed_item_tags: string[];
+  /**
+   * Title of the item
+   * @minLength 1
+   */
+  news_feed_item_title: string;
+  /** Type of the item, absent when OpenAEV no longer knows its type */
+  news_feed_item_type?: "RESOURCE_SCENARIO";
+  /** Path of the item in XTM Hub, to append to the XTM Hub URL, absent when XTM Hub sent none */
+  news_feed_item_url_path?: string;
 }
 
 export interface NotificationBulkProcessingInput {
@@ -9117,6 +9202,25 @@ export interface PageMarkingDefinitionOutput {
 
 export interface PageMitigation {
   content?: Mitigation[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageNewsFeedItemOutput {
+  content?: NewsFeedItemOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;

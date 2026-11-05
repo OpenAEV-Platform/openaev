@@ -770,6 +770,7 @@ public class EndpointService implements AuditLoggedService {
     Agent agent = new Agent();
     setNewAgentAttributes(input, agent);
     setUpdatedAgentAttributes(agent, input, endpoint);
+    agent = agentService.createOrUpdateAgent(agent);
     endpoint.getAgents().add(agent);
     updateEndpoint(endpoint);
     return agent;
@@ -796,6 +797,7 @@ public class EndpointService implements AuditLoggedService {
     }
     setUpdatedAgentAttributes(agent, input, endpoint);
     if (!endpoint.getAgents().contains(agent)) {
+      agent = agentService.createOrUpdateAgent(agent);
       endpoint.getAgents().add(agent);
     }
     return agent;

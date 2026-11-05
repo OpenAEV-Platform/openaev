@@ -1,6 +1,9 @@
 package io.openaev.service;
 
+import static io.openaev.utils.TxCtxScopeUtils.tenantIdsFromHTTPCtx;
+
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.autonomous.AutonomousRun;
@@ -15,9 +18,18 @@ import io.openaev.service.chaining.WorkflowService;
 import jakarta.validation.constraints.NotNull;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,6 +88,7 @@ public class PermissionService {
   private final WorkflowService workflowService;
   private final StepService stepService;
   private final ConditionService conditionService;
+  private final AmbientTenantBridge ambientTenantBridge;
 
   @Transactional
   public boolean hasPermission(
@@ -84,7 +97,49 @@ public class PermissionService {
       String resourceId,
       ResourceType resourceType,
       Action action) {
-    return checkPermission(user, httpMappingInfo, resourceId, resourceType, action);
+    return checkPermission(
+        user,
+        httpMappingInfo,
+        resourceId,
+        resourceType,
+        action,
+        () -> resolveTarget(resourceId, resourceType, action));
+  }
+
+  /**
+   * Prepares a check of one resource that {@link #hasPermission(User, Optional, CheckedResource)}
+   * then evaluates in each tenant of a request scope. Only the caller's capabilities and tenant
+   * bypass follow the tenant of an evaluation. The parent of a sub-resource does not: loading it
+   * goes through services that read through the ambient tenant and, for an autonomous run, settle
+   * its status from its simulation. So the parent is resolved at most once, by the first evaluation
+   * that needs it, and always in {@code resolutionTenant}.
+   *
+   * @param resolutionTenant the tenant ambient for the request, in which the parent is resolved
+   */
+  public CheckedResource checkedResource(
+      String resolutionTenant, String resourceId, ResourceType resourceType, Action action) {
+    return new CheckedResource(
+        resourceId,
+        resourceType,
+        action,
+        () ->
+            ambientTenantBridge.callInTenant(
+                resolutionTenant, () -> resolveTarget(resourceId, resourceType, action)));
+  }
+
+  /** The check of {@link #hasPermission(User, Optional, String, ResourceType, Action)}. */
+  @Transactional
+  public boolean hasPermission(
+      @NotNull final User user,
+      Optional<AccessControlAspect.HttpMappingInfo> httpMappingInfo,
+      CheckedResource resource) {
+    return checkPermission(
+        user,
+        httpMappingInfo,
+        resource.resourceId,
+        resource.resourceType,
+        resource.action,
+        resource::parent);
   }
 
   /**
@@ -99,7 +154,169 @@ public class PermissionService {
       String resourceId,
       ResourceType resourceType,
       Action action) {
-    return checkPermission(user, Optional.empty(), resourceId, resourceType, action);
+    return checkPermission(
+        user,
+        Optional.empty(),
+        resourceId,
+        resourceType,
+        action,
+        () -> resolveTarget(resourceId, resourceType, action));
+  }
+
+  /**
+   * Whether {@code decision} holds in {@code tenantId}: while it runs, the caller's capabilities,
+   * tenant bypass and grants are the ones the caller holds in that tenant: a grant counts in the
+   * tenant of the group that holds it, and a platform group's grant in every tenant.
+   *
+   * <p>For a permission decision a handler takes in its own code, on rows it returns. Those rows
+   * follow the request scope, which can name several tenants, while the checks of this service read
+   * the caller's rights in the ambient tenant only: the tenant the {@code /api/tenants/{tenantId}/}
+   * route names, and the default tenant on the other routes. So the decision is taken in the tenant
+   * of the rows it gates.
+   *
+   * @param tenantId the tenant of the rows the decision gates
+   * @param decision a check of this service, such as {@link #hasCapabilityPermission}
+   */
+  public boolean holdsInTenant(@NotNull final String tenantId, final BooleanSupplier decision) {
+    return inTenant(tenantId, decision::getAsBoolean);
+  }
+
+  /**
+   * Runs {@code work} with the caller's rights read in {@code tenantId}, as {@link #holdsInTenant}
+   * reads them for a single decision. For a handler that decides several rows of the same tenant:
+   * the tenant is entered once for the whole group instead of once per row.
+   *
+   * @param tenantId the tenant of the rows the decisions gate
+   * @param work the decisions, and whatever they produce
+   */
+  public <T> T inTenant(@NotNull final String tenantId, final Supplier<T> work) {
+    Objects.requireNonNull(tenantId, "tenantId must not be null");
+    return ambientTenantBridge.callInTenant(tenantId, work);
+  }
+
+  /**
+   * Whether {@code decision} holds in the ambient tenant and in every tenant of {@code ctx}, as
+   * {@link #holdsInTenant} evaluates it. For a decision taken before the rows are read, or on rows
+   * whose tenant is not known: they can come from any tenant of the scope.
+   *
+   * @param ctx the request scope
+   * @param decision a check of this service, such as {@link #hasPermission}
+   */
+  public boolean holdsInScope(@NotNull final TxCtx ctx, final BooleanSupplier decision) {
+    return decision.getAsBoolean()
+        && tenantIdsFromHTTPCtx(ctx).stream()
+            .allMatch(tenantId -> holdsInTenant(tenantId, decision));
+  }
+
+  /**
+   * Takes {@code decision} once in the ambient tenant and once in each tenant of {@code ctx}, as
+   * {@link #holdsInTenant} evaluates it. For a list whose rows can come from several tenants and
+   * whose decision, such as "every row, or only the granted ones", must hold in the tenant of each
+   * row.
+   *
+   * @param ctx the request scope
+   * @param decision a check of this service, such as {@link #hasCapabilityPermission}
+   */
+  public TenantDecision decideInEachTenant(
+      @NotNull final TxCtx ctx, final BooleanSupplier decision) {
+    Set<String> holding = new HashSet<>();
+    Set<String> notHolding = new HashSet<>();
+    for (String tenantId : tenantIdsFromHTTPCtx(ctx)) {
+      (holdsInTenant(tenantId, decision) ? holding : notHolding).add(tenantId);
+    }
+    return new TenantDecision(holding, notHolding, decision.getAsBoolean());
+  }
+
+  /**
+   * A row filter that applies {@code decision} in the tenant of each row: the rows of a tenant
+   * where it holds pass {@code rows.apply(true)}, the others {@code rows.apply(false)}. The filter
+   * has no tenant predicate when the decision is the same in every tenant, and two branches
+   * otherwise, whatever the number of tenants.
+   *
+   * @param ctx the request scope
+   * @param decision a check of this service, such as {@link #hasCapabilityPermission}
+   * @param rows the filter of the rows of one tenant, given the decision taken there
+   */
+  public <T extends Base> Specification<T> filterInEachTenant(
+      @NotNull final TxCtx ctx,
+      final BooleanSupplier decision,
+      final Function<Boolean, Specification<T>> rows) {
+    TenantDecision taken = decideInEachTenant(ctx, decision);
+    if (taken.everywhere() || taken.nowhere()) {
+      return rows.apply(taken.everywhere());
+    }
+    Specification<T> holdingRows =
+        taken.inAmbient()
+            ? Specification.not(tenantIn(taken.notHolding()))
+            : tenantIn(taken.holding());
+    return holdingRows
+        .and(rows.apply(true))
+        .or(Specification.not(holdingRows).and(rows.apply(false)));
+  }
+
+  /**
+   * Lists the rows {@code decision} lets the caller read, deciding in the tenant of each row: the
+   * rows of {@code all} whose tenant passes it, and the rows of {@code granted}. Reads one of the
+   * two lists when the decision is the same in every tenant, both otherwise.
+   *
+   * @param ctx the request scope
+   * @param decision a check of this service, such as {@link #hasCapabilityPermission}
+   * @param all every row the caller could read
+   * @param granted the rows the caller holds a grant on
+   * @param tenantOf the tenant of a row of {@code all}
+   * @param idOf the identifier of a row, to list a row of both lists once
+   */
+  public <R> List<R> listInEachTenant(
+      @NotNull final TxCtx ctx,
+      final BooleanSupplier decision,
+      final Supplier<List<R>> all,
+      final Supplier<List<R>> granted,
+      final Function<R, String> tenantOf,
+      final Function<R, String> idOf) {
+    TenantDecision taken = decideInEachTenant(ctx, decision);
+    if (taken.everywhere()) {
+      return all.get();
+    }
+    if (taken.nowhere()) {
+      return granted.get();
+    }
+    Map<String, R> readable = new LinkedHashMap<>();
+    all.get().stream()
+        .filter(row -> taken.holdsIn(tenantOf.apply(row)))
+        .forEach(row -> readable.put(idOf.apply(row), row));
+    granted.get().forEach(row -> readable.putIfAbsent(idOf.apply(row), row));
+    return List.copyOf(readable.values());
+  }
+
+  private static <T extends Base> Specification<T> tenantIn(Set<String> tenantIds) {
+    return (root, query, cb) -> root.get("tenant").get("id").in(tenantIds);
+  }
+
+  /**
+   * A decision taken in each tenant of a request scope and in the ambient tenant. The ambient
+   * answer applies to a row of a tenant outside the scope, which a table still isolated by the
+   * ambient tenant returns.
+   *
+   * @param holding the tenants of the scope where the decision holds
+   * @param notHolding the tenants of the scope where it does not
+   * @param inAmbient whether it holds in the ambient tenant
+   */
+  public record TenantDecision(Set<String> holding, Set<String> notHolding, boolean inAmbient) {
+
+    /** Whether the decision holds for a row of {@code tenantId}. */
+    public boolean holdsIn(String tenantId) {
+      return holding.contains(tenantId) || (inAmbient && !notHolding.contains(tenantId));
+    }
+
+    /** Whether it holds for a row of any tenant. */
+    public boolean everywhere() {
+      return inAmbient && notHolding.isEmpty();
+    }
+
+    /** Whether it holds for no row. */
+    public boolean nowhere() {
+      return !inAmbient && holding.isEmpty();
+    }
   }
 
   private boolean checkPermission(
@@ -107,7 +324,8 @@ public class PermissionService {
       Optional<AccessControlAspect.HttpMappingInfo> httpMappingInfo,
       String resourceId,
       ResourceType resourceType,
-      Action action) {
+      Action action,
+      Supplier<Target> parent) {
 
     // admin user bypasses all checks
     if (user.isAdmin()) {
@@ -135,7 +353,7 @@ public class PermissionService {
     // for inject/article the permission will be based on the parent's (scenario/simulation/test)
     // permission
     if (RESOURCES_USING_PARENT_PERMISSION.contains(resourceType)) {
-      Target parentTarget = resolveTarget(resourceId, resourceType, action);
+      Target parentTarget = parent.get();
       resourceId = parentTarget.resourceId;
       resourceType = parentTarget.resourceType;
       action = parentTarget.action;
@@ -350,6 +568,34 @@ public class PermissionService {
 
   /** Used to return Parent resource information */
   private record Target(String resourceId, ResourceType resourceType, Action action) {}
+
+  /** A resource prepared by {@link #checkedResource}, whose parent is resolved at most once. */
+  public static final class CheckedResource {
+
+    private final String resourceId;
+    private final ResourceType resourceType;
+    private final Action action;
+    private final Supplier<Target> parentResolution;
+    private Target parent;
+
+    private CheckedResource(
+        String resourceId,
+        ResourceType resourceType,
+        Action action,
+        Supplier<Target> parentResolution) {
+      this.resourceId = resourceId;
+      this.resourceType = resourceType;
+      this.action = action;
+      this.parentResolution = parentResolution;
+    }
+
+    private Target parent() {
+      if (parent == null) {
+        parent = parentResolution.get();
+      }
+      return parent;
+    }
+  }
 
   public static boolean isManagedByGrants(ResourceType resourceType) {
     return RESOURCES_MANAGED_BY_GRANTS.contains(resourceType);
