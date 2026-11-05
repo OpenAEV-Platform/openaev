@@ -8,14 +8,19 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityCoverage;
+import io.openaev.database.model.StixRefToExternalRef;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.injectors.manual.ManualContract;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.SecurityCoverageFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,10 +32,10 @@ import org.springframework.transaction.annotation.Transactional;
  * {@code injectors_contracts} is tenant-active and the manual built-in contract id repeats across
  * tenants (#8485). {@code
  * SecurityCoverageInjectService#createdInjectsForScenarioAndSecurityCoverage} used to resolve it
- * through {@code TenantContext.getCurrentTenant()} (the v1 ambient thread-local), which a
- * background-shaped call never sets: it defaults to the platform default tenant regardless of which
- * tenant the transaction is actually scoped to, so the lookup missed the scenario's own built-in
- * contract whenever the two tenants differ.
+ * through a bare id/external-id lookup, ambiguous once the request scope spans more than one tenant
+ * holding a copy of the contract: a scope narrowed to a single tenant hides the regression, because
+ * the inspector already narrows the ambiguous lookup to the one row visible, so this test arms the
+ * scope on both tenants that hold the contract, the shape the bare lookup cannot resolve.
  */
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=injectors_contracts")
@@ -51,8 +56,8 @@ class SecurityCoverageInjectServiceWriteTenantContractTest extends IntegrationTe
   void setUp() throws Exception {
     otherTenantId = tenantHelper.createTenant("sec-cov-inject-write-tenant").getId();
     // The built-in contract exists in both tenants, as it does in production (every tenant gets its
-    // own copy at onboarding): this is what makes the bare-ambient-tenant lookup silently resolve
-    // the WRONG tenant's copy instead of failing loudly.
+    // own copy at onboarding): this is what makes a bare id/external-id lookup ambiguous once the
+    // scope spans both of them, rather than silently resolving one of the two rows.
     builtinConnectorRegistration.register(manualInjectorIntegrationFactory, otherTenantId);
     builtinConnectorRegistration.register(
         manualInjectorIntegrationFactory, Tenant.DEFAULT_TENANT_UUID);
@@ -60,24 +65,31 @@ class SecurityCoverageInjectServiceWriteTenantContractTest extends IntegrationTe
 
   @Test
   @DisplayName(
-      "given a background-shaped call with no ambient tenant, should resolve the scenario's own"
-          + " tenant's built-in contract rather than the ambient default's")
-  void given_backgroundShapedCallWithNoAmbientTenant_should_resolveScenarioOwnTenantContract() {
+      "given a scope spanning both tenants that hold the built-in contract, should resolve the"
+          + " scenario's own tenant's copy and create the inject against it")
+  void given_scopeSpanningBothTenantsHoldingTheContract_should_resolveScenarioOwnTenantContract() {
     // -- ARRANGE --
     Scenario scenario = ScenarioFixture.getScenario();
     scenario.setTenant(new Tenant(otherTenantId));
     scenario = scenarioRepository.save(scenario);
-    SecurityCoverage securityCoverage = SecurityCoverageFixture.createDefaultSecurityCoverage();
 
-    // A background-shaped call: no ambient tenant (falls back to the default), the transaction
-    // scoped to the scenario's own tenant only, exactly how a real background caller is supposed to
-    // scope itself (multi-tenancy.instructions.md). The scope exclude the default tenant on
-    // purpose:
-    // if the service fell back to TenantContext, the lookup would be denied outright rather than
-    // silently hitting the default tenant's row, which is what pins the regression down.
+    // A vulnerability ref with no matching internal Vulnerability: createInjectsByVulnerabilities
+    // treats it as missing and builds a real placeholder inject against the resolved contract, so
+    // the resolution under test is pinned by a persisted row, not only by "did it throw".
+    String missingVulnerabilityExternalId = "CVE-" + UUID.randomUUID();
+    SecurityCoverage securityCoverage = SecurityCoverageFixture.createDefaultSecurityCoverage();
+    securityCoverage.setVulnerabilitiesRefs(
+        Set.of(
+            new StixRefToExternalRef(
+                "vulnerability--" + UUID.randomUUID(), List.of(missingVulnerabilityExternalId))));
+
+    // A background-shaped call: no ambient tenant (falls back to the default). The v2 scope spans
+    // BOTH tenants that hold a copy of the built-in contract: a bare id/external-id lookup (the
+    // pre-fix code) cannot pick one and throws, while the fix resolves it explicitly in the
+    // scenario's own tenant regardless of how many other tenants share the request scope.
     TenantContext.clearCurrentTenant();
     assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
-    armScopeOn(otherTenantId);
+    armScopeOn(otherTenantId + "," + Tenant.DEFAULT_TENANT_UUID);
 
     // -- ACT / ASSERT --
     Scenario scenarioInOtherTenant = scenario;
@@ -86,12 +98,33 @@ class SecurityCoverageInjectServiceWriteTenantContractTest extends IntegrationTe
                 securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
                     TxCtx.forTenant(otherTenantId), scenarioInOtherTenant, securityCoverage))
         .doesNotThrowAnyException();
+
+    // Read the created placeholder inject straight from the database, not through the persistence
+    // context: the inject<->contract association is a shared-tenant-key join keyed on the inject's
+    // own tenant_id (injects is not v2-active yet, so that tenant_id is the ambient default, not
+    // the scenario's), so re-reading it through Hibernate would silently re-derive whichever copy
+    // matches the inject's own tenant rather than proving a row was actually written against the
+    // contract resolved for the scenario's tenant.
+    Number placeholderInjectCount =
+        (Number)
+            entityManager
+                .createNativeQuery(
+                    "SELECT count(*) FROM injects WHERE inject_scenario = :scenarioId AND"
+                        + " inject_injector_contract = :contractId")
+                .setParameter("scenarioId", scenario.getId())
+                .setParameter("contractId", ManualContract.MANUAL_DEFAULT)
+                .getSingleResult();
+    assertThat(placeholderInjectCount.longValue())
+        .as(
+            "a placeholder inject for the missing vulnerability was created against the contract"
+                + " resolved for the scenario's own tenant")
+        .isEqualTo(1L);
   }
 
-  private void armScopeOn(String tenantId) {
+  private void armScopeOn(String tenants) {
     entityManager
         .createNativeQuery("SELECT set_config('app.current_tenants', :tenants, true)")
-        .setParameter("tenants", tenantId)
+        .setParameter("tenants", tenants)
         .getSingleResult();
   }
 }
