@@ -242,9 +242,11 @@ describe('ThreatArsenalApprovalSection', () => {
       expect(within(cards[0]).getByRole('button', { name: /Reject/ })).toBeTruthy();
       expect(within(cards[1]).queryByRole('button', { name: /Approve/ })).toBeNull();
       expect(within(cards[1]).queryByRole('button', { name: /Reject/ })).toBeNull();
+      // The changed field as a labelled Before / After, the added line highlighted on the After side.
       const diff = screen.getByLabelText('Command');
-      expect(diff.textContent).toContain('  whoami');
-      expect(diff.textContent).toContain('+ id');
+      expect(diff.textContent).toContain('Before · v{version}whoami');
+      expect(diff.textContent).toContain('After · v{version}whoami\nid');
+      expect(within(diff).getByText('id', { selector: 'mark' })).toBeTruthy();
       expect(screen.queryByText('Executor')).toBeNull();
     });
 

@@ -22,6 +22,7 @@ import {
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ApprovalStatusChip from './approval/ApprovalStatusChip';
+import RejectedVersionPanel from './approval/RejectedVersionPanel';
 import VersionApprovalPanel from './approval/VersionApprovalPanel';
 import PayloadOriginChip from './PayloadOriginChip';
 import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
@@ -167,6 +168,11 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
         {source.payload_installed && pending && !source.payload_managed && (
           <Box sx={sectionSx}>
             <VersionApprovalPanel version={source} baseline={baseline} onDecided={onDecided} />
+          </Box>
+        )}
+        {source.payload_installed && source.payload_approval_status === 'REJECTED' && !source.payload_managed && (
+          <Box sx={sectionSx}>
+            <RejectedVersionPanel version={source} baseline={baseline} />
           </Box>
         )}
         {source.payload_changelog && (

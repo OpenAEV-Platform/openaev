@@ -165,8 +165,13 @@ const valueText = (value: unknown) => {
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 };
 
-// Field, before, after: words that changed between two texts are highlighted.
-export const ChangesTable: FunctionComponent<{ changes: HistoryChange[] }> = ({ changes }) => {
+// Field, before, after: words that changed between two texts are highlighted (before: struck through on
+// grey; after: brand tint). The headers say which version each side is, so colour only supports them.
+export const ChangesTable: FunctionComponent<{
+  changes: HistoryChange[];
+  beforeLabel?: string;
+  afterLabel?: string;
+}> = ({ changes, beforeLabel, afterLabel }) => {
   const { t } = useFormatter();
   const cell = {
     whiteSpace: 'pre-wrap' as const,
@@ -188,22 +193,26 @@ export const ChangesTable: FunctionComponent<{ changes: HistoryChange[] }> = ({ 
       <TableHead>
         <TableRow>
           <TableCell sx={{ width: '20%' }}>{t('Field')}</TableCell>
-          <TableCell sx={{ width: '40%' }}>{t('Before')}</TableCell>
-          <TableCell sx={{ width: '40%' }}>{t('After')}</TableCell>
+          <TableCell sx={{ width: '40%' }}>{beforeLabel ?? t('Before')}</TableCell>
+          <TableCell sx={{ width: '40%' }}>{afterLabel ?? t('After')}</TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
         {changes.map(change => (
           <TableRow key={change.field}>
             <TableCell sx={{ verticalAlign: 'top' }}>{t(FIELD_LABELS[change.field] ?? change.field)}</TableCell>
-            <TableCell sx={cell}>
+            <TableCell sx={{
+              ...cell,
+              color: 'var(--text-default-secondary)',
+            }}
+            >
               {typeof change.before === 'string' && typeof change.after === 'string'
-                ? <TextDiff text={change.before} other={change.after} />
+                ? <TextDiff text={change.before} other={change.after} side="before" />
                 : valueText(change.before)}
             </TableCell>
             <TableCell sx={cell}>
               {typeof change.before === 'string' && typeof change.after === 'string'
-                ? <TextDiff text={change.after} other={change.before} />
+                ? <TextDiff text={change.after} other={change.before} side="after" />
                 : valueText(change.after)}
             </TableCell>
           </TableRow>
@@ -329,7 +338,11 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
                   // Table row detail of the DS: the field by field change on the highlight surface.
                     <TableRow>
                       <TableCell colSpan={5} sx={FDS_ROW_DETAIL_CELL_SX}>
-                        <ChangesTable changes={changes} />
+                        <ChangesTable
+                          changes={changes}
+                          beforeLabel={entry.content_history_from_version ? String(t('Before · v{version}', { version: entry.content_history_from_version })) : undefined}
+                          afterLabel={entry.content_history_version ? String(t('After · v{version}', { version: entry.content_history_version })) : undefined}
+                        />
                       </TableCell>
                     </TableRow>
                   )}

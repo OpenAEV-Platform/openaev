@@ -1,99 +1,168 @@
-import { Checkbox, Text } from '@filigran/design-system';
-import { useTheme } from '@mui/material/styles';
+import { Button, Dialog, DialogBody, DialogContent, DialogTitle, Text } from '@filigran/design-system';
+// fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
+import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { type FunctionComponent, useMemo, useState } from 'react';
 
+import { FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../../../../components/common/fdsTableSpec';
+import BeforeAfter from '../../../../components/common/update/BeforeAfter';
+import TextDiff from '../../../../components/common/update/TextDiff';
 import { useFormatter } from '../../../../components/i18n';
 import { type PayloadExecutableContent } from '../../../../utils/api-types';
-import { lineDiff, versionFields } from './payloadVersionDiff';
+import { tint } from '../../../../utils/tint';
+import { versionFields } from './payloadVersionDiff';
 
 interface Props {
   active: PayloadExecutableContent;
   pending: PayloadExecutableContent;
   activeNumber: number | string;
   pendingNumber: number | string;
+  /** Heading; "What was proposed" for a rejected version. */
+  title?: string;
 }
 
-/**
- * What a pending version changes in the executable content: the changed fields, multi-line ones
- * (command, arguments, prerequisites, cleanup) as a line diff. "Show unchanged fields" lists every
- * field of both versions, so either version can be read in full.
- */
-const PayloadVersionComparison: FunctionComponent<Props> = ({ active, pending, activeNumber, pendingNumber }) => {
-  const { t } = useFormatter();
-  const theme = useTheme();
-  const [showAll, setShowAll] = useState(false);
-  const fields = useMemo(() => versionFields(active, pending), [active, pending]);
-  const shown = showAll ? fields : fields.filter(field => field.changed);
+// The drawer shows only the highlights; the full comparison is one click away.
+const MAX_FIELDS = 3;
 
+/**
+ * What a version changes in the executable content, as highlights: each changed field as a labelled
+ * Before / After (at most 3), then "See full comparison" with every field of both versions side by side.
+ */
+const PayloadVersionComparison: FunctionComponent<Props> = ({ active, pending, activeNumber, pendingNumber, title }) => {
+  const { t } = useFormatter();
+  const [full, setFull] = useState(false);
+  const [showUnchanged, setShowUnchanged] = useState(false);
+  const fields = useMemo(() => versionFields(active, pending), [active, pending]);
+  const changed = fields.filter(field => field.changed);
+  const unchanged = fields.filter(field => !field.changed);
+  const beforeLabel = String(t('Before · v{version}', { version: String(activeNumber) }));
+  const afterLabel = String(t('After · v{version}', { version: String(pendingNumber) }));
   const mono = {
     fontFamily: 'monospace',
     fontSize: 12,
     whiteSpace: 'pre-wrap' as const,
-    wordBreak: 'break-word' as const,
-    margin: 0,
-  };
-  const lineColor = (type: string) => {
-    if (type === 'added') return theme.palette.success.main;
-    if (type === 'removed') return theme.palette.error.main;
-    return theme.palette.text.secondary;
-  };
-  const linePrefix = (type: string) => {
-    if (type === 'added') return '+ ';
-    if (type === 'removed') return '- ';
-    return '  ';
+    overflowWrap: 'anywhere' as const,
   };
 
   return (
     <div style={{
       display: 'flex',
       flexDirection: 'column',
-      gap: theme.spacing(1.5),
+      gap: 10,
     }}
     >
-      {shown.length === 0 && (
-        <Text variant="content-caption" className="text-default-secondary">
-          {t('No change in what the action runs.')}
+      <div>
+        <Text variant="content-compact-bold">
+          {`${title ?? t('What changed')} · v${activeNumber} → v${pendingNumber}`}
         </Text>
-      )}
-      {shown.map(field => (
-        <div key={field.key}>
-          <Text variant="content-caption" style={{ fontWeight: 600 }}>
-            {t(field.label)}
-            {!field.changed && ` · ${t('Unchanged')}`}
-          </Text>
-          {field.multiline && field.changed && (
-            <pre aria-label={t(field.label)} style={mono}>
-              {lineDiff(field.active, field.pending).map((line, index) => (
-                <div key={`${field.key}-${index}`} style={{ color: lineColor(line.type) }}>
-                  {`${linePrefix(line.type)}${line.text}`}
-                </div>
-              ))}
-            </pre>
-          )}
-          {(!field.multiline || !field.changed) && (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: theme.spacing(1),
-            }}
-            >
-              <div>
-                <Text variant="content-caption" className="text-default-secondary">{`${t('Active')} (v${activeNumber})`}</Text>
-                <pre style={mono}>{field.active || '-'}</pre>
-              </div>
-              <div>
-                <Text variant="content-caption" className="text-default-secondary">{`${t('Pending')} (v${pendingNumber})`}</Text>
-                <pre style={mono}>{field.pending || '-'}</pre>
-              </div>
-            </div>
-          )}
-        </div>
+        <Text variant="content-caption" className="text-default-secondary">
+          {changed.length === 0
+            ? t('No change in what the action runs.')
+            : t(changed.length === 1 ? '1 field changed: {fields}' : '{count} fields changed: {fields}', {
+                count: String(changed.length),
+                fields: changed.map(field => t(field.label)).join(', '),
+              })}
+        </Text>
+      </div>
+      {changed.slice(0, MAX_FIELDS).map(field => (
+        <BeforeAfter
+          key={field.key}
+          label={t(field.label)}
+          before={field.active}
+          after={field.pending}
+          beforeLabel={beforeLabel}
+          afterLabel={afterLabel}
+        />
       ))}
-      <Checkbox
-        label={t('Show unchanged fields')}
-        checked={showAll}
-        onCheckedChange={checked => setShowAll(checked === true)}
-      />
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+      }}
+      >
+        {changed.length > MAX_FIELDS && (
+          <Text variant="content-caption" className="text-default-secondary">
+            {t('+ {count} more changes', { count: String(changed.length - MAX_FIELDS) })}
+          </Text>
+        )}
+        <Button size="sm" priority="tertiary" onClick={() => setFull(true)}>{t('See full comparison')}</Button>
+      </div>
+      {full && (
+        <Dialog open onOpenChange={open => !open && setFull(false)}>
+          <DialogContent size="lg">
+            <DialogTitle>{`v${activeNumber} → v${pendingNumber}`}</DialogTitle>
+            <DialogBody>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+              >
+                <Text variant="content-caption" className="text-default-secondary">{t('Changed fields first, then the rest. Read-only.')}</Text>
+                <div style={FDS_TABLE_FRAME_STYLE}>
+                  <Table
+                    size="small"
+                    aria-label={t('Full comparison')}
+                    sx={{
+                      ...FDS_TABLE_SX,
+                      tableLayout: 'fixed',
+                    }}
+                  >
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ width: '20%' }}>{t('Field')}</TableCell>
+                        <TableCell sx={{ width: '40%' }}>{beforeLabel}</TableCell>
+                        <TableCell sx={{ width: '40%' }}>{afterLabel}</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {changed.map(field => (
+                        <TableRow key={field.key} sx={{ backgroundColor: tint('var(--color-filigran-brand-primary)', 6) }}>
+                          <TableCell sx={{ verticalAlign: 'top' }}>{t(field.label)}</TableCell>
+                          <TableCell sx={{ verticalAlign: 'top' }}>
+                            {field.active ? <TextDiff text={field.active} other={field.pending} side="before" /> : '-'}
+                          </TableCell>
+                          <TableCell sx={{ verticalAlign: 'top' }}>
+                            {field.pending ? <TextDiff text={field.pending} other={field.active} side="after" /> : '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {showUnchanged && unchanged.map(field => (
+                        <TableRow key={field.key}>
+                          <TableCell sx={{ verticalAlign: 'top' }}>{t(field.label)}</TableCell>
+                          <TableCell sx={{
+                            ...mono,
+                            verticalAlign: 'top',
+                            color: 'var(--text-default-secondary)',
+                          }}
+                          >
+                            {field.active || '-'}
+                          </TableCell>
+                          <TableCell sx={{
+                            ...mono,
+                            verticalAlign: 'top',
+                          }}
+                          >
+                            {field.pending || '-'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                {unchanged.length > 0 && (
+                  <div>
+                    <Button size="sm" priority="tertiary" onClick={() => setShowUnchanged(!showUnchanged)}>
+                      {showUnchanged
+                        ? t('Hide unchanged fields')
+                        : t('Show {count} unchanged fields', { count: String(unchanged.length) })}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </DialogBody>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

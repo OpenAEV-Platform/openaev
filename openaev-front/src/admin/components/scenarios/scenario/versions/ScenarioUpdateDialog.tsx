@@ -375,14 +375,22 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                     );
                   })}
                   {taken.length > 0 && (
-                    <ChangesTable changes={taken.flatMap(change => rowsOf(change, change.local ?? change.base, change.applied))} />
+                    <ChangesTable
+                      changes={taken.flatMap(change => rowsOf(change, change.local ?? change.base, change.applied))}
+                      beforeLabel={t('Before · now')}
+                      afterLabel={String(version ? t('After · v{version}', { version }) : t('After · revision #{number}', { number: revisionNumber ?? '' }))}
+                    />
                   )}
                 </div>
               )}
               {kept.length > 0 && (
                 <div style={section}>
                   <Text variant="title-xs">{t('Your changes, kept')}</Text>
-                  <ChangesTable changes={kept.flatMap(change => rowsOf(change, change.base, change.local))} />
+                  <ChangesTable
+                    changes={kept.flatMap(change => rowsOf(change, change.base, change.local))}
+                    beforeLabel={t('Before · Filigran')}
+                    afterLabel={t('After · yours, kept')}
+                  />
                 </div>
               )}
               {preview.warnings.length > 0 && (
