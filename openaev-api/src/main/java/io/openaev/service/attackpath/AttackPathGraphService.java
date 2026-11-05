@@ -296,8 +296,12 @@ public class AttackPathGraphService {
     // so the external id is passed for both).
     List<AttackPathAttackPatternDTO> attackPatterns = new ArrayList<>();
     if (e.getContractExternalId() != null) {
+      // Resolved in the execution's own tenant, not the request's ambient scope: a built-in
+      // contract id repeats across tenants (#8485), and the caller's scope can legitimately span
+      // several.
       injectorContractRepository
-          .findByIdOrExternalId(e.getContractExternalId(), e.getContractExternalId())
+          .findByIdOrExternalIdAndTenant(
+              e.getContractExternalId(), e.getContractExternalId(), e.getTenant().getId())
           .ifPresent(
               contract ->
                   contract
