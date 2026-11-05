@@ -1,8 +1,8 @@
 package io.openaev.service.chaining;
 
 import io.openaev.aop.WorkflowUpdateEvent;
-import io.openaev.database.repository.InjectExpectationRepository;
-import io.openaev.database.repository.InjectRepository;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.InjectExpectationService;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Iterator;
@@ -47,11 +47,8 @@ public class WorkflowUpdateEventPublisher {
   private final QueueChainingService queueChainingService;
   private final StepService stepService;
   private final WorkflowOwnerScope workflowOwnerScope;
-  // Read straight from the repositories, as the batched callback handler already does for the same
-  // bridge: resolving the owner is the one read here that must stay outside any tenant scope, which
-  // is a contract of these projections and not of the services that wrap them.
-  private final InjectRepository injectRepository;
-  private final InjectExpectationRepository injectExpectationRepository;
+  private final InjectService injectService;
+  private final InjectExpectationService injectExpectationService;
 
   /**
    * Notifies the active step that runs the given inject, if any, then resends the kept events.
@@ -121,7 +118,7 @@ public class WorkflowUpdateEventPublisher {
     if (injectIds == null || injectIds.isEmpty()) {
       return Set.of();
     }
-    return injectRepository.findTenantIdsByInjectIds(injectIds).stream()
+    return injectService.findTenantIdsByInjectIds(injectIds).stream()
         .map(row -> (String) row[1])
         .filter(Objects::nonNull)
         .collect(Collectors.toSet());
@@ -136,7 +133,7 @@ public class WorkflowUpdateEventPublisher {
       return Set.of();
     }
     return ownerTenantsOfInjects(
-        injectExpectationRepository.findDistinctInjectIdsByInjectExpectationIds(expectationIds));
+        injectExpectationService.findDistinctInjectIdsByInjectExpectationIds(expectationIds));
   }
 
   private void send(Set<String> stepIds) {

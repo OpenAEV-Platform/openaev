@@ -13,23 +13,25 @@ import org.springframework.stereotype.Component;
 
 /**
  * Runs the chaining work of a simulation, a scenario or a deleted injector contract in that owner's
- * own tenant, whatever the scope of the request that reached it.
+ * own tenant.
  *
- * <p>It moves the request's transaction to the owner's one tenant, which may lie outside the
- * request's scope, and checks nothing about the caller. The caller must have checked its access to
- * the owner first and pass that loaded entity. That check is the by-id load of the simulation, the
- * scenario or the contract on the ambient tenant, the v1 thread-local {@link
- * io.openaev.context.TenantContext#getCurrentTenant()}: the path tenant on the {@code
- * /api/tenants/{tenantId}} route, and the default tenant on the non-prefixed route, which sets it
- * from neither the caller's scope nor an {@code X-Tenant-Ids} header. The request's v2 scope plays
- * no part in it, because {@code exercises}, {@code scenarios} and {@code injectors_contracts} are
- * not tenant-active; moving that load to the request's scope belongs to those tables' activation.
- * Once access is granted, its workflow follows it: a workflow inherits its owner's tenant and can
- * never move (see {@code Workflow#attributeTenantFromOwner}), so reading it under the caller's
- * scope would miss it whenever that scope does not include the owner's tenant, and a status change,
- * a duplicate or an export would then go on as if the owner were not chained. The classes allowed
- * to call this one are an allowlist pinned by an architecture test, each with the check its owner
- * went through.
+ * <p>It moves the request's transaction to the owner's one tenant and checks nothing about the
+ * caller. The caller must have checked its access to the owner first and pass that loaded entity.
+ * On a request, a simulation or a scenario is loaded in the request's tenant scope ({@code
+ * ExerciseService#exercise(TxCtx, String)}, {@code ScenarioService#scenario(TxCtx, String)}): the
+ * path tenant on the {@code /api/tenants/{tenantId}} route, the {@code X-Tenant-Ids} selector or
+ * the caller's memberships on the non-prefixed route, and the ambient tenant, the v1 thread-local
+ * {@link io.openaev.context.TenantContext#getCurrentTenant()}, when that scope is empty. Work that
+ * runs without a request loads it on the ambient tenant. An injector contract is loaded on the
+ * ambient tenant, the default one on the non-prefixed route whatever the {@code X-Tenant-Ids}
+ * header names; moving that load to the request's scope belongs to the {@code injectors_contracts}
+ * activation. Once access is granted, its workflow follows it: a workflow inherits its owner's
+ * tenant and can never move (see {@code Workflow#attributeTenantFromOwner}), so reading it under
+ * the caller's scope would miss it whenever that scope does not hold the owner's tenant (an empty
+ * scope whose load fell back to the ambient tenant, or a contract loaded on the ambient tenant
+ * under a selector naming another one), and a status change, a duplicate or an export would then go
+ * on as if the owner were not chained. The classes allowed to call this one are an allowlist pinned
+ * by an architecture test, each with the check its owner went through.
  *
  * <p>An injector contract is handled the same way: once its deletion is granted, the step templates
  * that reference it are swept in the contract's own tenant, the tenant whose copy of the contract
