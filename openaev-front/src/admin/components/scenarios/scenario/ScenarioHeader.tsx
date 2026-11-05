@@ -80,7 +80,6 @@ import AutonomousRunStatusChip from '../../autonomous/AutonomousRunStatusChip';
 import { isAutonomousRunActive, isAutonomousRunSettled } from '../../autonomous/autonomousStatus';
 import { DEFAULT_TIMEOUT_HOURS } from '../../autonomous/useAutonomousRunConfig';
 import EEChip from '../../common/entreprise_edition/EEChip';
-import HealthcheckIndicator from '../../common/healthchecks/HealthcheckIndicator';
 import isScopeLaunchBlocked from '../../common/healthchecks/scopeHealthcheck';
 import ExpectationsDriftIndicator from '../../common/injects/expectations/ExpectationsDriftIndicator';
 import { countDistinctInjectTargets } from '../../common/injects/utils';
@@ -769,7 +768,6 @@ const ScenarioHeader = ({
             <>
               {/* Launch blockers first: revoked payloads, missing targets or integrations (idea C). */}
               <ScenarioLaunchReadiness scenario={scenario} onOpen={() => setOpenInstantiateSimulationAndStart(true)} />
-              {canManage && <HealthcheckIndicator healthchecks={healthchecks} scenarioId={scenarioId} />}
               {canManage && (
                 <ExpectationsDriftIndicator
                   drift={expectationsDrift}
