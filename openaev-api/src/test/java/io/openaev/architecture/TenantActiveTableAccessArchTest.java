@@ -5,7 +5,9 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -293,6 +295,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.springframework.data.jpa.repository.Query;
 
@@ -385,7 +388,13 @@ class TenantActiveTableAccessArchTest {
           "scope_variables",
           "steps_delay_queue",
           "workflow_scope_rules",
-          "workflow_states");
+          "workflow_states",
+          "injectors_contracts",
+          "injector_contract_tags",
+          "injectors_contracts_attack_patterns",
+          "injectors_contracts_domains",
+          "injectors_contracts_vulnerabilities",
+          "injectors_injector_contracts");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -2692,4 +2701,169 @@ class TenantActiveTableAccessArchTest {
           .because(
               "workflow_states is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule injectors_contracts_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+              io.openaev.rest.attack_pattern.AttackPatternApi.class,
+              io.openaev.rest.exercise.ExerciseApi.class,
+              io.openaev.rest.inject.SimulationInjectApi.class,
+              io.openaev.rest.injector.InjectorApi.class,
+              // Services reached only from TxCtx-carrying entrypoints, reading in the scope the
+              // entrypoint opened (contract, threat arsenal, workflow, payload, atomic testing,
+              // mapper export, attack path graph, autonomous capability and grant APIs):
+              io.openaev.rest.injector_contract.InjectorContractService.class,
+              io.openaev.rest.payload.service.PayloadService.class,
+              io.openaev.rest.payload.service.PayloadUpsertService.class,
+              io.openaev.service.AtomicTestingService.class,
+              io.openaev.service.MapperService.class,
+              io.openaev.service.attackpath.AttackPathGraphService.class,
+              io.openaev.service.autonomous.CapabilityResolverService.class,
+              io.openaev.service.GrantService.class,
+              // Scenario inject generation and the STIX bundle import; the STIX path refuses any
+              // scope but a single tenant before it reaches the contracts:
+              io.openaev.rest.inject.service.InjectAssistantService.class,
+              io.openaev.service.stix.SecurityCoverageInjectService.class,
+              // Exports, behind the scenario and simulation export endpoints:
+              io.openaev.export.WorkflowExportInitializer.class,
+              // Import: every read runs under the TxCtx importData receives, from the import
+              // endpoints or from the starter pack under the migration processor's tenant scope:
+              io.openaev.importer.V1_DataImporter.class,
+              // Injector registration and teardown: the injector endpoints, or the builtin
+              // registration under ManagerCreator's setScopeOnCurrentTransaction(forTenant):
+              io.openaev.service.InjectorService.class,
+              io.openaev.injectors.phishing.service.PhishingLandingPageService.class,
+              // Runtime migration, under the migration processor's forTenant scope:
+              io.openaev.processor.core.V20260725_Fix_starter_pack_payload_contracts.class,
+              // Sets setScopeOnCurrentTransaction(forTenant(simulation tenant)) per comcheck before
+              // the contract read:
+              io.openaev.scheduler.jobs.ComchecksExecutionJob.class,
+              // Every caller opens a forTenant scope (users, XTM Hub, notification dispatch) or
+              // carries a TxCtx (lessons, notifier test):
+              io.openaev.service.MailingService.class,
+              // Chaining: authoring runs under the step endpoints' TxCtx (StepApi#createStep and
+              // siblings all declare one), execution under the ready-step worker's forTenant scope
+              // (StepEventService), and the autonomous run's isolated mirror now carries the scope
+              // into its REQUIRES_NEW transaction (AutonomousRunService:2279, fixed by #8666).
+              io.openaev.api.chaining.InjectExecutionStep.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.InjectorContractRepository.class)
+          .orShould()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.helper.InjectorContractRepositoryHelper.class)
+          .because(
+              "injectors_contracts is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule injectors_contracts_native_query_access_is_reviewed =
+      queryNamingTableIsCalledOnlyBy(
+          "injectors_contracts",
+          // The repository's own default methods delegate to its queries:
+          io.openaev.database.repository.InjectorContractRepository.class,
+          // Search indexing fetches, under the engine sync job's allTenants() scope:
+          io.openaev.engine.model.inject.InjectHandler.class,
+          io.openaev.engine.model.injectexpectation.InjectExpectationHandler.class,
+          io.openaev.engine.model.scenario.ScenarioHandler.class,
+          io.openaev.engine.model.simulation.SimulationHandler.class,
+          // Reached only from TxCtx-carrying entrypoints (scenario detail and teams, the contract,
+          // threat arsenal and payload endpoints, the injector endpoints or the builtin
+          // registration scope, scenario inject generation, the STIX bundle import):
+          io.openaev.service.scenario.ScenarioService.class,
+          io.openaev.rest.injector_contract.InjectorContractService.class,
+          io.openaev.rest.payload.service.PayloadService.class,
+          io.openaev.service.InjectorService.class,
+          io.openaev.rest.inject.service.InjectIndexCleanupService.class,
+          io.openaev.rest.inject.service.InjectAssistantService.class,
+          io.openaev.service.stix.SecurityCoverageInjectService.class,
+          io.openaev.rest.document.DocumentService.class);
+
+  @ArchTest
+  static final ArchRule injector_contract_tags_native_query_access_is_reviewed =
+      queryNamingTableIsCalledOnlyBy(
+          "injector_contract_tags",
+          // Contract sync behind the payload, threat arsenal and import endpoints:
+          io.openaev.rest.payload.service.PayloadService.class);
+
+  @ArchTest
+  static final ArchRule injectors_contracts_attack_patterns_native_query_access_is_reviewed =
+      queryNamingTableIsCalledOnlyBy(
+          "injectors_contracts_attack_patterns",
+          // The repository's own default methods delegate to its queries. The one statement built
+          // in a string, InjectorContractRepositoryHelper's search, is covered by the
+          // injectors_contracts repository rule through the helper:
+          io.openaev.database.repository.InjectorContractRepository.class,
+          // Search indexing fetches, under the engine sync job's allTenants() scope:
+          io.openaev.engine.model.inject.InjectHandler.class,
+          io.openaev.engine.model.injectexpectation.InjectExpectationHandler.class,
+          io.openaev.engine.model.snapshotobservation.AttackObservationHandler.class,
+          // Reached only from TxCtx-carrying entrypoints:
+          io.openaev.service.scenario.ScenarioService.class,
+          io.openaev.rest.injector_contract.InjectorContractService.class,
+          io.openaev.rest.payload.service.PayloadService.class,
+          io.openaev.service.stix.SecurityCoverageInjectService.class);
+
+  @ArchTest
+  static final ArchRule injectors_contracts_domains_native_query_access_is_reviewed =
+      queryNamingTableIsCalledOnlyBy(
+          "injectors_contracts_domains",
+          // Search indexing fetch, under the engine sync job's allTenants() scope:
+          io.openaev.engine.model.injectexpectation.InjectExpectationHandler.class,
+          // Contract sync behind the payload, threat arsenal and import endpoints:
+          io.openaev.rest.payload.service.PayloadService.class);
+
+  @ArchTest
+  static final ArchRule injectors_contracts_vulnerabilities_native_query_access_is_reviewed =
+      queryNamingTableIsCalledOnlyBy(
+          "injectors_contracts_vulnerabilities",
+          // Scenario inject generation and the STIX bundle import, both TxCtx-carrying:
+          io.openaev.rest.inject.service.InjectAssistantService.class,
+          io.openaev.service.stix.SecurityCoverageInjectService.class);
+
+  @ArchTest
+  static final ArchRule injectors_injector_contracts_native_query_access_is_reviewed =
+      queryNamingTableIsCalledOnlyBy(
+          "injectors_injector_contracts",
+          // Contract sync behind the payload endpoints; injector registration under the injector
+          // endpoints' TxCtx or ManagerCreator's forTenant scope:
+          io.openaev.rest.payload.service.PayloadService.class,
+          io.openaev.service.InjectorService.class);
+
+  /**
+   * The five link tables of injectors_contracts have no repository of their own: an entity load of
+   * the contract fetches them eagerly in the same scope, so the rule on the contract repository
+   * covers that path. Their other readers are queries that name the table in SQL, mostly in the
+   * repositories of other aggregates. This rule finds those queries by reflection rather than by a
+   * list, so a new query naming the table is caught without editing this file, and allowlists the
+   * classes that call one.
+   *
+   * <p>Blind spots, stated so nobody reads more into it: SQL assembled in a string outside a
+   * {@code @Query} (each such class is named in the comment of the rule that needs it), and JPQL or
+   * Criteria that reach a link table through the association name rather than the table name.
+   */
+  private static ArchRule queryNamingTableIsCalledOnlyBy(String table, Class<?>... allowed) {
+    Pattern named = Pattern.compile("\\b" + table + "\\b", Pattern.CASE_INSENSITIVE);
+    DescribedPredicate<JavaMethodCall> callsQueryNamingTable =
+        DescribedPredicate.describe(
+            "a repository @Query naming " + table,
+            call ->
+                call.getTarget()
+                    .resolveMember()
+                    .flatMap(method -> method.tryGetAnnotationOfType(Query.class))
+                    .map(query -> named.matcher(query.value()).find())
+                    .orElse(false));
+    return noClasses()
+        .that()
+        .doNotBelongToAnyOf(allowed)
+        .should()
+        .callMethodWhere(callsQueryNamingTable)
+        .because(
+            table
+                + " is tenant-active: a query naming it without a tenant scope silently reads zero"
+                + " rows. New callers must carry a scope and be allowlisted here");
+  }
 }

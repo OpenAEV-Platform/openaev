@@ -140,6 +140,9 @@ public class PayloadService {
                   String contractId = String.valueOf(UUID.randomUUID());
                   InjectorContract newContract = new InjectorContract();
                   newContract.setId(contractId);
+                  // Explicit, not left to InjectorContract's own v1 TenantBaseListener (gone): a
+                  // contract lives in its payload's tenant.
+                  newContract.setTenant(payload.getTenant());
                   return newContract;
                 });
 

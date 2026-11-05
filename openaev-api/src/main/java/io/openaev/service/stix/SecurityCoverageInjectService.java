@@ -14,9 +14,9 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
@@ -52,7 +52,6 @@ public class SecurityCoverageInjectService {
   private final AttackPatternService attackPatternService;
   private final VulnerabilityService vulnerabilityService;
   private final AssetGroupService assetGroupService;
-  private final InjectorContractService injectorContractService;
   private final PayloadService payloadService;
   private final DocumentService documentService;
 
@@ -94,9 +93,15 @@ public class SecurityCoverageInjectService {
     Map<AssetGroup, List<Endpoint>> requiredAssetGroupMap =
         assetGroupService.assetsFromAssetGroupMap(new ArrayList<>(assetGroups));
 
-    // 4. Fetch InjectorContract to use for inject placeholder
+    // 4. Fetch InjectorContract to use for inject placeholder. injectors_contracts is tenant-active
+    // and the manual built-in id repeats across tenants (#8485): the general, id-only lookup is
+    // ambiguous once the scope spans more than one tenant, so resolve it in the scenario's own
+    // tenant, the tenant the injects being created here are written into, rather than the ambient
+    // one (the default tenant on the non-prefixed route).
     InjectorContract contractForInjectPlaceholders =
-        injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
+        injectorContractRepository
+            .findByContractIdAndTenant(ManualContract.MANUAL_DEFAULT, scenario.getTenant().getId())
+            .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
 
     // 5. Build injects from Vulnerabilities
     createInjectsByVulnerabilities(
