@@ -88,14 +88,14 @@ Location: `openaev-api/src/main/java/io/openaev/service/`
 
 Location: `openaev-api/src/main/java/io/openaev/api/{feature}/`
 
-- `{Entity}Input` and `{Entity}Output` as Java `record`
-- `{Entity}Mapper` with static `fromInput()` + `toOutput()`
+- `dto/{Entity}Input` and `dto/{Entity}Output` as Java `record`; the output starts with the fields a screen reads today
+- `{Entity}Mapper` with static `fromInput()` + `toOutput()` (a `@Component` only when it needs another bean)
 
 ### Step 6 — Create the Controller
 
 Location: `openaev-api/src/main/java/io/openaev/api/{feature}/`
 
-- `@AccessControl` + `@LogExecutionTime` + `@Operation` on every endpoint
+- `@AccessControl` + `@Operation` on every endpoint; `@LogExecutionTime` only on endpoints at risk of being slow
 - CRUD + search endpoints
 - **All new tenant-scoped APIs use `TENANT_PREFIX`**: `@RequestMapping(TENANT_PREFIX + "/{entities}")` → resolves to `/api/tenants/{tenantId}/{entities}`
 

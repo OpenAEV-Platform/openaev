@@ -158,6 +158,8 @@ hand:
   moved since its last CI run: a green check from before another ADR merged does not see that ADR.
 - **Before opening or updating a pull request** that touches `adr/` or references an ADR, run
   `adr/scripts/validate-adrs.sh` and fix every ❌.
+- **Keep an ADR short**: the decision and its "because", each option with its pros and cons. Checks,
+  thresholds and field lists go in the RFC or the code, not in the ADR.
 - The scripts run in bash on macOS, Linux and Windows (Git Bash or WSL; from PowerShell, prefix them with
   `bash`).
 
