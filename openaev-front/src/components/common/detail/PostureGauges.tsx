@@ -243,14 +243,14 @@ const Gauge: FunctionComponent<{
       {hasData && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Text variant="content-caption" className="text-default-secondary">
+            <Text variant="content-caption" className="text-default-secondary" tabIndex={0}>
               {t('{count} of {total} targets', {
                 count: buckets.success,
                 total,
               })}
             </Text>
           </TooltipTrigger>
-          <TooltipContent>{t('Scores are calculated per targeted asset')}</TooltipContent>
+          <TooltipContent>{t('Each target (asset, asset group or team) is scored once')}</TooltipContent>
         </Tooltip>
       )}
       <Box sx={{

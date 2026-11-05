@@ -1,6 +1,6 @@
 import { TooltipProvider } from '@filigran/design-system';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import PostureGauges from '../../../../components/common/detail/PostureGauges';
@@ -115,6 +115,18 @@ describe('PostureGauges', () => {
 
     expect(screen.getByText('60%')).toBeTruthy();
     expect(screen.getByText('3 of 5 targets')).toBeTruthy();
+  });
+
+  it('explains the count in a tooltip that opens on keyboard focus', async () => {
+    renderGauges([prevention([{
+      id: 'PREVENTED',
+      label: 'Prevented',
+      value: 1,
+    }])]);
+
+    fireEvent.focus(screen.getByText('1 of 1 targets'));
+
+    expect((await screen.findAllByText('Each target (asset, asset group or team) is scored once')).length).toBeGreaterThan(0);
   });
 
   it('keeps the no-data placeholder for an empty distribution', () => {
