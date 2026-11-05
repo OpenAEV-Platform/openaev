@@ -751,7 +751,7 @@ public class ScenarioApi extends RestBehavior {
               }
               return simulation.getId();
             });
-    return exerciseService.exercise(simulationId);
+    return exerciseService.exercise(ctx, simulationId);
   }
 
   @PostMapping({
