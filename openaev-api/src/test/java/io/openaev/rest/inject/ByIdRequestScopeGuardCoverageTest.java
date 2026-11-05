@@ -105,8 +105,7 @@ class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTables
 
   private int getInjectStatusAllTraces(Route route, String injectId) throws Exception {
     return status(
-        route.with(
-            get(injectsBaseUri(route) + "/status-all-traces").param("injectId", injectId)));
+        route.with(get(injectsBaseUri(route) + "/status-all-traces").param("injectId", injectId)));
   }
 
   private int getInjectExecutionTraces(Route route, String injectId) throws Exception {
@@ -120,10 +119,11 @@ class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTables
   private int getPayloadDocuments(Route route, String injectId) throws Exception {
     return status(
         route.with(
-            get(injectsBaseUri(route)
-                + "/"
-                + injectId
-                + "/payload/nonexistent-payload/documents")));
+            get(
+                injectsBaseUri(route)
+                    + "/"
+                    + injectId
+                    + "/payload/nonexistent-payload/documents")));
   }
 
   private int resolveAttachmentSecret(Route route, String injectId) throws Exception {
@@ -175,7 +175,8 @@ class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTables
   private int findTargetResultAssetWithAgents(Route route, String injectId) throws Exception {
     return status(
         route.with(
-            get(route.atomicTesting(injectId) + "/target_results/nonexistent-target/asset_with_agents")
+            get(route.atomicTesting(injectId)
+                    + "/target_results/nonexistent-target/asset_with_agents")
                 .param("expectationType", "PREVENTION")));
   }
 

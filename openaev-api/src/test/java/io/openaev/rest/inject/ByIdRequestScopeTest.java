@@ -106,8 +106,7 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
       int delete = deleteAtomicTesting(route, injectId);
 
       // Assert
-      assertThat(new int[] {read, readPayload, update, delete})
-          .containsExactly(404, 404, 404, 404);
+      assertThat(new int[] {read, readPayload, update, delete}).containsExactly(404, 404, 404, 404);
       assertThat(atomicTestingExists(injectId)).isTrue();
     }
 
