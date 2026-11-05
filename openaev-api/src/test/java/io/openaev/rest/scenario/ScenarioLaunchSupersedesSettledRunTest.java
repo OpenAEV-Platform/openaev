@@ -148,7 +148,8 @@ class ScenarioLaunchSupersedesSettledRunTest extends IntegrationTest {
       clearAmbientTenant();
 
       // Act & Assert
-      mvc.perform(post(SCENARIO_URI + "/" + rows.scenario().getId() + "/exercise/running").with(csrf()))
+      mvc.perform(
+              post(SCENARIO_URI + "/" + rows.scenario().getId() + "/exercise/running").with(csrf()))
           .andExpect(status().isNotFound());
       assertThat(settledRunStillExists(rows.scenario().getId())).isTrue();
     }
