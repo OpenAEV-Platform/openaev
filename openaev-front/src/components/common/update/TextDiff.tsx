@@ -1,4 +1,3 @@
-import { useTheme } from '@mui/material/styles';
 import { useMemo } from 'react';
 
 import { tint } from '../../../utils/tint';
@@ -8,31 +7,18 @@ interface Props {
   // The text it is compared to: words of `text` missing there are highlighted.
   other: string;
   /**
-   * Which side of a before / after this text is. "before": grey text, removed words struck through on a
-   * grey tint; "after": changed words on a brand tint. No red or green, which read as error / success.
-   * Without it, changed words get the neutral highlight of the variant comparisons.
+   * Which side of a before / after this text is: the "before" text is grey, the "after" one normal.
+   * On both sides the changed words get the same amber highlighter (DS warning token), never
+   * strikethrough, so they stay readable; the Before / After labels say which side is which.
    */
   side?: 'before' | 'after';
 }
 
-const markStyle = (side: Props['side']) => {
-  if (side === 'after') {
-    return {
-      color: 'inherit',
-      background: tint('var(--color-filigran-brand-primary)', 25),
-      fontWeight: 600,
-      borderRadius: 2,
-    };
-  }
-  if (side === 'before') {
-    return {
-      color: 'inherit',
-      background: tint('var(--text-default-primary)', 12),
-      textDecoration: 'line-through',
-      borderRadius: 2,
-    };
-  }
-  return null;
+// Like a highlighter pen: amber, not blue (reads as a link) nor red / green (error / success).
+const MARK_STYLE = {
+  color: 'var(--text-default-primary)',
+  background: tint('var(--color-feedback-warning-secondary)', 55),
+  borderRadius: 2,
 };
 
 const MAX_TOKENS = 400;
@@ -67,7 +53,6 @@ const kept = (left: string[], right: string[]) => {
 
 // A text with the words that differ from another text highlighted.
 const TextDiff = ({ text, other, side }: Props) => {
-  const theme = useTheme();
   const parts = useMemo(() => {
     const left = tokens(text);
     const right = tokens(other);
@@ -112,11 +97,7 @@ const TextDiff = ({ text, other, side }: Props) => {
         ? (
             <mark
               key={index}
-              style={markStyle(side) ?? {
-                color: 'inherit',
-                background: tint(theme.palette.warning.main, 30),
-                borderRadius: 2,
-              }}
+              style={MARK_STYLE}
             >
               {token}
             </mark>

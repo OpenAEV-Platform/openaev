@@ -385,11 +385,11 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
               )}
               {kept.length > 0 && (
                 <div style={section}>
-                  <Text variant="title-xs">{t('Your changes, kept')}</Text>
+                  <Text variant="title-xs">{version ? t('Your edits — the update keeps them') : t('Your edits — the rollback keeps them')}</Text>
                   <ChangesTable
                     changes={kept.flatMap(change => rowsOf(change, change.base, change.local))}
-                    beforeLabel={t('Before · Filigran')}
-                    afterLabel={t('After · yours, kept')}
+                    beforeLabel={String(t('Before · Filigran v{version}', { version: preview.current_version }))}
+                    afterLabel={t('After · your edit')}
                   />
                 </div>
               )}

@@ -17,8 +17,8 @@ interface Props {
 }
 
 /**
- * One changed field as two labelled rows: Before (grey, removed words struck through) and After (changed
- * words on a brand tint). The labels carry the meaning; colours are DS tokens and only support them.
+ * One changed field as two labelled rows: Before (grey) and After, the changed words on an amber
+ * highlighter on both. The labels carry the meaning; colours are DS tokens and only support them.
  */
 const BeforeAfter: FunctionComponent<Props> = ({ label, before, after, beforeLabel, afterLabel }) => {
   const { t } = useFormatter();
@@ -49,15 +49,7 @@ const BeforeAfter: FunctionComponent<Props> = ({ label, before, after, beforeLab
         {before ? <TextDiff text={before} other={after} side="before" /> : empty}
       </div>
       <div style={row}>
-        <Text
-          variant="content-caption"
-          style={{
-            color: 'var(--color-filigran-brand-primary)',
-            fontWeight: 600,
-          }}
-        >
-          {afterLabel}
-        </Text>
+        <Text variant="content-caption" style={{ fontWeight: 600 }}>{afterLabel}</Text>
         {after ? <TextDiff text={after} other={before} side="after" /> : empty}
       </div>
     </div>
