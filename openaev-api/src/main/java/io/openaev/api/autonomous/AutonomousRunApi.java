@@ -415,7 +415,7 @@ public class AutonomousRunApi extends RestBehavior {
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun restart(TxCtx ctx, @PathVariable String runId) {
-    return autonomousRunService.restart(runId);
+    return autonomousRunService.restart(ctx, runId);
   }
 
   @Operation(
@@ -434,7 +434,7 @@ public class AutonomousRunApi extends RestBehavior {
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun promote(TxCtx ctx, @PathVariable String runId) {
-    return autonomousRunService.promoteToRealRun(runId);
+    return autonomousRunService.promoteToRealRun(ctx, runId);
   }
 
   @Operation(
@@ -458,7 +458,7 @@ public class AutonomousRunApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String runId,
       @Valid @RequestBody AutonomousConvertToManualInput input) {
-    Scenario scenario = autonomousRunService.convertToManual(runId, input.getMode());
+    Scenario scenario = autonomousRunService.convertToManual(ctx, runId, input.getMode());
     return new AutonomousConvertToManualOutput(scenario.getId());
   }
 
