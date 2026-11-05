@@ -66,6 +66,11 @@ public class AtomicTestingApi extends RestBehavior {
     return atomicTestingService.searchAtomicTestingsForCurrentUser(ctx, searchPaginationInput);
   }
 
+  /** Resolves the atomic testing inside the request's tenant scope, or answers not found. */
+  private void requireAtomicTestingInScope(final TxCtx ctx, final String injectId) {
+    atomicTestingService.existsInScope(ctx, injectId);
+  }
+
   // some api use inject as resource type because they are actually used to retrieve inject data for
   // simulation and AT
   @LogExecutionTime
@@ -76,13 +81,13 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public InjectResultOverviewOutput findAtomicTesting(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this read. InjectResultOverviewOutput serializes Inject#getType(), which
-      // resolves the inject's injector through the contract's (eager) injector link on the
-      // v2-scoped injectors table. Without the scope the read fails closed and inject_type comes
-      // back null, which changes how the frontend renders the atomic-testing result panel.
+      // ctx resolves the read in the request's tenant scope. InjectResultOverviewOutput also
+      // serializes Inject#getType(), which resolves the inject's injector through the contract's
+      // (eager) injector link on the v2-scoped injectors table; without the scope that read fails
+      // closed and inject_type comes back null, which changes how the frontend renders the
+      // atomic-testing result panel.
       TxCtx ctx, @PathVariable String injectId) {
-    return atomicTestingService.findById(injectId);
+    return atomicTestingService.findById(ctx, injectId);
   }
 
   @LogExecutionTime
@@ -93,10 +98,11 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public StatusPayloadOutput findAtomicTestingPayload(
-      // Signals the transaction aspect to set the tenant scope: resolving the payload output reads
-      // the inject's injector contract / injector on the v2-scoped injectors table.
+      // ctx resolves the read in the request's tenant scope, and also signals the transaction
+      // aspect to set the tenant scope for the injector contract / injector lookup on the
+      // v2-scoped injectors table.
       TxCtx ctx, @PathVariable String injectId) {
-    return atomicTestingService.findPayloadOutputByInjectId(injectId);
+    return atomicTestingService.findPayloadOutputByInjectId(ctx, injectId);
   }
 
   @PostMapping()
@@ -107,7 +113,7 @@ public class AtomicTestingApi extends RestBehavior {
       // tenant scope for this write (createOrUpdate resolves the Injector via
       // InjectUtils#resolveInjector, which reads the v2-scoped injectors table).
       TxCtx ctx, @Valid @RequestBody AtomicTestingInput input) {
-    return this.atomicTestingService.createOrUpdate(input, null);
+    return this.atomicTestingService.createOrUpdate(ctx, input, null);
   }
 
   @PutMapping("/{injectId}")
@@ -117,13 +123,12 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput updateAtomicTesting(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this write (createOrUpdate resolves the Injector via
-      // InjectUtils#resolveInjector, which reads the v2-scoped injectors table).
+      // ctx resolves the write in the request's tenant scope (createOrUpdate also resolves the
+      // Injector via InjectUtils#resolveInjector, which reads the v2-scoped injectors table).
       TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final AtomicTestingInput input) {
-    return atomicTestingService.createOrUpdate(input, injectId);
+    return atomicTestingService.createOrUpdate(ctx, input, injectId);
   }
 
   @DeleteMapping("/{injectId}")
@@ -133,7 +138,7 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.INJECT)
   public void deleteAtomicTesting(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
-    atomicTestingService.deleteAtomicTesting(injectId);
+    atomicTestingService.deleteAtomicTesting(ctx, injectId);
   }
 
   @Operation(
@@ -157,15 +162,15 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.DUPLICATE,
       resourceType = ResourceType.ATOMIC_TESTING)
   public InjectResultOverviewOutput duplicateAtomicTesting(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this read (duplicate reads Inject#getInjector(), a lazy association on
-      // the v2-scoped injectors table).
+      // ctx resolves the source read in the request's tenant scope (duplicate also reads
+      // Inject#getInjector(), a lazy association on the v2-scoped injectors table).
       TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
     // A faithful copy keeps the targets the user is not cleared for; the response is read back
     // under their clearance.
     String duplicateId =
-        faithfulCopy.execute(ctx, () -> atomicTestingService.duplicate(atomicTestingId).getId());
-    return atomicTestingService.findById(duplicateId);
+        faithfulCopy.execute(
+            ctx, () -> atomicTestingService.duplicate(ctx, atomicTestingId).getId());
+    return atomicTestingService.findById(ctx, duplicateId);
   }
 
   @Operation(
@@ -181,6 +186,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   public ExpectationsDriftOutput atomicTestingExpectationsDrift(
       TxCtx ctx, @PathVariable @NotBlank final String injectId) {
+    requireAtomicTestingInScope(ctx, injectId);
     return expectationsDriftService.injectDrift(injectId);
   }
 
@@ -199,6 +205,7 @@ public class AtomicTestingApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   public ExpectationsRealignOutput realignAtomicTestingExpectations(
       TxCtx ctx, @PathVariable @NotBlank final String injectId) {
+    requireAtomicTestingInScope(ctx, injectId);
     return expectationsDriftService.realignInject(ctx, injectId);
   }
 
@@ -218,6 +225,7 @@ public class AtomicTestingApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final ExpectationsDriftDismissInput input) {
+    requireAtomicTestingInScope(ctx, injectId);
     return expectationsDriftService.dismissInjectDrift(injectId, input.dismissed());
   }
 
@@ -227,11 +235,11 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.INJECT)
-  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
-  // executors table (the Enterprise executor gate reads each targeted agent's executor).
+  // ctx also scopes this transaction against the v2-active executors table (the Enterprise
+  // executor gate reads each targeted agent's executor).
   public InjectResultOverviewOutput launchAtomicTesting(
       TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
-    return atomicTestingService.launch(atomicTestingId);
+    return atomicTestingService.launch(ctx, atomicTestingId);
   }
 
   @PostMapping("/{atomicTestingId}/relaunch")
@@ -240,21 +248,21 @@ public class AtomicTestingApi extends RestBehavior {
       resourceId = "#atomicTestingId",
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.INJECT)
-  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
-  // executors table (the Enterprise executor gate reads each targeted agent's executor).
+  // ctx also scopes this transaction against the v2-active executors table (the Enterprise
+  // executor gate reads each targeted agent's executor).
   public InjectResultOverviewOutput relaunchAtomicTesting(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this read (relaunch duplicates the inject, reading Inject#getInjector(),
-      // a lazy association on the v2-scoped injectors table).
+      // ctx resolves the source read in the request's tenant scope (relaunch duplicates the
+      // inject, reading Inject#getInjector(), a lazy association on the v2-scoped injectors
+      // table).
       TxCtx ctx, @PathVariable @NotBlank final String atomicTestingId) {
     // Checked on what the user can see, before the faithful copy: the targets they are not cleared
     // for are kept in the relaunched atomic testing but not executed. The response is read back
     // under their clearance.
-    atomicTestingService.throwIfNotLaunchable(atomicTestingId);
+    atomicTestingService.throwIfNotLaunchable(ctx, atomicTestingId);
     String relaunchedId =
         faithfulCopy.execute(
-            ctx, () -> atomicTestingService.relaunchAsCurrentUser(atomicTestingId));
-    return atomicTestingService.findById(relaunchedId);
+            ctx, () -> atomicTestingService.relaunchAsCurrentUser(ctx, atomicTestingId));
+    return atomicTestingService.findById(ctx, relaunchedId);
   }
 
   // -- RECURRENCE --
@@ -266,14 +274,14 @@ public class AtomicTestingApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.INJECT)
   public InjectResultOverviewOutput updateAtomicTestingRecurrence(
-      // ctx is unused directly: the aspect reads it to scope this transaction against the
-      // v2-active executors table (see the comment below on the Enterprise executor gate).
+      // ctx also scopes this transaction against the v2-active executors table (see the comment
+      // below on the Enterprise executor gate).
       TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final InjectRecurrenceInput input) {
     // Scheduling is a Community Edition feature, but setting a schedule still goes through the
     // Enterprise executor gate (see AtomicTestingService#updateRecurrence).
-    return atomicTestingService.updateRecurrence(injectId, input);
+    return atomicTestingService.updateRecurrence(ctx, injectId, input);
   }
 
   @GetMapping("/{injectId}/target_results/{targetId}/types/{targetType}")
@@ -287,6 +295,7 @@ public class AtomicTestingApi extends RestBehavior {
       @PathVariable String injectId,
       @PathVariable String targetId,
       @PathVariable String targetType) {
+    requireAtomicTestingInScope(ctx, injectId);
     return toOutputs(
         injectExpectationService.findExpectationsByInjectAndTargetAndTargetType(
             injectId, targetId, targetType));
@@ -311,6 +320,7 @@ public class AtomicTestingApi extends RestBehavior {
       @PathVariable String injectId,
       @PathVariable String targetId,
       @RequestParam @NotBlank String expectationType) {
+    requireAtomicTestingInScope(ctx, injectId);
     return injectExpectationService.findMergedExpectationsWithAgentsByInjectAndAsset(
         injectId, targetId, expectationType);
   }
@@ -344,6 +354,7 @@ public class AtomicTestingApi extends RestBehavior {
       @PathVariable String injectId,
       @PathVariable String targetId,
       @PathVariable String targetType) {
+    requireAtomicTestingInScope(ctx, injectId);
     return toOutputs(
         injectExpectationService
             .findMergedExpectationsByInjectAndTargetAndTargetType(injectId, targetId, targetType)
@@ -362,7 +373,7 @@ public class AtomicTestingApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final AtomicTestingUpdateTagsInput input) {
-    return atomicTestingService.updateAtomicTestingTags(injectId, input);
+    return atomicTestingService.updateAtomicTestingTags(ctx, injectId, input);
   }
 
   @GetMapping("/{injectId}/security-platforms")
@@ -380,6 +391,7 @@ public class AtomicTestingApi extends RestBehavior {
       })
   public List<SecurityPlatformSimpleOutput> securityPlatformsFromAtomicTesting(
       TxCtx ctx, @PathVariable String injectId) {
+    requireAtomicTestingInScope(ctx, injectId);
     return SecurityPlatformMapper.toSimpleOutputs(
         detectionRemediationService.securityPlatformsForInject(injectId));
   }
