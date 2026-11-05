@@ -524,6 +524,20 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
       assertThat(duplicate).isEqualTo(200);
       assertThat(scenarioCount()).isEqualTo(scenariosBefore + 1);
     }
+
+    @Test
+    @DisplayName(
+        "given a scenario of a member tenant and a selector naming it, launching it is found")
+    void given_scenarioOfMemberTenantAndSelectorNamingIt_should_launchIt() throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(memberTenant);
+
+      // Act
+      int launch = launchScenario(headerRoute(memberTenant), scenarioId);
+
+      // Assert
+      assertThat(launch).isEqualTo(200);
+    }
   }
 
   @Nested

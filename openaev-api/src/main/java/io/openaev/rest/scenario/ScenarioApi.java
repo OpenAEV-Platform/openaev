@@ -752,7 +752,7 @@ public class ScenarioApi extends RestBehavior {
               }
               return simulation.getId();
             });
-    return ExerciseResponseHydrator.hydrateForResponse(exerciseService.exercise(simulationId));
+    return ExerciseResponseHydrator.hydrateForResponse(exerciseService.exercise(ctx, simulationId));
   }
 
   @PostMapping({
