@@ -521,8 +521,11 @@ public class InjectorApiTest extends IntegrationTest {
       assertThat(realInjector).isPresent();
       assertThat(realInjector.get().isExternal()).isTrue();
 
+      // The orphan contract was seeded in the ambient default tenant while registration adopts it
+      // into tenantId: a built-in-shaped id repeats across tenants (#8485), so the assertion stays
+      // in the tenant the registration actually wrote to, not a bare id lookup.
       Optional<InjectorContract> adoptedContract =
-          injectorContractRepository.findById(orphanContractId);
+          injectorContractRepository.findByContractIdAndTenant(orphanContractId, tenantId);
       assertThat(adoptedContract).isPresent();
       assertThat(adoptedContract.get().getInjectors())
           .extracting(Injector::getId)
