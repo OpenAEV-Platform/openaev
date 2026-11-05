@@ -27,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
@@ -43,6 +44,10 @@ import org.springframework.test.util.ReflectionTestUtils;
  * <p>The ready queue is shared and live. Its consumer is swapped for one that acknowledges and
  * drops, so the readied step stays READY and no inject is created behind the assertions.
  */
+// Quartz off: InjectsExecutionTrigger fires InjectsExecutionJob at second 0 of every minute; a
+// tick landing while a test calls execute() starts the same simulation a second time and readies
+// the step twice. The class drives the job directly and needs no scheduled trigger.
+@TestPropertySource(properties = "spring.quartz.auto-startup=false")
 @KeepRabbit
 @WithMockUser(isAdmin = true)
 @DisplayName("InjectsExecutionJob starting a scheduled chained simulation")
