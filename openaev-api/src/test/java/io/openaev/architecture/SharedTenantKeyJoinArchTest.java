@@ -81,9 +81,14 @@ class SharedTenantKeyJoinArchTest {
       List.of(
           "reaches-active-table:", "dead-code", "not-established", "fixed-pending:", GRANT_READER);
 
-  /** {@code grants gr} or {@code grants AS gr}: the alias a statement gives the grants table. */
-  private static final Pattern GRANTS_ALIAS =
-      Pattern.compile("\\bgrants\\s+(?:AS\\s+)?([A-Za-z_][A-Za-z_0-9]*)", Pattern.CASE_INSENSITIVE);
+  /**
+   * A reference to the grants table, not a qualifier: {@code grants gr}, {@code grants AS gr}, or
+   * {@code grants} alone, followed by a keyword or punctuation.
+   */
+  private static final Pattern GRANTS_REFERENCE =
+      Pattern.compile(
+          "\\bgrants\\b(?!\\s*\\.)(?:\\s+(?:AS\\s+)?([A-Za-z_][A-Za-z_0-9]*))?",
+          Pattern.CASE_INSENSITIVE);
 
   /** A block or line comment, or a string literal: text that names no alias. */
   private static final Pattern SQL_COMMENT_OR_LITERAL =
@@ -633,7 +638,8 @@ class SharedTenantKeyJoinArchTest {
                 + " is not listed as group-tenant in grant-readers.txt, so nothing checks that the"
                 + " grant's group is restricted to the tenant");
       } else {
-        String[] aliases = key.substring(key.lastIndexOf(' ') + 1).split("=");
+        String[] aliases =
+            key.substring(key.lastIndexOf(' ') + 1).toLowerCase(Locale.ROOT).split("=");
         if (Arrays.stream(aliases).noneMatch(grantAliases::contains)) {
           malformed.add(
               key
@@ -1212,16 +1218,18 @@ class SharedTenantKeyJoinArchTest {
   static Set<String> grantsAliasesOf(String origin, String sql) {
     String statement = SQL_COMMENT_OR_LITERAL.matcher(normalise(sql)).replaceAll(" ");
     Set<String> grantsAliases = new HashSet<>();
-    Matcher grants = GRANTS_ALIAS.matcher(statement);
+    Matcher grants = GRANTS_REFERENCE.matcher(statement);
+    int references = 0;
     while (grants.find()) {
-      // With no alias, the token after grants is a keyword and the table is named by itself.
-      String alias = grants.group(1).toLowerCase(Locale.ROOT);
+      references++;
+      // With no alias, the table is named by itself.
+      String alias = grants.group(1) == null ? "grants" : grants.group(1).toLowerCase(Locale.ROOT);
       grantsAliases.add(NOT_AN_ALIAS.contains(alias) ? "grants" : alias);
     }
-    if (grantsAliases.size() > 1) {
+    if (references > 1) {
       throw new IllegalStateException(
           origin
-              + " gives grants more than one alias "
+              + " references grants more than once "
               + grantsAliases
               + ", so the group restriction cannot be tied to the waived join");
     }
@@ -1515,6 +1523,54 @@ class SharedTenantKeyJoinArchTest {
 
       // Assert
       assertEquals(Set.of("grants"), aliases);
+    }
+
+    @Test
+    @DisplayName("given an aliased and an unaliased grants reference, then it is refused")
+    void given_aliasedAndUnaliasedGrants_should_beRefused() {
+      // Arrange
+      String sql =
+          "SELECT injcon.* FROM injectors_contracts injcon WHERE EXISTS (SELECT 1 FROM grants gr"
+              + " WHERE gr.grant_resource = injcon.injector_contract_id) AND EXISTS (SELECT 1 FROM"
+              + " grants, groups g WHERE grants.grant_group = g.group_id)";
+
+      // Act & Assert
+      assertThrows(
+          IllegalStateException.class,
+          () -> grantsAliasesOf("SomeRepository#someGrantedQuery", sql));
+    }
+
+    @Test
+    @DisplayName("given an unaliased grants in a comma list, then it is named by itself")
+    void given_unaliasedGrantsInACommaList_should_beNamedByItself() {
+      // Arrange
+      String sql =
+          "SELECT injcon.* FROM injectors_contracts injcon WHERE EXISTS (SELECT 1 FROM grants,"
+              + " groups g WHERE grants.grant_resource = injcon.injector_contract_id)";
+
+      // Act
+      Set<String> aliases = grantsAliasesOf("SomeRepository#someGrantedQuery", sql);
+
+      // Assert
+      assertEquals(Set.of("grants"), aliases);
+    }
+
+    @Test
+    @DisplayName("given a waiver spelling the grants alias in upper case, then it is accepted")
+    void given_upperCaseWaiverAlias_should_beAccepted() {
+      // Arrange
+      Map<String, Set<String>> listed = Map.of("SomeRepository#someGrantedQuery", Set.of("gr"));
+
+      // Act
+      List<String> found =
+          waiverViolations(
+              "SomeRepository#someGrantedQuery injector_contract_id GR=injcon",
+              REASON,
+              Set.of(),
+              listed);
+
+      // Assert
+      assertTrue(found.isEmpty(), "aliases compare without case. Got: " + found);
     }
 
     @Test
