@@ -1285,7 +1285,6 @@ class InjectExpectationServiceTest {
     @Mock private WorkflowUpdateEventPublisher workflowUpdateEventPublisher;
 
     private InjectExpectationService proxiedService;
-    private BaseInjectExpectation expectation;
 
     @BeforeEach
     void setUpProxy() {
@@ -1297,17 +1296,19 @@ class InjectExpectationServiceTest {
       proxiedService = factory.getProxy();
 
       inject.setId("vulnerability-inject-id");
-      expectation = createVulnerabilityInjectExpectation(inject, agent);
-      expectation.setId("vulnerability-expectation-id");
-      inject.setExpectations(List.of(expectation));
-      mockExpectation(expectation);
     }
 
     @Test
     @DisplayName(
-        "given a vulnerability verdict from a structured output, should notify the step running"
-            + " the inject")
-    void given_vulnerabilityVerdictFromStructuredOutput_should_notifyStepRunningInject() {
+        "given a vulnerability verdict from an implant output, should notify the step running the"
+            + " inject")
+    void given_vulnerabilityVerdictFromImplantOutput_should_notifyStepRunningInject() {
+      // Arrange
+      BaseInjectExpectation expectation = createVulnerabilityInjectExpectation(inject, agent);
+      expectation.setId("vulnerability-expectation-id");
+      inject.setExpectations(List.of(expectation));
+      mockExpectation(expectation);
+
       // Act
       proxiedService.matchesVulnerabilityExpectations(
           createContext(buildDefaultInput(null)), mapper.createArrayNode());
@@ -1316,6 +1317,52 @@ class InjectExpectationServiceTest {
       verify(injectExpectationService)
           .updateInjectExpectationFromCollector(
               eq(expectation.getId()), any(InjectExpectationUpdateFromCollectorInput.class));
+      verify(workflowUpdateEventPublisher).publishForInject(inject.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "given a vulnerability verdict from an injector output, should notify the step running the"
+            + " inject")
+    void given_vulnerabilityVerdictFromInjectorOutput_should_notifyStepRunningInject() {
+      // Arrange: an assessment injector (Nuclei) scanning one asset, its verdict attributed to the
+      // injector's security platform
+      Injector injector = new Injector();
+      injector.setType("openaev_nuclei");
+      inject.setInjector(injector);
+      SecurityPlatform securityPlatform =
+          SecurityPlatformFixture.createDefault("Nuclei", "VULNERABILITY_SCANNER");
+      securityPlatform.setId("nuclei-platform");
+      when(securityPlatformRepository.findByExternalReference("openaev_nuclei"))
+          .thenReturn(Optional.of(securityPlatform));
+
+      Asset asset = AssetFixture.createDefaultAsset("vulnerable-asset");
+      asset.setId("asset-1");
+      VulnerabilityInjectExpectation expectation =
+          createVulnerabilityInjectExpectation(inject, null);
+      expectation.setId("exp-asset-1");
+      expectation.setAsset(asset);
+      inject.setExpectations(List.of(expectation));
+      doReturn(expectation)
+          .when(injectExpectationService)
+          .updateInjectExpectationFromSecurityPlatform(
+              any(), anyBoolean(), any(SecurityPlatform.class));
+
+      ArrayNode structuredOutput = mapper.createArrayNode();
+      ObjectNode cve = structuredOutput.addObject();
+      cve.put("id", "CVE-2021-41773").put("host", "https://vulnerable-host").put("severity", "7.5");
+      cve.putArray("asset_id").add("asset-1");
+
+      // Act
+      proxiedService.matchesVulnerabilityExpectations(
+          new ExecutionProcessingContext(
+              inject, null, buildDefaultInput(structuredOutput), Map.of()),
+          structuredOutput);
+
+      // Assert
+      verify(injectExpectationService)
+          .updateInjectExpectationFromSecurityPlatform(
+              eq("exp-asset-1"), eq(false), eq(securityPlatform));
       verify(workflowUpdateEventPublisher).publishForInject(inject.getId());
     }
   }
