@@ -7,7 +7,6 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -107,9 +106,9 @@ public interface EndpointRepository
 
   @Query(
       "select e from Endpoint e where e.externalReference in :externalReferences"
-          + " and e.tenant.id = :tenantId and e.agents is empty")
-  List<Endpoint> findAgentlessByExternalReferences(
-      @NotNull @Param("externalReferences") Set<String> externalReferences,
+          + " and e.tenant.id = :tenantId")
+  List<Endpoint> findByExternalReferences(
+      @NotNull @Param("externalReferences") List<String> externalReferences,
       @NotNull @Param("tenantId") String tenantId);
 
   @Query(

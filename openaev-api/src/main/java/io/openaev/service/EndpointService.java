@@ -69,6 +69,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class EndpointService implements AuditLoggedService {
 
   private static final String ASSET_GROUP_FILTER = "assetGroups";
+  private static final int EXTERNAL_REFERENCE_BATCH_SIZE = 1000;
 
   public static final int DELETE_TTL = 86400000; // 24 hours
   public static final String OPENAEV_AGENT_INSTALLER = "openaev-agent-installer";
@@ -475,13 +476,10 @@ public class EndpointService implements AuditLoggedService {
     }
     // Create new agents/endpoints
     if (!inputs.isEmpty()) {
-      // Reuse an endpoint left without agents, e.g. after its executor was recreated
-      Map<String, Endpoint> agentlessEndpoints =
-          findAgentlessEndpointsByExternalReference(inputs, tenantId);
-      endpointsToSave.forEach(
-          endpoint -> agentlessEndpoints.remove(endpoint.getExternalReference()));
+      // The external reference is unique per tenant: a known one must go on its endpoint
+      Map<String, Endpoint> existingEndpoints = findEndpointsByExternalReference(inputs, tenantId);
       for (AgentRegisterInput inputToUpdate : inputs) {
-        endpointToSave = agentlessEndpoints.remove(inputToUpdate.getExternalReference());
+        endpointToSave = existingEndpoints.get(inputToUpdate.getExternalReference());
         if (endpointToSave != null) {
           setUpdatedEndpointAttributes(endpointToSave, inputToUpdate);
         } else {
@@ -836,20 +834,24 @@ public class EndpointService implements AuditLoggedService {
     agent.setVersion(input.getAgentVersion());
   }
 
-  private Map<String, Endpoint> findAgentlessEndpointsByExternalReference(
+  private Map<String, Endpoint> findEndpointsByExternalReference(
       List<AgentRegisterInput> inputs, String tenantId) {
-    Set<String> externalReferences =
+    List<String> externalReferences =
         inputs.stream()
             .map(AgentRegisterInput::getExternalReference)
             .filter(StringUtils::isNotBlank)
-            .collect(Collectors.toSet());
-    if (externalReferences.isEmpty()) {
-      return new HashMap<>();
+            .distinct()
+            .toList();
+    Map<String, Endpoint> endpoints = new HashMap<>();
+    for (int i = 0; i < externalReferences.size(); i += EXTERNAL_REFERENCE_BATCH_SIZE) {
+      List<String> batch =
+          externalReferences.subList(
+              i, Math.min(i + EXTERNAL_REFERENCE_BATCH_SIZE, externalReferences.size()));
+      endpointRepository
+          .findByExternalReferences(batch, tenantId)
+          .forEach(endpoint -> endpoints.put(endpoint.getExternalReference(), endpoint));
     }
-    return endpointRepository
-        .findAgentlessByExternalReferences(externalReferences, tenantId)
-        .stream()
-        .collect(Collectors.toMap(Endpoint::getExternalReference, e -> e));
+    return endpoints;
   }
 
   private Endpoint newEndpoint(AgentRegisterInput input) {
