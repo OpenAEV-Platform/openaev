@@ -1191,10 +1191,12 @@ class SharedTenantKeyJoinArchTest {
   }
 
   /**
-   * The aliases {@code sql} gives the grants table. A waiver names a join by its two aliases only,
-   * not by the sub-select it sits in, so each of these aliases must be declared once in the whole
-   * statement: an alias the statement also gives another table, in a sibling sub-select, could
-   * otherwise pass a join of that table for the grants join.
+   * The alias {@code sql} gives the grants table. A waiver names a join by its two aliases only,
+   * not by the sub-select it sits in, and the grant reader guard finds the group restriction
+   * anywhere in the statement, not on one alias. So the statement must give grants one alias, and
+   * declare it once: a second grants alias could carry no restriction, and an alias the statement
+   * also gives another table, in a sibling sub-select, could pass a join of that table for the
+   * grants join.
    */
   static Set<String> grantsAliasesOf(String origin, String sql) {
     Set<String> grantsAliases = new HashSet<>();
@@ -1206,6 +1208,13 @@ class SharedTenantKeyJoinArchTest {
     Matcher declared = TABLE_ALIAS.matcher(sql);
     while (declared.find()) {
       declarations.merge(declared.group(1).toLowerCase(Locale.ROOT), 1, Integer::sum);
+    }
+    if (grantsAliases.size() > 1) {
+      throw new IllegalStateException(
+          origin
+              + " gives grants more than one alias "
+              + grantsAliases
+              + ", so the group restriction cannot be tied to the waived join");
     }
     for (String alias : grantsAliases) {
       if (declarations.getOrDefault(alias, 0) != 1) {
@@ -1378,6 +1387,21 @@ class SharedTenantKeyJoinArchTest {
 
       // Assert
       assertEquals(Set.of("gr"), aliases);
+    }
+
+    @Test
+    @DisplayName("given a statement giving grants two aliases, then it is refused")
+    void given_twoGrantsAliases_should_beRefused() {
+      // Arrange
+      String sql =
+          "SELECT injcon.* FROM injectors_contracts injcon WHERE EXISTS (SELECT 1 FROM grants gr"
+              + " WHERE gr.grant_resource = injcon.injector_contract_id) OR EXISTS (SELECT 1 FROM"
+              + " grants gr2 WHERE gr2.grant_resource = injcon.injector_contract_id)";
+
+      // Act & Assert
+      assertThrows(
+          IllegalStateException.class,
+          () -> grantsAliasesOf("SomeRepository#someGrantedQuery", sql));
     }
 
     @Test
