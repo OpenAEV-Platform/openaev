@@ -299,10 +299,9 @@ public class ExerciseService {
    */
   public RawSimulationIndexing rawSimulation(
       @NotNull final TxCtx ctx, @NotBlank final String simulationId) {
-    existsInScope(ctx, simulationId);
     RawSimulationIndexing rawSimulation =
         workflowOwnerScope.call(
-            exercise(simulationId), () -> exerciseRepository.rawDetailsById(simulationId));
+            exercise(ctx, simulationId), () -> exerciseRepository.rawDetailsById(simulationId));
     if (rawSimulation == null) {
       throw new ElementNotFoundException("Simulation not found");
     }
@@ -788,24 +787,23 @@ public class ExerciseService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(TxCtx ctx, String simulationId) {
-    existsInScope(ctx, simulationId);
-    delete(simulationId);
+    delete(exercise(ctx, simulationId));
   }
 
   /**
-   * Delete a simulation of the current tenant, for work that runs without a request scope. The
-   * tenant check happens while loading the simulation inside {@link #delete(String)}.
+   * Delete a simulation of the current tenant, for work that runs without a request scope.
    *
    * @param simulationId ID of the simulation to delete
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
-    delete(simulationId);
+    delete(exercise(simulationId));
   }
 
-  private void delete(String simulationId) {
-    Exercise simulation = exercise(simulationId);
-
+  // The simulation is loaded by the caller, in the request scope or in the current tenant, so the
+  // tenant check and the workflow sweep's tenant come from the same row.
+  private void delete(Exercise simulation) {
+    String simulationId = simulation.getId();
     workflowOwnerScope.run(
         simulation,
         () -> {
@@ -890,12 +888,7 @@ public class ExerciseService {
         ctx,
         "simulations",
         exerciseIdsToDelete,
-        chunk ->
-            chunk.forEach(
-                id -> {
-                  existsInScope(ctx, id);
-                  delete(id);
-                }));
+        chunk -> chunk.forEach(id -> delete(exercise(ctx, id))));
   }
 
   /** Changes the status of an exercise found inside the request's tenant scope. */
