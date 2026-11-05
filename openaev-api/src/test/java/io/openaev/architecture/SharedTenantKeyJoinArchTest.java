@@ -665,6 +665,7 @@ class SharedTenantKeyJoinArchTest {
     Set<String> activeTables = ProductionActiveTables.names();
     Map<String, String> waivers = waivers();
     Map<String, Set<String>> groupTenantGrantAliases = groupTenantGrantAliases(waivers);
+    malformed.addAll(grantReaderWaiversBeyondOnePerStatement(waivers));
     for (Map.Entry<String, String> waiver : waivers.entrySet()) {
       malformed.addAll(
           waiverViolations(
@@ -1244,6 +1245,36 @@ class SharedTenantKeyJoinArchTest {
     return grantsAliases;
   }
 
+  /**
+   * The statements carrying more than one grant-reader waiver. The grant reader guard finds the
+   * group restriction somewhere in the statement, not on a given correlation of the grants alias,
+   * so it vouches for one grants join per statement: a second correlation of the same alias, waived
+   * in turn, could carry no restriction.
+   */
+  static List<String> grantReaderWaiversBeyondOnePerStatement(Map<String, String> waivers) {
+    Map<String, List<String>> byStatement = new LinkedHashMap<>();
+    waivers.forEach(
+        (key, reason) -> {
+          if (reason.startsWith(GRANT_READER)) {
+            byStatement.computeIfAbsent(key.split(" ")[0], origin -> new ArrayList<>()).add(key);
+          }
+        });
+    List<String> found = new ArrayList<>();
+    byStatement.forEach(
+        (origin, keys) -> {
+          if (keys.size() > 1) {
+            found.add(
+                origin
+                    + " :: "
+                    + keys.size()
+                    + " grant-reader waivers, but the grant reader guard vouches for one grants"
+                    + " join per statement: "
+                    + keys);
+          }
+        });
+    return found;
+  }
+
   /** waiver key to reason. */
   private static Map<String, String> waivers() throws IOException {
     Map<String, String> waivers = new LinkedHashMap<>();
@@ -1484,6 +1515,26 @@ class SharedTenantKeyJoinArchTest {
 
       // Assert
       assertEquals(Set.of("grants"), aliases);
+    }
+
+    @Test
+    @DisplayName("given two grant-reader waivers on one statement, then they are flagged")
+    void given_twoGrantReaderWaiversOnOneStatement_should_beFlagged() {
+      // Arrange
+      Map<String, String> waivers =
+          Map.of(
+              KEY,
+              REASON,
+              "SomeRepository#someGrantedQuery attack_pattern_id gr=injconatt",
+              REASON);
+
+      // Act
+      List<String> found = grantReaderWaiversBeyondOnePerStatement(waivers);
+
+      // Assert
+      assertTrue(
+          found.stream().anyMatch(v -> v.contains("2 grant-reader waivers")),
+          "one grants join per statement. Got: " + found);
     }
   }
 }
