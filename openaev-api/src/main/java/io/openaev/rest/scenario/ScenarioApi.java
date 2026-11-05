@@ -216,7 +216,7 @@ public class ScenarioApi extends RestBehavior {
     // resolved in the request scope by id inside it.
     String duplicateId =
         faithfulCopy.execute(ctx, () -> scenarioService.duplicateScenario(ctx, scenarioId).getId());
-    return hydrateForResponse(scenarioService.scenario(duplicateId));
+    return hydrateForResponse(scenarioService.scenario(ctx, duplicateId));
   }
 
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
