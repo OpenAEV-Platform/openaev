@@ -136,6 +136,7 @@ public class AccessControlAspect {
     String ambientTenant = TenantContext.getCurrentTenant();
     PermissionService.CheckedResource resource =
         permissionService.checkedResource(
+            requestTxCtx(args),
             ambientTenant,
             resourceId,
             accessControl.resourceType(),
@@ -184,6 +185,22 @@ public class AccessControlAspect {
       }
     }
     return List.of();
+  }
+
+  /**
+   * The controller method's own {@link TxCtx} argument, resolved by {@code TxCtxArgumentResolver}
+   * before this advice runs. {@link PermissionService#checkedResource} needs it to load a parent
+   * that is not yet v2-active (an inject) in the request's own scope rather than the ambient tenant
+   * alone. {@link TxCtx#missing()} when the method declares none, which keeps that load's existing
+   * ambient-tenant fallback for an entrypoint this task does not touch.
+   */
+  private static TxCtx requestTxCtx(Object[] args) {
+    for (Object arg : args) {
+      if (arg instanceof TxCtx ctx) {
+        return ctx;
+      }
+    }
+    return TxCtx.missing();
   }
 
   public record HttpMappingInfo(
