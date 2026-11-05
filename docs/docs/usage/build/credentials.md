@@ -33,9 +33,9 @@ method you select.
 
 ## How to create a Credential
 
-1. Go to **Assets > Credentials**.
+1. Go to **Credentials** in the left menu.
 2. Click **Create**.
-3. Enter a **Name**, then select the **Type** and the **Auth method**.
+3. Enter a **Name** (and optionally a **Description** and **Tags**), then select the **Type** and the **Auth Method**.
 4. Fill in the fields of the authentication method.
 5. Click **Create**.
 
@@ -48,7 +48,8 @@ To update or delete a Credential, open its menu (**⋮**) and click **Update** o
 
 !!! danger
 
-    Deleting a Credential removes it from every Inject that uses it.
+    Deleting a Credential removes it from every Inject that uses it, even while it is in use: when the Credential is
+    mandatory, these Injects are no longer ready to run until you select another one.
 
 ## Credential status
 
@@ -57,24 +58,25 @@ OpenAEV checks cloud Credentials against their provider when you create or updat
 
 ![Credentials list with their status](assets/credential-list.png)
 
-| Status       | Meaning                                                                         |
-|:-------------|:--------------------------------------------------------------------------------|
-| **Active**   | The provider accepted the Credential at the last check                          |
-| **Inactive** | The last check failed. Hover over the status to see the reason                  |
-| `-`          | The Credential is not checked. This is the case of Identity Credentials         |
+| Status       | Meaning                                                                            |
+|:-------------|:-----------------------------------------------------------------------------------|
+| **Active**   | The provider accepted the Credential at the last check                             |
+| **Inactive** | The last check failed. Hover over the status to see the reason                     |
+| `-`          | The Credential is not checked: Identity Credentials, or a check that could not run |
 
 You can tune the check schedule in
 [Credential status validation](../../reference/deployment/configuration.md#credential-status-validation).
 
 ## Use a Credential in an Inject
 
-The Inject form shows a Credential section only for the Injects whose Injector expects one, for example a cloud attack
-technique.
+The Inject form shows a Credential field, in **Inject data**, only for the Injects whose Injector expects one, for
+example a cloud attack technique.
 
 1. Create or open an Inject in a Scenario, a Simulation or an Atomic Test.
-2. In the Credential section, click **Update credential**.
+2. In **Inject data**, under the Credential field, click **Update credential** (**Update credentials** when the
+   Injector accepts several).
 
-    ![Credential section of a Prowler AWS Inject form](assets/inject-form-credential-update.png)
+    ![Credential field of a Prowler AWS Inject form](assets/inject-form-credential-update.png)
 
 3. Select the Credentials to use. When the Injector expects a given type, for example `Cloud AWS`, the list is filtered
    on this type.
@@ -93,14 +95,15 @@ At execution, the Injector retrieves the secret from OpenAEV for this run only. 
 
 ## Permissions
 
-Credentials have their own capabilities, set on roles in **Settings > Security > Roles**:
+Credentials have their own capabilities, set on **Tenant roles** in **Settings > Security > Roles** (platform roles do
+not have them):
 
-| Capability              | Allows                                                                                    |
-|:------------------------|:------------------------------------------------------------------------------------------|
-| `Access credentials`    | See Credentials and select them in an Inject                                              |
-| `Manage credentials`    | Create and update Credentials                                                             |
-| `Delete credentials`    | Delete Credentials                                                                        |
-| `Resolve inject secret` | Retrieve the secret of a running Inject. Grant it only to the account of your Injectors   |
+| Capability              | Levels                 | Allows                                                                                  |
+|:------------------------|:-----------------------|:----------------------------------------------------------------------------------------|
+| `Access credentials`    | Access, Manage, Delete | See Credentials and select them in an Inject; create and update them; delete them       |
+| `Resolve inject secret` | --                     | Retrieve the secret of a running Inject. Grant it only to the account of your Injectors |
+
+Each level needs the one before it: selecting **Delete** also selects **Manage** and **Access**.
 
 See [Users and RBAC](../../administration/users-and-rbac.md) for how to create roles.
 
@@ -110,7 +113,7 @@ See [Users and RBAC](../../administration/users-and-rbac.md) for how to create r
 - [Assets](assets.md) -- Manage the Endpoints and Asset groups targeted by your Injects
 - [Injector development](../../development/injectors.md#credentials) -- Use Credentials in your own Injector
 {% else %}
-!!! tip "Under construction"
+!!! note "Under construction"
 
     This feature is under development.
 {% endif %}
