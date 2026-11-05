@@ -171,13 +171,12 @@ else {
 
 | Step | What | Status |
 |---|---|---|
-| 1 | Team review of this doc and the ADR (this draft PR) | in progress |
-| 2 | Agent and OpenCTI groups receive every marking (group flag) | done, in the code PR |
-| 3 | One rule: only the first admin ignores markings; joining a group or making it a default group needs its markings | done, in the code PR |
-| 4 | Admin groups receive every marking; the setting in the API (turning it on needs `ASSIGN_MARKING` and every marking) | to do |
+| 1 | Team review of this doc and the ADR (this PR) | in review |
+| 2 | Agent, OpenCTI, catalog connectors and Admin groups receive every marking (group flag) | #8848 |
+| 3 | One rule: only the first admin ignores markings; joining a group or making it a default group needs its markings | #8889 |
+| 4 | The setting in the API and the app (turning it on needs `ASSIGN_MARKING` and every marking) | #8894 |
 | 5 | SSO admins join the "Admin" group | #8823 (draft, stacked on #8739), ships with step 3 |
 | 6 | Check in the app with the `MARKING` flag on | to do |
-| 7 | "Catalog connectors" group (#8827) receives every marking; remove #8827's temporary bypass | to do |
 
 ## Breaking changes
 
