@@ -361,7 +361,7 @@ public class AutonomousRunService {
             () ->
                 scenarioToExerciseService
                     .toExercise(
-                        scenarioService.scenario(scenarioId),
+                        scenarioService.scenario(ctx, scenarioId),
                         start,
                         true,
                         userRepository
@@ -451,11 +451,10 @@ public class AutonomousRunService {
     boolean planMode = input.isPlanMode();
     // A create narrows the transaction to one tenant (provisioningTenant), a launch from a scenario
     // keeps the request's scope: the faithful copy must name the scope the transaction carries.
-    Exercise simulation =
-        copyScenarioToSimulation(
-            provisioningTenant != null ? TxCtx.forTenant(provisioningTenant) : ctx, scenarioId);
-    // The copy clears the persistence context: the scenario is loaded again.
-    scenario = scenarioService.scenario(scenarioId);
+    TxCtx copyCtx = provisioningTenant != null ? TxCtx.forTenant(provisioningTenant) : ctx;
+    Exercise simulation = copyScenarioToSimulation(copyCtx, scenarioId);
+    // The copy clears the persistence context: the scenario is loaded again, in the same scope.
+    scenario = scenarioService.scenario(copyCtx, scenarioId);
     // Dry-run: provision the simulation substrate so the orchestrator's authoring / mirror / read
     // tools work unchanged, but never start its RUN workflow. With no run workflow the chaining
     // engine has nothing to ready or dispatch, so a plan authors a full attack path without ever
