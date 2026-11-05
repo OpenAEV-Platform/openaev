@@ -97,10 +97,10 @@ public class BulkDeleteExecutor {
    * Consumer)}, generalized to any bulk write - not just deletes. {@code action} is the
    * bulk-operation label surfaced by {@link BulkOperationMonitor} (header indicator, history, SSE
    * events) and the retry log lines, so a non-delete caller (e.g. {@code
-   * AssetMarkingsService.bulkReplaceAssetMarkings} passing {@code "replace-markings"}) is not
-   * misreported as a deletion.
+   * AssetMarkingsService.bulkReplaceAssetMarkings} passing {@code "update"}) is not misreported as
+   * a deletion.
    *
-   * @param action human label for the bulk operation (e.g. "delete", "replace-markings")
+   * @param action human label for the bulk operation (e.g. "delete", "update")
    * @param entityLabel human label for logs (e.g. "scenarios")
    * @param ids ids to process, in any order
    * @param chunkAction performs the actual write for one chunk of ids
