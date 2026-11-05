@@ -1,6 +1,7 @@
 package io.openaev.architecture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -83,6 +84,12 @@ class SharedTenantKeyJoinArchTest {
   /** {@code grants gr} or {@code grants AS gr}: the alias a statement gives the grants table. */
   private static final Pattern GRANTS_ALIAS =
       Pattern.compile("\\bgrants\\s+(?:AS\\s+)?([A-Za-z_][A-Za-z_0-9]*)", Pattern.CASE_INSENSITIVE);
+
+  /** {@code FROM <table> <alias>} or {@code JOIN <table> <alias>}, with or without {@code AS}. */
+  private static final Pattern TABLE_ALIAS =
+      Pattern.compile(
+          "\\b(?:FROM|JOIN)\\s+[A-Za-z_][A-Za-z_0-9]*\\s+(?:AS\\s+)?([A-Za-z_][A-Za-z_0-9]*)",
+          Pattern.CASE_INSENSITIVE);
 
   /** {@code alias.column = alias.column}. The only shape this guard judges. */
   private static final Pattern ALIAS_EQUALITY =
@@ -1177,15 +1184,39 @@ class SharedTenantKeyJoinArchTest {
                   + " is scanned as more than one run, so its grants alias cannot be tied to the"
                   + " waived join");
         }
-        Set<String> found = new HashSet<>();
-        Matcher alias = GRANTS_ALIAS.matcher(run.sql());
-        while (alias.find()) {
-          found.add(alias.group(1));
-        }
-        aliases.put(run.origin(), found);
+        aliases.put(run.origin(), grantsAliasesOf(run.origin(), run.sql()));
       }
     }
     return aliases;
+  }
+
+  /**
+   * The aliases {@code sql} gives the grants table. A waiver names a join by its two aliases only,
+   * not by the sub-select it sits in, so each of these aliases must be declared once in the whole
+   * statement: an alias the statement also gives another table, in a sibling sub-select, could
+   * otherwise pass a join of that table for the grants join.
+   */
+  static Set<String> grantsAliasesOf(String origin, String sql) {
+    Set<String> grantsAliases = new HashSet<>();
+    Matcher grants = GRANTS_ALIAS.matcher(sql);
+    while (grants.find()) {
+      grantsAliases.add(grants.group(1).toLowerCase(Locale.ROOT));
+    }
+    Map<String, Integer> declarations = new HashMap<>();
+    Matcher declared = TABLE_ALIAS.matcher(sql);
+    while (declared.find()) {
+      declarations.merge(declared.group(1).toLowerCase(Locale.ROOT), 1, Integer::sum);
+    }
+    for (String alias : grantsAliases) {
+      if (declarations.getOrDefault(alias, 0) != 1) {
+        throw new IllegalStateException(
+            origin
+                + " declares the grants alias "
+                + alias
+                + " more than once, so it cannot be tied to the waived join");
+      }
+    }
+    return grantsAliases;
   }
 
   /** waiver key to reason. */
@@ -1332,6 +1363,38 @@ class SharedTenantKeyJoinArchTest {
           "grant-reader excuses the grants join only, never another join of the same statement."
               + " Got: "
               + found);
+    }
+
+    @Test
+    @DisplayName("given a statement declaring its grants alias once, then the alias is returned")
+    void given_grantsAliasDeclaredOnce_should_beReturned() {
+      // Arrange
+      String sql =
+          "SELECT injcon.* FROM injectors_contracts injcon WHERE EXISTS (SELECT 1 FROM grants gr"
+              + " WHERE gr.grant_resource = injcon.injector_contract_id)";
+
+      // Act
+      Set<String> aliases = grantsAliasesOf("SomeRepository#someGrantedQuery", sql);
+
+      // Assert
+      assertEquals(Set.of("gr"), aliases);
+    }
+
+    @Test
+    @DisplayName(
+        "given a sibling sub-select reusing the grants alias for another table, then it is refused")
+    void given_grantsAliasReusedForAnotherTable_should_beRefused() {
+      // Arrange
+      String sql =
+          "SELECT injcon.* FROM injectors_contracts injcon WHERE EXISTS (SELECT 1 FROM grants gr"
+              + " WHERE gr.grant_resource = injcon.injector_contract_id) AND EXISTS (SELECT 1 FROM"
+              + " injectors_contracts_attack_patterns gr"
+              + " WHERE gr.injector_contract_id = injcon.injector_contract_id)";
+
+      // Act & Assert
+      assertThrows(
+          IllegalStateException.class,
+          () -> grantsAliasesOf("SomeRepository#someGrantedQuery", sql));
     }
   }
 }
