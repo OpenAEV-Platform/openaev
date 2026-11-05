@@ -169,7 +169,7 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
    * Performs the request from an empty ambient tenant, as production's request thread starts: the
    * fixtures leave a tenant on the test thread, which the non-prefixed route would otherwise read.
    */
-  private int status(MockHttpServletRequestBuilder request) throws Exception {
+  int status(MockHttpServletRequestBuilder request) throws Exception {
     TenantContext.clearCurrentTenant();
     return mvc.perform(request).andReturn().getResponse().getStatus();
   }
