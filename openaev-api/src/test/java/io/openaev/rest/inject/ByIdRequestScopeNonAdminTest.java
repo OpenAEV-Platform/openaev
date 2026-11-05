@@ -2,6 +2,7 @@ package io.openaev.rest.inject;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Grant;
 import io.openaev.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.DisplayName;
@@ -158,6 +159,68 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
       // Assert: the grant is real and reaches its own resource, so the refusal above is the grant
       // being resource-specific and not a setup mistake.
       assertThat(read).isEqualTo(200);
+    }
+  }
+
+  @Nested
+  @DisplayName("A tenant-scoped capability holder on the non-prefixed route")
+  class CapabilityHolderReadsNonPrefixedRoute {
+
+    @Test
+    @DisplayName(
+        "given a selector naming another tenant, that tenant's atomic testing is not found by id")
+    @WithMockUser(
+        withCapabilities = {
+          Capability.ACCESS_ASSESSMENT,
+          Capability.MANAGE_ASSESSMENT,
+          Capability.DELETE_ASSESSMENT,
+          Capability.LAUNCH_ASSESSMENT
+        },
+        autoJoinDefaultTenant = true)
+    void given_selectorNamingAnotherTenant_should_notBeFoundById() throws Exception {
+      // Arrange
+      tenantHelper.attachCurrentUserToTenant(otherTenant);
+      String injectId = seedAtomicTesting(otherTenant);
+      Route route = headerRoute(otherTenant);
+
+      // Act
+      int read = getAtomicTesting(route, injectId);
+      int readPlainInject = getInject(route, injectId);
+
+      // Assert
+      assertThat(new int[] {read, readPlainInject}).containsExactly(403, 403);
+      assertThat(atomicTestingExists(injectId)).isTrue();
+    }
+
+    @Test
+    @DisplayName(
+        "given no selector, the same capability does not reach the default tenant's atomic"
+            + " testing either, unlike on the tenant route")
+    @WithMockUser(
+        withCapabilities = {
+          Capability.ACCESS_ASSESSMENT,
+          Capability.MANAGE_ASSESSMENT,
+          Capability.DELETE_ASSESSMENT,
+          Capability.LAUNCH_ASSESSMENT
+        },
+        autoJoinDefaultTenant = true)
+    void given_noSelector_should_alsoNotBeFoundById() throws Exception {
+      // Arrange
+      String injectId = seedAtomicTesting(DEFAULT_TENANT);
+      Route prefixedRoute = tenantRoute(DEFAULT_TENANT);
+      Route nonPrefixedRoute = noSelectorRoute();
+
+      // Act
+      int readOnTenantRoute = getAtomicTesting(prefixedRoute, injectId);
+      int readOnNonPrefixedRoute = getAtomicTesting(nonPrefixedRoute, injectId);
+      int readPlainInjectOnNonPrefixedRoute = getInject(nonPrefixedRoute, injectId);
+
+      // Assert: the capability is real and reaches the same row on the tenant route, so the
+      // refusal on the non-prefixed route is not a setup mistake; its exact cause is not pinned
+      // down by this test.
+      assertThat(readOnTenantRoute).isEqualTo(200);
+      assertThat(new int[] {readOnNonPrefixedRoute, readPlainInjectOnNonPrefixedRoute})
+          .containsExactly(403, 403);
     }
   }
 
