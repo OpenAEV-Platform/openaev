@@ -301,7 +301,12 @@ public class InjectService {
    * tenant lies in the request's scope: a derived query such as {@code findByIdAndTenantIdIn} would
    * instead run under Inject's still-active v1 filter, which the non-prefixed route keys on the
    * default tenant regardless of the resolved scope.
+   *
+   * <p>Carries its own read-only transaction so the request's tenant scope reaches the lookup even
+   * when the caller runs under {@code Propagation.SUPPORTS} with no transaction already open: the
+   * guard then opens a short one of its own instead of running unscoped.
    */
+  @Transactional(readOnly = true)
   public Optional<Inject> findInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
     Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
     return this.injectRepository
@@ -310,12 +315,14 @@ public class InjectService {
   }
 
   /** Loads an inject inside the request's tenant scope. Throws if not found there. */
+  @Transactional(readOnly = true)
   public Inject inject(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
     return findInScope(ctx, injectId)
         .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
   }
 
   /** Validates that the inject exists inside the request's tenant scope. Throws if not. */
+  @Transactional(readOnly = true)
   public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
     if (findInScope(ctx, injectId).isEmpty()) {
       throw new ElementNotFoundException("Inject not found with id: " + injectId);
