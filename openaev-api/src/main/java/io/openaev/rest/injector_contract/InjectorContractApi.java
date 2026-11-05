@@ -168,6 +168,7 @@ public class InjectorContractApi extends RestBehavior {
   // instead of resolving one.
   public InjectorContract injectorContract(
       @RequireTenantSelector TxCtx ctx, @PathVariable String injectorContractId) {
+    writeScopeResolver.tenantForWrite(ctx, null);
     return hydrated(injectorContractService.injectorContract(injectorContractId));
   }
 
@@ -208,6 +209,7 @@ public class InjectorContractApi extends RestBehavior {
       @RequireTenantSelector TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
     return hydrated(injectorContractService.updateInjectorContract(injectorContractId, input));
   }
 
@@ -233,6 +235,7 @@ public class InjectorContractApi extends RestBehavior {
       @RequireTenantSelector TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateMappingInput input) {
+    writeScopeResolver.tenantForWrite(ctx, null);
     return hydrated(
         injectorContractService.updateInjectorContractTTPDomainsAndTags(injectorContractId, input));
   }
@@ -257,6 +260,7 @@ public class InjectorContractApi extends RestBehavior {
   // needs a single tenant for the same reason as the GET above.
   public void deleteInjectorContract(
       @RequireTenantSelector TxCtx ctx, @PathVariable String injectorContractId) {
+    writeScopeResolver.tenantForWrite(ctx, null);
     this.injectorContractService.deleteInjectorContract(injectorContractId);
   }
 

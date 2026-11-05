@@ -54,11 +54,12 @@ public class ThreatArsenalApi {
       resourceId = "#actionId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.THREAT_ARSENAL)
+  // ctx needs a single tenant: the lookup resolves the action's injector contract by id or
+  // external id, and a built-in contract id repeats across tenants (#8485), so a scope spanning
+  // several of them makes that lookup match more than one row and throw instead of resolving one.
   public ThreatArsenalActionFullOutput threatArsenal(
-      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for the transaction (injector_contract_injector_type is resolved through the injectors
-      // table, which is v2 tenant-scoped).
-      TxCtx ctx, @PathVariable String actionId) {
+      @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
+    writeScopeResolver.tenantForWrite(ctx, null);
     return threatArsenalService.findById(actionId);
   }
 
