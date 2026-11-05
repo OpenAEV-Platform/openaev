@@ -106,9 +106,16 @@ public class InjectApi extends RestBehavior {
     injectService.existsInScope(ctx, injectId);
   }
 
-  /** Checks that the inject belongs to the given exercise, or answers not found. */
-  private void requireInjectBelongsToExercise(final String exerciseId, final String injectId) {
-    if (!injectRepository.existsByIdAndExerciseId(injectId, exerciseId)) {
+  /**
+   * Checks that the inject belongs to the given exercise, or answers not found. Loads the inject by
+   * primary key inside the request's tenant scope, the shape {@link InjectService#findInScope}
+   * uses, rather than a derived query: {@code existsByIdAndExerciseId} runs under Inject's still-
+   * active v1 filter, keyed on the ambient tenant rather than the request's resolved scope.
+   */
+  private void requireInjectBelongsToExercise(
+      final TxCtx ctx, final String exerciseId, final String injectId) {
+    Inject inject = injectService.inject(ctx, injectId);
+    if (!exerciseId.equals(inject.getExercise() == null ? null : inject.getExercise().getId())) {
       throw new ElementNotFoundException(
           "Inject not found with id: " + injectId + " in simulation: " + exerciseId);
     }
@@ -493,8 +500,8 @@ public class InjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectInput input) {
     Exercise exercise =
-        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
-    requireInjectBelongsToExercise(exerciseId, injectId);
+        exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    requireInjectBelongsToExercise(ctx, exerciseId, injectId);
     Inject inject = injectService.updateInject(injectId, input);
 
     // It should not be possible to add a EE executor on inject when the exercise is already

@@ -307,5 +307,29 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
       assertThat(status).isEqualTo(404);
       assertThat(injectTitle(otherTenantInjectId)).isEqualTo(originalTitle);
     }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "given an exercise and inject of the caller's own, non-default tenant named by the"
+            + " selector, the update succeeds on the non-prefixed route: requireInjectBelongsToExercise"
+            + " does not run under the ambient (default) tenant instead of the selected one")
+    void given_ownNonDefaultTenantExerciseAndInject_should_beUpdatedOnNonPrefixedRoute()
+        throws Exception {
+      // Arrange: admin bypasses AccessControlAspect's own grant/capability resolution entirely, so
+      // this isolates requireInjectBelongsToExercise's own by-id load from that separate check.
+      String callerTenant =
+          tenantHelper.createTenantWithCurrentUser("by-id-cross-simulation-header").getId();
+      String exerciseId = seedExercise(callerTenant);
+      String injectId = seedInjectForExercise(callerTenant, exerciseId);
+      Route route = headerRoute(callerTenant);
+
+      // Act
+      int status = updateInject(route, exerciseId, injectId, "updated title");
+
+      // Assert
+      assertThat(status).isEqualTo(200);
+      assertThat(injectTitle(injectId)).isEqualTo("updated title");
+    }
   }
 }
