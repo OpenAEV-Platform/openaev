@@ -88,4 +88,29 @@ class InjectorContractApiSingularEndpointsTenantScopeTest extends IntegrationTes
                 + " a non-unique result across the caller's two tenants")
         .isEqualTo(200);
   }
+
+  @Test
+  @DisplayName(
+      "given a caller explicitly selecting both tenants that hold the built-in contract via"
+          + " X-Tenant-Ids, should refuse with 400 instead of a non-unique result")
+  void given_callerExplicitlySelectsBothTenantsHoldingTheContract_should_refuseWithBadRequest()
+      throws Exception {
+    // -- ACT --
+    // @RequireTenantSelector's fallback only narrows an EMPTY selector; an explicit two-tenant
+    // X-Tenant-Ids header bypasses it entirely and must still be refused rather than reaching the
+    // ambiguous by-id-or-external-id lookup.
+    MvcResult result =
+        mvc.perform(
+                get(INJECTOR_CONTRACT_URL + "/" + ManualContract.MANUAL_DEFAULT)
+                    .header("X-Tenant-Ids", otherTenantId + "," + Tenant.DEFAULT_TENANT_UUID)
+                    .with(csrf()))
+            .andReturn();
+
+    // -- ASSERT --
+    assertThat(result.getResponse().getStatus())
+        .as(
+            "an explicit multi-tenant selector is refused as a bad request rather than reaching"
+                + " the ambiguous lookup")
+        .isEqualTo(400);
+  }
 }
