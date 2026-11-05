@@ -297,10 +297,16 @@ public class InjectService {
   /**
    * Looks an inject up by id inside the request's tenant scope: the path tenant on the tenant
    * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route.
+   * Loads by primary key, which Hibernate filters do not apply to, then keeps the row only when its
+   * tenant lies in the request's scope: a derived query such as {@code findByIdAndTenantIdIn} would
+   * instead run under Inject's still-active v1 filter, which the non-prefixed route keys on the
+   * default tenant regardless of the resolved scope.
    */
   public Optional<Inject> findInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
-    return this.injectRepository.findByIdAndTenantIdIn(
-        injectId, TxCtxScopeUtils.requestReadScope(ctx));
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
+    return this.injectRepository
+        .findById(injectId)
+        .filter(inject -> scope.contains(inject.getTenant().getId()));
   }
 
   /** Loads an inject inside the request's tenant scope. Throws if not found there. */
@@ -311,8 +317,7 @@ public class InjectService {
 
   /** Validates that the inject exists inside the request's tenant scope. Throws if not. */
   public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
-    if (!this.injectRepository.existsByIdAndTenantIdIn(
-        injectId, TxCtxScopeUtils.requestReadScope(ctx))) {
+    if (findInScope(ctx, injectId).isEmpty()) {
       throw new ElementNotFoundException("Inject not found with id: " + injectId);
     }
   }

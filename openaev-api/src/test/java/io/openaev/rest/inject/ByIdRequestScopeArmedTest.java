@@ -17,10 +17,12 @@ import org.springframework.test.context.DynamicPropertySource;
  * tenant route keeps working, a selector naming a tenant the caller is not a member of is refused,
  * and a row outside the selector is not found by id.
  *
- * <p>The inject entity still carries the v1 tenant filter, keyed on the ambient tenant, which the
- * non-prefixed route leaves on the default one. So a member tenant's row named by the selector is
- * not found by id there yet; that row turns readable, updatable and deletable once the filter comes
- * off the entity at the table's own activation.
+ * <p>The inject entity still carries the v1 tenant filter, but the by-id guards ({@code
+ * InjectService#findInScope} / {@code #existsInScope}) load by primary key, which that filter does
+ * not apply to, and keep the row only when its tenant lies in the request's own scope. So a member
+ * tenant's row named by the selector is already reachable, updatable and deletable on the
+ * non-prefixed route, independently of the table's own activation, which still has to remove the
+ * filter from the entity for the reads that stay on the filtered JPQL path (list, search).
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Atomic testing by-id reads in the request scope, injects isolated")
@@ -81,11 +83,12 @@ class ByIdRequestScopeArmedTest extends ByIdRequestScopeTestBase {
 
     @Test
     @DisplayName(
-        "given a member tenant atomic testing named by the selector, it is not found by id while"
-            + " the inject entity keeps the v1 filter")
-    void given_memberTenantAtomicTestingNamedBySelector_should_notBeFoundUntilFilterRemoved()
+        "given a member tenant atomic testing named by the selector, it is found by id, updated"
+            + " and deleted despite the inject entity keeping the v1 filter")
+    void given_memberTenantAtomicTestingNamedBySelector_should_beFoundDespiteTheFilter()
         throws Exception {
-      // Arrange
+      // Arrange: the guard loads by primary key, which the v1 filter does not reach, so this does
+      // not wait on the table's own activation.
       String injectId = seedAtomicTesting(memberTenant);
       Route route = headerRoute(memberTenant);
 
@@ -94,8 +97,8 @@ class ByIdRequestScopeArmedTest extends ByIdRequestScopeTestBase {
       int delete = deleteAtomicTesting(route, injectId);
 
       // Assert
-      assertThat(new int[] {update, delete}).containsExactly(404, 404);
-      assertThat(atomicTestingExists(injectId)).isTrue();
+      assertThat(new int[] {update, delete}).containsExactly(200, 200);
+      assertThat(atomicTestingExists(injectId)).isFalse();
     }
 
     @Test

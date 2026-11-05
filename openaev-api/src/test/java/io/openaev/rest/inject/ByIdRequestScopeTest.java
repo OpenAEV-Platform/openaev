@@ -162,5 +162,51 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
       assertThat(delete).isEqualTo(403);
       assertThat(atomicTestingExists(injectId)).isTrue();
     }
+
+    @Test
+    @DisplayName(
+        "given an atomic testing of a member tenant and a selector naming it, it and its plain"
+            + " inject read are found, updated and deleted")
+    void given_memberTenantAtomicTestingAndSelectorNamingIt_should_beReadUpdatedAndDeleted()
+        throws Exception {
+      // Arrange: memberTenant is not the default tenant, so this exercises the by-id load's own
+      // scope check rather than the ambient tenant the non-prefixed route falls back to.
+      String injectId = seedAtomicTesting(memberTenant);
+      Route route = headerRoute(memberTenant);
+
+      // Act
+      int read = getAtomicTesting(route, injectId);
+      int readPlainInject = getInject(route, injectId);
+      int update = updateAtomicTestingTags(route, injectId);
+      int delete = deleteAtomicTesting(route, injectId);
+
+      // Assert
+      assertThat(new int[] {read, readPlainInject, update, delete})
+          .containsExactly(200, 200, 200, 200);
+      assertThat(atomicTestingExists(injectId)).isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "given an atomic testing of the caller's only membership and no selector, it and its plain"
+            + " inject read are found, updated and deleted")
+    void given_onlyMembershipAtomicTestingAndNoSelector_should_beReadUpdatedAndDeleted()
+        throws Exception {
+      // Arrange: this class's admin caller is not joined to the default tenant, so memberTenant is
+      // its only membership and the no-selector scope resolves to it alone.
+      String injectId = seedAtomicTesting(memberTenant);
+      Route route = noSelectorRoute();
+
+      // Act
+      int read = getAtomicTesting(route, injectId);
+      int readPlainInject = getInject(route, injectId);
+      int update = updateAtomicTestingTags(route, injectId);
+      int delete = deleteAtomicTesting(route, injectId);
+
+      // Assert
+      assertThat(new int[] {read, readPlainInject, update, delete})
+          .containsExactly(200, 200, 200, 200);
+      assertThat(atomicTestingExists(injectId)).isFalse();
+    }
   }
 }
