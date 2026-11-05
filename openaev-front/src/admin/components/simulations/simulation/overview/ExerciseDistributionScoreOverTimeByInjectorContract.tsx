@@ -11,6 +11,7 @@ import { type Exercise, type InjectExpectationOutput } from '../../../../../util
 import { lineChartOptions } from '../../../../../utils/Charts';
 import { sampleScoreOverTimeSeries } from '../../../../../utils/SampleCharts';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
+import { isTopLevelScoredExpectation } from './scoreByInjectorContractExpectations';
 
 interface Props { exerciseId: Exercise['exercise_id'] }
 
@@ -30,7 +31,8 @@ const ExerciseDistributionScoreOverTimeByInjectorContract: FunctionComponent<Pro
 
   let cumulation = 0;
   const injectsTypesScores = R.pipe(
-    R.filter((n: InjectExpectationOutput) => n.inject_expectation_score != null && n?.inject_expectation_team && n?.inject_expectation_user === null),
+    // One series per injector contract, technical injects included (#8396).
+    R.filter(isTopLevelScoredExpectation),
     R.map((n: InjectExpectationOutput & { inject_expectation_inject: string }) => R.assoc(
       'inject_expectation_inject',
       injectsMap[n.inject_expectation_inject] || {},
