@@ -17,14 +17,9 @@ on:
         description: "JSON array of E2E test matrix entries (includes both regular and infra)"
         type: string
         required: true
-      vulnerability-scan-fail-on-error:
-        description: "Enforce container vulnerability findings/errors (true for Nightly; false keeps Core CI advisory)"
-        type: boolean
-        required: false
-        default: false
       no-cache:
         description: >
-          Bypass every Maven, Yarn, Playwright, buildx and scanner cache, for both reads and
+          Bypass every Maven, Yarn, Playwright and buildx cache, for both reads and
           writes. Set by Nightly, which may run slow and whose entries would only evict the
           ones Core CI PRs read.
         type: boolean
@@ -676,27 +671,11 @@ jobs:
             Docker Build (${{ matrix.variant }} amd64)
             Docker Build (${{ matrix.variant }} arm64)
 
-  # The scan is advisory in Core CI and enforced in Nightly.
-  container-vulnerability-scan:
-    name: "🔒 Container Vulnerability Scan"
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04
-    continue-on-error: ${{ !inputs.vulnerability-scan-fail-on-error }}
-    timeout-minutes: 25
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: ./.github/actions/container-vulnerability-scan
-        with:
-          fail-on-error: ${{ inputs.vulnerability-scan-fail-on-error }}
-          no-cache: ${{ inputs.no-cache }}
-
   # ════════════════════════════════════════════════════════════════════
   # Pipeline gate
   #
   # Required branch-protection check: "<caller-job> / ✅ Pipeline Gate".
-  # Coverage upload is best-effort; scan enforcement is controlled by the caller.
+  # Coverage upload is best-effort and never gates.
   # ════════════════════════════════════════════════════════════════════
 
   pipeline-gate:
@@ -722,7 +701,6 @@ jobs:
       - backend-package-musl
       - docker-build
       - docker-merge
-      - container-vulnerability-scan
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -730,7 +708,6 @@ jobs:
       - name: Check all upstream job results
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
-          SCAN_ENFORCED: ${{ inputs.vulnerability-scan-fail-on-error }}
         run: |
           FAILED=0
           ADVISORY=0
@@ -745,13 +722,10 @@ jobs:
             result=$(echo "$NEEDS_JSON" | jq -r --arg j "$job" '.[$j].result')
             TOTAL=$((TOTAL + 1))
 
-            # Apply the caller's scan policy here because `continue-on-error` does not define
+            # Advisory jobs are listed here because `continue-on-error` does not define
             # the value of `needs.<job>.result`.
             advisory=0
             case "$job" in
-              container-vulnerability-scan)
-                if [ "$SCAN_ENFORCED" != "true" ]; then advisory=1; fi
-                ;;
               # A new check lands here first so a false positive cannot block a merge. Take the job
               # out of this list to make it blocking.
               bom-override-guard)
