@@ -475,20 +475,15 @@ public class EndpointService implements AuditLoggedService {
     }
     // Create new agents/endpoints
     if (!inputs.isEmpty()) {
+      // An endpoint left without agents (e.g. its executor was deleted) is taken back as is
+      Map<String, Endpoint> agentlessEndpoints =
+          findAgentlessEndpointsByExternalReference(inputs, tenantId);
       for (AgentRegisterInput inputToUpdate : inputs) {
-        Optional<Endpoint> existingEndpoint =
-            StringUtils.isBlank(inputToUpdate.getExternalReference())
-                ? Optional.empty()
-                : findEndpointByExternalReference(inputToUpdate.getExternalReference(), tenantId);
-        if (existingEndpoint.isPresent()) {
-          endpointToSave = existingEndpoint.get();
+        endpointToSave = agentlessEndpoints.remove(inputToUpdate.getExternalReference());
+        if (endpointToSave != null) {
           setUpdatedEndpointAttributes(endpointToSave, inputToUpdate);
         } else {
-          endpointToSave = new Endpoint();
-          endpointToSave.setUpdateAttributes(inputToUpdate);
-          endpointToSave.setIps(inputToUpdate.getIps());
-          endpointToSave.setSeenIp(inputToUpdate.getSeenIp());
-          endpointToSave.setMacAddresses(inputToUpdate.getMacAddresses());
+          endpointToSave = newEndpoint(inputToUpdate);
           // Set tenant explicitly so TenantBaseListener is not needed for this background path.
           endpointToSave.setTenant(new Tenant(tenantId));
         }
@@ -839,12 +834,33 @@ public class EndpointService implements AuditLoggedService {
     agent.setVersion(input.getAgentVersion());
   }
 
-  private Agent createNewEndpointAndAgent(AgentRegisterInput input) {
+  private Map<String, Endpoint> findAgentlessEndpointsByExternalReference(
+      List<AgentRegisterInput> inputs, String tenantId) {
+    Set<String> externalReferences =
+        inputs.stream()
+            .map(AgentRegisterInput::getExternalReference)
+            .filter(StringUtils::isNotBlank)
+            .collect(Collectors.toSet());
+    if (externalReferences.isEmpty()) {
+      return new HashMap<>();
+    }
+    return endpointRepository
+        .findAgentlessByExternalReferences(externalReferences, tenantId)
+        .stream()
+        .collect(Collectors.toMap(Endpoint::getExternalReference, e -> e, (a, b) -> a));
+  }
+
+  private Endpoint newEndpoint(AgentRegisterInput input) {
     Endpoint endpoint = new Endpoint();
     endpoint.setUpdateAttributes(input);
     endpoint.setIps(input.getIps());
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
+    return endpoint;
+  }
+
+  private Agent createNewEndpointAndAgent(AgentRegisterInput input) {
+    Endpoint endpoint = newEndpoint(input);
     // The create stamps the tenant itself; passing it here is what makes that explicit.
     Agent agent = new Agent();
     setNewAgentAttributes(input, agent);

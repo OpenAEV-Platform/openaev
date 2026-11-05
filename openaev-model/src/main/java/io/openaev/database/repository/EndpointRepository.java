@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -102,6 +103,19 @@ public interface EndpointRepository
       nativeQuery = true)
   List<Endpoint> findByExternalReference(
       @NotNull final @Param("externalReference") String externalReference,
+      @NotNull @Param("tenantId") String tenantId);
+
+  @Query(
+      value =
+          "select e.*"
+              + ACTIVITY_STATUS_SELECT
+              + " from assets e where e.asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "' and e.asset_external_reference in (:externalReferences) and e.tenant_id = :tenantId"
+              + " and not exists (select 1 from agents ag where ag.agent_asset = e.asset_id)",
+      nativeQuery = true)
+  List<Endpoint> findAgentlessByExternalReferences(
+      @NotNull @Param("externalReferences") Set<String> externalReferences,
       @NotNull @Param("tenantId") String tenantId);
 
   @Query(
