@@ -46,11 +46,17 @@ const LessonsQuestionPopover: FunctionComponent<Props> = ({
   };
   const handleCloseEdit = () => setOpenEdit(false);
   const onSubmitEdit: SubmitHandler<LessonsQuestionFormInputs> = (data) => {
+    // The update resolves the normalized entity on success and an error map on failure: keep the
+    // drawer open on failure so the edits are not lost.
     return onUpdateLessonsQuestion(
       lessonsCategoryId,
       lessonsQuestion.lessonsquestion_id,
       data,
-    ).then(() => handleCloseEdit());
+    ).then((result) => {
+      if (result.result) {
+        handleCloseEdit();
+      }
+    });
   };
   // Delete action
   const handleOpenDelete = () => {
@@ -101,7 +107,7 @@ const LessonsQuestionPopover: FunctionComponent<Props> = ({
         </DialogContent>
         <DialogActions>
           <Button type="button" priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button type="button" onClick={submitDelete}>
+          <Button type="button" variant="destructive" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

@@ -24,11 +24,9 @@ import {
   type LessonsCategoryCreateInput,
   type LessonsCategoryTeamsInput,
   type LessonsCategoryUpdateInput,
-  type LessonsQuestion,
   type LessonsQuestionCreateInput,
   type LessonsQuestionUpdateInput,
   type LessonsSendInput,
-  type Objective,
   type ObjectiveInput,
   type PublicExercise,
   type PublicScenario,
@@ -185,13 +183,13 @@ export type LessonContextType = {
   onSendLessons?: (data: LessonsSendInput) => void;
   onAddLessonsCategory: (data: LessonsCategoryCreateInput) => Promise<{ result?: string }>;
   onDeleteLessonsCategory: (data: string) => Promise<unknown>;
-  onUpdateLessonsCategory: (lessonCategoryId: string, data: LessonsCategoryUpdateInput) => Promise<LessonsCategory>;
+  onUpdateLessonsCategory: (lessonCategoryId: string, data: LessonsCategoryUpdateInput) => Promise<{ result?: string }>;
   onUpdateLessonsCategoryTeams: (lessonCategoryId: string, data: LessonsCategoryTeamsInput) => Promise<LessonsCategory>;
   onDeleteLessonsQuestion: (lessonsCategoryId: string, lessonsQuestionId: string) => Promise<unknown>;
-  onUpdateLessonsQuestion: (lessonsCategoryId: string, lessonsQuestionId: string, data: LessonsQuestionUpdateInput) => Promise<LessonsQuestion>;
+  onUpdateLessonsQuestion: (lessonsCategoryId: string, lessonsQuestionId: string, data: LessonsQuestionUpdateInput) => Promise<{ result?: string }>;
   onAddLessonsQuestion: (lessonsCategoryId: string, data: LessonsQuestionCreateInput) => Promise<{ result?: string }>;
   onAddObjective: (data: ObjectiveInput) => Promise<{ result?: string }>;
-  onUpdateObjective: (objectiveId: string, data: ObjectiveInput) => Promise<Objective>;
+  onUpdateObjective: (objectiveId: string, data: ObjectiveInput) => Promise<{ result?: string }>;
   onDeleteObjective: (objectiveId: string) => Promise<unknown>;
   onAddEvaluation: (objectiveId: string, data: EvaluationInput) => Promise<{ result?: string }>;
   onUpdateEvaluation: (objectiveId: string, evaluationId: string, data: EvaluationInput) => Promise<{ result?: string }>;
@@ -446,8 +444,8 @@ export const LessonContext = createContext<LessonContextType>({
   onDeleteLessonsCategory(_data: string): Promise<unknown> {
     return Promise.resolve();
   },
-  onUpdateLessonsCategory(_lessonCategoryId: string, _data: LessonsCategoryUpdateInput): Promise<LessonsCategory> {
-    return new Promise<LessonsCategory>(() => {
+  onUpdateLessonsCategory(_lessonCategoryId: string, _data: LessonsCategoryUpdateInput): Promise<{ result?: string }> {
+    return new Promise<{ result?: string }>(() => {
     });
   },
   onUpdateLessonsCategoryTeams(_lessonCategoryId: string, _data: LessonsCategoryTeamsInput): Promise<LessonsCategory> {
@@ -457,8 +455,8 @@ export const LessonContext = createContext<LessonContextType>({
   onDeleteLessonsQuestion(_lessonsCategoryId: string, _lessonsQuestionId: string): Promise<unknown> {
     return Promise.resolve();
   },
-  onUpdateLessonsQuestion(_lessonsCategoryId: string, _lessonsQuestionId: string, _data: LessonsQuestionUpdateInput): Promise<LessonsQuestion> {
-    return new Promise<LessonsQuestion>(() => {
+  onUpdateLessonsQuestion(_lessonsCategoryId: string, _lessonsQuestionId: string, _data: LessonsQuestionUpdateInput): Promise<{ result?: string }> {
+    return new Promise<{ result?: string }>(() => {
     });
   },
   onAddLessonsQuestion(_lessonsCategoryId: string, _data: LessonsQuestionCreateInput): Promise<{ result?: string }> {
@@ -469,8 +467,8 @@ export const LessonContext = createContext<LessonContextType>({
     return new Promise<{ result?: string }>(() => {
     });
   },
-  onUpdateObjective(_objectiveId: string, _data: ObjectiveInput): Promise<Objective> {
-    return new Promise<Objective>(() => {
+  onUpdateObjective(_objectiveId: string, _data: ObjectiveInput): Promise<{ result?: string }> {
+    return new Promise<{ result?: string }>(() => {
     });
   },
   onDeleteObjective(_objectiveId: string): Promise<unknown> {

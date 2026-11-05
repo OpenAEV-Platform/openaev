@@ -54,7 +54,10 @@ class LessonsPage {
 
   async createObjective(title: string) {
     await this.objectivesSection.getByTestId('button-create').click();
-    const dialog = this.page.getByRole('dialog', { name: 'Create a new objective' });
+    const dialog = this.page.getByRole('dialog', {
+      name: 'Create a new objective',
+      exact: true,
+    });
     await this.fillField(dialog, 'Title', title);
     await dialog.getByRole('button', {
       name: 'Create',
@@ -78,15 +81,24 @@ class LessonsPage {
   }
 
   async openEvaluations(title: string) {
-    await this.getObjective(title).getByRole('button', { name: title }).click();
-    const dialog = this.page.getByRole('dialog', { name: 'Objective achievement evaluation' });
+    await this.getObjective(title).getByRole('button', {
+      name: title,
+      exact: true,
+    }).click();
+    const dialog = this.page.getByRole('dialog', {
+      name: 'Objective achievement evaluation',
+      exact: true,
+    });
     await expect(dialog).toBeVisible();
     return dialog;
   }
 
   async createCategory(name: string, order: string) {
     await this.categoriesSection.getByTestId('button-create').first().click();
-    const dialog = this.page.getByRole('dialog', { name: 'Create a new lessons learned category' });
+    const dialog = this.page.getByRole('dialog', {
+      name: 'Create a new lessons learned category',
+      exact: true,
+    });
     await this.fillField(dialog, 'Name', name);
     await this.fillField(dialog, 'Order', order);
     await dialog.getByRole('button', {
@@ -97,7 +109,10 @@ class LessonsPage {
   }
 
   async deleteCategory(name: string) {
-    await this.getCategory(name).locator('header').getByRole('button', { name: 'More actions' }).click();
+    await this.getCategory(name).locator('header').getByRole('button', {
+      name: 'More actions',
+      exact: true,
+    }).click();
     await this.page.getByRole('menuitem', {
       name: 'Delete',
       exact: true,
@@ -106,8 +121,14 @@ class LessonsPage {
   }
 
   async createQuestion(categoryName: string, content: string, order: string) {
-    await this.getCategory(categoryName).getByRole('button', { name: 'Create a new lessons learned question' }).click();
-    const dialog = this.page.getByRole('dialog', { name: 'Create a new lessons learned question' });
+    await this.getCategory(categoryName).getByRole('button', {
+      name: 'Create a new lessons learned question',
+      exact: true,
+    }).click();
+    const dialog = this.page.getByRole('dialog', {
+      name: 'Create a new lessons learned question',
+      exact: true,
+    });
     await this.fillField(dialog, 'Content', content);
     await this.fillField(dialog, 'Order', order);
     await dialog.getByRole('button', {

@@ -39,11 +39,17 @@ const ObjectivePopover: FunctionComponent<Props> = ({ objective, isReadOnly }) =
   };
   const handleCloseEdit = () => setOpenEdit(false);
 
+  // The update resolves the normalized entity on success and an error map on failure: keep the
+  // drawer open on failure so the edits are not lost.
   const onSubmitEdit: SubmitHandler<ObjectiveFormInputs> = data => onUpdateObjective(
     objective.objective_id,
     data,
   )
-    .then(() => handleCloseEdit());
+    .then((result) => {
+      if (result.result) {
+        handleCloseEdit();
+      }
+    });
 
   const handleOpenDelete = () => {
     setOpenDelete(true);
@@ -52,8 +58,7 @@ const ObjectivePopover: FunctionComponent<Props> = ({ objective, isReadOnly }) =
   const handleCloseDelete = () => setOpenDelete(false);
 
   const submitDelete = () => {
-    onDeleteObjective(objective.objective_id);
-    handleCloseDelete();
+    onDeleteObjective(objective.objective_id).then(() => handleCloseDelete());
   };
 
   const initialValues: Partial<ObjectiveFormInputs> = {
@@ -100,7 +105,7 @@ const ObjectivePopover: FunctionComponent<Props> = ({ objective, isReadOnly }) =
           <Button type="button" priority="secondary" onClick={handleCloseDelete}>
             {t('Cancel')}
           </Button>
-          <Button type="button" onClick={submitDelete}>
+          <Button type="button" variant="destructive" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

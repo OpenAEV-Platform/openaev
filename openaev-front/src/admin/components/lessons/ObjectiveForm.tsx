@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
-import { requiredNumber, zodImplement } from '../../../utils/Zod';
+import { optionalText, requiredInteger, zodImplement } from '../../../utils/Zod';
 
 // The form requires a title and a priority, whereas both are optional on the API input: the
 // dedicated form type keeps `handleSubmit` payloads assignable to `ObjectiveInput`.
@@ -37,8 +37,8 @@ const ObjectiveForm: FunctionComponent<Props> = ({
     resolver: zodResolver(
       zodImplement<ObjectiveFormInputs>().with({
         objective_title: z.string().min(1, { message: t('This field is required.') }),
-        objective_description: z.string().optional(),
-        objective_priority: requiredNumber(t('This field is required.')),
+        objective_description: optionalText(),
+        objective_priority: requiredInteger(t),
       }),
     ),
     defaultValues: {
@@ -56,11 +56,7 @@ const ObjectiveForm: FunctionComponent<Props> = ({
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // An empty description is left out of the payload so the API stores null, not ''.
-    handleSubmit((data, event) => onSubmit({
-      ...data,
-      objective_description: data.objective_description || undefined,
-    }, event))(e);
+    handleSubmit(onSubmit)(e);
   };
 
   return (
