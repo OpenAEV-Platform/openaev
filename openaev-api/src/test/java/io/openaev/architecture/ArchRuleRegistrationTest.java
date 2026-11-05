@@ -126,7 +126,13 @@ class ArchRuleRegistrationTest {
               WorkflowOwnerScopeCallerRules.class,
               "scopeSetOnCurrentTransactionOnlyFrom",
               WorkflowOwnerScopeCallerArchTest.class,
-              "parameterised by the baseline, so the runner builds it from the baseline names"));
+              "parameterised by the baseline, so the runner builds it from the baseline names"),
+          new Helper(
+              TenantActiveTableAccessArchTest.class,
+              "queryNamingTableIsCalledOnlyBy",
+              TenantActiveTableAccessArchTest.class,
+              "a parameterised rule factory; each @ArchTest field of the class calls it with its own"
+                  + " table and allowlist to build its own rule"));
 
   /** The members the ArchUnit engine can run as a rule, whether or not they are annotated. */
   private static Stream<JavaMember> ruleMembers() {
