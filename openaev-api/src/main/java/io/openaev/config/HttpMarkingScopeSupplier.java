@@ -6,11 +6,13 @@ import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.User;
+import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
@@ -48,6 +50,15 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
   // that many of those services are themselves advised by.
   @Lazy private final UserService userService;
 
+  // PermissionService reaches the services those aspects advise: @Lazy setter injection, as in
+  // TenantGroupService.
+  private PermissionService permissionService;
+
+  @Autowired
+  public void setPermissionService(@Lazy PermissionService permissionService) {
+    this.permissionService = permissionService;
+  }
+
   @Override
   public MarkingCtx clearanceFor(TxCtx tenantScope) {
     if (!(tenantScope instanceof TxCtx.Restricted restricted)) {
@@ -58,6 +69,17 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
     if (currentUser == null) {
       return MarkingCtx.none();
     }
+    String userId = currentUser.getId();
+    // The capabilities are the ones the caller holds in the tenant whose clearance is computed.
+    return union(
+        restricted,
+        tenantId -> {
+          boolean bypass = permissionService.holdsInTenant(tenantId, () -> bypasses(currentUser));
+          return clearanceCache.findClearance(userId, tenantId, bypass);
+        });
+  }
+
+  private static boolean bypasses(User currentUser) {
     // AGENT_RUNTIME_ACCESS is the well-known capability of the per-tenant agent/implant service
     // account (AgentServiceAccountPrivilegeService). That account has no group-marking grants of
     // its own — it exists only to run the agent/implant API surface — so without this it would
@@ -70,13 +92,9 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
     // subset a marking-less user would see. This is the READ clearance of the request only - the
     // dispatch-time check (InjectService.resolveLaunchedByClearance) deliberately does not use it.
     Set<Capability> capabilities = currentUser.getCapabilities();
-    boolean bypass =
-        currentUser.isAdminOrBypass()
-            || capabilities.contains(Capability.AGENT_RUNTIME_ACCESS)
-            || capabilities.contains(Capability.MANAGE_STIX_BUNDLE);
-
-    String userId = currentUser.getId();
-    return union(restricted, tenantId -> clearanceCache.findClearance(userId, tenantId, bypass));
+    return currentUser.isAdminOrBypass()
+        || capabilities.contains(Capability.AGENT_RUNTIME_ACCESS)
+        || capabilities.contains(Capability.MANAGE_STIX_BUNDLE);
   }
 
   /**
