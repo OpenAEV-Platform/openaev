@@ -201,11 +201,13 @@ public class InjectorContractService implements DependenciesManager {
    */
   public InjectorContract injectorContractForWorkflow(
       @NotBlank final String injectorContractId, @NotBlank final String workflowId) {
-    if (!stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
-        workflowId, injectorContractId)) {
-      throw new ElementNotFoundException("Threat arsenal item not found");
-    }
-    return injectorContract(injectorContractId);
+    // Resolved in the workflow's own tenant, not the request's ambient scope: a built-in contract
+    // id repeats across tenants (#8485), and the caller's scope can legitimately span several.
+    String tenantId =
+        stepRepository
+            .findWorkflowTenantIdIfReferencesInjectorContract(workflowId, injectorContractId)
+            .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
+    return injectorContractInTenant(injectorContractId, tenantId);
   }
 
   // -- OTHERS --

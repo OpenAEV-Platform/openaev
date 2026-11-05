@@ -6,9 +6,12 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.MappingType;
 import io.openaev.database.model.PrimitiveType;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.model.Workflow;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.injector_contract.InjectorContractService;
@@ -24,6 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class StepAutoLinkServiceTest {
 
   private static final String CONTRACT_ID = "contract-id";
+  private static final String TENANT_ID = "tenant-id";
 
   @Mock private InjectorContractService injectorContractService;
 
@@ -40,10 +44,19 @@ class StepAutoLinkServiceTest {
     return input;
   }
 
+  private Workflow workflow() {
+    Exercise simulation = new Exercise();
+    simulation.setTenant(new Tenant(TENANT_ID));
+    Workflow workflow = new Workflow();
+    workflow.setSimulation(simulation);
+    return workflow;
+  }
+
   private void givenContractContent(String content) {
     InjectorContract contract = new InjectorContract();
     contract.setContent(content);
-    when(injectorContractService.injectorContract(CONTRACT_ID)).thenReturn(contract);
+    when(injectorContractService.injectorContractInTenant(CONTRACT_ID, TENANT_ID))
+        .thenReturn(contract);
   }
 
   @Test
@@ -57,7 +70,8 @@ class StepAutoLinkServiceTest {
         ]}
         """);
 
-    List<ConditionCreateInput> conditions = service().buildAutoLinkConditions(injectInput());
+    List<ConditionCreateInput> conditions =
+        service().buildAutoLinkConditions(injectInput(), workflow());
 
     assertEquals(2, conditions.size());
     ConditionCreateInput first = conditions.getFirst();
@@ -83,7 +97,7 @@ class StepAutoLinkServiceTest {
         ]}
         """);
 
-    assertTrue(service().buildAutoLinkConditions(injectInput()).isEmpty());
+    assertTrue(service().buildAutoLinkConditions(injectInput(), workflow()).isEmpty());
   }
 
   @Test
@@ -94,7 +108,8 @@ class StepAutoLinkServiceTest {
         {"fields":[{"key":"URL","type":"targeted-asset"}]}
         """);
 
-    List<ConditionCreateInput> conditions = service().buildAutoLinkConditions(injectInput());
+    List<ConditionCreateInput> conditions =
+        service().buildAutoLinkConditions(injectInput(), workflow());
 
     assertEquals(1, conditions.size());
     assertEquals(List.of(PrimitiveType.TargetedAsset), conditions.getFirst().getKeyTypes());
@@ -105,16 +120,16 @@ class StepAutoLinkServiceTest {
   void should_returnNoCondition_when_contentUnusable() {
     givenContractContent("not json");
 
-    assertTrue(service().buildAutoLinkConditions(injectInput()).isEmpty());
+    assertTrue(service().buildAutoLinkConditions(injectInput(), workflow()).isEmpty());
   }
 
   @Test
   @DisplayName("Should return no condition when the injector contract is unknown")
   void should_returnNoCondition_when_contractNotFound() {
-    when(injectorContractService.injectorContract(CONTRACT_ID))
+    when(injectorContractService.injectorContractInTenant(CONTRACT_ID, TENANT_ID))
         .thenThrow(new ElementNotFoundException("Threat arsenal item not found"));
 
-    assertTrue(service().buildAutoLinkConditions(injectInput()).isEmpty());
+    assertTrue(service().buildAutoLinkConditions(injectInput(), workflow()).isEmpty());
   }
 
   @Test
@@ -123,6 +138,6 @@ class StepAutoLinkServiceTest {
     InjectInput input = new InjectInput();
     input.setTitle("action");
 
-    assertTrue(service().buildAutoLinkConditions(input).isEmpty());
+    assertTrue(service().buildAutoLinkConditions(input, workflow()).isEmpty());
   }
 }

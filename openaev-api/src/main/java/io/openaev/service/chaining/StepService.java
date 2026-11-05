@@ -57,7 +57,8 @@ public class StepService {
       throws ChainingException {
     WorkflowEditability.assertLogicMapEditable(workflow);
     if (stepInput.getConditions() == null) {
-      stepInput.setConditions(stepAutoLinkService.buildAutoLinkConditions(stepInput.getDataStep()));
+      stepInput.setConditions(
+          stepAutoLinkService.buildAutoLinkConditions(stepInput.getDataStep(), workflow));
     }
     ActionStep actionStep = factoryAction(stepInput.getStepAction(), null);
     Step step =
