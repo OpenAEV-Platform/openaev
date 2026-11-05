@@ -2050,4 +2050,242 @@ class XtmHubServiceTest {
       assertDoesNotThrow(() -> xtmHubService.syncNewsFeed());
     }
   }
+
+  @Nested
+  @DisplayName("commercialModel")
+  class CommercialModel {
+
+    private static final String SINGLE_TENANT_RESPONSE_TYPE =
+        "RefreshPlatformRegistrationConnectivityStatusResponse";
+    private static final String TENANT_STATUS_TYPE = "TenantStatus";
+
+    private TenantXtmHubRegistration givenDefaultTenantRegistration(
+        XtmHubCommercialModel storedModel) {
+      TenantXtmHubRegistration registration =
+          buildRegistration(Tenant.DEFAULT_TENANT_UUID, "valid-token", now.minusHours(1));
+      registration.setCommercialModel(storedModel);
+      when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
+          .thenReturn(Optional.of(registration));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      return registration;
+    }
+
+    /** Stubs MockServer with a single-tenant refresh answer carrying a raw commercialModel. */
+    private void whenHubReturnsCommercialModel(String commercialModelJson) {
+      mockServer
+          .when(request().withMethod("POST").withPath(GRAPHQL_PATH))
+          .respond(
+              response()
+                  .withStatusCode(200)
+                  .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+                  .withBody(
+                      "{\"data\":{\"refreshPlatformRegistrationConnectivityStatusSingleTenant\":{\"status\":\"active\",\"commercialModel\":%s}}}"
+                          .formatted(commercialModelJson)));
+    }
+
+    /** Stubs MockServer like a hub that does not expose the commercial model yet. */
+    private void whenHubRejectsCommercialModel(String type) {
+      mockServer
+          .when(
+              request()
+                  .withMethod("POST")
+                  .withPath(GRAPHQL_PATH)
+                  .withBody(subString("commercialModel")))
+          .respond(
+              response()
+                  .withStatusCode(400)
+                  .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+                  .withBody(
+                      "{\"errors\":[{\"message\":\"Cannot query field \\\"commercialModel\\\" on type \\\"%s\\\".\"}]}"
+                          .formatted(type)));
+    }
+
+    private List<String> recordedRefreshQueries() {
+      return Arrays.stream(
+              mockServer.retrieveRecordedRequests(
+                  request().withMethod("POST").withPath(GRAPHQL_PATH)))
+          .map(
+              recorded ->
+                  JsonParser.parseString(recorded.getBodyAsString())
+                      .getAsJsonObject()
+                      .get("query")
+                      .getAsString())
+          .toList();
+    }
+
+    @Test
+    @DisplayName("Should store the commercial model returned by the single-tenant refresh")
+    void given_hubReturnsSaas_should_storeCommercialModel() {
+      // Arrange
+      givenDefaultTenantRegistration(null);
+      whenHubReturnsCommercialModel("\"SAAS\"");
+
+      // Act
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
+
+      // Assert
+      assertThat(recordedRefreshQueries())
+          .singleElement()
+          .satisfies(query -> assertThat(query).contains("status commercialModel"));
+      assertThat(result.getCommercialModel()).isEqualTo(XtmHubCommercialModel.SAAS);
+      assertThat(result.getRegistrationStatus()).isEqualTo(XtmHubRegistrationStatus.REGISTERED);
+    }
+
+    @ParameterizedTest(name = "commercialModel: {0}")
+    @ValueSource(strings = {"null", "\"ON_PREMISE\""})
+    @DisplayName(
+        "Should keep the stored commercial model when the hub returns none or an unknown one")
+    void given_hubReturnsNoKnownModel_should_keepStoredCommercialModel(String commercialModelJson) {
+      // Arrange
+      givenDefaultTenantRegistration(XtmHubCommercialModel.SAAS);
+      whenHubReturnsCommercialModel(commercialModelJson);
+
+      // Act
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
+
+      // Assert
+      assertThat(result.getCommercialModel()).isEqualTo(XtmHubCommercialModel.SAAS);
+      assertThat(result.getRegistrationStatus()).isEqualTo(XtmHubRegistrationStatus.REGISTERED);
+    }
+
+    @Test
+    @DisplayName("Should keep the stored commercial model when the hub is unreachable")
+    void given_hubUnreachable_should_keepStoredCommercialModel() {
+      // Arrange
+      givenDefaultTenantRegistration(XtmHubCommercialModel.SAAS);
+      mockServer
+          .when(request().withMethod("POST").withPath(GRAPHQL_PATH))
+          .respond(response().withStatusCode(502));
+
+      // Act
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
+
+      // Assert
+      assertThat(result.getCommercialModel()).isEqualTo(XtmHubCommercialModel.SAAS);
+      assertThat(result.getRegistrationStatus())
+          .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+    }
+
+    @Test
+    @DisplayName("Should refresh again without the commercial model when the hub rejects it")
+    void given_hubRejectsCommercialModel_should_retryWithoutIt() {
+      // Arrange
+      givenDefaultTenantRegistration(null);
+      whenHubRejectsCommercialModel(SINGLE_TENANT_RESPONSE_TYPE);
+      whenHubReturnsConnectivityStatus("active");
+
+      // Act
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
+
+      // Assert
+      List<String> queries = recordedRefreshQueries();
+      assertThat(queries).hasSize(2);
+      assertThat(queries.get(0)).contains("commercialModel");
+      assertThat(queries.get(1)).doesNotContain("commercialModel");
+      assertThat(result.getRegistrationStatus()).isEqualTo(XtmHubRegistrationStatus.REGISTERED);
+      assertThat(result.getCommercialModel()).isNull();
+    }
+
+    @Test
+    @DisplayName(
+        "Should refresh without the commercial model nor the edition when the hub knows neither")
+    void given_hubKnowsNeitherField_should_retryWithoutBoth() {
+      // Arrange
+      givenDefaultTenantRegistration(null);
+      License license = new License();
+      license.setLicenseEnterprise(true);
+      license.setLicenseValidated(true);
+      mockSettings.setPlatformLicense(license);
+      whenHubRejectsCommercialModel(SINGLE_TENANT_RESPONSE_TYPE);
+      mockServer
+          .when(
+              request()
+                  .withMethod("POST")
+                  .withPath(GRAPHQL_PATH)
+                  .withBody(subString("platformContract")))
+          .respond(
+              response()
+                  .withStatusCode(400)
+                  .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+                  .withBody(
+                      "{\"errors\":[{\"message\":\"Field \\\"platformContract\\\" is not defined by type \\\"RefreshPlatformRegistrationConnectivityStatusSingleTenantInput\\\".\"}]}"));
+      whenHubReturnsConnectivityStatus("active");
+
+      // Act
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
+
+      // Assert
+      List<String> queries = recordedRefreshQueries();
+      assertThat(queries).hasSize(3);
+      assertThat(queries.get(2)).doesNotContain("commercialModel");
+      assertThat(result.getRegistrationStatus()).isEqualTo(XtmHubRegistrationStatus.REGISTERED);
+    }
+
+    @Test
+    @DisplayName("Should store the commercial model of each tenant on the all-tenants refresh")
+    void given_allTenantsRefresh_should_storeEachCommercialModel() {
+      // Arrange
+      TenantXtmHubRegistration saasReg =
+          buildRegistration("tenant-saas", "token-1", now.minusHours(1));
+      TenantXtmHubRegistration otherReg =
+          buildRegistration("tenant-other", "token-2", now.minusHours(1));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
+          .thenReturn(List.of(saasReg, otherReg));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      mockServer
+          .when(request().withMethod("POST").withPath(GRAPHQL_PATH))
+          .respond(
+              response()
+                  .withStatusCode(200)
+                  .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+                  .withBody(
+                      "{\"data\":{\"refreshPlatformRegistrationConnectivityStatusAllTenants\":{\"statuses\":["
+                          + "{\"tenantId\":\"tenant-saas\",\"status\":\"active\",\"commercialModel\":\"SAAS\"},"
+                          + "{\"tenantId\":\"tenant-other\",\"status\":\"active\",\"commercialModel\":\"OTHER\"}"
+                          + "]}}}"));
+
+      // Act
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Assert
+      assertThat(recordedRefreshQueries())
+          .singleElement()
+          .satisfies(query -> assertThat(query).contains("tenantId status commercialModel"));
+      assertThat(saasReg.getCommercialModel()).isEqualTo(XtmHubCommercialModel.SAAS);
+      assertThat(otherReg.getCommercialModel()).isEqualTo(XtmHubCommercialModel.OTHER);
+    }
+
+    @Test
+    @DisplayName(
+        "Should refresh all tenants again without the commercial model when the hub rejects it")
+    void given_hubRejectsCommercialModelForAllTenants_should_retryWithoutIt() {
+      // Arrange
+      TenantXtmHubRegistration registration =
+          buildRegistration("tenant-1", "token-1", now.minusHours(1));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
+          .thenReturn(List.of(registration));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      whenHubRejectsCommercialModel(TENANT_STATUS_TYPE);
+      whenHubReturnsAllTenantsConnectivityStatuses(Map.of("tenant-1", "active"));
+
+      // Act
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Assert
+      List<String> queries = recordedRefreshQueries();
+      assertThat(queries).hasSize(2);
+      assertThat(queries.get(1)).doesNotContain("commercialModel");
+      assertThat(registration.getRegistrationStatus())
+          .isEqualTo(XtmHubRegistrationStatus.REGISTERED);
+    }
+  }
 }

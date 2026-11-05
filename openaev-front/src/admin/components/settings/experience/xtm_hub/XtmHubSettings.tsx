@@ -15,8 +15,11 @@ import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import { getCurrentTenantId } from '../../../../../utils/url-helper';
 import ExperienceCard from '../ExperienceCard';
+import { buildXtmHubRegistrationUrl } from './xtm-hub-url';
 import XtmHubRegisteredSection from './XtmHubRegisteredSection';
+import XtmHubSaasMetrics from './XtmHubSaasMetrics';
 import XtmHubTab from './XtmHubTab';
 import XtmHubUnregisteredSection from './XtmHubUnregisteredSection';
 
@@ -48,6 +51,7 @@ const XtmHubSettings: React.FC = () => {
 
   const registrationStatus = registration?.tenant_xtmhub_registration_status;
   const isXTMHubRegistered = registrationStatus === 'REGISTERED' || registrationStatus === 'LOST_CONNECTIVITY';
+  const isSaas = registration?.tenant_xtmhub_registration_commercial_model === 'SAAS';
   const canInteract = isXTMHubAccessible && !!settings.xtm_hub_reachable;
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   const isDemoMode = isDemoInstance(settings);
@@ -107,7 +111,14 @@ const XtmHubSettings: React.FC = () => {
       footer={footer}
       testId="experience-xtm-hub-card"
     >
-      {isXTMHubRegistered ? <XtmHubRegisteredSection /> : <XtmHubUnregisteredSection />}
+      {isXTMHubRegistered
+        ? (
+            <>
+              <XtmHubRegisteredSection />
+              {isSaas && <XtmHubSaasMetrics metricsUrl={buildXtmHubRegistrationUrl(hubUrl, settings.platform_id, getCurrentTenantId())} />}
+            </>
+          )
+        : <XtmHubUnregisteredSection />}
     </ExperienceCard>
   );
 };
