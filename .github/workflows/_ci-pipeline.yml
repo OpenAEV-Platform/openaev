@@ -205,8 +205,8 @@ jobs:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
-      MINIO_ENDPOINT: localhost
-      MINIO_PORT: 11000
+      OPENAEV_S3_ENDPOINT: localhost
+      OPENAEV_S3_PORT: 11000
       # No engine selector: the platform detects Elasticsearch 8, 9 or OpenSearch from ENGINE_URL,
       # so a shard picks its client through the server it starts (matrix.search_engine).
       ENGINE_URL: http://localhost:9200
@@ -344,7 +344,9 @@ jobs:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
-      MINIO_ENDPOINT: localhost
+      # Former minio names on purpose: the end-to-end action checks the platform reads them (the
+      # startup warning must list each one); port and keys differ from the packaged defaults.
+      MINIO_ENDPOINT: 127.0.0.1
       MINIO_PORT: 11000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_ACCESS_SECRET: minioadmin
@@ -385,10 +387,10 @@ jobs:
       SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/openaev
       SPRING_DATASOURCE_USERNAME: openaev
       SPRING_DATASOURCE_PASSWORD: openaev
-      MINIO_ENDPOINT: localhost
-      MINIO_PORT: 11000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_ACCESS_SECRET: minioadmin
+      OPENAEV_S3_ENDPOINT: localhost
+      OPENAEV_S3_PORT: 11000
+      OPENAEV_S3_ACCESS_KEY: minioadmin
+      OPENAEV_S3_ACCESS_SECRET: minioadmin
       ENGINE_URL: http://localhost:9200
       OPENBAS_RABBITMQ_HOSTNAME: localhost
       OPENAEV_ADMIN_EMAIL: admin@openaev.io

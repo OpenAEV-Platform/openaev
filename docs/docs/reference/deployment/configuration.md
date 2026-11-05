@@ -305,14 +305,27 @@ Tuning parameters applicable to both engines:
 
 | Parameter               | Environment variable    | Default value | Description                                                                                                                                                                                                                                                                                                                                                                                                                   |
 |:---------------------------|:---------------------------|:-------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| minio.endpoint          | MINIO_ENDPOINT          | localhost     | Hostname of the S3 service. For AWS S3, for example `s3.us-east-1.amazonaws.com`                                                                                                                                                                       |
-| minio.port              | MINIO_PORT              | 9000          | Port of the S3 service. For AWS S3 over HTTPS, usually `443`                                                                                                                                                                                         |
-| minio.secure            | MINIO_SECURE            | `false`       | Turn on when the S3 service uses TLS (for example AWS S3 over HTTPS)                                                                                                                                                                                |
-| minio.access-key        | MINIO_ACCESS-KEY        | key           | Access key for the S3 service                                                                                                                                                                                                                       |
-| minio.access-secret     | MINIO_ACCESS-SECRET     | secret        | Secret key for the S3 service                                                                                                                                                                                                                       |
-| minio.bucket            | MINIO_BUCKET            | openaev       | S3 bucket name. Created at startup if missing                                                                                                                                                                                                       |
+| openaev.s3.endpoint     | OPENAEV_S3_ENDPOINT     | localhost     | Hostname of the S3 service. For AWS S3, for example `s3.us-east-1.amazonaws.com`                                                                                                                                                                       |
+| openaev.s3.port         | OPENAEV_S3_PORT         | 9000          | Port of the S3 service. For AWS S3 over HTTPS, usually `443`                                                                                                                                                                                         |
+| openaev.s3.secure       | OPENAEV_S3_SECURE       | `false`       | Turn on when the S3 service uses TLS (for example AWS S3 over HTTPS)                                                                                                                                                                                |
+| openaev.s3.access-key   | OPENAEV_S3_ACCESS-KEY   | key           | Access key for the S3 service                                                                                                                                                                                                                       |
+| openaev.s3.access-secret | OPENAEV_S3_ACCESS-SECRET | secret        | Secret key for the S3 service                                                                                                                                                                                                                       |
+| openaev.s3.bucket       | OPENAEV_S3_BUCKET       | openaev       | S3 bucket name. Created at startup if missing                                                                                                                                                                                                       |
 | openaev.s3.use-aws-role | OPENAEV_S3_USE-AWS-ROLE | `false`       | Use the AWS IAM role of the host, through AWS STS (Security Token Service), instead of access keys                                                                                                                                                  |
 | openaev.s3.sts-endpoint | OPENAEV_S3_STS-ENDPOINT |               | `experimental` Optional custom STS endpoint. When empty, OpenAEV uses the global AWS STS endpoint (`https://sts.amazonaws.com`), or the [regional one](https://docs.aws.amazon.com/general/latest/gr/sts.html#sts_region) when `AWS_REGION` is set |
+
+!!! note "Section renamed in OpenAEV [MigrationVersion]"
+
+    Before OpenAEV [MigrationVersion], the `endpoint`, `port`, `secure`, `access-key`, `access-secret` and `bucket`
+    parameters were named `minio.*` (environment variables `MINIO_*`, for example `MINIO_ENDPOINT` or
+    `MINIO_ACCESS-KEY`). The former names are still read: for each parameter, the former
+    name is used only when the new name is not set at the same or a higher priority level (command line, environment
+    variables, configuration files, then the default values). A parameter set to an empty value counts as set: for the
+    port and `secure`, an empty value means the default value. Versions before OpenAEV [MigrationVersion] only read the
+    former names: keep them as long as you may need to go back to such a version. At
+    startup, warnings list the former names in use, the former names ignored because the new name is set, and the new
+    names ignored because a former name of higher priority is set (names only, never values). See
+    [Object storage, RustFS and the openaev.s3 configuration](../../deployment/breaking-changes/MigrationVersion-s3-object-storage-rustfs.md).
 
 #### Agents (executors)
 
