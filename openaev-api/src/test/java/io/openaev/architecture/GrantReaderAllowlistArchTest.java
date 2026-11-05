@@ -13,9 +13,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -348,6 +350,14 @@ class GrantReaderAllowlistArchTest {
         out.setCharAt(i, ' ');
       }
     }
+  }
+
+  /** The owners of the statements listed as group-tenant, for guards that defer to this one. */
+  static Set<String> groupTenantReaders() throws IOException {
+    return allowlist().entrySet().stream()
+        .filter(entry -> entry.getValue().startsWith(GROUP_TENANT))
+        .map(Map.Entry::getKey)
+        .collect(Collectors.toSet());
   }
 
   private static Map<String, String> allowlist() throws IOException {
