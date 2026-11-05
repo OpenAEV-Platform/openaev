@@ -1,49 +1,15 @@
-"""Preview features of the documentation, shared by the `main.py` macros and the MkDocs hook below.
+"""MkDocs hook that removes the pages of hidden preview features from the navigation.
 
-A preview feature is a constant of the backend `PreviewFeature` enum. Its documentation stays hidden while the constant
-exists, and shows once the backend removes it:
-
-- `{% if feature_visible("NAME") %}` (macro in `main.py`) hides content inside a page.
-- `preview_feature: NAME` in the front matter of a page removes the page from the navigation (`on_config` hook below).
-
-Once the backend removes the constant, both warn, so the strict build of the pull request fails until the
-`feature_visible()` block and the `preview_feature` front matter are removed.
+A page with `preview_feature: NAME` in its front matter is left out of the `nav` while `NAME` is hidden, following the
+same rule as the `feature_visible()` macro (see `main.py`). The page stays reachable by its URL.
 """
 
-import logging
-import os
-import re
 from pathlib import Path
 
 from mkdocs.utils.meta import get_data
 
-log = logging.getLogger("mkdocs.plugins.preview_features")
-
-PREVIEW_FEATURE_ENUM = (
-    Path(__file__).resolve().parent.parent
-    / "openaev-api/src/main/java/io/openaev/rest/settings/PreviewFeature.java"
-)
-
-PREVIEW_FEATURES = set(
-    re.findall(r"^\s*([A-Z][A-Z0-9_]*)\(", PREVIEW_FEATURE_ENUM.read_text(encoding="utf-8"), re.MULTILINE)
-)
-# Comma-separated preview features to show in a local build, "*" for all of them
-ENABLED_FEATURES = {
-    feature.strip().upper() for feature in os.environ.get("DOCS_FEATURE_FLAGS", "").split(",") if feature.strip()
-}
-
-
-def is_visible(name, source):
-    """Tells whether the documentation of the preview feature `name`, used in the page `source`, is shown."""
-    if name not in PREVIEW_FEATURES:
-        log.warning(
-            "%s is no longer a preview feature in PreviewFeature.java: remove its feature_visible() block and its "
-            "preview_feature front matter from %s",
-            name,
-            source,
-        )
-        return True
-    return name in ENABLED_FEATURES or "*" in ENABLED_FEATURES
+# MkDocs adds the folder of the hook to sys.path while it loads it
+from main import is_visible
 
 
 def _page_visible(docs_dir, path):
