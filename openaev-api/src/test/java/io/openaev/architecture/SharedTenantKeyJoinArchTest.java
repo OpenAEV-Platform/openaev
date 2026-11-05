@@ -85,11 +85,9 @@ class SharedTenantKeyJoinArchTest {
   private static final Pattern GRANTS_ALIAS =
       Pattern.compile("\\bgrants\\s+(?:AS\\s+)?([A-Za-z_][A-Za-z_0-9]*)", Pattern.CASE_INSENSITIVE);
 
-  /** {@code FROM <table> <alias>} or {@code JOIN <table> <alias>}, with or without {@code AS}. */
-  private static final Pattern TABLE_ALIAS =
-      Pattern.compile(
-          "\\b(?:FROM|JOIN)\\s+[A-Za-z_][A-Za-z_0-9]*\\s+(?:AS\\s+)?([A-Za-z_][A-Za-z_0-9]*)",
-          Pattern.CASE_INSENSITIVE);
+  /** A block or line comment, or a string literal: text that names no alias. */
+  private static final Pattern SQL_COMMENT_OR_LITERAL =
+      Pattern.compile("/\\*.*?\\*/|--[^\\n]*|'(?:[^']|'')*'", Pattern.DOTALL);
 
   /** {@code alias.column = alias.column}. The only shape this guard judges. */
   private static final Pattern ALIAS_EQUALITY =
@@ -665,8 +663,9 @@ class SharedTenantKeyJoinArchTest {
   void everyWaiverCarriesAClassificationAndAReason() throws IOException {
     List<String> malformed = new ArrayList<>();
     Set<String> activeTables = ProductionActiveTables.names();
-    Map<String, Set<String>> groupTenantGrantAliases = groupTenantGrantAliases();
-    for (Map.Entry<String, String> waiver : waivers().entrySet()) {
+    Map<String, String> waivers = waivers();
+    Map<String, Set<String>> groupTenantGrantAliases = groupTenantGrantAliases(waivers);
+    for (Map.Entry<String, String> waiver : waivers.entrySet()) {
       malformed.addAll(
           waiverViolations(
               waiver.getKey(), waiver.getValue(), activeTables, groupTenantGrantAliases));
@@ -1168,16 +1167,25 @@ class SharedTenantKeyJoinArchTest {
   }
 
   /**
-   * The aliases of grants in each statement the grant reader allowlist lists as group-tenant, keyed
-   * by the statement's owner. A waiver names its owner and its join, not the scanned run the join
-   * came from, so an owner scanned as more than one run is refused: an alias of one run could
-   * otherwise vouch for a join of another.
+   * The aliases of grants in each statement a grant-reader waiver names and the grant reader
+   * allowlist lists as group-tenant, keyed by the statement's owner. Only those statements are
+   * read, so a group-tenant reader no waiver names is never judged here. A waiver names its owner
+   * and its join, not the scanned run the join came from, so an owner scanned as more than one run
+   * is refused: an alias of one run could otherwise vouch for a join of another.
    */
-  private static Map<String, Set<String>> groupTenantGrantAliases() throws IOException {
-    Set<String> groupTenant = GrantReaderAllowlistArchTest.groupTenantReaders();
+  private static Map<String, Set<String>> groupTenantGrantAliases(Map<String, String> waivers)
+      throws IOException {
+    Set<String> named = new HashSet<>();
+    waivers.forEach(
+        (key, reason) -> {
+          if (reason.startsWith(GRANT_READER)) {
+            named.add(key.split(" ")[0]);
+          }
+        });
+    named.retainAll(GrantReaderAllowlistArchTest.groupTenantReaders());
     Map<String, Set<String>> aliases = new HashMap<>();
     for (SqlRun run : sqlCorpus()) {
-      if (groupTenant.contains(run.origin())) {
+      if (named.contains(run.origin())) {
         if (aliases.containsKey(run.origin())) {
           throw new IllegalStateException(
               run.origin()
@@ -1194,20 +1202,20 @@ class SharedTenantKeyJoinArchTest {
    * The alias {@code sql} gives the grants table. A waiver names a join by its two aliases only,
    * not by the sub-select it sits in, and the grant reader guard finds the group restriction
    * anywhere in the statement, not on one alias. So the statement must give grants one alias, and
-   * declare it once: a second grants alias could carry no restriction, and an alias the statement
-   * also gives another table, in a sibling sub-select, could pass a join of that table for the
-   * grants join.
+   * that alias must appear once in the statement other than as a qualifier ({@code gr.column}): a
+   * second grants alias could carry no restriction, and the alias given again to another table, in
+   * any FROM or JOIN form, could pass a join of that table for the grants join. A grants table
+   * given no alias is named by itself. Comments and string literals are removed first; any other
+   * unqualified use of the name is refused too.
    */
   static Set<String> grantsAliasesOf(String origin, String sql) {
+    String statement = SQL_COMMENT_OR_LITERAL.matcher(normalise(sql)).replaceAll(" ");
     Set<String> grantsAliases = new HashSet<>();
-    Matcher grants = GRANTS_ALIAS.matcher(sql);
+    Matcher grants = GRANTS_ALIAS.matcher(statement);
     while (grants.find()) {
-      grantsAliases.add(grants.group(1).toLowerCase(Locale.ROOT));
-    }
-    Map<String, Integer> declarations = new HashMap<>();
-    Matcher declared = TABLE_ALIAS.matcher(sql);
-    while (declared.find()) {
-      declarations.merge(declared.group(1).toLowerCase(Locale.ROOT), 1, Integer::sum);
+      // With no alias, the token after grants is a keyword and the table is named by itself.
+      String alias = grants.group(1).toLowerCase(Locale.ROOT);
+      grantsAliases.add(NOT_AN_ALIAS.contains(alias) ? "grants" : alias);
     }
     if (grantsAliases.size() > 1) {
       throw new IllegalStateException(
@@ -1217,12 +1225,20 @@ class SharedTenantKeyJoinArchTest {
               + ", so the group restriction cannot be tied to the waived join");
     }
     for (String alias : grantsAliases) {
-      if (declarations.getOrDefault(alias, 0) != 1) {
+      Matcher unqualified =
+          Pattern.compile("\\b" + Pattern.quote(alias) + "\\b(?!\\s*\\.)", Pattern.CASE_INSENSITIVE)
+              .matcher(statement);
+      int declarations = 0;
+      while (unqualified.find()) {
+        declarations++;
+      }
+      if (declarations != 1) {
         throw new IllegalStateException(
             origin
-                + " declares the grants alias "
+                + " uses the grants alias "
                 + alias
-                + " more than once, so it cannot be tied to the waived join");
+                + " other than as a qualifier more than once, so it cannot be tied to the waived"
+                + " join");
       }
     }
     return grantsAliases;
@@ -1419,6 +1435,55 @@ class SharedTenantKeyJoinArchTest {
       assertThrows(
           IllegalStateException.class,
           () -> grantsAliasesOf("SomeRepository#someGrantedQuery", sql));
+    }
+
+    @Test
+    @DisplayName(
+        "given a sibling comma join reusing the grants alias for another table, then it is refused")
+    void given_grantsAliasReusedInACommaJoin_should_beRefused() {
+      // Arrange
+      String sql =
+          "SELECT injcon.* FROM injectors_contracts injcon WHERE EXISTS (SELECT 1 FROM grants gr"
+              + " WHERE gr.grant_resource = injcon.injector_contract_id) AND EXISTS (SELECT 1 FROM"
+              + " users u2, injectors_contracts_attack_patterns gr"
+              + " WHERE gr.injector_contract_id = injcon.injector_contract_id)";
+
+      // Act & Assert
+      assertThrows(
+          IllegalStateException.class,
+          () -> grantsAliasesOf("SomeRepository#someGrantedQuery", sql));
+    }
+
+    @Test
+    @DisplayName(
+        "given a comment between another table and the reused grants alias, then it is refused")
+    void given_grantsAliasReusedAfterAComment_should_beRefused() {
+      // Arrange
+      String sql =
+          "SELECT injcon.* FROM injectors_contracts injcon WHERE EXISTS (SELECT 1 FROM grants gr"
+              + " WHERE gr.grant_resource = injcon.injector_contract_id) AND EXISTS (SELECT 1 FROM"
+              + " injectors_contracts_attack_patterns /* mapping */ gr"
+              + " WHERE gr.injector_contract_id = injcon.injector_contract_id)";
+
+      // Act & Assert
+      assertThrows(
+          IllegalStateException.class,
+          () -> grantsAliasesOf("SomeRepository#someGrantedQuery", sql));
+    }
+
+    @Test
+    @DisplayName("given a grants table with no alias, then it is named by itself")
+    void given_grantsWithoutAlias_should_beNamedByItself() {
+      // Arrange
+      String sql =
+          "SELECT injcon.* FROM injectors_contracts injcon WHERE EXISTS (SELECT 1 FROM grants"
+              + " WHERE grants.grant_resource = injcon.injector_contract_id)";
+
+      // Act
+      Set<String> aliases = grantsAliasesOf("SomeRepository#someGrantedQuery", sql);
+
+      // Assert
+      assertEquals(Set.of("grants"), aliases);
     }
   }
 }
