@@ -50,9 +50,9 @@ abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeTestBase
   @Autowired private PlatformTransactionManager transactionManager;
 
   /**
-   * Attaches the current caller to a new tenant with a role carrying every tenant-scoped
-   * capability (the ceiling a tenant role can hold short of the platform BYPASS escape hatch): the
-   * standing a tenant's top role grants on every assessment resource regardless of which one.
+   * Attaches the current caller to a new tenant with a role carrying every tenant-scoped capability
+   * (the ceiling a tenant role can hold short of the platform BYPASS escape hatch): the standing a
+   * tenant's top role grants on every assessment resource regardless of which one.
    */
   String memberWithEveryTenantCapability(String tenantName) throws Exception {
     return tenantHelper
@@ -61,8 +61,8 @@ abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeTestBase
   }
 
   /**
-   * Attaches the current caller to {@code tenantId} with no capability at all, and a single grant on
-   * {@code resourceId}: the standing of a plain member whose only access to anything comes from
+   * Attaches the current caller to {@code tenantId} with no capability at all, and a single grant
+   * on {@code resourceId}: the standing of a plain member whose only access to anything comes from
    * being named on that one resource.
    */
   void memberWithGrantOnResourceOnly(
@@ -86,7 +86,11 @@ abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeTestBase
                 GrantComposer.Composer grant =
                     grantComposer.forGrant(
                         GrantFixture.getGrant(resourceId, resourceType, grantType, null));
-                tenantGroupComposer.forGroup(group).withRole(roleComposer).withGrant(grant).persist();
+                tenantGroupComposer
+                    .forGroup(group)
+                    .withRole(roleComposer)
+                    .withGrant(grant)
+                    .persist();
                 entityManager.flush();
                 entityManager.clear();
               });
@@ -146,7 +150,10 @@ abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeTestBase
         route.with(post(uri).content(asJsonString(input)).contentType(MediaType.APPLICATION_JSON)));
   }
 
-  /** {@code PUT /injects/{exerciseId}/{injectId}}: updates {@code injectId} under {@code exerciseId}. */
+  /**
+   * {@code PUT /injects/{exerciseId}/{injectId}}: updates {@code injectId} under {@code
+   * exerciseId}.
+   */
   int updateInject(Route route, String exerciseId, String injectId, String title) throws Exception {
     InjectInput input = new InjectInput();
     input.setTitle(title);

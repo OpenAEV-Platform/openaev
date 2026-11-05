@@ -44,7 +44,13 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
       // Assert
       assertThat(
               new int[] {
-                read, readPlainInject, export, targetSearch, targetOptions, reception, updateTags,
+                read,
+                readPlainInject,
+                export,
+                targetSearch,
+                targetOptions,
+                reception,
+                updateTags,
                 delete
               })
           .containsExactly(404, 404, 404, 404, 404, 404, 404, 404);
@@ -72,7 +78,13 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
       // Assert
       assertThat(
               new int[] {
-                read, readPlainInject, export, targetSearch, targetOptions, reception, updateTags,
+                read,
+                readPlainInject,
+                export,
+                targetSearch,
+                targetOptions,
+                reception,
+                updateTags,
                 delete
               })
           .containsExactly(404, 404, 404, 404, 404, 404, 404, 404);
@@ -80,7 +92,8 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
     }
 
     @Test
-    @DisplayName("given an atomic testing of the caller's own tenant, it is read, updated and deleted")
+    @DisplayName(
+        "given an atomic testing of the caller's own tenant, it is read, updated and deleted")
     void given_ownTenantAtomicTesting_should_beReachable() throws Exception {
       // Arrange
       String callerTenant = memberWithEveryTenantCapability("by-id-capability-holder-own");
