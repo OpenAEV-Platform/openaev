@@ -924,7 +924,7 @@ class AutonomousRunServiceTest {
     scenario.setId("scenario-1");
     scenario.setName("Ransomware kill chain");
     scenario.setTenant(new Tenant("tenant-1"));
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
     Exercise simulation = new Exercise();
     simulation.setId("sim-new");
     when(scenarioToExerciseService.toExercise(
