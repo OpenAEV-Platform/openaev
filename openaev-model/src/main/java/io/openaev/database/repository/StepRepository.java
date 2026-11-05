@@ -345,6 +345,42 @@ public interface StepRepository extends JpaRepository<Step, String> {
       @Param("injectorContractId") String injectorContractId);
 
   /**
+   * The tenant of the given workflow, if one of its steps references the given injector contract -
+   * the tenant-scoped counterpart of {@link
+   * #existsInjectorContractByWorkflowIdAndInjectorContractId}, returning the resolved tenant in the
+   * same query instead of a separate workflow fetch, which would introduce a circular dependency
+   * ({@code InjectorContractService} -> {@code WorkflowService} -> ... -> {@code
+   * InjectorContractService}).
+   *
+   * @param workflowId the ID of the workflow whose steps are inspected
+   * @param injectorContractId the injector contract ID to look for
+   * @return the workflow's tenant id if it references the contract, empty otherwise
+   */
+  @Query(
+      value =
+          """
+        SELECT w.tenant_id
+        FROM workflows w
+        WHERE w.workflow_id = :workflowId
+          AND EXISTS (
+            SELECT 1
+            FROM steps s
+            WHERE s.step_workflow_id = w.workflow_id
+              AND (
+                (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'object'
+                  AND s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id' = :injectorContractId)
+                OR
+                (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'string'
+                  AND s.step_data ->> 'inject_injector_contract' = :injectorContractId)
+              )
+          )
+        """,
+      nativeQuery = true)
+  Optional<String> findWorkflowTenantIdIfReferencesInjectorContract(
+      @Param("workflowId") String workflowId,
+      @Param("injectorContractId") String injectorContractId);
+
+  /**
    * Returns the TEMPLATE steps (authored logic-map nodes) of the given tenant whose frozen {@code
    * step_data} references any of the given injector contract ids.
    *

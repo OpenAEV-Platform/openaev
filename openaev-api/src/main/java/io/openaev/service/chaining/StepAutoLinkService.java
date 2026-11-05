@@ -9,6 +9,7 @@ import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.MappingType;
 import io.openaev.database.model.PrimitiveType;
+import io.openaev.database.model.Workflow;
 import io.openaev.injector_contract.fields.ContractFieldType;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -43,16 +44,24 @@ public class StepAutoLinkService {
    * Builds one global MAPPER condition per injector contract field exposing an argument type.
    *
    * @param dataStep step data holding the injector contract to read
+   * @param workflow the step's workflow, whose owning simulation or scenario names the tenant to
+   *     resolve the contract in, not the ambient scope: a built-in contract id repeats across
+   *     tenants (#8485)
    * @return the auto-link conditions, empty when the contract exposes no argument type
    */
-  public List<ConditionCreateInput> buildAutoLinkConditions(DataInputStep dataStep) {
+  public List<ConditionCreateInput> buildAutoLinkConditions(
+      DataInputStep dataStep, Workflow workflow) {
     if (!(dataStep instanceof InjectInput injectInput)
         || !StringUtils.hasText(injectInput.getInjectorContract())) {
       return List.of();
     }
 
+    String tenantId =
+        workflow.getScenario() != null
+            ? workflow.getScenario().getTenant().getId()
+            : workflow.getSimulation().getTenant().getId();
     List<ConditionCreateInput> conditions = new ArrayList<>();
-    for (JsonNode field : contractFields(injectInput.getInjectorContract())) {
+    for (JsonNode field : contractFields(injectInput.getInjectorContract(), tenantId)) {
       Optional<PrimitiveType> keyType = resolveAutoLinkType(field);
       JsonNode keyNode = field.get(CONTRACT_FIELD_KEY);
       if (keyType.isEmpty() || keyNode == null || !keyNode.isTextual()) {
@@ -70,10 +79,11 @@ public class StepAutoLinkService {
     return conditions;
   }
 
-  private Iterable<JsonNode> contractFields(String injectorContractId) {
+  private Iterable<JsonNode> contractFields(String injectorContractId, String tenantId) {
     InjectorContract injectorContract;
     try {
-      injectorContract = injectorContractService.injectorContract(injectorContractId);
+      injectorContract =
+          injectorContractService.injectorContractInTenant(injectorContractId, tenantId);
     } catch (ElementNotFoundException e) {
       // Auto-link is best-effort: an unknown contract is reported by the regular creation flow.
       return List.of();
