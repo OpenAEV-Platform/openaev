@@ -17,8 +17,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import io.openaev.database.repository.InjectExpectationRepository;
-import io.openaev.database.repository.InjectRepository;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.InjectExpectationService;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -54,8 +54,8 @@ class WorkflowUpdateEventPublisherTest {
   @Mock private QueueChainingService queueChainingService;
   @Mock private StepService stepService;
   @Mock private WorkflowOwnerScope workflowOwnerScope;
-  @Mock private InjectRepository injectRepository;
-  @Mock private InjectExpectationRepository injectExpectationRepository;
+  @Mock private InjectService injectService;
+  @Mock private InjectExpectationService injectExpectationService;
 
   @InjectMocks private WorkflowUpdateEventPublisher publisher;
 
@@ -74,7 +74,7 @@ class WorkflowUpdateEventPublisherTest {
         .when(workflowOwnerScope)
         .runInOwnerTenant(anyString(), any());
     lenient()
-        .when(injectRepository.findTenantIdsByInjectIds(anySet()))
+        .when(injectService.findTenantIdsByInjectIds(anySet()))
         .thenAnswer(
             invocation -> {
               Collection<?> injectIds = invocation.getArgument(0);
@@ -87,7 +87,7 @@ class WorkflowUpdateEventPublisherTest {
                   .toList();
             });
     lenient()
-        .when(injectExpectationRepository.findDistinctInjectIdsByInjectExpectationIds(anySet()))
+        .when(injectExpectationService.findDistinctInjectIdsByInjectExpectationIds(anySet()))
         .thenAnswer(
             invocation -> {
               Set<?> expectationIds = invocation.getArgument(0);
@@ -208,7 +208,7 @@ class WorkflowUpdateEventPublisherTest {
     @DisplayName("given an inject whose row is gone, should look no step up")
     void given_injectWhoseRowIsGone_should_lookNoStepUp() {
       // -- Arrange --
-      when(injectRepository.findTenantIdsByInjectIds(anySet())).thenReturn(List.of());
+      when(injectService.findTenantIdsByInjectIds(anySet())).thenReturn(List.of());
 
       // -- Act --
       publisher.publishForInject("inject-gone");
@@ -225,7 +225,7 @@ class WorkflowUpdateEventPublisherTest {
 
       // -- Assert --
       verifyNoInteractions(
-          injectExpectationRepository, injectRepository, stepService, queueChainingService);
+          injectExpectationService, injectService, stepService, queueChainingService);
     }
   }
 

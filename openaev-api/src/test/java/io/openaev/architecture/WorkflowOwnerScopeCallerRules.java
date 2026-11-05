@@ -106,34 +106,37 @@ final class WorkflowOwnerScopeCallerRules {
    * or injector contract it passes was loaded. Every entry must still call it: an entry with no
    * call left is removed in the same change.
    *
-   * <p>"The ambient tenant" below is the v1 thread-local {@link
-   * io.openaev.context.TenantContext#getCurrentTenant()}: the path tenant on the {@code
+   * <p>"The request scope" below is the tenant scope of the request's {@code TxCtx}, read by {@code
+   * TxCtxScopeUtils#requestReadScope}: the path tenant on the {@code /api/tenants/{tenantId}}
+   * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route,
+   * and the ambient tenant when that scope is empty. "The ambient tenant" is the v1 thread-local
+   * {@link io.openaev.context.TenantContext#getCurrentTenant()}: the path tenant on the {@code
    * /api/tenants/{tenantId}} route, which {@code TenantInterceptor} sets once it has checked the
    * caller's membership of it, and the default tenant on the non-prefixed route, which sets it from
-   * neither the caller's scope nor an {@code X-Tenant-Ids} header. It is not the request's v2
-   * scope: {@code exercises}, {@code scenarios} and {@code injectors_contracts} are not
-   * tenant-active, so that scope plays no part in these loads.
+   * neither the caller's scope nor an {@code X-Tenant-Ids} header.
    */
   static final Map<Class<?>, String> OWNER_SCOPE_CALLERS =
       Map.of(
           ExerciseApi.class,
-          "the export's file name passes the simulation from ExerciseService#exercise,"
-              + " findByIdAndTenantId on the ambient tenant",
+          "the export's file name passes the simulation from ExerciseService#exercise(TxCtx,"
+              + " String), findByIdAndTenantIdIn on the request scope",
           ExportService.class,
           "the simulation's export passes the simulation ExerciseApi loaded through"
-              + " ExerciseService#exercise, findByIdAndTenantId on the ambient tenant, and"
-              + " scopes only its workflow reads",
+              + " ExerciseService#exercise(TxCtx, String), findByIdAndTenantIdIn on the request"
+              + " scope, and scopes only its workflow reads",
           ExerciseService.class,
-          "every call passes a simulation from ExerciseService#exercise (findByIdAndTenantId on the"
-              + " ambient tenant), or the duplicate copyExercise built from one, which carries"
-              + " its tenant",
+          "every call passes a simulation from ExerciseService#exercise, findByIdAndTenantIdIn on"
+              + " the request scope or, for work without a request, findByIdAndTenantId on the"
+              + " ambient tenant, or the duplicate copyExercise built from one, which carries its"
+              + " tenant",
           ScenarioApi.class,
-          "the launch passes the scenario from ScenarioService#scenario, findByIdAndTenantId on"
-              + " the ambient tenant",
+          "the launch passes the scenario from ScenarioService#scenario(TxCtx, String),"
+              + " findByIdAndTenantIdIn on the request scope",
           ScenarioService.class,
-          "every call passes a scenario from ScenarioService#scenario (findByIdAndTenantId on the"
-              + " ambient tenant), or the duplicate copyScenario built from one, which carries"
-              + " its tenant",
+          "every call passes a scenario from ScenarioService#scenario, findByIdAndTenantIdIn on"
+              + " the request scope or, for work without a request, findByIdAndTenantId on the"
+              + " ambient tenant, or the duplicate copyScenario built from one, which carries its"
+              + " tenant",
           InjectorContractService.class,
           "the step sweep of a deleted contract passes the contract it deletes, loaded by"
               + " deleteInjectorContract(String) under the tenantFilter armed on the ambient"
