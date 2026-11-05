@@ -59,14 +59,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The workflow of a chained scenario is read and written in the scenario's own tenant, whatever the
- * caller's scope: once access to the scenario is granted, its detail names its workflow, its
- * duplicate gets a copy of its workflow, its export carries its workflow, and its launch gives the
- * simulation a workflow.
+ * The workflow of a chained scenario is read and written in the scenario's own tenant: once access
+ * to the scenario is granted, its detail names its workflow, its duplicate gets a copy of its
+ * workflow, its export carries its workflow, and its launch gives the simulation a workflow.
  *
  * <p>The scenario lives in the default tenant. Each call is sent on the non-prefixed route by a
- * caller whose scope excludes that tenant (a platform admin who is a member of another tenant only,
- * or of no tenant at all) and by a member of the scenario's tenant: the outcome is the same.
+ * member of the scenario's tenant, by a caller with no membership at all, and by a caller whose
+ * scope excludes that tenant (a platform admin who is a member of another tenant only). A by-id
+ * load is resolved in the request scope, so that last caller answers "not found" instead of the
+ * scenario.
  *
  * <p>The production active tables are armed, so the class follows what production enforces.
  */
@@ -282,17 +283,17 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given a scope without its tenant should name its workflow")
-    void given_scopeWithoutItsTenant_should_nameItsWorkflow() throws Exception {
+    @DisplayName("given a scope without its tenant should not reach the scenario")
+    void given_scopeWithoutItsTenant_should_notReachTheScenario() throws Exception {
       // Arrange
       joinOtherTenantOnly();
       ChainedScenario rows = chainedScenario();
+      clearAmbientTenant();
 
-      // Act
-      String json = detail(rows.scenario().getId());
-
-      // Assert
-      assertThatJson(json).node("scenario_workflow_id").isEqualTo(rows.template().getId());
+      // Act & Assert
+      mvc.perform(
+              get(SCENARIO_URI + "/" + rows.scenario().getId()).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
     }
 
     @Test
@@ -352,18 +353,19 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given a scope without its tenant should copy its workflow")
-    void given_scopeWithoutItsTenant_should_copyItsWorkflow() throws Exception {
+    @DisplayName("given a scope without its tenant should not reach the scenario")
+    void given_scopeWithoutItsTenant_should_notReachTheScenario() throws Exception {
       // Arrange
       joinOtherTenantOnly();
       ChainedScenario rows = chainedScenario();
+      clearAmbientTenant();
 
-      // Act
-      String duplicateId =
-          postAndReadId(SCENARIO_URI + "/" + rows.scenario().getId(), "$.scenario_id");
-
-      // Assert
-      assertThat(workflowsOf("workflow_scenario_id", duplicateId)).isEqualTo(1);
+      // Act & Assert
+      mvc.perform(
+              post(SCENARIO_URI + "/" + rows.scenario().getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
     }
 
     @Test
@@ -388,19 +390,19 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given a scope without its tenant should launch a chained simulation")
-    void given_scopeWithoutItsTenant_should_launchAChainedSimulation() throws Exception {
+    @DisplayName("given a scope without its tenant should not reach the scenario")
+    void given_scopeWithoutItsTenant_should_notReachTheScenario() throws Exception {
       // Arrange
       joinOtherTenantOnly();
       ChainedScenario rows = chainedScenario();
+      clearAmbientTenant();
 
-      // Act
-      String simulationId =
-          postAndReadId(
-              SCENARIO_URI + "/" + rows.scenario().getId() + "/exercise/running", "$.exercise_id");
-
-      // Assert
-      assertThat(workflowsOf("workflow_simulation_id", simulationId)).isPositive();
+      // Act & Assert
+      mvc.perform(
+              post(SCENARIO_URI + "/" + rows.scenario().getId() + "/exercise/running")
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
     }
 
     @Test
@@ -426,18 +428,18 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given a scope without its tenant should export it as chained")
-    void given_scopeWithoutItsTenant_should_exportItAsChained() throws Exception {
+    @DisplayName("given a scope without its tenant should not reach the scenario")
+    void given_scopeWithoutItsTenant_should_notReachTheScenario() throws Exception {
       // Arrange
       joinOtherTenantOnly();
-      ChainedScenario rows = chainedScenarioWithAStep();
+      ChainedScenario rows = chainedScenario();
+      clearAmbientTenant();
 
-      // Act
-      String json = exportJson(rows.scenario());
-
-      // Assert
-      assertExportedAsChained(json);
-      assertNoTagRead(json);
+      // Act & Assert
+      mvc.perform(
+              get(SCENARIO_URI + "/" + rows.scenario().getId() + "/export")
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isNotFound());
     }
 
     @Test
