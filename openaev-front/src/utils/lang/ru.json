@@ -2644,6 +2644,8 @@
   "Must be a valid email": "Должен быть действительный email",
   "Must be a valid URI": "Должен быть действительный URI",
   "Must be a valid UUID": "Должен быть действительным UUID",
+  "Must be a whole number": "Должно быть целым числом",
+  "Must be greater than or equal to 0": "Должно быть не меньше 0",
   "My evaluation": "Моя оценка",
   "N/A": "Н/А",
   "name": "Имя",

@@ -2644,6 +2644,8 @@
   "Must be a valid email": "有効なEメールであること",
   "Must be a valid URI": "有効なURIであること",
   "Must be a valid UUID": "有効なUUIDである必要があります",
+  "Must be a whole number": "整数である必要があります",
+  "Must be greater than or equal to 0": "0 以上である必要があります",
   "My evaluation": "私の評価",
   "N/A": "該当なし",
   "name": "氏名",

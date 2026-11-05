@@ -2644,6 +2644,8 @@
   "Must be a valid email": "유효한 이메일이어야 합니다",
   "Must be a valid URI": "유효한 URI여야 합니다",
   "Must be a valid UUID": "유효한 UUID여야 합니다",
+  "Must be a whole number": "정수여야 합니다",
+  "Must be greater than or equal to 0": "0 이상이어야 합니다",
   "My evaluation": "내 평가",
   "N/A": "해당 없음",
   "name": "이름",

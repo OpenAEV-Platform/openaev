@@ -2644,6 +2644,8 @@
   "Must be a valid email": "必须是有效的电子邮件",
   "Must be a valid URI": "必须是有效的 URI",
   "Must be a valid UUID": "必须是有效的UUID",
+  "Must be a whole number": "必须是整数",
+  "Must be greater than or equal to 0": "必须大于或等于 0",
   "My evaluation": "我的评估",
   "N/A": "不适用",
   "name": "名称",

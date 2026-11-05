@@ -2,7 +2,7 @@ import { Chip, Paper, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/
 import { BallotOutlined, CastForEducationOutlined, HelpOutlined } from '@mui/icons-material';
 import { Box, LinearProgress, List, ListItem, ListItemButton, ListItemText, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useContext } from 'react';
+import { type FunctionComponent, useContext, useMemo } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
 import { type LessonsAnswer, type LessonsCategory, type LessonsQuestion, type Team } from '../../../../utils/api-types';
@@ -55,30 +55,28 @@ const LessonsCategories: FunctionComponent<Props> = ({
     const data = { lessons_category_teams: teamsIds };
     return onUpdateLessonsCategoryTeams(lessonsCategoryId, data);
   };
-  const answersByQuestion = lessonsAnswers.reduce<Record<string, LessonsAnswer[]>>(
-    (acc, answer) => {
-      const questionAnswers = acc[answer.lessons_answer_question] ?? [];
-      questionAnswers.push(answer);
-      acc[answer.lessons_answer_question] = questionAnswers;
+  // One pass over the answers: sum the scores and count answers and comments per question.
+  const consolidatedAnswers = useMemo(() => {
+    const totals = lessonsAnswers.reduce<Record<string, ConsolidatedAnswer>>((acc, answer) => {
+      const total = acc[answer.lessons_answer_question] ?? {
+        score: 0,
+        number: 0,
+        comments: 0,
+      };
+      total.score += answer.lessons_answer_score;
+      total.number += 1;
+      if (answer.lessons_answer_positive !== null || answer.lessons_answer_negative !== null) {
+        total.comments += 1;
+      }
+      acc[answer.lessons_answer_question] = total;
       return acc;
-    },
-    {},
-  );
-  const consolidatedAnswers: Record<string, ConsolidatedAnswer> = Object.fromEntries(
-    Object.entries(answersByQuestion).map(([key, values]) => {
-      const totalScore = values.reduce((sum, o) => sum + o.lessons_answer_score, 0);
-      return [
-        key,
-        {
-          score: Math.round(totalScore / values.length), // Calculate average directly
-          number: values.length,
-          comments: values.filter(
-            o => o.lessons_answer_positive !== null || o.lessons_answer_negative !== null,
-          ).length,
-        },
-      ];
-    }),
-  );
+    }, {});
+    // The score shown is the rounded average.
+    Object.values(totals).forEach((total) => {
+      total.score = Math.round(total.score / total.number);
+    });
+    return totals;
+  }, [lessonsAnswers]);
   return (
     <Box
       id="lessons_categories"

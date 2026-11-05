@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 import TextFieldController from '../../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../../components/i18n';
-import { requiredNumber, zodImplement } from '../../../../../utils/Zod';
+import { optionalText, requiredInteger, zodImplement } from '../../../../../utils/Zod';
 
 // The form requires a content and an order, whereas the order is optional on the API inputs: the
 // dedicated form type keeps `handleSubmit` payloads assignable to
@@ -37,8 +37,8 @@ const LessonsQuestionForm: FunctionComponent<Props> = ({
     resolver: zodResolver(
       zodImplement<LessonsQuestionFormInputs>().with({
         lessons_question_content: z.string().min(1, { message: t('This field is required.') }),
-        lessons_question_explanation: z.string().optional(),
-        lessons_question_order: requiredNumber(t('This field is required.')),
+        lessons_question_explanation: optionalText(),
+        lessons_question_order: requiredInteger(t),
       }),
     ),
     defaultValues: {
@@ -56,11 +56,7 @@ const LessonsQuestionForm: FunctionComponent<Props> = ({
   const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // An empty explanation is left out of the payload so the API stores null, not ''.
-    handleSubmit((data, event) => onSubmit({
-      ...data,
-      lessons_question_explanation: data.lessons_question_explanation || undefined,
-    }, event))(e);
+    handleSubmit(onSubmit)(e);
   };
 
   // Rendering

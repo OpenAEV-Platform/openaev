@@ -2644,6 +2644,8 @@
   "Must be a valid email": "Must be a valid email",
   "Must be a valid URI": "Must be a valid URI",
   "Must be a valid UUID": "Must be a valid UUID",
+  "Must be a whole number": "Must be a whole number",
+  "Must be greater than or equal to 0": "Must be greater than or equal to 0",
   "My evaluation": "My evaluation",
   "N/A": "N/A",
   "name": "Name",
