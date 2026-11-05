@@ -489,4 +489,50 @@ class ImportMapperActivationConfigTest {
   void prodConfigActivatesAutonomousObjectiveTemplates() throws Exception {
     assertActiveTableEntry("autonomous_objective_templates");
   }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains injectors_contracts")
+  void prodConfigActivatesInjectorsContracts() throws Exception {
+    assertActiveTableEntry("injectors_contracts");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains injector_contract_tags")
+  void prodConfigActivatesInjectorContractTags() throws Exception {
+    assertActiveTableEntry("injector_contract_tags");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains"
+          + " injectors_contracts_attack_patterns")
+  void prodConfigActivatesInjectorsContractsAttackPatterns() throws Exception {
+    assertActiveTableEntry("injectors_contracts_attack_patterns");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains"
+          + " injectors_contracts_domains")
+  void prodConfigActivatesInjectorsContractsDomains() throws Exception {
+    assertActiveTableEntry("injectors_contracts_domains");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains"
+          + " injectors_contracts_vulnerabilities")
+  void prodConfigActivatesInjectorsContractsVulnerabilities() throws Exception {
+    assertActiveTableEntry("injectors_contracts_vulnerabilities");
+  }
+
+  @Test
+  @DisplayName(
+      "openaev.tenant.active-tables in application.properties contains"
+          + " injectors_injector_contracts")
+  void prodConfigActivatesInjectorsInjectorContracts() throws Exception {
+    assertActiveTableEntry("injectors_injector_contracts");
+  }
 }

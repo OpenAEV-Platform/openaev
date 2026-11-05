@@ -159,7 +159,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Create and upadte an atomic testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createAndUpdateAnAtomicTesting() throws Exception {
     String response =
         mvc.perform(
