@@ -1320,6 +1320,53 @@ class WorkflowServiceTest {
       verify(workflowRepository).flush();
       verify(stepService).syncScopeAssetsOnStepTemplates(template, List.of("asset-1"));
     }
+
+    @Test
+    @DisplayName(
+        "cleanScopeRulesSimulation should keep the rule of an asset hidden from the caller")
+    void cleanScopeRulesSimulation_should_keepRule_whenAssetExistsButIsHidden() {
+      // Arrange
+      Workflow template =
+          Workflow.builder()
+              .id("wf-template")
+              .status(WorkflowStatus.TEMPLATE)
+              .version(0)
+              .simulation(new Exercise())
+              .tenant(new Tenant("tenant-1"))
+              .build();
+      WorkflowScopeRule hiddenRule =
+          WorkflowScopeRule.builder()
+              .id("rule-red")
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-red")
+              .workflow(template)
+              .build();
+      WorkflowScopeRule ghostRule =
+          WorkflowScopeRule.builder()
+              .id("rule-ghost")
+              .selectedMode(ScopeRuleSelectedMode.ALLOWLIST)
+              .ruleSource(ScopeRuleSource.ASSET)
+              .ruleValue("asset-ghost")
+              .workflow(template)
+              .build();
+      template.getWorkflowScopeRules().addAll(List.of(hiddenRule, ghostRule));
+
+      when(workflowRepository.findBySimulation_IdAndStatus("sim-1", WorkflowStatus.TEMPLATE))
+          .thenReturn(template);
+      // Both read as "not found" in the caller's scope; only the first one still exists.
+      when(scopeSnapshotService.buildCurrentSnapshot(hiddenRule)).thenReturn(null);
+      when(scopeSnapshotService.buildCurrentSnapshot(ghostRule)).thenReturn(null);
+      when(scopeSnapshotService.hiddenAssetIds(any(), any())).thenReturn(Set.of("asset-red"));
+      when(workflowRepository.save(any(Workflow.class))).thenAnswer(i -> i.getArgument(0));
+      when(scopeService.getValidAssets("wf-template")).thenReturn(List.of());
+
+      // Act
+      workflowService.cleanScopeRulesSimulation("sim-1");
+
+      // Assert
+      assertEquals(List.of(hiddenRule), template.getWorkflowScopeRules());
+    }
   }
 
   @Nested

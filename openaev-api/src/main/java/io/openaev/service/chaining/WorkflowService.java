@@ -339,21 +339,38 @@ public class WorkflowService {
    * TEMPLATE workflow, so a reset simulation does not relaunch with unresolvable scope entries.
    * Only allow/deny rules are considered; the referenced entity is probed with the same current
    * resolution used by the snapshot diff (null = no longer exists).
+   *
+   * <p>The probe runs in the caller's scope, where an asset the user is not cleared for resolves to
+   * null like a deleted one. A reset keeps everything and only the clearance narrows what is seen,
+   * so a rule is a ghost only when its asset does not exist at all: the assets that exist but are
+   * hidden from the caller are looked up again by {@link ScopeSnapshotService#hiddenAssetIds}, and
+   * their rules are kept.
    */
   public void cleanScopeRulesSimulation(@NotBlank String simulationId) {
     Workflow template =
         workflowRepository.findBySimulation_IdAndStatus(simulationId, WorkflowStatus.TEMPLATE);
     if (template != null) {
 
-      List<WorkflowScopeRule> rulesToRemove = new ArrayList<>();
+      List<WorkflowScopeRule> unresolved = new ArrayList<>();
       for (WorkflowScopeRule rule : template.getWorkflowScopeRules()) {
         if (rule.getSelectedMode() != null
             && (ScopeRuleSource.ASSET.equals(rule.getRuleSource())
-                || ScopeRuleSource.ASSET_GROUP.equals(rule.getRuleSource()))) {
-          ScopeRuleSnapshot current = scopeSnapshotService.buildCurrentSnapshot(rule);
-          if (current == null) rulesToRemove.add(rule);
+                || ScopeRuleSource.ASSET_GROUP.equals(rule.getRuleSource()))
+            && scopeSnapshotService.buildCurrentSnapshot(rule) == null) {
+          unresolved.add(rule);
         }
       }
+      Set<String> hiddenAssetIds =
+          scopeSnapshotService.hiddenAssetIds(
+              template.getTenant() != null ? template.getTenant().getId() : null,
+              unresolved.stream()
+                  .filter(rule -> ScopeRuleSource.ASSET.equals(rule.getRuleSource()))
+                  .map(WorkflowScopeRule::getRuleValue)
+                  .toList());
+      List<WorkflowScopeRule> rulesToRemove =
+          unresolved.stream()
+              .filter(rule -> !hiddenAssetIds.contains(rule.getRuleValue()))
+              .toList();
       if (!rulesToRemove.isEmpty()) {
         template.getWorkflowScopeRules().removeAll(rulesToRemove);
         workflowRepository.save(template);
