@@ -134,6 +134,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating attack pattern mappings succeeds")
       void updatingAttackPatternMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
@@ -160,6 +161,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName(
           "Updating attack pattern mappings with non-existing attack patterns fail with NOT FOUND")
       void updatingAttackPatternMappingsWithNonExistingAttackPatternsFailWithNotFound()
@@ -179,6 +181,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Fetching by internal ID succeeds")
       void fetchByExternalIdSucceeds() throws Exception {
         InjectorContract ic = injectorContractComposer.generatedItems.getFirst();
@@ -245,6 +248,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
         VulnerabilityComposer.Composer vulnWrapper =
@@ -292,6 +296,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating contract succeeds with external vuln IDs")
       void updateContractWithExtVulnIdsSucceeds() throws Exception {
         VulnerabilityComposer.Composer vulnWrapper =
@@ -856,6 +861,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating attack pattern mappings succeeds")
       void updatingAttackPatternMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
@@ -879,6 +885,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName(
           "Updating attack pattern mappings with non-existing attack patterns fail with NOT FOUND")
       void updatingAttackPatternMappingsWithNonExistingAttackPatternsFailWithNotFound()
@@ -895,6 +902,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Fetching by External ID succeeds")
       void fetchByExternalIdSucceeds() throws Exception {
         InjectorContract ic = injectorContractComposer.generatedItems.getFirst();
@@ -956,6 +964,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
         VulnerabilityComposer.Composer vulnWrapper =
