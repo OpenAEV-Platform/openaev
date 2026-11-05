@@ -712,12 +712,13 @@ public class PhishingTrackingService {
     try {
       findingService.createFindings(List.of(finding), inject.getId());
       result.setFinding(finding);
-      result.setFindingOccurrence(
-          findingOccurrenceService.occurrence(finding.getId(), inject.getId()).orElse(null));
     } catch (Exception e) {
       log.error("Failed to create phishing credentials finding: {}", e.getMessage(), e);
       return;
     }
+    // Outside the try: a failing read is a real error, not one to swallow and commit past
+    result.setFindingOccurrence(
+        findingOccurrenceService.occurrence(finding.getId(), inject.getId()).orElse(null));
     // A chained run copies its findings onto the attack path on each step execution event, but a
     // submission raises none: copy this one (and only this one, by its id set on create) once it
     // is committed, or the attack path never shows it. Only a chained execution carries a step
