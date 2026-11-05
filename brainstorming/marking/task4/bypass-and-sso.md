@@ -4,7 +4,7 @@
 
 ## Problem
 
-Today, a user with `BYPASS` in a tenant group and only `TLP:GREEN` can see `TLP:RED` assets.
+Today, a user whose tenant group has `BYPASS` sees `TLP:RED` assets, even if their groups only give them `TLP:GREEN`.
 
 Why: the agent and OpenCTI accounts must see every asset. So the code skips markings for any user holding
 `AGENT_RUNTIME_ACCESS` or `MANAGE_STIX_BUNDLE`, two hidden rights meant only for these accounts. But a tenant `BYPASS`
@@ -180,8 +180,9 @@ else {
 
 ## Breaking changes
 
-- SSO: an admin from a provider bound to a tenant now administers only that tenant, no longer the whole platform. This
-  applies to users who sign in with the admin role after the upgrade and do not already have `user_admin`.
+- SSO: today, a user that the identity provider marks as admin becomes admin of the whole platform (`user_admin`),
+  even when the provider is bound to one tenant. After the upgrade, they join the "Admin" group of that tenant instead,
+  so they manage only that tenant. Users who already have `user_admin` keep it.
 - Markings (`MARKING` preview flag): `user_admin` users other than the first admin, and `BYPASS` users, no longer see
   assets above their markings. Fix: add them to a group that holds those markings.
 - Adding a user to a group, or making it a default group, now needs the group's markings.
