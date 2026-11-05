@@ -14,19 +14,20 @@ coverage:
       # `removed_code_behavior: adjust_base` is Codecov's default, but only when it is written here
       # does a failed project status add its line to the comment.
       backend:
-        target: auto
+        target: 80%
         threshold: 0.1%
-        informational: true
         removed_code_behavior: adjust_base
         flags:
           - backend
       frontend:
         target: auto
+        threshold: 0.1%
         informational: true
         flags:
           - frontend
       e2e:
         target: auto
+        threshold: 0.1%
         informational: true
         flags:
           - e2e

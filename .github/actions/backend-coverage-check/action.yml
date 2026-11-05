@@ -3,9 +3,11 @@ description: >
   Check the backend coverage rules of a pull request on the JaCoCo report the coverage-backend job
   builds: at least min-coverage percent of the backend lines it changes are covered (diff-cover),
   and backend line coverage does not drop by more than max-drop points against the latest report
-  of the target branch (check-coverage-drop.py). Both rules run to the end, then the step fails if
-  one of them failed. When one fails, a "Backend Coverage (advisory)" check explains why, posted
-  with the PR checks app like the PR title check; pull requests from forks only get the job log.
+  of the target branch (check-coverage-drop.py). Both rules run to the end. When one fails, a
+  "Backend Coverage (advisory)" check explains why, posted with the PR checks app like the PR
+  title check, and the step stays green: that check carries the result. When the explanation
+  check cannot be posted (pull requests from forks get no app token, or the post fails), the step
+  fails itself, so that a broken rule is never silent.
   Expects a checkout of the pull request's merge commit with at least its first parent, and the
   report at openaev-api/target/site/jacoco/jacoco.xml. Requires the job to set GH_TOKEN, which
   reads the target branch's reports.
@@ -67,6 +69,7 @@ runs:
 
     # Only when a rule failed: a passing pull request gets no extra check.
     - name: Explain the failure in a check
+      id: explain
       if: ${{ steps.generate-token.outputs.token != '' && (steps.patch.outcome != 'success' || steps.project.outcome != 'success') }}
       continue-on-error: true
       shell: bash
@@ -87,12 +90,14 @@ runs:
           --project-outcome "$PROJECT_OUTCOME" \
           --project-log "$RUNNER_TEMP/project-coverage.txt"
 
-    - name: Fail on a broken coverage rule
-      if: ${{ steps.patch.outcome != 'success' || steps.project.outcome != 'success' }}
+    # The explanation check reports the broken rule when it was posted; otherwise this step does.
+    - name: Fail on a broken coverage rule nobody was told about
+      if: ${{ (steps.patch.outcome != 'success' || steps.project.outcome != 'success') && steps.explain.outcome != 'success' }}
       shell: bash
       env:
         PATCH_OUTCOME: ${{ steps.patch.outcome }}
         PROJECT_OUTCOME: ${{ steps.project.outcome }}
       run: |
         echo "Backend coverage rules: changed lines $PATCH_OUTCOME, whole backend $PROJECT_OUTCOME."
+        echo "The explanation check was not posted (fork pull request, or the post failed)."
         exit 1
