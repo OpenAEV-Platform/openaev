@@ -149,6 +149,24 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
     }
 
     @Test
+    @DisplayName(
+        "given a selector that does not name the row's tenant, execution traces are refused by the"
+            + " by-id scope guard")
+    void given_selectorNotNamingRowTenant_should_refuseExecutionTracesAtTheScopeGuard()
+        throws Exception {
+      // Arrange: the row lives in otherTenant, the selector names memberTenant instead, so it is
+      // out of the request's scope even though the caller belongs to memberTenant.
+      String injectId = seedAtomicTesting(otherTenant);
+      Route route = headerRoute(memberTenant);
+
+      // Act
+      int status = injectExecutionTraces(route, injectId, "nonexistent-team", "TEAMS");
+
+      // Assert
+      assertThat(status).isEqualTo(404);
+    }
+
+    @Test
     @DisplayName("given a selector naming a tenant the caller is not a member of, it is refused")
     void given_selectorNamingNonMemberTenant_should_beRefused() throws Exception {
       // Arrange

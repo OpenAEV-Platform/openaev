@@ -199,4 +199,22 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
   int getInject(Route route, String id) throws Exception {
     return status(route.with(get(route.inject(id))));
   }
+
+  /** {@code GET /injects/execution-traces}: the by-id scope guard runs ahead of the trace query. */
+  int injectExecutionTraces(Route route, String injectId, String targetId, String targetType)
+      throws Exception {
+    String uri = injectsBaseUri(route) + "/execution-traces";
+    return status(
+        route.with(
+            get(uri)
+                .param("injectId", injectId)
+                .param("targetId", targetId)
+                .param("targetType", targetType)));
+  }
+
+  String injectsBaseUri(Route route) {
+    return route.pathTenant() == null
+        ? INJECT_URI
+        : TENANT_INJECT_URI.replace("{tenantId}", route.pathTenant());
+  }
 }

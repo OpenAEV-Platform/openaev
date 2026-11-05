@@ -151,23 +151,6 @@ abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeTestBase
   }
 
   /**
-   * {@code GET /injects/execution-traces}: the handler itself resolves no inject and checks no
-   * scope (it defers that to the inject's own activation), so the status this returns is entirely
-   * the {@code @AccessControl} gate's decision, i.e. {@link
-   * io.openaev.service.PermissionService#resolveTarget}'s own by-id load.
-   */
-  int injectExecutionTraces(Route route, String injectId, String targetId, String targetType)
-      throws Exception {
-    String uri = injectsBaseUri(route) + "/execution-traces";
-    return performStatus(
-        route.with(
-            get(uri)
-                .param("injectId", injectId)
-                .param("targetId", targetId)
-                .param("targetType", targetType)));
-  }
-
-  /**
    * {@code PUT /injects/{exerciseId}/{injectId}}: updates {@code injectId} under {@code
    * exerciseId}.
    */
@@ -177,12 +160,6 @@ abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeTestBase
     String uri = injectsBaseUri(route) + "/" + exerciseId + "/" + injectId;
     return performStatus(
         route.with(put(uri).content(asJsonString(input)).contentType(MediaType.APPLICATION_JSON)));
-  }
-
-  private String injectsBaseUri(Route route) {
-    return route.pathTenant() == null
-        ? InjectApi.INJECT_URI
-        : InjectApi.TENANT_INJECT_URI.replace("{tenantId}", route.pathTenant());
   }
 
   private int performStatus(MockHttpServletRequestBuilder request) throws Exception {

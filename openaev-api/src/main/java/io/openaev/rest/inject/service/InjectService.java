@@ -1366,6 +1366,20 @@ public class InjectService {
         getInjectTracesFromInjectAndTarget(injectId, targetId, targetType));
   }
 
+  /**
+   * Validates that an execution-trace target type is one this family resolves traces for. Called
+   * ahead of the by-id scope guard, so an unsupported type answers 400 regardless of whether the
+   * inject itself exists in the request's scope.
+   */
+  public void requireSupportedExecutionTraceTargetType(final TargetType targetType) {
+    switch (targetType) {
+      case AGENT, ASSETS, AI_TARGETS, TEAMS, PLAYERS, MANUAL -> {
+        // supported
+      }
+      default -> throw new BadRequestException("Target type " + targetType + " is not supported");
+    }
+  }
+
   public List<ExecutionTrace> getInjectTracesFromInjectAndTarget(
       final String injectId, final String targetId, final TargetType targetType) {
     return switch (targetType) {
