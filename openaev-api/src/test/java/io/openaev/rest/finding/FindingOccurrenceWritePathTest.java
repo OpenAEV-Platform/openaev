@@ -65,7 +65,7 @@ class FindingOccurrenceWritePathTest extends IntegrationTest {
         tenantId);
     jdbc.update(
         "INSERT INTO injects_statuses (status_id, status_inject, status_name, tracking_sent_date)"
-            + " VALUES (?, ?, 'SUCCESS', ?)",
+            + " VALUES (?, ?, 'EXECUTED', ?)",
         UUID.randomUUID().toString(),
         injectId,
         Timestamp.from(SENT_DATE));

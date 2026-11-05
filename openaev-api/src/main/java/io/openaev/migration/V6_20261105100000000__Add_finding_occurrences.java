@@ -68,8 +68,10 @@ public class V6_20261105100000000__Add_finding_occurrences extends BaseJavaMigra
         "ALTER TABLE findings ADD COLUMN IF NOT EXISTS finding_location_id VARCHAR(255)"
             + " CONSTRAINT findings_location_fk REFERENCES finding_locations (finding_location_id)"
             + " ON DELETE CASCADE");
-    statement.execute("ALTER TABLE findings ADD COLUMN IF NOT EXISTS finding_first_seen TIMESTAMP");
-    statement.execute("ALTER TABLE findings ADD COLUMN IF NOT EXISTS finding_last_seen TIMESTAMP");
+    statement.execute(
+        "ALTER TABLE findings ADD COLUMN IF NOT EXISTS finding_first_seen TIMESTAMPTZ");
+    statement.execute(
+        "ALTER TABLE findings ADD COLUMN IF NOT EXISTS finding_last_seen TIMESTAMPTZ");
     statement.execute(
         "CREATE INDEX IF NOT EXISTS idx_findings_location ON findings (finding_location_id)");
     // Existing rows have a NULL hash, and NULLs never conflict: the key can exist before the writer
@@ -91,9 +93,9 @@ public class V6_20261105100000000__Add_finding_occurrences extends BaseJavaMigra
             finding_occurrence_inject_id VARCHAR(255)
                 CONSTRAINT finding_occurrences_inject_fk REFERENCES injects (inject_id)
                 ON DELETE SET NULL,
-            finding_occurrence_date TIMESTAMP NOT NULL,
+            finding_occurrence_date TIMESTAMPTZ NOT NULL,
             finding_occurrence_field VARCHAR(255),
-            finding_occurrence_created_at TIMESTAMP NOT NULL DEFAULT now(),
+            finding_occurrence_created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
             CONSTRAINT finding_occurrences_finding_inject_unique
                 UNIQUE (finding_occurrence_finding_id, finding_occurrence_inject_id)
         )
