@@ -62,8 +62,12 @@ public class InjectAssistantService {
     Map<AssetGroup, List<Endpoint>> assetsFromGroupMap =
         assetGroupService.assetsFromAssetGroupMap(assetGroups);
 
+    // Resolved in the scenario's own tenant, not the request's ambient scope: the manual built-in
+    // contract id repeats across tenants (#8485), and a caller generating injects for this
+    // scenario can belong to several.
     InjectorContract contractForPlaceholder =
-        injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
+        injectorContractService.injectorContractInTenant(
+            ManualContract.MANUAL_DEFAULT, scenario.getTenant().getId());
 
     // Process injects generation for each attack pattern
     List<Inject> injects = new ArrayList<>();

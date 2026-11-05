@@ -166,6 +166,25 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
+   * Retrieves an injector contract by ID or external ID, constrained to a known parent's tenant (an
+   * exercise or a scenario the caller already resolved in scope). A built-in contract id repeats
+   * across tenants (#8485), so a lookup that relies on the request's own scope can match more than
+   * one tenant's copy; this stays inside the parent's tenant regardless.
+   *
+   * @param id the injector contract ID or external ID
+   * @param tenantId the parent row's tenant
+   * @return the injector contract
+   * @throws ElementNotFoundException if not found in that tenant
+   */
+  public InjectorContract injectorContractInTenant(
+      @NotBlank final String id, @NotBlank final String tenantId) {
+    return injectorContractRepository
+        .findByIdOrExternalIdAndTenant(id, id, tenantId)
+        // User-facing wording: the entity is exposed as "threat arsenal item" everywhere.
+        .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
+  }
+
+  /**
    * Retrieves an injector contract by ID, only if it is referenced by one of the given workflow's
    * steps.
    *

@@ -193,6 +193,21 @@ public interface InjectorContractRepository
       @Param("id") String id, @Param("externalId") String externalId);
 
   /**
+   * Tenant-scoped counterpart of {@link #findByIdOrExternalId}: a caller resolving a contract for a
+   * parent row it already holds (an exercise, a scenario) must stay in that parent's tenant
+   * regardless of the request's own scope, since a built-in contract id repeats across tenants
+   * (#8485) and the ambient scope can legitimately span several.
+   */
+  @NotNull
+  @Query(
+      "SELECT ic FROM InjectorContract ic WHERE (ic.compositeId.id = :id OR ic.externalId ="
+          + " :externalId) AND ic.compositeId.tenantId = :tenantId")
+  Optional<InjectorContract> findByIdOrExternalIdAndTenant(
+      @Param("id") String id,
+      @Param("externalId") String externalId,
+      @Param("tenantId") @NotNull String tenantId);
+
+  /**
    * Batched form of {@link #findByIdOrExternalId}: every contract whose id OR external id is in the
    * set.
    */
