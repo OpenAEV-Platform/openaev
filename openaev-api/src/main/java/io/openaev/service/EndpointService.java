@@ -560,7 +560,8 @@ public class EndpointService implements AuditLoggedService {
     } else {
       // Check if endpoint exists
       Optional<Endpoint> existingEndpoint =
-          findEndpointByAtLeastOneMacAddress(agentInput.getMacAddresses(), tenantId);
+          findEndpointByExternalReference(agentInput.getExternalReference(), tenantId)
+              .or(() -> findEndpointByAtLeastOneMacAddress(agentInput.getMacAddresses(), tenantId));
       if (existingEndpoint.isPresent()) {
         agent = updateExistingEndpointAndManageAgent(existingEndpoint.get(), agentInput);
       } else {
