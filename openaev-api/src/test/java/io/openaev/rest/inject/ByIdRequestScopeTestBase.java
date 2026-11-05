@@ -8,6 +8,7 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import io.openaev.IntegrationTest;
@@ -194,6 +195,14 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
 
   int deleteAtomicTesting(Route route, String id) throws Exception {
     return status(route.with(delete(route.atomicTesting(id))));
+  }
+
+  /**
+   * {@code POST /atomic-testings/{injectId}/expectations-drift/realign}: {@code SUPPORTS}
+   * propagation, so the by-id scope guard carries its own transaction.
+   */
+  int realignAtomicTesting(Route route, String id) throws Exception {
+    return status(route.with(post(route.atomicTesting(id) + "/expectations-drift/realign")));
   }
 
   int getInject(Route route, String id) throws Exception {

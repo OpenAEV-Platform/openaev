@@ -55,6 +55,22 @@ class ByIdRequestScopeArmedTest extends ByIdRequestScopeTestBase {
       assertThat(new int[] {read, update, delete}).containsExactly(200, 200, 200);
       assertThat(atomicTestingExists(injectId)).isFalse();
     }
+
+    @Test
+    @DisplayName(
+        "given an atomic testing of a member tenant, its expectations are realigned despite the"
+            + " endpoint's SUPPORTS propagation")
+    void given_atomicTestingOfMemberTenant_should_beRealigned() throws Exception {
+      // Arrange
+      String injectId = seedAtomicTesting(memberTenant);
+      Route route = tenantRoute(memberTenant);
+
+      // Act
+      int realign = realignAtomicTesting(route, injectId);
+
+      // Assert
+      assertThat(realign).isEqualTo(200);
+    }
   }
 
   @Nested
