@@ -104,7 +104,8 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 ## Lombok
 
 - Services: `@RequiredArgsConstructor` + `private final` fields
-- Entities: `@Getter @Setter` (not `@Data`)
+- Entities: `@Getter @Setter` (not `@Data`): `@Data` also generates a field-based `equals`/`hashCode`,
+  while entity identity is the id only (see `orm.instructions.md` → Entity identity)
 - DTOs: `@Builder` OK, prefer records for new code
 - Never `@Autowired` on fields in new code
 
