@@ -205,8 +205,37 @@ public class CollectorService extends AbstractConnectorService<Collector, Collec
     return catalogConnectorMapper.toConnectorIds(null, null, true);
   }
 
+  /**
+   * Lists the tenant's security-platform collectors able to answer an inject expectation. A
+   * collector deployed through the Integration Manager whose owning connector instance is paused
+   * (stopped, or a stop requested) is left out: it will never report, so seeding a pending result
+   * for it would hold the expectation until the expiration manager closes it (issue #4830). A
+   * collector with no owning instance (deployed by hand, or built in) is always kept.
+   *
+   * @param tenantId the tenant owning the collectors
+   * @return the security-platform collectors, without those whose connector instance is paused
+   */
   public List<Collector> securityPlatformCollectors(@NotNull String tenantId) {
-    return collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(tenantId);
+    List<Collector> collectors =
+        collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(tenantId);
+    if (collectors.isEmpty()) {
+      return collectors;
+    }
+    Set<String> pausedCollectorIds =
+        new HashSet<>(
+            connectorInstanceConfigurationRepository
+                .findConnectorIdsOfPausedInstancesByKeyAndTenantId(
+                    ConnectorType.COLLECTOR.getIdKeyName(), tenantId));
+    if (pausedCollectorIds.isEmpty()) {
+      return collectors;
+    }
+    List<Collector> active = new ArrayList<>(collectors.size());
+    for (Collector collector : collectors) {
+      if (!pausedCollectorIds.contains(collector.getId())) {
+        active.add(collector);
+      }
+    }
+    return active;
   }
 
   public Collector updateCollectorState(Collector collectorToUpdate, ObjectNode newState) {
