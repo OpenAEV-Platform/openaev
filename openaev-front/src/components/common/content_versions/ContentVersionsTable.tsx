@@ -7,7 +7,7 @@ import { Link } from 'react-router';
 
 import { type ContentHistoryOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
-import { FDS_ROW_DETAIL_CELL_SX, FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../fdsTableSpec';
+import { FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../fdsTableSpec';
 import BeforeAfter from '../update/BeforeAfter';
 
 // Shape of content_history_details, a free JSON object on the API side.
@@ -292,7 +292,7 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
               const open = opened === entry.content_history_id;
               return (
                 <Fragment key={entry.content_history_id}>
-                  <TableRow selected={open}>
+                  <TableRow>
                     <TableCell>{label(entry)}</TableCell>
                     <TableCell sx={{ overflowWrap: 'anywhere' }}>{summary(entry)}</TableCell>
                     <TableCell>{entry.content_history_user ?? (entry.content_history_automatic ? t('Platform') : '-')}</TableCell>
@@ -310,9 +310,9 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
                     </TableCell>
                   </TableRow>
                   {open && (
-                  // Table row detail of the DS: the field by field change on the highlight surface.
+                  // The field by field change, on the page itself: same as the Versions tab (DS borders only).
                     <TableRow>
-                      <TableCell colSpan={5} sx={FDS_ROW_DETAIL_CELL_SX}>
+                      <TableCell colSpan={5} sx={{ padding: '16px !important' }}>
                         <ChangesTable
                           changes={changes}
                           beforeLabel={entry.content_history_from_version ? String(t('Before · v{version}', { version: entry.content_history_from_version })) : undefined}

@@ -1,20 +1,16 @@
 import {
   Button,
-  CustomizePanel,
-  CustomizePanelContent,
-  type CustomizePanelItem,
-  CustomizePanelTrigger,
   Dialog,
   DialogBody,
   DialogContent,
   DialogFooter,
   DialogTitle,
-  IconButton,
   Input,
-  Menu,
-  MenuContent,
   MenuItem,
-  MenuTrigger,
+  MenuSeparator,
+  MenuSub,
+  MenuSubContent,
+  MenuSubTrigger,
   SearchField,
   Select,
   SelectContent,
@@ -27,7 +23,7 @@ import {
   TabsTrigger,
   Text,
 } from '@filigran/design-system';
-import { AddOutlined, DeleteOutlined, EditOutlined, ExpandLess, ExpandMore, FactCheckOutlined, MoreVert, TuneOutlined } from '@mui/icons-material';
+import { AddOutlined, DeleteOutlined, EditOutlined, ExpandLess, ExpandMore, FactCheckOutlined, OpenInNewOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -40,17 +36,12 @@ import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
 import { tint } from '../../../utils/tint';
-import { displayedApprovalStatus, NEW_ACTION_HINT, NEW_VERSION_HINT } from './approval/approvalStatusUtils';
-import ReviewSlicePanel, { type SliceValue } from './approval/ReviewSlicePanel';
+import { displayedApprovalStatus } from './approval/approvalStatusUtils';
 import {
-  ALL_VIEWS_AS_TABS,
   builtInViews,
-  fitLayout,
   matches,
   matchesFilters,
-  MAX_PINNED_VIEWS,
   readSavedViews,
-  readViewLayout,
   type ReviewContext,
   type ReviewFilters,
   type ReviewKind,
@@ -59,7 +50,6 @@ import {
   sameFilters,
   sliceValueOf,
   writeSavedViews,
-  writeViewLayout,
 } from './approval/reviewViews';
 import { isFromCollector, type QueueItem, useApprovalQueue, useQueueDrawer } from './approval/useApprovalQueue';
 import CreateThreatArsenalAction from './CreateThreatArsenalAction';
@@ -102,27 +92,8 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
   const views = [...builtIn, ...saved];
   const activeView = views.find(view => view.id === searchParams.get(VIEW_PARAM)) ?? builtIn[0];
   const viewLabel = (view: ReviewView) => (view.saved ? view.label : t(view.label));
-  // Idea A: with few views all are tabs; beyond (the DS Customize Panel is for 5+ items), the pinned
-  // ones are tabs, the other shown ones sit under "More views", and the Customize Panel arranges them.
-  const [storedLayout, setStoredLayout] = useState(() => readViewLayout(mode, me));
-  const layout = fitLayout(storedLayout, views);
-  const allTabs = views.length <= ALL_VIEWS_AS_TABS;
-  const viewById = (id: string) => views.find(view => view.id === id);
-  const tabViews = allTabs ? views : layout.filter(item => item.visible && item.pinned).map(item => viewById(item.id)).filter((view): view is ReviewView => !!view);
-  const moreViews = allTabs ? [] : layout.filter(item => item.visible && !item.pinned).map(item => viewById(item.id)).filter((view): view is ReviewView => !!view);
-  const isTab = (view: ReviewView) => tabViews.some(tabView => tabView.id === view.id);
-  const storeLayout = (next: typeof layout) => {
-    setStoredLayout(next);
-    writeViewLayout(mode, me, next);
-  };
-  const panelItems: CustomizePanelItem[] = layout.map(item => ({
-    ...item,
-    label: viewLabel(viewById(item.id) as ReviewView),
-  }));
-  const defaultPanelItems: CustomizePanelItem[] = fitLayout(null, views).map(item => ({
-    ...item,
-    label: viewLabel(viewById(item.id) as ReviewView),
-  }));
+  // Built-in views are always tabs, in a fixed order (the workflow, the same for everyone); the person's
+  // own views sit in one "Custom views" tab menu, so the tab row never grows.
   const [filters, setFilters] = useState<ReviewFilters>(activeView.filters);
   const [naming, setNaming] = useState<'new' | 'rename' | null>(null);
   const [viewName, setViewName] = useState('');
@@ -149,33 +120,9 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
   const counts = Object.fromEntries(views.map(view => [view.id, all.filter(item => matches(item, view, view.filters, context, name(item))).length]));
   const shown = all.filter(item => matches(item, activeView, filters, context, name(item)));
 
-  // The slice rail counts what the view and filters list, whatever value is picked.
+  // "Submitted by" choices: who submitted what the view and the other filters list.
   const unsliced = all.filter(item => matchesFilters(item, activeView, filters, context, name(item)));
-  const sliceLabels: Record<string, string> = {
-    people: t('From people'),
-    collectors: t('From collectors'),
-    new: t('New actions'),
-    version: t('New versions'),
-  };
-  const sliceHints: Record<string, string> = {
-    new: t(NEW_ACTION_HINT),
-    version: t(NEW_VERSION_HINT),
-  };
-  const sliceValues: SliceValue[] = Object.entries(unsliced.reduce<Record<string, number>>((acc, item) => {
-    const value = sliceValueOf(item, filters.sliceField, context);
-    return {
-      ...acc,
-      [value]: (acc[value] ?? 0) + 1,
-    };
-  }, {}))
-    .map(([value, count]) => ({
-      value,
-      label: sliceLabels[value] ?? value,
-      hint: sliceHints[value],
-      count,
-    }))
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-
+  const authors = [...new Set(unsliced.map(item => sliceValueOf(item, 'author', context)))].sort();
   const selectView = (view: ReviewView) => {
     setFilters(view.filters);
     searchParams.set(VIEW_PARAM, view.id);
@@ -185,13 +132,16 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
     setSaved(next);
     writeSavedViews(mode, me, next);
   };
-  const openNaming = (kind: 'new' | 'rename') => {
-    setViewName(kind === 'rename' ? activeView.label : '');
+  const [renaming, setRenaming] = useState<ReviewView | null>(null);
+  const openNaming = (kind: 'new' | 'rename', target?: ReviewView) => {
+    setRenaming(kind === 'rename' ? target ?? activeView : null);
+    setViewName(kind === 'rename' ? (target ?? activeView).label : '');
     setNaming(kind);
   };
   const submitName = () => {
     if (naming === 'rename') {
-      storeViews(saved.map(view => (view.id === activeView.id
+      const renamedId = renaming?.id ?? activeView.id;
+      storeViews(saved.map(view => (view.id === renamedId
         ? {
             ...view,
             label: viewName.trim(),
@@ -207,12 +157,6 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
         saved: true,
       };
       storeViews([...saved, view]);
-      // A view just made shows as a tab when there is room, so its creator sees it land.
-      storeLayout([...layout, {
-        id: view.id,
-        visible: true,
-        pinned: layout.filter(item => item.pinned).length < MAX_PINNED_VIEWS,
-      }]);
       selectView(view);
     }
     setNaming(null);
@@ -229,10 +173,9 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
         }
       : view)));
   };
-  const deleteView = () => {
-    storeViews(saved.filter(view => view.id !== activeView.id));
-    storeLayout(layout.filter(item => item.id !== activeView.id));
-    selectView(builtIn[0]);
+  const deleteView = (target: ReviewView) => {
+    storeViews(saved.filter(view => view.id !== target.id));
+    if (target.id === activeView.id) selectView(builtIn[0]);
   };
   const setFilter = (patch: Partial<ReviewFilters>) => setFilters({
     ...filters,
@@ -333,64 +276,11 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
     </div>
   );
 
+  const deleteStyle = { color: 'var(--color-feedback-error-primary)' };
   const viewTabs = (
     <Tabs value={activeView.id} onValueChange={id => selectView(views.find(view => view.id === id) ?? builtIn[0])} panels="external">
-      <TabsList
-        aria-label={t('Views')}
-        actions={(
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: theme.spacing(0.5),
-          }}
-          >
-            <Button priority="tertiary" size="sm" startIcon={<AddOutlined fontSize="small" />} onClick={() => openNaming('new')}>
-              {t('New view')}
-            </Button>
-            {!allTabs && (
-              <CustomizePanel
-                mode="show"
-                items={panelItems}
-                defaultItems={defaultPanelItems}
-                maxPinned={MAX_PINNED_VIEWS}
-                onSave={next => storeLayout(next.map(({ id, visible, pinned }) => ({
-                  id,
-                  visible,
-                  pinned,
-                })))}
-              >
-                <CustomizePanelTrigger asChild>
-                  <IconButton size="sm" priority="tertiary" icon={<TuneOutlined fontSize="small" />} aria-label={t('Customize views')} />
-                </CustomizePanelTrigger>
-                <CustomizePanelContent
-                  align="end"
-                  title={t('Views')}
-                  labels={{
-                    pinnedSection: t('Tabs'),
-                    unpinnedSection: t('More views'),
-                    counter: ({ pinned, maxPinned }) => t('{pinned} of {max} tabs used', {
-                      pinned: String(pinned),
-                      max: String(maxPinned),
-                    }),
-                  }}
-                />
-              </CustomizePanel>
-            )}
-            {activeView.saved && (
-              <Menu>
-                <MenuTrigger asChild>
-                  <IconButton size="sm" priority="tertiary" icon={<MoreVert fontSize="small" />} aria-label={t('Options of the view {name}', { name: viewLabel(activeView) })} />
-                </MenuTrigger>
-                <MenuContent align="end">
-                  <MenuItem startIcon={<EditOutlined fontSize="small" />} onSelect={() => openNaming('rename')}>{t('Rename view')}</MenuItem>
-                  <MenuItem startIcon={<DeleteOutlined fontSize="small" />} onSelect={deleteView}>{t('Delete view')}</MenuItem>
-                </MenuContent>
-              </Menu>
-            )}
-          </div>
-        )}
-      >
-        {tabViews.map(view => (
+      <TabsList aria-label={t('Views')}>
+        {builtIn.map(view => (
           <TabsTrigger
             key={view.id}
             value={view.id}
@@ -400,18 +290,30 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
             {viewLabel(view)}
           </TabsTrigger>
         ))}
-        {moreViews.length > 0 && (
-          <TabsMenuTrigger
-            active={!isTab(activeView)}
-            menu={moreViews.map(view => (
-              <MenuItem key={view.id} selected={view.id === activeView.id} onSelect={() => selectView(view)}>
-                {`${viewLabel(view)} · ${counts[view.id] ?? 0}`}
-              </MenuItem>
-            ))}
-          >
-            {t('More views')}
-          </TabsMenuTrigger>
-        )}
+        {/* One menu for the person's own views: open, rename or delete each one on its own row. */}
+        <TabsMenuTrigger
+          active={!!activeView.saved}
+          menu={(
+            <>
+              {saved.map(view => (
+                <MenuSub key={view.id}>
+                  <MenuSubTrigger>{`${viewLabel(view)} · ${counts[view.id] ?? 0}`}</MenuSubTrigger>
+                  <MenuSubContent>
+                    <MenuItem startIcon={<OpenInNewOutlined fontSize="small" />} onSelect={() => selectView(view)}>{t('Open view')}</MenuItem>
+                    <MenuItem startIcon={<EditOutlined fontSize="small" />} onSelect={() => openNaming('rename', view)}>{t('Rename view')}</MenuItem>
+                    <MenuItem startIcon={<DeleteOutlined fontSize="small" style={deleteStyle} />} style={deleteStyle} onSelect={() => deleteView(view)}>
+                      {t('Delete view')}
+                    </MenuItem>
+                  </MenuSubContent>
+                </MenuSub>
+              ))}
+              {saved.length > 0 && <MenuSeparator />}
+              <MenuItem startIcon={<AddOutlined fontSize="small" />} onSelect={() => openNaming('new')}>{t('New custom view')}</MenuItem>
+            </>
+          )}
+        >
+          {activeView.saved ? viewLabel(activeView) : t('Custom views')}
+        </TabsMenuTrigger>
       </TabsList>
     </Tabs>
   );
@@ -454,11 +356,26 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
           <SelectItem value="version">{t('New versions')}</SelectItem>
         </SelectContent>
       </Select>
-      {/* As in GitHub: once the filters differ from the view, offer to keep or drop the change. */}
+      {mode === 'to-review' && (
+        <Select
+          value={filters.sliceField === 'author' && filters.sliceValue ? filters.sliceValue : 'all'}
+          onValueChange={value => setFilter({
+            sliceField: 'author',
+            sliceValue: value === 'all' ? null : value,
+          })}
+        >
+          <SelectTrigger aria-label={t('Submitted by')} style={{ minWidth: 170 }}><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('Anyone')}</SelectItem>
+            {authors.map(author => <SelectItem key={author} value={author}>{author}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      )}
+      {/* Built-in views are fixed lists: a filter change can be kept as a custom view; a custom view saves its changes. */}
       {changed && (
         <>
           <Button priority="tertiary" onClick={() => setFilters(activeView.filters)}>{t('Discard')}</Button>
-          <Button priority="secondary" onClick={saveChanges}>{activeView.saved ? t('Save changes') : t('Save as new view')}</Button>
+          <Button priority="secondary" onClick={saveChanges}>{activeView.saved ? t('Save changes') : t('Save as custom view')}</Button>
         </>
       )}
     </div>
@@ -475,20 +392,7 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
       <MarketplaceBrowser
         hero={<ThreatArsenalPageHeader active={mode} onCreate={() => waiting.reload()} />}
         tabs={viewTabs}
-        sidebar={(
-          <ReviewSlicePanel
-            fields={mode === 'to-review' ? ['author', 'domain', 'source', 'kind'] : ['domain', 'source', 'kind']}
-            field={filters.sliceField}
-            values={sliceValues}
-            total={unsliced.length}
-            selected={filters.sliceValue}
-            onFieldChange={sliceField => setFilter({
-              sliceField,
-              sliceValue: null,
-            })}
-            onSelect={sliceValue => setFilter({ sliceValue })}
-          />
-        )}
+        sidebar={null}
         toolbar={toolbar}
       >
         {loading || sections.length === 0
@@ -534,11 +438,11 @@ const ThreatArsenalReviewPage: FunctionComponent<Props> = ({ mode }) => {
 
       <Dialog open={naming !== null} onOpenChange={open => !open && setNaming(null)}>
         <DialogContent size="sm">
-          <DialogTitle>{naming === 'rename' ? t('Rename view') : t('New view')}</DialogTitle>
+          <DialogTitle>{naming === 'rename' ? t('Rename view') : t('New custom view')}</DialogTitle>
           <DialogBody>
             {naming === 'new' && (
               <Text variant="content-compact" className="text-default-secondary">
-                {t('Starts from "{view}" with the current search, filters and slice. It opens as a new tab.', { view: viewLabel(activeView) })}
+                {t('Keeps "{view}" with the current search and filters, under Custom views. Only you see it.', { view: viewLabel(activeView) })}
               </Text>
             )}
             <Input

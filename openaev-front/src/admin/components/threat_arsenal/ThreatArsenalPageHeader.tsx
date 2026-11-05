@@ -77,6 +77,7 @@ export const ThreatArsenalHeroStats: FunctionComponent<StatsProps> = ({ onFilter
   const canApprove = ability.can(ACTIONS.APPROVE, SUBJECTS.THREAT_ARSENALS);
   const canSubmit = !canApprove && ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
   const withTabs = variant === 'queue' && (canApprove || canSubmit);
+  const rejectedPath = canApprove ? `${THREAT_ARSENAL_TO_REVIEW_PATH}?view=rejected` : `${THREAT_ARSENAL_MY_CHANGES_PATH}?view=needs-changes`;
 
   // Counts over the whole arsenal, never the current page or filters.
   const allActions = useMemo(() => buildSearchPagination({}), []);
@@ -114,9 +115,11 @@ export const ThreatArsenalHeroStats: FunctionComponent<StatsProps> = ({ onFilter
           value: rejectedCount,
           color: theme.palette.error.main,
           icon: DoNotDisturbOnOutlined,
-          to: withTabs && canSubmit ? THREAT_ARSENAL_MY_CHANGES_PATH : undefined,
+          // Approvers land on the Rejected view, authors on what needs their changes.
+          to: withTabs ? rejectedPath : undefined,
         },
-      ].map((tile) => {
+      // Attention tiles show only when there is something to act on; Active and Not installed always show.
+      ].filter(tile => tile.value > 0).map((tile) => {
         if (!tile.to && onFilterApproval) {
           return (
             <button
