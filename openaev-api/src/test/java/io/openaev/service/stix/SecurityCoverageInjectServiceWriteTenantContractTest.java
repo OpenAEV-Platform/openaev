@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Scenario;
@@ -25,24 +26,32 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * {@code injectors_contracts} is tenant-active and the manual built-in contract id repeats across
- * tenants (#8485). {@code
- * SecurityCoverageInjectService#createdInjectsForScenarioAndSecurityCoverage} used to resolve it
- * through a bare id/external-id lookup, ambiguous once the request scope spans more than one tenant
- * holding a copy of the contract: a scope narrowed to a single tenant hides the regression, because
- * the inspector already narrows the ambiguous lookup to the one row visible, so this test arms the
- * scope on both tenants that hold the contract, the shape the bare lookup cannot resolve.
+ * tenants (#8485), so a caller resolving it for a parent row it already holds (here, the scenario a
+ * security-coverage inject is created on) must stay in that parent's own tenant regardless of the
+ * ambient scope. This test arms the production active-tables list (not just {@code
+ * injectors_contracts} alone, so the class follows production as it activates further tables) and a
+ * scope spanning both tenants that hold a copy of the built-in contract, the shape a bare
+ * id/external-id lookup cannot resolve, to pin {@code
+ * SecurityCoverageInjectService#createdInjectsForScenarioAndSecurityCoverage}'s resolution to the
+ * scenario's own tenant.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=injectors_contracts")
 @WithMockUser(isAdmin = true)
 @DisplayName(
     "SecurityCoverageInjectService resolves the built-in contract in the scenario's own tenant")
 class SecurityCoverageInjectServiceWriteTenantContractTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   @Autowired private SecurityCoverageInjectService securityCoverageInjectService;
   @Autowired private ScenarioRepository scenarioRepository;
