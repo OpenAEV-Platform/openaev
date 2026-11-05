@@ -1,8 +1,8 @@
 package io.openaev.injectors.email.service;
 
 import io.openaev.config.OpenAEVConfig;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class PlatformMailSender {
+  private final Pattern relaxedEmailPattern =
+      Pattern.compile("^[\\w\\-.]+@([\\w-]+\\.)+[\\w-]{2,}$");
 
   @Value("${openaev.mail.imap.enabled}")
   private boolean imapEnabled;
@@ -41,6 +43,6 @@ public class PlatformMailSender {
   private boolean useImapUsernameAsAddress() {
     return imapEnabled
         && imapUsername != null
-        && EmailValidator.getInstance().isValid(imapUsername.trim());
+        && relaxedEmailPattern.matcher(imapUsername).matches();
   }
 }

@@ -70,4 +70,13 @@ class PlatformMailSenderTest {
     assertEquals(DEFAULT_MAILER, platformMailSender.getEmail());
     assertEquals(DEFAULT_REPLY_TO, platformMailSender.getReplyTo());
   }
+
+  @Test
+  @DisplayName("IMAP enabled with a custom sender TLD: uses IMAP username")
+  void imapEnabledWithCustomTld_usesImapUsername() {
+    String imapUsername = "test@openaev.invalid";
+    configureImap(true, imapUsername);
+    assertEquals(imapUsername, platformMailSender.getEmail());
+    assertEquals(imapUsername, platformMailSender.getReplyTo());
+  }
 }
