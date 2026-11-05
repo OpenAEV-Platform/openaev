@@ -583,8 +583,8 @@ public class ScenarioService {
   /**
    * Reads a scenario found inside the request's tenant scope: the access check runs first, then the
    * native read of the detail aggregate runs in that same scope. The workflow id and the platforms
-   * the detail names are read separately, in the scenario's own tenant (WorkflowOwnerScope), since a
-   * workflow can never move tenant.
+   * the detail names are read separately, in the scenario's own tenant (WorkflowOwnerScope), since
+   * a workflow can never move tenant.
    */
   public ScenarioOutput getScenarioById(
       @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
