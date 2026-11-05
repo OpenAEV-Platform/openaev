@@ -793,13 +793,13 @@ public class ExerciseService {
   }
 
   /**
-   * Delete a simulation of the current tenant, for work that runs without a request scope
+   * Delete a simulation of the current tenant, for work that runs without a request scope. The
+   * tenant check happens while loading the simulation inside {@link #delete(String)}.
    *
    * @param simulationId ID of the simulation to delete
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
-    existsByIdAndTenantId(simulationId);
     delete(simulationId);
   }
 
