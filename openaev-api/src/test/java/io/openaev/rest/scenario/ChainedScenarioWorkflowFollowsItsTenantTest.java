@@ -311,23 +311,6 @@ class ChainedScenarioWorkflowFollowsItsTenantTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(isAdmin = true)
-    @DisplayName(
-        "given a scope without its tenant should name its workflow but not its kill chain phases")
-    void given_scopeWithoutItsTenant_should_notNameItsKillChainPhases() throws Exception {
-      // Arrange
-      joinOtherTenantOnly();
-      ChainedScenarioWithAKillChainPhase rows = chainedScenarioWithAKillChainPhase();
-
-      // Act
-      String json = detail(rows.scenario().getId());
-
-      // Assert
-      assertThatJson(json).node("scenario_workflow_id").isEqualTo(rows.template().getId());
-      assertThatJson(json).node("scenario_kill_chain_phases").isArray().isEmpty();
-    }
-
-    @Test
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "given a membership of its tenant should name its workflow and its kill chain phases")

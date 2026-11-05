@@ -39,12 +39,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * A manual (operator-driven) launch of a chained scenario supersedes the settled autonomous run it
- * carries, whatever the caller's scope: once access to the scenario is granted, the run it owns is
- * read and torn down in the scenario's own tenant, like its workflow.
+ * carries: once access to the scenario is granted, the run it owns is read and torn down in the
+ * scenario's own tenant, like its workflow.
  *
- * <p>The scenario lives in the default tenant. Each call is sent on the non-prefixed route, by a
- * caller whose scope excludes that tenant (a platform admin who is a member of another tenant only)
- * and by a member of the scenario's tenant: the outcome is the same.
+ * <p>The scenario lives in the default tenant. The call is sent on the non-prefixed route, by a
+ * member of the scenario's tenant, and by a caller whose scope excludes it (a platform admin who is
+ * a member of another tenant only). A by-id load is resolved in the request scope, so that second
+ * caller answers "not found" instead of the scenario.
  *
  * <p>The production active tables are armed, so the class follows what production enforces for
  * {@code autonomous_runs}.
@@ -139,17 +140,17 @@ class ScenarioLaunchSupersedesSettledRunTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given a scope without its tenant should supersede the settled run")
-    void given_scopeWithoutItsTenant_should_supersedeTheSettledRun() throws Exception {
+    @DisplayName("given a scope without its tenant should not reach the scenario")
+    void given_scopeWithoutItsTenant_should_notReachTheScenario() throws Exception {
       // Arrange
       joinOtherTenantOnly();
       ChainedScenarioWithSettledRun rows = chainedScenarioWithASettledRun();
+      clearAmbientTenant();
 
-      // Act
-      launch(rows.scenario().getId());
-
-      // Assert
-      assertThat(settledRunStillExists(rows.scenario().getId())).isFalse();
+      // Act & Assert
+      mvc.perform(post(SCENARIO_URI + "/" + rows.scenario().getId() + "/exercise/running").with(csrf()))
+          .andExpect(status().isNotFound());
+      assertThat(settledRunStillExists(rows.scenario().getId())).isTrue();
     }
 
     @Test
