@@ -14,8 +14,8 @@ Content now comes from outside the tenant, so someone must check it before it en
 
 ## 2. Decision drivers
 
-1. **Trust stays on the platform**: a compromised or misconfigured collector cannot make a tenant
-   accept content that does not match its release.
+1. **Trust stays on the platform**: a misconfigured collector or a broken transfer cannot make a
+   tenant accept content that does not match its release.
 2. **Simple collectors**: one call per release, no state kept in the collector.
 3. **Each tenant decides for itself**: its own catalogue, its own last applied release.
 
@@ -29,7 +29,7 @@ Keep the payload upsert. **Pros**: no work. **Cons**: no release, no check, no s
 
 ### Option B: the collector verifies, the platform trusts it
 
-**Pros**: the platform only imports. **Cons**: a compromised collector installs anything, and several
+**Pros**: the platform only imports. **Cons**: a misconfigured collector or a broken transfer installs anything, and several
 collectors feeding one tenant cannot tell an old release from a new one.
 
 ### Option C: the platform fetches the releases itself

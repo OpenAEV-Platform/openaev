@@ -39,6 +39,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Catalogue release files")
@@ -115,21 +116,19 @@ class CatalogFileServiceTest {
     }
 
     @Test
-    @DisplayName("A file that cannot be stored refuses its version")
-    void given_storageFailure_should_refuseTheVersion() throws Exception {
+    @DisplayName("A file that cannot be stored stops the whole release, to be sent again")
+    void given_storageFailure_should_stopTheRelease() throws Exception {
       // Arrange
       byte[] archive = archive("{}");
+      CatalogManifest manifest =
+          manifestOf(List.of(scenarioItem(VERSION, "VERIFIED", archive)), List.of());
       when(fileService.uploadCatalogPackage(anyString(), any(InputStream.class)))
           .thenThrow(new IllegalStateException("storage down"));
 
-      // Act
-      CheckedRelease checked =
-          service.verifyAndStore(
-              manifestOf(List.of(scenarioItem(VERSION, "VERIFIED", archive)), List.of()),
-              Map.of(scenarioFileName(VERSION), archive));
-
-      // Assert
-      assertThat(checked.refusals()).containsValue("Archive could not be stored");
+      // Act & Assert
+      assertThatThrownBy(
+              () -> service.verifyAndStore(manifest, Map.of(scenarioFileName(VERSION), archive)))
+          .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -153,7 +152,11 @@ class CatalogFileServiceTest {
       CatalogManifest manifest = manifestOf(List.of(), List.of());
 
       // Act & Assert
-      assertThatThrownBy(() -> service.verifyAndStore(manifest, Map.of("extra.zip", archive("{}"))))
+      assertThatThrownBy(
+              () ->
+                  service.read(
+                      manifest,
+                      List.of(new MockMultipartFile("archives", "extra.zip", null, archive("{}")))))
           .isInstanceOf(BadRequestException.class);
     }
   }

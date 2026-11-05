@@ -16,12 +16,11 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.service.catalog.CatalogFileService;
 import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.CatalogSyncService;
 import io.swagger.v3.oas.annotations.Operation;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Propagation;
@@ -37,6 +36,7 @@ public class CatalogApi {
   public static final String TENANT_CATALOG_URI = TENANT_PREFIX + "/catalog";
 
   private final CatalogListService catalogListService;
+  private final CatalogFileService catalogFileService;
   private final CatalogSyncService catalogSyncService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final ObjectMapper mapper;
@@ -78,18 +78,24 @@ public class CatalogApi {
       throws Exception {
     requireCatalog();
     String writeTenantId = writeScopeResolver.tenantForWrite(ctx, tenantId);
-    CatalogManifest manifest;
-    try {
-      manifest = mapper.readValue(manifestFile.getBytes(), CatalogManifest.class);
-    } catch (Exception e) {
+    CatalogManifest manifest = readManifest(manifestFile);
+    if (manifest == null) {
       catalogSyncService.refuse(writeTenantId, null, "Unreadable manifest");
       throw new BadRequestException("Unreadable manifest");
     }
-    Map<String, byte[]> archives = new HashMap<>();
-    for (MultipartFile file : archiveFiles == null ? List.<MultipartFile>of() : archiveFiles) {
-      archives.put(file.getOriginalFilename(), file.getBytes());
+    return catalogSyncService.sync(
+        ctx,
+        writeTenantId,
+        manifest,
+        catalogFileService.read(manifest, archiveFiles == null ? List.of() : archiveFiles));
+  }
+
+  private CatalogManifest readManifest(MultipartFile manifestFile) {
+    try {
+      return mapper.readValue(manifestFile.getBytes(), CatalogManifest.class);
+    } catch (Exception e) {
+      return null;
     }
-    return catalogSyncService.sync(ctx, writeTenantId, manifest, archives);
   }
 
   private void requireCatalog() {

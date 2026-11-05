@@ -33,6 +33,9 @@ public class CatalogSyncService {
       TxCtx ctx, String tenantId, CatalogManifest manifest, Map<String, byte[]> archives) {
     try {
       validate(manifest);
+      if (catalogService.isApplied(ctx, manifest)) {
+        return CatalogSyncOutput.alreadyApplied(manifest.release(), manifest.releaseApprover());
+      }
       CheckedRelease checked = catalogFileService.verifyAndStore(manifest, archives);
       return catalogService.apply(ctx, tenantId, checked);
     } catch (BadRequestException e) {

@@ -273,6 +273,20 @@ class CatalogSyncApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("A release sending a file larger than its manifest says is refused")
+    void given_fileLargerThanListed_should_beRefused() throws Exception {
+      // Act & Assert
+      release("1.261105.0")
+          .payload("2.0.0")
+          .file(
+              payloadFileName("2.0.0"),
+              (new String(payloadFile(PAYLOAD_ID), StandardCharsets.UTF_8) + " ".repeat(64))
+                  .getBytes(StandardCharsets.UTF_8))
+          .sync()
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("An unsupported manifest version is refused")
     void given_unsupportedSchema_should_beRefused() throws Exception {
       // Arrange
@@ -289,6 +303,13 @@ class CatalogSyncApiTest extends IntegrationTest {
       // Act & Assert
       post("not json".getBytes(StandardCharsets.UTF_8), Map.of())
           .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("A manifest that is null is refused")
+    void given_nullManifest_should_beRefused() throws Exception {
+      // Act & Assert
+      post("null".getBytes(StandardCharsets.UTF_8), Map.of()).andExpect(status().isBadRequest());
     }
   }
 }

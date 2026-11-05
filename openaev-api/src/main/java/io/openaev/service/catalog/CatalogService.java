@@ -45,7 +45,7 @@ public class CatalogService {
       TxCtx ctx, String tenantId, CheckedRelease checked) {
     CatalogManifest manifest = checked.manifest();
     CatalogRelease latest = latestRelease(manifest);
-    if (latest != null && latest.getName().equals(manifest.release())) {
+    if (isLatest(latest, manifest)) {
       return CatalogSyncOutput.alreadyApplied(manifest.release(), manifest.releaseApprover());
     }
     refuseIfOlder(latest, manifest);
@@ -56,7 +56,19 @@ public class CatalogService {
     return result.toOutput();
   }
 
+  /** Whether this release is the last one applied, checked before its files are read again. */
+  @Transactional(readOnly = true)
+  public boolean isApplied(
+      // Unused by the body; TenantScopeTransactionAspect reads it to scope this transaction.
+      TxCtx ctx, CatalogManifest manifest) {
+    return isLatest(latestRelease(manifest), manifest);
+  }
+
   // -- RELEASE --
+
+  private static boolean isLatest(CatalogRelease latest, CatalogManifest manifest) {
+    return latest != null && latest.getName().equals(manifest.release());
+  }
 
   private CatalogRelease latestRelease(CatalogManifest manifest) {
     return catalogReleaseRepository
