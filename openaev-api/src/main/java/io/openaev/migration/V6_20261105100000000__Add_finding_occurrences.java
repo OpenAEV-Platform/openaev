@@ -10,7 +10,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20261103100000000__Add_finding_occurrences extends BaseJavaMigration {
+public class V6_20261105100000000__Add_finding_occurrences extends BaseJavaMigration {
 
   private static final int BATCH_SIZE = 1000;
 
