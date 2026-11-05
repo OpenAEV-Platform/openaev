@@ -14,13 +14,14 @@ interface Props {
   side?: 'before' | 'after';
 }
 
-// DS tokens as shipped, no custom strength: the neutral tertiary fill with the opposite text colour.
-// The warning colour fails as a highlight in dark mode (1.15:1 against the box, 3:1 needed); this
-// pair passes in both themes (fill 8.9:1 against the box, text 11:1 on the fill).
+// DS tokens as shipped, no custom strength: the neutral Chip fill, a neutral-primary underline (5.4:1
+// against the dark surface, so the highlight is seen) and the normal light text (11:1 on the fill).
+// A light solid fill with dark text passes too, but glares in the dark theme.
 const MARK_STYLE = {
-  color: 'var(--text-negative-primary)',
-  background: 'var(--color-feedback-neutral-tertiary)',
-  borderRadius: 2,
+  color: 'var(--text-default-primary)',
+  background: 'var(--color-feedback-neutral-secondary-transparency-30)',
+  borderBottom: '2px solid var(--color-feedback-neutral-primary)',
+  borderRadius: '2px 2px 0 0',
   padding: '0 2px',
 };
 
