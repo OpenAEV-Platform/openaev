@@ -14,14 +14,13 @@ interface Props {
   side?: 'before' | 'after';
 }
 
-// DS tokens as shipped, no custom strength: the neutral Chip fill, a neutral-primary underline (5.4:1
-// against the dark surface, so the highlight is seen) and the normal light text (11:1 on the fill).
-// A light solid fill with dark text passes too, but glares in the dark theme.
+// DS tokens as shipped, no custom strength: the neutral Chip fill and the normal light text (11:1 on
+// the fill). No underline (reads as a link), no light solid fill (glares in the dark theme). The fill
+// alone is 1.30:1 against the dark surface: raised with the DS team (a "highlight / changed" token).
 const MARK_STYLE = {
   color: 'var(--text-default-primary)',
   background: 'var(--color-feedback-neutral-secondary-transparency-30)',
-  borderBottom: '2px solid var(--color-feedback-neutral-primary)',
-  borderRadius: '2px 2px 0 0',
+  borderRadius: 2,
   padding: '0 2px',
 };
 
