@@ -53,6 +53,10 @@ extra:
     - icon: fontawesome/brands/facebook
       link: https://facebook.com/FiligranHQ
 
+# Hides the pages of preview features from the navigation (see preview_features.py)
+hooks:
+  - preview_features.py
+
 # Plugins
 plugins:
   - mike:

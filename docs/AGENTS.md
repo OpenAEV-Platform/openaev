@@ -152,8 +152,11 @@ Hide the documentation of a feature behind its backend `PreviewFeature` constant
 
 - The content stays hidden while the constant exists in `PreviewFeature.java`, and shows once the backend removes it.
 - Inside a table or a list, use `{%- if ... %}` and `{%- endif %}` so the hidden lines do not split it.
+- To also hide a whole page from the navigation, add `preview_feature: CREDENTIAL_ASSET` to its front matter (the
+  `preview_features.py` hook removes it from the `nav`; the page stays reachable by its URL).
 - Preview the hidden content locally with `DOCS_FEATURE_FLAGS=CREDENTIAL_ASSET mkdocs serve` (`*` shows all of them).
-- When the backend removes the constant, the strict build fails until you remove the `feature_visible()` blocks.
+- When the backend removes the constant, the strict build fails until you remove the `feature_visible()` blocks and
+  the `preview_feature` front matter.
 
 
 <!-- filigran-conventions:start -->

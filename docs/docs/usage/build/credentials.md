@@ -1,3 +1,7 @@
+---
+preview_feature: CREDENTIAL_ASSET
+---
+
 # Credentials
 
 {% if feature_visible("CREDENTIAL_ASSET") %}
