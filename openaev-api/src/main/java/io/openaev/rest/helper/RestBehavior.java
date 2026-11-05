@@ -536,9 +536,9 @@ public class RestBehavior {
   // so the injector can report it in the inject execution trace.
   @ExceptionHandler(CredentialResolutionException.class)
   public ResponseEntity<ErrorMessage> handleCredentialResolutionException(
-          CredentialResolutionException ex) {
+      CredentialResolutionException ex) {
     return new ResponseEntity<>(
-            new ErrorMessage(ex.getErrorCode().name()), ex.getErrorCode().getStatus());
+        new ErrorMessage(ex.getErrorCode().name()), ex.getErrorCode().getStatus());
   }
 
   // A chaining lifecycle operation refused by product decision (e.g. pausing a chained

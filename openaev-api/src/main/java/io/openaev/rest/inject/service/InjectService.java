@@ -178,7 +178,7 @@ public class InjectService {
       @NotNull final InjectInput input) {
     Inject inject = buildInject(exercise, scenario, input);
     Inject savedInject = injectRepository.save(inject);
-    addNewlyAttachedCredentialsToInjectMetric(inject, Set.of());
+    credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(inject, Set.of());
     return savedInject;
   }
 
@@ -190,7 +190,9 @@ public class InjectService {
     List<Inject> injects = new ArrayList<>();
     injectInputs.forEach(injectInput -> injects.add(buildInject(exercise, scenario, injectInput)));
     List<Inject> savedInjects = injectRepository.saveAll(injects);
-    injects.forEach(inject -> addNewlyAttachedCredentialsToInjectMetric(inject, Set.of()));
+    injects.forEach(
+        inject ->
+            credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(inject, Set.of()));
     return savedInjects;
   }
 
@@ -660,6 +662,7 @@ public class InjectService {
     Inject duplicatedInject = findAndDuplicateInject(id);
     duplicatedInject.setTitle(duplicateString(duplicatedInject.getTitle()));
     Inject savedInject = injectRepository.save(duplicatedInject);
+    credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(duplicatedInject, Set.of());
     return injectMapper.toInjectResultOverviewOutput(savedInject);
   }
 
@@ -1063,7 +1066,8 @@ public class InjectService {
             .collect(Collectors.toSet());
     inject.setSecretReferences(
         secretReferenceService.secretReferences(input.getSecretReferences()));
-    addNewlyAttachedCredentialsToInjectMetric(inject, previousSecretReferenceIds);
+    credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(
+        inject, previousSecretReferenceIds);
     inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
 
     // Set documents
@@ -1893,32 +1897,6 @@ public class InjectService {
 
     InjectAuthorisation authorisation = authorisationOpt.get();
     return authorisation.getCode().equals(hashWithSHA256(code));
-  }
-
-  /**
-   * Counts in telemetry each credential the current user newly attached to the inject.
-   *
-   * @param inject the inject, with its new secret references
-   * @param previousSecretReferenceIds the secret references the inject held before, empty for a
-   *     created inject
-   */
-  public void addNewlyAttachedCredentialsToInjectMetric(
-      Inject inject, Set<String> previousSecretReferenceIds) {
-    List<CredentialSecretReference> attachedCredentials =
-        inject.getSecretReferences().stream()
-            .filter(ref -> !previousSecretReferenceIds.contains(ref.getId()))
-            .filter(CredentialSecretReference.class::isInstance)
-            .map(CredentialSecretReference.class::cast)
-            .toList();
-    if (attachedCredentials.isEmpty()) {
-      return;
-    }
-    String userId = userService.currentUser().getId();
-    String injectorType = inject.getInjector() == null ? null : inject.getInjector().getType();
-    attachedCredentials.forEach(
-        credential ->
-            credentialMetricCollector.addCredentialUsage(
-                userId, credential.getId(), credential.getCredentialType().name(), injectorType));
   }
 
   private boolean isCredentialAccessDeniedStatus(SecretReference.SECRET_STATUS status) {

@@ -1,5 +1,6 @@
 package io.openaev.telemetry.metric_collectors;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.helper.CryptoHelper.hashWithSHA256;
 import static io.openaev.telemetry.metric_collectors.MetricRegistry.collectAndReset;
 import static io.openaev.telemetry.metric_collectors.MetricRegistry.runAfterCommit;
@@ -7,11 +8,15 @@ import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.CredentialSecretReference;
+import io.openaev.database.model.Inject;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.rest.exception.CredentialResolutionException;
 import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.PostConstruct;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
@@ -118,6 +123,34 @@ public class CredentialMetricCollector {
   }
 
   // -- USAGES --
+
+  /**
+   * Counts each credential the current user newly attached to the inject: its credentials that were
+   * not among its previous secret references. Kept here, and not in a service, so that every inject
+   * write path can call it without pulling a service into a bean cycle.
+   *
+   * @param inject the inject, with its new secret references
+   * @param previousSecretReferenceIds the secret references the inject held before, empty for a
+   *     created or duplicated inject
+   */
+  public void addNewlyAttachedCredentialsToInjectMetric(
+      Inject inject, Set<String> previousSecretReferenceIds) {
+    List<CredentialSecretReference> attachedCredentials =
+        inject.getSecretReferences().stream()
+            .filter(ref -> !previousSecretReferenceIds.contains(ref.getId()))
+            .filter(CredentialSecretReference.class::isInstance)
+            .map(CredentialSecretReference.class::cast)
+            .toList();
+    if (attachedCredentials.isEmpty()) {
+      return;
+    }
+    String userId = currentUser().getId();
+    String injectorType = inject.getInjector() == null ? null : inject.getInjector().getType();
+    attachedCredentials.forEach(
+        credential ->
+            addCredentialUsage(
+                userId, credential.getId(), credential.getCredentialType().name(), injectorType));
+  }
 
   /**
    * Counts a credential a user attached to an inject, once the transaction that saves the inject

@@ -19,6 +19,7 @@ import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
@@ -51,6 +52,7 @@ public class AtomicTestingService {
   @Resource protected ObjectMapper mapper;
   private final InjectMapper injectMapper;
   private final ActionMetricCollector actionMetricCollector;
+  private final CredentialMetricCollector credentialMetricCollector;
 
   private final AssetGroupRepository assetGroupRepository;
   private final AssetRepository assetRepository;
@@ -184,7 +186,7 @@ public class AtomicTestingService {
       actionMetricCollector.addAtomicTestingCreatedCount();
     }
     injectToSave = injectRepository.save(injectToSave);
-    injectService.addNewlyAttachedCredentialsToInjectMetric(
+    credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(
         finalInjectToSave, previousSecretReferenceIds);
     return injectMapper.toInjectResultOverviewOutput(injectToSave);
   }

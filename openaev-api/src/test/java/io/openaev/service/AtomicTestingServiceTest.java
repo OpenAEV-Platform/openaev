@@ -12,6 +12,7 @@ import io.openaev.rest.atomic_testing.form.InjectResultOverviewOutput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
@@ -42,6 +43,7 @@ class AtomicTestingServiceTest {
 
   @Mock private InjectMapper injectMapper;
   @Mock private ActionMetricCollector actionMetricCollector;
+  @Mock private CredentialMetricCollector credentialMetricCollector;
   @Mock private io.openaev.database.repository.AssetGroupRepository assetGroupRepository;
   @Mock private io.openaev.database.repository.AssetRepository assetRepository;
   @Mock private PayloadMapper payloadMapper;

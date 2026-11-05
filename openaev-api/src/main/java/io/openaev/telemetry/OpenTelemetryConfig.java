@@ -52,8 +52,8 @@ public class OpenTelemetryConfig {
   private final SettingRepository settingRepository;
   private final ThreadPoolTaskScheduler taskScheduler;
 
-  @Getter private final Duration collectInterval = Duration.ofMinutes(1);
-  @Getter private final Duration exportInterval = Duration.ofMinutes(2);
+  @Getter private final Duration collectInterval = Duration.ofMinutes(60);
+  @Getter private final Duration exportInterval = Duration.ofMinutes(6 * 60);
 
   @Bean
   public OpenTelemetry openTelemetry() {
