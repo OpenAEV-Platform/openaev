@@ -347,9 +347,12 @@ public class SimulationInjectApi extends RestBehavior {
 
   private InjectStatus executeInjectInTenant(
       Exercise exercise, DirectInjectInput input, Optional<MultipartFile> file) {
+    // Resolved in the simulation's own tenant, not the request's read scope: a built-in contract
+    // id repeats across tenants (#8485), and the read scope the simulation was found in can
+    // legitimately span several.
     InjectorContract injectorContract =
         this.injectorContractRepository
-            .findById(input.getInjectorContract())
+            .findByContractIdAndTenant(input.getInjectorContract(), exercise.getTenant().getId())
             .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
     Inject inject = input.toInject(injectorContract, injector);
