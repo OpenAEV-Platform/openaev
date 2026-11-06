@@ -36,12 +36,12 @@ The minimum Node.js version is specified in `openaev-front/package.json` (`engin
 1. **Start services**:
   `cd openaev-dev && if command -v podman >/dev/null 2>&1; then podman compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq; elif command -v docker >/dev/null 2>&1; then docker compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq; else echo "Neither podman nor docker is installed." >&2; exit 1; fi`
 2. **Build frontend**: `cd openaev-front && yarn install && yarn build` (~4min)
-3. **Build backend**: `cd .. && mvn clean install -DskipTests -Pdev`
+3. **Build backend**: `cd .. && mvn clean install -DskipTests -Pdev`. The `openaev-api` build also checks the docs links of `docs/links.json` against the built docs (`docs-check` goal): it needs [Python](https://www.python.org/downloads/), at least the version in `docs/.python-version` (3.11), plus `python3-venv` on Debian/Ubuntu, on the `PATH` or chosen with `PYTHON` / `-Dopenaev.docs.python` (`docs/run.py` sets up the docs toolchain in its own virtual environment), or `-Dopenaev.docs.check.skip=true` to skip the check (it skips itself in CI)
 
 ### Linting & Formatting
 
 **Backend**: `mvn spotless:check` / `mvn spotless:apply` (Google Java Format)
-**Frontend**: `yarn lint` (~60s), `yarn check-ts`, `yarn depcruise` (import cycles, dependency rules), `yarn knip --dependencies` (unused or undeclared dependencies), `yarn i18n-checker`, `yarn test:eslint-rules` (when changing `packages/eslint-plugin-custom-rules`)
+**Frontend**: `yarn lint` (~60s), `yarn check-ts`, `yarn depcruise` (import cycles, dependency rules), `yarn knip --dependencies` (unused or undeclared dependencies), `yarn i18n-checker`, `yarn test:eslint-rules` (when changing `packages/eslint-plugin-custom-rules`), `yarn check-docs-links` (docs links check, needs the Python of `docs/.python-version`)
 **Known Issue**: Pre-existing Spotless errors in `DetectionRemediationApiTest.java` and `InjectExpectationUtils.java` -
 ignore unless your changes touch these.
 
@@ -67,7 +67,6 @@ CI runs on GitHub Actions (see `.github/workflows/`):
 - **core-ci.yml**: Primary CI pipeline (backend + frontend + e2e)
 - **nightly-ci.yml**: Nightly extended test suite
 - **deploy-feature-branch.yml**: Feature branch build for staging deploys (promoted from the release repository)
-- **codeql.yml**: Security scanning (weekly + main push)
 - **openaev-validate-pr-title.yml**: Conventional Commits validation
 
 ## Project Structure
@@ -81,6 +80,8 @@ See the domain-specific instruction files in `.github/instructions/` for detaile
 **Frontend Missing**: Backend needs frontend built first (copies from `builder/prod/build/`)
 **Service Errors**: Ensure Docker services running; CI waits 60s for readiness
 **Memory**: Use `NODE_OPTIONS=--max_old_space_size=8192` for frontend tests
+**Python not found / `python3-venv` missing**: The `openaev-api` build runs the docs links check with Python — install [Python](https://www.python.org/downloads/), at least the version in `docs/.python-version` (3.11) (and `python3-venv` on Debian/Ubuntu: `sudo apt install python3-venv`), point `PYTHON` / `-Dopenaev.docs.python` to it when it is not found (an explicit choice that is missing or too old fails by name), or add `-Dopenaev.docs.check.skip=true`
+**Could not find goal 'docs-check'**: `~/.m2` holds an older build of `openaev-maven-plugin` with the same version — run `mvn -pl openaev-maven-plugin install` once (or a full `mvn install -DskipTests`)
 
 ## Pre-PR Checklist
 
@@ -88,7 +89,7 @@ Before creating a pull request, validate locally:
 
 1. **Formatting**: `mvn spotless:check` (or via Docker: `docker run --rm -v $(pwd):/app -w /app maven:3.9-eclipse-temurin-21-noble mvn spotless:check`)
 2. **PR title**: Must match `type(scope?): description (#issue)` — no `[context]` prefix. Omit `(#issue)` and use `* N/A` under `### Related issues` when the related issue is in a private repository. The title validation workflow recognizes this exception; titles with extra prefixes (e.g. `[backend]`) will be rejected.
-3. **Compile**: `mvn compile -DskipTests` (or via Docker)
+3. **Compile**: `mvn compile -DskipTests` (or via Docker, where the Maven image has no Python: add `-Dopenaev.docs.check.skip=true`)
 4. **Frontend** (if changed): `cd openaev-front && yarn check-ts && yarn lint && yarn depcruise && yarn knip --dependencies`
 5. **PR description**: Must follow [`.github/PULL_REQUEST_TEMPLATE.md`](/.github/PULL_REQUEST_TEMPLATE.md) — see [PR description format](#pr-description-format).
 

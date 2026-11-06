@@ -89,6 +89,31 @@ mvn spring-boot:run -pl openaev-api -Dspring-boot.run.profiles=dev
 
 The backend listens on port `8080`.
 
+The build of `openaev-api` also builds the documentation, to check the links of `docs/links.json`
+the backend and the frontend open. It needs Python with its `venv` module, at least the version in
+`docs/.python-version` (3.11): see the prerequisites page of your platform,
+[Ubuntu](environment-ubuntu.md#documentation-check), [macOS](environment-macos.md#documentation-check) or
+[Windows](environment-windows.md#documentation-check), which also explain how to choose the Python. The first run creates `docs/.venv` and installs the pinned
+documentation dependencies, which takes about half a minute. When nothing changed in `docs/` since the
+last successful check, it takes less than a second. Add `-Dopenaev.docs.check.skip=true` to a Maven
+command to skip it, for example when Python is not installed. It also skips itself in CI, where a
+dedicated job runs it.
+
+!!! note "Could not find goal 'docs-check'"
+
+    A build that leaves out the plugin module (`-pl openaev-api` without `-am`, or the offline fast restart
+    `mvn -o -pl openaev-model,openaev-framework,openaev-api ...`) uses the `openaev-maven-plugin` installed in
+    your local Maven repository (`~/.m2`). If it was installed before the docs goals were added, with the same
+    version, the build fails with `Could not find goal 'docs-check'` (or `'docs-links'`), and
+    `-Dopenaev.docs.check.skip=true` does not help. Install the plugin once (add `-o` when offline), then build
+    again:
+
+    ```bash
+    mvn -pl openaev-maven-plugin install
+    ```
+
+    A full `mvn install -DskipTests` from the repository root installs it too.
+
 ## Frontend
 
 Run the commands in this section from `./openaev-front`:
@@ -113,6 +138,13 @@ yarn start
 ```
 When the Vite dev server is ready, it prints a local URL (by default
 http://localhost:3001/). Start the backend first, otherwise the UI does not load.
+
+### Checking the documentation links
+The frontend opens documentation pages through the keys of `docs/links.json`. To run the same check as
+the backend build, which builds the documentation and checks every key against it (same Python as the backend build):
+```bash
+yarn check-docs-links
+```
 
 !!! tip "IntelliJ IDEA run configurations"
 

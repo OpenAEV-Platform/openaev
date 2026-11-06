@@ -11,6 +11,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
+import io.openaev.docs.DocsLinks;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.exception.ExecutorException;
@@ -41,8 +42,6 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
       "2177ceeb-a9e2-4a33-bf30-1bf7c47f150a";
   public static final String PALOALTOCORTEX_EXECUTOR_TYPE = "openaev_paloaltocortex_executor";
   public static final String PALOALTOCORTEX_EXECUTOR_NAME = "PaloAltoCortex";
-  private static final String PALOALTOCORTEX_EXECUTOR_DOCUMENTATION_LINK =
-      "https://docs.openaev.io/latest/deployment/ecosystem/executors/#paloaltocortex-agent";
   private static final String PALOALTOCORTEX_EXECUTOR_BACKGROUND_COLOR = "#00CC66";
 
   @QualifiedComponent(identifier = PALOALTOCORTEX_EXECUTOR_NAME)
@@ -128,7 +127,7 @@ public class PaloAltoCortexExecutorIntegration extends Integration {
             executorId,
             PALOALTOCORTEX_EXECUTOR_TYPE,
             executorName,
-            PALOALTOCORTEX_EXECUTOR_DOCUMENTATION_LINK,
+            DocsLinks.EXECUTORS_PALOALTO_CORTEX,
             PALOALTOCORTEX_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-paloaltocortex.png"),
             getClass().getResourceAsStream("/img/banner-paloaltocortex.png"),

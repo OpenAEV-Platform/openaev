@@ -1,0 +1,69 @@
+name: Docs Check
+description: >
+  Runs `docs/run.py check`, the check developers run locally: a strict MkDocs build with the pinned
+  dependencies, which fails on every warning of MkDocs' link validation and of docs/hooks/checks.py.
+  Those check that every page and image made it into the site and the search index, that the links
+  between pages and to docs.openaev.io resolve to a page and anchor of the site, that page URIs have
+  no underscore, and that every link of docs/links.json, the map the backend and the front use,
+  resolves too. A docs move that breaks an in-app link or a link between pages fails here instead
+  of on the site.
+  The git-committers and git-revision-date-localized plugins only fill in contributors and dates,
+  and git-committers calls the GitHub API for every page, so they stay off unless git-plugins is
+  'true'. They need the full git history and a token.
+  Blocking in the Pipeline Gate: the single docs check of the pipeline.
+
+inputs:
+  no-cache:
+    description: "true bypasses the pip cache; set by Nightly, which must not consume the shared cache quota"
+    required: false
+    default: "false"
+  git-plugins:
+    description: "'true' builds with the git plugins, as the deployed site does"
+    required: false
+    default: 'false'
+  github-token:
+    description: Token git-committers reads the commit authors with, when git-plugins is 'true'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    # The oldest Python the docs support, docs/.python-version, as developers may have it.
+    - uses: actions/setup-python@v7
+      with:
+        python-version-file: docs/.python-version
+
+    # Only main writes the pip cache; pull requests restore it read-only. On main, an older entry is
+    # never restored: the entry saved for a new lock then holds its own packages only, instead of
+    # growing with every version the older entries carried.
+    - name: Restore pip downloads
+      id: pip-cache
+      if: ${{ inputs.no-cache != 'true' }}
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.cache/pip
+        key: docs-pip-${{ runner.os }}-${{ hashFiles('docs/requirements.txt', 'docs/.python-version') }}
+        restore-keys: ${{ github.ref != 'refs/heads/main' && format('docs-pip-{0}-', runner.os) || '' }}
+
+    # run.py, as developers and the backend build call it: it creates docs/.venv and installs
+    # requirements.txt with pip on the first command, then runs the unit tests of the check.
+    - name: Test the docs check
+      shell: bash
+      run: python docs/run.py test
+
+    - name: Save pip downloads
+      if: ${{ inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && steps.pip-cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v6
+      with:
+        path: ~/.cache/pip
+        key: docs-pip-${{ runner.os }}-${{ hashFiles('docs/requirements.txt', 'docs/.python-version') }}
+
+    # --force: the fingerprint that skips an unchanged build is for local runs. --offline: the
+    # environment is already installed by the step above.
+    - name: Build and check the documentation
+      shell: bash
+      env:
+        DOCS_GIT_PLUGINS: ${{ inputs.git-plugins }}
+        MKDOCS_GIT_COMMITTERS_APIKEY: ${{ inputs.github-token }}
+      run: python docs/run.py --offline check --force

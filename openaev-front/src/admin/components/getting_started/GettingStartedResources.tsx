@@ -7,6 +7,7 @@ import { type ComponentType, type CSSProperties } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
 import { useFormatter } from '../../../components/i18n';
+import docsUrl from '../../../utils/docsUrl';
 import { XTM_HUB_DEFAULT_URL } from '../../../utils/Environment';
 import GettingStartedSectionHeader from './GettingStartedSectionHeader';
 
@@ -110,7 +111,7 @@ const GettingStartedResources = () => {
       color: theme.palette.primary.main,
       title: t('getting_started_resource_docs'),
       description: t('getting_started_resource_docs_text'),
-      href: 'https://docs.openaev.io',
+      href: docsUrl('home'),
     },
     {
       icon: AutoAwesomeOutlined,

@@ -19,7 +19,7 @@ Java / Spring Boot / React / TypeScript / PostgreSQL. See `pom.xml` and `package
 ## Key Commands
 
 ```bash
-mvn clean install -DskipTests -Pdev   # Build backend
+mvn clean install -DskipTests -Pdev   # Build backend (checks docs/links.json with the Python of docs/.python-version; skip: -Dopenaev.docs.check.skip=true)
 mvn spotless:apply                     # Format Java
 mvn test                               # Tests (needs Docker services)
 cd openaev-front && yarn build         # Build frontend
@@ -27,6 +27,7 @@ yarn lint && yarn check-ts             # Lint + type-check
 yarn depcruise                         # Import cycles + dependency rules
 yarn knip --dependencies               # Unused or undeclared dependencies
 yarn test:eslint-rules                 # Tests of the local ESLint rules (packages/eslint-plugin-custom-rules)
+yarn check-docs-links                  # Check docs/links.json against the built docs (Python of docs/.python-version)
 yarn generate-types-from-api           # Sync API types
 ```
 

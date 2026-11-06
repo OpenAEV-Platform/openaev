@@ -11,6 +11,7 @@ import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Executor;
+import io.openaev.docs.DocsLinks;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
@@ -41,8 +42,6 @@ public class CrowdStrikeExecutorIntegration extends Integration {
       "b522d9bc-7ed6-44ac-9984-810dfb18f7be";
   public static final String CROWDSTRIKE_EXECUTOR_TYPE = "openaev_crowdstrike_executor";
   public static final String CROWDSTRIKE_EXECUTOR_NAME = "CrowdStrike";
-  private static final String CROWDSTRIKE_EXECUTOR_DOCUMENTATION_LINK =
-      "https://docs.openaev.io/latest/deployment/ecosystem/executors/#crowdstrike-falcon-agent";
 
   private static final String CROWDSTRIKE_EXECUTOR_BACKGROUND_COLOR = "#E12E37";
 
@@ -130,7 +129,7 @@ public class CrowdStrikeExecutorIntegration extends Integration {
             executorId,
             CROWDSTRIKE_EXECUTOR_TYPE,
             executorName,
-            CROWDSTRIKE_EXECUTOR_DOCUMENTATION_LINK,
+            DocsLinks.EXECUTORS_CROWDSTRIKE,
             CROWDSTRIKE_EXECUTOR_BACKGROUND_COLOR,
             getClass().getResourceAsStream("/img/icon-crowdstrike.png"),
             getClass().getResourceAsStream("/img/banner-crowdstrike.png"),

@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router';
 
 import { useFormatter } from '../../../../components/i18n';
 import type { HealthCheck } from '../../../../utils/api-types';
+import docsUrl from '../../../../utils/docsUrl';
 import AlertBanner from '../AlertBanner';
 
 interface Props {
@@ -15,7 +16,6 @@ interface Props {
 }
 
 const Healthchecks = ({ healthchecks, scenarioId, exerciseId }: Props) => {
-  const documentationRootUrl = 'https://docs.openaev.io';
   const theme = useTheme();
   const navigate = useNavigate();
   const { t } = useFormatter();
@@ -32,11 +32,11 @@ const Healthchecks = ({ healthchecks, scenarioId, exerciseId }: Props) => {
   const goToHealthcheckAction = (healthcheckType: string) => {
     switch (healthcheckType) {
       case 'SMTP': {
-        window.open(`${documentationRootUrl}/latest/deployment/configuration/?h=smtp#mail-services`);
+        window.open(docsUrl('configuration_mail_services'));
         break;
       }
       case 'IMAP': {
-        window.open(`${documentationRootUrl}/latest/deployment/configuration/?h=smtp#imap`);
+        window.open(docsUrl('configuration_imap'));
         break;
       }
       case 'AGENT_OR_EXECUTOR': {
@@ -44,7 +44,7 @@ const Healthchecks = ({ healthchecks, scenarioId, exerciseId }: Props) => {
         break;
       }
       case 'SECURITY_SYSTEM_COLLECTOR': {
-        window.open(`${documentationRootUrl}/latest/usage/collectors/?h=collector`);
+        window.open(docsUrl('collectors'));
         break;
       }
       case 'INJECT': {
@@ -65,7 +65,7 @@ const Healthchecks = ({ healthchecks, scenarioId, exerciseId }: Props) => {
       }
       case 'NMAP':
       case 'NUCLEI': {
-        window.open(`${documentationRootUrl}/latest/usage/injectors`);
+        window.open(docsUrl('injectors'));
         break;
       }
       case 'SCOPE_DEFINITION': {

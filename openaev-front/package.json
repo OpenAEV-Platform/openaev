@@ -19,6 +19,7 @@
     "depcruise": "node scripts/check-node-version.js && depcruise src tests_e2e scripts vite.config.ts vitest.config.ts playwright.config.ts eslint.config.js knip.ts .dependency-cruiser.ts --config .dependency-cruiser.ts --ignore-known .dependency-cruiser-known-violations.json",
     "control": "yarn npm audit --recursive --environment production",
     "check-ts": "tsc && tsc -p packages/eslint-plugin-custom-rules",
+    "check-docs-links": "node scripts/check-docs-links.js",
     "knip": "knip",
     "check-licenses": "license-checker-rseidelsohn --production --summary --onlyAllow '0BSD;Apache-2.0;BlueOak-1.0.0;BSD-2-Clause;BSD-3-Clause;CC-BY-3.0;CC-BY-4.0;CC0-1.0;ISC;MIT;OFL-1.1;Python-2.0;Unlicense;UNLICENSED'",
     "generate-types-from-api": "swagger-typescript-api generate --no-client --path=${API_URL:-http://localhost:8080}/api-docs --output=src/utils --name=api-types.d.ts --sort-types",

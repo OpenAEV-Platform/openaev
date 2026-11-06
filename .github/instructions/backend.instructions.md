@@ -130,6 +130,12 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - DTOs: `@Builder` OK, prefer records for new code
 - Never `@Autowired` on fields in new code
 
+## Documentation Links
+
+- **Never write a `docs.openaev.io` URL in Java code** — use a constant of `io.openaev.docs.DocsLinks` (`DocsLinks.CONFIGURATION_IMAP`: the docs base URL followed by the path of the `configuration_imap` key of `docs/links.json`). A CI guard fails on a raw URL; it allows the generated `DocsLinks.java` and comments in `.properties` files
+- **New page or anchor** → add a `snake_case` key to `docs/links.json` (path relative to its `base`, optional `#anchor`) pointing to the real page, not to an old path kept as a redirect (the check fails on a redirect), then build `openaev-api`: the `docs-links` goal of `openaev-maven-plugin` (`generate-sources`) rewrites `openaev-api/src/main/java/io/openaev/docs/DocsLinks.java`. Commit that file with the key — never edit it by hand. CI fails when it is stale
+- The `docs-check` goal (`validate`) builds the docs with [Python](https://www.python.org/downloads/), at least the version in `docs/.python-version` (3.11), plus `python3-venv` on Debian/Ubuntu (`PYTHON` or `-Dopenaev.docs.python` chooses it), and fails when a key points to a missing page or anchor or to a redirect: fix the path in `links.json` or the docs page. It skips itself in CI and with `-Dopenaev.docs.check.skip=true`
+
 ## Formatting (Spotless)
 
 - **After editing Java files**, run `.\scripts\hooks\format-java.ps1` (Windows) or `./scripts/hooks/format-java.sh` (Unix). Output: `OK` = success.
