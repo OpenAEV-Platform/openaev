@@ -1,5 +1,6 @@
 package io.openaev.api.asset;
 
+import static io.openaev.api.asset.AssetOptionsApi.ASSET_URI;
 import static io.openaev.api.asset.AssetOptionsApi.TENANT_ASSET_URI;
 
 import io.openaev.aop.AccessControl;
@@ -45,7 +46,7 @@ public class AssetMarkingsApi extends RestBehavior {
   private final AssetMarkingsService assetMarkingsService;
   private final TenantWriteScopeResolver writeScopeResolver;
 
-  @PutMapping(TENANT_ASSET_URI + "/{assetId}/markings")
+  @PutMapping({ASSET_URI + "/{assetId}/markings", TENANT_ASSET_URI + "/{assetId}/markings"})
   @Transactional(rollbackFor = Exception.class)
   @LogExecutionTime
   @AccessControl(
@@ -73,7 +74,7 @@ public class AssetMarkingsApi extends RestBehavior {
             writeScopeResolver.tenantForWrite(ctx, null), assetId, input));
   }
 
-  @PutMapping(TENANT_ASSET_URI + "/markings/bulk")
+  @PutMapping({ASSET_URI + "/markings/bulk", TENANT_ASSET_URI + "/markings/bulk"})
   @Transactional(propagation = Propagation.SUPPORTS)
   @LogExecutionTime
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.ASSET)

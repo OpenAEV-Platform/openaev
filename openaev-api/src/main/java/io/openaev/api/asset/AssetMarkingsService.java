@@ -115,7 +115,7 @@ public class AssetMarkingsService {
         markingClearanceCacheManager.findClearance(
             currentUser.getId(), tenantId, currentUser.isAdminOrBypass()),
         markings);
-    assertMarkingAssignmentCapability(currentUser);
+    assertMarkingAssignmentCapability(tenantId, currentUser);
 
     Set<String> removed = applyAssetMarkings(asset, uniqueMarkingIds);
     Asset saved = assetRepository.save(asset);
@@ -134,10 +134,19 @@ public class AssetMarkingsService {
     return saved;
   }
 
-  /** Checks {@code MANAGE_MARKING_ASSIGNMENT}. */
-  private void assertMarkingAssignmentCapability(User currentUser) {
-    if (!permissionService.hasCapabilityPermission(
-        currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
+  /**
+   * Checks {@code MANAGE_MARKING_ASSIGNMENT}, read as granted in {@code tenantId} - the tenant of
+   * the asset being written, not necessarily the caller's ambient tenant (see {@link
+   * PermissionService#holdsInTenant}).
+   */
+  private void assertMarkingAssignmentCapability(String tenantId, User currentUser) {
+    boolean hasCapability =
+        permissionService.holdsInTenant(
+            tenantId,
+            () ->
+                permissionService.hasCapabilityPermission(
+                    currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE));
+    if (!hasCapability) {
       throw new ForbiddenException("Missing the MANAGE_MARKING_ASSIGNMENT capability");
     }
   }
@@ -198,7 +207,7 @@ public class AssetMarkingsService {
         markingClearanceCacheManager.findClearance(
             currentUser.getId(), tenantId, currentUser.isAdminOrBypass()),
         markings);
-    assertMarkingAssignmentCapability(currentUser);
+    assertMarkingAssignmentCapability(tenantId, currentUser);
 
     List<String> assetIds = assetService.resolveBulkAssetIds(ctx, input);
 

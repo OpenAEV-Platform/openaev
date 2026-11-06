@@ -272,9 +272,14 @@ public class TenantGroupService {
     Set<String> addedIds = new HashSet<>(uniqueMarkingIds);
     addedIds.removeAll(currentMarkingIds);
 
-    if ((!removedIds.isEmpty() || !addedIds.isEmpty())
-        && !permissionService.hasCapabilityPermission(
-            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
+    // Read as granted in tenantId - the group's tenant, not necessarily the caller's ambient one.
+    boolean hasCapability =
+        permissionService.holdsInTenant(
+            tenantId,
+            () ->
+                permissionService.hasCapabilityPermission(
+                    currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE));
+    if ((!removedIds.isEmpty() || !addedIds.isEmpty()) && !hasCapability) {
       throw new ForbiddenException("Missing the MANAGE_MARKING_ASSIGNMENT capability");
     }
 
