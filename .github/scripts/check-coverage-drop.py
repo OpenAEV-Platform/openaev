@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
 """Fail when a pull request drops backend line coverage by more than a given number of points.
 
-The pull request's JaCoCo report is compared with the report of the main branch. Core CI uploads
-that report as the `jacoco-api` artifact on every push to main, and only there: a branch that is
-not main has no reports of its own. The base commit is the first parent of the merge commit CI
-checks out (the tip of the target branch), and the point where it left main is the merge base of
-the two. The base report is the newest artifact whose commit is that merge base or one of its
-ancestors: when the run on the merge base itself has not finished yet, the closest earlier one
+The pull request's JaCoCo report is compared with the report of the last commit of the main
+branch. Core CI uploads that report as the `jacoco-api` artifact on every push to main, and only
+there: a branch that is not main has no reports of its own, so main is the base whatever branch the
+pull request targets. The base report is the newest artifact whose commit is the tip of main or
+one of its ancestors: when the run on the tip itself has not finished yet, the closest earlier one
 stands in for it.
 
-For a pull request into main the merge base is the tip of main. For a pull request stacked on
-another branch it is the commit the stack branched from main, which is also where Codecov
-compares. Codecov compares a pull request into main with the commit it branched from, not the
-tip of main: the two are the same once the branch is up to date, so a pull request that is behind
-and shows another drop in Codecov is fixed by a rebase.
+Codecov compares with the commit the pull request branched from, not the tip of main. The two are
+the same once the branch is up to date with main, so a pull request that is behind and shows
+another drop in Codecov is fixed by a rebase.
 
 Line coverage is counted the way Codecov counts it (see jacoco_lines.py): a line where only some
 branches ran is partial, and partial lines are not covered.
@@ -62,10 +59,8 @@ def is_ancestor(repo: str, sha: str, of: str) -> bool:
     return status in ("ahead", "identical")
 
 
-def merge_base(repo: str, main_branch: str, sha: str) -> str:
-    """Commit where `sha` left the main branch (`sha` itself when it is on main)."""
-    comparison = json.loads(gh_api(f"repos/{repo}/compare/{main_branch}...{sha}"))
-    return comparison["merge_base_commit"]["sha"]
+def main_tip(repo: str, main_branch: str) -> str:
+    return json.loads(gh_api(f"repos/{repo}/commits/{main_branch}"))["sha"]
 
 
 def find_base_report(repo: str, base_sha: str, main_branch: str) -> tuple[str, bytes] | None:
@@ -92,7 +87,6 @@ def find_base_report(repo: str, base_sha: str, main_branch: str) -> tuple[str, b
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--report", required=True, help="JaCoCo XML report of the pull request")
-    parser.add_argument("--base-sha", required=True, help="base commit of the pull request")
     parser.add_argument("--main-branch", default="main", help="branch that has the reports")
     parser.add_argument(
         "--max-drop", type=float, required=True, help="largest drop allowed, in points"
@@ -104,7 +98,7 @@ def main() -> int:
         head_covered, head_total = line_coverage(report.read())
     head = 100 * head_covered / head_total
 
-    base_sha = merge_base(repo, args.main_branch, args.base_sha)
+    base_sha = main_tip(repo, args.main_branch)
     base = find_base_report(repo, base_sha, args.main_branch)
     if base is None:
         print(

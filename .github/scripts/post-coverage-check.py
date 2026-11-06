@@ -30,7 +30,7 @@ This pull request is checked against two backend coverage rules:
 - **Changed lines**: at least {min_coverage}% of the backend lines it adds or changes, in \
 `openaev-api/src/main/java`, run during the API tests.
 - **Whole backend**: backend line coverage does not drop by more than {max_drop} point against \
-the latest report of main, taken where the branch left main.
+the latest report of main.
 """
 
 
@@ -53,9 +53,8 @@ CODECOV = """\
 
 This check counts lines the way Codecov does, so its figures should match Codecov's comment. \
 Codecov compares with the commit the pull request branched from, this check with the latest \
-report of main at the point the branch left it. For a pull request into main that is the tip of \
-main, the same once your branch is up to date, so when the two disagree and your branch is \
-behind, rebase it or update it with main.
+report of the last commit of main. They are the same once your branch is up to date with main, so \
+when the two disagree and your branch is behind, rebase it or update it with main.
 """
 
 
