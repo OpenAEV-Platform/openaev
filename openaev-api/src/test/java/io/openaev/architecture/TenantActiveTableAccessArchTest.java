@@ -362,7 +362,8 @@ class TenantActiveTableAccessArchTest {
           "agents",
           "autonomous_objective_templates",
           "catalog_items",
-          "catalog_releases");
+          "catalog_releases",
+          "parameters");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -2337,4 +2338,55 @@ class TenantActiveTableAccessArchTest {
               "autonomous_objective_templates is tenant-active: an accessor without a tenant scope"
                   + " silently reads zero rows, and the seed it drives would attribute its rows to"
                   + " the wrong tenant. New accessors must carry a scope and be allowlisted here");
+
+  /**
+   * {@code parameters} (entity {@code Setting}) is dual-scope, not strict: a platform row ({@code
+   * tenant_id IS NULL}) is readable under any non-empty scope and writable only inside a
+   * platform-write transaction ({@code TenantDimension}, {@code
+   * io.openaev.aop.PlatformWrite}). Every class below was reviewed for exactly that: its reads
+   * carry a scope, and any write it makes to a platform row runs under {@code @PlatformWrite} or
+   * {@code TenantScopedTransaction#executeAsPlatformWrite}/{@code executeNewAsPlatformWrite}.
+   */
+  @ArchTest
+  static final ArchRule parameters_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Platform-row reads/writes, each behind @PlatformWrite on its TxCtx-carrying
+              // controller method (PlatformSettingsApi) or an explicit
+              // platform-write/platform-scope
+              // background transaction (App, ExternalServiceBase and its two subclasses):
+              io.openaev.service.PlatformSettingsService.class,
+              io.openaev.service.settings.SettingService.class,
+              io.openaev.App.class,
+              io.openaev.utils.base.ExternalServiceBase.class,
+              io.openaev.injectors.email.service.SmtpService.class,
+              io.openaev.injectors.email.service.ImapService.class,
+              // Tenant-row reads/writes only (findByKeyAndTenantId / setTenant), plus one platform
+              // fallback READ under the request's own non-empty scope (resolveValue):
+              io.openaev.service.settings.TenantSettingsService.class,
+              io.openaev.service.autonomous.AutonomousRunService.class,
+              // Provisioning datapack: writes a tenant-scoped Setting under MigrationProcessor's
+              // own
+              // tenant-scoped transaction (same primitive as the cwes/marking_definitions seeds
+              // above); never touches a platform row.
+              io.openaev.processor.datapack.V20260101_Starter_pack.class,
+              // Documented, accepted read-only degradation: a context-refresh @Bean method and a
+              // metric gauge supplier, both with an Optional/default fallback on an empty read, no
+              // write, no crash. Not fixed in this PR (see the task report for the reasoning).
+              io.openaev.telemetry.OpenTelemetryConfig.class,
+              io.openaev.telemetry.metric_collectors.AiMetricCollector.class,
+              // Documented, accepted read-only degradation: license/instance reads with their own
+              // Optional/default fallback, reached from the request-scoped PlatformSettingsApi path
+              // and, more rarely, from a cache-miss after App.init()'s boot-time eviction (no scope
+              // at that exact point, same accepted degradation as above). Not fixed in this PR.
+              io.openaev.ee.EnterpriseEditionService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.SettingRepository.class)
+          .because(
+              "parameters is tenant-active (dual-scope): an accessor without a scope silently reads"
+                  + " zero rows, and a write to a platform row without the platform-write marker is"
+                  + " refused by can_write_tenant. New accessors must carry a scope and be"
+                  + " allowlisted here");
 }
