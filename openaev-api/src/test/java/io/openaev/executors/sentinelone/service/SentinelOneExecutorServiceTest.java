@@ -56,6 +56,15 @@ public class SentinelOneExecutorServiceTest {
 
   @BeforeEach
   void setUp() {
+    // Executors send each payload through executorService.sendPayload: run it for real.
+    lenient()
+        .doAnswer(
+            invocation -> {
+              invocation.<Runnable>getArgument(1).run();
+              return null;
+            })
+        .when(executorService)
+        .sendPayload(any(), any());
     sentinelOneAgent = SentinelOneDeviceFixture.createDefaultSentinelOneAgent();
     sentinelOneExecutor = new Executor();
     sentinelOneExecutor.setName(SENTINELONE_EXECUTOR_NAME);

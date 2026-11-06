@@ -11,6 +11,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.model.ExecutorDispatch;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
 import io.openaev.executors.paloaltocortex.config.PaloAltoCortexExecutorConfig;
 import io.openaev.executors.paloaltocortex.model.PaloAltoCortexAction;
@@ -126,12 +127,15 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
           () ->
               batchActions.forEach(
                   action ->
-                      this.client.executeScript(
-                          action.getAgentExternalReference(),
-                          action.getScriptId(),
-                          action.getCommandWindows() != null
-                              ? action.getCommandWindows()
-                              : action.getCommandUnix())),
+                      executorService.sendPayload(
+                          action.getDispatch(),
+                          () ->
+                              this.client.executeScript(
+                                  action.getAgentExternalReference(),
+                                  action.getScriptId(),
+                                  action.getCommandWindows() != null
+                                      ? action.getCommandWindows()
+                                      : action.getCommandUnix()))),
           batchIndex * 5L,
           TimeUnit.SECONDS);
     }
@@ -142,6 +146,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
     List<PaloAltoCortexAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       PaloAltoCortexAction actionWindows = new PaloAltoCortexAction();
+      actionWindows.setDispatch(ExecutorDispatch.of(inject, agent));
       actionWindows.setScriptId(this.config.getWindowsScriptUid());
       String implantLocation =
           "$location="
@@ -206,6 +211,7 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
     List<PaloAltoCortexAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       PaloAltoCortexAction actionUnix = new PaloAltoCortexAction();
+      actionUnix.setDispatch(ExecutorDispatch.of(inject, agent));
       actionUnix.setScriptId(this.config.getUnixScriptUid());
       String implantLocation =
           "location="

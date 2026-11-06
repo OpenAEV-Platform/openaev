@@ -4,14 +4,21 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.service.FileService.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Executor;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.database.repository.ExecutorRepository;
+import io.openaev.executors.model.ExecutorDispatch;
 import io.openaev.rest.catalog_connector.dto.ConnectorIds;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.executor.form.ExecutorOutput;
+import io.openaev.rest.inject.form.InjectExecutionAction;
+import io.openaev.rest.inject.form.InjectExecutionInput;
+import io.openaev.rest.inject.service.InjectExecutionCallbackService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.FileService;
 import io.openaev.service.catalog_connectors.CatalogConnectorService;
@@ -21,13 +28,18 @@ import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.mapper.CatalogConnectorMapper;
 import io.openaev.utils.mapper.ExecutorMapper;
 import jakarta.annotation.Resource;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class ExecutorService extends AbstractConnectorService<Executor, ExecutorOutput> {
 
@@ -43,6 +55,10 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
 
   private final EndpointService endpointService;
 
+  // Resolved lazily: the callback service reaches the execution engine, which reaches executors.
+  private final ObjectProvider<InjectExecutionCallbackService> injectExecutionCallbackService;
+  private final TenantScopedTransaction tenantTx;
+
   @Autowired
   public ExecutorService(
       ExecutorRepository executorRepository,
@@ -53,7 +69,9 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
       ConnectorInstanceService connectorInstanceService,
       ExecutorMapper executorMapper,
       CatalogConnectorMapper catalogConnectorMapper,
-      EndpointService endpointService) {
+      EndpointService endpointService,
+      ObjectProvider<InjectExecutionCallbackService> injectExecutionCallbackService,
+      TenantScopedTransaction tenantTx) {
     super(
         ConnectorType.EXECUTOR,
         connectorInstanceConfigurationRepository,
@@ -65,6 +83,8 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
     this.executionTraceRepository = executionTraceRepository;
     this.executorMapper = executorMapper;
     this.endpointService = endpointService;
+    this.injectExecutionCallbackService = injectExecutionCallbackService;
+    this.tenantTx = tenantTx;
   }
 
   @Override
@@ -283,5 +303,74 @@ public class ExecutorService extends AbstractConnectorService<Executor, Executor
               .toList());
     }
     return agents;
+  }
+
+  /**
+   * Sends a payload to one agent through its EDR and, when the EDR call fails, ends that agent's
+   * execution in error instead of losing the failure in the logs. One failing agent no longer stops
+   * the other agents of the same batch.
+   */
+  public void sendPayload(ExecutorDispatch dispatch, Runnable send) {
+    try {
+      send.run();
+    } catch (Exception e) {
+      log.error(
+          "Executor could not send the payload of inject {} to agent {}",
+          dispatch.injectId(),
+          dispatch.agentId(),
+          e);
+      reportDispatchFailure(dispatch, "The executor could not send the payload: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Tells the user, on the inject, that the executor is still waiting before it can send the
+   * payload to an agent (for example while the EDR keeps another session open on the device).
+   */
+  public void reportDispatchWaiting(ExecutorDispatch dispatch, String message) {
+    reportDispatch(dispatch, ExecutionTraceStatus.INFO, InjectExecutionAction.data, message);
+  }
+
+  /**
+   * Ends an agent's execution in error, with the reason, when its executor could not send the
+   * payload. Without it the inject stays pending until the agent timeout, with no explanation.
+   */
+  public void reportDispatchFailure(ExecutorDispatch dispatch, String message) {
+    reportDispatch(dispatch, ExecutionTraceStatus.ERROR, InjectExecutionAction.complete, message);
+  }
+
+  private void reportDispatch(
+      ExecutorDispatch dispatch,
+      ExecutionTraceStatus status,
+      InjectExecutionAction action,
+      String message) {
+    InjectExecutionInput input = new InjectExecutionInput();
+    input.setStatus(status.name());
+    input.setAction(action);
+    input.setMessage(message);
+    // Executors send payloads from background threads: set both tenant scopes before writing.
+    TenantContext.setCurrentTenant(dispatch.tenantId());
+    try {
+      tenantTx.execute(
+          TxCtx.forTenant(dispatch.tenantId()),
+          () -> {
+            try {
+              injectExecutionCallbackService
+                  .getObject()
+                  .injectExecutionCallback(dispatch.agentId(), dispatch.injectId(), input);
+            } catch (IOException e) {
+              throw new UncheckedIOException(e);
+            }
+          });
+    } catch (Exception e) {
+      log.error(
+          "Could not report executor dispatch '{}' on inject {} for agent {}",
+          message,
+          dispatch.injectId(),
+          dispatch.agentId(),
+          e);
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
   }
 }

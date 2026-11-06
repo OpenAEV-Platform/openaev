@@ -11,9 +11,11 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.mde.client.MdeApiException;
 import io.openaev.executors.mde.client.MdeExecutorClient;
 import io.openaev.executors.mde.config.MdeExecutorConfig;
 import io.openaev.executors.mde.model.MdeAction;
+import io.openaev.executors.model.ExecutorDispatch;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -32,6 +34,11 @@ import org.springframework.stereotype.Service;
 public class MdeExecutorContextService extends ExecutorContextService {
 
   public static final String SERVICE_NAME = MDE_EXECUTOR_NAME;
+
+  private static final long BATCH_INTERVAL_SECONDS = 60;
+  private static final long RETRY_DELAY_SECONDS = 30;
+  // 14 retries of 30 s stay under the 10 minutes after which an agent that never started times out.
+  private static final int MAX_ATTEMPTS = 15;
 
   private final MdeExecutorConfig mdeExecutorConfig;
   private final MdeExecutorClient mdeExecutorClient;
@@ -93,9 +100,9 @@ public class MdeExecutorContextService extends ExecutorContextService {
   }
 
   /**
-   * Dispatches MDE Live Response calls with a global rate limit. MDE throttles the runliveresponse
-   * endpoint aggressively (HTTP 429), so calls are grouped into batches of {@code
-   * apiBatchExecutionActionPagination} machines, one batch every 5 seconds, spread across the whole
+   * Dispatches MDE Live Response calls with a global rate limit. MDE allows 10 runliveresponse
+   * calls per minute (HTTP 429 above), so calls are grouped into batches of {@code
+   * apiBatchExecutionActionPagination} machines, one batch per minute, spread across the whole
    * inject. Actions are built per agent, so the throttle must span all actions — otherwise every
    * call fires at once and most get throttled, leaving only a handful of machines executed.
    */
@@ -111,12 +118,7 @@ public class MdeExecutorContextService extends ExecutorContextService {
     List<Runnable> dispatches = new ArrayList<>();
     for (MdeAction action : actions) {
       for (Agent agent : action.getAgents()) {
-        dispatches.add(
-            () ->
-                mdeExecutorClient.executeAction(
-                    agent.getExternalReference(),
-                    action.getScriptName(),
-                    action.getCommandEncoded()));
+        dispatches.add(() -> send(action, agent, 1));
       }
     }
     int batchCount = (int) Math.ceil(dispatches.size() / (double) paginationLimit);
@@ -125,8 +127,73 @@ public class MdeExecutorContextService extends ExecutorContextService {
       int toIndex = Math.min(fromIndex + paginationLimit, dispatches.size());
       List<Runnable> batch = dispatches.subList(fromIndex, toIndex);
       scheduledExecutorService.schedule(
-          () -> batch.forEach(Runnable::run), batchIndex * 5L, TimeUnit.SECONDS);
+          () -> batch.forEach(Runnable::run),
+          batchIndex * BATCH_INTERVAL_SECONDS,
+          TimeUnit.SECONDS);
     }
+  }
+
+  /**
+   * Sends one Live Response action. MDE runs one session per device and refuses the others, and
+   * throttles above 10 calls per minute: both cases are retried, and the inject shows the wait and,
+   * when the device never frees up, why the agent could not start.
+   */
+  private void send(MdeAction action, Agent agent, int attempt) {
+    try {
+      mdeExecutorClient.executeAction(
+          agent.getExternalReference(), action.getScriptName(), action.getCommandEncoded());
+      if (attempt > 1) {
+        executorService.reportDispatchWaiting(
+            action.getDispatch(),
+            "Live Response session obtained after " + (attempt - 1) + " retries.");
+      }
+    } catch (MdeApiException e) {
+      boolean retryable = e.isDeviceBusy() || e.isRateLimited();
+      if (retryable && attempt < MAX_ATTEMPTS) {
+        log.warn(
+            "MDE Live Response {} on machine {}, retry {}/{} in {}s",
+            e.isDeviceBusy() ? "busy" : "rate limited",
+            agent.getExternalReference(),
+            attempt,
+            MAX_ATTEMPTS - 1,
+            RETRY_DELAY_SECONDS);
+        if (attempt == 1) {
+          executorService.reportDispatchWaiting(action.getDispatch(), waitingMessage(e));
+        }
+        scheduledExecutorService.schedule(
+            () -> send(action, agent, attempt + 1), RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
+        return;
+      }
+      fail(action, agent, retryable ? giveUpMessage(e) : e.getMessage(), e);
+    } catch (Exception e) {
+      fail(action, agent, e.getMessage(), e);
+    }
+  }
+
+  private void fail(MdeAction action, Agent agent, String reason, Exception e) {
+    log.error(
+        "MDE Live Response could not start on machine {}: {}",
+        agent.getExternalReference(),
+        reason,
+        e);
+    executorService.reportDispatchFailure(
+        action.getDispatch(), "The executor could not send the payload: " + reason);
+  }
+
+  private static String waitingMessage(MdeApiException e) {
+    return e.isDeviceBusy()
+        ? "Another Live Response session is running on this device. Retrying every "
+            + RETRY_DELAY_SECONDS
+            + " seconds."
+        : "Microsoft Defender API rate limit reached. Retrying every "
+            + RETRY_DELAY_SECONDS
+            + " seconds.";
+  }
+
+  private static String giveUpMessage(MdeApiException e) {
+    return e.isDeviceBusy()
+        ? "another Live Response session stayed active on this device."
+        : "the Microsoft Defender API rate limit was still reached.";
   }
 
   private List<MdeAction> getWindowsActions(
@@ -185,6 +252,7 @@ public class MdeExecutorContextService extends ExecutorContextService {
       action.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_8)));
       action.setAgents(List.of(agent));
+      action.setDispatch(ExecutorDispatch.of(inject, agent));
       actions.add(action);
     }
     return actions;
@@ -212,6 +280,7 @@ public class MdeExecutorContextService extends ExecutorContextService {
       action.setScriptName(mdeExecutorConfig.getUnixScriptName());
       action.setCommandEncoded(getUnixCommand(platform, injector, inject, agent, token));
       action.setAgents(List.of(agent));
+      action.setDispatch(ExecutorDispatch.of(inject, agent));
       actions.add(action);
     }
     return actions;

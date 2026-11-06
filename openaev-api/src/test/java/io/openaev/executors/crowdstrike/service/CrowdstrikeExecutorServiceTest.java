@@ -68,6 +68,15 @@ public class CrowdstrikeExecutorServiceTest {
     crowdstrikeExecutor.setName(CROWDSTRIKE_EXECUTOR_NAME);
     crowdstrikeExecutor.setType(CROWDSTRIKE_EXECUTOR_TYPE);
     crowdstrikeExecutor.setTenantId(TENANT_ID);
+    // Executors send each payload through executorService.sendPayload: run it for real.
+    lenient()
+        .doAnswer(
+            invocation -> {
+              invocation.<Runnable>getArgument(1).run();
+              return null;
+            })
+        .when(executorService)
+        .sendPayload(any(), any());
     // The service wraps run() in tenantTx.execute(...): make the mock actually invoke the
     // supplied work, otherwise doRun() never happens and the tests below have nothing to verify.
     lenient()

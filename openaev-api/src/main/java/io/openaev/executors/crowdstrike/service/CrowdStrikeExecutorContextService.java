@@ -14,6 +14,7 @@ import io.openaev.executors.ExecutorService;
 import io.openaev.executors.crowdstrike.client.CrowdStrikeExecutorClient;
 import io.openaev.executors.crowdstrike.config.CrowdStrikeExecutorConfig;
 import io.openaev.executors.crowdstrike.model.CrowdStrikeAction;
+import io.openaev.executors.model.ExecutorDispatch;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -111,10 +112,13 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
           () ->
               batchActions.forEach(
                   action ->
-                      this.crowdStrikeExecutorClient.executeAction(
-                          action.getAgentExternalReference(),
-                          action.getScriptName(),
-                          action.getCommandEncoded())),
+                      executorService.sendPayload(
+                          action.getDispatch(),
+                          () ->
+                              this.crowdStrikeExecutorClient.executeAction(
+                                  action.getAgentExternalReference(),
+                                  action.getScriptName(),
+                                  action.getCommandEncoded()))),
           batchIndex * 5L,
           TimeUnit.SECONDS);
     }
@@ -125,6 +129,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     List<CrowdStrikeAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       CrowdStrikeAction actionWindows = new CrowdStrikeAction();
+      actionWindows.setDispatch(ExecutorDispatch.of(inject, agent));
       actionWindows.setScriptName(this.crowdStrikeExecutorConfig.getWindowsScriptName());
       String implantLocation =
           "$location="
@@ -176,6 +181,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     List<CrowdStrikeAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       CrowdStrikeAction actionLinux = new CrowdStrikeAction();
+      actionLinux.setDispatch(ExecutorDispatch.of(inject, agent));
       actionLinux.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionLinux.setCommandEncoded(
           getUnixCommand(Endpoint.PLATFORM_TYPE.Linux, injector, inject, agent, token));
@@ -190,6 +196,7 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
     List<CrowdStrikeAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       CrowdStrikeAction actionMac = new CrowdStrikeAction();
+      actionMac.setDispatch(ExecutorDispatch.of(inject, agent));
       actionMac.setScriptName(this.crowdStrikeExecutorConfig.getUnixScriptName());
       actionMac.setCommandEncoded(
           getUnixCommand(Endpoint.PLATFORM_TYPE.MacOS, injector, inject, agent, token));

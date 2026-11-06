@@ -138,17 +138,21 @@ public class PaloAltoCortexExecutorClient {
       ResponseScriptRun response =
           this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
       if (response.getReply().getErr_code() != null) {
+        String error =
+            response.getReply().getErr_code()
+                + " - "
+                + response.getReply().getErr_msg()
+                + " - "
+                + response.getReply().getErr_extra();
         log.error(
             "Error occurred while executing Palo Alto Cortex API run script for script "
                 + scriptId
                 + " and agent "
                 + agentExternalReference
                 + "\nError: "
-                + response.getReply().getErr_code()
-                + " - "
-                + response.getReply().getErr_msg()
-                + " - "
-                + response.getReply().getErr_extra());
+                + error);
+        throw new ExecutorException(
+            "Palo Alto Cortex refused to run the script: " + error, PALOALTOCORTEX_EXECUTOR_NAME);
       }
     } catch (IOException e) {
       log.error(

@@ -1,6 +1,7 @@
 package io.openaev.executors.mde.model;
 
 import io.openaev.database.model.Agent;
+import io.openaev.executors.model.ExecutorDispatch;
 import java.util.List;
 import lombok.Data;
 
@@ -10,4 +11,5 @@ public class MdeAction {
   private List<Agent> agents;
   private String scriptName;
   private String commandEncoded;
+  private ExecutorDispatch dispatch;
 }

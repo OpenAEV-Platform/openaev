@@ -11,6 +11,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.model.ExecutorDispatch;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
 import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.TaniumAction;
@@ -126,10 +127,13 @@ public class TaniumExecutorContextService extends ExecutorContextService {
           () ->
               batchActions.forEach(
                   action ->
-                      this.taniumExecutorClient.executeAction(
-                          action.getAgentExternalReference(),
-                          action.getScriptId(),
-                          action.getCommandEncoded())),
+                      executorService.sendPayload(
+                          action.getDispatch(),
+                          () ->
+                              this.taniumExecutorClient.executeAction(
+                                  action.getAgentExternalReference(),
+                                  action.getScriptId(),
+                                  action.getCommandEncoded()))),
           batchIndex * 5L,
           TimeUnit.SECONDS);
     }
@@ -144,6 +148,7 @@ public class TaniumExecutorContextService extends ExecutorContextService {
     List<TaniumAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       TaniumAction actionWindows = new TaniumAction();
+      actionWindows.setDispatch(ExecutorDispatch.of(inject, agent));
       actionWindows.setScriptId(this.taniumExecutorConfig.getWindowsPackageId());
       String implantLocation =
           "$location="
@@ -186,6 +191,7 @@ public class TaniumExecutorContextService extends ExecutorContextService {
     List<TaniumAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       TaniumAction actionUnix = new TaniumAction();
+      actionUnix.setDispatch(ExecutorDispatch.of(inject, agent));
       actionUnix.setScriptId(this.taniumExecutorConfig.getUnixPackageId());
       String implantLocation =
           "location="

@@ -12,6 +12,7 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.executors.ExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
+import io.openaev.executors.model.ExecutorDispatch;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
 import io.openaev.executors.sentinelone.config.SentinelOneExecutorConfig;
 import io.openaev.executors.sentinelone.model.SentinelOneAction;
@@ -132,10 +133,13 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
           () ->
               batchActions.forEach(
                   action ->
-                      this.client.executeScript(
-                          action.getAgentExternalReference(),
-                          action.getScriptId(),
-                          action.getCommandEncoded())),
+                      executorService.sendPayload(
+                          action.getDispatch(),
+                          () ->
+                              this.client.executeScript(
+                                  action.getAgentExternalReference(),
+                                  action.getScriptId(),
+                                  action.getCommandEncoded()))),
           batchIndex * 5L,
           TimeUnit.SECONDS);
     }
@@ -146,6 +150,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     List<SentinelOneAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       SentinelOneAction actionWindows = new SentinelOneAction();
+      actionWindows.setDispatch(ExecutorDispatch.of(inject, agent));
       actionWindows.setScriptId(this.config.getWindowsScriptId());
       String implantLocation =
           "$location="
@@ -185,6 +190,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     List<SentinelOneAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       SentinelOneAction actionLinux = new SentinelOneAction();
+      actionLinux.setDispatch(ExecutorDispatch.of(inject, agent));
       actionLinux.setScriptId(this.config.getUnixScriptId());
       actionLinux.setCommandEncoded(
           getUnixCommand(Endpoint.PLATFORM_TYPE.Linux, injector, inject, agent, arch, token));
@@ -199,6 +205,7 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     List<SentinelOneAction> actions = new ArrayList<>();
     for (Agent agent : agents) {
       SentinelOneAction actionMac = new SentinelOneAction();
+      actionMac.setDispatch(ExecutorDispatch.of(inject, agent));
       actionMac.setScriptId(this.config.getUnixScriptId());
       actionMac.setCommandEncoded(
           getUnixCommand(Endpoint.PLATFORM_TYPE.MacOS, injector, inject, agent, arch, token));

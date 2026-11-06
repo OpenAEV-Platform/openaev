@@ -1,6 +1,7 @@
 package io.openaev.executors.paloaltocortex.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.openaev.executors.model.ExecutorDispatch;
 import lombok.Data;
 
 @Data
@@ -12,4 +13,5 @@ public class PaloAltoCortexAction {
   // The parameters to send a payload to SentinelOne API are different if we are on Unix or Windows
   private PaloAltoCortexCommand commandUnix;
   private PaloAltoCortexCommandList commandWindows;
+  private ExecutorDispatch dispatch;
 }
