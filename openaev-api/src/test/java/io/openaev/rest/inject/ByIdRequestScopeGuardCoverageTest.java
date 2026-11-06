@@ -8,21 +8,36 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
+import com.google.common.collect.Sets;
+import io.openaev.aop.AccessControl;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.ResourceType;
+import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
+import io.openaev.rest.atomic_testing.form.InjectRecurrenceInput;
 import io.openaev.rest.inject.form.InjectAttachmentInput;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionInput;
-import io.openaev.utils.pagination.SearchPaginationInput;
+import io.openaev.rest.inject.form.InjectIndividualExportRequestInput;
+import io.openaev.rest.inject.form.InjectReceptionInput;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
+import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 /**
  * For an admin caller, the explicit by-id scope guard ({@code requireInjectInScope} / {@code
@@ -70,6 +85,44 @@ class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTables
             "POST /findings/injects/{injectId}/search",
             (Call) ByIdRequestScopeGuardCoverageTest::searchFindingsByInject),
         Arguments.of(
+            "GET /injects/{injectId}", (Call) ByIdRequestScopeGuardCoverageTest::getPlainInject),
+        Arguments.of(
+            "POST /injects/{injectId}/inject_export",
+            (Call) ByIdRequestScopeGuardCoverageTest::exportInject),
+        Arguments.of(
+            "POST /injects/{injectId}/targets/{targetType}/search",
+            (Call) ByIdRequestScopeGuardCoverageTest::searchInjectTargets),
+        Arguments.of(
+            "GET /injects/{injectId}/targets/{targetType}/options",
+            (Call) ByIdRequestScopeGuardCoverageTest::getInjectTargetOptions),
+        Arguments.of(
+            "POST /injects/execution/reception/{injectId}",
+            (Call) ByIdRequestScopeGuardCoverageTest::postExecutionReception),
+        Arguments.of(
+            "GET /atomic-testings/{injectId}",
+            (Call) ByIdRequestScopeGuardCoverageTest::getAtomicTestingCall),
+        Arguments.of(
+            "PUT /atomic-testings/{injectId}",
+            (Call) ByIdRequestScopeGuardCoverageTest::updateAtomicTestingCall),
+        Arguments.of(
+            "DELETE /atomic-testings/{injectId}",
+            (Call) ByIdRequestScopeGuardCoverageTest::deleteAtomicTestingCall),
+        Arguments.of(
+            "PUT /atomic-testings/{injectId}/tags",
+            (Call) ByIdRequestScopeGuardCoverageTest::updateAtomicTestingTagsCall),
+        Arguments.of(
+            "PUT /atomic-testings/{injectId}/recurrence",
+            (Call) ByIdRequestScopeGuardCoverageTest::updateAtomicTestingRecurrence),
+        Arguments.of(
+            "POST /atomic-testings/{atomicTestingId}/duplicate",
+            (Call) ByIdRequestScopeGuardCoverageTest::duplicateAtomicTesting),
+        Arguments.of(
+            "POST /atomic-testings/{atomicTestingId}/launch",
+            (Call) ByIdRequestScopeGuardCoverageTest::launchAtomicTesting),
+        Arguments.of(
+            "POST /atomic-testings/{atomicTestingId}/relaunch",
+            (Call) ByIdRequestScopeGuardCoverageTest::relaunchAtomicTesting),
+        Arguments.of(
             "GET /atomic-testings/{injectId}/payload",
             (Call) ByIdRequestScopeGuardCoverageTest::getAtomicTestingPayloadCall),
         Arguments.of(
@@ -109,6 +162,57 @@ class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTables
 
     // Assert
     assertThat(status).as(name).isEqualTo(404);
+  }
+
+  // -- COMPLETENESS OF THE LISTS --
+
+  @Autowired
+  @Qualifier("requestMappingHandlerMapping")
+  private RequestMappingHandlerMapping handlerMapping;
+
+  @Test
+  @DisplayName(
+      "given the controllers' by-id INJECT, ATOMIC_TESTING and INJECT_SECRET endpoints, every one is in"
+          + " an"
+          + " endpoint list and every listed endpoint exists")
+  void given_controllersByIdInjectEndpoints_should_matchTheEndpointLists() {
+    // Arrange
+    Set<String> listed =
+        Stream.concat(endpoints(), ParentedInjectEndpoints.endpoints())
+            .map(arguments -> (String) arguments.get()[0])
+            .collect(Collectors.toCollection(TreeSet::new));
+
+    // Act
+    Set<String> declared =
+        handlerMapping.getHandlerMethods().entrySet().stream()
+            .filter(entry -> isByIdInjectEndpoint(entry.getValue()))
+            .flatMap(entry -> endpointNames(entry.getKey()))
+            .collect(Collectors.toCollection(TreeSet::new));
+
+    // Assert
+    assertThat(declared).as("by-id INJECT or ATOMIC_TESTING endpoints found").isNotEmpty();
+    assertThat(Sets.difference(declared, listed))
+        .as("endpoints missing from the lists of this class and of ParentedInjectEndpoints")
+        .isEmpty();
+    assertThat(Sets.difference(listed, declared))
+        .as("listed endpoints no controller declares")
+        .isEmpty();
+  }
+
+  private static boolean isByIdInjectEndpoint(HandlerMethod handler) {
+    AccessControl accessControl = handler.getMethodAnnotation(AccessControl.class);
+    return accessControl != null
+        && Set.of(ResourceType.INJECT, ResourceType.ATOMIC_TESTING, ResourceType.INJECT_SECRET)
+            .contains(accessControl.resourceType())
+        && !accessControl.resourceId().isBlank();
+  }
+
+  /** {@code VERB /path} with the {@code /api} and tenant prefixes dropped, one per route. */
+  private static Stream<String> endpointNames(RequestMappingInfo mapping) {
+    String verb = mapping.getMethodsCondition().getMethods().iterator().next().name();
+    return mapping.getPathPatternsCondition().getPatternValues().stream()
+        .map(path -> path.replaceFirst("^/api/tenants/\\{tenantId}", "").replaceFirst("^/api", ""))
+        .map(path -> verb + " " + path);
   }
 
   // -- SCENARIO AND SIMULATION INJECT ENDPOINTS --
@@ -308,6 +412,81 @@ class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTables
             post(base + "/injects/" + injectId + "/search")
                 .content(asJsonString(new SearchPaginationInput()))
                 .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  private int getPlainInject(Route route, String injectId) throws Exception {
+    return getInject(route, injectId);
+  }
+
+  private int exportInject(Route route, String injectId) throws Exception {
+    return status(
+        route.with(
+            post(injectsBaseUri(route) + "/" + injectId + "/inject_export")
+                .content(asJsonString(new InjectIndividualExportRequestInput()))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  private int searchInjectTargets(Route route, String injectId) throws Exception {
+    return status(
+        route.with(
+            post(injectsBaseUri(route) + "/" + injectId + "/targets/ASSETS/search")
+                .content(asJsonString(new SearchPaginationInput()))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  private int getInjectTargetOptions(Route route, String injectId) throws Exception {
+    return status(
+        route.with(get(injectsBaseUri(route) + "/" + injectId + "/targets/ASSETS/options")));
+  }
+
+  private int postExecutionReception(Route route, String injectId) throws Exception {
+    return status(
+        route.with(
+            post(injectsBaseUri(route) + "/execution/reception/" + injectId)
+                .content(asJsonString(new InjectReceptionInput()))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  private int getAtomicTestingCall(Route route, String injectId) throws Exception {
+    return getAtomicTesting(route, injectId);
+  }
+
+  private int updateAtomicTestingCall(Route route, String injectId) throws Exception {
+    AtomicTestingInput input = new AtomicTestingInput();
+    input.setTitle("updated by an out-of-scope caller");
+    return status(
+        route.with(
+            put(route.atomicTesting(injectId))
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  private int deleteAtomicTestingCall(Route route, String injectId) throws Exception {
+    return deleteAtomicTesting(route, injectId);
+  }
+
+  private int updateAtomicTestingTagsCall(Route route, String injectId) throws Exception {
+    return updateAtomicTestingTags(route, injectId);
+  }
+
+  private int updateAtomicTestingRecurrence(Route route, String injectId) throws Exception {
+    return status(
+        route.with(
+            put(route.atomicTesting(injectId) + "/recurrence")
+                .content(asJsonString(new InjectRecurrenceInput()))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  private int duplicateAtomicTesting(Route route, String injectId) throws Exception {
+    return status(route.with(post(route.atomicTesting(injectId) + "/duplicate")));
+  }
+
+  private int launchAtomicTesting(Route route, String injectId) throws Exception {
+    return status(route.with(post(route.atomicTesting(injectId) + "/launch")));
+  }
+
+  private int relaunchAtomicTesting(Route route, String injectId) throws Exception {
+    return status(route.with(post(route.atomicTesting(injectId) + "/relaunch")));
   }
 
   private int getAtomicTestingPayloadCall(Route route, String injectId) throws Exception {
