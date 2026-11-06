@@ -12,6 +12,8 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.Auditable;
+import io.openaev.database.audit.AuditableListener;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
@@ -20,7 +22,7 @@ import io.openaev.database.model.author.Authorship;
 import io.openaev.helper.CollectorTypeNameSerializer;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
-import io.openaev.jsonapi.IncludeOption;
+import io.openaev.jsonapi.JsonApiExtraAttributes;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -42,7 +44,7 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "payloads")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "payload_type", discriminatorType = STRING)
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, AuditableListener.class})
 // payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
 // TenantBaseListener (#6437, #6430). A create path that forgets to stamp the tenant fails loudly
 // on the NOT NULL constraint instead of being silently defaulted to the ambient tenant.
@@ -69,7 +71,8 @@ import org.hibernate.type.SqlTypes;
       @DiscriminatorMapping(value = AiAttack.AI_ATTACK_TYPE, schema = AiAttack.class)
     })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
-public class Payload implements GrantableBase, TenantBase, Authored {
+public class Payload
+    implements GrantableBase, TenantBase, Authored, JsonApiExtraAttributes, Auditable {
 
   private static final int DEFAULT_NUMBER_OF_ACTIONS_FOR_PAYLOAD = 1;
 
@@ -146,19 +149,6 @@ public class Payload implements GrantableBase, TenantBase, Authored {
   @JsonProperty("payload_prerequisites")
   private List<PayloadPrerequisite> prerequisites = new ArrayList<>();
 
-  @Setter
-  @Column(name = "payload_external_id")
-  @JsonProperty("payload_external_id")
-  private String externalId;
-
-  @Setter
-  @Queryable(filterable = true, sortable = true)
-  @Column(name = "payload_source")
-  @Enumerated(EnumType.STRING)
-  @JsonProperty("payload_source")
-  @NotNull
-  private PAYLOAD_SOURCE source;
-
   @Queryable(filterable = true, searchable = true)
   @Type(StringArrayType.class)
   @Column(name = "payload_expectations", columnDefinition = "text[]")
@@ -198,18 +188,21 @@ public class Payload implements GrantableBase, TenantBase, Authored {
   @JsonIgnore
   private Tenant tenant;
 
-  // -- COLLECTOR TYPE --
+  // -- IDENTITY --
 
-  // EAGER on purpose: the name is serialized with every payload, after the controller's
-  // transaction and tenant scope have closed. A lazy load at that point fails closed on the
-  // v2-active collector_types table and cuts the already-committed response mid-stream.
-  @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "payload_collector_type")
-  @JsonSerialize(using = CollectorTypeNameSerializer.class)
-  @JsonProperty("payload_collector_type")
-  @IncludeOption(key = "exclude from payload export")
-  @Schema(implementation = String.class)
-  private CollectorType collectorType;
+  // EAGER: read after the transaction closes. The database deletes it with its last version.
+  @ManyToOne(
+      fetch = FetchType.EAGER,
+      cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+  @JoinColumn(name = "payload_identity", nullable = false)
+  @JsonIgnore
+  private PayloadIdentity identity;
+
+  public static final String FIRST_VERSION = "1.0.0";
+
+  @Column(name = "payload_version", nullable = false)
+  @JsonIgnore
+  private String version = FIRST_VERSION;
 
   // -- AUTHOR --
   @Embedded
@@ -273,13 +266,11 @@ public class Payload implements GrantableBase, TenantBase, Authored {
 
   // -- AUDIT --
 
-  @CreationTimestamp
-  @Column(name = "payload_created_at")
+  @Column(name = "payload_created_at", updatable = false)
   @JsonProperty("payload_created_at")
   @NotNull
   private Instant createdAt = now();
 
-  @UpdateTimestamp
   @Queryable(filterable = true, sortable = true)
   @Column(name = "payload_updated_at")
   @JsonProperty("payload_updated_at")
@@ -287,8 +278,82 @@ public class Payload implements GrantableBase, TenantBase, Authored {
   private Instant updatedAt = now();
 
   @JsonIgnore
+  public PayloadIdentity identityOrNew() {
+    if (identity == null) {
+      identity = new PayloadIdentity();
+      identity.setTenant(tenant);
+    }
+    return identity;
+  }
+
+  @PrePersist
+  void ensureIdentity() {
+    identityOrNew();
+  }
+
+  public void setTenant(Tenant tenant) {
+    this.tenant = tenant;
+    if (identity != null && identity.getId() == null) {
+      identity.setTenant(tenant);
+    }
+  }
+
+  @JsonProperty("payload_external_id")
+  public String getExternalId() {
+    return identity == null ? null : identity.getExternalId();
+  }
+
+  @JsonProperty("payload_external_id")
+  public void setExternalId(String externalId) {
+    identityOrNew().setExternalId(externalId);
+  }
+
+  @JsonProperty("payload_source")
+  @Queryable(filterable = true, path = "identity.source")
+  @NotNull
+  public PAYLOAD_SOURCE getSource() {
+    return identity == null ? null : identity.getSource();
+  }
+
+  @JsonProperty("payload_source")
+  public void setSource(PAYLOAD_SOURCE source) {
+    identityOrNew().setSource(source);
+  }
+
+  @JsonProperty("payload_collector_type")
+  @JsonSerialize(using = CollectorTypeNameSerializer.class)
+  @Schema(implementation = String.class)
+  public CollectorType getCollectorType() {
+    return identity == null ? null : identity.getCollectorType();
+  }
+
+  @JsonIgnore
+  public void setCollectorType(CollectorType collectorType) {
+    identityOrNew().setCollectorType(collectorType);
+  }
+
+  @Override
+  public Map<String, Object> extraAttributes() {
+    Map<String, Object> attributes = new LinkedHashMap<>();
+    attributes.put("payload_external_id", getExternalId());
+    attributes.put("payload_source", getSource() == null ? null : getSource().name());
+    return attributes;
+  }
+
+  @Override
+  public void applyExtraAttributes(Map<String, Object> attributes) {
+    if (attributes.get("payload_external_id") instanceof String externalId) {
+      setExternalId(externalId);
+    }
+    if (attributes.get("payload_source") instanceof String source) {
+      setSource(PAYLOAD_SOURCE.valueOf(source));
+    }
+  }
+
+  @JsonIgnore
   public String getCollectorTypeValue() {
-    return this.collectorType != null ? this.collectorType.getName() : null;
+    CollectorType collectorType = getCollectorType();
+    return collectorType != null ? collectorType.getName() : null;
   }
 
   @Transient

@@ -30,7 +30,7 @@ public class InjectorContractSpecification {
     }
     return (root, query, cb) -> {
       Join<Object, Object> payload = root.join("payload", JoinType.LEFT);
-      return cb.equal(payload.get("externalId"), payloadExternalId);
+      return cb.equal(payload.get("identity").get("externalId"), payloadExternalId);
     };
   }
 
