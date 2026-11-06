@@ -13,6 +13,25 @@ type ZodImplements<Model> = {
       : z.ZodType<Model[key]>;
 };
 
+type Translate = (message: string) => string;
+
+// TextFieldController stores its value as a string, even with type="number": coerce it back to a
+// number before validation, an emptied (or blank) input becoming `undefined` so it fails the
+// required check. Priorities and orders are integers stored as is, 0 included.
+export const requiredInteger = (t: Translate) => z.preprocess(
+  value => (value === null || (typeof value === 'string' && value.trim() === '') ? undefined : value),
+  z.coerce
+    .number({ error: () => t('This field is required.') })
+    .int({ error: t('Must be a whole number') })
+    .min(0, { error: t('Must be greater than or equal to 0') }),
+) as unknown as z.ZodType<number, number>;
+
+// An emptied text input holds '': submit it as `undefined` so the API stores null, not ''.
+export const optionalText = () => z
+  .string()
+  .transform(value => value || undefined)
+  .optional() as unknown as z.ZodOptional<z.ZodType<string | undefined, string | undefined>>;
+
 export function zodImplement<Model = never>() {
   return {
     with: <
