@@ -7,6 +7,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.service.DataPackService;
 import io.openaev.service.TenantRoleService;
 import io.openaev.service.UserService;
+import io.openaev.service.account.AdminPrivilegeService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
@@ -87,7 +88,7 @@ public class V20260805_Observer_and_manager_users extends DataPack {
           if (groupRepository.findByNameAndTenantId(roleName, tenantId).isPresent()) {
             return;
           }
-          Role role = createRoleIfMissing(roleName, capabilities);
+          Role role = createRoleIfMissing(roleName, capabilities, tenantId);
           Group group = new Group();
           group.setName(roleName);
           group.setDescription(roleName);
@@ -99,9 +100,12 @@ public class V20260805_Observer_and_manager_users extends DataPack {
         });
   }
 
-  private Role createRoleIfMissing(String roleName, Set<Capability> capabilities) {
-    return tenantRoleService.createRoleInternal(
-        UUID.randomUUID().toString(), roleName, roleName, capabilities, null);
+  private Role createRoleIfMissing(String roleName, Set<Capability> capabilities, String tenantId) {
+    return AdminPrivilegeService.pickDefaultRole(tenantRoleService.findAll(tenantId), roleName)
+        .orElseGet(
+            () ->
+                tenantRoleService.createRoleInternal(
+                    UUID.randomUUID().toString(), roleName, roleName, capabilities, tenantId));
   }
 
   private void createUserInGroup(

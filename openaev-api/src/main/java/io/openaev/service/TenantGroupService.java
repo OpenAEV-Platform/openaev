@@ -110,6 +110,11 @@ public class TenantGroupService {
   }
 
   @Transactional(readOnly = true)
+  public List<Group> findAllByTenantId(@NotBlank final String tenantId) {
+    return groupRepository.findAllByTenantId(tenantId);
+  }
+
+  @Transactional(readOnly = true)
   public Optional<Group> findByNameAndTenantId(
       @NotBlank final String name, @NotBlank final String tenantId) {
     return groupRepository.findByNameAndTenantId(name, tenantId);
