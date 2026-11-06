@@ -25,5 +25,4 @@
 #
 # Lines starting with # and blank lines are ignored.
 
-injects | #6404 | Named work: four background entry points to scope, and the SpEL tenant read predicates to drop AT activation and not before (four in InjectRepository, two in ExerciseRepository, one in EndpointRepository, one in AssetGroupRepository). They are native queries, which Hibernate's @Filter never covers, so until the inspector covers the table each predicate is its read's only protection. The import inserts already take the tenant of the parent row. The hottest table in the product, so its read plans are measured before go-live.
 execution_traces | #6394 | Named work: arm it with the injects activation, which it waits for: the inject's tenant is read with no scope until then (ExecutionTrace#attributeTenant). The four readers, the retention delete (under TxCtx.allTenants()) and the finalization job's timeout traces are pinned with the table armed (ExecutionTraceScopedPathsTest). Left, not yet measured with the table armed: the trace writers of the executor launch, the callbacks and the chaining end, and the eager InjectStatus.traces collection read in a path with no scope.

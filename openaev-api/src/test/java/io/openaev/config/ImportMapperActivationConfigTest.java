@@ -596,4 +596,10 @@ class ImportMapperActivationConfigTest {
   void prodConfigActivatesScenarios() throws Exception {
     assertActiveTableEntry("scenarios");
   }
+
+  @Test
+  @DisplayName("openaev.tenant.active-tables in application.properties contains injects")
+  void prodConfigActivatesInjects() throws Exception {
+    assertActiveTableEntry("injects");
+  }
 }
