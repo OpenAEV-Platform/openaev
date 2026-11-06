@@ -46,7 +46,7 @@ triggers: "① WHEN IT LAUNCHES" {
 direction: right
 style: {fill: "#FFF8E1"; stroke: "#FF8F00"; stroke-width: 3 ; font-size: 24; bold: true}
 
-core: "▶️  [Core] CI\n\npush → main, testing-xtm-one\npull_request → main\npush tag  N.N.N" {
+core: "▶️  [Core] CI\n\npush → main, testing-xtm-one\npull_request → any branch\npush tag  N.N.N" {
 style: {fill: "#FFE0B2"; stroke: "#E65100"; stroke-width: 3                                              ; border-radius: 20; bold: true; font-size: 21}
 }
 nightly: "🌙  [Core] Nightly CI\n\nschedule:  cron 0 3 * * *\n(daily, 03:00 UTC)\nworkflow_dispatch" {

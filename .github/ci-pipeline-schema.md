@@ -174,7 +174,7 @@ job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocu
 
 | | Core CI | Nightly CI |
 |-|---------|------------|
-| Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → `main` | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
+| Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → any branch | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
 | Total expanded jobs | ≈ 36 | ≈ 59 |
 
 ### API Tests matrix
