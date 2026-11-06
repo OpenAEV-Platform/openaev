@@ -84,6 +84,9 @@ final class HandledErrorRollbackRules {
       Map.ofEntries(
           // --- Rethrows: the exception leaves the handler, so the rollback is honoured. ---
           entry(
+              "CatalogSyncService#sync -> CatalogService.apply",
+              "rethrows after asking for the refusal alert, sent once the rollback is done"),
+          entry(
               "AutonomousRunService#convertToManual -> WorkflowService.copyScenarioChainingWorkflowAsManual",
               "rethrows as ResponseStatusException(400)"),
           entry(
