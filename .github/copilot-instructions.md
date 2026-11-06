@@ -108,6 +108,7 @@ Conventions are defined in dedicated instruction files that activate automatical
 | Security (RBAC/@AccessControl)       | [security.instructions.md](.github/instructions/security.instructions.md)                 |
 | Performance (N+1/pagination/fetch)   | [performance.instructions.md](.github/instructions/performance.instructions.md)           |
 | ORM (write correctness/native/tests) | [orm.instructions.md](.github/instructions/orm.instructions.md)                           |
+| CI (workflows/composite actions)     | [ci.instructions.md](.github/instructions/ci.instructions.md)                             |
 | Code Review                          | [code-review.instructions.md](.github/instructions/code-review.instructions.md)           |
 
 ### Available Agents

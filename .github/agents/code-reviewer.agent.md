@@ -23,6 +23,7 @@ Always load:
 Load conditionally based on the diff:
 - **Frontend files (`.tsx`, `.ts`)** → read `.github/instructions/frontend.instructions.md`
 - **Migration files** → read `.github/instructions/migration.instructions.md`
+- **Workflow or composite action files (`.github/workflows/**`, `.github/actions/**`)** → read `.github/instructions/ci.instructions.md`
 
 Then:
 - **Follow `.claude/skills/review-code/SKILL.md`** step-by-step — run every command
@@ -57,6 +58,7 @@ Then:
 | **No writes in read paths** | GET/list code never calls setters on managed entities (`readOnly = true` does NOT prevent the OSIV flush at response commit) — display-only values go into the output DTO via mapper parameters |
 | **Error handling** | Uses `ElementNotFoundException`? Returns proper HTTP status codes? |
 | **Logging** | Uses `@Slf4j`? No `System.out.println`? No sensitive data in logs? |
+| **CI scripts** | No `${{ }}` inside a `run:` or `github-script` script? Values passed through the step `env:` and quoted? (🔴 when the value can come from a PR, branch name or other untrusted input) |
 
 ### Phase 3 — Code Quality
 

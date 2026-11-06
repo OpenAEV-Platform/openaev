@@ -10,12 +10,14 @@ runs:
   using: composite
   steps:
     - name: Check new migrations block is strictly appended to the end since the last release
+      env:
+        LAST_RELEASE: ${{ inputs.last-release-number }}
       run: |
         set +e
         echo "Comparing migration files from the last release with the current branch... (reverse chronological order)"
-        DIFF_FILES=$(diff --side-by-side <(git ls-tree ${{ inputs.last-release-number }} --name-only -- openaev-api/src/main/java/io/openaev/migration/) <(find openaev-api/src/main/java/io/openaev/migration/* | sort) | tac)
+        DIFF_FILES=$(diff --side-by-side <(git ls-tree "${LAST_RELEASE}" --name-only -- openaev-api/src/main/java/io/openaev/migration/) <(find openaev-api/src/main/java/io/openaev/migration/* | sort) | tac)
         
-        echo "Diff between release ${{ inputs.last-release-number }} and current branch (a chevron means a difference)"
+        echo "Diff between release ${LAST_RELEASE} and current branch (a chevron means a difference)"
         echo "${DIFF_FILES}"
         
         NO_DIFF_ALLOWED=false
