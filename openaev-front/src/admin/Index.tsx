@@ -176,7 +176,8 @@ const Index = () => {
             {/* Static segments rank above the profile wildcard in React Router */}
             <Route path="profile/notifications" element={errorWrapper(ProfileNotifications)()} />
             <Route path="profile/triggers" element={errorWrapper(ProfileTriggers)()} />
-            <Route path="profile/news-feed" element={errorWrapper(ProfileNewsFeed)()} />
+            <Route path="profile/news-feed" element={errorWrapper(ProfileNewsFeed)({ tab: 'items' })} />
+            <Route path="profile/news-feed/settings" element={errorWrapper(ProfileNewsFeed)({ tab: 'settings' })} />
             <Route path="profile/*" element={errorWrapper(IndexProfile)()} />
             <Route path="" element={errorWrapper(Home)()} />
             <Route path="results" element={errorWrapper(DashboardResults)()} />

@@ -4,7 +4,6 @@ import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useRef, useState } from 'react';
 
 import { searchMyNewsFeedItems } from '../../../../actions/news_feed/news-feed-actions';
-import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { initSorting } from '../../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
@@ -155,13 +154,6 @@ const NewsFeedList = () => {
 
   return (
     <>
-      <Breadcrumbs
-        variant="list"
-        elements={[{
-          label: t('News feed'),
-          current: true,
-        }]}
-      />
       <PaginationComponentV2
         fetch={searchItemsToLoad}
         searchPaginationInput={searchPaginationInput}
