@@ -28,6 +28,7 @@ import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/
 import GettingStartedRoutes, { GETTING_STARTED_URI } from './components/getting_started/GettingStartedRoutes';
 import { SETTINGS_ACCESS_CHECKS } from './components/nav/config/settings.config';
 import LeftBar from './components/nav/LeftBar';
+import NewsFeedToastManager from './components/nav/NewsFeedToastManager';
 import TopBar from './components/nav/TopBar';
 import DeployScenario from './components/scenarios/DeployScenario';
 
@@ -168,6 +169,7 @@ const Index = () => {
       }}
     >
       <TopBar />
+      <NewsFeedToastManager />
       <LeftBar />
       <Box component="main" sx={boxSx}>
         <div className={classes.toolbar} />
