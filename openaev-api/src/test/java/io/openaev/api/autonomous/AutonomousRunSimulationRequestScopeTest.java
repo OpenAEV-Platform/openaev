@@ -2,6 +2,7 @@ package io.openaev.api.autonomous;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.jayway.jsonpath.JsonPath;
@@ -165,6 +166,40 @@ class AutonomousRunSimulationRequestScopeTest extends IntegrationTest {
       assertThat(resumeStatus).isEqualTo(200);
       assertThat(raw("exercises", "exercise_status", "exercise_id", simulationId))
           .isEqualTo("RUNNING");
+    }
+
+    @Test
+    @DisplayName("given_settledPlanRunOfMemberTenant_should_deleteItsScenarioAndSimulation")
+    void given_settledPlanRunOfMemberTenant_should_deleteItsScenarioAndSimulation()
+        throws Exception {
+      // Arrange
+      String response = createPlanRunInMemberTenant().getContentAsString();
+      String runId = JsonPath.read(response, "$.autonomous_run_id");
+      String scenarioId = JsonPath.read(response, "$.autonomous_run_scenario_id");
+      String simulationId = JsonPath.read(response, "$.autonomous_run_simulation_id");
+      entityManager
+          .createNativeQuery(
+              "UPDATE autonomous_runs SET autonomous_run_status = 'COMPLETED'"
+                  + " WHERE autonomous_run_id = :id")
+          .setParameter("id", runId)
+          .executeUpdate();
+      entityManager.clear();
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      int status =
+          mvc.perform(
+                  delete("/api/scenarios/" + scenarioId)
+                      .header("X-Tenant-Ids", memberTenant)
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // Assert
+      assertThat(status).isEqualTo(200);
+      assertThat(rawCount("scenarios", "scenario_id", scenarioId)).isZero();
+      assertThat(rawCount("exercises", "exercise_id", simulationId)).isZero();
     }
 
     @Test
