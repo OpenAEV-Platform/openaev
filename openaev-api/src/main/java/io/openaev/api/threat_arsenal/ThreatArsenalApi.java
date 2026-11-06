@@ -18,6 +18,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutpu
 import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -59,7 +60,7 @@ public class ThreatArsenalApi {
   // several of them makes that lookup match more than one row and throw instead of resolving one.
   public ThreatArsenalActionFullOutput threatArsenal(
       @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
-    writeScopeResolver.tenantForWrite(ctx, null);
+    TxCtxScopeUtils.requireSingleTenant(ctx);
     return threatArsenalService.findById(actionId);
   }
 

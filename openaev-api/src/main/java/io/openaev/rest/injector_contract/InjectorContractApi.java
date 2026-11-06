@@ -23,6 +23,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFacetCountsOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -168,7 +169,7 @@ public class InjectorContractApi extends RestBehavior {
   // instead of resolving one.
   public InjectorContract injectorContract(
       @RequireTenantSelector TxCtx ctx, @PathVariable String injectorContractId) {
-    writeScopeResolver.tenantForWrite(ctx, null);
+    TxCtxScopeUtils.requireSingleTenant(ctx);
     return hydrated(injectorContractService.injectorContract(injectorContractId));
   }
 
@@ -209,7 +210,7 @@ public class InjectorContractApi extends RestBehavior {
       @RequireTenantSelector TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateInput input) {
-    writeScopeResolver.tenantForWrite(ctx, null);
+    TxCtxScopeUtils.requireSingleTenant(ctx);
     return hydrated(injectorContractService.updateInjectorContract(injectorContractId, input));
   }
 
@@ -235,7 +236,7 @@ public class InjectorContractApi extends RestBehavior {
       @RequireTenantSelector TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateMappingInput input) {
-    writeScopeResolver.tenantForWrite(ctx, null);
+    TxCtxScopeUtils.requireSingleTenant(ctx);
     return hydrated(
         injectorContractService.updateInjectorContractTTPDomainsAndTags(injectorContractId, input));
   }
@@ -260,7 +261,7 @@ public class InjectorContractApi extends RestBehavior {
   // needs a single tenant for the same reason as the GET above.
   public void deleteInjectorContract(
       @RequireTenantSelector TxCtx ctx, @PathVariable String injectorContractId) {
-    writeScopeResolver.tenantForWrite(ctx, null);
+    TxCtxScopeUtils.requireSingleTenant(ctx);
     this.injectorContractService.deleteInjectorContract(injectorContractId);
   }
 
