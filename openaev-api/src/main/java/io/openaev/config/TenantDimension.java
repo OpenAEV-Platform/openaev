@@ -68,9 +68,9 @@ public final class TenantDimension implements ScopeDimension {
 
   /**
    * Used for a plain {@code INSERT ... VALUES}. Only dual-scope tables are guarded here, and only
-   * for the platform-row case: a tenant row stays exactly as unvalidated as a strict table's {@code
-   * VALUES} insert is today (see the interface javadoc for why), so this never rejects a write that
-   * would have succeeded before a table became dual-scope-active.
+   * for the platform-row case: a tenant row is not validated, like a strict table's {@code VALUES}
+   * insert (see the interface javadoc for why), so this rejects only a platform row written outside
+   * a platform-write transaction.
    */
   @Override
   public String writeValuesAttributionPredicate(String table, String valueExpression) {

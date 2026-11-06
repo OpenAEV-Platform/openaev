@@ -17,14 +17,13 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * With {@code parameters} active, {@code App.init()} must survive being run a second time against
- * a database where the platform_instance row it seeds already exists - the shape of every restart.
- * Measured broken before this fix: the unscoped read always came back empty (fail-closed), so the
- * idempotent branch never ran and the re-insert collided with {@code uk_parameters_key_platform} on
- * every single boot, fresh database included.
+ * With {@code parameters} active, {@code App.init()} must survive being run a second time against a
+ * database where the platform_instance row it seeds already exists - the shape of every restart.
+ * The bootstrap reads that row under an explicit scope, so it finds it instead of inserting a
+ * second one that would collide with {@code uk_parameters_key_platform}.
  *
- * <p>Deliberately NOT {@code @Transactional}: {@code App.init()} now opens its own transaction
- * through {@code TenantScopedTransaction#executeAsPlatformWrite}, which refuses to run inside an
+ * <p>Deliberately NOT {@code @Transactional}: {@code App.init()} opens its own transaction through
+ * {@code TenantScopedTransaction#executeAsPlatformWrite}, which refuses to run inside an
  * already-active one (see that class's testing note and {@code
  * TenantScopedTransactionIntegrationTest}, the reference pattern this follows).
  */
@@ -66,10 +65,8 @@ class DualScopeParametersBootTest extends IntegrationTest {
     // to reach this test, so the platform_instance row already exists.
     String firstBootId = platformInstanceId();
 
-    // Act: re-run the exact startup sequence a restart would run, against that existing row.
-    // Before the fix this collided with uk_parameters_key_platform (a
-    // DataIntegrityViolationException that failed the whole boot); the scoped, platform-write read
-    // now finds the row instead of re-inserting it.
+    // Act: re-run the startup sequence a restart runs, against that existing row. The scoped,
+    // platform-write read finds the row instead of re-inserting it.
     app.init();
 
     // Assert: no exception, and the id is the same row, not a duplicate.

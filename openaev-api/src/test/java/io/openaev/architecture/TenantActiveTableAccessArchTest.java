@@ -2308,10 +2308,10 @@ class TenantActiveTableAccessArchTest {
   /**
    * {@code parameters} (entity {@code Setting}) is dual-scope, not strict: a platform row ({@code
    * tenant_id IS NULL}) is readable under any non-empty scope and writable only inside a
-   * platform-write transaction ({@code TenantDimension}, {@code
-   * io.openaev.aop.PlatformWrite}). Every class below was reviewed for exactly that: its reads
-   * carry a scope, and any write it makes to a platform row runs under {@code @PlatformWrite} or
-   * {@code TenantScopedTransaction#executeAsPlatformWrite}/{@code executeNewAsPlatformWrite}.
+   * platform-write transaction ({@code TenantDimension}, {@code io.openaev.aop.PlatformWrite}).
+   * Every class below was reviewed for exactly that: its reads carry a scope, and any write it
+   * makes to a platform row runs under {@code @PlatformWrite} or {@code
+   * TenantScopedTransaction#executeAsPlatformWrite}/{@code executeNewAsPlatformWrite}.
    */
   @ArchTest
   static final ArchRule parameters_repository_access_is_reviewed =
@@ -2337,21 +2337,19 @@ class TenantActiveTableAccessArchTest {
               // tenant-scoped transaction (same primitive as the cwes/marking_definitions seeds
               // above); never touches a platform row.
               io.openaev.processor.datapack.V20260101_Starter_pack.class,
-              // Documented, accepted read-only degradation: a context-refresh @Bean method and a
-              // metric gauge supplier, both with an Optional/default fallback on an empty read, no
-              // write, no crash. Not fixed in this PR (see the task report for the reasoning).
+              // Read-only: a context-refresh @Bean method and a metric gauge supplier, both with
+              // an Optional/default fallback on an empty read, no write, no crash.
               io.openaev.telemetry.OpenTelemetryConfig.class,
               io.openaev.telemetry.metric_collectors.AiMetricCollector.class,
-              // Documented, accepted read-only degradation: license/instance reads with their own
-              // Optional/default fallback, reached from the request-scoped PlatformSettingsApi path
-              // and, more rarely, from a cache-miss after App.init()'s boot-time eviction (no scope
-              // at that exact point, same accepted degradation as above). Not fixed in this PR.
+              // Read-only: license/instance reads with their own Optional/default fallback,
+              // reached from the request-scoped PlatformSettingsApi path and from a cache miss
+              // after App.init()'s boot-time eviction (no scope at that point).
               io.openaev.ee.EnterpriseEditionService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(io.openaev.database.repository.SettingRepository.class)
           .because(
-              "parameters is tenant-active (dual-scope): an accessor without a scope silently reads"
+              "parameters is tenant-active (dual-scope): an accessor without a scope reads"
                   + " zero rows, and a write to a platform row without the platform-write marker is"
                   + " refused by can_write_tenant. New accessors must carry a scope and be"
                   + " allowlisted here");

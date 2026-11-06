@@ -48,10 +48,10 @@ class AppTest extends IntegrationTest {
   @Autowired private LicenseCacheManager licenseCacheManager;
 
   /**
-   * {@code App.init()} now runs its instance-id bootstrap through {@code
-   * TenantScopedTransaction#executeAsPlatformWrite} (parameters is now dual-scope-active): these
-   * unit tests construct {@code App} directly with a mocked repository and never open a real
-   * transaction, so the mock runs the supplied work inline instead of opening one.
+   * {@code App.init()} runs its instance-id bootstrap through {@code
+   * TenantScopedTransaction#executeAsPlatformWrite}: these unit tests construct {@code App}
+   * directly with a mocked repository and never open a real transaction, so the mock runs the
+   * supplied work inline instead of opening one.
    */
   @BeforeEach
   void stubPlatformWritePassthrough() {

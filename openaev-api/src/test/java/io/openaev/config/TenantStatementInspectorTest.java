@@ -676,8 +676,8 @@ class TenantStatementInspectorTest {
 
   @Test
   @DisplayName(
-      "an INSERT ... VALUES into a strict table is left exactly as unvalidated as today, even"
-          + " when tenant_id is present")
+      "an INSERT ... VALUES into a strict table is not rewritten, whether or not tenant_id is"
+          + " present")
   void insertValuesIntoStrictTableStaysUnvalidated() {
     String out = inspect("INSERT INTO documents (id, tenant_id) VALUES (1, NULL)");
     assertFalse(out.contains("is_platform_write"), out);

@@ -55,8 +55,9 @@ public class App {
   public void init() {
     log.info("Startup init");
     // parameters is a dual-scope (platform-write) table: the instance-id bootstrap below reads and
-    // writes a platform row (tenant_id IS NULL), before any HTTP request or tenant data exists, so
-    // it needs its own explicit scope and platform-write marking rather than an ambient one.
+    // writes a platform row (tenant_id IS NULL) with no HTTP request or tenant data around it, so
+    // it
+    // carries its own explicit scope and platform-write marking.
     String platformId =
         tenantScopedTransaction.executeAsPlatformWrite(
             TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), this::initInstanceId);

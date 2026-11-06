@@ -17,7 +17,7 @@ import java.lang.annotation.Target;
  * for the background-primitive equivalent, used off the request thread). A migration needs neither:
  * it runs outside Hibernate, so the statement inspector never sees it.
  *
- * <p>Adding this to a method does not by itself authorize anything — {@code @AccessControl} still
+ * <p>Adding this to a method does not by itself authorize anything: {@code @AccessControl} still
  * decides who may call it. This annotation only lifts the SQL-level refusal of a platform-row write
  * for a transaction the server has already decided is allowed to make one.
  */

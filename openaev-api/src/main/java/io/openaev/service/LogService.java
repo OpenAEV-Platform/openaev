@@ -120,8 +120,8 @@ public class LogService {
    * parameters} table ({@code tenant_id IS NULL}). {@code isEnabled()} runs both inside a request's
    * own transaction (an audit event) and with no ambient transaction at all ({@link
    * #onApplicationReady()} at startup, or {@link #onLicenseRefreshed()} fired from {@code
-   * App.init()} after its own platform-write transaction has already closed), so this opens the
-   * shape {@link TenantScopedTransaction} requires for each case rather than assuming one.
+   * App.init()} after its own platform-write transaction has closed), so this opens the shape
+   * {@link TenantScopedTransaction} requires for each case rather than assuming one.
    *
    * @param shouldClean {@code true} → clear the banner; {@code false} → show the banner.
    */
