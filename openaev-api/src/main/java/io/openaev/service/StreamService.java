@@ -133,6 +133,15 @@ public class StreamService {
                       TxCtx.forTenant(checkTenantId), user, resourceId, resourceType, Action.READ)
                   : permissionService.hasPermission(
                       user, Optional.empty(), resourceId, resourceType, Action.READ));
+    } catch (IllegalArgumentException e) {
+      // PermissionService refuses a resource it cannot resolve in a scope: an inject with no tenant
+      // to resolve it in. Fails closed like any other failed check, but a refusal is not routine.
+      log.warn(
+          "Stream permission check refused for {} {}, treated as denied: {}",
+          resourceType,
+          resourceId,
+          e.getMessage());
+      return false;
     } catch (Exception e) {
       log.debug(
           "Stream permission check failed for {} {}, treated as denied",
