@@ -54,9 +54,6 @@ extra:
       link: https://facebook.com/FiligranHQ
 
 # Hides the pages of preview features from the navigation (see preview_features.py)
-hooks:
-  - preview_features.py
-
 # Plugins
 plugins:
   - mike:
@@ -142,9 +139,11 @@ validation:
     anchors: warn
     absolute_links: warn
     unrecognized_links: warn
-# What MkDocs does not check: built pages, images, search index, absolute links to the docs
-# site, page URIs and links.json. See the docstring of hooks/checks.py.
+# preview_features.py leaves the pages of hidden preview features out of the build (see main.py).
+# hooks/checks.py checks what MkDocs does not: built pages, images, search index, absolute links to
+# the docs site, page URIs and links.json. See its docstring.
 hooks:
+  - preview_features.py
   - hooks/checks.py
 
 # Extensions
