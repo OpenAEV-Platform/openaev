@@ -69,23 +69,18 @@ public class ThreatArsenalMapper {
     // Resolve the polymorphic author (contract-level first, then payload-level,
     // via the entity getters) so a freshly created action already carries its
     // author. Name resolution mirrors the search projection: user -> full name
-    // (email fallback), team/organization -> name. Left null for authorless
+    // (email fallback), organization -> name. Left null for authorless
     // built-in content (the UI presents those as authored by Filigran).
     String authorId = null;
     String authorName = null;
     String authorType = null;
     User authorUser = resolveAuthor(User.class, injectorContract.getPayloadAuthorUser());
-    Team authorTeam = resolveAuthor(Team.class, injectorContract.getPayloadAuthorTeam());
     Organization authorOrganization =
         resolveAuthor(Organization.class, injectorContract.getPayloadAuthorOrganization());
     if (authorUser != null) {
       authorId = authorUser.getId();
       authorName = authorUser.getNameOrEmail();
       authorType = "user";
-    } else if (authorTeam != null) {
-      authorId = authorTeam.getId();
-      authorName = authorTeam.getName();
-      authorType = "team";
     } else if (authorOrganization != null) {
       authorId = authorOrganization.getId();
       authorName = authorOrganization.getName();

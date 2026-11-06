@@ -46,6 +46,7 @@ class ScenarioServiceUnitTest {
   @Mock private InjectService injectService;
   @Mock private TagRuleService tagRuleService;
   @Mock private UserService userService;
+  @Mock private AuthorService authorService;
   @Mock private ScenarioMapper scenarioMapper;
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private ExerciseMapper exerciseMapper;

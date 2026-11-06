@@ -117,6 +117,7 @@ class ScenarioServiceTest extends IntegrationTest {
   @Mock private InjectService injectService;
   @Mock private TagRuleService tagRuleService;
   @Mock private UserService userService;
+  @Mock private AuthorService authorService;
   @Mock private TenantSettingsService tenantSettingsService;
   @Mock private CustomDashboardService customDashboardService;
   @InjectMocks private ScenarioService scenarioService;
@@ -166,6 +167,7 @@ class ScenarioServiceTest extends IntegrationTest {
         tagRuleService,
         injectService,
         userService,
+        authorService,
         tenantSettingsService,
         customDashboardService,
         injectRepository,

@@ -3084,7 +3084,6 @@
   "Payload status": "Статус нагрузки",
   "payload_attack_patterns": "Шаблоны атак",
   "payload_author_organization": "Автор (организация)",
-  "payload_author_team": "Автор (команда)",
   "payload_author_user": "Автор (пользователь)",
   "payload_description": "Описание",
   "payload_domains": "Домены",

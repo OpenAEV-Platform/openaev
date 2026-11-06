@@ -3084,7 +3084,6 @@
   "Payload status": "페이로드 상태",
   "payload_attack_patterns": "공격 패턴",
   "payload_author_organization": "작성자(조직)",
-  "payload_author_team": "작성자(팀)",
   "payload_author_user": "작성자(사용자)",
   "payload_description": "설명",
   "payload_domains": "도메인",
