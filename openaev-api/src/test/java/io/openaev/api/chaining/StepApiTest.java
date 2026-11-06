@@ -42,6 +42,7 @@ class StepApiTest {
     Step created = step("step-1", 2, StepStatus.TEMPLATE, "{\"a\":1}");
     when(stepService.createStepTemplate(eq(workflow), any(StepsCreateInput.StepInput.class)))
         .thenReturn(created);
+    when(stepService.toReaderOutput(created)).thenReturn(StepMapper.toOutput(created));
 
     // Act
     StepOutput result = stepApi.createStep(TxCtx.missing(), input);
@@ -57,8 +58,9 @@ class StepApiTest {
   @Test
   void given_stepId_should_findByIdAndReturnMappedStep() {
     // Arrange
-    when(stepService.findStepTemplateById("step-42"))
-        .thenReturn(step("step-42", 1, StepStatus.TEMPLATE, "{}"));
+    Step found = step("step-42", 1, StepStatus.TEMPLATE, "{}");
+    when(stepService.findStepTemplateById("step-42")).thenReturn(found);
+    when(stepService.toReaderOutput(found)).thenReturn(StepMapper.toOutput(found));
 
     // Act
     StepOutput result = stepApi.findById(TxCtx.missing(), "step-42");
@@ -72,8 +74,10 @@ class StepApiTest {
   @Test
   void given_workflowId_should_findByWorkflowIdAndReturnMappedList() {
     // Arrange
-    when(stepService.findAllStepTemplateByWorkflow("wf-9"))
-        .thenReturn(List.of(step("s-9", 5, StepStatus.TEMPLATE, "{}")));
+    List<Step> steps = List.of(step("s-9", 5, StepStatus.TEMPLATE, "{}"));
+    when(stepService.findAllStepTemplateByWorkflow("wf-9")).thenReturn(steps);
+    when(stepService.toReaderOutputs(steps))
+        .thenReturn(steps.stream().map(StepMapper::toOutput).toList());
 
     // Act
     List<StepOutput> result = stepApi.findByWorkflowId(TxCtx.missing(), "wf-9");
@@ -91,8 +95,9 @@ class StepApiTest {
     input.setWorkflowId("wf-1");
     input.setStepAction(StepActionClass.INJECT_EXECUTION);
 
-    when(stepService.updateStepTemplate("s-1", input))
-        .thenReturn(step("s-1", 9, StepStatus.TEMPLATE, "{\"updated\":true}"));
+    Step updated = step("s-1", 9, StepStatus.TEMPLATE, "{\"updated\":true}");
+    when(stepService.updateStepTemplate("s-1", input)).thenReturn(updated);
+    when(stepService.toReaderOutput(updated)).thenReturn(StepMapper.toOutput(updated));
 
     // Act
     StepOutput result = stepApi.updateStep(TxCtx.missing(), "s-1", input);

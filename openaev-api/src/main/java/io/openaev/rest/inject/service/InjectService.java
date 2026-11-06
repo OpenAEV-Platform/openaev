@@ -99,6 +99,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.hibernate.Hibernate;
+import org.hibernate.LazyInitializationException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -574,14 +575,39 @@ public class InjectService {
     // The dispatch may hold an inject loaded in another session, always load user by its id, do
     // not rely on User associated to Inject by lazy loading association.
     Optional<User> launchedBy =
-        injectRepository
-            .findLauncherId(inject.getId())
+        launcherIdOf(inject)
             .flatMap(launcherId -> userService.find(List.of(launcherId)).stream().findFirst());
     if (launchedBy.isEmpty()) {
       return MarkingCtx.none();
     }
     return markingClearanceCacheManager.findClearance(
         launchedBy.get().getId(), inject.getTenant().getId());
+  }
+
+  /**
+   * The id of the launcher of the inject: read from the database, and from the inject itself only
+   * when the database does not know it.
+   *
+   * <p>A chained step creates its inject in the transaction of the run, then records its attack
+   * path from an isolated one ({@code REQUIRES_NEW}) that resolves the targets again. The row of
+   * the inject is not committed yet, so that transaction does not see it, finds no launcher, and
+   * resolves a zero clearance: every marked asset reads as a target the launcher is not cleared
+   * for, and no attack-path row is written for it (an empty Attack Path tab, whoever reads it).
+   */
+  private Optional<String> launcherIdOf(Inject inject) {
+    Optional<String> persisted = injectRepository.findLauncherId(inject.getId());
+    return persisted.isPresent() ? persisted : launcherIdOfLoadedInject(inject);
+  }
+
+  private static Optional<String> launcherIdOfLoadedInject(Inject inject) {
+    try {
+      Exercise simulation = inject.getExercise();
+      User launcher = simulation != null ? simulation.getLaunchedBy() : inject.getLaunchedBy();
+      return Optional.ofNullable(launcher).map(User::getId);
+    } catch (LazyInitializationException e) {
+      // Loaded by a session that is closed: nothing more can be read from it.
+      return Optional.empty();
+    }
   }
 
   /**
