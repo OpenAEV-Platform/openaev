@@ -8,6 +8,7 @@ import {
   useWatch,
 } from 'react-hook-form';
 
+import DocumentField from '../../../../../components/fields/DocumentField';
 import RichTextField from '../../../../../components/fields/RichTextField';
 import SelectFieldController, { type Item } from '../../../../../components/fields/SelectFieldController';
 import SeparatorFieldController from '../../../../../components/fields/SeparatorFieldController';
@@ -18,6 +19,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import { type ChoiceItem, type EnhancedContractElement } from '../../../../../utils/api-types-custom';
 import AiTargetAutocompleteField from '../../../assets/ai_targets/AiTargetAutocompleteField';
 import InjectEndpointsList from './endpoints/InjectEndpointsList';
+import { resolveInjectFieldType } from './injectFieldType';
 
 interface Props {
   field: EnhancedContractElement;
@@ -40,10 +42,7 @@ const InjectContentFieldComponent = ({
     name: field.key,
   });
   const [informationToDisplay, setInformationToDisplay] = useState<string>('');
-  let fieldType: EnhancedContractElement['type'] | 'richText' = field.type;
-  if (field.type === 'textarea' && field.richText) {
-    fieldType = 'richText';
-  }
+  const fieldType = resolveInjectFieldType(field);
 
   useEffect(() => {
     const findInformation = (value: string) => (field.choices as ChoiceItem[]).find(c => c.value === value)?.information ?? '';
@@ -135,6 +134,22 @@ const InjectContentFieldComponent = ({
               errorLabel={error?.message}
             />
           </>
+        );
+      case 'document':
+        return (
+          <Controller
+            name={field.key}
+            control={control}
+            render={({ field: { onChange, value }, fieldState: { error: fieldError } }) => (
+              <DocumentField
+                label={t(label)}
+                fieldValue={(value as string) ?? ''}
+                fieldOnChange={onChange}
+                error={fieldError ?? error}
+                style={{}}
+              />
+            )}
+          />
         );
       case 'ai-target':
         return (
