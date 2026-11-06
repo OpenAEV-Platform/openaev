@@ -349,7 +349,6 @@ public interface ExerciseRepository
                 INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
                 INNER JOIN exercises e ON i.inject_exercise = e.exercise_id
                 WHERE (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-                AND i.tenant_id = :#{#tenantContext.currentTenant}
                 ORDER BY e.exercise_created_at DESC;
             """,
       nativeQuery = true)
@@ -367,7 +366,6 @@ public interface ExerciseRepository
                 LEFT JOIN scenarios_exercises se ON se.exercise_id = e.exercise_id
                 WHERE (se.scenario_id = :sourceId OR fa.asset_id = :sourceId)
                 AND (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
-                AND i.tenant_id = :#{#tenantContext.currentTenant}
                 ORDER BY e.exercise_created_at DESC;
             """,
       nativeQuery = true)

@@ -126,8 +126,7 @@ public interface EndpointRepository
           + "   OR i.scenario.id = :simulationOrScenarioId)"
           + " ) AND (:name IS NULL OR lower(a.name) LIKE concat('%', lower(cast(coalesce(:name, '') as string)), '%'))"
           // injects_assets may now reference non-endpoint assets (e.g. AI targets)
-          + " AND TYPE(a) = Endpoint"
-          + " AND i.tenant.id = :#{#tenantContext.currentTenant}")
+          + " AND TYPE(a) = Endpoint")
   List<Endpoint> findAllBySimulationOrScenarioIdAndName(String simulationOrScenarioId, String name);
 
   @Query(
