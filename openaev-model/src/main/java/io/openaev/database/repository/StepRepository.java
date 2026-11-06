@@ -352,6 +352,15 @@ public interface StepRepository extends JpaRepository<Step, String> {
    * ({@code InjectorContractService} -> {@code WorkflowService} -> ... -> {@code
    * InjectorContractService}).
    *
+   * <p>Native because it reads {@code step_data} through jsonb operators JPQL cannot express; it is
+   * read-only, so no indexed, audited or streamed row is skipped. {@code workflows} and {@code
+   * steps} are not tenant-active, so the statement returns the tenant of any workflow id whatever
+   * the caller's scope. That is safe only because of what the caller does next: it reads the
+   * contract in that tenant through {@code InjectorContractService#injectorContractInTenant}, an
+   * {@code injectors_contracts} read the statement inspector scopes to the request, so a workflow
+   * of a tenant outside the scope answers "not found" and its tenant id never leaves the service.
+   * Do not return this value to a client.
+   *
    * @param workflowId the ID of the workflow whose steps are inspected
    * @param injectorContractId the injector contract ID to look for
    * @return the workflow's tenant id if it references the contract, empty otherwise
