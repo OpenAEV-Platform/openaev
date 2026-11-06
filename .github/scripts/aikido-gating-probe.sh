@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Temporary probe: scan the CI images in Aikido's release and PR gating modes, next to the
-# ephemeral scan, and check whether the scanner token can read the public REST API.
+# ephemeral scan, on the CI images and on an old release.
 # Every output lands in aikido-gating-probe/ for the artifact. Never fails.
 set -uo pipefail
 
@@ -43,17 +43,18 @@ for json in "$OUT"/*.json; do
   echo "::endgroup::"
 done
 
-# The public API documents OAuth client credentials only: try the scanner token as a bearer token.
-api() {
-  local label=$1 path=$2
-  local code
-  code=$(curl -sS -o "$OUT/api-$label.json" -w '%{http_code}' \
-    -H "Authorization: Bearer $AIKIDO_API_KEY" -H "Accept: application/json" \
-    "https://app.aikido.dev/api/public/v1/$path")
-  echo "GET /api/public/v1/$path -> HTTP $code" | tee -a "$OUT/api-status.txt"
-  head -c 2000 "$OUT/api-$label.json"
-  echo
-}
-api containers "containers?filter_name=openaev-ci-standard&filter_status=all"
-api issues "issues/export?filter_container_repo_name=openaev-ci-standard&filter_status=all&per_page=100"
+# A five-month-old release, to see the gate fail and what its result file holds, next to the
+# ephemeral findings of the same image.
+OLD=openaev/platform:2.260525.0
+docker pull -q "$OLD"
+scan release-old "$OLD" --image-name openaev-ci-probe-old --fail-on high \
+  --gating-result-output /report/release-old.json
+echo "::group::ephemeral-old"
+docker run --rm -e AIKIDO_API_KEY -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/$OUT:/report" \
+  "$SCANNER" ephemeral-image-scan "$OLD" --include-unfixed --result-output /report/ephemeral-old.json \
+  > "$OUT/ephemeral-old.txt" 2>&1
+echo "ephemeral-old: exit $?" | tee -a "$OUT/exit-codes.txt"
+echo "::endgroup::"
+cat "$OUT/release-old.txt"
+[ -e "$OUT/release-old.json" ] && cat "$OUT/release-old.json"
 exit 0
