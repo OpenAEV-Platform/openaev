@@ -5,6 +5,7 @@ import static java.util.Optional.ofNullable;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
@@ -157,7 +158,14 @@ public class CalderaExecutorIntegration extends Integration {
 
   @Override
   protected void innerStop() {
-    this.platformSettingsService.cleanMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+    // Same platform-wide operational status as CalderaExecutorService's banner (see its javadoc);
+    // innerStop() is an integration lifecycle call with no ambient transaction, so this opens its
+    // own platform-write-marked one.
+    tenantTx.executeAsPlatformWrite(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () ->
+            this.platformSettingsService.cleanMessage(
+                BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE));
     timers.forEach(timer -> timer.cancel(true));
     timers.clear();
   }
