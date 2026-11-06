@@ -8,7 +8,6 @@ import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
-import io.openaev.config.PlatformScope;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Action;
@@ -44,9 +43,9 @@ public class XtmComposerApi extends RestBehavior {
   // Without the tenant path here, a user whose only CATALOG-capable group lives on a
   // non-default tenant would resolve zero capabilities and get a 403, even though registration
   // itself is not scoped to any tenant (issue #6485).
-  // ctx is @PlatformScope (not the caller's own scope): the composer's machine identity may have no
-  // tenant membership at all, and this endpoint only ever reads/writes the parameters table's
-  // platform row (the single, global XTM Composer registration), never tenant data.
+  // The registration is a platform row of the parameters table: readable under any scope, the
+  // empty one of a composer identity with no tenant membership included, and written only under
+  // @PlatformWrite. ctx is the caller's own scope, so the right is checked in the caller's tenants.
   // TODO v2: #7248
   @PostMapping(value = {XTMCOMPOSER_URI + "/register", TENANT_XTMCOMPOSER_URI + "/register"})
   @Operation(
@@ -56,8 +55,7 @@ public class XtmComposerApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
   @Transactional(rollbackFor = Exception.class)
   @PlatformWrite
-  public XtmComposerOutput register(
-      @PlatformScope TxCtx ctx, @Valid @RequestBody XtmComposerRegisterInput input) {
+  public XtmComposerOutput register(TxCtx ctx, @Valid @RequestBody XtmComposerRegisterInput input) {
     return this.xtmComposerService.register(input);
   }
 
@@ -76,7 +74,7 @@ public class XtmComposerApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @PlatformWrite
   public XtmComposerOutput refreshConnectivity(
-      @PlatformScope TxCtx ctx, @PathVariable @NotBlank final String xtmComposerId) {
+      TxCtx ctx, @PathVariable @NotBlank final String xtmComposerId) {
     AuditLogContext.setEnabled(false);
 
     return xtmComposerService.refreshConnectivity(xtmComposerId, Instant.now());
@@ -85,7 +83,7 @@ public class XtmComposerApi extends RestBehavior {
   // The ONLY XtmComposerApi endpoint actually called from the frontend
   // (isXtmComposerIsReachable() in catalog-actions.ts, used by Integrations/CatalogLayout/
   // ConnectorLayout to gate deploy/migrate/update buttons). It is NOT tenant-scoped data, and reads
-  // only the parameters table's platform row: same @PlatformScope reasoning as register() above.
+  // only the parameters table's platform row: same platform-row reasoning as register() above.
   // TODO v2: #7248.
   @GetMapping(value = {XTMCOMPOSER_URI + "/reachable", TENANT_XTMCOMPOSER_URI + "/reachable"})
   @Operation(
@@ -93,7 +91,7 @@ public class XtmComposerApi extends RestBehavior {
       description = "Returns true if XtmComposer is reachable, false otherwise")
   @Transactional(readOnly = true, noRollbackFor = Exception.class)
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
-  public boolean isXtmComposerReachable(@PlatformScope TxCtx ctx) {
+  public boolean isXtmComposerReachable(TxCtx ctx) {
     // Use the non-throwing probe: throwing (and catching) a BadRequestException here would mark the
     // shared transaction rollback-only and make the surrounding commit fail with
     // UnexpectedRollbackException (500), even though we intend to just return false.
