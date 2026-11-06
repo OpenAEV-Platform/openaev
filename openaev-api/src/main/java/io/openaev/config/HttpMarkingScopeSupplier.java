@@ -4,15 +4,12 @@ import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.Capability;
 import io.openaev.database.model.User;
-import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +19,7 @@ import org.springframework.stereotype.Component;
  * <p>This is the API-side half of {@link MarkingScopeSupplier}: the aspect lives in {@code
  * openaev-model} and cannot reach the security context or the clearance cache, both of which live
  * here. It also supplies the system clearance ({@link #systemClearanceFor}): every marking of a
- * tenant, resolved like a bypassing caller's clearance. It serves:
+ * tenant, resolved like the first admin's clearance. It serves:
  *
  * <ul>
  *   <li>background jobs, through {@code TenantScopedTransaction};
@@ -50,15 +47,6 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
   // that many of those services are themselves advised by.
   @Lazy private final UserService userService;
 
-  // PermissionService reaches the services those aspects advise: @Lazy setter injection, as in
-  // TenantGroupService.
-  private PermissionService permissionService;
-
-  @Autowired
-  public void setPermissionService(@Lazy PermissionService permissionService) {
-    this.permissionService = permissionService;
-  }
-
   @Override
   public MarkingCtx clearanceFor(TxCtx tenantScope) {
     if (!(tenantScope instanceof TxCtx.Restricted restricted)) {
@@ -70,31 +58,7 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
       return MarkingCtx.none();
     }
     String userId = currentUser.getId();
-    // The capabilities are the ones the caller holds in the tenant whose clearance is computed.
-    return union(
-        restricted,
-        tenantId -> {
-          boolean bypass = permissionService.holdsInTenant(tenantId, () -> bypasses(currentUser));
-          return clearanceCache.findClearance(userId, tenantId, bypass);
-        });
-  }
-
-  private static boolean bypasses(User currentUser) {
-    // AGENT_RUNTIME_ACCESS is the well-known capability of the per-tenant agent/implant service
-    // account (AgentServiceAccountPrivilegeService). That account has no group-marking grants of
-    // its own — it exists only to run the agent/implant API surface — so without this it would
-    // lose sight of its own host asset the moment that asset is marked. An agent must always see
-    // the asset it is installed on, independent of what markings are later applied to it.
-    //
-    // MANAGE_STIX_BUNDLE is the same kind of capability (hidden, held by the per-tenant OpenCTI
-    // connector user, which has no group-marking grants either): the security coverage it
-    // processes must build its scenario from every asset of the tenant, not from the unmarked
-    // subset a marking-less user would see. This is the READ clearance of the request only - the
-    // dispatch-time check (InjectService.resolveLaunchedByClearance) deliberately does not use it.
-    Set<Capability> capabilities = currentUser.getCapabilities();
-    return currentUser.isAdminOrBypass()
-        || capabilities.contains(Capability.AGENT_RUNTIME_ACCESS)
-        || capabilities.contains(Capability.MANAGE_STIX_BUNDLE);
+    return union(restricted, tenantId -> clearanceCache.findClearance(userId, tenantId));
   }
 
   /**

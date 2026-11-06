@@ -142,7 +142,7 @@ class CapabilityDecisionTenantTest extends IntegrationTest {
     /**
      * The asset search is gated by ACCESS_ASSETS, which a request authorized in every tenant of its
      * scope requires in B as well. Granting it in B leaves the clearance capability as the only
-     * difference between the two contrasts, which is what these tests are about.
+     * difference, which is what this test is about.
      */
     @BeforeEach
     void grantTheEndpointRightInB() {
@@ -150,20 +150,8 @@ class CapabilityDecisionTenantTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given the clearance capability only outside B should not search B's marked asset")
-    void given_clearanceCapabilityOnlyOutsideB_should_notSearchBMarkedAsset() throws Exception {
-      // -- ARRANGE --
-      String assetId = markedAssetOfB();
-
-      // -- ACT & ASSERT --
-      mvc.perform(inB(post(ASSET_URI + "/search")).content(defaultSearch()))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath(assetPath(assetId)).doesNotExist());
-    }
-
-    @Test
-    @DisplayName("given the clearance capability in B should search B's marked asset")
-    void given_clearanceCapabilityInB_should_searchBMarkedAsset() throws Exception {
+    @DisplayName("given the OpenCTI right in B should not search B's marked asset")
+    void given_stixRightInB_should_notSearchBMarkedAsset() throws Exception {
       // -- ARRANGE --
       grantInB(Capability.MANAGE_STIX_BUNDLE);
       String assetId = markedAssetOfB();
@@ -171,7 +159,7 @@ class CapabilityDecisionTenantTest extends IntegrationTest {
       // -- ACT & ASSERT --
       mvc.perform(inB(post(ASSET_URI + "/search")).content(defaultSearch()))
           .andExpect(status().isOk())
-          .andExpect(jsonPath(assetPath(assetId)).exists());
+          .andExpect(jsonPath(assetPath(assetId)).doesNotExist());
     }
 
     private String assetPath(String assetId) {

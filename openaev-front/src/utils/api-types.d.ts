@@ -248,8 +248,6 @@ export interface AiAttack {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -2135,8 +2133,6 @@ interface BasePayload {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -2819,8 +2815,6 @@ export interface Command {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -3902,8 +3896,6 @@ export interface DnsResolution {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -5517,8 +5509,6 @@ export interface Executable {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -5976,8 +5966,6 @@ export interface FileDrop {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -6342,6 +6330,7 @@ export interface Grant {
 }
 
 export interface Group {
+  group_auto_new_marking?: boolean;
   group_default_user_assign?: boolean;
   group_description?: string;
   group_grants?: Grant[];
@@ -7354,7 +7343,6 @@ export interface InjectorContract {
   injector_contract_payload?: Payload;
   injector_contract_payload_author?: string;
   injector_contract_payload_author_organization?: Organization;
-  injector_contract_payload_author_team?: Team;
   injector_contract_payload_author_user?: User;
   injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
@@ -8293,8 +8281,6 @@ export interface NetworkTraffic {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;

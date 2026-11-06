@@ -6,7 +6,6 @@ import {
   CodeOutlined,
   DataObjectOutlined,
   DomainOutlined,
-  GroupsOutlined,
   InfoOutlined,
   MemoryOutlined,
   PersonOutlined,
@@ -183,15 +182,13 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
       ? expectationDetails
       : expectationTypes.map(type => ({ expectation_type: type }));
 
-  // The author is the payload's author (a person, team or organization) when
+  // The author is the payload's author (a person or an organization) when
   // set. It can legitimately be absent - such actions are shown with a dash, not
   // a made-up default - and can be filtered via the sidebar "No author" facet.
   const authorName = action.action_author_name;
   const authorType = action.action_author_type;
   const AuthorIcon = (() => {
     switch (authorType) {
-      case 'team':
-        return GroupsOutlined;
       case 'organization':
         return DomainOutlined;
       case 'user':

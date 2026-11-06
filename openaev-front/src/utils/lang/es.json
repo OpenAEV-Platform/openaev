@@ -3084,7 +3084,6 @@
   "Payload status": "Estado del payload",
   "payload_attack_patterns": "Patrones de ataque",
   "payload_author_organization": "Autor (organización)",
-  "payload_author_team": "Autor (equipo)",
   "payload_author_user": "Autor (usuario)",
   "payload_description": "Descripción",
   "payload_domains": "Dominios",

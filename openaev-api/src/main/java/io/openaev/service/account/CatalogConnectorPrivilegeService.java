@@ -1,6 +1,7 @@
 package io.openaev.service.account;
 
 import io.openaev.config.SessionManager;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
@@ -37,14 +38,25 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
       TenantGroupService tenantGroupService,
       UserService userService,
       TenantUserService tenantUserService,
+      MarkingClearanceCacheManager markingClearanceCacheManager,
       SessionManager sessionManager) {
-    super(tenantRoleService, tenantGroupService, userService, tenantUserService);
+    super(
+        tenantRoleService,
+        tenantGroupService,
+        userService,
+        tenantUserService,
+        markingClearanceCacheManager);
     this.sessionManager = sessionManager;
   }
 
   @Override
   protected WellKnownAccess wellKnownAccess() {
     return ReservedServiceAccount.CATALOG_CONNECTOR.access();
+  }
+
+  @Override
+  protected boolean receivesEveryMarking() {
+    return true;
   }
 
   /** Email of the tenant's catalog connector account. */

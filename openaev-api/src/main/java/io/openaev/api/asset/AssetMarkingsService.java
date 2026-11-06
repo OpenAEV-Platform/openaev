@@ -108,9 +108,7 @@ public class AssetMarkingsService {
 
     User currentUser = userService.currentUser();
     assertCanAssignMarkings(
-        markingClearanceCacheManager.findClearance(
-            currentUser.getId(), tenantId, currentUser.isAdminOrBypass()),
-        markings);
+        markingClearanceCacheManager.findClearance(currentUser.getId(), tenantId), markings);
 
     // Read before the marking_ids array is overwritten below - this is the "before" side of the
     // diff.
