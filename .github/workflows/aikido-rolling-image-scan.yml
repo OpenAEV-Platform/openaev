@@ -1,9 +1,8 @@
 name: "🔍 Aikido Rolling Image Scan"
 
-# Daily Aikido scan of the rolling platform images published on Docker Hub, run
-# with Aikido's local scanner. Reports high and critical vulnerabilities in the
-# job summary and as job artifacts, and keeps nothing in Aikido: findings do not
-# fail the run, a scanner error does.
+# Daily Aikido scan of the rolling platform images published on Docker Hub.
+# Reports high and critical vulnerabilities in the job summary and as job
+# artifacts: findings do not fail the run, a scanner error does.
 
 on:
   schedule:
@@ -34,44 +33,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          sparse-checkout: .github/scripts
+          sparse-checkout: .github/actions/aikido-image-scan
 
-      - name: Run Aikido image scan
+      - name: Pull openaev/platform:${{ matrix.tag }}
         env:
-          AIKIDO_API_KEY: ${{ secrets.AIKIDO_TOKEN }}
-          SCANNER: aikidosecurity/local-scanner:v1.0.163@sha256:c96405a39c65070db69d2bc22fee697415448b8e1ef9650022b92991a825d4bc
           IMAGE: openaev/platform:${{ matrix.tag }}
-          REPORT: aikido-platform-${{ matrix.tag }}
-        run: |
-          set -euo pipefail
+        run: docker pull "$IMAGE"
 
-          # The scanner reads the image from the local Docker daemon.
-          docker pull "$IMAGE"
-
-          # An ephemeral scan writes every finding with its details to a file
-          # and keeps nothing in Aikido. Without --fail-on it exits non-zero
-          # only when the scan itself fails. Unfixed vulnerabilities are left
-          # out by default: they are reported too, as Snyk does. The report
-          # lists the high and critical findings with their details.
-          # The key goes through the environment, not the command line, to keep
-          # it out of the process list and of the uploaded console output.
-          docker run --rm \
-            -e AIKIDO_API_KEY \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "$PWD:/report" \
-            "$SCANNER" \
-            ephemeral-image-scan "$IMAGE" \
-            --include-unfixed \
-            --result-output "/report/$REPORT.json" \
-            | tee "$REPORT.txt"
-
-          python3 .github/scripts/aikido-scan-report.py "$REPORT.json" "$IMAGE" > "$REPORT.md"
-          cat "$REPORT.md" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload Aikido report
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
+      - uses: ./.github/actions/aikido-image-scan
         with:
-          name: aikido-platform-${{ matrix.tag }}
-          path: aikido-platform-${{ matrix.tag }}.*
-          if-no-files-found: ignore
+          image: openaev/platform:${{ matrix.tag }}
+          report-name: aikido-platform-${{ matrix.tag }}
+          api-key: ${{ secrets.AIKIDO_TOKEN }}

@@ -74,6 +74,7 @@ gives up and fails the job — not how long the wait normally lasts.
 | **API Types Check** | artifact `openaev-api-jar` | 15 min | Backend Package (glibc) reaches any terminal non-success result |
 | **E2E Tests** | registry marker or image artifact for its architecture | 15 min | the arch-matched Docker Build cell reaches any terminal non-success result |
 | **Docker Merge** | markers or artifacts for both architectures of its variant | 15 min | either variant-matched Docker Build cell reaches any terminal non-success result |
+| **Aikido Image Scan** | markers or artifacts for both amd64 variants | 15 min | either required amd64 Docker Build cell reaches any terminal non-success result |
 
 Each Docker build uploads an attempt-scoped marker only after its optional GHCR push
 succeeds. Consumers poll artifact metadata every 15 seconds, prefer a current-attempt
@@ -109,6 +110,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + dependency-cruiser + knip + Vitest + coverage |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
 | 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
+| 🔍 **Aikido Image Scan** | 25 min | Aikido scan of both amd64 images, threshold `high`, findings in the job summary. A fixable finding posts a red **Aikido Image Scan (advisory)** check. Skipped with a notice without the `AIKIDO_TOKEN` secret, except on `main` |
 | 🧪 **API Tests** | 30 min | Spring Boot integration tests vs PostgreSQL + search engine. `fail-fast: false` |
 | 🔎 **API Types Check** | 20 min | Generated TS types must match the live API schema |
 | 🧪 **E2E Tests** | 45 min | Playwright against the built container. `fail-fast: false` |
@@ -132,11 +134,11 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 ⚠️ **Required status check for branch protection.** Full name: `pipeline / ✅ Pipeline Gate`.
 If the caller's job key changes, the branch-protection rule must be updated.
 
-It `needs:` these 15 jobs:
+It `needs:` these 16 jobs:
 
 `ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
 `spotless-check`, `bom-override-guard`, `frontend-quality`, `api-tests`, `e2e-tests`, `api-types-check`,
-`backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`
+`backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `aikido-image-scan`
 
 **Coverage is deliberately excluded.** Coverage upload is best-effort reporting and must
 never hold a merge.
@@ -148,6 +150,25 @@ stays out of the run conclusion and does not page the on-call.
 
 The gate evaluates `needs` results itself in a shell loop rather than relying on
 job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocumented.
+
+### Aikido image scan enforcement policy
+
+The same policy applies on `main`, on every pull request and in Nightly CI. Like the backend
+coverage check, the job does not turn red on findings: when a high or critical finding has a
+fix, it posts a separate **Aikido Image Scan (advisory)** check with the PR checks app. That
+check is red, with the count per image as its title and the findings, their fixed versions and
+how to fix them in its details. A clean run posts no check. For now the gate treats the job as
+advisory, like any new check. Taking `aikido-image-scan` out of the gate's advisory list makes
+it blocking.
+
+| Case | Job | Aikido Image Scan (advisory) check | Gate |
+|------|-----|------------------------------------|------|
+| High/critical finding with a fix | ✅ | ❌ with the details | ✅ |
+| Same, but the check cannot be posted | ❌ fails | none | ⚠️ advisory |
+| High/critical finding with no fix | ✅, reported in the job summary and artifacts | none | ✅ |
+| Scanner error | ❌ fails | none | ⚠️ advisory |
+| No `AIKIDO_TOKEN` secret on `main` | ❌ fails | none | ⚠️ advisory |
+| No `AIKIDO_TOKEN` secret elsewhere (pull requests from forks) | ✅, scan skipped with a notice | none | ✅ |
 
 ---
 

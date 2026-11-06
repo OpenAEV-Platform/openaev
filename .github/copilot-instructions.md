@@ -68,7 +68,7 @@ CI runs on GitHub Actions (see `.github/workflows/`):
 - **nightly-ci.yml**: Nightly extended test suite
 - **deploy-feature-branch.yml**: Feature branch build for staging deploys (promoted from the release repository)
 - **codeql.yml**: Security scanning (weekly + main push)
-- **snyk-rolling-image-scan.yml** and **aikido-rolling-image-scan.yml**: Daily (03:30 UTC) and manual scans of the published `openaev/platform` images, in parallel until Aikido replaces Snyk. High and critical findings are uploaded as job artifacts, kept for the repository's artifact retention (7 days). The Aikido scan also lists them with their details in the job summary (`.github/scripts/aikido-scan-report.py`) and keeps nothing in Aikido. Findings do not fail the run, a scanner error does
+- **snyk-rolling-image-scan.yml** and **aikido-rolling-image-scan.yml**: Daily (03:30 UTC) and manual scans of the published `openaev/platform` images, in parallel until Aikido replaces Snyk. High and critical findings are uploaded as job artifacts, kept for the repository's artifact retention (7 days), and Aikido also lists them with their details in the job summary. Findings do not fail the run, a scanner error does. The Aikido scan is the `.github/actions/aikido-image-scan` action, which Core CI also runs on the images it builds, on `main` and on every pull request: a high or critical finding with a fix posts a red "Aikido Image Scan (advisory)" check that explains it (`.github/scripts/post-aikido-check.py`), which does not block for now (see `.github/ci-pipeline-schema.md`)
 - **openaev-validate-pr-title.yml**: Conventional Commits validation
 
 ## Project Structure
