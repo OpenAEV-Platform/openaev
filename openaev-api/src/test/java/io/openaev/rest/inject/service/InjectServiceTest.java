@@ -799,6 +799,8 @@ class InjectServiceTest {
   void given_inject_without_injectcontent_SHOULD_take_default() throws JsonProcessingException {
     InjectInput injectInput = new InjectInput();
     Scenario scenario = new Scenario();
+    String scenarioTenantId = "scenario-tenant-id";
+    scenario.setTenant(new Tenant(scenarioTenantId));
     String injectorContractId = "injectorContractId";
     String injectorContractString =
         """
@@ -828,7 +830,8 @@ class InjectServiceTest {
     injectorContract.setConvertedContent(injectorContractJson);
 
     injectInput.setInjectorContract(injectorContractId);
-    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorContractService.injectorContractInTenant(injectorContractId, scenarioTenantId))
+        .thenReturn(injectorContract);
 
     injectService.createAndSaveInject(null, scenario, injectInput);
 
@@ -868,8 +871,11 @@ class InjectServiceTest {
     injectInput.setDependsDuration(0L);
 
     Scenario scenario = new Scenario();
+    String scenarioTenantId = "scenario-tenant-id";
+    scenario.setTenant(new Tenant(scenarioTenantId));
 
-    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorContractService.injectorContractInTenant(injectorContractId, scenarioTenantId))
+        .thenReturn(injectorContract);
     when(injectUtils.resolveInjector(injectorId, injectorContract)).thenReturn(explicitInjector);
 
     // -- ACT --
@@ -912,8 +918,11 @@ class InjectServiceTest {
     injectInput.setDependsDuration(0L);
 
     Scenario scenario = new Scenario();
+    String scenarioTenantId = "scenario-tenant-id";
+    scenario.setTenant(new Tenant(scenarioTenantId));
 
-    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorContractService.injectorContractInTenant(injectorContractId, scenarioTenantId))
+        .thenReturn(injectorContract);
     when(injectUtils.resolveInjector(null, injectorContract)).thenReturn(contractInjector);
 
     // -- ACT --
@@ -950,8 +959,11 @@ class InjectServiceTest {
     injectInput.setDependsDuration(0L);
 
     Scenario scenario = new Scenario();
+    String scenarioTenantId = "scenario-tenant-id";
+    scenario.setTenant(new Tenant(scenarioTenantId));
 
-    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorContractService.injectorContractInTenant(injectorContractId, scenarioTenantId))
+        .thenReturn(injectorContract);
     when(injectUtils.resolveInjector(unknownInjectorId, injectorContract))
         .thenThrow(
             new ElementNotFoundException("Injector not found with id: " + unknownInjectorId));

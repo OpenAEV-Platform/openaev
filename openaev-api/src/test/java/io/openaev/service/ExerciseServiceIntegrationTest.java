@@ -52,6 +52,7 @@ import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -111,6 +112,7 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
   @Autowired private InjectExpectationMapper injectExpectationMapper;
   @Autowired private ScenarioRecurrenceService scenarioRecurrenceService;
   @Autowired private InjectorContractFixture injectorContractFixture;
+  @Autowired private RowTenantScope rowTenantScope;
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private LessonsService lessonsService;
   @Autowired private FileService fileService;
@@ -303,12 +305,21 @@ class ExerciseServiceIntegrationTest extends IntegrationTest {
     Exercise exercise = ExerciseFixture.getExercise();
     exercise.setTeams(List.of(teamSaved));
     Exercise exerciseSaved = this.exerciseRepository.saveAndFlush(exercise);
-    InjectorContract injectorContract = injectorContractFixture.getWellKnownSingleEmailContract();
-    Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);
-    injectDefaultEmail.setExercise(exerciseSaved);
-    injectDefaultEmail.setTeams(List.of(teamSaved));
-    Inject injectDefaultEmailSaved = this.injectRepository.saveAndFlush(injectDefaultEmail);
-    INJECT_ID = injectDefaultEmailSaved.getId();
+    // injectors_contracts is tenant-active and nothing else in this plain (non-@Transactional)
+    // test sets a scope before this point, so resolving the contract and saving the inject that
+    // references it must share one scope, or the contract is detached by the time the inject save
+    // flushes.
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          InjectorContract injectorContract =
+              injectorContractFixture.getWellKnownSingleEmailContract();
+          Inject injectDefaultEmail = getInjectForEmailContract(injectorContract);
+          injectDefaultEmail.setExercise(exerciseSaved);
+          injectDefaultEmail.setTeams(List.of(teamSaved));
+          Inject injectDefaultEmailSaved = this.injectRepository.saveAndFlush(injectDefaultEmail);
+          INJECT_ID = injectDefaultEmailSaved.getId();
+        });
 
     // -- EXECUTE --
     this.exerciseService.removeTeams(

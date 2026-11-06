@@ -21,9 +21,11 @@ import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFacto
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectAssistantInput;
 import io.openaev.rest.inject.form.InjectInput;
+import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.service.AssetGroupService;
 import io.openaev.service.EndpointService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.fixtures.composers.AttackPatternComposer;
@@ -68,6 +70,8 @@ class ScenarioInjectApiTest extends IntegrationTest {
   @Autowired private AssetRepository assetRepository;
   @Autowired private EntityManager entityManager;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private InjectAssistantService injectAssistantService;
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private EndpointService endpointService;
   @Autowired private ScenarioService scenarioService;
@@ -384,6 +388,88 @@ class ScenarioInjectApiTest extends IntegrationTest {
               .persist();
       injectorContractWrapperComposers.add(newInjectorContractComposer);
       return newInjectorContractComposer.get();
+    }
+
+    @DisplayName(
+        "Given a scenario in another tenant with no ambient tenant set, should create a technical"
+            + " inject rather than a manual placeholder")
+    @Test
+    void
+        given_noAmbientTenantAndScenarioInAnotherTenant_should_selectTechnicalContractInThatTenant()
+            throws Exception {
+      // Arrange: tenant B, with its own attack pattern, well-known injector and technical
+      // contract - none of it reachable through the caller's ambient (default) tenant. Calls
+      // InjectAssistantService directly rather than through the assistant HTTP endpoint: scenarios
+      // is still on v1 isolation (@Filter + TenantBaseListener), so a scenario outside the ambient
+      // tenant cannot be read back on the non-prefixed route at all yet (an unrelated, known gap,
+      // closed only when scenarios activates on v2) - calling the service directly reproduces the
+      // one thing this fix changes, the candidate-contract tenant, without that unrelated gap.
+      Tenant tenantB = tenantHelper.createTenantWithCurrentUser("inject-assistant-header-b");
+      builtinConnectorRegistration.register(manualInjectorIntegrationFactory, tenantB.getId());
+
+      AttackPattern attackPatternB = AttackPatternFixture.createDefaultAttackPattern();
+      attackPatternB.setTenant(new Tenant(tenantB.getId()));
+      attackPatternB = attackPatternRepository.save(attackPatternB);
+
+      Scenario scenarioB = new Scenario();
+      scenarioB.setName("Header route scenario B");
+      scenarioB.setTenant(new Tenant(tenantB.getId()));
+      scenarioB = scenarioService.createScenario(scenarioB);
+
+      // The "all platform/arch combinations" search (buildInjectsForAllPlatformAndArchCombinations)
+      // requires every PLATFORM_TYPE, not just the three common ones: it is reached unconditionally
+      // first, even for an attack pattern with no assets or asset groups (both empty below).
+      Endpoint.PLATFORM_TYPE[] allPlatforms = Endpoint.PLATFORM_TYPE.values();
+
+      Payload payloadB =
+          PayloadFixture.createDefaultCommandWithPlatformsAndArchitecture(
+              allPlatforms, Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES);
+      payloadB.setTenant(new Tenant(tenantB.getId()));
+
+      InjectorContract technicalContract =
+          InjectorContractFixture.createInjectorContractWithPlatforms(allPlatforms);
+      technicalContract.setTenant(new Tenant(tenantB.getId()));
+
+      String previousTenant = TenantContext.getCurrentTenant();
+      TenantContext.setCurrentTenant(tenantB.getId());
+      Injector injectorB;
+      try {
+        injectorB = injectorFixture.getWellKnownOaevImplantInjector();
+      } finally {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+
+      InjectorContractComposer.Composer contractComposer =
+          injectorContractComposer
+              .forInjectorContract(technicalContract)
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+              .withInjector(injectorB)
+              .withAttackPattern(attackPatternComposer.forAttackPattern(attackPatternB))
+              .withPayload(payloadComposer.forPayload(payloadB))
+              .persist();
+      injectorContractWrapperComposers.add(contractComposer);
+
+      InjectAssistantInput input = new InjectAssistantInput();
+      input.setAssetGroupIds(List.of());
+      input.setAssetIds(List.of());
+      input.setAttackPatternIds(List.of(attackPatternB.getId()));
+      input.setInjectByTTPNumber(1);
+
+      // Act: no ambient tenant set, exactly as on the non-prefixed route (TenantInterceptor only
+      // sets TenantContext on the tenant-prefixed path).
+      TenantContext.clearCurrentTenant();
+      List<Inject> generated;
+      try {
+        generated = injectAssistantService.generateInjectsForScenario(scenarioB, input);
+      } finally {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+
+      // Assert: the technical contract in tenant B was selected, not the manual placeholder.
+      assertEquals(1, generated.size());
+      assertEquals(
+          technicalContract.getId(),
+          generated.getFirst().getInjectorContract().orElseThrow().getId());
     }
 
     @DisplayName("Given number of inject by ttp more than 5, should throw an exception")

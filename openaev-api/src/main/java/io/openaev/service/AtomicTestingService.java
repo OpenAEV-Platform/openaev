@@ -7,6 +7,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -72,6 +73,7 @@ public class AtomicTestingService {
   private final InjectUtils injectUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- CRUD --
 
@@ -110,19 +112,34 @@ public class AtomicTestingService {
   }
 
   @Transactional
-  public InjectResultOverviewOutput createOrUpdate(AtomicTestingInput input, String injectId) {
+  public InjectResultOverviewOutput createOrUpdate(
+      TxCtx ctx, AtomicTestingInput input, String injectId) {
     Inject injectToSave = new Inject();
-    if (injectId != null) {
+    boolean isCreate = injectId == null;
+    if (!isCreate) {
       injectToSave = findInject(injectId);
     }
 
+    // injectors_contracts is tenant-active and a built-in contract id repeats across tenants
+    // (#8485): resolve it in the tenant the inject being written here belongs to, never the ambient
+    // one (the default tenant on the non-prefixed route). On an update that tenant is already on
+    // the loaded
+    // entity; on a create nothing else attributes the new row's tenant yet, so it is resolved from
+    // the request's write scope and set explicitly on the entity here.
+    String tenantId;
+    if (isCreate) {
+      tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+      injectToSave.setTenant(new Tenant(tenantId));
+    } else {
+      tenantId = injectToSave.getTenant().getId();
+    }
     InjectorContract injectorContract =
         injectorContractRepository
-            .findById(input.getInjectorContract())
+            .findByContractIdAndTenant(input.getInjectorContract(), tenantId)
             .orElseThrow(ElementNotFoundException::new);
     ObjectNode finalContent = input.getContent();
     // Set expectations
-    if (injectId == null) {
+    if (isCreate) {
       finalContent = injectorContractContentUtils.setExpectations(injectorContract, finalContent);
     }
     injectToSave.setTitle(input.getTitle());

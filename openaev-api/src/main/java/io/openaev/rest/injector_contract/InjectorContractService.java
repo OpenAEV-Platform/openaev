@@ -162,6 +162,25 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
+   * Retrieves an injector contract by ID or external ID, constrained to a known parent's tenant (an
+   * exercise or a scenario the caller already resolved in scope). A built-in contract id repeats
+   * across tenants (#8485), so a lookup that relies on the request's own scope can match more than
+   * one tenant's copy; this stays inside the parent's tenant regardless.
+   *
+   * @param id the injector contract ID or external ID
+   * @param tenantId the parent row's tenant
+   * @return the injector contract
+   * @throws ElementNotFoundException if not found in that tenant
+   */
+  public InjectorContract injectorContractInTenant(
+      @NotBlank final String id, @NotBlank final String tenantId) {
+    return injectorContractRepository
+        .findByIdOrExternalIdAndTenant(id, id, tenantId)
+        // User-facing wording: the entity is exposed as "threat arsenal item" everywhere.
+        .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
+  }
+
+  /**
    * Retrieves an injector contract by ID, only if it is referenced by one of the given workflow's
    * steps.
    *
@@ -178,11 +197,13 @@ public class InjectorContractService implements DependenciesManager {
    */
   public InjectorContract injectorContractForWorkflow(
       @NotBlank final String injectorContractId, @NotBlank final String workflowId) {
-    if (!stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
-        workflowId, injectorContractId)) {
-      throw new ElementNotFoundException("Threat arsenal item not found");
-    }
-    return injectorContract(injectorContractId);
+    // Resolved in the workflow's own tenant, not the request's ambient scope: a built-in contract
+    // id repeats across tenants (#8485), and the caller's scope can legitimately span several.
+    String tenantId =
+        stepRepository
+            .findWorkflowTenantIdIfReferencesInjectorContract(workflowId, injectorContractId)
+            .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
+    return injectorContractInTenant(injectorContractId, tenantId);
   }
 
   // -- OTHERS --

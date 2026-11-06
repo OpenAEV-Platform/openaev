@@ -103,11 +103,12 @@ public class AtomicTestingApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ATOMIC_TESTING)
   @Transactional(rollbackFor = Exception.class)
   public InjectResultOverviewOutput createAtomicTesting(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
-      // tenant scope for this write (createOrUpdate resolves the Injector via
-      // InjectUtils#resolveInjector, which reads the v2-scoped injectors table).
-      TxCtx ctx, @Valid @RequestBody AtomicTestingInput input) {
-    return this.atomicTestingService.createOrUpdate(input, null);
+      // createOrUpdate resolves both the write tenant (via TenantWriteScopeResolver) and the
+      // Injector (via InjectUtils#resolveInjector, which reads the v2-scoped injectors table) from
+      // this scope, so an ambiguous multi-tenant caller with no selector must be pinned to the
+      // default tenant rather than refused.
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody AtomicTestingInput input) {
+    return this.atomicTestingService.createOrUpdate(ctx, input, null);
   }
 
   @PutMapping("/{injectId}")
@@ -123,7 +124,7 @@ public class AtomicTestingApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody final AtomicTestingInput input) {
-    return atomicTestingService.createOrUpdate(input, injectId);
+    return atomicTestingService.createOrUpdate(ctx, input, injectId);
   }
 
   @DeleteMapping("/{injectId}")

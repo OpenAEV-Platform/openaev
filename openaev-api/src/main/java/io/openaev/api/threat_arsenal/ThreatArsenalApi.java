@@ -18,6 +18,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutpu
 import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.SecurityPlatformMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,11 +55,12 @@ public class ThreatArsenalApi {
       resourceId = "#actionId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.THREAT_ARSENAL)
+  // ctx needs a single tenant: the lookup resolves the action's injector contract by id or
+  // external id, and a built-in contract id repeats across tenants (#8485), so a scope spanning
+  // several of them makes that lookup match more than one row and throw instead of resolving one.
   public ThreatArsenalActionFullOutput threatArsenal(
-      // Unused by the handler body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for the transaction (injector_contract_injector_type is resolved through the injectors
-      // table, which is v2 tenant-scoped).
-      TxCtx ctx, @PathVariable String actionId) {
+      @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
+    TxCtxScopeUtils.requireSingleTenant(ctx);
     return threatArsenalService.findById(actionId);
   }
 

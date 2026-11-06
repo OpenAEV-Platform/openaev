@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
@@ -40,6 +41,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,12 +54,23 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The caller is a member of two tenants and holds no capability in either: every access below
  * comes from the grant alone.
+ *
+ * <p>{@code injectors_contracts} is tenant-active: the test classpath arms no active-tables list by
+ * default, so this class arms the production one, or a bare id/external-id lookup like {@code
+ * InjectorContractService#injectorContract} runs unscoped and matches both tenants' copies of the
+ * built-in contract (#8485).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @WithMockUser
 @DisplayName("Injector contract grants apply in the tenant of their group")
 class InjectorContractGrantTenantTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   private static final String CONTRACT_URI = TENANT_INJECTOR_CONTRACT_URL + "/{contractId}";
   private static final String SEARCH_URI = TENANT_INJECTOR_CONTRACT_URL + "/search";

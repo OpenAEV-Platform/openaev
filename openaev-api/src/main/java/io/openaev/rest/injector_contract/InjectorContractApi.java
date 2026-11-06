@@ -23,6 +23,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractBaseOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFacetCountsOutput;
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -162,8 +163,13 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
-  public InjectorContract injectorContract(TxCtx ctx, @PathVariable String injectorContractId) {
+  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads, and
+  // needs a single tenant: a bare scope spanning several tenants that all hold the same built-in
+  // contract id (#8485) makes the by-id-or-external-id lookup match more than one row and throw
+  // instead of resolving one.
+  public InjectorContract injectorContract(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String injectorContractId) {
+    TxCtxScopeUtils.requireSingleTenant(ctx);
     return hydrated(injectorContractService.injectorContract(injectorContractId));
   }
 
@@ -198,11 +204,13 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
+  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads, and
+  // needs a single tenant for the same reason as the GET above.
   public InjectorContract updateInjectorContract(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateInput input) {
+    TxCtxScopeUtils.requireSingleTenant(ctx);
     return hydrated(injectorContractService.updateInjectorContract(injectorContractId, input));
   }
 
@@ -222,11 +230,13 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
+  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads, and
+  // needs a single tenant for the same reason as the GET above.
   public InjectorContract updateInjectorContractMapping(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @PathVariable String injectorContractId,
       @Valid @RequestBody InjectorContractUpdateMappingInput input) {
+    TxCtxScopeUtils.requireSingleTenant(ctx);
     return hydrated(
         injectorContractService.updateInjectorContractTTPDomainsAndTags(injectorContractId, input));
   }
@@ -247,8 +257,11 @@ public class InjectorContractApi extends RestBehavior {
       resourceId = "#injectorContractId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.INJECTOR_CONTRACT)
-  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads.
-  public void deleteInjectorContract(TxCtx ctx, @PathVariable String injectorContractId) {
+  // ctx scopes the eager injectorLinks -> injector fetch triggered when the contract loads, and
+  // needs a single tenant for the same reason as the GET above.
+  public void deleteInjectorContract(
+      @RequireTenantSelector TxCtx ctx, @PathVariable String injectorContractId) {
+    TxCtxScopeUtils.requireSingleTenant(ctx);
     this.injectorContractService.deleteInjectorContract(injectorContractId);
   }
 

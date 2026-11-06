@@ -134,6 +134,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating attack pattern mappings succeeds")
       void updatingAttackPatternMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
@@ -160,6 +161,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName(
           "Updating attack pattern mappings with non-existing attack patterns fail with NOT FOUND")
       void updatingAttackPatternMappingsWithNonExistingAttackPatternsFailWithNotFound()
@@ -179,6 +181,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Fetching by internal ID succeeds")
       void fetchByExternalIdSucceeds() throws Exception {
         InjectorContract ic = injectorContractComposer.generatedItems.getFirst();
@@ -201,6 +204,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Nested
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("When deleting an injector contract")
       class WhenDeletingAnInjectorContract {
 
@@ -244,6 +248,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
         VulnerabilityComposer.Composer vulnWrapper =
@@ -291,6 +296,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating contract succeeds with external vuln IDs")
       void updateContractWithExtVulnIdsSucceeds() throws Exception {
         VulnerabilityComposer.Composer vulnWrapper =
@@ -855,6 +861,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating attack pattern mappings succeeds")
       void updatingAttackPatternMappingsSucceeds() throws Exception {
         for (int i = 0; i < 3; ++i) {
@@ -878,6 +885,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName(
           "Updating attack pattern mappings with non-existing attack patterns fail with NOT FOUND")
       void updatingAttackPatternMappingsWithNonExistingAttackPatternsFailWithNotFound()
@@ -894,6 +902,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Fetching by External ID succeeds")
       void fetchByExternalIdSucceeds() throws Exception {
         InjectorContract ic = injectorContractComposer.generatedItems.getFirst();
@@ -914,6 +923,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Nested
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("When deleting an injector contract")
       class WhenDeletingAnInjectorContract {
 
@@ -954,6 +964,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Updating contract succeeds")
       void updateContractSucceeds() throws Exception {
         VulnerabilityComposer.Composer vulnWrapper =
@@ -1272,6 +1283,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Free-text search must not match the raw contract content JSON")
     void withTextSearch_should_notMatchRawContractContentJson() throws Exception {
       // Every real contract content embeds the built-in variable definitions ("user.email",
@@ -1333,6 +1345,17 @@ public class InjectorContractApiTest extends IntegrationTest {
     public UserComposer.Composer createTestUser(UserType userType, List<String> resourceIds) {
       return userTestHelper.createTestUser(
           UserTestHelper.UserType.valueOf(userType.name()), resourceIds);
+    }
+
+    /**
+     * Persists the test user and makes it a member of the default tenant, the tenant the static
+     * injector contracts below are created in: injectors_contracts is tenant-active, so a user with
+     * no tenant membership resolves no scope and sees nothing regardless of RBAC.
+     */
+    private User createAndPersistTestUser(UserType userType, List<String> resourceIds) {
+      User testUser = createTestUser(userType, resourceIds).persist().get();
+      tenantHelper.attachUserToTenant(testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
+      return testUser;
     }
 
     private int preExistingContractsCount;
@@ -1409,7 +1432,7 @@ public class InjectorContractApiTest extends IntegrationTest {
         grantedResourceIds.add(injectorContractsCreated.get(i).getId());
       }
       // Create test user based on type
-      User testUser = createTestUser(userType, grantedResourceIds).persist().get();
+      User testUser = createAndPersistTestUser(userType, grantedResourceIds);
       Authentication auth = buildAuthenticationToken(testUser);
 
       // Perform the request with the test user context
@@ -1447,7 +1470,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       // Create test user based on type
-      User testUser = createTestUser(userType, grantedResourceIds).persist().get();
+      User testUser = createAndPersistTestUser(userType, grantedResourceIds);
 
       Authentication auth = buildAuthenticationToken(testUser);
 
@@ -1494,7 +1517,7 @@ public class InjectorContractApiTest extends IntegrationTest {
       }
 
       // Create test user based on type
-      User testUser = createTestUser(userType, grantedResourceIds).persist().get();
+      User testUser = createAndPersistTestUser(userType, grantedResourceIds);
 
       Authentication auth = buildAuthenticationToken(testUser);
 
@@ -1531,6 +1554,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "A contract with one attack pattern and several tags returns that attack pattern only once")
     void searchDoesNotDuplicateAttackPatternsWhenContractHasSeveralTags() throws Exception {

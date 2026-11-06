@@ -14,9 +14,9 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.document.DocumentService;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
@@ -51,7 +51,6 @@ public class SecurityCoverageInjectService {
   private final AttackPatternService attackPatternService;
   private final VulnerabilityService vulnerabilityService;
   private final AssetGroupService assetGroupService;
-  private final InjectorContractService injectorContractService;
   private final PayloadService payloadService;
   private final DocumentService documentService;
 
@@ -93,9 +92,15 @@ public class SecurityCoverageInjectService {
     Map<AssetGroup, List<Endpoint>> requiredAssetGroupMap =
         assetGroupService.assetsFromAssetGroupMap(new ArrayList<>(assetGroups));
 
-    // 4. Fetch InjectorContract to use for inject placeholder
+    // 4. Fetch InjectorContract to use for inject placeholder. injectors_contracts is tenant-active
+    // and the manual built-in id repeats across tenants (#8485): the general, id-only lookup is
+    // ambiguous once the scope spans more than one tenant, so resolve it in the scenario's own
+    // tenant, the tenant the injects being created here are written into, rather than the ambient
+    // one (the default tenant on the non-prefixed route).
     InjectorContract contractForInjectPlaceholders =
-        injectorContractService.injectorContract(ManualContract.MANUAL_DEFAULT);
+        injectorContractRepository
+            .findByContractIdAndTenant(ManualContract.MANUAL_DEFAULT, scenario.getTenant().getId())
+            .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
 
     // 5. Build injects from Vulnerabilities
     createInjectsByVulnerabilities(
@@ -222,6 +227,10 @@ public class SecurityCoverageInjectService {
                               null,
                               FileDrop.FILE_DROP_TYPE);
                       inject.setScenario(scenario);
+                      // Explicit, not left to TenantBaseListener's ambient fallback: this
+                      // placeholder belongs to the scenario regardless of which tenant the
+                      // caller's thread-local happens to carry.
+                      inject.setTenant(scenario.getTenant());
                       this.injectRepository.save(inject);
                       return;
                     }
@@ -300,6 +309,9 @@ public class SecurityCoverageInjectService {
         injectService.buildInject(injectorContract, injectName, injectDescription, true);
     inject.setTags(tags);
     inject.setScenario(scenario);
+    // Explicit, not left to TenantBaseListener's ambient fallback: this inject belongs to the
+    // scenario regardless of which tenant the caller's thread-local happens to carry.
+    inject.setTenant(scenario.getTenant());
     inject.setAssetGroups(assetGroups);
     return inject;
   }
@@ -439,7 +451,14 @@ public class SecurityCoverageInjectService {
                     Stream.of(
                         injectAssistantService.buildManualInject(
                             contractForPlaceholder, vulnerabilityId, null, null, null)))
-            .peek(inject -> inject.setScenario(scenario))
+            .peek(
+                inject -> {
+                  inject.setScenario(scenario);
+                  // Explicit, not left to TenantBaseListener's ambient fallback: this placeholder
+                  // belongs to the scenario regardless of which tenant the caller's thread-local
+                  // happens to carry.
+                  inject.setTenant(scenario.getTenant());
+                })
             .toList();
     injectService.saveAll(placeholdersInject);
 
@@ -560,7 +579,14 @@ public class SecurityCoverageInjectService {
                     Stream.of(
                         injectAssistantService.buildManualInject(
                             contractForPlaceholder, attackPatternId, null, null, null)))
-            .peek(inject -> inject.setScenario(scenario))
+            .peek(
+                inject -> {
+                  inject.setScenario(scenario);
+                  // Explicit, not left to TenantBaseListener's ambient fallback: this placeholder
+                  // belongs to the scenario regardless of which tenant the caller's thread-local
+                  // happens to carry.
+                  inject.setTenant(scenario.getTenant());
+                })
             .toList();
     injectService.saveAll(placeholdersInject);
 
@@ -951,6 +977,9 @@ public class SecurityCoverageInjectService {
             injectorContract, "Resolve DNS " + hostname, "Resolve Domain Name " + hostname, true);
     inject.setTags(tags);
     inject.setScenario(scenario);
+    // Explicit, not left to TenantBaseListener's ambient fallback: this inject belongs to the
+    // scenario regardless of which tenant the caller's thread-local happens to carry.
+    inject.setTenant(scenario.getTenant());
     inject.setAssetGroups(assetGroups);
     // Add hostname in arguments of the inject to be set and used at execution on payload
     inject.setContent(inject.getContent().put(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, hostname));
