@@ -1947,6 +1947,7 @@ export type AverageConfiguration = UtilRequiredKeys<
 
 export type AwsAccessKey = Value & {
   aws_access_key_id?: string;
+  aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
     | "us-east-1"
@@ -1984,11 +1985,13 @@ export type AwsAccessKey = Value & {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  aws_endpoint_url?: string;
   aws_secret_access_key?: string;
   aws_session_token?: string;
 };
 
 export type AwsAssumeRole = Value & {
+  aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
     | "us-east-1"
@@ -2026,6 +2029,7 @@ export type AwsAssumeRole = Value & {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  aws_endpoint_url?: string;
   aws_external_id?: string;
   aws_role_arn?: string;
   aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
@@ -2034,15 +2038,21 @@ export type AwsAssumeRole = Value & {
 };
 
 export type AzureManagedIdentity = Value & {
+  azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_environment?: string;
+  /** @format byte */
+  azure_requests_certificate?: Blob;
   azure_subscription_id?: string;
 };
 
 export type AzureServicePrincipal = Value & {
+  azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_client_secret?: string;
   azure_environment?: string;
+  /** @format byte */
+  azure_requests_certificate?: Blob;
   azure_subscription_id?: string;
   azure_tenant_id?: string;
 };
@@ -3396,6 +3406,8 @@ export interface CredentialFullOutput {
     | "GCP_OAUTH2";
   /** AWS access key ID */
   credential_aws_access_key_id?: string;
+  /** AWS account id */
+  credential_aws_account_id?: string;
   /** Secret AWS default region */
   credential_aws_default_region?:
     | "us-east-2"
@@ -3434,6 +3446,8 @@ export interface CredentialFullOutput {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  /** AWS endpoint URL override */
+  credential_aws_endpoint_url?: string;
   /** AWS role ARN */
   credential_aws_role_arn?: string;
   /** AWS session token present */
@@ -3444,10 +3458,14 @@ export interface CredentialFullOutput {
     | "INSTANCE_DEFAULT";
   /** AWS source profile access key id */
   credential_aws_source_profile_access_key_id?: string;
+  /** Azure authority host URI */
+  credential_azure_authority_host_uri?: string;
   /** Azure client id */
   credential_azure_client_id?: string;
   /** Azure environment */
   credential_azure_environment?: string;
+  /** Whether an Azure requests certificate is stored; the certificate itself is never returned */
+  credential_azure_requests_certificate_defined?: boolean;
   /** Azure subscription id */
   credential_azure_subscription_id?: string;
   /** Azure tenant id */
@@ -3461,6 +3479,16 @@ export interface CredentialFullOutput {
   credential_created_by: CredentialCreatedByOutput;
   /** Credential description */
   credential_description?: string;
+  /** GCP custom IAM URI */
+  credential_gcp_custom_iam_uri?: string;
+  /** Whether a GCP custom OAuth access token is stored; the token itself is never returned */
+  credential_gcp_custom_oauth_access_token_defined?: boolean;
+  /** GCP custom projects URI */
+  credential_gcp_custom_projects_uri?: string;
+  /** GCP custom resource manager URI */
+  credential_gcp_custom_resource_manager_uri?: string;
+  /** GCP custom token URI */
+  credential_gcp_custom_token_uri?: string;
   /** GCP OAuth client id */
   credential_gcp_oauth_client_id?: string;
   /** Whether a GCP OAuth client secret is stored; the secret itself is never returned */
@@ -3508,6 +3536,7 @@ export interface CredentialFullOutput {
 
 export interface CredentialInput {
   aws_access_key_id?: string;
+  aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
     | "us-east-1"
@@ -3545,6 +3574,7 @@ export interface CredentialInput {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  aws_endpoint_url?: string;
   aws_external_id?: string;
   aws_role_arn?: string;
   aws_secret_access_key?: string;
@@ -3552,6 +3582,7 @@ export interface CredentialInput {
   aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
   aws_source_profile_access_key_id?: string;
   aws_source_profile_secret_access_key?: string;
+  azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_client_secret?: string;
   azure_environment?: string;
@@ -3575,6 +3606,11 @@ export interface CredentialInput {
   credential_tags?: string[];
   credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   credential_username?: string;
+  gcp_custom_iam_uri?: string;
+  gcp_custom_oauth_access_token?: string;
+  gcp_custom_projects_uri?: string;
+  gcp_custom_resource_manager_uri?: string;
+  gcp_custom_token_uri?: string;
   gcp_oauth_client_id?: string;
   gcp_oauth_client_secret?: string;
   gcp_oauth_refresh_token?: string;
@@ -6295,6 +6331,9 @@ export interface FullTextSearchResult {
 }
 
 export type GcpOAuth2 = Value & {
+  gcp_custom_iam_uri?: string;
+  gcp_custom_oauth_access_token?: string;
+  gcp_custom_token_uri?: string;
   gcp_oauth_client_id?: string;
   gcp_oauth_client_secret?: string;
   gcp_oauth_refresh_token?: string;
@@ -6303,6 +6342,7 @@ export type GcpOAuth2 = Value & {
 };
 
 export type GcpServiceAccount = Value & {
+  gcp_custom_resource_manager_uri?: string;
   /** @format byte */
   gcp_private_key_json?: Blob;
   gcp_project_id?: string;

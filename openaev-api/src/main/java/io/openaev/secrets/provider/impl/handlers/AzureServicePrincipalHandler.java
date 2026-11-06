@@ -60,6 +60,17 @@ public class AzureServicePrincipalHandler implements SecretHandler {
       azureSecret.setAzureSubscriptionId(request.azureSubscriptionId());
     }
 
+    if (request.azureAuthorityHostUri() != null) {
+      azureSecret.setAzureAuthorityHostUri(
+          SecretHandler.blankToNull(request.azureAuthorityHostUri()));
+    }
+
+    // Absent file part = left untouched, like the GCP service account key file.
+    if (request.azureRequestsCertificate() != null) {
+      azureSecret.setAzureRequestsCertificate(
+          nativeEncryptionService.encrypt(request.azureRequestsCertificate()));
+    }
+
     if (azureSecret.getAzureEnvironment() == null
         || azureSecret.getAzureClientId() == null
         || azureSecret.getAzureClientSecret() == null
@@ -78,7 +89,9 @@ public class AzureServicePrincipalHandler implements SecretHandler {
           azureServicePrincipalSecret.getAzureEnvironment(),
           azureServicePrincipalSecret.getAzureClientId(),
           azureServicePrincipalSecret.getAzureTenantId(),
-          azureServicePrincipalSecret.getAzureSubscriptionId());
+          azureServicePrincipalSecret.getAzureSubscriptionId(),
+          azureServicePrincipalSecret.getAzureAuthorityHostUri(),
+          azureServicePrincipalSecret.getAzureRequestsCertificate() != null);
     }
     throw new IllegalArgumentException(
         "Secret type mismatch: expected AZURE_SERVICE_PRINCIPAL secret");
@@ -90,12 +103,18 @@ public class AzureServicePrincipalHandler implements SecretHandler {
       throw new IllegalArgumentException(
           "Secret type mismatch: expected AZURE_SERVICE_PRINCIPAL secret");
     }
+    byte[] requestsCertificate =
+        azureSecret.getAzureRequestsCertificate() == null
+            ? null
+            : nativeEncryptionService.decrypt(azureSecret.getAzureRequestsCertificate());
     return SecretResolvedValue.forAzureServicePrincipal(
         azureSecret.getAzureEnvironment(),
         azureSecret.getAzureClientId(),
         nativeEncryptionService.decrypt(azureSecret.getAzureClientSecret()),
         azureSecret.getAzureTenantId(),
-        azureSecret.getAzureSubscriptionId());
+        azureSecret.getAzureSubscriptionId(),
+        azureSecret.getAzureAuthorityHostUri(),
+        requestsCertificate);
   }
 
   /**

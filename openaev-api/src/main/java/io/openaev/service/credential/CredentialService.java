@@ -482,11 +482,16 @@ public class CredentialService {
    * @param tenantId tenant identifier
    * @param gcpPrivateKeyJson raw bytes of the uploaded GCP service account key file, null when the
    *     request carries no such part
+   * @param azureRequestsCertificate raw bytes of the uploaded Azure requests certificate, null when
+   *     the request carries no such part
    * @return created credential reference
    */
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public CredentialOutput createCredential(
-      CredentialInput input, String tenantId, byte[] gcpPrivateKeyJson) {
+      CredentialInput input,
+      String tenantId,
+      byte[] gcpPrivateKeyJson,
+      byte[] azureRequestsCertificate) {
     SecretsProvider provider = secretsProviderResolver.resolveLocalProvider(tenantId);
 
     // Build Credential Reference
@@ -501,7 +506,8 @@ public class CredentialService {
                 (CredentialSecretReference)
                     provider.store(
                         credential,
-                        convertCredentialInputToSecretStoreRequest(input, gcpPrivateKeyJson)));
+                        convertCredentialInputToSecretStoreRequest(
+                            input, gcpPrivateKeyJson, azureRequestsCertificate)));
 
     // Phase 2 — validate connectivity after write, in a separate transaction to avoid any rollback
     // of the credential creation
@@ -521,11 +527,17 @@ public class CredentialService {
    * @param input credential update payload
    * @param gcpPrivateKeyJson raw bytes of the uploaded GCP service account key file; null means
    *     "key left untouched", so the stored one is kept
+   * @param azureRequestsCertificate raw bytes of the uploaded Azure requests certificate; null
+   *     means "certificate left untouched", so the stored one is kept
    * @return updated credential full output
    */
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public CredentialFullOutput updateCredential(
-      String credentialId, CredentialInput input, String tenantId, byte[] gcpPrivateKeyJson) {
+      String credentialId,
+      CredentialInput input,
+      String tenantId,
+      byte[] gcpPrivateKeyJson,
+      byte[] azureRequestsCertificate) {
     // Phase 1 — transactional update of credential reference and its secret through the provider.
     UpdatedCredentialContext updateContext =
         tenantTx.execute(
@@ -544,7 +556,8 @@ public class CredentialService {
                   (CredentialSecretReference)
                       secretProvider.update(
                           credential,
-                          convertCredentialInputToSecretStoreRequest(input, gcpPrivateKeyJson));
+                          convertCredentialInputToSecretStoreRequest(
+                              input, gcpPrivateKeyJson, azureRequestsCertificate));
               return new UpdatedCredentialContext(updatedCredential, secretProvider);
             });
 
@@ -588,7 +601,7 @@ public class CredentialService {
   }
 
   private SecretStoreRequest convertCredentialInputToSecretStoreRequest(
-      CredentialInput input, byte[] gcpPrivateKeyJson) {
+      CredentialInput input, byte[] gcpPrivateKeyJson, byte[] azureRequestsCertificate) {
     return new SecretStoreRequest(
         input.credentialUsername(),
         input.credentialPassword(),
@@ -613,7 +626,16 @@ public class CredentialService {
         gcpPrivateKeyJson,
         input.gcpOauthClientId(),
         input.gcpOauthClientSecret(),
-        input.gcpOauthRefreshToken());
+        input.gcpOauthRefreshToken(),
+        input.awsAccountId(),
+        input.awsEndpointUrl(),
+        input.gcpCustomTokenUri(),
+        input.gcpCustomProjectsUri(),
+        input.gcpCustomResourceManagerUri(),
+        input.gcpCustomIamUri(),
+        input.gcpCustomOauthAccessToken(),
+        input.azureAuthorityHostUri(),
+        azureRequestsCertificate);
   }
 
   /**
