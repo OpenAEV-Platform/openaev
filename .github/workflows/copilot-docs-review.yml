@@ -91,12 +91,7 @@ jobs:
               .find(name => skipSet.has(normalize(name)));
 
             if (matchedLabel) {
-              await publishReport([
-                MARKER,
-                '📖 **Documentation check** — ✅ Skipped',
-                '',
-                `\`${matchedLabel}\` label is present on this PR.`,
-              ].join('\n'));
+              await clearReport();
               return;
             }
 
@@ -234,21 +229,7 @@ jobs:
             // -- 7. gaps found but docs also changed → pass ---------------
 
             if (docFiles.length > 0) {
-              await publishReport([
-                MARKER,
-                '📖 **Documentation check** — ✅ Passed',
-                '',
-                `**${funcFiles.length}** functional file(s), **${docFiles.length}** doc file(s) changed.`,
-                '',
-                'Documentation-worthy changes detected and documentation was updated. 👏',
-                '',
-                '<details>',
-                '<summary>Detected changes (covered by doc updates)</summary>',
-                '',
-                ...gaps.map(g => `- ${g.emoji} **${g.title}** — \`${g.file}\``),
-                '',
-                '</details>',
-              ].join('\n'));
+              await clearReport();
               return;
             }
 
