@@ -5,6 +5,7 @@ import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -12,8 +13,10 @@ import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.Ordered;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -63,6 +66,13 @@ import org.springframework.stereotype.Component;
  * would <em>change</em> an already-set scope is refused (a programming error), while one that
  * repeats the same set of tenants is tolerated. A nested method that needs a different scope must
  * open a {@code REQUIRES_NEW} transaction.
+ *
+ * <p>A method (or its declaring class) carrying {@link PlatformWrite} also gets {@code
+ * app.platform_write} set to {@code 'true'} for the transaction, which is what lets a write reach a
+ * dual-scope table's platform row ({@code tenant_id IS NULL}); every other transaction never
+ * touches that setting, so it reads as unset (false) by default. This only runs when a {@link
+ * TxCtx} argument is also present, same as the tenant scope above: a {@code @Transactional} method
+ * with no {@link TxCtx} parameter is untouched by this aspect entirely.
  */
 @Aspect
 @Component
@@ -94,6 +104,11 @@ public class TenantScopeTransactionAspect {
     if (!current.isEmpty()) {
       // A scope is the set of tenants it grants, not its textual order, so compare as sets.
       if (tenants(current).equals(tenants(desired))) {
+        // The scope is already set (a nested @Transactional call): still honour this method's own
+        // PlatformWrite, since the outer method that opened the transaction may not carry it.
+        if (isPlatformWrite(joinPoint)) {
+          setPlatformWrite();
+        }
         return;
       }
       throw new IllegalStateException(
@@ -104,6 +119,19 @@ public class TenantScopeTransactionAspect {
     }
     setScope(desired);
     setMarkingScope(markingScopeFor(ctx));
+    if (isPlatformWrite(joinPoint)) {
+      setPlatformWrite();
+    }
+  }
+
+  /** Whether the advised method (or its declaring class) carries {@link PlatformWrite}. */
+  private static boolean isPlatformWrite(JoinPoint joinPoint) {
+    if (!(joinPoint.getSignature() instanceof MethodSignature signature)) {
+      return false;
+    }
+    Method method = signature.getMethod();
+    return AnnotatedElementUtils.hasAnnotation(method, PlatformWrite.class)
+        || AnnotatedElementUtils.hasAnnotation(method.getDeclaringClass(), PlatformWrite.class);
   }
 
   /**
@@ -147,6 +175,13 @@ public class TenantScopeTransactionAspect {
         .createNativeQuery("SELECT set_config('app.current_markings', :scope, true)")
         .setFlushMode(FlushModeType.COMMIT)
         .setParameter("scope", scope)
+        .getSingleResult();
+  }
+
+  private void setPlatformWrite() {
+    entityManager
+        .createNativeQuery("SELECT set_config('app.platform_write', 'true', true)")
+        .setFlushMode(FlushModeType.COMMIT)
         .getSingleResult();
   }
 

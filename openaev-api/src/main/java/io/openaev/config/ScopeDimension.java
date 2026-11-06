@@ -52,9 +52,35 @@ public interface ScopeDimension {
 
   /**
    * Predicate asserting that the value about to be written into {@link #writeAttributionColumn()}
-   * is in scope. Only called when the column is non-null.
+   * of {@code table} is in scope, for an {@code INSERT ... SELECT}. Only called when the column is
+   * non-null.
    */
-  default String writeAttributionPredicate(String valueExpression) {
+  default String writeAttributionPredicate(String table, String valueExpression) {
     return null;
+  }
+
+  /**
+   * Predicate asserting that the value about to be written into {@link #writeAttributionColumn()}
+   * of {@code table} is in scope, for a plain {@code INSERT ... VALUES}. Returning {@code null}
+   * means this dimension does not guard a {@code VALUES} insert into this table by rewriting (every
+   * table outside the platform-write rule): the write is not validated against this dimension. Only
+   * called when {@link #writeAttributionColumn()} is non-null.
+   *
+   * <p>Unlike {@link #writeAttributionPredicate}, the expression here is a column reference into a
+   * {@code VALUES (...) AS v(cols)} derived table, never a bind parameter, so it may be referenced
+   * freely without affecting positional binding.
+   */
+  default String writeValuesAttributionPredicate(String table, String valueExpression) {
+    return null;
+  }
+
+  /**
+   * Whether a plain {@code INSERT} into {@code table} must name {@link #writeAttributionColumn()}
+   * and carry its values in a {@code VALUES} list, because this dimension validates that column by
+   * rewriting. An insert that omits the column, or has no column list or no {@code VALUES} source,
+   * writes an unvalidated value and is refused. Only called when the column is non-null.
+   */
+  default boolean guardsValuesInsert(String table) {
+    return false;
   }
 }

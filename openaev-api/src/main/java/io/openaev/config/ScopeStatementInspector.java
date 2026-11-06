@@ -164,11 +164,22 @@ public class ScopeStatementInspector implements StatementInspector {
       conflict.setWhereExpression(
           combineScopeFilter(insert.getTable(), conflict.getWhereExpression(), false));
     }
-    // An INSERT ... SELECT into a scoped table must write only in-scope values; the written scope
-    // column is validated against the scope. VALUES inserts cannot be distinguished from
-    // ORM-generated ones at the SQL level, so their scope assignment stays an application concern.
     Select source = insert.getSelect();
-    if (insert.getTable() != null && source != null && !(source instanceof Values)) {
+    if (insert.getTable() != null && source instanceof Values values) {
+      // The sub-queries of the VALUES tuples are read-filtered like any select. A VALUES insert
+      // cannot carry a WHERE of its own, so a guarding dimension (today: a dual-scope table's
+      // written tenant) is rewritten through a derived table instead; see rewriteValuesInsert.
+      // Every other table's VALUES insert is returned unchanged: scope attribution for it is an
+      // application concern.
+      filterContainedSelects(insert);
+      String rewritten = rewriteValuesInsert(insert, values);
+      return rewritten != null ? rewritten : insert.toString();
+    }
+    if (insert.getTable() != null && source == null) {
+      refuseIfValuesInsertIsGuarded(insert.getTable().getName(), "has no VALUES source");
+    } else if (insert.getTable() != null) {
+      // An INSERT ... SELECT into a scoped table must write only in-scope values; the written scope
+      // column is validated against the scope.
       for (ScopeDimension dimension : dimensions) {
         if (dimension.covers(insert.getTable().getName())
             && dimension.writeAttributionColumn() != null) {
@@ -179,6 +190,110 @@ public class ScopeStatementInspector implements StatementInspector {
     // The SELECT source (and any sub-query) is read-filtered like any select.
     filterContainedSelects(insert);
     return insert.toString();
+  }
+
+  /**
+   * Refuses an {@code INSERT} into a table whose written scope column a dimension validates by
+   * rewriting, when the statement offers nothing to validate: the column would be written as NULL,
+   * which for a dual-scope table is a platform row created with no check.
+   */
+  private void refuseIfValuesInsertIsGuarded(String tableName, String why) {
+    for (ScopeDimension dimension : dimensions) {
+      if (dimension.covers(tableName)
+          && dimension.writeAttributionColumn() != null
+          && dimension.guardsValuesInsert(tableName)) {
+        throw new TenantFilteringException(
+            "INSERT into a "
+                + dimension.name()
+                + " table must set "
+                + dimension.writeAttributionColumn()
+                + " in a column list and a VALUES list: this one "
+                + why);
+      }
+    }
+  }
+
+  /**
+   * Rewrites {@code INSERT INTO t (cols) VALUES (...)} into {@code INSERT INTO t (cols) SELECT
+   * v.c1, ... FROM (VALUES (...)) AS v(cols) WHERE <predicate>} when at least one dimension guards
+   * this table's VALUES shape (today: {@link TenantDimension#writeValuesAttributionPredicate} for a
+   * dual-scope table's platform row). The VALUES tuple becomes a derived table referenced by
+   * column, never repeating a bind parameter, so this never changes the statement's placeholder
+   * count or order. Returns {@code null} when no dimension guards this table's VALUES shape (every
+   * table outside the platform-write rule, including every strict table): the insert is then
+   * returned unchanged by the caller.
+   *
+   * <p>A dimension that guards this table's VALUES shape ({@link
+   * ScopeDimension#guardsValuesInsert}) refuses a statement with no column list or without its
+   * written scope column: the omitted column is written as NULL, and there is no value to validate.
+   */
+  private String rewriteValuesInsert(Insert insert, Values values) {
+    String tableName = insert.getTable().getName();
+    ExpressionList<Column> columns = insert.getColumns();
+    if (columns == null) {
+      refuseIfValuesInsertIsGuarded(tableName, "has no column list");
+      return null;
+    }
+    List<String> predicates = new ArrayList<>();
+    for (ScopeDimension dimension : dimensions) {
+      if (!dimension.covers(tableName)) {
+        continue;
+      }
+      String column = dimension.writeAttributionColumn();
+      if (column == null) {
+        continue;
+      }
+      int idx = columnIndex(columns, column);
+      if (idx < 0) {
+        refuseIfValuesInsertIsGuarded(tableName, "does not name " + column);
+        continue;
+      }
+      String predicate = dimension.writeValuesAttributionPredicate(tableName, "v." + column);
+      if (predicate != null) {
+        predicates.add("(" + predicate + ")");
+      }
+    }
+    if (predicates.isEmpty()) {
+      return null;
+    }
+    String columnList =
+        columns.stream().map(Column::getColumnName).collect(Collectors.joining(", "));
+    String projected =
+        columns.stream().map(c -> "v." + c.getColumnName()).collect(Collectors.joining(", "));
+    String rewritten =
+        "SELECT "
+            + projected
+            + " FROM ("
+            + values
+            + ") AS v("
+            + columnList
+            + ") WHERE "
+            + String.join(" AND ", predicates);
+    Statement parsed;
+    try {
+      parsed = CCJSqlParserUtil.parse(rewritten);
+    } catch (Exception e) {
+      throw new TenantFilteringException(
+          "could not rewrite the INSERT ... VALUES for scope validation", e);
+    }
+    if (!(parsed instanceof PlainSelect plain)) {
+      throw new IllegalStateException(
+          "expected a plain select rewriting an INSERT ... VALUES, got "
+              + parsed.getClass().getSimpleName());
+    }
+    insert.setSelect(plain);
+    return insert.toString();
+  }
+
+  /** The index of {@code name} in {@code columns}, ignoring surrounding quotes, or -1. */
+  private static int columnIndex(ExpressionList<Column> columns, String name) {
+    for (int i = 0; i < columns.size(); i++) {
+      String candidate = columns.get(i).getColumnName();
+      if (candidate != null && candidate.replace("\"", "").equalsIgnoreCase(name)) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   /**
@@ -197,14 +312,7 @@ public class ScopeStatementInspector implements StatementInspector {
               + dimension.name()
               + " table needs an explicit column list and a plain SELECT");
     }
-    int scopeIdx = -1;
-    for (int i = 0; i < columns.size(); i++) {
-      String name = columns.get(i).getColumnName();
-      if (name != null && name.replace("\"", "").equalsIgnoreCase(scopeColumn)) {
-        scopeIdx = i;
-        break;
-      }
-    }
+    int scopeIdx = columnIndex(columns, scopeColumn);
     if (scopeIdx < 0) {
       throw new TenantFilteringException(
           "INSERT ... SELECT into a "
@@ -237,7 +345,10 @@ public class ScopeStatementInspector implements StatementInspector {
               + " cannot be validated by rewriting");
     }
     source.setWhere(
-        combineCall(source.getWhere(), dimension.writeAttributionPredicate(scopeExpr.toString())));
+        combineCall(
+            source.getWhere(),
+            dimension.writeAttributionPredicate(
+                insert.getTable().getName(), scopeExpr.toString())));
   }
 
   /**

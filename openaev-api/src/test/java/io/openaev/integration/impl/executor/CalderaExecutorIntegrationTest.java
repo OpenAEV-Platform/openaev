@@ -68,6 +68,10 @@ public class CalderaExecutorIntegrationTest {
   @Autowired private CatalogConnectorService catalogConnectorService;
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
+
+  @Autowired
+  private io.openaev.database.repository.ConnectorInstanceRepository connectorInstanceRepository;
+
   @Autowired private CalderaExecutorConfig calderaExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
@@ -136,6 +140,28 @@ public class CalderaExecutorIntegrationTest {
             integration ->
                 assertThat(integration.getCurrentStatus())
                     .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped));
+  }
+
+  @Test
+  @DisplayName(
+      "When the instance has disappeared, stopping the integration clears the banner inside the"
+          + " caller's transaction")
+  public void given_instanceGone_should_stopWithoutRefusingThePlatformWrite() throws Exception {
+    // Arrange: a synced integration whose instance is then deleted
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    List<ConnectorInstancePersisted> instances =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
+    instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instances.getFirst());
+    Integration integration = integrationFactory.sync(new ArrayList<>(instances)).getFirst();
+    connectorInstanceRepository.deleteById(instances.getFirst().getId());
+
+    // Act + Assert: Integration.initialise() stops on a missing instance, in the transaction the
+    // monitoring job already opened; the banner write opens its own platform-write transaction
+    // there instead of refusing to nest
+    org.junit.jupiter.api.Assertions.assertDoesNotThrow(integration::initialise);
   }
 
   @Test

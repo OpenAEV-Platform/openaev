@@ -46,18 +46,20 @@ class CanAccessTenantFunctionTest {
   }
 
   @Test
-  @DisplayName("no scope denies every row")
-  void noScopeDeniesAll() {
+  @DisplayName("no scope denies every tenant row, and lets a platform row through")
+  void noScopeDeniesEveryTenantRow() {
     assertFalse(canAccess("t1", false));
-    assertFalse(canAccessNullRow(true));
+    assertFalse(canAccessNullRow(false));
+    assertTrue(canAccessNullRow(true));
   }
 
   @Test
-  @DisplayName("empty scope denies every row")
-  void emptyScopeDeniesAll() {
+  @DisplayName("empty scope denies every tenant row, and lets a platform row through")
+  void emptyScopeDeniesEveryTenantRow() {
     setScope("");
     assertFalse(canAccess("t1", false));
-    assertFalse(canAccessNullRow(true));
+    assertFalse(canAccessNullRow(false));
+    assertTrue(canAccessNullRow(true));
   }
 
   @Test
@@ -92,9 +94,9 @@ class CanAccessTenantFunctionTest {
   }
 
   @Test
-  @DisplayName("dual-scope table: a null row is denied when there is no scope")
-  void dualScopeNullRowDeniedWithoutScope() {
-    assertFalse(canAccessNullRow(true));
+  @DisplayName("dual-scope table: a null platform row is visible when there is no scope")
+  void dualScopeNullRowAllowedWithoutScope() {
+    assertTrue(canAccessNullRow(true));
   }
 
   @Test

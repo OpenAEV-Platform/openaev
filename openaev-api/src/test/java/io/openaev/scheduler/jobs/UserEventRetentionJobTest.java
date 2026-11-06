@@ -5,12 +5,15 @@ import static io.openaev.utils.fixtures.UserFixture.getUser;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.database.model.Setting;
+import io.openaev.database.model.SettingKeys;
 import io.openaev.database.model.User;
 import io.openaev.database.model.UserEvent;
+import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.UserEventRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.scheduler.jobs.user_event.UserEventRetentionJob;
-import io.openaev.service.user_events.UserEventRetentionConfig;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import org.junit.jupiter.api.MethodOrderer;
@@ -34,7 +37,9 @@ class UserEventRetentionJobTest extends IntegrationTest {
 
   @Autowired private UserRepository userRepository;
 
-  @Autowired private UserEventRetentionConfig settingsService;
+  @Autowired private SettingRepository settingRepository;
+
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
 
   @Test
   void should_delete_old_login_events_and_keep_recent_ones() throws JobExecutionException {
@@ -59,7 +64,7 @@ class UserEventRetentionJobTest extends IntegrationTest {
     insertUserEvent(user);
     // sanity check
     assertThat(userEventRepository.count()).isEqualTo(2);
-    settingsService.setEnabled(false);
+    disableRetention();
 
     // -- ACT --
     job.execute(null);
@@ -70,6 +75,17 @@ class UserEventRetentionJobTest extends IntegrationTest {
   }
 
   // -- PRIVATE --
+
+  /** Writes the platform row that switches the retention off, as a platform-write transaction. */
+  void disableRetention() {
+    tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
+    String key = SettingKeys.USER_EVENTS_RETENTION_ENABLED.key();
+    Setting setting =
+        settingRepository.findByKeyAndTenantIsNull(key).orElseGet(() -> new Setting(key, "false"));
+    setting.setValue("false");
+    settingRepository.save(setting);
+    entityManager.flush();
+  }
 
   /**
    * Create a user event using a native query to bypass the automatic createdAt value and manually
