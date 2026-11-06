@@ -1,11 +1,12 @@
 import { type ReactNode, useMemo } from 'react';
 
+import { type UserGrant } from '../api-types';
 import { defineAbility } from './ability';
 import { AbilityProvider } from './permissionsContext';
 
 type PermissionsProviderProps = {
   capabilities: string[];
-  grants: Record<string, string>;
+  grants: Record<string, UserGrant>;
   isAdmin: boolean;
   children: ReactNode;
 };
