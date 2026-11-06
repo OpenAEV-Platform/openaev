@@ -51,6 +51,12 @@ public interface InjectorContractRepository
    * built-in declarations), so joining on the id alone aggregates another tenant's mappings into
    * this tenant's contract.
    *
+   * <p>No predicate on the ambient tenant: the statement inspector scopes {@code
+   * injectors_contracts} to the request's tenant scope, which is the selector of {@code
+   * X-Tenant-Ids} on the non-prefixed route where the ambient tenant stays the default one. Rows
+   * are grouped per tenant, so a scope spanning several tenants lists each tenant's copy of a
+   * contract instead of merging their mappings.
+   *
    * @return list of raw injector contract projections
    */
   @Query(
@@ -62,8 +68,7 @@ public interface InjectorContractRepository
               + "  ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "  AND injcon.tenant_id = injconatt.tenant_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
-              + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
-              + "GROUP BY injcon.injector_contract_id",
+              + "GROUP BY injcon.injector_contract_id, injcon.tenant_id",
       nativeQuery = true)
   List<RawInjectorsContracts> getAllRawInjectorsContracts();
 
@@ -108,8 +113,7 @@ public interface InjectorContractRepository
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
               + "LEFT JOIN payloads p ON p.payload_id = injcon.injector_contract_payload "
               + "  AND p.tenant_id = injcon.tenant_id "
-              + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
-              + "AND EXISTS ( "
+              + "WHERE EXISTS ( "
               + "  SELECT 1 FROM users u "
               + "  INNER JOIN users_groups ug ON u.user_id = ug.user_id "
               + "  INNER JOIN groups g ON ug.group_id = g.group_id "
@@ -119,7 +123,7 @@ public interface InjectorContractRepository
               + "  AND gr.grant_resource_type = :resourceType "
               + "  AND (g.tenant_id IS NULL OR g.tenant_id = injcon.tenant_id) "
               + ") "
-              + "GROUP BY injcon.injector_contract_id",
+              + "GROUP BY injcon.injector_contract_id, injcon.tenant_id",
       nativeQuery = true)
   List<RawInjectorsContracts> getAllRawInjectorsContractsGranted(
       @Param("userId") String userId, @Param("resourceType") String resourceType);

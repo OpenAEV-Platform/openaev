@@ -269,7 +269,6 @@ public class InjectorContractService implements DependenciesManager {
 
   public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
     User currentUser = userService.currentUser();
-    String tenantId = TenantContext.getCurrentTenant();
     if (currentUser.isAdminOrBypass()
         || currentUser.getCapabilities().contains(Capability.ACCESS_THREAT_ARSENALS)) {
       return injectorContractRepository.getAllRawInjectorsContracts();
