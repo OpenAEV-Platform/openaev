@@ -157,9 +157,7 @@ The same policy applies on `main`, on every pull request and in Nightly CI. Like
 coverage check, the job does not turn red on findings: when a high or critical finding has a
 fix, it posts a separate **Aikido Image Scan (advisory)** check with the PR checks app. That
 check is red, with the count per image as its title and the findings, their fixed versions and
-how to fix them in its details. A clean run posts no check. False positives go in
-`.github/actions/aikido-image-scan/ignored-findings.txt`, with their reason: they stay listed in
-the report but no longer count. For now the gate treats the job as
+how to fix them in its details. A clean run posts no check. For now the gate treats the job as
 advisory, like any new check. Taking `aikido-image-scan` out of the gate's advisory list makes
 it blocking.
 
