@@ -91,15 +91,12 @@ public class PermissionService {
   private final AmbientTenantBridge ambientTenantBridge;
 
   /**
-   * Resolves {@code resolveTarget} with {@link TxCtx#missing()}, which {@code
-   * TxCtxScopeUtils#requestReadScope} falls back to the ambient tenant for, never an empty scope.
-   * For the {@code INJECT} branch specifically this is harmless today: every caller of this
-   * overload ({@code StreamService#hasReadPermission}'s unscoped fallback, {@code
-   * AttackPathAccessControl}, {@code ReportingService}, {@code AutonomousRunApi}, {@code
-   * V1_DataImporter}) passes a {@link ResourceType} other than {@code INJECT} (an inject's own
-   * {@code getPermissionResourceType()} resolves to its parent's type, never {@code INJECT}
-   * itself), so the branch is unreachable with a missing {@code TxCtx} outside the controller path
-   * {@link AccessControlAspect#requestTxCtx} documents.
+   * Resolves the resource with {@link TxCtx#missing()}, which {@code
+   * TxCtxScopeUtils#requestReadScope} reads as the ambient tenant alone. An {@code INJECT} is
+   * loaded inside a tenant scope the caller names, so it is refused here for every caller, an admin
+   * included: use {@link #hasPermissionInTenant} with the tenant of the inject.
+   *
+   * @throws IllegalArgumentException when {@code resourceType} is {@link ResourceType#INJECT}
    */
   @Transactional
   public boolean hasPermission(
@@ -108,6 +105,10 @@ public class PermissionService {
       String resourceId,
       ResourceType resourceType,
       Action action) {
+    if (ResourceType.INJECT.equals(resourceType)) {
+      throw new IllegalArgumentException(
+          "An inject is resolved in a tenant scope: use hasPermissionInTenant");
+    }
     return checkPermission(
         user,
         httpMappingInfo,
