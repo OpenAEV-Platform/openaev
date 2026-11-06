@@ -50,10 +50,19 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
    *       transaction and so before any scope exists, and {@code can_access_tenant} answers false
    *       when there is no scope, so every member would be refused every tenant-prefixed request.
    *       The same holds for token authentication and the membership reads of background threads.
-   *       Every statement on the table binds its own {@code user_id} or {@code tenant_id}, and the
-   *       endpoints that write it are guarded by the caller's membership in the addressed tenant
-   *       (prefixed route) and by the capability resolution in the default tenant (non-prefixed
-   *       route); see {@code TenantMembershipGuardTest}.
+   *       What stands in for the inspector is not the statements themselves, which only bind a
+   *       {@code user_id} or a {@code tenant_id}: that says which row a statement targets, not
+   *       whether the tenant it writes is the right one. Three things do. The request writers
+   *       ({@code TenantUserService} create, attach and detach, {@code PlayerService}) take the
+   *       tenant of the row from the request's write scope through {@code
+   *       TenantWriteScopeResolver}; the writers that provision a tenant's own accounts ({@code
+   *       AdminPrivilegeService}, {@code AgentServiceAccountPrivilegeService}, {@code
+   *       CatalogConnectorPrivilegeService}, {@code OpenCTIConnectorPrivilegeService}, tenant
+   *       creation) pass the tenant they provision. The endpoints sit behind the caller's
+   *       membership check on the addressed tenant, and the write-attribution detector, which keeps
+   *       this table in its watch, reports in the test suite a row written outside its
+   *       transaction's scope and fails a test on one its baseline does not list. See {@code
+   *       TenantMembershipGuardTest} and {@code WriteAttrMembershipTableTest}.
    * </ul>
    *
    * A table belongs here only with that kind of written reason. "Not activated yet" is not one.

@@ -778,8 +778,9 @@ class BackgroundEntrypointDetectionTest {
       "a background entry point that touches tenant-bearing tables is not waived"
           + " touches-no-tenant-table")
   void writesToTenantTableAreNotWaivedAsTouchingNothing() {
-    // OpenCTIConnectorRegisterPingJob's flow writes Group/Role (DualScopeBase) and the strict
-    // users_tenants join (TenantUserService.attachToTenant); AiMetricCollector reads the
+    // OpenCTIConnectorRegisterPingJob's flow writes Group/Role (DualScopeBase) and the
+    // users_tenants membership rows, a self-isolated table (TenantUserService.attachToTenant);
+    // AiMetricCollector reads the
     // platform Setting row (DualScopeBase). Neither "touches no tenant table"; both are
     // platform-global. This pins the reclassification against a revert to the false reason.
     Map<String, String> baseline = BackgroundEntrypointTenantScopeArchTest.loadBaseline();
