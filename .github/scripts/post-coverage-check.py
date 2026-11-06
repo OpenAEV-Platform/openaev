@@ -30,7 +30,7 @@ This pull request is checked against two backend coverage rules:
 - **Changed lines**: at least {min_coverage}% of the backend lines it adds or changes, in \
 `openaev-api/src/main/java`, run during the API tests.
 - **Whole backend**: backend line coverage does not drop by more than {max_drop} point against \
-the latest report of the branch it targets.
+the latest report of main, taken where the branch left main.
 """
 
 
@@ -53,8 +53,9 @@ CODECOV = """\
 
 This check counts lines the way Codecov does, so its figures should match Codecov's comment. \
 Codecov compares with the commit the pull request branched from, this check with the latest \
-report of the target branch. They are the same once your branch is up to date with its target, so \
-when the two disagree and your branch is behind, rebase it or update it with the target branch.
+report of main at the point the branch left it. For a pull request into main that is the tip of \
+main, the same once your branch is up to date, so when the two disagree and your branch is \
+behind, rebase it or update it with main.
 """
 
 
@@ -77,8 +78,14 @@ def project_figure(log: str) -> str:
     return "?"
 
 
-def section(passed: bool, label: str, log: str) -> str:
-    icon = "✅" if passed else "❌"
+def project_icon(passed: bool, log: str) -> str:
+    """❌ when the drop is too large, ⚪ when it could not be measured, ✅ otherwise."""
+    if not passed:
+        return "❌"
+    return "⚪" if "the drop cannot be measured" in log else "✅"
+
+
+def section(icon: str, label: str, log: str) -> str:
     text = log.strip() or "(no output)"
     if len(text) > MAX_LOG:
         text = text[:MAX_LOG] + "\n…"
@@ -112,15 +119,15 @@ def main() -> int:
     title = (
         f"{'✅' if patch_ok else '❌'} changed lines {patch_figure(patch_log)} "
         f"(min {args.min_coverage}%) · "
-        f"{'✅' if project_ok else '❌'} backend {project_figure(project_log)} "
+        f"{project_icon(project_ok, project_log)} backend {project_figure(project_log)} "
         f"(max -{args.max_drop})"
     )
     summary = "\n".join(
         [
             rules(args.min_coverage, args.max_drop),
             "### Result\n",
-            section(patch_ok, "Changed lines", patch_log),
-            section(project_ok, "Whole backend", project_log),
+            section("✅" if patch_ok else "❌", "Changed lines", patch_log),
+            section(project_icon(project_ok, project_log), "Whole backend", project_log),
             fix(args.min_coverage),
             CODECOV,
             "This check is advisory for now: it does not block the merge.",

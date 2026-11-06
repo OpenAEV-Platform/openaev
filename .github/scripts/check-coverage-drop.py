@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
 """Fail when a pull request drops backend line coverage by more than a given number of points.
 
-The pull request's JaCoCo report is compared with the report of its base commit. Core CI uploads
-that report as the `jacoco-api` artifact on every push to the base branch, so the base report is
-the newest such artifact whose commit is the base commit or one of its ancestors: when the run on
-the base commit itself has not finished yet, the closest earlier one stands in for it.
+The pull request's JaCoCo report is compared with the report of the main branch. Core CI uploads
+that report as the `jacoco-api` artifact on every push to main, and only there: a branch that is
+not main has no reports of its own. The base commit is the first parent of the merge commit CI
+checks out (the tip of the target branch), and the point where it left main is the merge base of
+the two. The base report is the newest artifact whose commit is that merge base or one of its
+ancestors: when the run on the merge base itself has not finished yet, the closest earlier one
+stands in for it.
 
-The base commit is the tip of the target branch, the first parent of the merge commit CI checks
-out. Codecov compares with the commit the pull request branched from instead. The two are the
-same once the branch is up to date with its target, so a pull request that is behind and shows
-another drop in Codecov is fixed by a rebase.
+For a pull request into main the merge base is the tip of main. For a pull request stacked on
+another branch it is the commit the stack branched from main, which is also where Codecov
+compares. Codecov compares a pull request into main with the commit it branched from, not the
+tip of main: the two are the same once the branch is up to date, so a pull request that is behind
+and shows another drop in Codecov is fixed by a rebase.
 
 Line coverage is counted the way Codecov counts it (see jacoco_lines.py): a line where only some
 branches ran is partial, and partial lines are not covered.
 
-No base report (artifacts expired, or no green run on the base branch for a while) is not a
+No base report (artifacts expired, or no green run on main for a while) is not a
 failure: the check cannot measure a drop, says so in its output and passes. Codecov reports the
 numbers on the pull request; this script only passes or fails.
 
@@ -58,7 +62,13 @@ def is_ancestor(repo: str, sha: str, of: str) -> bool:
     return status in ("ahead", "identical")
 
 
-def find_base_report(repo: str, base_sha: str, base_branch: str) -> tuple[str, bytes] | None:
+def merge_base(repo: str, main_branch: str, sha: str) -> str:
+    """Commit where `sha` left the main branch (`sha` itself when it is on main)."""
+    comparison = json.loads(gh_api(f"repos/{repo}/compare/{main_branch}...{sha}"))
+    return comparison["merge_base_commit"]["sha"]
+
+
+def find_base_report(repo: str, base_sha: str, main_branch: str) -> tuple[str, bytes] | None:
     for page in range(1, MAX_PAGES + 1):
         artifacts = json.loads(
             gh_api(f"repos/{repo}/actions/artifacts?name={ARTIFACT}&per_page=100&page={page}")
@@ -67,7 +77,7 @@ def find_base_report(repo: str, base_sha: str, base_branch: str) -> tuple[str, b
             return None
         for artifact in artifacts:
             run = artifact.get("workflow_run") or {}
-            if artifact["expired"] or run.get("head_branch") != base_branch:
+            if artifact["expired"] or run.get("head_branch") != main_branch:
                 continue
             details = json.loads(gh_api(f"repos/{repo}/actions/runs/{run['id']}"))
             if details["path"] != WORKFLOW or details["event"] != "push":
@@ -83,7 +93,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--report", required=True, help="JaCoCo XML report of the pull request")
     parser.add_argument("--base-sha", required=True, help="base commit of the pull request")
-    parser.add_argument("--base-branch", required=True, help="branch the pull request targets")
+    parser.add_argument("--main-branch", default="main", help="branch that has the reports")
     parser.add_argument(
         "--max-drop", type=float, required=True, help="largest drop allowed, in points"
     )
@@ -94,21 +104,22 @@ def main() -> int:
         head_covered, head_total = line_coverage(report.read())
     head = 100 * head_covered / head_total
 
-    base = find_base_report(repo, args.base_sha, args.base_branch)
+    base_sha = merge_base(repo, args.main_branch, args.base_sha)
+    base = find_base_report(repo, base_sha, args.main_branch)
     if base is None:
         print(
-            f"No {ARTIFACT} report found for {args.base_branch} at or before "
-            f"{args.base_sha[:10]}: the drop cannot be measured. Pull request: {head:.2f}%."
+            f"No {ARTIFACT} report found for {args.main_branch} at or before "
+            f"{base_sha[:10]}: the drop cannot be measured. Pull request: {head:.2f}%."
         )
         return 0
 
-    base_sha, base_xml = base
+    found_sha, base_xml = base
     base_covered, base_total = line_coverage(base_xml)
     base_cov = 100 * base_covered / base_total
     drop = base_cov - head
-    compared = base_sha[:10]
-    if base_sha != args.base_sha:
-        compared += f", closest report before {args.base_sha[:10]}"
+    compared = found_sha[:10]
+    if found_sha != base_sha:
+        compared += f", closest report before {base_sha[:10]}"
     print(f"Base ({compared}): {base_covered} / {base_total} lines, {base_cov:.2f}%")
     print(f"Pull request: {head_covered} / {head_total} lines, {head:.2f}%")
     if drop > args.max_drop:
