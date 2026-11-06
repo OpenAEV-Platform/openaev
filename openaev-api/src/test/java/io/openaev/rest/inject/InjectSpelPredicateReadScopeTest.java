@@ -129,7 +129,7 @@ class InjectSpelPredicateReadScopeTest extends IntegrationTest {
       injectorRepository.save(injector);
 
       InjectorContract contract = new InjectorContract();
-      contract.setId("49229430-b5b5-431f-ba5b-f36f599b0233");
+      contract.setId(InjectRepository.CHALLENGE_PUBLISH_CONTRACT_ID);
       contract.setTenant(new Tenant(tenantB));
       contract.setContent("{}");
       contract.addInjector(injector);
