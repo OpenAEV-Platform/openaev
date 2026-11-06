@@ -58,4 +58,25 @@ public final class TxCtxScopeUtils {
     Set<String> tenantIds = tenantIdsFromHTTPCtx(ctx);
     return tenantIds.isEmpty() ? Set.of(TenantContext.getCurrentTenant()) : tenantIds;
   }
+
+  /**
+   * The single tenant a request's scope pins, for an endpoint whose lookup resolves ambiguously
+   * once the scope spans more than one tenant (a shared built-in id, #8485). An empty or
+   * multi-tenant scope is refused with {@link TenantWriteScopeException}, mapped to 400. This is
+   * shared with {@code TenantWriteScopeResolver#tenantForWrite}'s own single-tenant check because
+   * both refuse the same ambiguous-scope shape; use this one when the caller only needs the check
+   * (a read, or a write that resolves its own tenant elsewhere), and keep {@code tenantForWrite}
+   * for a write that attributes a new row's tenant from its return value.
+   */
+  public static String requireSingleTenant(TxCtx ctx) {
+    Set<String> scoped = tenantIdsFromHTTPCtx(ctx);
+    if (scoped.size() != 1) {
+      throw new TenantWriteScopeException(
+          "This operation needs a single-tenant scope to resolve unambiguously; the request scope"
+              + " holds "
+              + scoped.size()
+              + " tenants. Provide an explicit tenant selector.");
+    }
+    return scoped.iterator().next();
+  }
 }
