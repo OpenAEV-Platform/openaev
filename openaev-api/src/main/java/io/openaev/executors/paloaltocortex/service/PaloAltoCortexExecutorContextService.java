@@ -124,14 +124,17 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
       // and each implant will call OpenAEV API to set traces
       scheduledExecutorService.schedule(
           () ->
-              batchActions.forEach(
+              dispatchEach(
+                  batchActions,
                   action ->
                       this.client.executeScript(
                           action.getAgentExternalReference(),
                           action.getScriptId(),
                           action.getCommandWindows() != null
                               ? action.getCommandWindows()
-                              : action.getCommandUnix())),
+                              : action.getCommandUnix()),
+                  PaloAltoCortexAction::getAgentExternalReference,
+                  SERVICE_NAME),
           batchIndex * 5L,
           TimeUnit.SECONDS);
     }

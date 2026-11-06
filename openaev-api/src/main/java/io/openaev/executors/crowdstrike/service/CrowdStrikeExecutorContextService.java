@@ -109,12 +109,15 @@ public class CrowdStrikeExecutorContextService extends ExecutorContextService {
       // and each implant will call OpenAEV API to set traces
       scheduledExecutorService.schedule(
           () ->
-              batchActions.forEach(
+              dispatchEach(
+                  batchActions,
                   action ->
                       this.crowdStrikeExecutorClient.executeAction(
                           action.getAgentExternalReference(),
                           action.getScriptName(),
-                          action.getCommandEncoded())),
+                          action.getCommandEncoded()),
+                  CrowdStrikeAction::getAgentExternalReference,
+                  SERVICE_NAME),
           batchIndex * 5L,
           TimeUnit.SECONDS);
     }

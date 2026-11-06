@@ -124,12 +124,15 @@ public class TaniumExecutorContextService extends ExecutorContextService {
       // and each implant will call OpenAEV API to set traces
       scheduledExecutorService.schedule(
           () ->
-              batchActions.forEach(
+              dispatchEach(
+                  batchActions,
                   action ->
                       this.taniumExecutorClient.executeAction(
                           action.getAgentExternalReference(),
                           action.getScriptId(),
-                          action.getCommandEncoded())),
+                          action.getCommandEncoded()),
+                  TaniumAction::getAgentExternalReference,
+                  SERVICE_NAME),
           batchIndex * 5L,
           TimeUnit.SECONDS);
     }
