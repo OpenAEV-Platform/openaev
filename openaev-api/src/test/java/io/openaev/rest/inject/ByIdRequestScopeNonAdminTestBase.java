@@ -7,19 +7,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
-import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Grant;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
-import io.openaev.database.repository.ExerciseRepository;
-import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.inject.form.InjectIndividualExportRequestInput;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.form.InjectReceptionInput;
-import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.GrantFixture;
-import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.composers.GrantComposer;
@@ -48,9 +41,6 @@ abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeTestBase
   @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private GrantComposer grantComposer;
   @Autowired private EntityManager entityManager;
-  @Autowired private ExerciseRepository exerciseRepository;
-  @Autowired private InjectRepository injectRepository;
-  @Autowired private javax.sql.DataSource dataSource;
   @Autowired private PlatformTransactionManager transactionManager;
 
   /**
@@ -105,35 +95,6 @@ abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeTestBase
         TenantContext.clearCurrentTenant();
       }
     }
-  }
-
-  /** Seeds a simulation (an exercise, not an atomic testing) in the given tenant. */
-  String seedExercise(String tenantId) {
-    return inTenantScope(
-        tenantId,
-        () -> {
-          Exercise exercise = ExerciseFixture.getExercise();
-          exercise.setTenant(new Tenant(tenantId));
-          return exerciseRepository.save(exercise).getId();
-        });
-  }
-
-  /** Seeds an inject that belongs to the given exercise (not a bare atomic testing). */
-  String seedInjectForExercise(String tenantId, String exerciseId) {
-    return inTenantScope(
-        tenantId,
-        () -> {
-          Inject inject = InjectFixture.getDefaultInject();
-          inject.setTenant(new Tenant(tenantId));
-          inject.setExercise(exerciseRepository.getReferenceById(exerciseId));
-          return injectRepository.save(inject).getId();
-        });
-  }
-
-  String injectTitle(String injectId) {
-    return new org.springframework.jdbc.core.JdbcTemplate(dataSource)
-        .queryForObject(
-            "SELECT inject_title FROM injects WHERE inject_id = ?", String.class, injectId);
   }
 
   // -- ADDITIONAL REQUESTS --

@@ -41,6 +41,24 @@ public class ScenarioInjectService {
                     "Inject not found with id: " + injectId + " in scenario: " + scenarioId));
   }
 
+  /**
+   * Resolves the inject inside the request's tenant scope and checks that it belongs to the given
+   * scenario, or answers not found. Loads by primary key, as {@link InjectService#inject(TxCtx,
+   * String)} does, rather than through {@code findByIdAndScenarioId}, which runs under Inject's
+   * still-active v1 filter keyed on the ambient tenant.
+   */
+  @Transactional(readOnly = true)
+  public void requireInjectInScenario(
+      @NotNull final TxCtx ctx,
+      @NotBlank final String scenarioId,
+      @NotBlank final String injectId) {
+    Inject inject = injectService.inject(ctx, injectId);
+    if (inject.getScenario() == null || !scenarioId.equals(inject.getScenario().getId())) {
+      throw new ElementNotFoundException(
+          "Inject not found with id: " + injectId + " in scenario: " + scenarioId);
+    }
+  }
+
   // -- UPDATE --
 
   /** Updates an inject that belongs to the given scenario. */

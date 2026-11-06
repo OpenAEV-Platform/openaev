@@ -212,11 +212,13 @@ public class ScenarioInjectApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
-    // The scenario is resolved in the request scope first so an id outside it answers not found
-    // before any work. A faithful copy keeps the targets the user is not cleared for; the response
+    // The scenario and the inject are resolved in the request scope first so an id outside it
+    // answers not found before any work. A faithful copy keeps the targets the user is not cleared
+    // for; the response
     // is read back under their clearance. The copy starts from a cleared persistence context, so
     // the scenario is reloaded by id inside it rather than reusing the entity resolved above.
     scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
+    scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
     String duplicateId =
         faithfulCopy.execute(
             ctx,
@@ -249,6 +251,7 @@ public class ScenarioInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody @NotNull InjectInput input) {
+    scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
     return scenarioInjectService.updateInjectForScenario(ctx, scenarioId, injectId, input);
   }
 
@@ -266,6 +269,7 @@ public class ScenarioInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
+    scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
     return hydrateKillChainPhases(
         scenarioInjectService.updateInjectActivationForScenario(scenarioId, injectId, input));
   }
@@ -337,6 +341,7 @@ public class ScenarioInjectApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String scenarioId,
       @PathVariable @NotBlank final String injectId) {
+    this.scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
     this.scenarioInjectService.deleteInject(ctx, scenarioId, injectId);
   }
 
