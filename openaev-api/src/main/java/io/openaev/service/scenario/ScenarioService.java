@@ -199,7 +199,11 @@ public class ScenarioService {
     Scenario preparedScenario = prepareScenarioFromScenarioInput(tenantId, scenarioInput);
     Scenario scenario = computeAndCreateScenario(preparedScenario);
     this.injectService.createInjectsFromInjectorContractInput(
-        null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
+        ctx,
+        null,
+        new ArrayList<>(List.of(scenario)),
+        injectorContractSearchPaginationInput,
+        locale);
     KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
     return ScenarioSimple.fromScenario(scenario);
   }
@@ -212,7 +216,7 @@ public class ScenarioService {
       @NotBlank final String locale) {
     List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
     this.injectService.createInjectsFromInjectorContractInput(
-        null, scenarios, injectorContractSearchPaginationInput, locale);
+        ctx, null, scenarios, injectorContractSearchPaginationInput, locale);
     scenarios.forEach(
         scenario -> KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects()));
     return scenarios.stream().map(ScenarioSimple::fromScenario).toList();

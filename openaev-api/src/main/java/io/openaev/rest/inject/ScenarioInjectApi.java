@@ -152,7 +152,7 @@ public class ScenarioInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody InjectInput input) {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
-    Inject persistedInject = this.injectService.createAndSaveInject(null, scenario, input);
+    Inject persistedInject = this.injectService.createAndSaveInject(ctx, null, scenario, input);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
@@ -170,7 +170,7 @@ public class ScenarioInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody List<InjectInput> inputs) {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
-    List<Inject> created = this.injectService.createAndSaveInjectList(null, scenario, inputs);
+    List<Inject> created = this.injectService.createAndSaveInjectList(ctx, null, scenario, inputs);
     KillChainPhaseInitializer.initializeFromInjects(created);
     return created;
   }
