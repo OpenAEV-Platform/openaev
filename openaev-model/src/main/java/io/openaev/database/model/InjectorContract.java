@@ -56,6 +56,12 @@ public class InjectorContract implements TenantBase, CompositeIdResolvableI, Aut
     return compositeId.getId();
   }
 
+  /** What a THREAT_ARSENAL grant on this contract targets: its payload identity, if any. */
+  @JsonIgnore
+  public String getGrantResourceId() {
+    return payload == null ? getId() : payload.getIdentity().getId();
+  }
+
   @Override
   public void setId(String id) {
     compositeId.setId(id);
