@@ -255,6 +255,14 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
   long countExecutions(@Param("simulationId") String simulationId);
 
   /**
+   * The tenant of a simulation's executions. A simulation belongs to one tenant, so this holds one
+   * value, or none when it has no execution.
+   */
+  @Query(
+      "SELECT DISTINCT e.tenant.id FROM AttackPathExecution e WHERE e.simulationId = :simulationId")
+  List<String> findTenantIdsBySimulationId(@Param("simulationId") String simulationId);
+
+  /**
    * One summary row per simulation (id, distinct endpoints, executions) for the front's picker.
    * {@code GROUP BY} on the tenant-filtered rows, ordered by size so the biggest sims come first.
    *

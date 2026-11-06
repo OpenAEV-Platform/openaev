@@ -125,9 +125,6 @@ public interface InjectorContractRepository
   @Query("SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id")
   Optional<InjectorContract> findById(@Param("id") @NotNull String id);
 
-  @Query("SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id")
-  boolean existsByContractId(@Param("id") @NotNull String id);
-
   @Query(
       "SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")
   boolean existsByContractIdAndTenant(
@@ -196,25 +193,29 @@ public interface InjectorContractRepository
       @Param("tenantId") @NotNull String tenantId);
 
   /**
-   * Batched form of {@link #findByIdOrExternalId}: every contract whose id OR external id is in the
-   * set.
+   * Batched form of {@link #findByIdOrExternalIdAndTenant}: every contract of the tenant whose id
+   * OR external id is in the set.
    */
   @Query(
-      "SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id IN :ids OR ic.externalId IN :ids")
-  List<InjectorContract> findAllByIdOrExternalIdIn(@Param("ids") Collection<String> ids);
+      "SELECT ic FROM InjectorContract ic WHERE (ic.compositeId.id IN :ids OR ic.externalId IN :ids)"
+          + " AND ic.compositeId.tenantId = :tenantId")
+  List<InjectorContract> findAllByIdOrExternalIdInAndTenant(
+      @Param("ids") Collection<String> ids, @Param("tenantId") @NotNull String tenantId);
 
   /**
    * Batched ATT&CK techniques for the attack-path injector nodes: one flat query returning the
    * (contract external id, pattern) pairs for a set of contracts. A flat projection, not the
-   * entity, so it never pulls the contract's other eager collections into secondary selects.
+   * entity, so it never pulls the contract's other eager collections into secondary selects. Read
+   * in one tenant: an external id repeats across tenants, and each copy carries its own techniques.
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathInjectorPatternRow("
           + "ic.externalId, ap.externalId, ap.name) "
           + "FROM InjectorContract ic JOIN ic.attackPatterns ap "
-          + "WHERE ic.externalId IN :externalIds")
-  List<AttackPathInjectorPatternRow> findInjectorAttackPatternsByExternalIdIn(
-      @Param("externalIds") Collection<String> externalIds);
+          + "WHERE ic.externalId IN :externalIds AND ic.compositeId.tenantId = :tenantId")
+  List<AttackPathInjectorPatternRow> findInjectorAttackPatternsByExternalIdInAndTenant(
+      @Param("externalIds") Collection<String> externalIds,
+      @Param("tenantId") @NotNull String tenantId);
 
   @NotNull
   @Query("SELECT ic FROM InjectorContract ic JOIN ic.injectorLinks l WHERE l.injector = :injector")
@@ -354,14 +355,15 @@ public interface InjectorContractRepository
             JOIN vulnerabilities vulnerability
               ON icv.vulnerability_id = vulnerability.vulnerability_id
             WHERE LOWER(vulnerability.vulnerability_external_id) IN (:externalIds)
-              AND ic.tenant_id = :#{#tenantContext.currentTenant}
+              AND ic.tenant_id = :tenantId
         ) ranked
         WHERE ranked.rn <= :contractsPerVulnerability
         """,
       nativeQuery = true)
   Set<InjectorContract> findInjectorContractsByVulnerabilityIdIn(
       @Param("externalIds") Set<String> externalIds,
-      @Param("contractsPerVulnerability") Integer contractsPerVulnerability);
+      @Param("contractsPerVulnerability") Integer contractsPerVulnerability,
+      @Param("tenantId") @NotNull String tenantId);
 
   /**
    * Associates an injector contract to all injectors matching the given criteria, skipping those

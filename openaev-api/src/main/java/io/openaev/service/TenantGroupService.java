@@ -330,8 +330,8 @@ public class TenantGroupService {
   // -- GRANTS --
 
   public Group addGrant(@NotBlank final String groupId, GroupGrantInput input) {
-    grantService.validateResourceIdForGrant(input.getResourceId());
     Group group = this.findByIdInTenantForWrite(groupId);
+    grantService.validateResourceIdForGrant(input.getResourceId(), group.getTenant().getId());
     Grant grant = Grant.of(input.getName(), group, input.getResourceId(), input.getResourceType());
     assertCanAssignGrant(userService.currentUser(), input.getName(), input.getResourceId());
 

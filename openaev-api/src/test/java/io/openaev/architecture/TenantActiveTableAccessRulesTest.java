@@ -6,9 +6,13 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.EvaluationResult;
 import io.openaev.architecture.fixture.TenantActiveTableAccessFixtures;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /**
  * Proves the repository access rules of {@link TenantActiveTableAccessArchTest} fire on an accessor
@@ -63,6 +67,52 @@ class TenantActiveTableAccessRulesTest {
       assertThat(result.getFailureReport().toString())
           .contains("UnreviewedObjectiveTemplateAccessor")
           .contains("AutonomousObjectiveTemplateRepository");
+    }
+  }
+
+  @Nested
+  @DisplayName("injectors_contracts: queries that take no tenant")
+  class InjectorContractTenantlessQuery {
+
+    static Stream<Arguments> tenantlessAccessors() {
+      return Stream.of(
+          Arguments.of(TenantActiveTableAccessFixtures.DeclaredBareIdLookup.class, "findById"),
+          Arguments.of(
+              TenantActiveTableAccessFixtures.DeclaredPayloadLookup.class,
+              "findInjectorContractByPayload"),
+          Arguments.of(TenantActiveTableAccessFixtures.SpecificationRead.class, "findAll"),
+          Arguments.of(TenantActiveTableAccessFixtures.ArglessCrudRead.class, "count"),
+          Arguments.of(TenantActiveTableAccessFixtures.BareIdLookupReference.class, "findById"),
+          Arguments.of(
+              TenantActiveTableAccessFixtures.ServiceBareIdLookup.class, "injectorContract"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("tenantlessAccessors")
+    @DisplayName("given an accessor outside the allowlist, should violate")
+    void given_anAccessorOutsideTheAllowlist_should_violate(Class<?> fixture, String method) {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.injector_contract_tenantless_query_is_called_only_by,
+              fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains(method);
+    }
+
+    @Test
+    @DisplayName("given an access that carries a tenant, should not violate")
+    void given_anAccessThatCarriesATenant_should_notViolate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.injector_contract_tenantless_query_is_called_only_by,
+              TenantActiveTableAccessFixtures.TenantCarryingAccess.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
     }
   }
 }

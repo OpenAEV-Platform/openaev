@@ -311,7 +311,8 @@ public class InjectAssistantService {
       InjectorContract contractForPlaceholder) {
 
     Map<String, Set<InjectorContract>> mapVulnerabilityInjectorContract =
-        computeMapVulnerabilityInjectorContracts(vulnerabilities, injectsPerVulnerability);
+        computeMapVulnerabilityInjectorContracts(
+            vulnerabilities, injectsPerVulnerability, scenario.getTenant().getId());
 
     return vulnerabilities.stream()
         .flatMap(
@@ -335,7 +336,7 @@ public class InjectAssistantService {
   }
 
   private Map<String, Set<InjectorContract>> computeMapVulnerabilityInjectorContracts(
-      Set<Vulnerability> vulnerabilities, int injectsPerVulnerability) {
+      Set<Vulnerability> vulnerabilities, int injectsPerVulnerability, String tenantId) {
     Set<String> vulnerabilityExternalIds =
         vulnerabilities.stream()
             .map(Vulnerability::getExternalId)
@@ -344,7 +345,7 @@ public class InjectAssistantService {
 
     Set<InjectorContract> contracts =
         injectorContractRepository.findInjectorContractsByVulnerabilityIdIn(
-            vulnerabilityExternalIds, injectsPerVulnerability);
+            vulnerabilityExternalIds, injectsPerVulnerability, tenantId);
 
     Map<String, Set<InjectorContract>> mapVulnerabilityInjectorContract = new HashMap<>();
 
