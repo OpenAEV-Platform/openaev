@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20261105170100000__Threat_arsenal_grants_on_payload_identities
+public class V6_20261106120100000__Threat_arsenal_grants_on_payload_identities
     extends BaseJavaMigration {
 
   @Override
@@ -24,6 +24,15 @@ public class V6_20261105170100000__Threat_arsenal_grants_on_payload_identities
             AND NOT EXISTS (
               SELECT 1 FROM grants same WHERE same.grant_group = g.grant_group
                 AND same.grant_name = g.grant_name AND same.grant_resource = p.payload_identity);
+          """);
+      // Left on the contract only when the group already had the same grant on the identity.
+      statement.execute(
+          """
+          DELETE FROM grants g USING groups gr, injectors_contracts ic
+          WHERE g.grant_resource_type = 'THREAT_ARSENAL'
+            AND gr.group_id = g.grant_group AND gr.tenant_id IS NOT NULL
+            AND ic.injector_contract_id = g.grant_resource AND ic.tenant_id = gr.tenant_id
+            AND ic.injector_contract_payload IS NOT NULL;
           """);
       // A platform group's grant applies in every tenant: one grant per tenant's payload.
       statement.execute(

@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20261105170200000__Delete_payload_identity_with_its_last_version
+public class V6_20261106120200000__Delete_payload_identity_with_its_last_version
     extends BaseJavaMigration {
 
   @Override

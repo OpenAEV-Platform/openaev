@@ -1,10 +1,14 @@
-package io.openaev.database.model;
+package io.openaev.database.model.payload;
 
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.openaev.database.audit.Auditable;
 import io.openaev.database.audit.AuditableListener;
+import io.openaev.database.model.CollectorType;
+import io.openaev.database.model.Payload;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.model.TenantBase;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
