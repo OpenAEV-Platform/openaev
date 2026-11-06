@@ -3,22 +3,27 @@ package io.openaev.rest.user;
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.rest.user.TenantUserApi.USER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.config.TenantInterceptor;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.rest.exception.TenantAccessDeniedException;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PlayerFixture;
@@ -36,6 +41,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -43,22 +50,28 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * What keeps a tenant membership row ({@code users_tenants}) out of reach of an operator of another
- * tenant. The table is not filtered by the statement inspector: every statement on it carries its
- * own {@code user_id} or {@code tenant_id} predicate, and the endpoints that write it resolve the
- * tenant from the request. So the boundary is the pair of checks in front of those endpoints, and
- * these tests pin both halves of it.
+ * tenant, and which tenant a permitted membership write lands in. The statement inspector never
+ * gates the table: the membership check that computes a request's scope runs before any scope
+ * exists. Three things stand in its place. The endpoints that write it resolve the tenant from the
+ * request's write scope (pinned here for the player and user endpoints; {@code
+ * WriteAttrMembershipTableTest} pins that the write-attribution detector watches every writer of
+ * the table, background ones included). In front of those endpoints sits the membership check of
+ * the addressed tenant. And on the route with no tenant in the URL the capability resolution runs
+ * in the default tenant.
  *
- * <p>Both routes of {@link TenantUserApi} are covered, because they do not get their tenant from
- * the same place. On {@code /api/tenants/{tenantId}/users} the caller's membership in the addressed
- * tenant is checked twice, independently: by {@code TenantInterceptor} and by {@code
- * TenantScopeResolver} when it resolves the handler's {@code TxCtx}. Either one refuses the call on
- * its own, so the test goes red only when both are removed. On {@code /api/users} there is no
- * tenant in the request at all: the service falls back to the default tenant, and what refuses the
+ * <p>On {@code /api/tenants/{tenantId}/users} the caller's membership in the addressed tenant is
+ * checked twice, independently, and each check has its own case below: {@code TenantInterceptor} is
+ * driven directly, with the real membership data, and {@code TenantScopeResolver} is reached on the
+ * route where the interceptor has no path tenant to look at (the {@code X-Tenant-Ids} header), so
+ * it is the only one that can refuse. One more case drives the prefixed URL end to end. On {@code
+ * /api/users} with no selector the service falls back to the default tenant, and what refuses the
  * call is the capability resolution, which reads the caller's groups in that same default tenant.
  * Cross-tenant read isolation on the prefixed route is covered by {@code TenantUserApiTest}.
  *
- * <p>The tests declare the production active tables: the table is not gated by the inspector, and
- * the boundary has to hold in the configuration production runs.
+ * <p>The class declares the production active tables: the endpoints under test read and write
+ * tables the inspector gates (tags, organizations), and the attribution of a membership has to hold
+ * in the configuration production runs. The list is the one several other classes declare, so the
+ * class shares their Spring context instead of adding one.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -78,6 +91,7 @@ public class TenantMembershipGuardTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private UserComposer userComposer;
+  @Autowired private TenantInterceptor tenantInterceptor;
 
   private static UserInput userInput() {
     return new UserInput(
@@ -326,7 +340,66 @@ public class TenantMembershipGuardTest extends IntegrationTest {
 
     @Test
     @WithMockUser
-    @DisplayName("Addressing a tenant the caller left writes no membership in it")
+    @DisplayName(
+        "TenantInterceptor alone refuses a caller who is not a member of the addressed tenant")
+    void given_tenantWithoutMembership_should_beRefusedByTheInterceptor() throws Exception {
+      // -- PREPARE --
+      Tenant other = tenantIsolationHelper.createTenant("Tenant interceptor");
+      String userId = testUserHolder.get().getId();
+      tenantRepository.removeUserFromTenant(userId, other.getId());
+      tenantMembershipCacheManager.evict(userId, other.getId());
+      entityManager.flush();
+      entityManager.clear();
+      MockHttpServletRequest request =
+          new MockHttpServletRequest("POST", "/api/tenants/" + other.getId() + "/users");
+
+      // -- EXECUTE & ASSERT --
+      // Called directly, so neither the argument resolver nor any capability check can be the one
+      // that refuses.
+      assertThrows(
+          TenantAccessDeniedException.class,
+          () -> tenantInterceptor.preHandle(request, new MockHttpServletResponse(), new Object()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("TenantScopeResolver alone refuses a selector naming a tenant the caller left")
+    void given_selectorWithoutMembership_should_beRefusedByTheScopeResolver() throws Exception {
+      // -- PREPARE --
+      // The header route carries no path tenant, so the interceptor has nothing to check and the
+      // scope resolver is the only guard in front of the write. An administrator passes every
+      // capability check, so nothing else can refuse either.
+      Tenant other = tenantIsolationHelper.createTenant("Tenant resolver");
+      String userId = testUserHolder.get().getId();
+      tenantRepository.removeUserFromTenant(userId, other.getId());
+      tenantMembershipCacheManager.evict(userId, other.getId());
+      entityManager.flush();
+      entityManager.clear();
+      TenantContext.clearCurrentTenant();
+      long before = membershipRowsIn(other.getId());
+
+      // -- EXECUTE --
+      mvc.perform(
+              post(USER_URI)
+                  .header("X-Tenant-Ids", other.getId())
+                  .content(asJsonString(userInput()))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isForbidden())
+          .andExpect(content().string(containsString("TENANT_ACCESS_DENIED")));
+
+      entityManager.flush();
+      assertEquals(
+          before,
+          membershipRowsIn(other.getId()),
+          "A membership row was written in a tenant the caller does not belong to");
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Addressing a tenant the caller left writes no membership in it, end to end")
     void given_tenantWithoutMembership_should_refuseTheMembershipWrite() throws Exception {
       // -- PREPARE --
       // The caller keeps a group granting user management INSIDE the addressed tenant, and loses
