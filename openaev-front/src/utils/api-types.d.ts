@@ -14380,6 +14380,7 @@ export interface XtmHubRegisterInput {
 }
 
 export interface XtmHubRegistrationOutput {
+  tenant_xtmhub_registration_commercial_model?: "SAAS" | "OTHER";
   /** @format date-time */
   tenant_xtmhub_registration_date?: string;
   tenant_xtmhub_registration_id?: string;
