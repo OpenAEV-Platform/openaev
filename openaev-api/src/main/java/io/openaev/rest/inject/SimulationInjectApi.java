@@ -255,7 +255,7 @@ public class SimulationInjectApi extends RestBehavior {
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
     Exercise exercise =
         exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
-    Inject persistedInject = this.injectService.createAndSaveInject(exercise, null, input);
+    Inject persistedInject = this.injectService.createAndSaveInject(ctx, exercise, null, input);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
@@ -272,7 +272,7 @@ public class SimulationInjectApi extends RestBehavior {
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
     Exercise exercise =
         exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
-    List<Inject> created = this.injectService.createAndSaveInjectList(exercise, null, inputs);
+    List<Inject> created = this.injectService.createAndSaveInjectList(ctx, exercise, null, inputs);
     KillChainPhaseInitializer.initializeFromInjects(created);
     return created;
   }

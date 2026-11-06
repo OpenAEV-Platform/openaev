@@ -172,22 +172,25 @@ public class InjectService {
   // -- CRUD --
 
   public Inject createAndSaveInject(
+      @NotNull final TxCtx ctx,
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {
-    Inject inject = buildInject(exercise, scenario, input);
+    Inject inject = buildInject(ctx, exercise, scenario, input);
     Inject savedInject = injectRepository.save(inject);
     credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(inject, Set.of());
     return savedInject;
   }
 
   public List<Inject> createAndSaveInjectList(
+      @NotNull final TxCtx ctx,
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       List<InjectInput> injectInputs) {
 
     List<Inject> injects = new ArrayList<>();
-    injectInputs.forEach(injectInput -> injects.add(buildInject(exercise, scenario, injectInput)));
+    injectInputs.forEach(
+        injectInput -> injects.add(buildInject(ctx, exercise, scenario, injectInput)));
     List<Inject> savedInjects = injectRepository.saveAll(injects);
     injects.forEach(
         inject ->
@@ -196,6 +199,7 @@ public class InjectService {
   }
 
   private Inject buildInject(
+      @NotNull final TxCtx ctx,
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {
@@ -234,7 +238,8 @@ public class InjectService {
                       injectDependencyInput ->
                           injectDependencyInput.toInjectDependency(
                               inject,
-                              this.inject(
+                              injectInScope(
+                                  ctx,
                                   injectDependencyInput.getRelationship().getInjectParentId())))
                   .toList());
     }
@@ -288,6 +293,11 @@ public class InjectService {
     return inject;
   }
 
+  /**
+   * Loads an inject by primary key, in no request scope. For background work and for a row the
+   * caller has just created or already guarded; a request that receives the id uses {@link
+   * #inject(TxCtx, String)}.
+   */
   public Inject inject(@NotBlank final String injectId) {
     return this.injectRepository
         .findById(injectId)
@@ -314,8 +324,7 @@ public class InjectService {
   /** Loads an inject inside the request's tenant scope. Throws if not found there. */
   @Transactional(readOnly = true)
   public Inject inject(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
-    return doFindInScope(ctx, injectId)
-        .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
+    return injectInScope(ctx, injectId);
   }
 
   /** Validates that the inject exists inside the request's tenant scope. Throws if not. */
@@ -324,6 +333,15 @@ public class InjectService {
     if (doFindInScope(ctx, injectId).isEmpty()) {
       throw new ElementNotFoundException("Inject not found with id: " + injectId);
     }
+  }
+
+  /**
+   * Body of {@link #inject(TxCtx, String)}, for the callers of this class that already run inside
+   * the request's transaction.
+   */
+  private Inject injectInScope(final TxCtx ctx, final String injectId) {
+    return doFindInScope(ctx, injectId)
+        .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
   }
 
   /**
@@ -1826,12 +1844,14 @@ public class InjectService {
    * Tracked as a massive operation (header progress indicator): the operation is registered lazily
    * once the first contract page reveals the total, and progresses page by page.
    *
+   * @param ctx the request's tenant scope
    * @param exercise to link injects on
    * @param scenarios to link injects on
    * @param input to retrieve all Injector Contracts
    * @param locale to set default inject label
    */
   public void createInjectsFromInjectorContractInput(
+      TxCtx ctx,
       Exercise exercise,
       List<Scenario> scenarios,
       InjectorContractSearchPaginationInput input,
@@ -1856,7 +1876,8 @@ public class InjectService {
         }
         List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
         if (!injectInputs.isEmpty()) {
-          scenarios.forEach(scenario -> createAndSaveInjectList(exercise, scenario, injectInputs));
+          scenarios.forEach(
+              scenario -> createAndSaveInjectList(ctx, exercise, scenario, injectInputs));
           bulkOperationMonitor.progress(operationId, injectInputs.size() * scenarios.size());
         }
         pageNumber++;
