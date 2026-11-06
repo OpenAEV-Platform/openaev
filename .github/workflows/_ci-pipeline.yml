@@ -682,7 +682,7 @@ jobs:
     name: "🔍 Aikido Image Scan"
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 50
     env:
       GH_TOKEN: ${{ github.token }}
       RUN_SCAN: ${{ secrets.AIKIDO_TOKEN != '' || github.ref == 'refs/heads/main' }}
@@ -741,6 +741,25 @@ jobs:
           image: openaev-ubi9:ci
           report-name: aikido-image-scan-ubi9
           api-key: ${{ secrets.AIKIDO_TOKEN }}
+
+      # Temporary: compare the gating modes with the ephemeral scan.
+      - name: Probe the gating modes
+        if: ${{ !cancelled() && env.RUN_SCAN == 'true' }}
+        continue-on-error: true
+        env:
+          AIKIDO_API_KEY: ${{ secrets.AIKIDO_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash .github/scripts/aikido-gating-probe.sh
+
+      - name: Upload the gating probe
+        if: ${{ !cancelled() && env.RUN_SCAN == 'true' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: aikido-gating-probe
+          path: aikido-gating-probe
+          if-no-files-found: ignore
 
       # Only when both scans finished and one found a fixable vulnerability: a clean run gets no
       # extra check, and a scan that failed already fails the job.
