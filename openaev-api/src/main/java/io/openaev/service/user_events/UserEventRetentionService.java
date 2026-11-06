@@ -1,8 +1,5 @@
 package io.openaev.service.user_events;
 
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.model.UserEventType;
 import io.openaev.database.repository.UserEventRepository;
 import java.time.Instant;
@@ -19,18 +16,10 @@ public class UserEventRetentionService {
 
   private final UserEventRepository userEventRepository;
   private final UserEventRetentionConfig settingsService;
-  private final TenantScopedTransaction tenantScopedTransaction;
 
-  /**
-   * Applies retention rules to user events. Runs from a Quartz job with no ambient tenant scope;
-   * the retention settings it reads are platform rows of the dual-scope {@code parameters} table,
-   * which need a non-empty scope to be visible at all ({@code user_events} itself is not a
-   * v2-active table, so joining this scope onto the current transaction has no effect on it).
-   */
+  /** Applies retention rules to user events. */
   @Transactional
   public void deleteOldEvents() {
-    tenantScopedTransaction.setScopeOnCurrentTransaction(
-        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
     if (!settingsService.isEnabled()) {
       log.debug("UserEvent retention disabled");
       return;
