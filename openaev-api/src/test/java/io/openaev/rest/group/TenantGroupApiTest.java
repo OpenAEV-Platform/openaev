@@ -9,10 +9,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
@@ -908,6 +910,106 @@ public class TenantGroupApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isBadRequest());
+    }
+  }
+
+  @Nested
+  @DisplayName("Auto assign new markings")
+  class AutoNewMarking {
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Given no ASSIGN_MARKING, should forbid turning it on")
+    void given_noAssignMarking_should_forbidTurningItOn() throws Exception {
+      Group group =
+          tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("AutoOn")).persist().get();
+
+      updateMarkings(group.getId(), true).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName(
+        "Given ASSIGN_MARKING in the default tenant only, should forbid turning it on in another tenant")
+    void given_assignMarkingInDefaultTenantOnly_should_forbidTurningItOnInOtherTenant()
+        throws Exception {
+      // -------- Arrange --------
+      String defaultTenantId = TenantContext.getCurrentTenant();
+      tenantIsolationHelper.grantCapabilitiesInTenant(
+          defaultTenantId, Set.of(Capability.ASSIGN_MARKING));
+      String otherTenantId =
+          tenantIsolationHelper
+              .createTenantWithCapabilities(
+                  "auto-marking-other-tenant",
+                  Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
+              .getId();
+      tenantIsolationHelper.switchToTenant(otherTenantId, entityManager);
+      Group group =
+          tenantGroupComposer
+              .forGroup(TenantGroupFixture.getGroup("AutoOnOtherTenant"))
+              .persist()
+              .get();
+      tenantIsolationHelper.switchToTenant(defaultTenantId, entityManager);
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put(GROUP_URI + "/" + group.getId() + "/markings")
+                  .header("X-Tenant-Ids", otherTenantId)
+                  .content(asJsonString(new GroupUpdateMarkingsInput(List.of(), true)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(
+        withCapabilities = {
+          Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+          Capability.ASSIGN_MARKING
+        })
+    @DisplayName("Given ASSIGN_MARKING but not every marking, should forbid turning it on")
+    void given_notEveryMarkingHeld_should_forbidTurningItOn() throws Exception {
+      // -------- Arrange --------
+      Group group =
+          tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("AutoOn")).persist().get();
+      markingDefinitionComposer
+          .forMarkingDefinition(MarkingDefinitionFixture.createDefaultMarkingDefinition())
+          .withTenantId(TenantContext.getCurrentTenant())
+          .persist();
+      markingClearanceCacheManager.evictForUser(testUserHolder.get().getId());
+
+      // -------- Act & Assert --------
+      updateMarkings(group.getId(), true).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Should keep it when not sent, and turn it off without ASSIGN_MARKING")
+    void given_notSentThenOff_should_keepThenTurnItOff() throws Exception {
+      // -------- Arrange --------
+      Group autoGroup = TenantGroupFixture.getGroup("AutoOff");
+      autoGroup.setAutoNewMarking(true);
+      Group group = tenantGroupComposer.forGroup(autoGroup).persist().get();
+
+      // -------- Act & Assert — not sent --------
+      updateMarkings(group.getId(), null).andExpect(status().is2xxSuccessful());
+      assertTrue(groupRepository.findById(group.getId()).orElseThrow().isAutoNewMarking());
+
+      // -------- Act & Assert — off --------
+      updateMarkings(group.getId(), false)
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.group_auto_new_marking").value(false));
+      assertFalse(groupRepository.findById(group.getId()).orElseThrow().isAutoNewMarking());
+    }
+
+    private ResultActions updateMarkings(String groupId, Boolean autoNewMarking) throws Exception {
+      return mvc.perform(
+          put(tenantUri(TENANT_GROUP_URI) + "/" + groupId + "/markings")
+              .content(asJsonString(new GroupUpdateMarkingsInput(List.of(), autoNewMarking)))
+              .contentType(MediaType.APPLICATION_JSON)
+              .accept(MediaType.APPLICATION_JSON)
+              .with(csrf()));
     }
   }
 

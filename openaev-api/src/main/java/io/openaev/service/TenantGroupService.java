@@ -308,6 +308,7 @@ public class TenantGroupService {
     group.getMarkings().clear();
     group.getMarkings().addAll(markings);
     Group saved = groupRepository.save(group);
+    updateAutoNewMarking(tenantId, saved, input.autoNewMarking());
     markingClearanceCacheManager.evictForUsers(affected);
     return saved;
   }
@@ -322,9 +323,35 @@ public class TenantGroupService {
 
   /** Makes the group receive every marking of its tenant, existing and future. */
   public void receiveEveryMarking(@NotBlank final String tenantId, @NotNull final Group group) {
+    receiveEveryMarking(group, markingDefinitionRepository.findAllByTenantId(tenantId));
+  }
+
+  /** Turning it on needs ASSIGN_MARKING and every marking; turning it off keeps them. */
+  private void updateAutoNewMarking(String tenantId, Group group, Boolean autoNewMarking) {
+    if (autoNewMarking == null || autoNewMarking == group.isAutoNewMarking()) {
+      return;
+    }
+    if (!autoNewMarking) {
+      group.setAutoNewMarking(false);
+      groupRepository.save(group);
+      return;
+    }
+    User currentUser = userService.currentUser();
+    if (!permissionService.holdsInTenant(
+        tenantId,
+        () ->
+            permissionService.hasCapabilityPermission(
+                currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE))) {
+      throw new ForbiddenException("Missing the ASSIGN_MARKING capability");
+    }
+    List<MarkingDefinition> markings = markingDefinitionRepository.findAllByTenantId(tenantId);
+    assertHolds(tenantId, currentUser, markings);
+    receiveEveryMarking(group, markings);
+  }
+
+  private void receiveEveryMarking(Group group, List<MarkingDefinition> markings) {
     group.setAutoNewMarking(true);
-    boolean granted =
-        group.getMarkings().addAll(markingDefinitionRepository.findAllByTenantId(tenantId));
+    boolean granted = group.getMarkings().addAll(markings);
     groupRepository.save(group);
     if (granted) {
       markingClearanceCacheManager.evictForUsers(
