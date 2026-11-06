@@ -24,6 +24,7 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.team.form.TeamUpdateInput;
 import io.openaev.rest.user.form.login.LoginUserInput;
+import io.openaev.service.LogService;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
@@ -36,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +50,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.AopTestUtils;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -69,6 +73,7 @@ class AuditLoggerTest extends IntegrationTest {
   @Autowired private UserComposer userComposer;
   @Autowired private TeamRepository teamRepository;
   @Autowired private AuditLogger auditLogger;
+  @Autowired private LogService logService;
   @Autowired private UserService userService;
   @Autowired private TestUserHolder testUserHolder;
 
@@ -308,24 +313,17 @@ class AuditLoggerTest extends IntegrationTest {
       // @EventListener(ApplicationReadyEvent).
       // Clearing invocations here ensures verify() counts only the call made in each test body.
       Mockito.clearInvocations(platformSettingsService);
-    }
-
-    /**
-     * The banner is written only when its state changes, so a test of one state first puts the
-     * shared service in the other one.
-     */
-    private void putBannerInState(boolean cleared) {
-      Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(cleared);
-      auditLogger.isAuditLoggingEnabled();
-      Mockito.clearInvocations(platformSettingsService);
-      Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
+      // The banner is written only when its state changes, and the service remembers the last state
+      // it wrote (per instance, for the life of the context). Forget it, so each test starts from
+      // "nothing written yet" whatever ran before it, the startup event included.
+      Object target = AopTestUtils.getUltimateTargetObject(logService);
+      ReflectionTestUtils.setField(target, "bannerCleared", new AtomicReference<Boolean>());
     }
 
     @Test
     @DisplayName("given_auditFlagDisabled_should_cleanBanner")
     void given_auditFlagDisabled_should_cleanBanner() {
       // Arrange
-      putBannerInState(false);
       Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any())).thenReturn(false);
 
       // Act
@@ -341,7 +339,6 @@ class AuditLoggerTest extends IntegrationTest {
     @DisplayName("given_auditFlagEnabled_and_licenseActive_should_cleanBanner")
     void given_auditFlagEnabled_and_licenseActive_should_cleanBanner() {
       // Arrange
-      putBannerInState(false);
       Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any())).thenReturn(true);
       Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
 
@@ -358,7 +355,6 @@ class AuditLoggerTest extends IntegrationTest {
     @DisplayName("given_auditFlagEnabled_and_licenseInactive_should_showBanner")
     void given_auditFlagEnabled_and_licenseInactive_should_showBanner() {
       // Arrange
-      putBannerInState(true);
       Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any())).thenReturn(true);
       Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(false);
 
