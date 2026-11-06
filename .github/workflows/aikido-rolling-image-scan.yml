@@ -48,10 +48,13 @@ jobs:
           set -euo pipefail
 
           # The standard and UBI9 variants are separate images in Aikido, so a
-          # scan of one does not replace the results of the other.
+          # scan of one does not replace the results of the other. The names
+          # differ from the Docker Hub ones: Aikido already tracks
+          # openaev/platform as a public image and refuses a local scan under
+          # that name.
           case "$TAG" in
-            *-ubi9) image_name=openaev/platform-ubi9 ;;
-            *)      image_name=openaev/platform ;;
+            *-ubi9) image_name=openaev-platform-ubi9 ;;
+            *)      image_name=openaev-platform ;;
           esac
 
           # Aikido updates the tag of an existing image by default: a release
