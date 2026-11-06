@@ -63,4 +63,3 @@ jobs:
           name: snyk-platform-${{ matrix.tag }}
           path: snyk-platform-${{ matrix.tag }}.*
           if-no-files-found: ignore
-          retention-days: 30

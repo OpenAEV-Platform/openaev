@@ -1,0 +1,47 @@
+name: "🔍 Aikido Rolling Image Scan"
+
+# Daily Aikido scan of the rolling platform images published on Docker Hub.
+# Reports high and critical vulnerabilities in the job summary and as job
+# artifacts: findings do not fail the run, a scanner error does.
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Release to scan (for example 3.261009.0); empty scans the rolling images"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aikido-rolling-image-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: "🔍 Scan openaev/platform:${{ matrix.tag }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJSON(inputs.release && format('["{0}", "{0}-ubi9"]', inputs.release) || '["rolling", "rolling-ubi9"]') }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/actions/aikido-image-scan
+
+      - name: Pull openaev/platform:${{ matrix.tag }}
+        env:
+          IMAGE: openaev/platform:${{ matrix.tag }}
+        run: docker pull "$IMAGE"
+
+      - uses: ./.github/actions/aikido-image-scan
+        with:
+          image: openaev/platform:${{ matrix.tag }}
+          report-name: aikido-platform-${{ matrix.tag }}
+          api-key: ${{ secrets.AIKIDO_TOKEN }}

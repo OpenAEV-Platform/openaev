@@ -652,6 +652,143 @@ jobs:
             Docker Build (${{ matrix.variant }} amd64)
             Docker Build (${{ matrix.variant }} arm64)
 
+  # Aikido scan of both amd64 images, on main and on every pull request. When a high or critical
+  # finding has a fix, an "Aikido Image Scan (advisory)" check explains it, posted with the PR
+  # checks app like the coverage check, and the job stays green: that check carries the result.
+  # When it cannot be posted, the job fails itself, so fixable findings are never silent; the gate
+  # treats the job as advisory for now. Without the token (pull requests from forks) the scan is
+  # skipped with a notice, but not on main: there the action fails, so a missing secret cannot
+  # silently pass for a clean scan.
+  aikido-image-scan:
+    name: "🔍 Aikido Image Scan"
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_SCAN: ${{ secrets.AIKIDO_TOKEN != '' || github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Skip without the Aikido token
+        if: ${{ env.RUN_SCAN != 'true' }}
+        run: |
+          echo "::notice::Aikido image scan skipped: the AIKIDO_TOKEN secret is not available to this run"
+
+      - uses: actions/checkout@v7
+        if: ${{ env.RUN_SCAN == 'true' }}
+
+      - name: Obtain container images
+        id: image-source
+        if: ${{ env.RUN_SCAN == 'true' }}
+        uses: ./.github/actions/ci-image-handoff
+        with:
+          artifact-names: |
+            openaev-image-amd64
+            openaev-ubi9-image-amd64
+          artifact-pattern: "{openaev-image-amd64,openaev-ubi9-image-amd64}"
+          artifact-path: /tmp/docker-images
+          merge-artifacts: "true"
+          registry-mode: pull
+          local-tags: |
+            openaev:ci
+            openaev-ubi9:ci
+          build-job-names: |
+            Docker Build (standard amd64)
+            Docker Build (ubi9 amd64)
+
+      - name: Load Docker images
+        if: ${{ env.RUN_SCAN == 'true' && steps.image-source.outputs.source == 'artifact' }}
+        run: |
+          cd /tmp/docker-images
+          load() {
+            gunzip "$1.tar.gz"
+            skopeo copy "oci-archive:$1.tar" "docker-daemon:$2"
+            rm -f "$1.tar"
+          }
+          load openaev-image-amd64 openaev:ci
+          load openaev-ubi9-image-amd64 openaev-ubi9:ci
+
+      - id: standard
+        if: ${{ env.RUN_SCAN == 'true' }}
+        uses: ./.github/actions/aikido-image-scan
+        with:
+          image: openaev:ci
+          report-name: aikido-image-scan-standard
+          api-key: ${{ secrets.AIKIDO_TOKEN }}
+
+      - id: ubi9
+        if: ${{ !cancelled() && env.RUN_SCAN == 'true' }}
+        uses: ./.github/actions/aikido-image-scan
+        with:
+          image: openaev-ubi9:ci
+          report-name: aikido-image-scan-ubi9
+          api-key: ${{ secrets.AIKIDO_TOKEN }}
+
+      # Temporary: compare the gating modes with the ephemeral scan.
+      - name: Probe the gating modes
+        if: ${{ !cancelled() && env.RUN_SCAN == 'true' }}
+        continue-on-error: true
+        env:
+          AIKIDO_API_KEY: ${{ secrets.AIKIDO_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash .github/scripts/aikido-gating-probe.sh
+
+      - name: Upload the gating probe
+        if: ${{ !cancelled() && env.RUN_SCAN == 'true' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: aikido-gating-probe
+          path: aikido-gating-probe
+          if-no-files-found: ignore
+
+      # Only when both scans finished and one found a fixable vulnerability: a clean run gets no
+      # extra check, and a scan that failed already fails the job.
+      - name: Count fixable findings
+        id: fixable
+        if: ${{ steps.standard.outcome == 'success' && steps.ubi9.outcome == 'success' }}
+        env:
+          STANDARD: ${{ steps.standard.outputs.fixable }}
+          UBI9: ${{ steps.ubi9.outputs.fixable }}
+        run: echo "total=$((STANDARD + UBI9))" >> "$GITHUB_OUTPUT"
+
+      - name: Generate a token
+        id: generate-token
+        if: ${{ steps.fixable.outputs.total != '' && steps.fixable.outputs.total != '0' }}
+        continue-on-error: true
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
+          private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
+
+      - name: Explain the fixable findings in a check
+        id: explain
+        if: ${{ steps.generate-token.outputs.token != '' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          STANDARD_FIXABLE: ${{ steps.standard.outputs.fixable }}
+          STANDARD_REPORT: ${{ steps.standard.outputs.report }}
+          UBI9_FIXABLE: ${{ steps.ubi9.outputs.fixable }}
+          UBI9_REPORT: ${{ steps.ubi9.outputs.report }}
+        run: |
+          python3 .github/scripts/post-aikido-check.py \
+            --sha "$HEAD_SHA" \
+            --threshold high \
+            --image standard "$STANDARD_FIXABLE" "$STANDARD_REPORT" \
+            --image ubi9 "$UBI9_FIXABLE" "$UBI9_REPORT"
+
+      # The explanation check reports the fixable findings when it was posted; otherwise this step does.
+      - name: Fail on fixable findings nobody was told about
+        if: ${{ steps.fixable.outputs.total != '' && steps.fixable.outputs.total != '0' && steps.explain.outcome != 'success' }}
+        env:
+          TOTAL: ${{ steps.fixable.outputs.total }}
+        run: |
+          echo "::error::$TOTAL high or critical finding(s) with a fix: see the job summary"
+          echo "The explanation check was not posted (no PR checks app token, or the post failed)."
+          exit 1
+
   # ════════════════════════════════════════════════════════════════════
   # Pipeline gate
   #
@@ -684,6 +821,7 @@ jobs:
       - backend-package-musl
       - docker-build
       - docker-merge
+      - aikido-image-scan
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -711,7 +849,7 @@ jobs:
             case "$job" in
               # A new check lands here first so a false positive cannot block a merge. Take the job
               # out of this list to make it blocking.
-              bom-override-guard|coverage-backend-gate)
+              bom-override-guard|coverage-backend-gate|aikido-image-scan)
                 advisory=1
                 ;;
             esac

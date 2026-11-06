@@ -1,0 +1,83 @@
+name: Aikido Image Scan
+description: >
+  Scan a container image of the local Docker daemon with Aikido's local scanner,
+  in ephemeral mode: findings are written to a file and nothing is kept in
+  Aikido. The findings at or above the severity threshold, with or without a
+  fix, are listed with their details in the job summary and uploaded with the
+  JSON findings and the scanner output as an artifact. Findings never fail the
+  action: it outputs how many of them have a fix, for the caller to act on. A
+  scanner error or a missing token fails it. The calling job must run
+  actions/checkout first.
+
+inputs:
+  image:
+    description: "Image to scan; it must already be in the local Docker daemon"
+    required: true
+  report-name:
+    description: "Name of the uploaded artifact and prefix of the report files"
+    required: true
+  api-key:
+    description: "Aikido local scanner token"
+    required: true
+  severity-threshold:
+    description: "Lowest severity reported: low, medium, high or critical"
+    required: false
+    default: "high"
+
+outputs:
+  fixable:
+    description: "Number of findings at or above the threshold that have a fix"
+    value: ${{ steps.report.outputs.fixable }}
+  report:
+    description: "Path of the Markdown report, relative to the working directory"
+    value: ${{ inputs.report-name }}.md
+
+runs:
+  using: composite
+  steps:
+    # Ephemeral scans leave out vulnerabilities with no fix unless asked: they
+    # are reported too, and the fixable ones are counted apart.
+    # The key goes through the environment, not the command line, to keep it
+    # out of the process list and of the uploaded scanner output.
+    - name: Scan ${{ inputs.image }}
+      shell: bash
+      env:
+        AIKIDO_API_KEY: ${{ inputs.api-key }}
+        SCANNER: aikidosecurity/local-scanner:v1.0.163@sha256:c96405a39c65070db69d2bc22fee697415448b8e1ef9650022b92991a825d4bc
+        IMAGE: ${{ inputs.image }}
+        REPORT: ${{ inputs.report-name }}
+      run: |
+        set -euo pipefail
+        if [ -z "$AIKIDO_API_KEY" ]; then
+          echo "::error::No Aikido token: set the AIKIDO_TOKEN secret"
+          exit 1
+        fi
+        docker run --rm \
+          -e AIKIDO_API_KEY \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v "$PWD:/report" \
+          "$SCANNER" \
+          ephemeral-image-scan "$IMAGE" \
+          --include-unfixed \
+          --result-output "/report/$REPORT.json" \
+          | tee "$REPORT.txt"
+
+    - name: Report findings
+      id: report
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        REPORT: ${{ inputs.report-name }}
+        THRESHOLD: ${{ inputs.severity-threshold }}
+      run: |
+        set -euo pipefail
+        python3 "$GITHUB_ACTION_PATH/report.py" "$REPORT.json" "$IMAGE" "$THRESHOLD" "$REPORT.md" >> "$GITHUB_OUTPUT"
+        cat "$REPORT.md" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload report
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.report-name }}
+        path: ${{ inputs.report-name }}.*
+        if-no-files-found: ignore
