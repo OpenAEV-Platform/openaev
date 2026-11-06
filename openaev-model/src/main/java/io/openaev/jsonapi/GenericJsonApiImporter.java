@@ -3,7 +3,9 @@ package io.openaev.jsonapi;
 import static io.openaev.jsonapi.GenericJsonApiIUtils.resolveType;
 import static io.openaev.utils.reflection.ClazzUtils.instantiate;
 import static io.openaev.utils.reflection.CollectionUtils.*;
+import static io.openaev.utils.reflection.FieldUtils.getAllFields;
 import static io.openaev.utils.reflection.FieldUtils.getAllFieldsAsMap;
+import static io.openaev.utils.reflection.FieldUtils.getField;
 import static io.openaev.utils.reflection.FieldUtils.setField;
 import static io.openaev.utils.reflection.RelationUtils.getAllRelationsAsMap;
 import static io.openaev.utils.reflection.RelationUtils.setInverseRelation;
@@ -14,6 +16,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.DualScopeBase;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantBase;
@@ -22,6 +25,8 @@ import jakarta.annotation.Resource;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.metamodel.EntityType;
 import java.io.ByteArrayInputStream;
@@ -30,6 +35,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -97,16 +104,15 @@ public class GenericJsonApiImporter<T extends Base> {
     stampTenant(toPersist, writeTenantId);
     entityCache.values().forEach(value -> stampTenant(value.getLeft(), writeTenantId));
 
-    // Persist included entities that not inner relationship
+    // Persist included entities that not inner relationship, each after the included entities it
+    // references: the cache iterates in the order of the id hashes, and an entity persisted before
+    // the row of a non-nullable reference fails (a file drop before its document).
+    Set<Base> pending = Collections.newSetFromMap(new IdentityHashMap<>());
+    entityCache.values().stream()
+        .filter(value -> !value.getRight())
+        .forEach(value -> pending.add(value.getLeft()));
     for (Pair<T, Boolean> value : entityCache.values()) {
-      if (!entityManager.contains(value.getLeft()) && !value.getRight()) {
-        T e = value.getLeft();
-        if (e.getId() != null && entityManager.find(e.getClass(), e.getId()) != null) {
-          entityManager.merge(e);
-        } else {
-          entityManager.persist(e);
-        }
-      }
+      persistAfterReferences(value.getLeft(), pending);
     }
 
     // Validate constraint
@@ -129,16 +135,56 @@ public class GenericJsonApiImporter<T extends Base> {
     return entity;
   }
 
+  /**
+   * Persists a pending included entity after the pending entities it references through a
+   * many-to-one or an owning one-to-one, so no reference points at a transient row. An entity is
+   * taken out of {@code pending} before its references are visited, which ends a cycle.
+   */
+  private void persistAfterReferences(Base entity, Set<Base> pending) {
+    if (!pending.remove(entity)) {
+      return;
+    }
+    for (Field field : getAllFields(entity.getClass())) {
+      if (isOwningSingleReference(field)
+          && getField(entity, field) instanceof Base referenced
+          && pending.contains(referenced)) {
+        persistAfterReferences(referenced, pending);
+      }
+    }
+    // A reference may have cascaded to this entity (a payload to its detection remediations)
+    if (entityManager.contains(entity)) {
+      return;
+    }
+    if (entity.getId() != null && entityManager.find(entity.getClass(), entity.getId()) != null) {
+      entityManager.merge(entity);
+    } else {
+      entityManager.persist(entity);
+    }
+  }
+
+  private static boolean isOwningSingleReference(Field field) {
+    OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+    return field.isAnnotationPresent(ManyToOne.class)
+        || (oneToOne != null && oneToOne.mappedBy().isEmpty());
+  }
+
   public void handleImportDocument(
       JsonApiDocument<ResourceObject> doc, Map<String, byte[]> extras, String writeTenantId) {
     if (doc.included() != null) {
       for (Object o : doc.included()) {
-        if (o instanceof ResourceObject ro && "document".equals(ro.type())) {
+        // Parsed from the archive, included resources are maps until converted.
+        ResourceObject ro = (ResourceObject) safeConvert(o, ResourceObject.class);
+        if (ro != null && resolveType(Document.class).equals(ro.type())) {
           Map<String, Object> attrs = ro.attributes();
-          if (attrs != null && attrs.containsKey("document_name")) {
-            String target = String.valueOf(attrs.get("document_name"));
+          // The export keys the extras by document_target.
+          if (attrs != null && attrs.containsKey("document_target")) {
+            String target = String.valueOf(attrs.get("document_target"));
             byte[] fileBytes = extras.get(target);
-            if (fileBytes != null) {
+            if (fileBytes != null && !isContentAddressed(target, fileBytes)) {
+              // The archive is user input: a target that is not the hash of its bytes could
+              // overwrite the object of another document of the tenant.
+              log.warn("Skipping imported document file: target does not match its content");
+            } else if (fileBytes != null) {
               try (InputStream in = new ByteArrayInputStream(fileBytes)) {
                 String contentType = Files.probeContentType(Path.of(target));
                 // Store the object under the resolved write tenant, so it stays co-located with the
@@ -156,6 +202,16 @@ public class GenericJsonApiImporter<T extends Base> {
           }
         }
       }
+    }
+  }
+
+  /** Whether {@code target} is the content-addressed name of {@code bytes}: {@code md5.ext}. */
+  private static boolean isContentAddressed(String target, byte[] bytes) {
+    try {
+      String md5 = HexFormat.of().formatHex(MessageDigest.getInstance("MD5").digest(bytes));
+      return target.startsWith(md5 + ".") && target.indexOf('/') < 0 && target.indexOf('\\') < 0;
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException(e);
     }
   }
 

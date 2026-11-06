@@ -23,7 +23,9 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionCreateInput;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.ContractOutputElement;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.Domain;
+import io.openaev.database.model.FileDrop;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadArgument;
@@ -37,15 +39,28 @@ import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.Relationship;
 import io.openaev.jsonapi.ResourceIdentifier;
 import io.openaev.jsonapi.ResourceObject;
+import io.openaev.service.MinioService;
 import io.openaev.service.ZipJsonService;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
+import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.DomainFixture;
+import io.openaev.utils.fixtures.FileFixture;
+import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.ThreatArsenalInputFixture;
+import io.openaev.utils.fixtures.composers.DocumentComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.composers.PayloadComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -61,6 +76,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class ThreatArsenalApiImporterTest extends IntegrationTest {
 
+  // Ids whose order in the importer's id-keyed cache puts the file drop before its document
+  private static final String FILE_DROP_ITERATED_FIRST_ID = "7336dbf6-6dc3-4732-a48b-8d66cd4dd212";
+  private static final String DOCUMENT_ITERATED_SECOND_ID = "ea4b816f-b60a-4970-a485-9f5caedd6cc5";
+
   @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mockMvc;
   @Autowired private DomainComposer domainComposer;
@@ -70,6 +89,9 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
   @Autowired private OpenaevInjectorIntegrationFactory openaevInjectorIntegrationFactory;
   @Autowired private ZipJsonService<Payload> zipJsonService;
   @Autowired private ObjectMapper objectMapper;
+  @Autowired private DocumentComposer documentComposer;
+  @Autowired private PayloadComposer payloadComposer;
+  @Autowired private MinioService minioService;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -166,6 +188,96 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
       assertEquals(
           importedActionId,
           importedContent.get(InjectorContract.CONTRACT_CONTENT_KEY_CONTRACT_ID).asText());
+    }
+
+    @Test
+    @DisplayName(
+        "Importing a file drop action export should persist the document before its payload")
+    void given_fileDropActionExport_should_persistTheDocumentBeforeItsPayload() throws Exception {
+      // Arrange: a file drop action, exported with the ids of a bundle whose included entities
+      // iterate the file drop before its document
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      Document document =
+          documentComposer
+              .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+              .withInMemoryFile(FileFixture.getPlainTextFileContent())
+              .persist()
+              .get();
+      String createResponse =
+          mockMvc
+              .perform(
+                  post(tenantUri(THREAT_ARSENAL_URL))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(
+                          asJsonString(
+                              ThreatArsenalInputFixture.createDefaultFileDropAction(
+                                  List.of(domain.getId()), document.getId())))
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String actionId = JsonPath.read(createResponse, "$.injector_contract_id");
+      String payloadId = JsonPath.read(createResponse, "$.action_payload.payload_id");
+      byte[] exportedZip =
+          mockMvc
+              .perform(get(tenantUri(TENANT_THREAT_ARSENAL_URL + "/" + actionId + "/export")))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+      byte[] zip =
+          replaceInJsonEntries(
+              exportedZip,
+              Map.of(
+                  payloadId,
+                  FILE_DROP_ITERATED_FIRST_ID,
+                  document.getId(),
+                  DOCUMENT_ITERATED_SECOND_ID));
+
+      // Act
+      String importResponse =
+          mockMvc
+              .perform(
+                  multipart(tenantUri(TENANT_THREAT_ARSENAL_URL + "/import"))
+                      .file(new MockMultipartFile("file", "action.zip", "application/zip", zip))
+                      .with(csrf()))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      String importedPayloadId = JsonPath.read(importResponse, "$.action_payload.payload_id");
+      FileDrop importedPayload =
+          (FileDrop) payloadRepository.findById(importedPayloadId).orElseThrow();
+      assertNotEquals(payloadId, importedPayloadId);
+      assertNotNull(importedPayload.getFileDropFile());
+      assertNotEquals(document.getId(), importedPayload.getFileDropFile().getId());
+      assertEquals(document.getName(), importedPayload.getFileDropFile().getName());
+    }
+
+    /** Rewrites {@code replacements} in the JSON entries of a ZIP, other entries kept as is. */
+    private byte[] replaceInJsonEntries(byte[] zip, Map<String, String> replacements)
+        throws Exception {
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      try (ZipInputStream in = new ZipInputStream(new ByteArrayInputStream(zip));
+          ZipOutputStream zos = new ZipOutputStream(out)) {
+        for (ZipEntry entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
+          byte[] content = in.readAllBytes();
+          if (entry.getName().endsWith(".json")) {
+            String json = new String(content, StandardCharsets.UTF_8);
+            for (Map.Entry<String, String> replacement : replacements.entrySet()) {
+              json = json.replace(replacement.getKey(), replacement.getValue());
+            }
+            content = json.getBytes(StandardCharsets.UTF_8);
+          }
+          zos.putNextEntry(new ZipEntry(entry.getName()));
+          zos.write(content);
+          zos.closeEntry();
+        }
+      }
+      return out.toByteArray();
     }
   }
 
@@ -267,6 +379,49 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
               .findInjectorContractByPayload(importedPayload)
               .map(InjectorContract::getId)
               .orElse(null));
+    }
+
+    @Test
+    @DisplayName("Importing a file drop payload export should restore its file")
+    void given_fileDropPayloadExport_should_restoreItsFileOnImport() throws Exception {
+      // Arrange: export a file drop payload, then remove its object so only the archive holds it
+      DocumentComposer.Composer document =
+          documentComposer
+              .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
+              .withInMemoryFile(FileFixture.getPlainTextFileContent());
+      // Content-addressed, as every document created by the platform: md5.ext
+      document
+          .get()
+          .setTarget(
+              DigestUtils.md5Hex(FileFixture.getPlainTextFileContent().getContentBytes()) + ".txt");
+      Payload payload =
+          payloadComposer
+              .forPayload(PayloadFixture.createDefaultFileDrop())
+              .withFileDrop(document)
+              .persist()
+              .get();
+      String tenantId = document.get().getTenant().getId();
+      String target = document.get().getTarget();
+      byte[] exportedZip =
+          mockMvc
+              .perform(get(PAYLOAD_URI + "/" + payload.getId() + "/export"))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsByteArray();
+      minioService.deleteFileForTenant(tenantId, target);
+
+      // Act
+      mockMvc
+          .perform(
+              multipart(THREAT_ARSENAL_URL + "/import")
+                  .file(
+                      new MockMultipartFile("file", "payload.zip", "application/zip", exportedZip))
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert
+      assertEquals(1, minioService.countObjects(tenantId + "/" + target));
     }
 
     @Test
