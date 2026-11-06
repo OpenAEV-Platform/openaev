@@ -620,7 +620,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Get the payload of an atomic testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void findPayloadOutputByInjectId() throws Exception {
     String response =
         mvc.perform(
