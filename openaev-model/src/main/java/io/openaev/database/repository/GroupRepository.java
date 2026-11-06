@@ -40,10 +40,6 @@ public interface GroupRepository
 
   List<Group> findAllByTenantIdAndAutoNewMarkingTrue(String tenantId);
 
-  // Native: JPQL cannot call pg_advisory_xact_lock; it reads and writes no row.
-  @Query(value = "SELECT 1 FROM (SELECT pg_advisory_xact_lock(:key)) AS locked", nativeQuery = true)
-  Integer lockAutoNewMarking(@Param("key") long key);
-
   @Query(value = "SELECT user_id FROM users_groups WHERE group_id = :groupId", nativeQuery = true)
   List<String> findUserIdsByGroupId(@Param("groupId") String groupId);
 

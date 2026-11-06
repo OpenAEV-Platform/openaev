@@ -7,6 +7,8 @@ import SelectListPicker, { type SelectListPickerElements } from '../../../../com
 import { useFormatter } from '../../../../components/i18n';
 import { type MarkingDefinitionOutput } from '../../../../utils/api-types';
 import { useMarkingDefinitionsWithLoading } from '../../../../utils/hooks/useMarkingDefinitions';
+import { useAbility } from '../../../../utils/permissions/permissionsContext';
+import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 
 interface Props {
   initialState: string[];
@@ -49,6 +51,8 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [autoNewMarking, setAutoNewMarking] = useState(false);
+  const ability = useAbility();
+  const canAssignMarking = ability.can(ACTIONS.ASSIGN, SUBJECTS.MARKING);
 
   useEffect(() => {
     if (open) {
@@ -115,13 +119,13 @@ const GroupManageMarkings: FunctionComponent<Props> = ({
       onClose={handleClose}
       onSubmit={handleSubmit}
       title={title ?? t('Manage markings for group: {groupName}', { groupName })}
-      headerComponent={(
+      headerComponent={canAssignMarking ? (
         <Switch
           checked={autoNewMarking}
           onCheckedChange={checked => setAutoNewMarking(checked === true)}
           label={t('Auto assign new markings')}
         />
-      )}
+      ) : undefined}
       values={markingValues}
       elements={elements}
       selectedIds={selectedIds}
