@@ -410,6 +410,7 @@ public class InjectApi extends RestBehavior {
   public void injectExecutionCallback(
       TxCtx ctx, @PathVariable String injectId, @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
+    requireInjectInScope(ctx, injectId);
     injectExecutionCallbackService.injectExecutionCallback(null, injectId, input);
   }
 
