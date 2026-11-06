@@ -275,10 +275,11 @@ public class InjectExecutionStep implements ActionStep {
    * from its targeted teams and the workflow scope's individual players.
    *
    * <p>A scope team chosen in the chaining Configure-action drawer - or pulled in by the scope
-   * audience fallback of {@link #getInjectFromDataStep(Step)} - is only in the workflow allowlist,
-   * not attached to the simulation audience with enabled players, so its members must first be
-   * enabled on the simulation (mirrors the autonomous path). All-teams injects already target the
-   * simulation audience, so only explicitly-targeted teams need enabling. Recipients are then built
+   * audience fallback or the all-teams mode of {@link #getInjectFromDataStep(Step)} - is only in
+   * the workflow allowlist, not attached to the simulation audience with enabled players, so its
+   * members must first be enabled on the simulation (mirrors the autonomous path). An inject still
+   * in all-teams mode (step without workflow) targets the simulation audience, whose members are
+   * already enabled, so only explicitly-targeted teams need enabling. Recipients are then built
    * from the targeted teams' members (deduplicated by user); resolving from the member set avoids
    * relying on a possibly-stale {@code exercise_teams_users} collection inside this transaction,
    * and scope teams have no per-player disable concept, so every member is a valid recipient -
@@ -290,7 +291,8 @@ public class InjectExecutionStep implements ActionStep {
    * audience configured in the drawer and no MAPPER condition feeding its audience (upstream
    * findings mapped into the raw "recipients" field): the drawer stays authoritative when the
    * operator picked an audience there, and a mapper-fed audience must not be widened with the
-   * scope's players.
+   * scope's players. All-teams mode always adds them: in a chained workflow it targets the whole
+   * scope audience, teams and individual players.
    *
    * <p>Asset/IP-centric injects (nmap, payloads) have no teams and never consume scope players, so
    * this returns an empty list and their execution is unchanged. Findings mapped as raw recipients
@@ -310,8 +312,10 @@ public class InjectExecutionStep implements ActionStep {
     List<User> scopePlayers =
         workflow != null
                 && !stepTargetingService.isAssetCentric(readyStep)
-                && !stepTargetingService.hasExplicitAudience(readyStep)
-                && !stepTargetingService.hasTargetFeedingMapperConditions(readyStep, false)
+                && (stepTargetingService.targetsAllTeams(readyStep)
+                    || (!stepTargetingService.hasExplicitAudience(readyStep)
+                        && !stepTargetingService.hasTargetFeedingMapperConditions(
+                            readyStep, false)))
             ? scopeService.getValidPlayers(workflow.getId())
             : List.<User>of();
 
@@ -1304,8 +1308,16 @@ public class InjectExecutionStep implements ActionStep {
             inject.setAssets(scopedAssets);
           }
         }
+      } else if (step.getWorkflow() != null && inject.isAllTeams()) {
+        // All-teams mode: in a chained workflow it targets the whole scope audience (the drawer
+        // only offers the scope teams). The scope teams are not part of the simulation audience
+        // (exercise.getTeams()), so target them explicitly: resolveAudienceRecipients then enables
+        // their members and the tabletop expectations are built for them, as for teams picked
+        // one by one; it also adds the scope's individual players. With no team or player in the
+        // scope it targets nobody: the MISSING_AUDIENCE_TARGETS healthcheck flags that case.
+        inject.setTeams(new ArrayList<>(scopeService.getValidTeams(step.getWorkflow().getId())));
+        inject.setAllTeams(false);
       } else if (step.getWorkflow() != null
-          && !inject.isAllTeams()
           && (inject.getTeams() == null || inject.getTeams().isEmpty())
           && !stepTargetingService.hasTargetFeedingMapperConditions(step, false)) {
         // Audience fallback (tabletop compatibility): no audience was picked in the

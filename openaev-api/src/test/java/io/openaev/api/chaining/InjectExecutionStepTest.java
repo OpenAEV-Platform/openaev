@@ -1201,6 +1201,17 @@ public class InjectExecutionStepTest extends IntegrationTest {
    */
   private Step emailReadyStep(List<String> drawerTeamIds, List<Document> drawerDocuments)
       throws Exception {
+    return emailReadyStep(drawerTeamIds, drawerDocuments, false);
+  }
+
+  /** Same as {@link #emailReadyStep(List)} with all-teams mode selected in the drawer. */
+  private Step emailReadyStepInAllTeamsMode() throws Exception {
+    return emailReadyStep(List.of(), List.of(), true);
+  }
+
+  private Step emailReadyStep(
+      List<String> drawerTeamIds, List<Document> drawerDocuments, boolean allTeams)
+      throws Exception {
     Injector emailInjector =
         injectorRepository.save(
             InjectorFixture.createInjector(
@@ -1231,9 +1242,14 @@ public class InjectExecutionStepTest extends IntegrationTest {
          "inject_content":{"subject":"Subject","body":"Body"},
          "inject_depends_on":[],"inject_depends_duration":0,
          "inject_teams":[%s],"inject_assets":[],"inject_asset_groups":[],
-         "inject_documents":[%s],"inject_all_teams":false,"inject_tags":[],"inject_enabled":true}
+         "inject_documents":[%s],"inject_all_teams":%s,"inject_tags":[],"inject_enabled":true}
         """
-            .formatted(emailContractSaved.getId(), emailInjector.getId(), teamsJson, documentsJson);
+            .formatted(
+                emailContractSaved.getId(),
+                emailInjector.getId(),
+                teamsJson,
+                documentsJson,
+                allTeams);
     InjectInput injectInput = mapper.readValue(emailInputJson, InjectInput.class);
     StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
@@ -1303,6 +1319,66 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertNotNull(inject);
     assertEquals(List.of(drawerTeam.getId()), inject.getTeams().stream().map(Team::getId).toList());
     verify(scopeService, never()).getValidTeams(any());
+  }
+
+  @Test
+  void given_allTeamsStep_whenRunningAudience_thenWholeScopeAudienceIsRecipient() throws Exception {
+    // Arrange: the team and the player are only in the workflow scope, not in the simulation
+    // audience (exercise.getTeams() stays empty), which all-teams mode used to read (#7884).
+    Step readyStep = emailReadyStepInAllTeamsMode();
+    User member = new User();
+    member.setId("scope-member-1");
+    Team scopeTeam = new Team();
+    scopeTeam.setId("scope-team-1");
+    scopeTeam.setName("Scope team");
+    scopeTeam.setUsers(List.of(member));
+    User scopePlayer = new User();
+    scopePlayer.setId("scope-player-1");
+    doReturn(List.of(scopeTeam)).when(scopeService).getValidTeams(any());
+    doReturn(List.of(scopePlayer)).when(scopeService).getValidPlayers(any());
+    doReturn(Set.of()).when(scopeService).getDeniedPlayerIds(any());
+    doAnswer(invocation -> mock(ExecutionContext.class))
+        .when(executionContextService)
+        .executionContext(any(User.class), any(Inject.class), anyString());
+    Exercise exercise = ExerciseFixture.createDefaultExercise();
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+    assertNotNull(inject);
+    inject.setExercise(exercise);
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert: all-teams mode targets the scope teams explicitly, so their members are enabled
+    // on the simulation and receive the inject, and adds the scope's individual players.
+    assertFalse(inject.isAllTeams());
+    assertEquals(List.of("scope-team-1"), inject.getTeams().stream().map(Team::getId).toList());
+    assertNotNull(recipients);
+    assertEquals(2, recipients.size());
+    verify(executionContextService).executionContext(member, inject, "Scope team");
+    verify(executionContextService).executionContext(scopePlayer, inject, "Direct execution");
+    verify(exerciseTeamUserService)
+        .enableTargetedTeamMembers(exercise.getId(), List.of("scope-team-1"), Set.of());
+  }
+
+  @Test
+  void given_allTeamsStepWithoutScopeTeam_whenBuildingInject_thenSimulationTeamsAreNotTargeted()
+      throws Exception {
+    // Arrange
+    Step readyStep = emailReadyStepInAllTeamsMode();
+    doReturn(List.of()).when(scopeService).getValidTeams(any());
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: all-teams mode only targets the scope teams, never the simulation teams; the
+    // MISSING_AUDIENCE_TARGETS healthcheck flags this case before launch.
+    assertNotNull(inject);
+    assertFalse(inject.isAllTeams());
+    assertTrue(inject.getTeams().isEmpty());
   }
 
   // ---------------------------------------------------------------------------
