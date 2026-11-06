@@ -91,6 +91,9 @@ class PayloadCollectorTypeScopeTest extends IntegrationTest {
         TxCtx.forTenant(tenantId),
         () -> {
           payloadRepository.deleteById(payloadId);
+          // The database deletes the identity with its last version: drop the session's copy.
+          entityManager.flush();
+          entityManager.clear();
           collectorTypeRepository.deleteById(collectorTypeId);
         });
   }
