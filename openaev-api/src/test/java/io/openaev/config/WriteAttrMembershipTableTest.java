@@ -14,6 +14,7 @@ import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -131,14 +132,29 @@ class WriteAttrMembershipTableTest extends IntegrationTest {
                 "SELECT DISTINCT event_object_table FROM information_schema.triggers"
                     + " WHERE trigger_name = '_writeattr_trg' AND trigger_schema = 'public'")
             .getResultList();
+    // Every base table of the schema with a tenant_id column, read independently of the install.
+    @SuppressWarnings("unchecked")
+    List<String> tenantTables =
+        entityManager
+            .createNativeQuery(
+                "SELECT DISTINCT c.table_name FROM information_schema.columns c"
+                    + " JOIN information_schema.tables t ON t.table_schema = c.table_schema"
+                    + " AND t.table_name = c.table_name"
+                    + " WHERE c.column_name = 'tenant_id' AND c.table_schema = 'public'"
+                    + " AND t.table_type = 'BASE TABLE'")
+            .getResultList();
 
     // -- ASSERT --
     assertEquals(Set.of("tenants"), WriteAttrDetectorTrigger.UNWATCHED_TABLES);
-    assertTrue(watched.contains(MEMBERSHIP_TABLE), "users_tenants must be watched");
     assertTrue(
-        watched.contains("attackpath_graph_version"),
-        "a table the inspector leaves alone must still be watched");
-    assertFalse(watched.contains("tenants"), "tenants must be the only table left out");
+        tenantTables.containsAll(List.of(MEMBERSHIP_TABLE, "attackpath_graph_version", "tenants")),
+        "the schema read must find the tenant tables this test is about, got " + tenantTables);
+    Set<String> expected = new TreeSet<>(tenantTables);
+    expected.removeAll(WriteAttrDetectorTrigger.UNWATCHED_TABLES);
+    assertEquals(
+        expected,
+        new TreeSet<>(watched),
+        "every tenant table but tenants must be watched, and nothing else");
   }
 
   private void startScoped(String scope) {
