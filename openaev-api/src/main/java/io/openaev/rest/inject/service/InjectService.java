@@ -131,6 +131,7 @@ public class InjectService {
   private final InjectRepository injectRepository;
   private final InjectAuthorisationRepository injectAuthorisationRepository;
   private final InjectDocumentRepository injectDocumentRepository;
+  private final GrantRepository grantRepository;
   private final InjectorService injectorService;
   private final InjectStatusRepository injectStatusRepository;
   private final InjectMapper injectMapper;
@@ -737,6 +738,12 @@ public class InjectService {
   // public @Transactional variant would only be reachable through self-invocation).
   private void deleteForRelaunch(String oldId, String newId) {
     injectDocumentRepository.updateInjectId(newId, oldId);
+    // The grants of an atomic testing move to the relaunched copy BEFORE the old inject is deleted:
+    // deleting an inject deletes the grants that name it (trigger trg_delete_inject_grants), so
+    // moving them afterwards would find nothing left to move. An inject of a scenario or a
+    // simulation holds no ATOMIC_TESTING grant, so this is a no-op for it.
+    grantRepository.updateGrantResourceIdAndType(
+        oldId, newId, Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
     injectRepository.deleteByIdNative(oldId);
     // Native delete: notify the search engine so the old inject and its expectation/finding docs
     // don't survive the relaunch (they would double-count against the duplicated inject).

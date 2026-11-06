@@ -92,11 +92,6 @@ public class GrantService {
     }
   }
 
-  public void updateGrantsForNewResource(
-      @NotBlank String currentId, @NotBlank String newId, @NotBlank GRANT_RESOURCE_TYPE grantType) {
-    grantRepository.updateGrantResourceIdAndType(currentId, newId, grantType);
-  }
-
   // -- CRUD --
 
   public Grant createGrant(
