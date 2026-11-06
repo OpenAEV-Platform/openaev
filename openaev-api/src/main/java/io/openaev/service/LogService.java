@@ -14,9 +14,12 @@ import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.config.cache.LicenseRefreshedEvent;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.facade.EngineService;
@@ -39,6 +42,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Log service — builds structured {@link LogEvent} events for CRUD and authentication operations.
@@ -60,6 +64,7 @@ public class LogService {
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
   private final PlatformSettingsService platformSettingsService;
+  private final TenantScopedTransaction tenantScopedTransaction;
 
   /** Ensures the EE audit-disabled warning is logged only once. */
   private final AtomicBoolean auditEeDisabledWarningLogged = new AtomicBoolean(false);
@@ -110,17 +115,30 @@ public class LogService {
   }
 
   /**
-   * Updates the {@link BannerMessage.BANNER_KEYS#AUDIT_LOG_NO_ENTERPRISE_LICENSE} platform banner.
+   * Updates the {@link BannerMessage.BANNER_KEYS#AUDIT_LOG_NO_ENTERPRISE_LICENSE} platform banner,
+   * a platform-wide operational status stored as a platform row of the dual-scope {@code
+   * parameters} table ({@code tenant_id IS NULL}). {@code isEnabled()} runs both inside a request's
+   * own transaction (an audit event) and with no ambient transaction at all ({@link
+   * #onApplicationReady()} at startup, or {@link #onLicenseRefreshed()} fired from {@code
+   * App.init()} after its own platform-write transaction has already closed), so this opens the
+   * shape {@link TenantScopedTransaction} requires for each case rather than assuming one.
    *
    * @param shouldClean {@code true} → clear the banner; {@code false} → show the banner.
    */
   private void updateBanner(boolean shouldClean) {
-    if (shouldClean) {
-      platformSettingsService.cleanMessage(
-          BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
+    Runnable write =
+        shouldClean
+            ? () ->
+                platformSettingsService.cleanMessage(
+                    BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE)
+            : () ->
+                platformSettingsService.errorMessage(
+                    BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
+    TxCtx ctx = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      tenantScopedTransaction.executeNewAsPlatformWrite(ctx, write);
     } else {
-      platformSettingsService.errorMessage(
-          BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
+      tenantScopedTransaction.executeAsPlatformWrite(ctx, write);
     }
   }
 

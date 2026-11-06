@@ -15,6 +15,7 @@ import io.openaev.aop.audit_log.AuditEventScope;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
@@ -45,6 +46,7 @@ class LogServiceTest {
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
   @Mock private PlatformSettingsService platformSettingsService;
+  @Mock private TenantScopedTransaction tenantScopedTransaction;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -76,7 +78,8 @@ class LogServiceTest {
             mock(UserService.class),
             enterpriseEditionService,
             licenseCacheManager,
-            platformSettingsService);
+            platformSettingsService,
+            tenantScopedTransaction);
     lenient().when(auditLogProperties.isEnabled()).thenReturn(true);
     lenient().when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
   }
