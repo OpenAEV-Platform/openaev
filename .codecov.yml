@@ -1,53 +1,62 @@
 codecov:
   notify:
-    after_n_builds: 2
+    # Comment once the three flags are in: backend and frontend upload after green tests, E2E
+    # when every shard passes.
+    after_n_builds: 3
 
 coverage:
+  # The backend coverage rules run in the coverage-backend-gate CI job, with the same thresholds.
+  # Every status here is informational: it stays green, and a backend status below its target
+  # still adds a ":x:" line to the PR comment. `default: false` turns off the statuses the org
+  # Global YAML adds.
   status:
-    # No fixed target on the whole project: a status only reports a drop of more than half
-    # a point against the base commit. The patch rule lives in the coverage-backend job.
     project:
+      default: false
+      # `removed_code_behavior: adjust_base` is Codecov's default, but only when it is written here
+      # does a failed project status add its line to the comment.
       backend:
         target: auto
-        threshold: 0.5%
+        threshold: 0.1%
+        removed_code_behavior: adjust_base
         informational: true
         flags:
           - backend
       frontend:
         target: auto
-        threshold: 0.5%
+        threshold: 0.1%
         informational: true
         flags:
           - frontend
       e2e:
         target: auto
+        threshold: 0.1%
         informational: true
         flags:
           - e2e
     patch:
+      default: false
       backend:
         target: 80%
         informational: true
         flags:
           - backend
-      frontend:
-        target: 80%
-        informational: true
-        flags:
-          - frontend
-      e2e:
-        target: auto
-        informational: true
-        flags:
-          - e2e
 
-flags:
-  backend:
-    paths:
-      - openaev-api/src/main/java/
-  frontend:
-    paths:
-      - openaev-front/src/
-  e2e:
-    paths:
-      - openaev-front/src/
+flag_management:
+  individual_flags:
+    - name: backend
+      paths:
+        - openaev-api/src/main/java/
+    - name: frontend
+      paths:
+        - openaev-front/src/
+    - name: e2e
+      paths:
+        - openaev-front/src/
+
+comment:
+  layout: "condensed_header, flags, condensed_files"
+  hide_project_coverage: true
+  # Comment only when the pull request changes lines that no test runs. `coverage_drop` reads its
+  # threshold at the top level of `project`, which holds only named statuses here, so it would fire
+  # on every 0.01 point of noise.
+  require_changes: "uncovered_patch"
