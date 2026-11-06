@@ -62,6 +62,7 @@ runs:
       run: |
         python3 "$GITHUB_WORKSPACE/.github/scripts/check-coverage-drop.py" \
           --report openaev-api/target/site/jacoco/jacoco.xml \
+          --target-sha "$(git rev-parse HEAD^1)" \
           --max-drop "$MAX_DROP" | tee "$RUNNER_TEMP/project-coverage.txt"
 
     # Only when a rule failed: a passing pull request gets no extra check.

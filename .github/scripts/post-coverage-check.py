@@ -3,9 +3,10 @@
 
 The backend-coverage-check action runs the two rules (check-patch-coverage.py on the changed
 lines, then check-coverage-drop.py on the whole backend) and only passes or fails. When one
-fails, this check run says, in words, which one, with the tool output, how to fix it, and why
-Codecov's comment can show slightly other numbers. It is posted with the PR checks app, like the
-PR title check, so it shows as its own check on the pull request.
+fails, this check run says, in words, which one, with the tool output and how to fix it. A rule
+that passed is left out. When the pull request is behind main, the fix it gives for a drop is a
+rebase. It is posted with the PR checks app, like the PR title check, so it shows as its own check
+on the pull request.
 
 Needs `gh`, GH_TOKEN with checks:write, and GITHUB_REPOSITORY.
 """
@@ -23,72 +24,69 @@ NAME = "Backend Coverage (advisory)"
 MAX_LOG = 20000
 
 
-def rules(min_coverage: str, max_drop: str) -> str:
-    return f"""\
-This pull request is checked against two backend coverage rules:
-
-- **Changed lines**: at least {min_coverage}% of the backend lines it adds or changes, in \
-`openaev-api/src/main/java`, run during the API tests.
-- **Whole backend**: backend line coverage does not drop by more than {max_drop} point against \
-the latest report of main.
-"""
-
-
-def fix(min_coverage: str) -> str:
-    return f"""\
-### How to fix it
-
-- **Changed lines**: add or extend tests that run the lines listed above. To check locally after \
-`mvn test`: `python3 .github/scripts/check-patch-coverage.py \
---report openaev-api/target/site/jacoco/jacoco.xml --base origin/main \
---fail-under {min_coverage}`. A line where only some branches ran is partial, and counts as \
-not covered: cover the other branches too.
-- **Whole backend**: the drop usually comes from the same untested lines, or from tests that were \
-removed or no longer reach the code. Covering the changed lines is often enough.
-"""
-
-
-CODECOV = """\
-### Codecov's numbers
-
-This check counts lines the way Codecov does, so its figures should match Codecov's comment. \
-Codecov compares with the commit the pull request branched from, this check with the latest \
-report of the last commit of main. They are the same once your branch is up to date with main, so \
-when the two disagree and your branch is behind, rebase it or update it with main.
-"""
-
-
-def patch_figure(log: str) -> str:
-    """Changed lines coverage as check-patch-coverage.py prints it, for the check title."""
-    if "No lines with coverage information" in log:
-        return "none"
-    found = re.search(r"^Coverage: ([\d.]+)%", log, re.MULTILINE)
-    return f"{found.group(1)}%" if found else "?"
-
-
-def project_figure(log: str) -> str:
-    """Whole backend change as check-coverage-drop.py prints it, for the check title."""
-    if found := re.search(r"drops by ([\d.]+) points", log):
-        return f"-{found.group(1)} pt"
-    if found := re.search(r"Change: ([+-][\d.]+) points", log):
-        return f"{found.group(1)} pt"
-    if "the drop cannot be measured" in log:
-        return "no base"
-    return "?"
-
-
-def project_icon(passed: bool, log: str) -> str:
-    """❌ when the drop is too large, ⚪ when it could not be measured, ✅ otherwise."""
-    if not passed:
-        return "❌"
-    return "⚪" if "the drop cannot be measured" in log else "✅"
-
-
-def section(icon: str, label: str, log: str) -> str:
+def output(log: str) -> str:
     text = log.strip() or "(no output)"
     if len(text) > MAX_LOG:
         text = text[:MAX_LOG] + "\n…"
-    return f"{icon} **{label}**\n\n```\n{text}\n```\n"
+    return f"```\n{text}\n```\n"
+
+
+def patch_title(log: str, min_coverage: str) -> str:
+    """Changed lines figure as check-patch-coverage.py prints it."""
+    found = re.search(r"^Coverage: ([\d.]+)%", log, re.MULTILINE)
+    return f"❌ Changed lines {found.group(1) if found else '?'}% covered, needs {min_coverage}%"
+
+
+def patch_section(log: str, min_coverage: str) -> str:
+    return f"""\
+### ❌ Changed lines
+
+At least {min_coverage}% of the lines this pull request adds or changes in \
+`openaev-api/src/main/java` must run during the API tests.
+
+{output(log)}
+Add or extend tests that run the lines listed above. A line where only some branches ran is \
+partial, and counts as not covered: cover the other branches too. To check locally after \
+`mvn test`: `python3 .github/scripts/check-patch-coverage.py \
+--report openaev-api/target/site/jacoco/jacoco.xml --base origin/main \
+--fail-under {min_coverage}`.
+"""
+
+
+def behind_main(log: str) -> str | None:
+    """Commits the pull request lacks from main's report, as check-coverage-drop.py prints them."""
+    found = re.search(r"is (\d+) commits behind main", log)
+    return found.group(1) if found else None
+
+
+def project_title(log: str, max_drop: str) -> str:
+    """Coverage drop as check-coverage-drop.py prints it."""
+    found = re.search(r"drops by ([\d.]+) points", log)
+    title = f"❌ Coverage down {found.group(1) if found else '?'} points"
+    if behind := behind_main(log):
+        return f"{title}, branch {behind} commits behind main: rebase"
+    return f"{title}, max {max_drop}"
+
+
+def project_section(log: str, max_drop: str) -> str:
+    if behind := behind_main(log):
+        fix = f"""\
+This branch is {behind} commits behind main, and the report it is compared with has their \
+tests: the drop may come from them alone. Rebase it on main, or update it with main, and let CI \
+run again. For a stacked pull request, update the branch it targets first. Codecov compares with \
+an older commit of main, so its comment can show another figure until then."""
+    else:
+        fix = """\
+The drop usually comes from untested lines this pull request adds, or from tests that were \
+removed or no longer reach the code."""
+    return f"""\
+### ❌ Coverage drop
+
+Line coverage must not drop by more than {max_drop} point against the latest report of main.
+
+{output(log)}
+{fix}
+"""
 
 
 def read(path: str) -> str:
@@ -110,34 +108,30 @@ def main() -> int:
     parser.add_argument("--project-log", required=True, help="output of check-coverage-drop.py")
     args = parser.parse_args()
 
-    patch_ok = args.patch_outcome == "success"
-    project_ok = args.project_outcome == "success"
-    patch_log = read(args.patch_log)
-    project_log = read(args.project_log)
-    # The PR checks list shows about 100 characters of "name — title": the figures come first.
-    title = (
-        f"{'✅' if patch_ok else '❌'} changed lines {patch_figure(patch_log)} "
-        f"(min {args.min_coverage}%) · "
-        f"{project_icon(project_ok, project_log)} backend {project_figure(project_log)} "
-        f"(max -{args.max_drop})"
-    )
-    summary = "\n".join(
-        [
-            rules(args.min_coverage, args.max_drop),
-            "### Result\n",
-            section("✅" if patch_ok else "❌", "Changed lines", patch_log),
-            section(project_icon(project_ok, project_log), "Whole backend", project_log),
-            fix(args.min_coverage),
-            CODECOV,
-            "This check is advisory for now: it does not block the merge.",
-        ]
-    )
+    titles, sections = [], []
+    if args.patch_outcome != "success":
+        patch_log = read(args.patch_log)
+        titles.append(patch_title(patch_log, args.min_coverage))
+        sections.append(patch_section(patch_log, args.min_coverage))
+    if args.project_outcome != "success":
+        project_log = read(args.project_log)
+        titles.append(project_title(project_log, args.max_drop))
+        sections.append(project_section(project_log, args.max_drop))
+    if not titles:
+        return 0
+
     payload = {
         "name": NAME,
         "head_sha": args.sha,
         "status": "completed",
-        "conclusion": "success" if patch_ok and project_ok else "failure",
-        "output": {"title": title, "summary": summary},
+        "conclusion": "failure",
+        # The PR checks list shows about 100 characters of "name — title": the figures come first.
+        "output": {
+            "title": " · ".join(titles),
+            "summary": "\n".join(
+                sections + ["This check is advisory for now: it does not block the merge."]
+            ),
+        },
     }
     subprocess.run(
         ["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/check-runs", "--input", "-"],

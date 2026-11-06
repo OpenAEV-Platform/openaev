@@ -8,9 +8,10 @@ pull request targets. The base report is the newest artifact whose commit is the
 one of its ancestors: when the run on the tip itself has not finished yet, the closest earlier one
 stands in for it.
 
-Codecov compares with the commit the pull request branched from, not the tip of main. The two are
-the same once the branch is up to date with main, so a pull request that is behind and shows
-another drop in Codecov is fixed by a rebase.
+A pull request that is behind main lacks the commits that main got since, and their tests. When
+the drop is over the limit and the base report has commits the pull request does not, the output
+says how many and that a rebase on main is the fix: the drop may come from those commits alone.
+For a stacked pull request, the branch it targets needs the update first.
 
 Line coverage is counted the way Codecov counts it (see jacoco_lines.py): a line where only some
 branches ran is partial, and partial lines are not covered.
@@ -59,6 +60,11 @@ def is_ancestor(repo: str, sha: str, of: str) -> bool:
     return status in ("ahead", "identical")
 
 
+def commits_missing(repo: str, target_sha: str, report_sha: str) -> int:
+    """Commits in the base report that the target branch does not have."""
+    return json.loads(gh_api(f"repos/{repo}/compare/{target_sha}...{report_sha}"))["ahead_by"]
+
+
 def main_tip(repo: str, main_branch: str) -> str:
     return json.loads(gh_api(f"repos/{repo}/commits/{main_branch}"))["sha"]
 
@@ -87,6 +93,11 @@ def find_base_report(repo: str, base_sha: str, main_branch: str) -> tuple[str, b
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--report", required=True, help="JaCoCo XML report of the pull request")
+    parser.add_argument(
+        "--target-sha",
+        required=True,
+        help="tip of the branch the pull request targets (first parent of the merge commit)",
+    )
     parser.add_argument("--main-branch", default="main", help="branch that has the reports")
     parser.add_argument(
         "--max-drop", type=float, required=True, help="largest drop allowed, in points"
@@ -117,7 +128,9 @@ def main() -> int:
     print(f"Base ({compared}): {base_covered} / {base_total} lines, {base_cov:.2f}%")
     print(f"Pull request: {head_covered} / {head_total} lines, {head:.2f}%")
     if drop > args.max_drop:
-        print(f"Backend line coverage drops by {drop:.2f} points, more than {args.max_drop}.")
+        print(f"Line coverage drops by {drop:.2f} points, more than {args.max_drop}.")
+        if behind := commits_missing(repo, args.target_sha, found_sha):
+            print(f"This branch is {behind} commits behind main: rebase it and let CI run again.")
         return 1
     print(f"Change: {-drop:+.2f} points, largest drop allowed {args.max_drop}.")
     return 0
