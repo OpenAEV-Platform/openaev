@@ -90,6 +90,9 @@ public class InjectAssistantService {
 
     for (Inject inject : injects) {
       inject.setScenario(scenario);
+      // Explicit, not left to TenantBaseListener's ambient fallback: this inject belongs to the
+      // scenario regardless of which tenant the caller's thread-local happens to carry.
+      inject.setTenant(scenario.getTenant());
     }
 
     return injects;
@@ -155,7 +158,14 @@ public class InjectAssistantService {
                 buildInjectsForAnyPlatformAndArchitecture(
                     injectsPerAttackPattern, attackPattern, contractForPlaceholder)
                     .stream())
-        .peek(inject -> inject.setScenario(scenario))
+        .peek(
+            inject -> {
+              inject.setScenario(scenario);
+              // Explicit, not left to TenantBaseListener's ambient fallback: this inject belongs
+              // to the scenario regardless of which tenant the caller's thread-local happens to
+              // carry.
+              inject.setTenant(scenario.getTenant());
+            })
         .toList();
   }
 
@@ -183,7 +193,14 @@ public class InjectAssistantService {
         Set<Inject> injectsToAdd =
             this.generateInjectsForSingleAttackPatternWithAssetGroups(
                 attackPattern, assetsFromGroupMap, injectsPerAttackPattern, contractForPlaceholder);
-        injectsToAdd.forEach(inject -> inject.setScenario(scenario));
+        injectsToAdd.forEach(
+            inject -> {
+              inject.setScenario(scenario);
+              // Explicit, not left to TenantBaseListener's ambient fallback: this inject belongs
+              // to the scenario regardless of which tenant the caller's thread-local happens to
+              // carry.
+              inject.setTenant(scenario.getTenant());
+            });
         injects.addAll(injectsToAdd);
       } catch (UnprocessableContentException e) {
         throw new UnsupportedOperationException(e);
@@ -292,7 +309,14 @@ public class InjectAssistantService {
                     assetGroupListMap,
                     contractForPlaceholder)
                     .stream())
-        .peek(inject -> inject.setScenario(scenario))
+        .peek(
+            inject -> {
+              inject.setScenario(scenario);
+              // Explicit, not left to TenantBaseListener's ambient fallback: this inject belongs
+              // to the scenario regardless of which tenant the caller's thread-local happens to
+              // carry.
+              inject.setTenant(scenario.getTenant());
+            })
         .toList();
   }
 

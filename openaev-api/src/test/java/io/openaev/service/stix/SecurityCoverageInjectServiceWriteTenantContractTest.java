@@ -150,6 +150,81 @@ class SecurityCoverageInjectServiceWriteTenantContractTest extends IntegrationTe
         .isEqualTo(1L);
   }
 
+  @Test
+  @DisplayName(
+      "given no ambient tenant and unresolved attack-pattern and artifact refs, should attribute"
+          + " every placeholder inject to the scenario's own tenant")
+  void
+      given_scenarioOfANonDefaultTenantWithUnresolvedAttackPatternAndArtifactRefs_should_attributeEveryPlaceholderInjectToTheScenarioTenant() {
+    // -- ARRANGE --
+    Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setTenant(new Tenant(otherTenantId));
+    scenario = scenarioRepository.save(scenario);
+
+    SecurityCoverage securityCoverage = SecurityCoverageFixture.createDefaultSecurityCoverage();
+    // An attack-pattern ref that resolves to no internal AttackPattern:
+    // createInjectsByAttackPatterns
+    // treats it as missing and builds its placeholder inject directly in this file, never reaching
+    // InjectAssistantService's generate* methods (those only run for attack patterns found
+    // internally).
+    securityCoverage.setAttackPatternRefs(
+        Set.of(
+            new StixRefToExternalRef(
+                "attack-pattern--" + UUID.randomUUID(),
+                List.of("UNKNOWN-TTP-" + UUID.randomUUID()))));
+    // An artifact ref whose document id does not exist: createInjectsByArtifacts builds a file-drop
+    // placeholder inject directly, the same shape of site.
+    String missingDocumentId = UUID.randomUUID().toString();
+    securityCoverage.setArtifactsRefs(
+        Set.of(
+            new StixRefToExternalRef(
+                "artifact--" + UUID.randomUUID(), List.of(missingDocumentId))));
+
+    // A background-shaped call: no ambient tenant (falls back to the default). The v2 scope spans
+    // BOTH tenants that hold a copy of the built-in contract, exactly like the sibling test above.
+    TenantContext.clearCurrentTenant();
+    assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+    armScopeOn(otherTenantId + "," + Tenant.DEFAULT_TENANT_UUID);
+
+    // -- ACT --
+    Scenario scenarioInOtherTenant = scenario;
+    assertThatCode(
+            () ->
+                securityCoverageInjectService.createdInjectsForScenarioAndSecurityCoverage(
+                    TxCtx.forTenant(otherTenantId), scenarioInOtherTenant, securityCoverage))
+        .doesNotThrowAnyException();
+
+    // -- ASSERT --
+    // Read straight from the database, not through the persistence context: see the sibling test's
+    // comment on why a re-read through Hibernate would not prove the inject's own tenant_id.
+    Number totalInjects =
+        (Number)
+            entityManager
+                .createNativeQuery(
+                    "SELECT count(*) FROM injects WHERE inject_scenario = :scenarioId")
+                .setParameter("scenarioId", scenario.getId())
+                .getSingleResult();
+    assertThat(totalInjects.longValue())
+        .as("both the attack-pattern and the artifact placeholder injects were created")
+        .isEqualTo(2L);
+
+    Number injectsOutsideScenarioTenant =
+        (Number)
+            entityManager
+                .createNativeQuery(
+                    "SELECT count(*) FROM injects WHERE inject_scenario = :scenarioId AND"
+                        + " tenant_id <> :tenantId")
+                .setParameter("scenarioId", scenario.getId())
+                .setParameter("tenantId", otherTenantId)
+                .getSingleResult();
+    assertThat(injectsOutsideScenarioTenant.longValue())
+        .as(
+            "every persisted inject for the scenario carries the scenario's own tenant_id ("
+                + otherTenantId
+                + "), not the caller's ambient default tenant")
+        .isEqualTo(0L);
+  }
+
   private void armScopeOn(String tenants) {
     entityManager
         .createNativeQuery("SELECT set_config('app.current_tenants', :tenants, true)")

@@ -227,6 +227,10 @@ public class SecurityCoverageInjectService {
                               null,
                               FileDrop.FILE_DROP_TYPE);
                       inject.setScenario(scenario);
+                      // Explicit, not left to TenantBaseListener's ambient fallback: this
+                      // placeholder belongs to the scenario regardless of which tenant the
+                      // caller's thread-local happens to carry.
+                      inject.setTenant(scenario.getTenant());
                       this.injectRepository.save(inject);
                       return;
                     }
@@ -305,6 +309,9 @@ public class SecurityCoverageInjectService {
         injectService.buildInject(injectorContract, injectName, injectDescription, true);
     inject.setTags(tags);
     inject.setScenario(scenario);
+    // Explicit, not left to TenantBaseListener's ambient fallback: this inject belongs to the
+    // scenario regardless of which tenant the caller's thread-local happens to carry.
+    inject.setTenant(scenario.getTenant());
     inject.setAssetGroups(assetGroups);
     return inject;
   }
@@ -572,7 +579,14 @@ public class SecurityCoverageInjectService {
                     Stream.of(
                         injectAssistantService.buildManualInject(
                             contractForPlaceholder, attackPatternId, null, null, null)))
-            .peek(inject -> inject.setScenario(scenario))
+            .peek(
+                inject -> {
+                  inject.setScenario(scenario);
+                  // Explicit, not left to TenantBaseListener's ambient fallback: this placeholder
+                  // belongs to the scenario regardless of which tenant the caller's thread-local
+                  // happens to carry.
+                  inject.setTenant(scenario.getTenant());
+                })
             .toList();
     injectService.saveAll(placeholdersInject);
 
@@ -963,6 +977,9 @@ public class SecurityCoverageInjectService {
             injectorContract, "Resolve DNS " + hostname, "Resolve Domain Name " + hostname, true);
     inject.setTags(tags);
     inject.setScenario(scenario);
+    // Explicit, not left to TenantBaseListener's ambient fallback: this inject belongs to the
+    // scenario regardless of which tenant the caller's thread-local happens to carry.
+    inject.setTenant(scenario.getTenant());
     inject.setAssetGroups(assetGroups);
     // Add hostname in arguments of the inject to be set and used at execution on payload
     inject.setContent(inject.getContent().put(DYNAMIC_DNS_RESOLUTION_HOSTNAME_KEY, hostname));
