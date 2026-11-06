@@ -61,13 +61,13 @@ OpenAEV checks cloud Credentials against their provider when you create or updat
 
 ![Credentials list with their status](assets/credential-list.png)
 
-| Status       | Meaning                                                                            |
-|:-------------|:-----------------------------------------------------------------------------------|
-| **Active**   | The provider accepted the Credential at the last check                             |
-| **Inactive** | The last check failed. Hover over the status to see the reason                     |
-| `-`          | The Credential is not checked: Identity Credentials, or a check that could not run |
+| Status       | Meaning                                                                                                                                                                                                 |
+|:-------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Active**   | The provider accepted the Credential at the last check                                                                                                                                                  |
+| **Inactive** | The last check failed. Hover over the status to see the reason                                                                                                                                          |
+| `-`          | A cloud Credential shows `-` until OpenAEV completes its first check, for example while it cannot retrieve the stored secret. OpenAEV checks it again at the next scheduled check. Identity Credentials are never checked |
 
-You can tune the check schedule in
+You can find more information about the check schedule in
 [Credential status validation](../../reference/deployment/configuration.md#credential-status-validation).
 
 ## Use a Credential in an Inject
@@ -75,9 +75,9 @@ You can tune the check schedule in
 The Inject form shows a Credential field, in **Inject data**, only for the Injects whose Injector expects one, for
 example a cloud attack technique.
 
-1. Create or open an Inject in a Scenario, a Simulation or an Atomic Test.
-2. In **Inject data**, under the Credential field, click **Update credential** (**Update credentials** when the
-   Injector accepts several).
+1. In the **Injects** tab of a Scenario or a Simulation, open the three-dot menu of the cloud Inject to edit, then select
+   **Update**.
+2. Scroll down to **Update credential** and click it.
 
     ![Credential field of a Prowler AWS Inject form](assets/inject-form-credential-update.png)
 
@@ -98,15 +98,16 @@ At execution, the Injector retrieves the secret from OpenAEV for this run only. 
 
 ## Permissions
 
-Credentials have their own capabilities, set on **Tenant roles** in **Settings > Security > Roles** (platform roles do
-not have them):
+Credentials have their own capabilities, set on roles in **Settings > Security > This tenant > Roles** (platform roles
+do not have them):
 
 | Capability              | Levels                 | Allows                                                                                  |
 |:------------------------|:-----------------------|:----------------------------------------------------------------------------------------|
 | `Access credentials`    | Access, Manage, Delete | See Credentials and select them in an Inject; create and update them; delete them       |
 | `Resolve inject secret` | --                     | Retrieve the secret of a running Inject. Grant it only to the account of your Injectors |
 
-Each level needs the one before it: selecting **Delete** also selects **Manage** and **Access**.
+Each level includes the permissions of the preceding levels: selecting **Delete** automatically grants **Manage** and
+**Access** as well.
 
 See [Users and RBAC](../../administration/users-and-rbac.md) for how to create roles.
 
