@@ -1,5 +1,6 @@
 package io.openaev.service.marking_definition;
 
+import static io.openaev.service.marking.MarkingEscalationValidator.assertCanDefineMarking;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 
 import io.openaev.annotation.AllowRawJdbc;
@@ -8,9 +9,11 @@ import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
 import io.openaev.config.AllTablesWithMarkingIds;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.MarkingCtx;
+import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -52,52 +55,37 @@ public class MarkingDefinitionService {
   private final ActionMetricCollector actionMetricCollector;
   private final AllTablesWithMarkingIds allTablesWithMarkingIds;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
+  private final MarkingScopeSupplier markingScopeSupplier;
   private final JdbcTemplate jdbcTemplate;
   private final TenantGroupService tenantGroupService;
 
   // -- SEARCH --
 
   /**
-   * Searches marking definitions within the current tenant scope.
+   * Searches the marking definitions the caller is cleared for within the current tenant scope.
+   *
+   * <p>Narrowed to the caller's resolved clearance (cumulative per type, unioned across the tenants
+   * in scope, see {@link MarkingScopeSupplier#clearanceFor}) - the same set that decides which
+   * marked rows they can read - so a definition the caller holds no clearance for is not revealed.
+   * Only the first admin resolves to every definition of the tenants in scope.
    *
    * @param ctx transaction context containing tenant scope
    * @param searchPaginationInput pagination and filter criteria
-   * @return page of matching marking definitions
+   * @return page of matching marking definitions the caller is cleared for
    */
   @Transactional(readOnly = true)
   public Page<MarkingDefinition> search(
       @NotNull TxCtx ctx, @NotNull SearchPaginationInput searchPaginationInput) {
     Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    MarkingCtx clearance = markingScopeSupplier.clearanceFor(ctx);
     return buildPaginationJPA(
-        (specification, pageable) -> findAllByTenantIds(tenantIds, specification, pageable),
+        (specification, pageable) ->
+            findAllByTenantIdsAndClearance(tenantIds, clearance, specification, pageable),
         searchPaginationInput,
         MarkingDefinition.class);
   }
 
   // -- READ --
-
-  /**
-   * Lists all marking definitions visible in the current tenant scope.
-   *
-   * @param ctx transaction context containing tenant scope
-   * @return marking definitions visible to the caller
-   */
-  @Transactional(readOnly = true)
-  public List<MarkingDefinition> list(@NotNull TxCtx ctx) {
-    return listInternal(ctx);
-  }
-
-  // Non-transactional body shared by every @Transactional entry point that needs "every
-  // definition in scope" - an intra-class call to a @Transactional method bypasses the Spring
-  // proxy (self-invocation), so neither the transaction nor tenant-scope activation runs for the
-  // inner call. list() and listAssignable() both call this instead of calling each other.
-  private List<MarkingDefinition> listInternal(@NotNull TxCtx ctx) {
-    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    if (tenantIds.isEmpty()) {
-      return List.of();
-    }
-    return repository.findAll(tenantSpecification(tenantIds), Sort.by("order").ascending());
-  }
 
   /**
    * Lists the tenant's marking definitions narrowed to what the caller is cleared to assign - the
@@ -108,34 +96,35 @@ public class MarkingDefinitionService {
    * allowed to include, instead of offering every definition and rejecting the ones the caller
    * doesn't hold at submit time.
    *
+   * <p>Deliberately the <b>write</b> clearance, not {@link MarkingScopeSupplier#clearanceFor}: the
+   * read clearance unions every tenant in scope, which would offer definitions of another tenant
+   * the assignment then rejects.
+   *
    * @param ctx transaction context containing tenant scope
    * @param tenantId the single tenant whose definitions and clearance are being read
-   * @param userId the caller, whose clearance narrows the result
+   * @param userId the current user identifier, whose clearance narrows the result
    * @return marking definitions the caller may assign, ascending by order
    */
   @Transactional(readOnly = true)
   public List<MarkingDefinition> listAssignable(
       @NotNull TxCtx ctx, @NotBlank String tenantId, @NotBlank String userId) {
-    List<MarkingDefinition> all = listInternal(ctx);
+    // Scoped to the one tenant the clearance was resolved for, as the assignment itself is.
     MarkingCtx clearance = markingClearanceCacheManager.findClearance(userId, tenantId);
-    return switch (clearance) {
-      case MarkingCtx.None ignored -> List.of();
-      case MarkingCtx.Restricted restricted -> {
-        Set<String> held = Set.copyOf(restricted.markingIds());
-        yield all.stream().filter(definition -> held.contains(definition.getId())).toList();
-      }
-      // All is an unresolved, background-only intention (see MarkingCtx's javadoc) that
-      // findClearance never actually returns on the HTTP path - the first admin resolves to a
-      // Restricted set of every tenant id instead. Handled defensively as "sees everything" to
-      // keep this switch exhaustive without assuming that invariant holds forever.
-      case MarkingCtx.All ignored -> all;
-    };
+    Specification<MarkingDefinition> specification =
+        tenantAndClearanceSpecification(Set.of(tenantId), clearance);
+    if (specification == null) {
+      return List.of();
+    }
+    return repository.findAll(specification, Sort.by("order").ascending());
   }
 
   /**
    * Tells whether a marking definition is currently assigned, i.e. whether its id appears in the
    * {@code marking_ids} array of any row of any marked table, or granted to a group through {@code
    * groups_markings}.
+   *
+   * <p>A definition the caller is not cleared for is not found, as it is not revealed by {@link
+   * #search} either.
    *
    * @param ctx transaction context containing tenant scope
    * @param markingDefinitionId identifier of the marking definition
@@ -144,7 +133,8 @@ public class MarkingDefinitionService {
    */
   @Transactional(readOnly = true)
   public boolean isAssigned(@NotNull TxCtx ctx, @NotBlank String markingDefinitionId) {
-    findByIdOrThrow(ctx, markingDefinitionId);
+    MarkingDefinition existing = findByIdOrThrow(ctx, markingDefinitionId);
+    assertClearedOrThrow(existing, markingScopeSupplier.clearanceFor(ctx));
     for (String table : allTablesWithMarkingIds.tableNames()) {
       Boolean assigned =
           jdbcTemplate.queryForObject(
@@ -177,6 +167,41 @@ public class MarkingDefinitionService {
     return markingDefinition;
   }
 
+  // Not found rather than forbidden: search does not reveal a definition above the caller's
+  // clearance either, so a by-id call must not confirm it exists.
+  private static void assertClearedOrThrow(MarkingDefinition definition, MarkingCtx clearance) {
+    boolean cleared =
+        switch (clearance) {
+          case MarkingCtx.None ignored -> false;
+          case MarkingCtx.Restricted restricted ->
+              restricted.markingIds().contains(definition.getId());
+          // Same defensive reading as tenantAndClearanceSpecification.
+          case MarkingCtx.All ignored -> true;
+        };
+    if (!cleared) {
+      throw new ElementNotFoundException("Marking definition not found");
+    }
+  }
+
+  private boolean typeExists(String tenantId, String type) {
+    return repository.exists(tenantSpecification(Set.of(tenantId)).and(typeSpecification(type)));
+  }
+
+  private void assertWithinOwnClearance(String tenantId, String type, int order, String userId) {
+    // The first admin holds every level, including those above a type's current top - which a
+    // resolved set of today's definitions cannot express.
+    if (User.ADMIN_UUID.equals(userId)) {
+      return;
+    }
+    MarkingCtx clearance = markingClearanceCacheManager.findClearance(userId, tenantId);
+    Specification<MarkingDefinition> held =
+        tenantAndClearanceSpecification(Set.of(tenantId), clearance);
+    assertCanDefineMarking(
+        held == null ? List.of() : repository.findAll(held.and(typeSpecification(type))),
+        type,
+        order);
+  }
+
   // -- CREATE --
 
   /**
@@ -188,14 +213,23 @@ public class MarkingDefinitionService {
    * stood before this call, so it does not contain the new id — without the evict, they stay unable
    * to assign or read it until the TTL expires, even though they should see everything.
    *
+   * <p>Refused above the caller's own clearance on its type, see {@link
+   * io.openaev.service.marking.MarkingEscalationValidator#assertCanDefineMarking}, except for the
+   * first definition of a type the tenant does not have yet: a new scale marks no row and clears no
+   * group, so placing it discloses nothing.
+   *
    * @param input create payload
    * @param tenantId tenant that owns the new row
+   * @param userId the current user, whose clearance bounds the order
    * @return persisted marking definition
    */
   public MarkingDefinition create(
-      @NotNull MarkingDefinitionInput input, @NotBlank String tenantId) {
+      @NotNull MarkingDefinitionInput input, @NotBlank String tenantId, @NotBlank String userId) {
     String type = normalize(input.type());
     String definition = normalize(input.definition());
+    if (typeExists(tenantId, type)) {
+      assertWithinOwnClearance(tenantId, type, input.order(), userId);
+    }
     validateUniqueOrThrow(type, definition, tenantId, null);
     MarkingDefinition entity = MarkingDefinitionMapper.fromInput(input);
     entity.setType(type);
@@ -214,16 +248,24 @@ public class MarkingDefinitionService {
   /**
    * Updates mutable fields of a marking definition while preserving immutable type and protection.
    *
+   * <p>A definition above the caller's clearance is not found, and a new order may not take it
+   * above that clearance either: lowering an uncleared definition into the caller's range would
+   * grant them every row it marks, and raising one of theirs above it would lock them out of it.
+   *
    * @param ctx transaction context containing tenant scope
    * @param markingDefinitionId identifier of the marking definition
    * @param input update payload
+   * @param userId the current user, whose clearance bounds the definitions they may change
    * @return updated marking definition
    */
   public MarkingDefinition update(
       @NotNull TxCtx ctx,
       @NotBlank String markingDefinitionId,
-      @NotNull MarkingDefinitionInput input) {
+      @NotNull MarkingDefinitionInput input,
+      @NotBlank String userId) {
     MarkingDefinition existing = findByIdOrThrow(ctx, markingDefinitionId);
+    String tenantId = existing.getTenant().getId();
+    assertClearedOrThrow(existing, markingClearanceCacheManager.findClearance(userId, tenantId));
     if (Boolean.TRUE.equals(existing.getProtectedDefinition())) {
       throw new BadRequestException("Protected marking definitions cannot be updated");
     }
@@ -232,8 +274,11 @@ public class MarkingDefinitionService {
     if (!Objects.equals(existing.getType(), type)) {
       throw new BadRequestException("Marking definition type is immutable");
     }
-    validateUniqueOrThrow(type, definition, existing.getTenant().getId(), existing.getId());
+    validateUniqueOrThrow(type, definition, tenantId, existing.getId());
     boolean orderChanged = !Objects.equals(existing.getOrder(), input.order());
+    if (orderChanged) {
+      assertWithinOwnClearance(tenantId, type, input.order(), userId);
+    }
     existing.setDefinition(definition);
     existing.setColor(input.color());
     existing.setOrder(input.order());
@@ -261,11 +306,18 @@ public class MarkingDefinitionService {
    * PO decision is that a definition must stay hard-deletable even while still assigned, so the
    * scrub below - not archiving - is the chosen mitigation.
    *
+   * <p>A definition above the caller's clearance is not found: the scrub would declassify every row
+   * it marks, and a caller cannot declassify what they cannot see.
+   *
    * @param ctx transaction context containing tenant scope
    * @param markingDefinitionId identifier of the marking definition
+   * @param userId the current user, whose clearance bounds the definitions they may delete
    */
-  public void delete(@NotNull TxCtx ctx, @NotBlank String markingDefinitionId) {
+  public void delete(
+      @NotNull TxCtx ctx, @NotBlank String markingDefinitionId, @NotBlank String userId) {
     MarkingDefinition existing = findByIdOrThrow(ctx, markingDefinitionId);
+    assertClearedOrThrow(
+        existing, markingClearanceCacheManager.findClearance(userId, existing.getTenant().getId()));
     if (Boolean.TRUE.equals(existing.getProtectedDefinition())) {
       throw new BadRequestException("Protected marking definitions cannot be deleted");
     }
@@ -314,10 +366,12 @@ public class MarkingDefinitionService {
   @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsById(@NotNull TxCtx ctx, @NotNull List<String> ids) {
     Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    if (tenantIds.isEmpty() || ids.isEmpty()) {
+    MarkingCtx clearance = markingScopeSupplier.clearanceFor(ctx);
+    Specification<MarkingDefinition> scope = tenantAndClearanceSpecification(tenantIds, clearance);
+    if (tenantIds.isEmpty() || ids.isEmpty() || scope == null) {
       return List.of();
     }
-    return repository.findAll(tenantSpecification(tenantIds).and(idsSpecification(ids))).stream()
+    return repository.findAll(scope.and(idsSpecification(ids))).stream()
         .map(MarkingDefinitionService::toOption)
         .toList();
   }
@@ -333,10 +387,13 @@ public class MarkingDefinitionService {
   @Transactional(readOnly = true)
   public List<FilterUtilsJpa.Option> optionsByName(@NotNull TxCtx ctx, String searchText) {
     Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    if (tenantIds.isEmpty()) {
+    MarkingCtx clearance = markingScopeSupplier.clearanceFor(ctx);
+    Specification<MarkingDefinition> specification =
+        tenantAndClearanceSpecification(tenantIds, clearance);
+    if (tenantIds.isEmpty() || specification == null) {
       return List.of();
     }
-    Specification<MarkingDefinition> specification = tenantSpecification(tenantIds);
+
     if (searchText != null && !searchText.isBlank()) {
       specification = specification.and(byNameSpecification(searchText));
     }
@@ -347,6 +404,10 @@ public class MarkingDefinitionService {
 
   private static Specification<MarkingDefinition> idsSpecification(Collection<String> ids) {
     return (root, query, criteriaBuilder) -> root.get("id").in(ids);
+  }
+
+  private static Specification<MarkingDefinition> typeSpecification(String type) {
+    return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("type"), type);
   }
 
   private static Specification<MarkingDefinition> byNameSpecification(String searchText) {
@@ -406,14 +467,38 @@ public class MarkingDefinitionService {
     return value == null ? null : value.trim().toUpperCase(Locale.ROOT);
   }
 
-  private Page<MarkingDefinition> findAllByTenantIds(
+  private Page<MarkingDefinition> findAllByTenantIdsAndClearance(
       Set<String> tenantIds,
+      MarkingCtx clearance,
       Specification<MarkingDefinition> specification,
       org.springframework.data.domain.Pageable pageable) {
-    if (tenantIds.isEmpty()) {
+    Specification<MarkingDefinition> scope = tenantAndClearanceSpecification(tenantIds, clearance);
+    if (tenantIds.isEmpty() || scope == null) {
       return Page.empty(pageable);
     }
-    return repository.findAll(tenantSpecification(tenantIds).and(specification), pageable);
+    return repository.findAll(scope.and(specification), pageable);
+  }
+
+  /**
+   * Gives a specification to find marking definitions based on tenants and correct clearance of the
+   * caller.
+   *
+   * @param tenantIds the tenants identifiers to restrict the search
+   * @param clearance the clearance to resolve through
+   * @return null when the clearance grants nothing: the caller short-circuits to an empty result
+   *     instead of querying.
+   */
+  private Specification<MarkingDefinition> tenantAndClearanceSpecification(
+      Set<String> tenantIds, MarkingCtx clearance) {
+    return switch (clearance) {
+      case MarkingCtx.None ignored -> null;
+      case MarkingCtx.Restricted restricted ->
+          tenantSpecification(tenantIds).and(idsSpecification(restricted.markingIds()));
+      // An unresolved background-only intention that neither MarkingScopeSupplier#clearanceFor nor
+      // MarkingClearanceCacheManager#findClearance returns on the HTTP path: handled as "sees
+      // everything" to keep the switch exhaustive.
+      case MarkingCtx.All ignored -> tenantSpecification(tenantIds);
+    };
   }
 
   private Specification<MarkingDefinition> tenantSpecification(Set<String> tenantIds) {

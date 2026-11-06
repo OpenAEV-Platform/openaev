@@ -51,17 +51,6 @@ public class MarkingDefinitionApi extends RestBehavior {
   // -- SEARCH --
 
   @LogExecutionTime
-  @GetMapping
-  @Transactional(readOnly = true)
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
-  @Operation(
-      summary = "Get marking definitions",
-      description = "Get the list of marking definitions")
-  public List<MarkingDefinitionOutput> list(TxCtx ctx) {
-    return service.list(ctx).stream().map(MarkingDefinitionMapper::toOutput).toList();
-  }
-
-  @LogExecutionTime
   @GetMapping("/assignable")
   @Transactional(readOnly = true)
   // No capability needed: the result is already narrowed to the caller's own clearance.
@@ -116,7 +105,7 @@ public class MarkingDefinitionApi extends RestBehavior {
   public MarkingDefinitionOutput create(
       TxCtx ctx, @Valid @RequestBody MarkingDefinitionInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    MarkingDefinition created = service.create(input, tenantId);
+    MarkingDefinition created = service.create(input, tenantId, userService.currentUser().getId());
     return MarkingDefinitionMapper.toOutput(created);
   }
 
@@ -133,7 +122,8 @@ public class MarkingDefinitionApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String markingDefinitionId,
       @Valid @RequestBody MarkingDefinitionInput input) {
-    return MarkingDefinitionMapper.toOutput(service.update(ctx, markingDefinitionId, input));
+    return MarkingDefinitionMapper.toOutput(
+        service.update(ctx, markingDefinitionId, input, userService.currentUser().getId()));
   }
 
   // -- DELETE --
@@ -147,7 +137,7 @@ public class MarkingDefinitionApi extends RestBehavior {
       resourceType = ResourceType.MARKING_DEFINITION)
   @Operation(summary = "Delete a marking definition")
   public void delete(TxCtx ctx, @PathVariable String markingDefinitionId) {
-    service.delete(ctx, markingDefinitionId);
+    service.delete(ctx, markingDefinitionId, userService.currentUser().getId());
   }
 
   // -- OPTIONS --
