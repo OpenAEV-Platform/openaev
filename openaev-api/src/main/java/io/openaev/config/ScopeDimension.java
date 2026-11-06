@@ -62,9 +62,9 @@ public interface ScopeDimension {
   /**
    * Predicate asserting that the value about to be written into {@link #writeAttributionColumn()}
    * of {@code table} is in scope, for a plain {@code INSERT ... VALUES}. Returning {@code null}
-   * means this dimension does not guard a {@code VALUES} insert into this table by rewriting (the
-   * pre-existing, accepted gap for every table outside the platform-write rule): the write stays as
-   * unvalidated as it is today. Only called when {@link #writeAttributionColumn()} is non-null.
+   * means this dimension does not guard a {@code VALUES} insert into this table by rewriting (every
+   * table outside the platform-write rule): the write is not validated against this dimension. Only
+   * called when {@link #writeAttributionColumn()} is non-null.
    *
    * <p>Unlike {@link #writeAttributionPredicate}, the expression here is a column reference into a
    * {@code VALUES (...) AS v(cols)} derived table, never a bind parameter, so it may be referenced

@@ -169,7 +169,7 @@ public class ScopeStatementInspector implements StatementInspector {
       // A VALUES insert cannot carry a WHERE of its own, so a guarding dimension (today: the
       // platform-row case of a dual-scope table) is rewritten through a derived table instead; see
       // rewriteValuesInsert. Every other table's VALUES insert is returned unchanged: scope
-      // attribution for it stays an application concern, exactly as before this method existed.
+      // attribution for it is an application concern.
       String rewritten = rewriteValuesInsert(insert, values);
       if (rewritten != null) {
         return rewritten;
@@ -197,13 +197,12 @@ public class ScopeStatementInspector implements StatementInspector {
    * column, never repeating a bind parameter, so this never changes the statement's placeholder
    * count or order. Returns {@code null} when no dimension guards this table's VALUES shape (every
    * table outside the platform-write rule, including every strict table): the insert is then
-   * returned unchanged by the caller, exactly as before this method existed.
+   * returned unchanged by the caller.
    *
    * <p>A dimension whose {@link ScopeDimension#writeAttributionColumn()} names a column absent from
-   * this statement's column list is silently not guarded for that dimension: the ORM always
-   * includes every mapped column for the entities this covers today ({@code Setting}), so this is
-   * not reachable in practice, but it is not a thing this rewrite can detect from the VALUES clause
-   * alone (there is no value to reference).
+   * this statement's column list does not guard that statement: the ORM includes every mapped
+   * column for the entities this covers ({@code Setting}), and the VALUES clause alone offers no
+   * value to reference for a missing column.
    */
   private String rewriteValuesInsert(Insert insert, Values values) {
     String tableName = insert.getTable().getName();

@@ -4040,9 +4040,9 @@ public class AutonomousRunService {
   /**
    * Persists the tenant's default additional agents (ids). Stored as a tenant-scoped {@code
    * parameters} row ({@code tenant_id} set to the caller's tenant), not a platform row: this is
-   * per-tenant configuration, and attributing it to the platform would both be wrong (one tenant's
-   * choice silently overwriting every other tenant's) and, once {@code parameters} is a v2-active
-   * dual-scope table, refused outright by the platform-write rule (this runs on a tenant route).
+   * per-tenant configuration: a platform row would be shared by every tenant, and the
+   * platform-write rule of the dual-scope {@code parameters} table refuses a platform row written
+   * from a tenant route.
    */
   @Transactional(rollbackFor = Exception.class)
   public List<String> updateDefaultAdditionalAgentIds(List<String> agentIds) {

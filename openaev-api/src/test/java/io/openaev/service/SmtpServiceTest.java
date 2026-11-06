@@ -30,11 +30,11 @@ import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
- * Deliberately NOT {@code @Transactional}: {@code SmtpService.saveServiceState} now writes its
- * platform setting through {@code TenantScopedTransaction#executeAsPlatformWrite} (parameters is
- * now dual-scope-active), which refuses to open inside an already-active transaction, and
- * production never calls it from one ({@code @PostConstruct}/{@code @Scheduled} both run with no
- * ambient transaction). See {@code TenantScopedTransaction}'s testing note and {@code
+ * Deliberately NOT {@code @Transactional}: {@code SmtpService.saveServiceState} writes its platform
+ * setting through {@code TenantScopedTransaction#executeAsPlatformWrite} (parameters is
+ * dual-scope-active), which refuses to open inside an already-active transaction, and production
+ * never calls it from one ({@code @PostConstruct}/{@code @Scheduled} both run with no ambient
+ * transaction). See {@code TenantScopedTransaction}'s testing note and {@code
  * TenantScopedTransactionIntegrationTest}, the reference pattern this follows.
  */
 @SpringBootTest(properties = "spring.task.scheduling.enabled=false")

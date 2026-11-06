@@ -38,8 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The {@code parameters} table (entity {@link Setting}) is active with the platform-write rule.
- * Covers the prerequisites needed before any dual-scope table could be armed (the two-boot test,
- * the anonymous public settings read) and the write rule itself (a platform admin may write a
+ * Covers the anonymous public settings read and the write rule itself (a platform admin may write a
  * platform row, a tenant-scoped transaction may not, a tenant admin's own write is unaffected and
  * stays isolated to its tenant).
  *
@@ -77,8 +76,8 @@ class DualScopeParametersActivationTest extends IntegrationTest {
     @Test
     @DisplayName("given_noAuthentication_should_stillReturnThePlatformSettings")
     void given_noAuthentication_should_stillReturnThePlatformSettings() throws Exception {
-      // Act + Assert: PlatformSettingsApi.publicSettings() resolves @PlatformScope instead of the
-      // anonymous TxCtx.missing() it used to, so the platform row (tenant_id IS NULL) is readable.
+      // Act + Assert: PlatformSettingsApi.publicSettings() resolves @PlatformScope rather than an
+      // anonymous TxCtx.missing(), so the platform row (tenant_id IS NULL) is readable.
       mvc.perform(get("/api/settings/public").with(csrf()).accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.platform_run_mode").exists());
@@ -129,12 +128,11 @@ class DualScopeParametersActivationTest extends IntegrationTest {
           settingRepository
               .findByKeyAndTenantIsNull(SettingKeys.PLATFORM_INSTANCE.key())
               .orElseThrow();
-      existing.setValue("hijacked-by-a-tenant-route");
+      existing.setValue("written-by-a-tenant-route");
 
       // Act + Assert: can_write_tenant(tenant_id, true) is false for a NULL tenant_id with no
       // app.platform_write set, so the UPDATE matches 0 rows and Hibernate's own row-count check
-      // throws (the Hibernate-native org.hibernate.StaleStateException measured for the
-      // idempotent bootstrap UPDATE, translated to its JPA equivalent through the entityManager).
+      // throws a StaleStateException, translated to its JPA equivalent by the entityManager.
       OptimisticLockException thrown =
           assertThrows(
               OptimisticLockException.class,
@@ -158,11 +156,11 @@ class DualScopeParametersActivationTest extends IntegrationTest {
       tenantScopedTransaction.setScopeOnCurrentTransaction(
           TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
       String key = "dsp-tenant-route-cannot-create-a-platform-row";
-      Setting attempt = new Setting(key, "sneaky");
+      Setting attempt = new Setting(key, "tenant-route-value");
 
-      // Act: a plain INSERT ... VALUES, the shape found unvalidated before this change. The
-      // inspector now rewrites it through the VALUES-derived table and the WHERE matches nothing,
-      // so nothing is inserted (no exception: an insert matching zero source rows is not an error,
+      // Act: a plain INSERT ... VALUES. The inspector rewrites it through a VALUES-derived table
+      // and the WHERE matches nothing, so nothing is inserted (no exception: an insert matching
+      // zero source rows is not an error,
       // same as an INSERT ... SELECT that returns no rows).
       settingRepository.save(attempt);
       entityManager.flush();
@@ -196,9 +194,8 @@ class DualScopeParametersActivationTest extends IntegrationTest {
                   .content(mapper.writeValueAsString(input)))
           .andExpect(status().isOk());
 
-      // Assert: a real, non-null tenant_id row, exactly as before this table was dual-scope-active
-      // -
-      // the write rule never touches a tenant row's write path.
+      // Assert: a real, non-null tenant_id row: the write rule does not touch a tenant row's write
+      // path.
       entityManager.clear();
       Setting persisted =
           settingRepository
@@ -209,8 +206,8 @@ class DualScopeParametersActivationTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given_twoTenants_should_notLeakOneTenantsSettingToTheOther")
-    void given_twoTenants_should_notLeakOneTenantsSettingToTheOther() throws Exception {
+    @DisplayName("given_twoTenants_should_keepEachTenantsSettingToItself")
+    void given_twoTenants_should_keepEachTenantsSettingToItself() throws Exception {
       // Arrange
       Tenant tenantA = tenantHelper.createTenantWithCurrentUser("dsp-tenant-a-isolation");
       Tenant tenantB = tenantHelper.createTenantWithCurrentUser("dsp-tenant-b-isolation");
