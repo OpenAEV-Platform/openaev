@@ -20,10 +20,13 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
 import io.openaev.api.xtm_composer.dto.XtmComposerUpdateStatusInput;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceLog;
 import io.openaev.database.model.ConnectorInstancePersisted;
 import io.openaev.database.model.Setting;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
@@ -51,6 +54,7 @@ public class XtmComposerApiTest extends IntegrationTest {
   @Autowired private OpenAEVConfig openAEVConfig;
   @Autowired private MockMvc mvc;
   @Autowired private PlatformSettingsService platformSettingsService;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
   @Autowired private ConnectorInstanceRepository connectorInstanceRepository;
   @Autowired private ConnectorInstanceLogRepository connectorInstanceLogRepository;
 
@@ -240,6 +244,12 @@ public class XtmComposerApiTest extends IntegrationTest {
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
         composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), now.toString());
+        // This writes the parameters table's platform row directly (not through the register()
+        // endpoint), so it needs the same platform-write marker that endpoint's @PlatformWrite
+        // would set, on the current, already-active (test-managed, rolled back) transaction.
+        tenantScopedTransaction.setScopeOnCurrentTransaction(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
+        tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
         platformSettingsService.saveSettings(composerSettings);
         String response =
             mvc.perform(
