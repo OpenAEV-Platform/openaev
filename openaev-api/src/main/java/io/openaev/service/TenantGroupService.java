@@ -326,12 +326,14 @@ public class TenantGroupService {
 
   /** Makes the group receive every marking of its tenant, existing and future. */
   public void receiveEveryMarking(@NotNull final Group group, @NotBlank final String tenantId) {
-    if (group.isAutoNewMarking()) {
-      return;
-    }
     group.setAutoNewMarking(true);
+    boolean granted =
+        group.getMarkings().addAll(markingDefinitionRepository.findAllByTenantId(tenantId));
     groupRepository.save(group);
-    grantMissingMarkings(group, markingDefinitionRepository.findAllByTenantId(tenantId));
+    if (granted) {
+      markingClearanceCacheManager.evictForUsers(
+          group.getUsers().stream().map(User::getId).toList());
+    }
   }
 
   private void grantMissingMarkings(Group group, List<MarkingDefinition> markings) {
