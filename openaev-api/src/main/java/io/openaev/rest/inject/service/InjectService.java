@@ -1390,16 +1390,14 @@ public class InjectService {
    * inject itself exists in the request's scope.
    */
   public void requireSupportedExecutionTraceTargetType(final TargetType targetType) {
-    switch (targetType) {
-      case AGENT, ASSETS, AI_TARGETS, TEAMS, PLAYERS, MANUAL -> {
-        // supported
-      }
-      default -> throw new BadRequestException("Target type " + targetType + " is not supported");
+    if (!targetType.hasExecutionTraces()) {
+      throw new BadRequestException("Target type " + targetType + " is not supported");
     }
   }
 
   public List<ExecutionTrace> getInjectTracesFromInjectAndTarget(
       final String injectId, final String targetId, final TargetType targetType) {
+    requireSupportedExecutionTraceTargetType(targetType);
     return switch (targetType) {
       case AGENT -> this.executionTraceRepository.findByInjectIdAndAgentId(injectId, targetId);
       // AI targets are plain assets (asset_category driven), so their traces are asset-scoped.
@@ -1410,7 +1408,9 @@ public class InjectService {
       // Network injectors report one inject-level trace for all their manual targets (raw IPs or
       // hostnames from the content), so no trace belongs to a single manual target.
       case MANUAL -> List.of();
-      default -> throw new BadRequestException("Target type " + targetType + " is not supported");
+      default ->
+          throw new IllegalStateException(
+              "No execution trace lookup for target type " + targetType);
     };
   }
 
