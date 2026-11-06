@@ -9,7 +9,7 @@ import { type Page } from '../../../../components/common/queryable/Page';
 import { type ImportPostSummary, type ImportTestSummary, type Inject, type InjectBulkProcessingInput, type InjectBulkUpdateInputs, type InjectInput, type InjectsImportInput, type InjectTestStatusOutput, type Scenario, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 
-const injectContextForScenario = (scenario: Scenario) => {
+const useInjectContextForScenario = (scenario: Scenario) => {
   const dispatch = useAppDispatch();
   const [injects, setInjects] = useState<InjectOutputType[]>([]);
 
@@ -89,4 +89,4 @@ const injectContextForScenario = (scenario: Scenario) => {
   }), [dispatch, injects, scenario?.scenario_id]);
 };
 
-export default injectContextForScenario;
+export default useInjectContextForScenario;

@@ -5,7 +5,7 @@ import { findSimulationEndpointsByIds } from '../../../actions/assets/endpoint-a
 import type { Exercise } from '../../api-types';
 import { type EndpointContextType } from './EndpointContext';
 
-const endpointContextForExercise = (exerciseId: Exercise['exercise_id']): EndpointContextType => {
+const useEndpointContextForExercise = (exerciseId: Exercise['exercise_id']): EndpointContextType => {
   // Stable identity: used as a context provider value on hot screens
   return useMemo(() => ({
     async fetchEndpointsByIds(endpointIds: string[]) {
@@ -17,4 +17,4 @@ const endpointContextForExercise = (exerciseId: Exercise['exercise_id']): Endpoi
   }), [exerciseId]);
 };
 
-export default endpointContextForExercise;
+export default useEndpointContextForExercise;

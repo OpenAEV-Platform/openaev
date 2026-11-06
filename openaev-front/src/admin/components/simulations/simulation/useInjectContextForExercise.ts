@@ -28,7 +28,7 @@ import {
 } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 
-const injectContextForExercise = (exercise: Exercise) => {
+const useInjectContextForExercise = (exercise: Exercise) => {
   const dispatch = useAppDispatch();
   const [injects, setInjects] = useState<InjectOutputType[]>([]);
 
@@ -119,4 +119,4 @@ const injectContextForExercise = (exercise: Exercise) => {
   }), [dispatch, injects, exercise?.exercise_id]);
 };
 
-export default injectContextForExercise;
+export default useInjectContextForExercise;

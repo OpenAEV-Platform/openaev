@@ -20,7 +20,7 @@ import { useFormatter } from '../../../components/i18n';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../utils/utils';
 import EEChip from '../common/entreprise_edition/EEChip';
 import useSecurityScope, { type SecurityScope } from './useSecurityScope';
 
@@ -46,9 +46,8 @@ const SecurityMenuComponent: FunctionComponent = () => {
   } = useSecurityScope();
   const ability = useAbility();
   const canAccessTenants = ability.can(ACTIONS.ACCESS, SUBJECTS.TENANTS);
-  const canAccessMarkingDefinitions
-    = isFeatureEnabled('MARKING')
-      && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
+  const isMarkingEnabled = useIsFeatureEnabled('MARKING');
+  const canAccessMarkingDefinitions = isMarkingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
 
   // The platform scope is an EE feature: in Community Edition the switcher is
   // not displayed at all and the section stays on the tenant scope.

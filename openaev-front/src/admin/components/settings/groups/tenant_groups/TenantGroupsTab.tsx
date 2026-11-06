@@ -15,7 +15,7 @@ import type { Group } from '../../../../../utils/api-types';
 import useMarkingDefinitions from '../../../../../utils/hooks/useMarkingDefinitions';
 import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, PERMISSION_REQUIRED, SUBJECTS } from '../../../../../utils/permissions/types';
-import { isFeatureEnabled } from '../../../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../../../utils/utils';
 import CreateTenantGroup from './CreateTenantGroup';
 import GroupPopover from './GroupPopover';
 import useTenantGroups from './hooks/useTenantGroups';
@@ -34,7 +34,7 @@ const TenantGroupsTab = () => {
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_USERS_GROUPS_AND_ROLES);
   const { t } = useFormatter();
   const navigate = useNavigate();
-  const markingEnabled = isFeatureEnabled('MARKING');
+  const markingEnabled = useIsFeatureEnabled('MARKING');
   const markingDefinitions = useMarkingDefinitions({ skip: !markingEnabled });
 
   const {

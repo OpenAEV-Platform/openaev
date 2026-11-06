@@ -12,7 +12,7 @@ import { fetchExerciseDocuments } from '../../../../../actions/documents/documen
 import { type Article, type ArticleCreateInput, type ArticleUpdateInput, type Exercise } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 
-const articleContextForExercise = (exerciseId: Exercise['exercise_id']) => {
+const useArticleContextForExercise = (exerciseId: Exercise['exercise_id']) => {
   const dispatch = useAppDispatch();
   // Stable identity: used as a context provider value on hot screens
   return useMemo(() => ({
@@ -30,4 +30,4 @@ const articleContextForExercise = (exerciseId: Exercise['exercise_id']) => {
   }), [dispatch, exerciseId]);
 };
 
-export default articleContextForExercise;
+export default useArticleContextForExercise;

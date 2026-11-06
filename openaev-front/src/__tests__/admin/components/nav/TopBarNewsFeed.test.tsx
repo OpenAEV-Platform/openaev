@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { expectNoMuiControls } from '../../../utils/designSystemAssertions';
 
 let enabled = false;
-vi.mock('../../../../utils/utils', () => ({ isFeatureEnabled: () => enabled }));
+vi.mock('../../../../utils/utils', () => ({ useIsFeatureEnabled: () => enabled }));
 
 const { default: TopBarNewsFeed } = await import('../../../../admin/components/nav/TopBarNewsFeed');
 

@@ -30,7 +30,7 @@ const MailDistributionOverTime: FunctionComponent<Props> = ({ exerciseId }) => {
   });
 
   let cumulation = 0;
-  const teamsColors = getTeamsColors(teams);
+  const teamsColors = getTeamsColors(teams, theme.palette.mode);
   const teamsCommunications = R.pipe(
     R.map((n: Team) => {
       cumulation = 0;

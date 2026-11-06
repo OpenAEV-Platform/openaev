@@ -29,8 +29,8 @@ import {
 } from '../../../common/Context';
 import Injects from '../../../common/injects/Injects';
 import { buildScenarioVariablesConfigurationUrl } from '../../ScenarioConfigurationTab';
-import articleContextForScenario from '../articles/articleContextForScenario';
-import teamContextForScenario from '../teams/teamContextForScenario';
+import useArticleContextForScenario from '../articles/useArticleContextForScenario';
+import useTeamContextForScenario from '../teams/useTeamContextForScenario';
 
 const ScenarioInjects: FunctionComponent = () => {
   // Standard hooks
@@ -56,8 +56,8 @@ const ScenarioInjects: FunctionComponent = () => {
     dispatch(fetchScenarioDocuments(scenarioId));
   });
 
-  const articleContext = articleContextForScenario(scenarioId);
-  const teamContext = teamContextForScenario(scenarioId, scenario.scenario_teams_users, scenario.scenario_all_users_number, scenario.scenario_users_number);
+  const articleContext = useArticleContextForScenario(scenarioId);
+  const teamContext = useTeamContextForScenario(scenarioId, scenario.scenario_teams_users, scenario.scenario_all_users_number, scenario.scenario_users_number);
   const endpointContext = endpointContextForScenario(scenarioId);
   const challengeContext = { fetchChallenges: () => dispatch(fetchScenarioChallenges(scenarioId)) };
 

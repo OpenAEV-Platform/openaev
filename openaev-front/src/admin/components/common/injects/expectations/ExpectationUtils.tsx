@@ -71,7 +71,7 @@ export const isPlayerExpectation = (injectExpectation: InjectExpectationOutput) 
   return injectExpectation.inject_expectation_user != null;
 };
 
-export const useIsManuallyUpdatable = (injectExpectation: InjectExpectationOutput) => {
+export const isManuallyUpdatable = (injectExpectation: InjectExpectationOutput) => {
   const expectationType = injectExpectation.inject_expectation_type;
 
   // Technical: manually updatable at agent level (result on that agent only, then

@@ -11,7 +11,7 @@ import { useAppDispatch } from '../../../../../utils/hooks';
 import { type TeamContextType } from '../../../common/Context';
 import { type UserStore } from '../../../teams/players/Player';
 
-const teamContextForExercise = (exerciseId: Exercise['exercise_id']): TeamContextType => {
+const useTeamContextForExercise = (exerciseId: Exercise['exercise_id']): TeamContextType => {
   const dispatch = useAppDispatch();
   const exercise: Exercise | undefined = useHelper((helper: ExercisesHelper) => helper.getExercise(exerciseId));
   const exerciseTeamsUsers = exercise?.exercise_teams_users;
@@ -67,4 +67,4 @@ const teamContextForExercise = (exerciseId: Exercise['exercise_id']): TeamContex
   }), [dispatch, exerciseId, exerciseTeamsUsers, allUsersNumber, allUsersEnabledNumber]);
 };
 
-export default teamContextForExercise;
+export default useTeamContextForExercise;
