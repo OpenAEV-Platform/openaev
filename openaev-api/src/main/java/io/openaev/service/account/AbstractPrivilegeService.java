@@ -79,6 +79,7 @@ public abstract class AbstractPrivilegeService {
     user.setEmail(email);
     user.setAdmin(false);
     user.setGroups(new ArrayList<>(List.of(group)));
+    // The markings a user sees are cached from their groups: refresh them when the groups change.
     if (groupsChanged) {
       markingClearanceCacheManager.evictForUser(user.getId());
     }

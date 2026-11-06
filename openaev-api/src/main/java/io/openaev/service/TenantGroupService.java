@@ -11,6 +11,7 @@ import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.CapabilityScope;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
@@ -27,6 +28,7 @@ import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.group.form.GroupGrantInput;
 import io.openaev.rest.group.form.GroupUpdateRolesInput;
 import io.openaev.rest.group.form.GroupUpdateUsersInput;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.telemetry.metric_collectors.MarkingMetricCollector;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -57,6 +59,7 @@ public class TenantGroupService {
   private final MarkingDefinitionRepository markingDefinitionRepository;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final MarkingMetricCollector markingMetricCollector;
+  private final PreviewFeatureService previewFeatureService;
   @PersistenceContext private EntityManager entityManager;
 
   // PermissionService pulls in InjectService -> EndpointService ->
@@ -162,10 +165,8 @@ public class TenantGroupService {
       TenantGroupCreateInput input) {
     Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
     if (input.isDefaultUserAssignation() && !group.isDefaultUserAssignation()) {
-      User currentUser = userService.currentUser();
-      assertCanAssignCapabilities(
-          currentUser, capabilitiesOf(group.getRoles()), CapabilityScope.TENANT);
-      assertHolds(tenantId, currentUser, group.getMarkings());
+      assertCanAssignInTenant(tenantId, capabilitiesOf(group.getRoles()));
+      assertHoldsGroupMarkings(tenantId, group);
     }
     group.setUpdateAttributes(input);
     return groupRepository.save(group);
@@ -182,8 +183,7 @@ public class TenantGroupService {
       throw new EntityNotFoundException("One or more Role not found in: " + uniqueRoleIds);
     }
     roles.forEach(role -> ReservedKeyValidator.validateRoleId(role.getId(), tenantId));
-    assertCanAssignCapabilities(
-        userService.currentUser(), capabilitiesOf(roles), CapabilityScope.TENANT);
+    assertCanAssignInTenant(tenantId, capabilitiesOf(roles));
     group.setRoles(new ArrayList<>(roles));
     return groupRepository.save(group);
   }
@@ -202,11 +202,12 @@ public class TenantGroupService {
       @NotBlank final String groupId,
       GroupUpdateUsersInput input) {
     Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
-    User currentUser = userService.currentUser();
-    assertCanAssignCapabilities(
-        currentUser, capabilitiesOf(group.getRoles()), CapabilityScope.TENANT);
-    assertHolds(tenantId, currentUser, group.getMarkings());
+    assertCanAssignInTenant(tenantId, capabilitiesOf(group.getRoles()));
     Set<String> uniqueUserIds = new LinkedHashSet<>(input.getUserIds());
+    Set<String> currentIds = group.getUsers().stream().map(User::getId).collect(Collectors.toSet());
+    if (!currentIds.containsAll(uniqueUserIds)) {
+      assertHoldsGroupMarkings(tenantId, group);
+    }
     List<User> users = userRepository.findAllByIdInAndTenantId(uniqueUserIds, tenantId);
     users.forEach(user -> ReservedKeyValidator.validateUserEmailPattern(user.getEmail()));
     if (users.size() != uniqueUserIds.size()) {
@@ -331,6 +332,23 @@ public class TenantGroupService {
     }
   }
 
+  /** Reads the caller's rights in the group's tenant, not in the tenant of the route. */
+  private void assertCanAssignInTenant(String tenantId, Set<Capability> capabilities) {
+    permissionService.inTenant(
+        tenantId,
+        () -> {
+          assertCanAssignCapabilities(
+              userService.currentUser(), capabilities, CapabilityScope.TENANT);
+          return null;
+        });
+  }
+
+  private void assertHoldsGroupMarkings(String tenantId, Group group) {
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)) {
+      assertHolds(tenantId, userService.currentUser(), group.getMarkings());
+    }
+  }
+
   private void assertHolds(String tenantId, User user, Collection<MarkingDefinition> markings) {
     assertCanAssignMarkings(
         markingClearanceCacheManager.findClearance(user.getId(), tenantId), markings);
@@ -361,10 +379,15 @@ public class TenantGroupService {
 
   public Group addGrant(
       @NotBlank final String tenantId, @NotBlank final String groupId, GroupGrantInput input) {
-    grantService.validateResourceIdForGrant(input.getResourceId(), input.getResourceType());
+    permissionService.inTenant(
+        tenantId,
+        () -> {
+          grantService.validateResourceIdForGrant(input.getResourceId(), input.getResourceType());
+          assertCanAssignGrant(userService.currentUser(), input.getName(), input.getResourceId());
+          return null;
+        });
     Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
     Grant grant = Grant.of(input.getName(), group, input.getResourceId(), input.getResourceType());
-    assertCanAssignGrant(userService.currentUser(), input.getName(), input.getResourceId());
 
     // Group owns the grant lifecycle (cascade ALL + orphanRemoval), so the save below persists it.
     group.getGrants().add(grant);
@@ -377,7 +400,12 @@ public class TenantGroupService {
       @NotBlank final String grantId) {
     Group group = this.findByIdAndTenantForWrite(groupId, tenantId);
     Grant grant = Grant.find(group.getGrants(), grantId).orElseThrow(ElementNotFoundException::new);
-    assertCanAssignGrant(userService.currentUser(), grant.getName(), grant.getResourceId());
+    permissionService.inTenant(
+        tenantId,
+        () -> {
+          assertCanAssignGrant(userService.currentUser(), grant.getName(), grant.getResourceId());
+          return null;
+        });
 
     group.getGrants().remove(grant);
     return groupRepository.save(group);
