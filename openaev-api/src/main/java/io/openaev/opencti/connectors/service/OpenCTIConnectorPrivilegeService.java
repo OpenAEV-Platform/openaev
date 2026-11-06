@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
 
+  private static final String CONNECTOR_FIRSTNAME = "Security Coverage";
   private static final String CONNECTOR_LASTNAME = "OpenCTI Connector";
 
   LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration;
@@ -78,7 +79,7 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
     if (connectorUser.isPresent()) {
       // Token-matched user already exists — update its attributes
       applyUserServiceAttributes(
-          connectorUser.get(), connector.getName(), CONNECTOR_LASTNAME, email, group);
+          connectorUser.get(), CONNECTOR_FIRSTNAME, CONNECTOR_LASTNAME, email, group);
       userService.saveUser(connectorUser.get());
       tenantUserService.attachToTenant(connectorUser.get().getId(), connector.getTenantId());
     } else if (existingEmailUser.isPresent()) {
@@ -93,14 +94,14 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
                   List.of(
                       userService.createUserToken(existingEmailUser.get(), connector.getToken()))));
       applyUserServiceAttributes(
-          existingEmailUser.get(), connector.getName(), CONNECTOR_LASTNAME, email, group);
+          existingEmailUser.get(), CONNECTOR_FIRSTNAME, CONNECTOR_LASTNAME, email, group);
       userService.saveUser(existingEmailUser.get());
       tenantUserService.attachToTenant(existingEmailUser.get().getId(), connector.getTenantId());
     } else {
       // No user exists — create one
       User user =
           userService.createInternalUser(
-              email, connector.getName(), CONNECTOR_LASTNAME, false, connector.getToken());
+              email, CONNECTOR_FIRSTNAME, CONNECTOR_LASTNAME, false, connector.getToken());
       user.setGroups(new ArrayList<>(List.of(group)));
       User savedUser = userService.saveUser(user);
       tenantUserService.attachToTenant(savedUser.getId(), connector.getTenantId());

@@ -174,14 +174,9 @@ public class ScenarioService {
   private final org.springframework.beans.factory.ObjectProvider<PermissionService>
       permissionServiceProvider;
 
+  /** Authored by whoever creates it, a person or a service account; no author at startup. */
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
-    return computeAndCreateScenario(scenario);
-  }
-
-  /** A scenario a user creates or imports is authored by them; system creations have no author. */
-  @Transactional
-  public Scenario createAuthoredScenario(@NotNull final Scenario scenario) {
     authorService.authorByCurrentUser(scenario);
     return computeAndCreateScenario(scenario);
   }
@@ -207,7 +202,7 @@ public class ScenarioService {
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
     Scenario preparedScenario = prepareScenarioFromScenarioInput(tenantId, scenarioInput);
-    Scenario scenario = createAuthoredScenario(preparedScenario);
+    Scenario scenario = createScenario(preparedScenario);
     this.injectService.createInjectsFromInjectorContractInput(
         null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
     KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
