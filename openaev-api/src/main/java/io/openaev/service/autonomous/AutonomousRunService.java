@@ -79,6 +79,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -598,7 +599,7 @@ public class AutonomousRunService {
     // Relaunching is first-class: a scenario whose previous autonomous run (or plan) has settled
     // can be launched again. The settled run row is superseded so the new run can bind (one run
     // per scenario); a still-active run is refused instead.
-    supersedePriorRun(scenarioId, "scenario relaunched in autonomous mode");
+    supersedePriorRun(ctx, scenarioId, "scenario relaunched in autonomous mode");
     AutonomousRunCreateInput effective = input != null ? input : new AutonomousRunCreateInput();
     effective.setScenarioId(scenarioId);
     effective.setPlanMode(false);
@@ -674,7 +675,7 @@ public class AutonomousRunService {
       TxCtx ctx, String scenarioId, Scenario scenario, AutonomousRunCreateInput effective) {
     // Supersede the previous settled run (if any) so the fresh plan run can bind, then wipe the
     // whole logic map (steps + events/triggers) so the orchestrator starts fresh.
-    supersedePriorRun(scenarioId, "plan rebuilt by operator");
+    supersedePriorRun(ctx, scenarioId, "plan rebuilt by operator");
     workflowService.deleteAllScenarioSteps(scenarioId);
     if (!hasText(effective.getObjective()) && !hasText(effective.getObjectiveTemplateKey())) {
       effective.setObjective(
@@ -744,7 +745,7 @@ public class AutonomousRunService {
       // the single by-scenario run can rebind, then start a fresh plan run.
       reusePrior = prior.isPlanMode();
       if (!reusePrior) {
-        supersedePriorRun(scenarioId, "scenario logic refined by operator");
+        supersedePriorRun(ctx, scenarioId, "scenario logic refined by operator");
         prior = null;
       }
     }
@@ -1772,7 +1773,7 @@ public class AutonomousRunService {
    * stop it first, mirroring the UI's disabled Delete entry.
    */
   @Transactional(rollbackFor = Exception.class)
-  public void deleteForScenario(String scenarioId) {
+  public void deleteForScenario(TxCtx ctx, String scenarioId) {
     AutonomousRun run = runRepository.findByScenarioId(scenarioId).orElse(null);
     if (run == null) {
       return;
@@ -1790,7 +1791,7 @@ public class AutonomousRunService {
         || status == AutonomousRunStatus.WAITING_INPUT) {
       throw new ConflictException("Stop the autonomous run before deleting its scenario");
     }
-    tearDownRun(run);
+    tearDownRun(run, simulationId -> exerciseService.deleteById(ctx, simulationId));
   }
 
   /**
@@ -1805,12 +1806,12 @@ public class AutonomousRunService {
    * can call it unconditionally per id.
    */
   @Transactional(rollbackFor = Exception.class)
-  public void deleteForScenarioForce(String scenarioId) {
+  public void deleteForScenarioForce(TxCtx ctx, String scenarioId) {
     AutonomousRun run = runRepository.findByScenarioId(scenarioId).orElse(null);
     if (run == null) {
       return;
     }
-    tearDownRun(run);
+    tearDownRun(run, simulationId -> exerciseService.deleteById(ctx, simulationId));
   }
 
   /**
@@ -1825,7 +1826,7 @@ public class AutonomousRunService {
    * #supersedePriorRun}. Only a non-executing plan-mode substrate simulation (a throwaway with no
    * results) is deleted with the run.
    */
-  private void tearDownRun(AutonomousRun run) {
+  private void tearDownRun(AutonomousRun run, Consumer<String> deleteSimulation) {
     // Row-locked re-read first: the teardown purges the timeline (deleteByRun takes the per-run
     // event advisory lock) and deletes the run row, so the run ROW lock must come first
     // (row -> advisory, the settle paths' order) or this teardown could deadlock a concurrent
@@ -1842,7 +1843,7 @@ public class AutonomousRunService {
     // scenario never destroys a simulation, which is the legacy 1:1 scenario<->simulation coupling
     // we no longer want.
     if (run.isPlanMode() && hasText(run.getSimulationId())) {
-      exerciseService.deleteById(run.getSimulationId());
+      deleteSimulation.accept(run.getSimulationId());
     }
     directiveRepository.deleteByRunId(runId);
     eventService.deleteByRun(runId);
@@ -1864,8 +1865,9 @@ public class AutonomousRunService {
    * stays as history, consistent with "a scenario can carry many simulations" (relaunching must
    * never destroy the previous run's results).
    */
-  private void supersedePriorRun(String scenarioId, String reason) {
-    supersedePriorRun(scenarioId, reason, true);
+  private void supersedePriorRun(TxCtx ctx, String scenarioId, String reason) {
+    supersedePriorRun(
+        scenarioId, reason, true, simulationId -> exerciseService.deleteById(ctx, simulationId));
   }
 
   /**
@@ -1874,7 +1876,8 @@ public class AutonomousRunService {
    * the normal-launch contract, where an active run is left untouched as a defensive no-op rather
    * than torn down (see {@link #supersedeSettledRunOnManualLaunch}).
    */
-  private void supersedePriorRun(String scenarioId, String reason, boolean refuseIfActive) {
+  private void supersedePriorRun(
+      String scenarioId, String reason, boolean refuseIfActive, Consumer<String> deleteSimulation) {
     AutonomousRun prior = runRepository.findByScenarioId(scenarioId).orElse(null);
     if (prior == null) {
       return;
@@ -1901,7 +1904,7 @@ public class AutonomousRunService {
     String priorId = prior.getId();
     cancelOrchestratorAfterCommit(priorId, reason, true);
     if (prior.isPlanMode() && hasText(prior.getSimulationId())) {
-      exerciseService.deleteById(prior.getSimulationId());
+      deleteSimulation.accept(prior.getSimulationId());
     }
     directiveRepository.deleteByRunId(priorId);
     eventService.deleteByRun(priorId);
@@ -1929,7 +1932,13 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       return;
     }
-    supersedePriorRun(scenarioId, "scenario relaunched as a normal simulation", false);
+    // Reached under the scenario owner's ambient tenant (WorkflowOwnerScope), without a request
+    // scope of its own.
+    supersedePriorRun(
+        scenarioId,
+        "scenario relaunched as a normal simulation",
+        false,
+        exerciseService::deleteById);
   }
 
   // endregion

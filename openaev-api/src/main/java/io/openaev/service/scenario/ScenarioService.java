@@ -892,7 +892,7 @@ public class ScenarioService {
               // orphaned autonomous_runs row after a bulk delete. No-op for manual scenarios.
               io.openaev.service.autonomous.AutonomousRunService autonomousRunService =
                   this.autonomousRunServiceProvider.getObject();
-              chunk.forEach(autonomousRunService::deleteForScenarioForce);
+              chunk.forEach(id -> autonomousRunService.deleteForScenarioForce(ctx, id));
               if (input.isKeepFindings()) {
                 this.findingDetachService.detachFromScenarios(chunk);
               }

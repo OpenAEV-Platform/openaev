@@ -1184,7 +1184,7 @@ class AutonomousRunServiceTest {
     // for a plan-mode dry-run), then the fresh plan run is created and the logic map wiped.
     verify(runRepository).delete(prior);
     verify(xtmOneClient).cancelAutonomousRun(eq("prior-run"), anyString(), eq(true));
-    verify(exerciseService, never()).deleteById(anyString());
+    verify(exerciseService, never()).deleteById(any(TxCtx.class), anyString());
     verify(workflowService).deleteAllScenarioSteps("scenario-1");
     assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
   }
@@ -1490,9 +1490,9 @@ class AutonomousRunServiceTest {
     run.setSimulationId("live-sim");
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(run));
 
-    service.deleteForScenario("scenario-1");
+    service.deleteForScenario(TX, "scenario-1");
 
-    verify(exerciseService, never()).deleteById(anyString());
+    verify(exerciseService, never()).deleteById(any(TxCtx.class), anyString());
     verify(directiveRepository).deleteByRunId("run-1");
     verify(eventService).deleteByRun("run-1");
     verify(runRepository).delete(run);
@@ -1512,9 +1512,9 @@ class AutonomousRunServiceTest {
     run.setSimulationId("plan-sim");
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(run));
 
-    service.deleteForScenario("scenario-1");
+    service.deleteForScenario(TX, "scenario-1");
 
-    verify(exerciseService).deleteById("plan-sim");
+    verify(exerciseService).deleteById(TX, "plan-sim");
     verify(runRepository).delete(run);
   }
 
@@ -1532,12 +1532,12 @@ class AutonomousRunServiceTest {
     run.setStatus(activeStatus);
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(run));
 
-    assertThatThrownBy(() -> service.deleteForScenario("scenario-1"))
+    assertThatThrownBy(() -> service.deleteForScenario(TX, "scenario-1"))
         .isInstanceOfSatisfying(
             ResponseStatusException.class,
             ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
     verify(runRepository, never()).delete(any());
-    verify(exerciseService, never()).deleteById(anyString());
+    verify(exerciseService, never()).deleteById(any(TxCtx.class), anyString());
   }
 
   @Test
