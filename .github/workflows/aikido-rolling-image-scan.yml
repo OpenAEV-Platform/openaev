@@ -95,4 +95,3 @@ jobs:
           name: aikido-platform-${{ matrix.tag }}
           path: aikido-platform-${{ matrix.tag }}.*
           if-no-files-found: ignore
-          retention-days: 30
