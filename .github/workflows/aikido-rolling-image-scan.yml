@@ -34,10 +34,11 @@ jobs:
     steps:
       - name: Run Aikido image scan
         env:
-          AIKIDO_API_KEY: ${{ secrets.AIKIDO_API_KEY }}
+          AIKIDO_API_KEY: ${{ secrets.AIKIDO_TOKEN }}
           SCANNER: aikidosecurity/local-scanner:v1.0.163@sha256:c96405a39c65070db69d2bc22fee697415448b8e1ef9650022b92991a825d4bc
           IMAGE: openaev/platform:${{ matrix.tag }}
           TAG: ${{ matrix.tag }}
+          RELEASE: ${{ inputs.release }}
           REPORT: aikido-platform-${{ matrix.tag }}
         run: |
           set -euo pipefail
@@ -49,6 +50,13 @@ jobs:
             *)      image_name=openaev/platform ;;
           esac
 
+          # Aikido updates the tag of an existing image by default: a release
+          # scanned by hand gets its own image, so the rolling one is kept.
+          release_args=()
+          if [ -n "$RELEASE" ]; then
+            release_args=(--force-create-image-for-tag)
+          fi
+
           # The scanner reads the image from the local Docker daemon.
           docker pull "$IMAGE"
 
@@ -57,14 +65,17 @@ jobs:
           # report is written only once the scan has finished, so a non-zero
           # exit without a report is the scanner failing.
           status=0
+          # The key goes through the environment, not the command line, to keep
+          # it out of the process list and of the uploaded console output.
           docker run --rm \
+            -e AIKIDO_API_KEY \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "$PWD:/report" \
             "$SCANNER" \
             image-scan "$IMAGE" \
             --image-name "$image_name" \
             --tag "$TAG" \
-            --apikey "$AIKIDO_API_KEY" \
+            "${release_args[@]}" \
             --fail-on high \
             --gating-result-output "/report/$REPORT.json" \
             | tee "$REPORT.txt" || status=$?
