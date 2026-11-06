@@ -202,7 +202,7 @@ public class PlayerService {
       String userId = existingUser.get().getId();
       tenantUserService.attachToTenant(userId, tenantId);
       // Reload user after @Modifying queries cleared the persistence context
-      return userRepository.findById(userId).orElseThrow();
+      return forTenant(userRepository.findById(userId).orElseThrow(), tenantId);
     }
     User user = new User();
     user.setUpdateAttributes(input);
@@ -211,7 +211,7 @@ public class PlayerService {
     assignOrganization(savedUser, input.getOrganizationId(), tenantId);
     userService.createUserToken(savedUser);
     tenantUserService.attachToTenant(savedUser.getId(), tenantId);
-    return savedUser;
+    return forTenant(savedUser, tenantId);
   }
 
   public User upsertPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
@@ -220,7 +220,7 @@ public class PlayerService {
     Optional<User> user = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (user.isPresent()) {
       if (!requireUpdate(user.get(), input)) {
-        return user.get();
+        return forTenant(user.get(), tenantId);
       }
       User existingUser = user.get();
       existingUser.setUpdateAttributes(input);
@@ -243,7 +243,7 @@ public class PlayerService {
         assignOrganization(existingUser, input.getOrganizationId(), tenantId);
       }
       tenantUserService.attachToTenant(existingUser.getId(), tenantId);
-      return userRepository.save(existingUser);
+      return forTenant(userRepository.save(existingUser), tenantId);
     } else {
       User newUser = new User();
       newUser.setUpdateAttributes(input);
@@ -253,8 +253,18 @@ public class PlayerService {
       assignOrganization(savedUser, input.getOrganizationId(), tenantId);
       userService.createUserToken(savedUser);
       tenantUserService.attachToTenant(savedUser.getId(), tenantId);
-      return savedUser;
+      return forTenant(savedUser, tenantId);
     }
+  }
+
+  /**
+   * The user as the response shows it: its organization is the one of the tenant the write went to,
+   * not of the ambient tenant, which is the default one when the request names another in {@code
+   * X-Tenant-Ids}.
+   */
+  private User forTenant(User user, String tenantId) {
+    user.answerOrganizationOfTenant(tenantId);
+    return user;
   }
 
   /**

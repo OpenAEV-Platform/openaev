@@ -1,5 +1,6 @@
 package io.openaev.rest.user;
 
+import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.rest.user.TenantUserApi.USER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,8 +21,10 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.OrganizationFixture;
+import io.openaev.utils.fixtures.PlayerFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -148,6 +151,13 @@ public class TenantMembershipOrganizationScopeTest extends IntegrationTest {
         List.of());
   }
 
+  private static PlayerInput playerInput(String email, String organizationId) {
+    PlayerInput input = PlayerFixture.createPlayerInput();
+    input.setEmail(email);
+    input.setOrganizationId(organizationId);
+    return input;
+  }
+
   private static String newEmail() {
     return "organization-" + UUID.randomUUID() + "@filigran.io";
   }
@@ -215,6 +225,71 @@ public class TenantMembershipOrganizationScopeTest extends IntegrationTest {
           .andExpect(status().isCreated())
           .andExpect(jsonPath("$.user_organization_id").value(organizationOfB.getId()))
           .andExpect(jsonPath("$.user_organization_name").value(organizationOfB.getName()));
+    }
+  }
+
+  @Nested
+  @DisplayName("Players API")
+  class PlayersApi {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A create returns the organization it set in the tenant the header names")
+    void given_headerNamingTenantB_should_returnTheOrganizationOfBOnCreate() throws Exception {
+      // -- EXECUTE --
+      mvc.perform(
+              post(PLAYER_URI)
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(playerInput(newEmail(), organizationOfB.getId())))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.user_organization").value(organizationOfB.getId()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("An upsert of a new player returns the organization it set in the header's tenant")
+    void given_headerNamingTenantB_should_returnTheOrganizationOfBOnUpsertOfNewPlayer()
+        throws Exception {
+      // -- EXECUTE --
+      mvc.perform(
+              post(PLAYER_URI + "/upsert")
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(playerInput(newEmail(), organizationOfB.getId())))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.user_organization").value(organizationOfB.getId()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("An upsert of a known player returns the organization of the header's tenant")
+    void given_headerNamingTenantB_should_returnTheOrganizationOfBOnUpsertOfKnownPlayer()
+        throws Exception {
+      // -- PREPARE --
+      User member = memberWithAnOrganizationInEachTenant();
+      String newOrganizationOfB = organizationIn(tenantB).getId();
+
+      // -- EXECUTE --
+      mvc.perform(
+              post(PLAYER_URI + "/upsert")
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(playerInput(member.getEmail(), newOrganizationOfB)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().is2xxSuccessful())
+          .andExpect(jsonPath("$.user_organization").value(newOrganizationOfB));
+      assertEquals(
+          sorted(organizationOfDefault.getId(), newOrganizationOfB),
+          organizationsOf(member.getId()));
     }
   }
 }

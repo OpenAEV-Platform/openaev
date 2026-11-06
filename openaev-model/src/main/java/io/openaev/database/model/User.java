@@ -204,7 +204,28 @@ public class User implements Base {
   @Queryable(dynamicValues = true, filterable = true, path = "organizations.id")
   @Schema(description = "Organization ID of the user", type = "string")
   public Organization getOrganization() {
-    return organizationOfTenant(TenantContext.getCurrentTenant());
+    return organizationOfTenant(
+        organizationTenantId != null ? organizationTenantId : TenantContext.getCurrentTenant());
+  }
+
+  /**
+   * The tenant whose organization {@link #getOrganization()} answers for, when it is not the
+   * ambient one: a request that works on a tenant named by {@code X-Tenant-Ids} still has the
+   * default tenant as its ambient tenant. Never persisted, never serialized.
+   */
+  @Transient
+  @JsonIgnore
+  @Getter(NONE)
+  private String organizationTenantId;
+
+  /**
+   * Makes {@link #getOrganization()}, so the {@code user_organization} of the response, answer for
+   * the given tenant instead of the ambient one.
+   *
+   * @param tenantId the tenant the request works on
+   */
+  public void answerOrganizationOfTenant(final String tenantId) {
+    this.organizationTenantId = tenantId;
   }
 
   /**
