@@ -48,7 +48,6 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
       JsonNode signatureTargetNode = targetNode.path(SIGNATURE_TARGET);
       String agentId = readText(signatureTargetNode, "agent_id", "agent");
       String assetId = readText(signatureTargetNode, "asset_id", "asset");
-      String assetGroupId = readText(signatureTargetNode, "asset_group_id", "asset_group");
 
       JsonNode signatureValuesNode = targetNode.path(SIGNATURE_VALUES);
       if (!signatureValuesNode.isArray()) {
@@ -64,7 +63,7 @@ public class SignatureOutputProcessor extends AbstractOutputProcessor {
 
         List<ExpectationSignature> signatures = extractSignatures(signatureValueNode.path(VALUES));
         injectExpectationService.appendExpectationSignatures(
-            injectId, agentId, assetId, assetGroupId, expectationType.get(), signatures);
+            injectId, agentId, assetId, expectationType.get(), signatures);
       }
     }
   }
