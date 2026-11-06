@@ -46,6 +46,9 @@ public class XtmComposerApi extends RestBehavior {
   // The registration is a platform row of the parameters table: readable under any scope, the
   // empty one of a composer identity with no tenant membership included, and written only under
   // @PlatformWrite. ctx is the caller's own scope, so the right is checked in the caller's tenants.
+  // CATALOG write is also granted by the tenant-scoped MANAGE_TENANT_SETTINGS, so a tenant
+  // administrator reaches this write through the tenant route: the route and the capability are
+  // not changed here (see io.openaev.aop.PlatformWrite).
   // TODO v2: #7248
   @PostMapping(value = {XTMCOMPOSER_URI + "/register", TENANT_XTMCOMPOSER_URI + "/register"})
   @Operation(

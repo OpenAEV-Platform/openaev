@@ -12,11 +12,12 @@ import org.springframework.stereotype.Component;
  * (non-null {@code row_tenant_id}) is checked exactly like today, through {@code
  * can_access_tenant}; a platform row ({@code row_tenant_id IS NULL}) is writable only when {@code
  * allow_platform_write} is true AND the transaction set {@code app.platform_write}. {@code
- * app.platform_write} is set only by a small, named list of call sites (platform-admin endpoints,
- * startup paths): see {@code TenantScopeTransactionAspect}, {@code
- * TenantScopedTransaction#executeAsPlatformWrite}, {@code TenantScopedTransaction#
- * executeNewAsPlatformWrite}. A tenant route never sets it, so a tenant-scoped caller can never
- * write a platform row through this predicate, by construction.
+ * app.platform_write} is set only by a small, named list of call sites, listed in {@code
+ * io.openaev.aop.PlatformWrite}: the platform settings endpoints, the XTM Composer registration
+ * endpoints (also mounted on the tenant route and gated by the {@code CATALOG} write capability),
+ * and the platform-write primitives of {@code TenantScopedTransaction} used by startup and the
+ * scheduled writers. Any other transaction, a tenant route's included, cannot write a platform row
+ * through this predicate.
  */
 @Component
 public class V6_20261105120000000__Add_platform_write_functions extends BaseJavaMigration {
