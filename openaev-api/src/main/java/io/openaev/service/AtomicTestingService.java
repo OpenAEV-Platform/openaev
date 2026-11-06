@@ -24,6 +24,7 @@ import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.constraints.NotNull;
@@ -112,12 +113,19 @@ public class AtomicTestingService {
     return payloadMapper.getStatusPayloadOutputFromInject(Optional.of(inject));
   }
 
+  /**
+   * Creates an atomic testing in {@code tenantId}, or updates the one named by {@code injectId}.
+   *
+   * @param tenantId the tenant a new atomic testing is written in; not read on an update
+   */
   @Transactional
   public InjectResultOverviewOutput createOrUpdate(
-      TxCtx ctx, AtomicTestingInput input, String injectId) {
+      TxCtx ctx, @Nullable String tenantId, AtomicTestingInput input, String injectId) {
     Inject injectToSave = new Inject();
     if (injectId != null) {
       injectToSave = findInject(ctx, injectId);
+    } else {
+      injectToSave.setTenant(new Tenant(tenantId));
     }
 
     InjectorContract injectorContract =

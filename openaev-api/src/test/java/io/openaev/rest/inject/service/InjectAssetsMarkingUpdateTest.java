@@ -169,7 +169,7 @@ class InjectAssetsMarkingUpdateTest extends IntegrationTest {
 
       // -- ACT --
       atomicTestingService.createOrUpdate(
-          TxCtx.forTenant(TenantContext.getCurrentTenant()), input, inject.getId());
+          TxCtx.forTenant(TenantContext.getCurrentTenant()), null, input, inject.getId());
       entityManager.flush();
 
       // -- ASSERT --

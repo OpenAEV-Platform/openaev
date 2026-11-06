@@ -239,7 +239,7 @@ public class InjectService {
     // EXERCISE
     if (exercise != null) {
       tags = exercise.getTags();
-      inject.setExercise(exercise);
+      InjectUtils.attachToExercise(inject, exercise);
       // Linked documents directly to the exercise
       inject
           .getDocuments()
@@ -253,7 +253,7 @@ public class InjectService {
     // SCENARIO
     if (scenario != null) {
       tags = scenario.getTags();
-      inject.setScenario(scenario);
+      InjectUtils.attachToScenario(inject, scenario);
       // Linked documents directly to the scenario
       inject
           .getDocuments()

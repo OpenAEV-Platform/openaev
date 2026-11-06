@@ -358,7 +358,7 @@ public class SimulationInjectApi extends RestBehavior {
         this.userRepository
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found")));
-    inject.setExercise(exercise);
+    InjectUtils.attachToExercise(inject, exercise);
     inject.setDependsDuration(0L);
     Inject savedInject = this.injectRepository.save(inject);
     Iterable<User> users = this.userRepository.findAllById(input.getUserIds());
