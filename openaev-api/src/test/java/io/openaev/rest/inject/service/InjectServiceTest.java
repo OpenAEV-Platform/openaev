@@ -1629,7 +1629,7 @@ class InjectServiceTest {
       when(userService.find(List.of("user-green"))).thenReturn(List.of(reloaded));
       doReturn(MarkingCtx.forMarkings(List.of("m-green")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-green", "tenant-1", false);
+          .findClearance("user-green", "tenant-1");
 
       // -- ACT --
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
@@ -1787,7 +1787,7 @@ class InjectServiceTest {
       Inject inject = injectTargeting(launcher, assetGreen);
       doReturn(MarkingCtx.forMarkings(List.of("m-green")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
 
@@ -1804,7 +1804,7 @@ class InjectServiceTest {
       Inject inject = injectTargeting(launcher, assetGreen, assetRed);
       doReturn(MarkingCtx.forMarkings(List.of("m-green")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-green", "tenant-1", false);
+          .findClearance("user-green", "tenant-1");
 
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
 
@@ -1820,7 +1820,7 @@ class InjectServiceTest {
       Inject inject = injectTargeting(launcher, assetRed);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
 
@@ -1836,7 +1836,7 @@ class InjectServiceTest {
       Inject inject = injectTargeting(launcher, assetUnmarked);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
 
@@ -1844,37 +1844,48 @@ class InjectServiceTest {
     }
 
     @Test
-    @DisplayName("bypass actor: the marked target is resolved regardless of clearance")
-    void given_bypassActor_should_resolveTarget() {
-      User admin = new User();
-      admin.setId("user-admin");
-      admin.setAdmin(true);
+    @DisplayName("first admin: the marked target is resolved")
+    void given_firstAdmin_should_resolveTarget() {
+      User firstAdmin = new User();
+      firstAdmin.setId(User.ADMIN_UUID);
+      firstAdmin.setAdmin(true);
       Asset assetRed = assetWithMarking("asset-red", "m-red");
-      Inject inject = injectTargeting(admin, assetRed);
+      Inject inject = injectTargeting(firstAdmin, assetRed);
       doReturn(MarkingCtx.forMarkings(List.of("m-red")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-admin", "tenant-1", true);
+          .findClearance(User.ADMIN_UUID, "tenant-1");
 
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
 
       assertThat(resolved).extracting(AssetToExecute::asset).containsExactly(assetRed);
-      verify(markingClearanceCacheManager).findClearance("user-admin", "tenant-1", true);
     }
 
     @Test
-    @DisplayName(
-        "guardrail: AGENT_RUNTIME_ACCESS alone does not bypass here - only "
-            + "isAdminOrBypass() does. The HttpMarkingScopeSupplier agent-callback bypass must never "
-            + "leak into this path")
+    @DisplayName("another admin: only the targets within their markings are resolved")
+    void given_otherAdmin_should_resolveOnlyTargetsWithinTheirMarkings() {
+      User admin = new User();
+      admin.setId("user-admin");
+      admin.setAdmin(true);
+      Asset assetGreen = assetWithMarking("asset-green", "m-green");
+      Asset assetRed = assetWithMarking("asset-red", "m-red");
+      Inject inject = injectTargeting(admin, assetGreen, assetRed);
+      doReturn(MarkingCtx.forMarkings(List.of("m-green")))
+          .when(markingClearanceCacheManager)
+          .findClearance("user-admin", "tenant-1");
+
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      assertThat(resolved).extracting(AssetToExecute::asset).containsExactly(assetGreen);
+    }
+
+    @Test
+    @DisplayName("AGENT_RUNTIME_ACCESS does not widen the launch clearance")
     void given_agentRuntimeAccessOnlyActor_should_notBypass() {
       User agentCapableUser =
           new User() {
             @Override
             public Set<Capability> getCapabilities() {
-              // Deliberately holds AGENT_RUNTIME_ACCESS (the per-tenant agent/implant service
-              // account's capability) but is neither admin nor BYPASS - isAdminOrBypass() must
-              // still be false, and launchableUnderClearance() must call findClearance with
-              // bypass=false, never consulting getCapabilities() for this decision.
+              // The agent account's capability: the clearance comes from its group's markings.
               return Set.of(Capability.AGENT_RUNTIME_ACCESS);
             }
           };
@@ -1883,12 +1894,12 @@ class InjectServiceTest {
       Inject inject = injectTargeting(agentCapableUser, assetRed);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-agent", "tenant-1", false);
+          .findClearance("user-agent", "tenant-1");
 
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
 
       assertThat(resolved).isEmpty();
-      verify(markingClearanceCacheManager).findClearance("user-agent", "tenant-1", false);
+      verify(markingClearanceCacheManager).findClearance("user-agent", "tenant-1");
     }
 
     @Test
@@ -1917,7 +1928,7 @@ class InjectServiceTest {
       Inject inject = injectTargeting(launcher, assetGreen, assetRed, assetUnmarked);
       doReturn(MarkingCtx.forMarkings(List.of("m-green")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-green", "tenant-1", false);
+          .findClearance("user-green", "tenant-1");
 
       ResolvedAssetsToExecute resolved = injectService.resolveAssetsToExecuteByClearance(inject);
 
@@ -1925,7 +1936,7 @@ class InjectServiceTest {
           .extracting(AssetToExecute::asset)
           .containsExactlyInAnyOrder(assetGreen, assetUnmarked);
       assertThat(resolved.withoutClearance()).containsExactly(assetRed);
-      verify(markingClearanceCacheManager, times(1)).findClearance("user-green", "tenant-1", false);
+      verify(markingClearanceCacheManager, times(1)).findClearance("user-green", "tenant-1");
     }
   }
 
@@ -1978,7 +1989,7 @@ class InjectServiceTest {
       Inject inject = injectTargetingEndpoints(launcher, endpointGreen, endpointRed);
       doReturn(MarkingCtx.forMarkings(List.of("m-green")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-green", "tenant-1", false);
+          .findClearance("user-green", "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
@@ -2015,17 +2026,17 @@ class InjectServiceTest {
     }
 
     @Test
-    @DisplayName("bypass actor: both agents are commanded to execute regardless of marking")
-    void given_bypassActor_should_includeBothAgentsInRealDispatch() {
+    @DisplayName("first admin: both agents are commanded to execute")
+    void given_firstAdmin_should_includeBothAgentsInRealDispatch() {
       User admin = new User();
-      admin.setId("user-admin");
+      admin.setId(User.ADMIN_UUID);
       admin.setAdmin(true);
       Endpoint endpointGreen = endpointWithAgent("endpoint-green", "agent-green", "m-green");
       Endpoint endpointRed = endpointWithAgent("endpoint-red", "agent-red", "m-red");
       Inject inject = injectTargetingEndpoints(admin, endpointGreen, endpointRed);
       doReturn(MarkingCtx.forMarkings(List.of("m-green", "m-red")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-admin", "tenant-1", true);
+          .findClearance(User.ADMIN_UUID, "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
@@ -2043,7 +2054,7 @@ class InjectServiceTest {
       Inject inject = injectTargetingEndpoints(launcher, endpointPlain);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
@@ -2063,7 +2074,7 @@ class InjectServiceTest {
       Inject inject = injectTargetingEndpoints(launcher, endpointRed);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
@@ -2087,7 +2098,7 @@ class InjectServiceTest {
       Inject inject = injectTargetingEndpoints(launcher, endpointRed);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
@@ -2114,13 +2125,13 @@ class InjectServiceTest {
       stubLauncher(launcher);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
       assertThat(result.assetsWithoutClearance()).containsExactly(assetRed);
       assertThat(result.agentsWithoutClearance()).isEmpty();
-      verify(markingClearanceCacheManager).findClearance("user-1", "tenant-1", false);
+      verify(markingClearanceCacheManager).findClearance("user-1", "tenant-1");
     }
 
     @Test
@@ -2139,7 +2150,7 @@ class InjectServiceTest {
           .thenReturn(List.of(endpointGreen, endpointRed));
       doReturn(MarkingCtx.forMarkings(List.of("m-green")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-green", "tenant-1", false);
+          .findClearance("user-green", "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 

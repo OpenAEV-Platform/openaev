@@ -122,9 +122,6 @@ public class InjectService {
   private final AssetService assetService;
   private final AssetGroupService assetGroupService;
   private final InjectAgentResolverService injectAgentResolverService;
-  // Dispatch-time marking clearance enforcement (resolveAllAssetsToExecute). Called directly -
-  // never through HttpMarkingScopeSupplier, which folds in the unrelated AGENT_RUNTIME_ACCESS
-  // agent-callback bypass.
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final PreviewFeatureService previewFeatureService;
   private final AiTargetRepository aiTargetRepository;
@@ -569,10 +566,6 @@ public class InjectService {
    * null actor (deleted user, or an old row created before this field existed) resolves to zero
    * clearance.
    *
-   * <p>Calls {@link MarkingClearanceCacheManager} directly, never {@code HttpMarkingScopeSupplier}:
-   * {@code bypass} here is the actor's own {@code isAdminOrBypass()} only, not the unrelated {@code
-   * AGENT_RUNTIME_ACCESS} agent-callback bypass that supplier also grants full clearance to.
-   *
    * <p>Shared by every independent asset-resolution point that must honor partial/scoped execution
    * (expectation computation, agent-routing dispatch, external-push dispatch) so the rule is
    * implemented once, not reinvented per call site.
@@ -587,9 +580,8 @@ public class InjectService {
     if (launchedBy.isEmpty()) {
       return MarkingCtx.none();
     }
-    User launcher = launchedBy.get();
     return markingClearanceCacheManager.findClearance(
-        launcher.getId(), inject.getTenant().getId(), launcher.isAdminOrBypass());
+        launchedBy.get().getId(), inject.getTenant().getId());
   }
 
   /**
