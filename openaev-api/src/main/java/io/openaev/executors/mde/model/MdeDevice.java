@@ -27,6 +27,7 @@ public class MdeDevice {
   @Data
   @JsonIgnoreProperties(ignoreUnknown = true)
   public static class MdeIpAddress {
+    private String ipAddress;
     private String macAddress;
   }
 }
