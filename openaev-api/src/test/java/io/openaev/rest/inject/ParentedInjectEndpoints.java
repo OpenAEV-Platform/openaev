@@ -21,8 +21,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.springframework.http.MediaType;
 
 /**
- * The {@code @AccessControl(resourceType = INJECT)} endpoints of {@code ScenarioInjectApi} and
- * {@code SimulationInjectApi}, one request each. Shared by the suites that prove their by-id scope
+ * The endpoints of {@code ScenarioInjectApi} and {@code SimulationInjectApi} that name an inject in
+ * their path, one request each: those typed INJECT, and the reads and deletes of a scenario's or
+ * simulation's inject, typed with their parent. Shared by the suites that prove their by-id scope
  * checks, so that the list of endpoints under proof is written once.
  */
 final class ParentedInjectEndpoints {
@@ -42,6 +43,9 @@ final class ParentedInjectEndpoints {
   static Stream<Arguments> endpoints() {
     return Stream.of(
         Arguments.of(
+            "GET /scenarios/{scenarioId}/injects/{injectId}",
+            (Call) ParentedInjectEndpoints::getInjectForScenario),
+        Arguments.of(
             "POST /scenarios/{scenarioId}/injects/{injectId}",
             (Call) ParentedInjectEndpoints::duplicateInjectForScenario),
         Arguments.of(
@@ -53,6 +57,12 @@ final class ParentedInjectEndpoints {
         Arguments.of(
             "DELETE /scenarios/{scenarioId}/injects/{injectId}",
             (Call) ParentedInjectEndpoints::deleteInjectForScenario),
+        Arguments.of(
+            "GET /exercises/{exerciseId}/injects/{injectId}",
+            (Call) ParentedInjectEndpoints::getInjectForExercise),
+        Arguments.of(
+            "DELETE /exercises/{exerciseId}/injects/{injectId}",
+            (Call) ParentedInjectEndpoints::deleteInjectForExercise),
         Arguments.of(
             "GET /exercises/{exerciseId}/injects/{injectId}/teams",
             (Call) ParentedInjectEndpoints::exerciseInjectTeams),
@@ -97,6 +107,16 @@ final class ParentedInjectEndpoints {
             ? EXERCISE_URI
             : TENANT_EXERCISE_URI.replace("{tenantId}", route.pathTenant());
     return base + "/" + exerciseId + "/injects/" + injectId;
+  }
+
+  private static int getInjectForScenario(
+      ByIdRequestScopeTestBase test,
+      Route route,
+      String exerciseId,
+      String scenarioId,
+      String injectId)
+      throws Exception {
+    return test.status(route.with(get(scenarioInjectUri(route, scenarioId, injectId))));
   }
 
   private static int duplicateInjectForScenario(
@@ -149,6 +169,26 @@ final class ParentedInjectEndpoints {
       String injectId)
       throws Exception {
     return test.status(route.with(delete(scenarioInjectUri(route, scenarioId, injectId))));
+  }
+
+  private static int getInjectForExercise(
+      ByIdRequestScopeTestBase test,
+      Route route,
+      String exerciseId,
+      String scenarioId,
+      String injectId)
+      throws Exception {
+    return test.status(route.with(get(exerciseInjectUri(route, exerciseId, injectId))));
+  }
+
+  private static int deleteInjectForExercise(
+      ByIdRequestScopeTestBase test,
+      Route route,
+      String exerciseId,
+      String scenarioId,
+      String injectId)
+      throws Exception {
+    return test.status(route.with(delete(exerciseInjectUri(route, exerciseId, injectId))));
   }
 
   private static int exerciseInjectTeams(
