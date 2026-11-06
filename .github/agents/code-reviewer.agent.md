@@ -47,7 +47,7 @@ Then:
 | **Layering** | Controller → Service → Repository? No repository injection in controllers? |
 | **Naming** | PascalCase entities, camelCase methods, `snake_case` DB columns? |
 | **DTO pattern** | API never exposes JPA entities — always through Output records + Mapper |
-| **Tenant routes** | New endpoint on tenant-scoped data mapped on `TENANT_PREFIX` only, no `/api/...` alias |
+| **Tenant routes** | New endpoint on tenant-scoped data mapped on `TENANT_PREFIX` only; an `/api/...` alias only for an endpoint an integration calls |
 | **No unused code** | Every class, method, field and constant added has a caller in the PR? No default or option nobody decided? |
 | **One role per service** | Service split by job and transaction rule? Long methods read as named steps, no generic machinery? |
 | **Mapping** | Input → entity and entity → output copied in a mapper, DTOs in `api/{feature}/dto`? |

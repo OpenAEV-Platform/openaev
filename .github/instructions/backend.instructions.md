@@ -31,7 +31,7 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 ## New Controllers (package `io.openaev.api.*`)
 
 - `@RestController @RequestMapping("/api/{entities}") @RequiredArgsConstructor`
-- Tenant-scoped data: routes on `TENANT_PREFIX + "/{entities}"` only, no `/api/{entities}` alias (see multi-tenancy rule 9)
+- Tenant-scoped data: routes on `TENANT_PREFIX + "/{entities}"` only, no `/api/{entities}` alias unless an integration calls it (see multi-tenancy rule 9)
 - Every endpoint: `@AccessControl` + `@Operation`; `@LogExecutionTime` only on endpoints at risk of being slow (heavy queries, imports, exports)
 - Preview feature: check it in the endpoint with `PreviewFeatureService.isFeatureEnabled(...)` and throw
   `ElementNotFoundException` (404) when it is off; no Spring `@Conditional` reading the properties
