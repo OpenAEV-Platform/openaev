@@ -105,7 +105,7 @@ class TenantUserServiceTest extends IntegrationTest {
       assertThat(result.email()).isEqualToIgnoringCase("newuser@test.invalid");
       assertThat(result.firstname()).isEqualTo("Elliot");
       // Verify the user is attached to the current tenant
-      UserOutput found = tenantUserService.user(result.id());
+      UserOutput found = tenantUserService.user(ctx(), result.id());
       assertThat(found.id()).isEqualTo(result.id());
     }
 
@@ -131,7 +131,7 @@ class TenantUserServiceTest extends IntegrationTest {
       assertThat(result.id()).isEqualTo(existingUserId);
       assertThat(result.email()).isEqualToIgnoringCase("existing@test.invalid");
       // Verify the user is attached to the current tenant
-      UserOutput found = tenantUserService.user(existingUserId);
+      UserOutput found = tenantUserService.user(ctx(), existingUserId);
       assertThat(found.id()).isEqualTo(existingUserId);
     }
   }
@@ -147,7 +147,7 @@ class TenantUserServiceTest extends IntegrationTest {
       User user = persistedUserInTenant("Tyrell", "Wellick", "charlie@test.invalid");
 
       // -- ACT --
-      UserOutput result = tenantUserService.user(user.getId());
+      UserOutput result = tenantUserService.user(ctx(), user.getId());
 
       // -- ASSERT --
       assertThat(result).isNotNull();
@@ -162,7 +162,7 @@ class TenantUserServiceTest extends IntegrationTest {
       User user = persistedUserNotInTenant("Angela", "Moss", "diana@test.invalid");
 
       // -- ACT & ASSERT --
-      assertThatThrownBy(() -> tenantUserService.user(user.getId()))
+      assertThatThrownBy(() -> tenantUserService.user(ctx(), user.getId()))
           .isInstanceOf(ElementNotFoundException.class)
           .hasMessageContaining(user.getId());
     }
@@ -177,7 +177,7 @@ class TenantUserServiceTest extends IntegrationTest {
 
       // -- ACT --
       List<UserOutput> result =
-          tenantUserService.find(List.of(user1.getId(), user2.getId(), outsideUser.getId()));
+          tenantUserService.find(ctx(), List.of(user1.getId(), user2.getId(), outsideUser.getId()));
 
       // -- ASSERT --
       assertThat(result).hasSize(2);
@@ -190,7 +190,7 @@ class TenantUserServiceTest extends IntegrationTest {
     @DisplayName("Given an empty IDs list should return empty list")
     void given_emptyIdsList_should_returnEmptyList() {
       // -- ACT --
-      List<UserOutput> result = tenantUserService.find(List.of());
+      List<UserOutput> result = tenantUserService.find(ctx(), List.of());
 
       // -- ASSERT --
       assertThat(result).isEmpty();
@@ -205,7 +205,7 @@ class TenantUserServiceTest extends IntegrationTest {
       persistedUserNotInTenant("Terry", "Colby", "ivan@test.invalid");
 
       // -- ACT --
-      List<RawUser> result = tenantUserService.users();
+      List<RawUser> result = tenantUserService.users(ctx());
 
       // -- ASSERT --
       assertThat(result).hasSizeGreaterThanOrEqualTo(2);
@@ -231,7 +231,7 @@ class TenantUserServiceTest extends IntegrationTest {
       SearchPaginationInput searchInput = PaginationFixture.getDefault().size(10).build();
 
       // -- ACT --
-      Page<UserOutput> result = tenantUserService.search(searchInput);
+      Page<UserOutput> result = tenantUserService.search(ctx(), searchInput);
 
       // -- ASSERT --
       assertThat(result).isNotNull();
@@ -259,7 +259,7 @@ class TenantUserServiceTest extends IntegrationTest {
       entityManager.clear();
 
       // -- ASSERT --
-      assertThatThrownBy(() -> tenantUserService.user(user.getId()))
+      assertThatThrownBy(() -> tenantUserService.user(ctx(), user.getId()))
           .isInstanceOf(ElementNotFoundException.class);
     }
 

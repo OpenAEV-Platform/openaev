@@ -12,7 +12,6 @@ import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.TenantMembershipCacheManager;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
@@ -23,11 +22,13 @@ import io.openaev.database.repository.UserRepository;
 import io.openaev.database.specification.UserSpecification;
 import io.openaev.multitenancy.DependenciesManager;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.service.UserCreationScope;
 import io.openaev.service.UserService;
 import io.openaev.service.account.PrivilegeEscalationValidator;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.organization.OrganizationService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.users.UserQueryHelper;
 import jakarta.persistence.EntityManager;
@@ -36,6 +37,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
@@ -89,38 +91,41 @@ public class TenantUserService implements DependenciesManager {
 
   // -- READ --
 
-  /** Returns a user by ID within the current tenant scope. */
+  /** Returns a user by ID within the tenant of the request. */
   @Transactional(readOnly = true)
-  public UserOutput user(@NotBlank final String userId) {
+  public UserOutput user(TxCtx ctx, @NotBlank final String userId) {
+    String tenantId = readTenant(ctx);
     return userRepository
-        .findOne(inTenant(tenantId()).and(UserSpecification.byId(userId)))
-        .map(this::toOutput)
+        .findOne(inTenant(tenantId).and(UserSpecification.byId(userId)))
+        .map(user -> toOutput(user, tenantId))
         .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
   }
 
-  /** Finds users by IDs within the current tenant scope. */
+  /** Finds users by IDs within the tenant of the request. */
   @Transactional(readOnly = true)
-  public List<UserOutput> find(@NotNull final List<String> userIds) {
+  public List<UserOutput> find(TxCtx ctx, @NotNull final List<String> userIds) {
     if (userIds.isEmpty()) {
       return List.of();
     }
-    return toOutputs(userRepository.findAll(inTenant(tenantId()).and(fromIds(userIds))));
+    String tenantId = readTenant(ctx);
+    return toOutputs(userRepository.findAll(inTenant(tenantId).and(fromIds(userIds))), tenantId);
   }
 
-  /** Returns all users belonging to the current tenant. */
+  /** Returns all users belonging to the tenant of the request. */
   @Transactional(readOnly = true)
-  public List<RawUser> users() {
-    return userRepository.rawAllInTenant(tenantId());
+  public List<RawUser> users(TxCtx ctx) {
+    return userRepository.rawAllInTenant(readTenant(ctx));
   }
 
   // -- SEARCH --
 
-  /** Searches users belonging to the current tenant (from {@link TenantContext}). */
+  /** Searches users belonging to the tenant of the request. */
   @Transactional(readOnly = true)
-  public Page<UserOutput> search(SearchPaginationInput searchPaginationInput) {
-    Specification<User> tenantSpec = inTenant(tenantId());
+  public Page<UserOutput> search(TxCtx ctx, SearchPaginationInput searchPaginationInput) {
+    String tenantId = readTenant(ctx);
+    Specification<User> tenantSpec = inTenant(tenantId);
     // After the filters, which may join the organizations of the user (see organizationsInTenant).
-    Specification<User> organizationsOfTenant = organizationsInTenant(tenantId());
+    Specification<User> organizationsOfTenant = organizationsInTenant(tenantId);
     var cb = entityManager.getCriteriaBuilder();
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
@@ -139,12 +144,13 @@ public class TenantUserService implements DependenciesManager {
   // -- UPDATE --
 
   /**
-   * Updates profile fields of a user within the current tenant scope. Does NOT modify tenant
-   * memberships or admin status — those are platform-level operations.
+   * Updates profile fields of a user within the tenant of the request's write scope. Does NOT
+   * modify tenant memberships or admin status: those are platform-level operations.
    */
-  public UserOutput update(@NotBlank String userId, UserInput input) {
+  public UserOutput update(TxCtx ctx, @NotBlank String userId, UserInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.email());
-    Specification<User> spec = inTenant(tenantId()).and(UserSpecification.byId(userId));
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    Specification<User> spec = inTenant(tenantId).and(UserSpecification.byId(userId));
     User existing =
         userRepository
             .findOne(spec)
@@ -152,14 +158,14 @@ public class TenantUserService implements DependenciesManager {
     ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
     PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
     userService.applyProfile(existing, input);
-    applyOrganization(existing, input.organizationId(), tenantId());
-    return toOutput(userRepository.save(existing));
+    applyOrganization(existing, input.organizationId(), tenantId);
+    return toOutput(userRepository.save(existing), tenantId);
   }
 
   /**
-   * Sets the organization the user holds in the current tenant, leaving the ones it holds in other
-   * tenants untouched. An empty value clears the current tenant's organization; an unknown
-   * organization, or one of another tenant, is rejected rather than cleared.
+   * Sets the organization the user holds in the given tenant, leaving the ones it holds in other
+   * tenants untouched. An empty value clears that tenant's organization; an unknown organization,
+   * or one of another tenant, is rejected rather than cleared.
    */
   private void applyOrganization(User user, String organizationId, String tenantId) {
     Organization organization = null;
@@ -174,23 +180,15 @@ public class TenantUserService implements DependenciesManager {
 
   // -- OUTPUT --
 
-  // Only the current tenant's organization is exposed: a user may belong to another tenant's.
-  private UserOutput toOutput(User user) {
-    return toOutput(user, tenantId());
-  }
-
+  // Only the request's tenant's organization is exposed: a user may belong to another tenant's.
   private UserOutput toOutput(User user, String tenantId) {
     return toOutputs(List.of(user), tenantId).getFirst();
-  }
-
-  private List<UserOutput> toOutputs(List<User> users) {
-    return toOutputs(users, tenantId());
   }
 
   private List<UserOutput> toOutputs(List<User> users, String tenantId) {
     Map<String, Organization> organizations =
         organizationService.usersOrganizationsInTenant(users, tenantId);
-    return users.stream().map(user -> UserMapper.toOutput(user, organizations)).toList();
+    return users.stream().map(user -> UserMapper.toOutput(user, tenantId, organizations)).toList();
   }
 
   // -- DELETE --
@@ -223,12 +221,19 @@ public class TenantUserService implements DependenciesManager {
 
   // -- INTERNAL --
 
-  /** Resolves the current tenant ID from the thread-local context. */
-  private String tenantId() {
-    String tenantId = TenantContext.getCurrentTenant();
-    if (tenantId == null || tenantId.isBlank()) {
-      throw new IllegalStateException("TenantUserService requires a tenant context");
+  /**
+   * The tenant a read answers for: the one the request's scope pins. A request that resolves no
+   * scope (a caller with no membership on the non-prefixed route) reads the ambient tenant, as it
+   * did before the scope existed; a scope of several tenants has no single answer and is refused.
+   */
+  private String readTenant(TxCtx ctx) {
+    Set<String> scoped = TxCtxScopeUtils.requestReadScope(ctx);
+    if (scoped.size() != 1) {
+      throw new TenantWriteScopeException(
+          "A read of users needs a single-tenant scope; the request scope holds "
+              + scoped.size()
+              + " tenants. Provide an explicit tenant selector.");
     }
-    return tenantId;
+    return scoped.iterator().next();
   }
 }
