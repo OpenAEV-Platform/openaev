@@ -6,6 +6,10 @@ name: "🔍 Aikido Rolling Image Scan"
 # error does.
 
 on:
+  # Temporary: runs the scan from this branch before merge. Drop before merging.
+  push:
+    branches:
+      - ci/aikido-rolling-image-scan
   schedule:
     - cron: "30 3 * * *"
   workflow_dispatch:
@@ -37,37 +41,17 @@ jobs:
           AIKIDO_API_KEY: ${{ secrets.AIKIDO_TOKEN }}
           SCANNER: aikidosecurity/local-scanner:v1.0.163@sha256:c96405a39c65070db69d2bc22fee697415448b8e1ef9650022b92991a825d4bc
           IMAGE: openaev/platform:${{ matrix.tag }}
-          TAG: ${{ matrix.tag }}
-          RELEASE: ${{ inputs.release }}
           REPORT: aikido-platform-${{ matrix.tag }}
         run: |
           set -euo pipefail
 
-          # The standard and UBI9 variants are separate images in Aikido, so a
-          # scan of one does not replace the results of the other. The names
-          # differ from the Docker Hub ones: Aikido already tracks
-          # openaev/platform as a public image and refuses a local scan under
-          # that name.
-          case "$TAG" in
-            *-ubi9) image_name=openaev-platform-ubi9 ;;
-            *)      image_name=openaev-platform ;;
-          esac
-
-          # Aikido updates the tag of an existing image by default: a release
-          # scanned by hand gets its own image, so the rolling one is kept.
-          release_args=()
-          if [ -n "$RELEASE" ]; then
-            release_args=(--force-create-image-for-tag)
-          fi
-
           # The scanner reads the image from the local Docker daemon.
           docker pull "$IMAGE"
 
-          # Release gating mode is the only one that writes the open issues to a
-          # file. It exits non-zero both on findings and on a scanner error; the
-          # report is written only once the scan has finished, so a non-zero
-          # exit without a report is the scanner failing.
-          status=0
+          # An ephemeral scan writes every finding with its details to a file
+          # and keeps nothing in Aikido. Without --fail-on it exits non-zero
+          # only when the scan itself fails. Unfixed vulnerabilities are left
+          # out by default: they are reported too, as Snyk does.
           # The key goes through the environment, not the command line, to keep
           # it out of the process list and of the uploaded console output.
           docker run --rm \
@@ -75,18 +59,10 @@ jobs:
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "$PWD:/report" \
             "$SCANNER" \
-            image-scan "$IMAGE" \
-            --image-name "$image_name" \
-            --tag "$TAG" \
-            "${release_args[@]}" \
-            --fail-on high \
-            --gating-result-output "/report/$REPORT.json" \
-            | tee "$REPORT.txt" || status=$?
-
-          if [ "$status" -ne 0 ] && [ ! -s "$REPORT.json" ]; then
-            echo "::error::Aikido scan of $IMAGE failed (exit code $status)"
-            exit "$status"
-          fi
+            ephemeral-image-scan "$IMAGE" \
+            --include-unfixed \
+            --result-output "/report/$REPORT.json" \
+            | tee "$REPORT.txt"
 
       - name: Upload Aikido report
         if: ${{ !cancelled() }}
