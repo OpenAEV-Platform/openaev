@@ -3,7 +3,6 @@ package io.openaev.rest.settings;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.PlatformWrite;
 import io.openaev.aop.UserRoleDescription;
-import io.openaev.config.PlatformScope;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -56,7 +55,7 @@ public class PlatformSettingsApi extends RestBehavior {
       description =
           "Return only non-sensitive settings (auth providers, theme, language, policies)")
   @Transactional
-  public PublicPlatformSettings publicSettings(@PlatformScope TxCtx ctx) {
+  public PublicPlatformSettings publicSettings(TxCtx ctx) {
     return platformSettingsService.findPublicSettings();
   }
 
@@ -67,7 +66,7 @@ public class PlatformSettingsApi extends RestBehavior {
       summary = "List settings",
       description = "Return the full settings (authenticated users only)")
   @Transactional
-  public PlatformSettings settings(@PlatformScope TxCtx ctx) {
+  public PlatformSettings settings(TxCtx ctx) {
     return platformSettingsService.findSettings();
   }
 
@@ -81,7 +80,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @Operation(summary = "List caldera settings", description = "Return the settings")
   @Transactional
   @Deprecated
-  public List<CalderaSettings> getCalderaSettings(@PlatformScope TxCtx ctx) {
+  public List<CalderaSettings> getCalderaSettings(TxCtx ctx) {
     return calderaSettingsService.getCalderaSettings();
   }
 
@@ -90,7 +89,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The platform version")})
   @Operation(summary = "Get platform version", description = "Return the platform version")
   @Transactional
-  public String platformVersion(@PlatformScope TxCtx ctx) {
+  public String platformVersion(TxCtx ctx) {
     return platformSettingsService.getPlatformVersion();
   }
 
@@ -105,8 +104,7 @@ public class PlatformSettingsApi extends RestBehavior {
       })
   @Operation(summary = "Update EE settings", description = "Update the enterprise edition settings")
   public PlatformSettings updateSettingsEnterpriseEdition(
-      @PlatformScope TxCtx ctx, @Valid @RequestBody SettingsEnterpriseEditionUpdateInput input)
-      throws Exception {
+      TxCtx ctx, @Valid @RequestBody SettingsEnterpriseEditionUpdateInput input) throws Exception {
     return platformSettingsService.updateSettingsEnterpriseEdition(input);
   }
 
@@ -120,7 +118,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update Whitemark settings", description = "Update the whitemark settings")
   public PlatformSettings updateSettingsPlatformWhitemark(
-      @PlatformScope TxCtx ctx, @Valid @RequestBody SettingsPlatformWhitemarkUpdateInput input) {
+      TxCtx ctx, @Valid @RequestBody SettingsPlatformWhitemarkUpdateInput input) {
     return platformSettingsService.updateSettingsPlatformWhitemark(input);
   }
 
@@ -133,7 +131,7 @@ public class PlatformSettingsApi extends RestBehavior {
       summary = "Update session settings",
       description = "Update the session management settings (max concurrent sessions per user)")
   public PlatformSettings updateSettingsSessions(
-      @PlatformScope TxCtx ctx, @Valid @RequestBody SettingsSessionsUpdateInput input) {
+      TxCtx ctx, @Valid @RequestBody SettingsSessionsUpdateInput input) {
     return platformSettingsService.updateSettingsSessions(input);
   }
 
@@ -145,8 +143,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @Operation(
       summary = "Update light theme settings",
       description = "Update the light theme settings")
-  public PlatformSettings updateThemeLight(
-      @PlatformScope TxCtx ctx, @Valid @RequestBody ThemeInput input) {
+  public PlatformSettings updateThemeLight(TxCtx ctx, @Valid @RequestBody ThemeInput input) {
     return platformSettingsService.updateThemeLight(input);
   }
 
@@ -156,8 +153,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update dark theme settings", description = "Update the dark theme settings")
-  public PlatformSettings updateThemeDark(
-      @PlatformScope TxCtx ctx, @Valid @RequestBody ThemeInput input) {
+  public PlatformSettings updateThemeDark(TxCtx ctx, @Valid @RequestBody ThemeInput input) {
     return platformSettingsService.updateThemeDark(input);
   }
 
@@ -167,8 +163,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update policies settings", description = "Update the policies settings")
-  public PlatformSettings updateSettingsPolicies(
-      @PlatformScope TxCtx ctx, @Valid @RequestBody PolicyInput input) {
+  public PlatformSettings updateSettingsPolicies(TxCtx ctx, @Valid @RequestBody PolicyInput input) {
     return platformSettingsService.updateSettingsPolicies(input);
   }
 
@@ -184,7 +179,7 @@ public class PlatformSettingsApi extends RestBehavior {
       summary = "Update chatbot AI CGU status",
       description = "Accept or revoke the Filigran AI Terms for the chatbot feature")
   public PlatformSettings updateChatbotAiCguStatus(
-      @PlatformScope TxCtx ctx, @Valid @RequestBody SettingsChatbotAiCguUpdateInput input) {
+      TxCtx ctx, @Valid @RequestBody SettingsChatbotAiCguUpdateInput input) {
     return platformSettingsService.updateChatbotAiCguStatus(input);
   }
 }
