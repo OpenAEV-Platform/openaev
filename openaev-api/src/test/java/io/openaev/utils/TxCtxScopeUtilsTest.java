@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.context.TxCtx;
-import io.openaev.rest.exception.TenantWriteScopeException;
+import io.openaev.rest.exception.TenantSingleScopeRequiredException;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -41,9 +41,9 @@ class TxCtxScopeUtilsTest {
 
       // Act / Assert
       assertThatThrownBy(() -> TxCtxScopeUtils.requireSingleTenant(ctx))
-          .isInstanceOf(TenantWriteScopeException.class)
+          .isInstanceOf(TenantSingleScopeRequiredException.class)
           .hasMessageNotContaining("create")
-          .hasMessageContaining("single-tenant scope");
+          .hasMessageContaining(TenantSingleScopeRequiredException.CODE);
     }
 
     @Test
@@ -53,9 +53,9 @@ class TxCtxScopeUtilsTest {
 
       // Act / Assert
       assertThatThrownBy(() -> TxCtxScopeUtils.requireSingleTenant(ctx))
-          .isInstanceOf(TenantWriteScopeException.class)
+          .isInstanceOf(TenantSingleScopeRequiredException.class)
           .hasMessageNotContaining("create")
-          .hasMessageContaining("single-tenant scope");
+          .hasMessageContaining(TenantSingleScopeRequiredException.CODE);
     }
   }
 }
