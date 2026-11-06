@@ -112,39 +112,36 @@ final class HandledErrorRollbackRules {
               "rethrows as ConnectorStatusException"),
           entry(
               "InjectExecutionStep#run -> AssetGroupService.assetsFromAssetGroup",
-              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+              "rethrows as ChainingException; the UnexecutableInjectException catch returns empty only"
                   + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> ConditionService.findAllConditionsByStepIds",
-              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
-                  + " while the transaction is not rollback-only"),
-          entry(
-              "InjectExecutionStep#run -> ConnectorInstanceService.findByExecutorId",
-              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+              "rethrows as ChainingException; the UnexecutableInjectException catch returns empty only"
                   + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> ConnectorInstanceService.hasStartedConnectorInstanceForInjector",
-              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+              "rethrows as ChainingException; the UnexecutableInjectException catch returns empty only"
                   + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> InjectStatusService.initializeInjectStatus",
-              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+              "rethrows as ChainingException; the UnexecutableInjectException catch returns empty only"
                   + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> InjectStatusService.saveAndStreamInject",
-              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+              "rethrows as ChainingException; the UnexecutableInjectException catch returns empty only"
                   + " while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> ManagerCreator.createManager",
-              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+              "rethrows as ChainingException; the UnexecutableInjectException catch returns empty only"
                   + " while the transaction is not rollback-only"),
           entry(
-              "InjectExecutionStep#run -> AgentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant",
-              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
-                  + " while the transaction is not rollback-only"),
+              "InjectExecutionStep#run -> AgentServiceAccountPrivilegeService.findTokenUserServiceAccountByTenant",
+              "rethrows as ChainingException; a missing token is returned as empty, so only a"
+                  + " technical failure reaches the catch, and the UnexecutableInjectException catch"
+                  + " returns empty only while the transaction is not rollback-only"),
           entry(
               "InjectExecutionStep#run -> UrlAccessTokenService.generateTokenUrl",
-              "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
+              "rethrows as ChainingException; the UnexecutableInjectException catch returns empty only"
                   + " while the transaction is not rollback-only"),
           entry(
               "ManagerCreator#createManager -> IntegrationFactory.findRelatedInstances",
@@ -161,9 +158,6 @@ final class HandledErrorRollbackRules {
               "SimulationInjectApi#executeInject -> AssetGroupService.assetsFromAssetGroup",
               "known defect, reported by the #8102 sweep"),
           entry(
-              "SimulationInjectApi#executeInject -> ConnectorInstanceService.findByExecutorId",
-              "known defect, reported by the #8102 sweep"),
-          entry(
               "SimulationInjectApi#executeInject -> ConnectorInstanceService.hasStartedConnectorInstanceForInjector",
               "known defect, reported by the #8102 sweep"),
           entry(
@@ -174,9 +168,6 @@ final class HandledErrorRollbackRules {
               "known defect, reported by the #8102 sweep"),
           entry(
               "SimulationInjectApi#executeInject -> ManagerCreator.createManager",
-              "known defect, reported by the #8102 sweep"),
-          entry(
-              "SimulationInjectApi#executeInject -> AgentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant",
               "known defect, reported by the #8102 sweep"),
           entry(
               "BatchingInjectStatusService#processTenantCallbacks -> InjectRepository.updateUpdatedAt",

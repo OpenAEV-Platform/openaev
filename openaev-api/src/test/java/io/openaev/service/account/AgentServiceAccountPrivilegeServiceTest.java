@@ -371,6 +371,53 @@ public class AgentServiceAccountPrivilegeServiceTest {
 
   // endregion
 
+  // region findTokenUserServiceAccountByTenant
+
+  @Test
+  @DisplayName("Should find the token value when the service account has one")
+  void given_serviceAccountWithToken_should_findTokenValue() {
+    // prepare
+    Token token = new Token();
+    token.setValue("test-token-value");
+    mockUser.setTokens(new ArrayList<>(List.of(token)));
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
+
+    // act
+    Optional<String> result = privilegeService.findTokenUserServiceAccountByTenant(TENANT_ID);
+
+    // assert
+    assertThat(result).contains("test-token-value");
+  }
+
+  @Test
+  @DisplayName("Should find no token, without throwing, when no service account exists")
+  void given_noServiceAccount_should_findNoTokenWithoutThrowing() {
+    // prepare
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
+
+    // act
+    Optional<String> result = privilegeService.findTokenUserServiceAccountByTenant(TENANT_ID);
+
+    // assert
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("Should find no token, without throwing, when the service account has no token")
+  void given_serviceAccountWithoutToken_should_findNoTokenWithoutThrowing() {
+    // prepare
+    mockUser.setTokens(new ArrayList<>());
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
+
+    // act
+    Optional<String> result = privilegeService.findTokenUserServiceAccountByTenant(TENANT_ID);
+
+    // assert
+    assertThat(result).isEmpty();
+  }
+
+  // endregion
+
   // region rotateTokenForTenant
 
   @Test

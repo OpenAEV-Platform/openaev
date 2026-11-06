@@ -20,6 +20,7 @@ import io.openaev.service.EndpointService;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import jakarta.persistence.EntityNotFoundException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -117,14 +118,24 @@ public class ExecutionExecutorService {
       InjectStatus injectStatus,
       AtomicBoolean atLeastOneExecution) {
     if (!agents.isEmpty()) {
+      // A missing connector instance or token is final for this executor: its agents get an error
+      // trace below and the executor is skipped. Both are looked up with the Optional variants and
+      // thrown from here: thrown through their @Transactional proxy, the caught exception would
+      // still mark the caller's transaction rollback-only, and the inject would be retried instead
+      // of ending in ERROR.
+      String tenantId = inject.getTenant().getId();
       try {
-        Manager manager = managerFactory.getManager(inject.getTenant().getId());
+        Manager manager = managerFactory.getManager(tenantId);
         ExecutorContextService executorContextService;
         if (executor.isExternal()) {
           // Resolve the ConnectorInstance that owns this executor, scoped to the inject's tenant
           ConnectorInstancePersisted instance =
-              connectorInstanceService.findByExecutorId(
-                  executor.getId(), inject.getTenant().getId());
+              connectorInstanceService
+                  .findPersistedByConnectorId(ConnectorType.EXECUTOR, executor.getId(), tenantId)
+                  .orElseThrow(
+                      () ->
+                          new EntityNotFoundException(
+                              "No connector instance found for executor ID: " + executor.getId()));
           executorContextService =
               manager.requestForInstance(instance, ExecutorContextService.class);
         } else {
@@ -135,8 +146,9 @@ public class ExecutionExecutorService {
                   new ComponentRequest(executor.getName()), ExecutorContextService.class);
         }
         String token =
-            agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
-                inject.getTenant().getId());
+            agentServiceAccountPrivilegeService
+                .findTokenUserServiceAccountByTenant(tenantId)
+                .orElseThrow(() -> new UnsupportedOperationException("Token not found"));
         List<Agent> agentsProcessed =
             executorContextService.launchBatchExecutorSubprocess(
                 inject, agents, injectStatus, token);
