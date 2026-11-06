@@ -1,7 +1,9 @@
 package io.openaev.rest.settings;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.PlatformWrite;
 import io.openaev.aop.UserRoleDescription;
+import io.openaev.config.PlatformScope;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -54,7 +56,7 @@ public class PlatformSettingsApi extends RestBehavior {
       description =
           "Return only non-sensitive settings (auth providers, theme, language, policies)")
   @Transactional
-  public PublicPlatformSettings publicSettings(TxCtx ctx) {
+  public PublicPlatformSettings publicSettings(@PlatformScope TxCtx ctx) {
     return platformSettingsService.findPublicSettings();
   }
 
@@ -65,7 +67,7 @@ public class PlatformSettingsApi extends RestBehavior {
       summary = "List settings",
       description = "Return the full settings (authenticated users only)")
   @Transactional
-  public PlatformSettings settings(TxCtx ctx) {
+  public PlatformSettings settings(@PlatformScope TxCtx ctx) {
     return platformSettingsService.findSettings();
   }
 
@@ -79,7 +81,7 @@ public class PlatformSettingsApi extends RestBehavior {
   @Operation(summary = "List caldera settings", description = "Return the settings")
   @Transactional
   @Deprecated
-  public List<CalderaSettings> getCalderaSettings(TxCtx ctx) {
+  public List<CalderaSettings> getCalderaSettings(@PlatformScope TxCtx ctx) {
     return calderaSettingsService.getCalderaSettings();
   }
 
@@ -88,12 +90,13 @@ public class PlatformSettingsApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The platform version")})
   @Operation(summary = "Get platform version", description = "Return the platform version")
   @Transactional
-  public String platformVersion(TxCtx ctx) {
+  public String platformVersion(@PlatformScope TxCtx ctx) {
     return platformSettingsService.getPlatformVersion();
   }
 
   @PutMapping("/enterprise-edition")
   @Transactional
+  @PlatformWrite
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(
       value = {
@@ -102,12 +105,14 @@ public class PlatformSettingsApi extends RestBehavior {
       })
   @Operation(summary = "Update EE settings", description = "Update the enterprise edition settings")
   public PlatformSettings updateSettingsEnterpriseEdition(
-      TxCtx ctx, @Valid @RequestBody SettingsEnterpriseEditionUpdateInput input) throws Exception {
+      @PlatformScope TxCtx ctx, @Valid @RequestBody SettingsEnterpriseEditionUpdateInput input)
+      throws Exception {
     return platformSettingsService.updateSettingsEnterpriseEdition(input);
   }
 
   @PutMapping("/platform_whitemark")
   @Transactional
+  @PlatformWrite
   @AccessControl(
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLATFORM_SETTING,
@@ -115,53 +120,61 @@ public class PlatformSettingsApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update Whitemark settings", description = "Update the whitemark settings")
   public PlatformSettings updateSettingsPlatformWhitemark(
-      TxCtx ctx, @Valid @RequestBody SettingsPlatformWhitemarkUpdateInput input) {
+      @PlatformScope TxCtx ctx, @Valid @RequestBody SettingsPlatformWhitemarkUpdateInput input) {
     return platformSettingsService.updateSettingsPlatformWhitemark(input);
   }
 
   @PutMapping("/sessions")
   @Transactional
+  @PlatformWrite
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(
       summary = "Update session settings",
       description = "Update the session management settings (max concurrent sessions per user)")
   public PlatformSettings updateSettingsSessions(
-      TxCtx ctx, @Valid @RequestBody SettingsSessionsUpdateInput input) {
+      @PlatformScope TxCtx ctx, @Valid @RequestBody SettingsSessionsUpdateInput input) {
     return platformSettingsService.updateSettingsSessions(input);
   }
 
   @PutMapping("/theme/light")
   @Transactional
+  @PlatformWrite
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(
       summary = "Update light theme settings",
       description = "Update the light theme settings")
-  public PlatformSettings updateThemeLight(TxCtx ctx, @Valid @RequestBody ThemeInput input) {
+  public PlatformSettings updateThemeLight(
+      @PlatformScope TxCtx ctx, @Valid @RequestBody ThemeInput input) {
     return platformSettingsService.updateThemeLight(input);
   }
 
   @PutMapping("/theme/dark")
   @Transactional
+  @PlatformWrite
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update dark theme settings", description = "Update the dark theme settings")
-  public PlatformSettings updateThemeDark(TxCtx ctx, @Valid @RequestBody ThemeInput input) {
+  public PlatformSettings updateThemeDark(
+      @PlatformScope TxCtx ctx, @Valid @RequestBody ThemeInput input) {
     return platformSettingsService.updateThemeDark(input);
   }
 
   @PutMapping("/policies")
   @Transactional
+  @PlatformWrite
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The updated settings")})
   @Operation(summary = "Update policies settings", description = "Update the policies settings")
-  public PlatformSettings updateSettingsPolicies(TxCtx ctx, @Valid @RequestBody PolicyInput input) {
+  public PlatformSettings updateSettingsPolicies(
+      @PlatformScope TxCtx ctx, @Valid @RequestBody PolicyInput input) {
     return platformSettingsService.updateSettingsPolicies(input);
   }
 
   @PutMapping("/chatbot-ai-cgu")
   @Transactional
+  @PlatformWrite
   @AccessControl(
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLATFORM_SETTING,
@@ -171,7 +184,7 @@ public class PlatformSettingsApi extends RestBehavior {
       summary = "Update chatbot AI CGU status",
       description = "Accept or revoke the Filigran AI Terms for the chatbot feature")
   public PlatformSettings updateChatbotAiCguStatus(
-      TxCtx ctx, @Valid @RequestBody SettingsChatbotAiCguUpdateInput input) {
+      @PlatformScope TxCtx ctx, @Valid @RequestBody SettingsChatbotAiCguUpdateInput input) {
     return platformSettingsService.updateChatbotAiCguStatus(input);
   }
 }
