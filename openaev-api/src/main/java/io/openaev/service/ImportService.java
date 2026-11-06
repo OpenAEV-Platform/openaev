@@ -20,6 +20,7 @@ import jakarta.annotation.Resource;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 import java.util.zip.ZipEntry;
@@ -75,6 +76,27 @@ public class ImportService {
     }
   }
 
+  // Tells the type of an archive entry that carries no entry comment, which is the case of an
+  // export unzipped and zipped again with a standard tool: a JSON file holding an export_version
+  // is the exported exercise or scenario, anything else is an attachment, looked up by its entry
+  // name as before.
+  static String inferEntryType(String entryName, byte[] content, ObjectMapper objectMapper) {
+    boolean macOsMetadata = entryName.startsWith("__MACOSX/");
+    if (!macOsMetadata && entryName.toLowerCase(Locale.ROOT).endsWith(".json")) {
+      try {
+        JsonNode node = objectMapper.readTree(content);
+        if (node != null && node.isObject() && node.has("export_version")) {
+          // Exercise and scenario entries are imported the same way: the importer reads the
+          // type from the JSON itself.
+          return EXPORT_ENTRY_SCENARIO;
+        }
+      } catch (IOException e) {
+        // Not a JSON export file: keep it as an attachment.
+      }
+    }
+    return EXPORT_ENTRY_ATTACHMENT;
+  }
+
   @Transactional(rollbackFor = Exception.class)
   public ImportResult handleFileImport(
       TxCtx ctx, MultipartFile file, Exercise exercise, Scenario scenario) throws Exception {
@@ -118,6 +140,7 @@ public class ImportService {
       List<InputStream> dataImports = new ArrayList<>();
       Map<String, ImportEntry> docReferences = new HashMap<>();
       Enumeration<? extends ZipEntry> entries = parentZip.entries();
+      boolean untaggedEntries = false;
 
       while (entries.hasMoreElements()) {
         ZipEntry entry = entries.nextElement();
@@ -151,8 +174,12 @@ public class ImportService {
         }
 
         if (entryType == null) {
-          throw new UnsupportedMediaTypeException(
-              "Import file is using an incorrect format (" + entryName + ")");
+          // An archive unzipped and zipped again with a standard tool loses the entry comments
+          // the export writes: tell the entry type from the entry itself instead (#3686).
+          try (InputStream untaggedStream = parentZip.getInputStream(entry)) {
+            entryType = inferEntryType(entryName, IOUtils.toByteArray(untaggedStream), mapper);
+          }
+          untaggedEntries = true;
         }
 
         if (EXPORT_ENTRY_PAYLOAD_ARCHIVE.equals(entryType)) {
@@ -250,6 +277,11 @@ public class ImportService {
             tempEncryptedAttachmentFile.delete();
           }
         }
+      }
+
+      if (untaggedEntries && dataImports.isEmpty()) {
+        throw new UnsupportedMediaTypeException(
+            "Import file is using an incorrect format (no exercise, scenario or payload found)");
       }
 
       // Process all loaded data. A single ZIP can carry the main Exercise/Scenario file plus one or
