@@ -299,25 +299,35 @@ public class InjectService {
    */
   @Transactional(readOnly = true)
   public Optional<Inject> findInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
-    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
-    return this.injectRepository
-        .findById(injectId)
-        .filter(inject -> scope.contains(inject.getTenant().getId()));
+    return doFindInScope(ctx, injectId);
   }
 
   /** Loads an inject inside the request's tenant scope. Throws if not found there. */
   @Transactional(readOnly = true)
   public Inject inject(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
-    return findInScope(ctx, injectId)
+    return doFindInScope(ctx, injectId)
         .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
   }
 
   /** Validates that the inject exists inside the request's tenant scope. Throws if not. */
   @Transactional(readOnly = true)
   public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
-    if (findInScope(ctx, injectId).isEmpty()) {
+    if (doFindInScope(ctx, injectId).isEmpty()) {
       throw new ElementNotFoundException("Inject not found with id: " + injectId);
     }
+  }
+
+  /**
+   * Body of {@link #findInScope}. Kept un-annotated so {@link #inject(TxCtx, String)} and {@link
+   * #existsInScope} can reuse it without the intra-class {@code @Transactional} self-invocation
+   * trap (a same-class call bypasses the Spring proxy). Must be called inside a transaction; each
+   * of the three public entry points above carries its own.
+   */
+  private Optional<Inject> doFindInScope(final TxCtx ctx, final String injectId) {
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
+    return this.injectRepository
+        .findById(injectId)
+        .filter(inject -> scope.contains(inject.getTenant().getId()));
   }
 
   /**
