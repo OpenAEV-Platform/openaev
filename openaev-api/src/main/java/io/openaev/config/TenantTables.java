@@ -52,17 +52,15 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
    *       The same holds for token authentication and the membership reads of background threads.
    *       What stands in for the inspector is not the statements themselves, which only bind a
    *       {@code user_id} or a {@code tenant_id}: that says which row a statement targets, not
-   *       whether the tenant it writes is the right one. Three things do. The request writers
-   *       ({@code TenantUserService} create, attach and detach, {@code PlayerService}) take the
-   *       tenant of the row from the request's write scope through {@code
-   *       TenantWriteScopeResolver}; the writers that provision a tenant's own accounts ({@code
-   *       AdminPrivilegeService}, {@code AgentServiceAccountPrivilegeService}, {@code
-   *       CatalogConnectorPrivilegeService}, {@code OpenCTIConnectorPrivilegeService}, tenant
-   *       creation) pass the tenant they provision. The endpoints sit behind the caller's
-   *       membership check on the addressed tenant, and the write-attribution detector, which keeps
-   *       this table in its watch, reports in the test suite a row written outside its
-   *       transaction's scope and fails a test on one its baseline does not list. See {@code
-   *       TenantMembershipGuardTest} and {@code WriteAttrMembershipTableTest}.
+   *       whether the tenant it writes is the right one. Four things do. Every writer of the table
+   *       is named, with where its tenant comes from, in {@code UsersTenantsWritersArchTest}, which
+   *       fails on a writer it does not list and on a listed one that no longer writes; the request
+   *       writers take the tenant of the row from the request's write scope through {@code
+   *       TenantWriteScopeResolver}. The endpoints sit behind the caller's membership check on the
+   *       addressed tenant. And the write-attribution detector, which keeps this table in its
+   *       watch, reports in the test suite a row written outside its transaction's scope and fails
+   *       a test on one its baseline does not list. See also {@code TenantMembershipGuardTest} and
+   *       {@code WriteAttrMembershipTableTest}.
    * </ul>
    *
    * A table belongs here only with that kind of written reason. "Not activated yet" is not one.
