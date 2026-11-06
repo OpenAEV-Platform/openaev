@@ -58,11 +58,6 @@ public class TenantGroupService {
   private final MarkingMetricCollector markingMetricCollector;
   @PersistenceContext private EntityManager entityManager;
 
-  // PermissionService pulls in InjectService -> EndpointService ->
-  // AgentServiceAccountPrivilegeService -> AbstractPrivilegeService -> TenantGroupService, so a
-  // plain constructor-injected field here is a circular bean dependency. @Lazy setter injection
-  // (same pattern as InjectService.setInjectStatusService) defers resolving the PermissionService
-  // bean until first use, breaking the cycle without restructuring either service.
   private PermissionService permissionService;
 
   @Autowired
@@ -213,8 +208,6 @@ public class TenantGroupService {
     if (users.size() != uniqueUserIds.size()) {
       throw new ElementNotFoundException("One or more users not found in the current tenant");
     }
-    // Union of before and after: a user dropped from the group loses clearance (fail-open if the
-    // stale entry survives), a user added gains it (fail-closed, but still wrong until evicted).
     Set<String> affected = new LinkedHashSet<>(group.getUsers().stream().map(User::getId).toList());
     affected.addAll(uniqueUserIds);
 
@@ -238,15 +231,8 @@ public class TenantGroupService {
    *       than a silent partial assignment.
    *   <li><b>Escalation.</b> {@link MarkingEscalationValidator} — you may not grant what you do not
    *       hold. Without it, "may manage groups" would quietly mean "may read every marked row".
-   *   <li><b>Capability, per direction actually used.</b> Computed from the diff between the
-   *       payload and the group's current markings (read before {@code setMarkings} overwrites it):
-   *       removing a currently-granted marking requires {@code DELETE_MARKING_ASSIGNMENT}, adding
-   *       one not currently granted requires {@code ASSIGN_MARKING} - either, both, or neither,
-   *       depending on what this particular payload changes. An empty payload against a group that
-   *       currently grants anything is a pure removal and so needs only {@code
-   *       DELETE_MARKING_ASSIGNMENT}; a payload that both drops one marking and adds another needs
-   *       both capabilities, independently - this is additive to the group's own {@code WRITE}
-   *       control checked at the API layer, not a replacement for it.
+   *   <li><b>Capability, only if the set actually changes.</b> Any add or remove requires {@code
+   *       MANAGE_MARKING_ASSIGNMENT}, additive to the group's own {@code WRITE} control.
    * </ol>
    *
    * <p>🔴 The eviction at the end is not an optimisation. A cached clearance is pure set
@@ -286,21 +272,15 @@ public class TenantGroupService {
     Set<String> addedIds = new HashSet<>(uniqueMarkingIds);
     addedIds.removeAll(currentMarkingIds);
 
-    if (!removedIds.isEmpty()
-        && !permissionService.holdsInTenant(
+    // Read as granted in tenantId - the group's tenant, not necessarily the caller's ambient one.
+    boolean hasCapability =
+        permissionService.holdsInTenant(
             tenantId,
             () ->
                 permissionService.hasCapabilityPermission(
-                    currentUser, ResourceType.MARKING_ASSIGNMENT, Action.DELETE))) {
-      throw new ForbiddenException("Missing the DELETE_MARKING_ASSIGNMENT capability");
-    }
-    if (!addedIds.isEmpty()
-        && !permissionService.holdsInTenant(
-            tenantId,
-            () ->
-                permissionService.hasCapabilityPermission(
-                    currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE))) {
-      throw new ForbiddenException("Missing the ASSIGN_MARKING capability");
+                    currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE));
+    if ((!removedIds.isEmpty() || !addedIds.isEmpty()) && !hasCapability) {
+      throw new ForbiddenException("Missing the MANAGE_MARKING_ASSIGNMENT capability");
     }
 
     Set<String> affected = new LinkedHashSet<>(group.getUsers().stream().map(User::getId).toList());
@@ -318,8 +298,6 @@ public class TenantGroupService {
 
   public void delete(@NotBlank final String groupId) {
     Group group = this.findByIdInTenantForWrite(groupId);
-    // Clear bidirectional associations before delete to avoid TransientObjectException
-    // (User entities in the persistence context would otherwise still reference the removed Group)
     List<String> members = group.getUsers().stream().map(User::getId).toList();
     group.getUsers().forEach(user -> user.getUnscopedGroups().remove(group));
     groupRepository.delete(group);
