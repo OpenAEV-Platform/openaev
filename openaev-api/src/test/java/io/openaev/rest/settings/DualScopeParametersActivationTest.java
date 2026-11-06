@@ -76,8 +76,8 @@ class DualScopeParametersActivationTest extends IntegrationTest {
     @Test
     @DisplayName("given_noAuthentication_should_stillReturnThePlatformSettings")
     void given_noAuthentication_should_stillReturnThePlatformSettings() throws Exception {
-      // Act + Assert: PlatformSettingsApi.publicSettings() resolves @PlatformScope rather than an
-      // anonymous TxCtx.missing(), so the platform row (tenant_id IS NULL) is readable.
+      // Act + Assert: publicSettings() resolves the anonymous, empty scope (TxCtx.missing()), and
+      // a platform row (tenant_id IS NULL) is readable under it.
       mvc.perform(get("/api/settings/public").with(csrf()).accept(MediaType.APPLICATION_JSON))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.platform_run_mode").exists());
@@ -150,27 +150,55 @@ class DualScopeParametersActivationTest extends IntegrationTest {
     @Test
     @WithMockUser(autoJoinDefaultTenant = true)
     @DisplayName(
-        "given_aTenantScopedTransactionWithNoPlatformWriteMarker_should_notCreateANewPlatformRow")
-    void given_aTenantScopedTransactionWithNoPlatformWriteMarker_should_notCreateANewPlatformRow() {
+        "given_aTenantScopedTransactionWithNoPlatformWriteMarker_should_refuseCreatingAPlatformRow")
+    void
+        given_aTenantScopedTransactionWithNoPlatformWriteMarker_should_refuseCreatingAPlatformRow() {
       // Arrange
       tenantScopedTransaction.setScopeOnCurrentTransaction(
           TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
-      String key = "dsp-tenant-route-cannot-create-a-platform-row";
-      Setting attempt = new Setting(key, "tenant-route-value");
+      Setting attempt = new Setting("dsp-tenant-route-cannot-create-a-platform-row", "value");
 
-      // Act: a plain INSERT ... VALUES. The inspector rewrites it through a VALUES-derived table
-      // and the WHERE matches nothing, so nothing is inserted (no exception: an insert matching
-      // zero source rows is not an error,
-      // same as an INSERT ... SELECT that returns no rows).
-      settingRepository.save(attempt);
-      entityManager.flush();
-      entityManager.clear();
-
-      // Assert
-      assertTrue(
-          settingRepository.findByKeyAndTenantIsNull(key).isEmpty(),
-          "a tenant-scoped transaction must never be able to create a platform row");
+      // Act + Assert: a plain INSERT ... VALUES of a platform row raises; the caller is never told
+      // a write succeeded when no row was written.
+      Throwable thrown =
+          assertThrows(
+              Throwable.class,
+              () -> {
+                settingRepository.save(attempt);
+                entityManager.flush();
+              });
+      assertTrue(rootMessage(thrown).contains("not platform-write"), rootMessage(thrown));
     }
+
+    @Test
+    @WithMockUser(autoJoinDefaultTenant = true)
+    @DisplayName("given_aTenantRowOfAnotherTenant_should_refuseCreatingIt")
+    void given_aTenantRowOfAnotherTenant_should_refuseCreatingIt() throws Exception {
+      // Arrange: the transaction is scoped to the default tenant, the row names another one
+      Tenant other = tenantHelper.createTenantWithCurrentUser("dsp-other-tenant-row");
+      tenantScopedTransaction.setScopeOnCurrentTransaction(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
+      Setting attempt = new Setting("dsp-row-of-another-tenant", "value");
+      attempt.setTenant(other);
+
+      // Act + Assert
+      Throwable thrown =
+          assertThrows(
+              Throwable.class,
+              () -> {
+                settingRepository.save(attempt);
+                entityManager.flush();
+              });
+      assertTrue(rootMessage(thrown).contains("outside the scope"), rootMessage(thrown));
+    }
+  }
+
+  private static String rootMessage(Throwable thrown) {
+    Throwable cursor = thrown;
+    while (cursor.getCause() != null && cursor.getCause() != cursor) {
+      cursor = cursor.getCause();
+    }
+    return String.valueOf(cursor.getMessage());
   }
 
   @Nested
