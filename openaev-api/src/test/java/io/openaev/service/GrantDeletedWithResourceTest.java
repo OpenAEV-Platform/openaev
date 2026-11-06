@@ -75,7 +75,8 @@ class GrantDeletedWithResourceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("given a deleted scenario, its grants are deleted and another scenario keeps its own")
+  @DisplayName(
+      "given a deleted scenario, its grants are deleted and another scenario keeps its own")
   void given_deletedScenario_should_deleteItsGrantsOnly() {
     // Arrange
     Scenario deleted = scenarioComposer.forScenario(ScenarioFixture.getScenario()).persist().get();
