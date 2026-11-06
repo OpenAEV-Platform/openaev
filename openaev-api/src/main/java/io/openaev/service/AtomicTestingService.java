@@ -71,7 +71,6 @@ public class AtomicTestingService {
   private final ObjectProvider<PermissionService> permissionServiceProvider;
   private final InjectSearchService injectSearchService;
   private final InjectService injectService;
-  private final GrantService grantService;
   private final InjectDocumentRepository injectDocumentRepository;
   private final InjectUtils injectUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
@@ -260,13 +259,10 @@ public class AtomicTestingService {
   @Transactional
   public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
     findInject(id);
-    // Relaunching an atomic testing is considered as creating a new one.
-    // Therefore, any grants created on the current atomic testing will have to be updated with the
-    // new ID
-    InjectResultOverviewOutput relaunched = injectService.relaunch(id, checkLaunchable);
-    grantService.updateGrantsForNewResource(
-        id, relaunched.getId(), Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
-    return relaunched;
+    // Relaunching an atomic testing is considered as creating a new one: InjectService moves the
+    // grants of the current atomic testing to the new id before it deletes the old inject, whose
+    // delete would otherwise take them (#8921).
+    return injectService.relaunch(id, checkLaunchable);
   }
 
   /**
@@ -287,10 +283,8 @@ public class AtomicTestingService {
   @Transactional
   public String relaunchAsCurrentUser(String id) {
     findInject(id);
-    String relaunchedId = injectService.relaunchAsCurrentUser(id);
-    grantService.updateGrantsForNewResource(
-        id, relaunchedId, Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
-    return relaunchedId;
+    // The grants move with the relaunch, in InjectService, before the old inject is deleted.
+    return injectService.relaunchAsCurrentUser(id);
   }
 
   /** Bulk update used by the recurring atomic testing job to self-clear outdated recurrences. */

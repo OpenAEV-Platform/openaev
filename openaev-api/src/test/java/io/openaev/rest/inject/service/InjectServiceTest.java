@@ -94,6 +94,7 @@ class InjectServiceTest {
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
   @Mock private InjectStatusRepository injectStatusRepository;
   @Mock private InjectDocumentRepository injectDocumentRepository;
+  @Mock private GrantRepository grantRepository;
   @Mock private InjectUtils injectUtils;
   @Mock private InjectStatusMapper injectStatusMapper;
   @Mock private PayloadMapper payloadMapper;
