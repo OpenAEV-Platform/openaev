@@ -77,7 +77,6 @@ domains OTHER io.openaev.service.tenants.TenantService.create
 #   groups TenantGroupApi.createGroup              -> activation of groups (#6433)
 #   injectors_contracts and its attack-pattern link rows,
 #     InjectorContractApi.updateInjectorContract    -> activation of injectors_contracts (#7905)
-#   exercises TenantScopedJobRunner.supplyInTenant   -> activation of exercises (#6434)
 # The detector's own attribution tests drive these paths on purpose (a deferred insert of a merged
 # copy, a composite-key row, a collection's link rows) and move to raw writes when the table
 # activates. The three simulation and scenario creates (ExerciseApi.createExercise,
@@ -85,15 +84,7 @@ domains OTHER io.openaev.service.tenants.TenantService.create
 # group: they take the tenant of the request scope on both routes, so their header-route write is
 # inside the scope and produces no signature. The groups and injectors_contracts lines
 # were invisible before those tests: the same request shapes were waived as test-driven by the
-# attribution holes the tests pin. The
-# TenantScopedJobRunner.supplyInTenant line is the same class through the background primitive
-# instead of the header route: ScenarioToExerciseDocumentAttributionTest runs the conversion under
-# the source tenant's v2 scope on purpose (supplyInTenant(tenantA, ...)), but Exercise is still on
-# v1 @Filter (board.md's "still on v1 @Filter" list), so the new exercise row is stamped by the v1
-# listener from the ambient TenantContext (deliberately a third tenant, to prove the cloned document
-# stays attributed by its own merge-carried tenant rather than by that ambient value) instead of
-# from the v2 scope the primitive set. exercises is not active, so no cross-tenant read exists today.
-exercises OTHER io.openaev.scheduler.TenantScopedJobRunner.supplyInTenant
+# attribution holes the tests pin.
 groups DEFAULT io.openaev.api.groups.TenantGroupApi.createGroup
 injectors_contracts DEFAULT io.openaev.rest.injector_contract.InjectorContractApi.updateInjectorContract
 injectors_contracts_attack_patterns DEFAULT io.openaev.rest.injector_contract.InjectorContractApi.updateInjectorContract

@@ -563,6 +563,19 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
     return response.getStatus();
   }
 
+  /** Launches a simulation from the scenario; the simulation created is removed on teardown. */
+  int launchScenario(Route route, String scenarioId) throws Exception {
+    TenantContext.clearCurrentTenant();
+    MockHttpServletResponse response =
+        mvc.perform(route.with(post(route.scenario(scenarioId) + "/exercise/running")))
+            .andReturn()
+            .getResponse();
+    if (response.getStatus() == 200) {
+      seededExercises.add(JsonPath.read(response.getContentAsString(), "$.exercise_id"));
+    }
+    return response.getStatus();
+  }
+
   /** Bulk deletes the given scenarios by id. */
   int bulkDeleteScenarios(Route route, String... ids) throws Exception {
     return status(

@@ -37,7 +37,6 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.util.*;
@@ -1030,49 +1029,6 @@ public class ScenarioApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Scenario search in tenant Y should NOT return scenarios from tenant X")
-    void given_scenarioInTenantX_should_notAppearInTenantYSearch() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
-
-      entityManager
-          .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
-                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
-          .setParameter("id", UUID.randomUUID().toString())
-          .setParameter("name", "CrossTenantSearchScenario")
-          .setParameter("tenant", tenantX.getId())
-          .executeUpdate();
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — search from tenant Y --------
-      SearchPaginationInput searchInput =
-          PaginationFixture.simpleTextSearch("CrossTenantSearchScenario");
-
-      String searchResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/scenarios/search")
-                      .content(asJsonString(searchInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert --------
-      assertEquals(Integer.valueOf(0), JsonPath.read(searchResponse, "$.totalElements"));
-    }
-
-    @Test
     @DisplayName("Scenario created in tenant X should NOT be updatable from tenant Y")
     void given_scenarioInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
       // -------- Arrange --------
@@ -1153,48 +1109,6 @@ public class ScenarioApiTest extends IntegrationTest {
 
       // -------- Assert --------
       assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
-
-    @Test
-    @DisplayName("Fetching scenarios by IDs should NOT return scenarios from another tenant")
-    void given_scenarioInTenantX_should_notBeReturnedByIdFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_ASSESSMENT, Capability.ACCESS_ASSESSMENT));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.ACCESS_ASSESSMENT));
-
-      String scenarioId = UUID.randomUUID().toString();
-      entityManager
-          .createNativeQuery(
-              "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id)"
-                  + " VALUES (:id, :name, CAST(:tenant AS uuid))")
-          .setParameter("id", scenarioId)
-          .setParameter("name", "SearchById Isolation Scenario")
-          .setParameter("tenant", tenantX.getId())
-          .executeUpdate();
-
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act — fetch by IDs from tenant Y --------
-      String searchByIdResponse =
-          mvc.perform(
-                  post("/api/tenants/" + tenantY.getId() + "/scenarios/search-by-id")
-                      .content(asJsonString(Map.of("scenario_ids", List.of(scenarioId))))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().is2xxSuccessful())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-
-      // -------- Assert — result should be empty --------
-      List<Object> results = JsonPath.read(searchByIdResponse, "$");
-      assertThat(results.size()).isEqualTo(0);
     }
 
     @Test

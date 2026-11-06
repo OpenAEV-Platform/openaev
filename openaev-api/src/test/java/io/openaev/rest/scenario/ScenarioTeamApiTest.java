@@ -248,7 +248,7 @@ class ScenarioTeamApiTest extends IntegrationTest {
 
   @DisplayName("Given a valid scenario with a team, should remove team from scenario successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validScenarioWithTeam_should_removeTeamFromScenarioSuccessfully() throws Exception {
     // -- PREPARE --
     Team teamCreated = createTeam(TEAM_NAME);

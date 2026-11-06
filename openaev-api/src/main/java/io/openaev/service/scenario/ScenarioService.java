@@ -31,6 +31,7 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
+import io.openaev.database.raw.RawScenarioWorkflowFields;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.database.specification.SpecificationUtils;
@@ -66,6 +67,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.ScopeService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -157,6 +159,7 @@ public class ScenarioService {
 
   private final ScenarioMapper scenarioMapper;
   private final WorkflowService workflowService;
+  private final WorkflowOwnerScope workflowOwnerScope;
   private final WorkflowExportInitializer workflowExportInitializer;
   private final BulkDeleteExecutor bulkDeleteExecutor;
 
@@ -528,11 +531,10 @@ public class ScenarioService {
 
   /**
    * Loads a scenario by primary key and keeps it only when its tenant lies in the request's tenant
-   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
-   * the default one on the non-prefixed route: a member reaches its own scenario in any tenant of
-   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
-   * them refuses only what lies outside the scope. Transactional with the {@link TxCtx}, so the
-   * lookup carries the request scope even from a caller that opens no transaction of its own.
+   * scope. For the callers that already loaded by primary key, so that scoping them refuses only
+   * what lies outside the scope. Transactional with the {@link TxCtx}, so the lookup carries the
+   * request scope even from a caller that opens no transaction of its own: without a transaction
+   * the statement inspector has no scope to read and the load fails closed.
    */
   @Transactional(readOnly = true)
   public Optional<Scenario> findByIdInScope(
@@ -569,16 +571,15 @@ public class ScenarioService {
   }
 
   /**
-   * Reads a scenario found inside the request's tenant scope. The native read itself keys on the v1
-   * ambient tenant, the default one on the non-prefixed route, so the scope is checked first.
+   * Reads a scenario found inside the request's tenant scope: the access check runs first, then the
+   * native read of the detail aggregate runs in that same scope. The workflow id and the platforms
+   * the detail names are read separately, in the scenario's own tenant (WorkflowOwnerScope), since
+   * a workflow can never move tenant.
    */
   public ScenarioOutput getScenarioById(
       @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
-    existsInScope(ctx, scenarioId);
-    RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
-    if (rawScenario == null) {
-      throw new ElementNotFoundException("Scenario not found");
-    }
+    Scenario scenario = this.scenario(ctx, scenarioId);
+    RawScenario rawScenario = rawScenario(scenarioId);
     Set<KillChainPhaseOutput> killChainPhases = new HashSet<>();
     if (rawScenario.getScenario_kill_chain_phases() != null) {
       try {
@@ -598,7 +599,13 @@ public class ScenarioService {
         log.error("Error reading scenarioTeamUsers from scenario id {}", scenarioId, e);
       }
     }
-    return scenarioMapper.toScenarioOutput(rawScenario, killChainPhases, scenarioTeamUsers);
+    RawScenarioWorkflowFields workflowFields = workflowFields(scenario, scenarioId);
+    return scenarioMapper.toScenarioOutput(
+        rawScenario,
+        killChainPhases,
+        scenarioTeamUsers,
+        workflowId(workflowFields),
+        platforms(rawScenario, workflowFields));
   }
 
   /**
@@ -613,15 +620,42 @@ public class ScenarioService {
   @Transactional(readOnly = true)
   public List<TeamOutput> getScenarioTeams(
       @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
-    existsInScope(ctx, scenarioId);
-    RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
-    if (rawScenario == null) {
-      throw new ElementNotFoundException("Scenario not found");
-    }
-    String workflowId = rawScenario.getScenario_workflow_id();
+    Scenario scenario = this.scenario(ctx, scenarioId);
+    String workflowId = workflowId(workflowFields(scenario, scenarioId));
     return hasText(workflowId)
         ? getWorkflowScenarioTeams(scenarioId, workflowId)
         : getTimeBasedScenarioTeams(scenarioId);
+  }
+
+  // The detail aggregate (kill chain phases, teams, tags and the rest) is read under the request's
+  // own scope, like any other tenant-active data the request's scope resolves: only the workflow
+  // fields below are read in the owner's tenant.
+  private RawScenario rawScenario(final String scenarioId) {
+    RawScenario rawScenario = scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
+    if (rawScenario == null) {
+      throw new ElementNotFoundException("Scenario not found");
+    }
+    return rawScenario;
+  }
+
+  // A workflow inherits its owner's tenant and can never move, so its id and the platforms its
+  // template steps target are read in the scenario's own tenant, whatever the caller's scope.
+  private RawScenarioWorkflowFields workflowFields(Scenario scenario, final String scenarioId) {
+    return workflowOwnerScope.call(
+        scenario, () -> scenarioRepository.getScenarioWorkflowFields(scenarioId));
+  }
+
+  private static String workflowId(RawScenarioWorkflowFields workflowFields) {
+    return workflowFields != null ? workflowFields.getWorkflow_id() : null;
+  }
+
+  // The time-based platforms fall back to the ones derived from the scenario's own injects,
+  // read under the request's scope, when the scenario carries no workflow template step platforms.
+  private static Set<String> platforms(
+      RawScenario rawScenario, RawScenarioWorkflowFields workflowFields) {
+    Set<String> workflowPlatforms =
+        workflowFields != null ? workflowFields.getWorkflow_platforms() : null;
+    return workflowPlatforms != null ? workflowPlatforms : rawScenario.getScenario_platforms();
   }
 
   private List<TeamOutput> getWorkflowScenarioTeams(
@@ -800,15 +834,15 @@ public class ScenarioService {
             "scenarios",
             scenarioIdsToDelete,
             chunk -> {
-              // The ids were resolved under the v1 ambient tenant, the default one on the
-              // non-prefixed route, so each is checked against the request scope first.
+              // The ids come from a search resolved in another transaction, so each is checked
+              // against the request scope inside this one before it is deleted.
               chunk.forEach(id -> existsInScope(ctx, id));
               // Tear the autonomous run (simulation + timeline + XTM orchestration) down first,
               // inside the same chunk transaction, so an autonomous scenario is never left with an
               // orphaned autonomous_runs row after a bulk delete. No-op for manual scenarios.
               io.openaev.service.autonomous.AutonomousRunService autonomousRunService =
                   this.autonomousRunServiceProvider.getObject();
-              chunk.forEach(autonomousRunService::deleteForScenarioForce);
+              chunk.forEach(id -> autonomousRunService.deleteForScenarioForce(ctx, id));
               this.scenarioRepository.deleteAll(this.scenarioRepository.findAllById(chunk));
             });
     log.info("Bulk deleted {} scenarios by user {}", deletedIds.size(), currentUser.getId());
@@ -827,9 +861,32 @@ public class ScenarioService {
       final boolean isWithScopeDefinition,
       HttpServletResponse response)
       throws IOException {
-    ObjectMapper objectMapper = ObjectMapperHelper.openAEVJsonMapper();
     Scenario scenario = this.scenario(ctx, scenarioId);
-    boolean isChaining = workflowService.isScenarioChaining(scenarioId);
+    writeScenarioExport(
+        scenario,
+        isWithTeams,
+        isWithPlayers,
+        isWithVariableValues,
+        isWithScopeDefinition,
+        response);
+  }
+
+  private void writeScenarioExport(
+      final Scenario scenario,
+      final boolean isWithTeams,
+      final boolean isWithPlayers,
+      final boolean isWithVariableValues,
+      final boolean isWithScopeDefinition,
+      HttpServletResponse response)
+      throws IOException {
+    String scenarioId = scenario.getId();
+    ObjectMapper objectMapper = ObjectMapperHelper.openAEVJsonMapper();
+    // The scenario's workflow is read in the scenario's own tenant whatever the caller's scope, as
+    // a workflow inherits its owner's tenant and can never move. Every other table this export
+    // reads (documents, tags, challenges, channels, variables) stays under the scope the request
+    // resolved, so the owner scope holds only over the chaining reads of this method.
+    boolean isChaining =
+        workflowOwnerScope.call(scenario, () -> workflowService.isScenarioChaining(scenarioId));
     List<Inject> exportedInjects =
         isChaining ? new ArrayList<>() : new ArrayList<>(scenario.getInjects());
 
@@ -984,12 +1041,20 @@ public class ScenarioService {
             .map(Document::getId)
             .toList());
 
-    // Add Workflow (chaining) if present — scope definition is optional
+    // Add Workflow (chaining) if present — scope definition is optional. The whole workflow graph
+    // is loaded inside the owner's tenant, so the serialization below finds it already initialized.
     Optional<Workflow> workflowOpt =
-        workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
+        workflowOwnerScope.call(
+            scenario,
+            () -> {
+              Optional<Workflow> workflow =
+                  workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
+              workflow.ifPresent(
+                  found -> workflowExportInitializer.initialize(found, isWithScopeDefinition));
+              return workflow;
+            });
     workflowOpt.ifPresent(
         workflow -> {
-          workflowExportInitializer.initialize(workflow, isWithScopeDefinition);
           if (isChaining) {
             scenarioTags.addAll(workflowExportInitializer.collectWorkflowTags(workflow));
           }
@@ -1266,14 +1331,20 @@ public class ScenarioService {
   private void duplicateChainingWorkflowIfAny(
       @NotBlank final String scenarioId, @NotNull final Scenario duplicate)
       throws ChainingException {
-    if (!workflowService.isScenarioChaining(scenarioId)) {
-      return;
-    }
-    if (enterpriseEditionService.isEnterpriseLicenseInactive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
-      throw new EnterpriseEditionException("Enterprise Edition license required");
-    }
-    workflowService.duplicateScenarioWorkflow(scenarioId, duplicate);
+    // The duplicate carries its source's tenant, so the source workflow is read and its copy
+    // written in that one tenant.
+    workflowOwnerScope.run(
+        duplicate,
+        () -> {
+          if (!workflowService.isScenarioChaining(scenarioId)) {
+            return;
+          }
+          if (enterpriseEditionService.isEnterpriseLicenseInactive(
+              licenseCacheManager.getEnterpriseEditionInfo())) {
+            throw new EnterpriseEditionException("Enterprise Edition license required");
+          }
+          workflowService.duplicateScenarioWorkflow(scenarioId, duplicate);
+        });
   }
 
   /**
@@ -1283,6 +1354,15 @@ public class ScenarioService {
    *
    * @param scenarioId the source scenario
    * @return the persisted duplicate
+   */
+  @Transactional
+  public Scenario getDuplicateScenario(@NotNull TxCtx ctx, @NotBlank String scenarioId) {
+    return copyScenarioContent(ctx, scenarioId);
+  }
+
+  /**
+   * Same as {@link #getDuplicateScenario(TxCtx, String)} for a scenario of the current tenant, for
+   * work that runs without a request scope.
    */
   @Transactional
   public Scenario getDuplicateScenario(@NotBlank String scenarioId) {

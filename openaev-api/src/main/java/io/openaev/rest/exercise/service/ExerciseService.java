@@ -56,6 +56,7 @@ import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowEndService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -153,6 +154,7 @@ public class ExerciseService {
   private final WorkflowService workflowService;
   private final WorkflowEndService workflowEndService;
   private final WorkflowPauseService workflowPauseService;
+  private final WorkflowOwnerScope workflowOwnerScope;
 
   private final PauseExerciseService pauseExerciseService;
   private final FileService fileService;
@@ -248,11 +250,10 @@ public class ExerciseService {
 
   /**
    * Loads an exercise by primary key and keeps it only when its tenant lies in the request's tenant
-   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
-   * the default one on the non-prefixed route: a member reaches its own exercise in any tenant of
-   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
-   * them refuses only what lies outside the scope. Transactional with the {@link TxCtx}, so the
-   * lookup carries the request scope even from a caller that opens no transaction of its own.
+   * scope. For the callers that already loaded by primary key, so that scoping them refuses only
+   * what lies outside the scope. Transactional with the {@link TxCtx}, so the lookup carries the
+   * request scope even from a caller that opens no transaction of its own: without a transaction
+   * the statement inspector has no scope to read and the load fails closed.
    */
   @Transactional(readOnly = true)
   public Optional<Exercise> findByIdInScope(
@@ -290,14 +291,15 @@ public class ExerciseService {
   }
 
   /**
-   * Reads the details of a simulation found inside the request's tenant scope. The native read
-   * itself keys on the v1 ambient tenant, the default one on the non-prefixed route, so the scope
-   * is checked first.
+   * Reads the details of a simulation found inside the request's tenant scope. The native read is
+   * rewritten by the statement inspector, so it runs in the simulation's own tenant, which is also
+   * the tenant of the workflow the detail names.
    */
   public RawSimulationIndexing rawSimulation(
       @NotNull final TxCtx ctx, @NotBlank final String simulationId) {
-    existsInScope(ctx, simulationId);
-    RawSimulationIndexing rawSimulation = exerciseRepository.rawDetailsById(simulationId);
+    RawSimulationIndexing rawSimulation =
+        workflowOwnerScope.call(
+            exercise(ctx, simulationId), () -> exerciseRepository.rawDetailsById(simulationId));
     if (rawSimulation == null) {
       throw new ElementNotFoundException("Simulation not found");
     }
@@ -375,14 +377,20 @@ public class ExerciseService {
    */
   private void duplicateChainingWorkflowIfAny(
       @NotBlank final String exerciseId, final Exercise duplicate) {
-    if (!workflowService.isSimulationChaining(exerciseId)) {
-      return;
-    }
-    if (enterpriseEditionService.isEnterpriseLicenseInactive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
-      throw new EnterpriseEditionException("Enterprise Edition license required");
-    }
-    workflowService.duplicateSimulationWorkflow(exerciseId, duplicate);
+    // The duplicate carries its source's tenant (copyExercise), so the source workflow is read and
+    // its copy written in that one tenant.
+    workflowOwnerScope.run(
+        duplicate,
+        () -> {
+          if (!workflowService.isSimulationChaining(exerciseId)) {
+            return;
+          }
+          if (enterpriseEditionService.isEnterpriseLicenseInactive(
+              licenseCacheManager.getEnterpriseEditionInfo())) {
+            throw new EnterpriseEditionException("Enterprise Edition license required");
+          }
+          workflowService.duplicateSimulationWorkflow(exerciseId, duplicate);
+        });
   }
 
   /**
@@ -421,7 +429,8 @@ public class ExerciseService {
     // by the chaining engine from the step templates. Cloning them would copy execution artefacts
     // into a brand-new, never-run duplicate. Its authored content is the workflow, duplicated by
     // duplicateChainingWorkflowIfAny.
-    if (!workflowService.isSimulationChaining(exerciseId)) {
+    if (!workflowOwnerScope.call(
+        exerciseOrigin, () -> workflowService.isSimulationChaining(exerciseId))) {
       getListOfDuplicatedInjects(exerciseDuplicate, exerciseOrigin);
     }
     Map<String, Team> contextualTeams = getListOfExerciseTeams(exerciseDuplicate, exerciseOrigin);
@@ -776,26 +785,32 @@ public class ExerciseService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(TxCtx ctx, String simulationId) {
-    existsInScope(ctx, simulationId);
-    delete(simulationId);
+    delete(exercise(ctx, simulationId));
   }
 
   /**
-   * Delete a simulation of the current tenant, for work that runs without a request scope
+   * Delete a simulation of the current tenant, for work that runs without a request scope.
    *
    * @param simulationId ID of the simulation to delete
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
-    existsByIdAndTenantId(simulationId);
-    delete(simulationId);
+    delete(exercise(simulationId));
   }
 
-  private void delete(String simulationId) {
-    if (workflowService.isSimulationChaining(simulationId)) {
-      workflowService.deleteSimulationDeleteWorkflows(simulationId);
-      log.info("[Chaining] Workflow TEMPLATE will be deleted for simulation {}", simulationId);
-    }
+  // The simulation is loaded by the caller, in the request scope or in the current tenant, so the
+  // tenant check and the workflow sweep's tenant come from the same row.
+  private void delete(Exercise simulation) {
+    String simulationId = simulation.getId();
+    workflowOwnerScope.run(
+        simulation,
+        () -> {
+          if (workflowService.isSimulationChaining(simulationId)) {
+            workflowService.deleteSimulationDeleteWorkflows(simulationId);
+            log.info(
+                "[Chaining] Workflow TEMPLATE will be deleted for simulation {}", simulationId);
+          }
+        });
 
     exerciseRepository.deleteById(simulationId);
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
@@ -871,12 +886,7 @@ public class ExerciseService {
         ctx,
         "simulations",
         exerciseIdsToDelete,
-        chunk ->
-            chunk.forEach(
-                id -> {
-                  existsInScope(ctx, id);
-                  delete(id);
-                }));
+        chunk -> chunk.forEach(id -> delete(exercise(ctx, id))));
   }
 
   /** Changes the status of an exercise found inside the request's tenant scope. */
@@ -911,11 +921,15 @@ public class ExerciseService {
     boolean isCloseState =
         ExerciseStatus.CANCELED.equals(exercise.getStatus())
             || ExerciseStatus.FINISHED.equals(exercise.getStatus());
-    if (workflowService.isSimulationChaining(exercise.getId())) {
-      if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
-          && ExerciseStatus.RUNNING.equals(status)) {
-        workflowService.startWorkflowBySimulationId(exercise.getId());
-      }
+    // The workflow is read and written in the simulation's own tenant, whatever the caller's scope
+    // (WorkflowOwnerScope): access to the simulation was granted, its workflow follows it.
+    boolean chained =
+        workflowOwnerScope.call(exercise, () -> workflowService.isSimulationChaining(exerciseId));
+    if (chained
+        && ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
+        && ExerciseStatus.RUNNING.equals(status)) {
+      workflowOwnerScope.run(
+          exercise, () -> workflowService.startWorkflowBySimulationId(exerciseId));
     }
     if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
       // Reset pauses
@@ -955,10 +969,12 @@ public class ExerciseService {
               }
             }
           });
-      if (workflowService.isSimulationChaining(exercise.getId())) {
+      if (chained) {
         // DELETE workflow execution
-        workflowService.resetSimulationDeleteWorkflowExecution(exercise.getId());
-        // DELETE injects
+        workflowOwnerScope.run(
+            exercise, () -> workflowService.resetSimulationDeleteWorkflowExecution(exerciseId));
+        // DELETE injects, outside the scoped work: its flush must not write these deletes before
+        // the final save below, which would then merge a stale injects collection.
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
       }
@@ -986,8 +1002,10 @@ public class ExerciseService {
       pause.setExercise(exercise);
       pause.setDuration(between(lastPause, now()).getSeconds());
       pauseRepository.save(pause);
-      if (workflowService.isSimulationChaining(exercise.getId())) {
-        boolean isEnded = workflowPauseService.resumeSimulationWorkflowRuns(exercise.getId());
+      if (chained) {
+        boolean isEnded =
+            workflowOwnerScope.call(
+                exercise, () -> workflowPauseService.resumeSimulationWorkflowRuns(exerciseId));
         if (isEnded) {
           return loadExercise.apply(
               exerciseId); // Reload the exercise to get the updated status after the workflow has
@@ -999,8 +1017,9 @@ public class ExerciseService {
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.PAUSED.equals(status)) {
       exercise.setCurrentPause(Instant.now());
-      if (workflowService.isSimulationChaining(exercise.getId())) {
-        workflowPauseService.pauseSimulationWorkflowRuns(exercise.getId());
+      if (chained) {
+        workflowOwnerScope.run(
+            exercise, () -> workflowPauseService.pauseSimulationWorkflowRuns(exerciseId));
       }
     }
     // Cancelation, from a running or a paused simulation
@@ -1010,10 +1029,22 @@ public class ExerciseService {
       exercise.setEnd(now());
       // End WORKFLOW + STEP + delete workflow states. A paused run is STOP, not RUN: it must be
       // ended too, or the simulation is CANCELED while its workflow stays parked forever.
-      List<Workflow> run = workflowService.findActiveWorkflowBySimulationId(exercise.getId());
-      if (!run.isEmpty()) {
-        workflowService.cancelSimulationEndWorkflowRun(run);
-
+      // Empty when the simulation has no live run; otherwise whether the run is autonomous.
+      Optional<Boolean> endedRunIsAutonomous =
+          workflowOwnerScope.call(
+              exercise,
+              () -> {
+                List<Workflow> run = workflowService.findActiveWorkflowBySimulationId(exerciseId);
+                if (run.isEmpty()) {
+                  return Optional.<Boolean>empty();
+                }
+                workflowService.cancelSimulationEndWorkflowRun(run);
+                return Optional.of(autonomousRunRepository.existsBySimulationId(exerciseId));
+              });
+      if (endedRunIsAutonomous.isEmpty()) {
+        workflowEndService.stopActiveInjects(
+            exercise.getId(), WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+      } else if (endedRunIsAutonomous.get()) {
         // Stopping is not resetting: it ends the run and keeps its record. A manual chained
         // simulation used to drop ALL its injects here, which emptied the Execution screen while
         // the attack path (whose rows are only cleared on reset) still showed the same run - the
@@ -1023,15 +1054,10 @@ public class ExerciseService {
         // An autonomous (AI-driven) run additionally drops the injects the orchestrator had
         // queued but never started: they are where the duplicate-inject storms pile up, and a
         // never-started inject is not part of the deliverable.
-        if (autonomousRunRepository.existsBySimulationId(exercise.getId())) {
-          this.injectRepository.deleteAll(
-              this.injectRepository.findByExerciseId(exerciseId).stream()
-                  .filter(Inject::isNotExecuted)
-                  .toList());
-        }
-      } else {
-        workflowEndService.stopActiveInjects(
-            exercise.getId(), WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+        this.injectRepository.deleteAll(
+            this.injectRepository.findByExerciseId(exerciseId).stream()
+                .filter(Inject::isNotExecuted)
+                .toList());
       }
     }
     exercise.setUpdatedAt(now());

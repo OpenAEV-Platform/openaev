@@ -19,6 +19,8 @@ import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.Command;
+import io.openaev.database.model.Condition;
+import io.openaev.database.model.ConditionType;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Exercise;
@@ -43,6 +45,7 @@ import io.openaev.database.model.ReportingModule;
 import io.openaev.database.model.ReportingModuleType;
 import io.openaev.database.model.ReportingSchedule;
 import io.openaev.database.model.ReportingSchedulePeriod;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSnapshot;
 import io.openaev.database.model.ScopeRuleSnapshot.AssetSnapshot;
@@ -53,6 +56,7 @@ import io.openaev.database.model.SecurityCoverage;
 import io.openaev.database.model.SecurityPlatform.SECURITY_PLATFORM_TYPE;
 import io.openaev.database.model.StatusPayload;
 import io.openaev.database.model.StatusPayloadDocument;
+import io.openaev.database.model.Step;
 import io.openaev.database.model.StixRefToExternalRef;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -73,6 +77,8 @@ import io.openaev.engine.api.WidgetType;
 import io.openaev.utils.CustomDashboardTimeRange;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
@@ -159,7 +165,16 @@ class JsonTypeDirtyOnLoadProbeTest extends IntegrationTest {
           "AutonomousRun.agentModes",
           "AutonomousRun.stepMirror",
           "AutonomousRun.eventMirror",
-          "AutonomousEvent.data");
+          "AutonomousEvent.data",
+          "Step.data",
+          "Step.input",
+          "Step.output",
+          "Step.outputParser",
+          "Step.conditionKeyTypes",
+          "Condition.keyTypes",
+          "WorkflowScopeRule.snapshotStart",
+          "WorkflowScopeRule.snapshotEnd",
+          "Scenario.autonomousConfig");
 
   /**
    * Fields measured although their table is not tenant-active yet, because a dirty-on-load defect
@@ -167,11 +182,7 @@ class JsonTypeDirtyOnLoadProbeTest extends IntegrationTest {
    * JsonTypeDirtyOnLoadCoverageTest}, which fails once their table activates until they move to
    * {@link #PROBED_FIELDS}.
    */
-  static final Set<String> PROBED_AHEAD_OF_ACTIVATION =
-      Set.of(
-          "WorkflowScopeRule.snapshotStart",
-          "WorkflowScopeRule.snapshotEnd",
-          "InjectStatus.payloadOutput");
+  static final Set<String> PROBED_AHEAD_OF_ACTIVATION = Set.of("InjectStatus.payloadOutput");
 
   private static final Set<String> EXERCISED = ConcurrentHashMap.newKeySet();
   private static final AtomicInteger CASES_RUN = new AtomicInteger();
@@ -396,6 +407,51 @@ class JsonTypeDirtyOnLoadProbeTest extends IntegrationTest {
     assertNoUpdateOnLoad("autonomous_events", event, AutonomousEvent.class);
   }
 
+  // -- chaining --
+
+  @Test
+  @DisplayName("given a step with JSON data, input and output, when loaded, then no update")
+  void given_a_step_with_json_fields_should_not_update_on_load() {
+    Step step = StepFixture.getDefaultStepTemplate();
+    step.setWorkflow(chainingRun());
+    step.setData("{\"inject_title\":\"probe\",\"nested\":{\"b\":1,\"a\":2}}");
+    step.setInput("{\"b\":[1,2],\"a\":\"x\"}");
+    step.setOutput("{\"z\":true,\"y\":null}");
+    step.setOutputParser("[{\"k\":\"v\"}]");
+    step.setConditionKeyTypes(new ArrayList<>(List.of(PrimitiveType.Text, PrimitiveType.IPv4)));
+
+    assertNoUpdateOnLoad("steps", step, Step.class);
+  }
+
+  @Test
+  @DisplayName("given a condition with key types, when loaded, then no update")
+  void given_a_condition_with_json_fields_should_not_update_on_load() {
+    Workflow run = chainingRun();
+    Condition condition = new Condition();
+    condition.setWorkflowId(run.getId());
+    condition.setTenant(run.getTenant());
+    condition.setType(ConditionType.EQ);
+    condition.setKey("probe");
+    condition.setValue("v");
+    condition.setKeyTypes(new ArrayList<>(List.of(PrimitiveType.Text, PrimitiveType.Port)));
+    condition.setCreationDate(Instant.now());
+    condition.setUpdateDate(Instant.now());
+
+    assertNoUpdateOnLoad("conditions", condition, Condition.class);
+  }
+
+  // -- scenarios --
+
+  @Test
+  @DisplayName("given a scenario with an autonomous configuration, when loaded, then no update")
+  void given_a_scenario_with_json_fields_should_not_update_on_load() {
+    Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setTenant(defaultTenant());
+    scenario.setAutonomousConfig(Map.of("objective", "probe", "max_steps", 3));
+
+    assertNoUpdateOnLoad("scenarios", scenario, Scenario.class);
+  }
+
   // -- tables not active yet, probed ahead of their activation --
 
   @Test
@@ -439,6 +495,8 @@ class JsonTypeDirtyOnLoadProbeTest extends IntegrationTest {
 
     assertNoUpdateOnLoad("workflow_scope_rules", rule, WorkflowScopeRule.class);
   }
+
+  // -- tables not active yet, probed ahead of their activation --
 
   @Test
   @DisplayName("given an inject status with a payload output, when loaded, then no update")

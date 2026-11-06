@@ -290,6 +290,15 @@ public class InjectService {
     return inject;
   }
 
+  /**
+   * The tenant of each given inject, as {@code [inject_id, tenant_id]} rows read from the inject's
+   * own column by a native projection that no tenant scope narrows. For the callers that resolve an
+   * inject's owner before acting in its tenant; an unknown inject is absent from the result.
+   */
+  public List<Object[]> findTenantIdsByInjectIds(Collection<String> injectIds) {
+    return injectRepository.findTenantIdsByInjectIds(injectIds);
+  }
+
   public Inject inject(@NotBlank final String injectId) {
     return this.injectRepository
         .findById(injectId)

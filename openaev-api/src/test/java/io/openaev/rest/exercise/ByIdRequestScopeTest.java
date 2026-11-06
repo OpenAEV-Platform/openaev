@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Simulation and scenario by-id reads resolve the row inside the request's tenant scope, with the
- * production list of isolated tables ({@code exercises} and {@code scenarios} are not in it). On
+ * production list of isolated tables, which now carries {@code exercises} and {@code scenarios}. On
  * the tenant route the scope is the path tenant, so nothing changes there. On the non-prefixed
  * route the scope is the {@code X-Tenant-Ids} selector, or the caller's memberships when it names
  * none: a row outside that scope is not found by id.
@@ -172,8 +172,8 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
     @Test
     @DisplayName(
         "given a caller with no membership and no selector, a default tenant simulation and"
-            + " scenario stay reachable by id while the two tables keep the v1 filter")
-    void given_callerWithNoMembershipAndNoSelector_should_reachDefaultTenantRowsUntilIsolation()
+            + " scenario are not found by id")
+    void given_callerWithNoMembershipAndNoSelector_should_notReachDefaultTenantRows()
         throws Exception {
       // Arrange
       String simulationId = seedSimulation(DEFAULT_TENANT);
@@ -186,7 +186,7 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
       int scenarioUpdate = updateScenario(route, scenarioId);
 
       // Assert
-      assertThat(new int[] {simulationUpdate, scenarioUpdate}).containsExactly(200, 200);
+      assertThat(new int[] {simulationUpdate, scenarioUpdate}).containsExactly(404, 404);
     }
 
     @Test
@@ -419,7 +419,7 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "given a default tenant scenario and a selector naming another tenant, the bulk delete"
-            + " answers not found and keeps it")
+            + " keeps it and deletes nothing")
     void given_defaultTenantScenarioAndSelectorNamingAnotherTenant_should_notBulkDeleteIt()
         throws Exception {
       // Arrange
@@ -429,8 +429,10 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
       int bulkDelete = bulkDeleteScenarios(headerRoute(memberTenant), scenarioId);
 
       // Assert
-      assertThat(bulkDelete).isEqualTo(404);
+      // The eligible ids are resolved in the request scope, which no longer reaches the row, so
+      // the request deletes nothing and succeeds instead of answering not found.
       assertThat(scenarioExists(scenarioId)).isTrue();
+      assertThat(bulkDelete).isEqualTo(200);
     }
 
     @Test
@@ -454,7 +456,7 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "given a default tenant simulation and a selector naming another tenant, the bulk delete"
-            + " answers not found and keeps it")
+            + " keeps it and deletes nothing")
     void given_defaultTenantSimulationAndSelectorNamingAnotherTenant_should_notBulkDeleteIt()
         throws Exception {
       // Arrange
@@ -464,8 +466,9 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
       int bulkDelete = bulkDeleteSimulations(headerRoute(memberTenant), simulationId);
 
       // Assert
-      assertThat(bulkDelete).isEqualTo(404);
+      // Same as the scenario above: the eligible ids are resolved in the request scope.
       assertThat(simulationExists(simulationId)).isTrue();
+      assertThat(bulkDelete).isEqualTo(200);
     }
 
     @Test
@@ -483,6 +486,57 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
       // Assert
       assertThat(bulkDelete).isEqualTo(200);
       assertThat(simulationExists(simulationId)).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("Duplicating or launching a member tenant row on the non-prefixed route")
+  class DuplicateAndLaunchOfAMemberTenantRow {
+
+    @Test
+    @DisplayName(
+        "given a simulation of a member tenant and a selector naming it, its duplicate is found")
+    void given_simulationOfMemberTenantAndSelectorNamingIt_should_duplicateIt() throws Exception {
+      // Arrange
+      String simulationId = seedSimulation(memberTenant);
+      int simulationsBefore = simulationCount();
+
+      // Act
+      int duplicate = duplicateSimulation(headerRoute(memberTenant), simulationId);
+
+      // Assert
+      assertThat(duplicate).isEqualTo(200);
+      assertThat(simulationCount()).isEqualTo(simulationsBefore + 1);
+    }
+
+    @Test
+    @DisplayName(
+        "given a scenario of a member tenant and a selector naming it, its duplicate is found")
+    void given_scenarioOfMemberTenantAndSelectorNamingIt_should_duplicateIt() throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(memberTenant);
+      int scenariosBefore = scenarioCount();
+
+      // Act
+      int duplicate = duplicateScenario(headerRoute(memberTenant), scenarioId);
+
+      // Assert
+      assertThat(duplicate).isEqualTo(200);
+      assertThat(scenarioCount()).isEqualTo(scenariosBefore + 1);
+    }
+
+    @Test
+    @DisplayName(
+        "given a scenario of a member tenant and a selector naming it, launching it is found")
+    void given_scenarioOfMemberTenantAndSelectorNamingIt_should_launchIt() throws Exception {
+      // Arrange
+      String scenarioId = seedScenario(memberTenant);
+
+      // Act
+      int launch = launchScenario(headerRoute(memberTenant), scenarioId);
+
+      // Assert
+      assertThat(launch).isEqualTo(200);
     }
   }
 
@@ -579,10 +633,9 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
 
     @Test
     @DisplayName(
-        "given a scenario of a member tenant, its health checks are answered on its tenant route,"
-            + " and not on the selector until the table is isolated")
-    void given_scenarioOfMemberTenant_should_answerItsHealthChecksOnItsTenantRoute()
-        throws Exception {
+        "given a scenario of a member tenant, its health checks are answered on its tenant route"
+            + " and on the selector")
+    void given_scenarioOfMemberTenant_should_answerItsHealthChecksOnBothRoutes() throws Exception {
       // Arrange
       String scenarioId = seedScenario(memberTenant);
 
@@ -591,11 +644,11 @@ class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
       int onHeaderRoute = getScenarioHealthChecks(headerRoute(memberTenant), scenarioId);
 
       // Assert
-      // The scenario health checks resolve the scenario through the scope query, which the v1
-      // entity filter also narrows to the ambient tenant, the default one on the non-prefixed
-      // route. The simulation twin and both player lists resolve by primary key and answer on
-      // both routes. Removing the filter at the activation turns the second status into 200.
-      assertThat(new int[] {onTenantRoute, onHeaderRoute}).containsExactly(200, 404);
+      // The scenario health checks resolve the scenario through the scope query. The v1 entity
+      // filter narrowed that query to the ambient tenant, the default one on the non-prefixed
+      // route, so the selector answered "not found"; with the table isolated the scope query is
+      // the only narrowing left and the selector answers the scenario.
+      assertThat(new int[] {onTenantRoute, onHeaderRoute}).containsExactly(200, 200);
     }
   }
 

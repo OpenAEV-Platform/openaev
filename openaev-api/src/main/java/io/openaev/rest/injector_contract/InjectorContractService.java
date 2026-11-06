@@ -50,6 +50,7 @@ import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TriVoid;
@@ -113,6 +114,7 @@ public class InjectorContractService implements DependenciesManager {
   private final InjectIndexCleanupService injectIndexCleanupService;
   private final StepRepository stepRepository;
   private final ChainingStepCleanupService chainingStepCleanupService;
+  private final WorkflowOwnerScope workflowOwnerScope;
 
   /**
    * Built-in contracts whose injectors start with the platform through an autostart instance, so
@@ -566,17 +568,17 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   // Deliberately NOT annotated @Transactional: this overload is only reached through the
-  // transactional deleteInjectorContract(String) entry point, and annotating it would create a
-  // proxy-bypassing intra-class call (TenantBackgroundTransactionArchTest
-  // no_transactional_self_invocation). The entry point's transaction makes the contract delete
-  // and the chaining step sweep commit or roll back together.
+  // transactional deleteInjectorContract(String) and deleteInjectorContractById entry points, and
+  // annotating it would create a proxy-bypassing intra-class call
+  // (TenantBackgroundTransactionArchTest no_transactional_self_invocation). The entry point's
+  // transaction makes the contract delete and the chaining step sweep commit or roll back together.
   public void deleteInjectorContract(InjectorContract injectorContract) {
-    // Same compensation as deleteInjectorContractById: the injects FK on injectors_contracts is ON
-    // DELETE CASCADE, so the injects (and, one hop further, their expectations and findings) vanish
-    // at the database level without a single JPA lifecycle event. The engine cascade is single-hop:
-    // the contract delete event alone would never reach the expectation and finding documents,
-    // which reference the INJECT id in their dependencies - they would keep feeding every
-    // engine-backed statistic (dashboards, KPIs) after the contract is gone.
+    // The injects FK on injectors_contracts is ON DELETE CASCADE, so the injects (and, one hop
+    // further, their expectations and findings) vanish at the database level without a single JPA
+    // lifecycle event. The engine cascade is single-hop: the contract delete event alone would
+    // never reach the expectation and finding documents, which reference the INJECT id in their
+    // dependencies - they would keep feeding every engine-backed statistic (dashboards, KPIs) after
+    // the contract is gone.
     String tenantId =
         injectorContract.getTenant() != null
             ? injectorContract.getTenant().getId()
@@ -589,9 +591,13 @@ public class InjectorContractService implements DependenciesManager {
     // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
     // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
     // The sweep is tenant-scoped: default contracts share their ids across tenants, so an unscoped
-    // sweep would wipe other tenants' authored logic-map nodes.
-    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
-        List.of(injectorContract.getId()), tenantId);
+    // sweep would wipe other tenants' authored logic-map nodes. It runs in the contract's own
+    // tenant, which the caller's scope may not hold: the deletion was granted on the contract.
+    workflowOwnerScope.run(
+        injectorContract,
+        () ->
+            chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+                List.of(injectorContract.getId()), tenantId));
   }
 
   /**
@@ -629,26 +635,17 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
-   * Deletes an injector contract by its ID using a direct DELETE query (no entity loading).
+   * Deletes the copy of an injector contract held by the request's tenant, if there is one, with
+   * the same cleanup as {@link #deleteInjectorContract(InjectorContract)}: the step templates that
+   * reference it are swept in that contract's own tenant.
    *
    * @param injectorContractId the contract ID to delete
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteInjectorContractById(String injectorContractId) {
-    // The injects FK on injectors_contracts is ON DELETE CASCADE: collect the doomed inject ids
-    // before the delete and de-index them explicitly (no JPA lifecycle fires for DB cascades).
-    String tenantId = TenantContext.getCurrentTenant();
-    List<String> cascadeDeletedInjectIds =
-        injectIndexCleanupService.injectIdsByContractIds(List.of(injectorContractId), tenantId);
-    this.injectorContractRepository.deleteById(
-        new InjectorContractId(injectorContractId, tenantId));
-    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
-    // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
-    // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
-    // The sweep is tenant-scoped: default contracts share their ids across tenants, so an unscoped
-    // sweep would wipe other tenants' authored logic-map nodes.
-    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
-        List.of(injectorContractId), tenantId);
+    this.injectorContractRepository
+        .findById(new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant()))
+        .ifPresent(this::deleteInjectorContract);
   }
 
   /**

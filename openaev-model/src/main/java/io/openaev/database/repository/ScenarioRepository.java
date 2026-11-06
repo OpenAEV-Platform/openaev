@@ -4,6 +4,7 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
+import io.openaev.database.raw.RawScenarioWorkflowFields;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.Collection;
@@ -151,7 +152,7 @@ public interface ScenarioRepository
               + "LEFT JOIN scenarios s ON se.scenario_id = s.scenario_id "
               + "LEFT JOIN exercises_tags et ON et.exercise_id = ex.exercise_id "
               + "LEFT JOIN injects_expectations ie ON ex.exercise_id = ie.exercise_id "
-              + "WHERE s.scenario_external_reference = :externalReference AND s.tenant_id = :#{#tenantContext.currentTenant} "
+              + "WHERE s.scenario_external_reference = :externalReference "
               + "GROUP BY ex.exercise_id ;",
       nativeQuery = true)
   List<RawExerciseSimple> rawAllByExternalReference(
@@ -179,7 +180,7 @@ public interface ScenarioRepository
               + "INNER JOIN grants ON grants.grant_resource = sce.scenario_id AND grants.grant_resource_type = 'SCENARIO' "
               + "INNER JOIN groups ON grants.grant_group = groups.group_id "
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
-              + "WHERE users_groups.user_id = :userId AND sce.tenant_id = :#{#tenantContext.currentTenant} "
+              + "WHERE users_groups.user_id = :userId "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawAllGranted(@Param("userId") String userId);
@@ -194,7 +195,6 @@ public interface ScenarioRepository
               + "INNER JOIN users_groups ON groups.group_id = users_groups.group_id "
               + "WHERE users_groups.user_id = :userId "
               + "AND sce.scenario_id IN :scenarioIds "
-              + "AND sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawGrantedByScenarioIds(
@@ -205,7 +205,6 @@ public interface ScenarioRepository
           "SELECT sce.scenario_id, sce.tenant_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
-              + "WHERE sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawAll();
@@ -216,7 +215,6 @@ public interface ScenarioRepository
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
               + "WHERE sce.scenario_id IN :scenarioIds "
-              + "AND sce.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
@@ -273,24 +271,6 @@ public interface ScenarioRepository
               + "  WHERE i.inject_scenario = :scenarioId "
               + "  GROUP BY i.inject_scenario "
               + "), "
-              + "workflow_platforms AS ( "
-              + "  SELECT w.workflow_scenario_id AS scenario_id, "
-              + "         array_agg(DISTINCT platform.scenario_platform) "
-              + "           AS scenario_platforms "
-              + "  FROM workflows w "
-              + "  JOIN steps st ON st.step_workflow_id = w.workflow_id "
-              + "  CROSS JOIN LATERAL jsonb_array_elements_text("
-              + "    COALESCE("
-              + "      st.step_data -> 'inject_injector_contract' -> 'injector_contract_platforms', "
-              + "      '[]'::jsonb"
-              + "    )"
-              + "  ) AS platform(scenario_platform) "
-              + "  WHERE w.workflow_scenario_id = :scenarioId "
-              + "    AND w.workflow_status = 'TEMPLATE' "
-              + "    AND st.step_status = 'TEMPLATE' "
-              + "    AND st.step_template_id IS NULL "
-              + "  GROUP BY w.workflow_scenario_id "
-              + "), "
               + "scenario_tags_agg AS ( "
               + "  SELECT scenario_id, "
               + "         array_agg(DISTINCT tag_id) FILTER (WHERE tag_id IS NOT NULL) AS scenario_tags "
@@ -311,30 +291,61 @@ public interface ScenarioRepository
               + "       su.scenario_users_number, "
               + "       ex.scenario_exercises, "
               + "       kc.scenario_kill_chain_phases, "
-              + "       COALESCE(wpf.scenario_platforms, pf.scenario_platforms) "
-              + "         AS scenario_platforms, "
+              + "       pf.scenario_platforms, "
               + "       sta.scenario_tags, "
               + "       rt.scenario_reply_to, "
-              + "       su.scenario_teams_users, "
-              + "       w.workflow_id AS scenario_workflow_id "
+              + "       su.scenario_teams_users "
               + "FROM scenarios s "
               + "LEFT JOIN all_users au ON au.scenario_id = s.scenario_id "
               + "LEFT JOIN scenario_users su ON su.scenario_id = s.scenario_id "
               + "LEFT JOIN exercises_agg ex ON ex.scenario_id = s.scenario_id "
               + "LEFT JOIN kill_chain kc ON kc.scenario_id = s.scenario_id "
               + "LEFT JOIN platforms pf ON pf.scenario_id = s.scenario_id "
-              + "LEFT JOIN workflow_platforms wpf ON wpf.scenario_id = s.scenario_id "
               + "LEFT JOIN scenario_tags_agg sta ON sta.scenario_id = s.scenario_id "
               + "LEFT JOIN reply_to rt ON rt.scenario_id = s.scenario_id "
-              + "LEFT JOIN workflows w ON w.workflow_scenario_id = s.scenario_id "
-              + "WHERE s.scenario_id = :scenarioId AND s.tenant_id = :#{#tenantContext.currentTenant}",
+              + "WHERE s.scenario_id = :scenarioId",
       nativeQuery = true)
   RawScenario getScenarioByIdAndTenantId(@Param("scenarioId") final String scenarioId);
+
+  /**
+   * The chained-workflow fields of a scenario: its workflow id and the platforms its template steps
+   * target. Read separately from {@link #getScenarioByIdAndTenantId}, because a workflow inherits
+   * its owner's tenant and can never move, so these two fields alone must be read in the scenario's
+   * own tenant whatever the caller's scope; the rest of the detail stays under the request's scope.
+   */
+  @Query(
+      value =
+          "WITH "
+              + "workflow_platforms AS ( "
+              + "  SELECT w.workflow_scenario_id AS scenario_id, "
+              + "         array_agg(DISTINCT platform.scenario_platform) "
+              + "           AS scenario_platforms "
+              + "  FROM workflows w "
+              + "  JOIN steps st ON st.step_workflow_id = w.workflow_id "
+              + "  CROSS JOIN LATERAL jsonb_array_elements_text("
+              + "    COALESCE("
+              + "      st.step_data -> 'inject_injector_contract' -> 'injector_contract_platforms', "
+              + "      '[]'::jsonb"
+              + "    )"
+              + "  ) AS platform(scenario_platform) "
+              + "  WHERE w.workflow_scenario_id = :scenarioId "
+              + "    AND w.workflow_status = 'TEMPLATE' "
+              + "    AND st.step_status = 'TEMPLATE' "
+              + "    AND st.step_template_id IS NULL "
+              + "  GROUP BY w.workflow_scenario_id "
+              + ") "
+              + "SELECT w.workflow_id AS workflow_id, "
+              + "       wpf.scenario_platforms AS workflow_platforms "
+              + "FROM workflows w "
+              + "LEFT JOIN workflow_platforms wpf ON wpf.scenario_id = w.workflow_scenario_id "
+              + "WHERE w.workflow_scenario_id = :scenarioId",
+      nativeQuery = true)
+  RawScenarioWorkflowFields getScenarioWorkflowFields(@Param("scenarioId") final String scenarioId);
 
   // -- CATEGORY --
 
   @Query(
-      "SELECT DISTINCT s.category FROM Scenario s WHERE LOWER(s.category) LIKE LOWER(CONCAT('%', :searchTerm, '%')) AND s.tenant.id = :#{#tenantContext.currentTenant}")
+      "SELECT DISTINCT s.category FROM Scenario s WHERE LOWER(s.category) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
   List<String> findDistinctCategoriesBySearchTerm(
       @Param("searchTerm") final String searchTerm, Pageable pageable);
 

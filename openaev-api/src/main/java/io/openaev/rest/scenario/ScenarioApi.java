@@ -48,6 +48,7 @@ import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.StepService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -98,6 +99,7 @@ public class ScenarioApi extends RestBehavior {
   private final DocumentService documentService;
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
+  private final WorkflowOwnerScope workflowOwnerScope;
   private final StepService stepService;
   private final ExpectationsDriftService expectationsDriftService;
   private final AutonomousRunService autonomousRunService;
@@ -213,7 +215,7 @@ public class ScenarioApi extends RestBehavior {
     // resolved in the request scope by id inside it.
     String duplicateId =
         faithfulCopy.execute(ctx, () -> scenarioService.duplicateScenario(ctx, scenarioId).getId());
-    return hydrateForResponse(scenarioService.scenario(duplicateId));
+    return hydrateForResponse(scenarioService.scenario(ctx, duplicateId));
   }
 
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
@@ -375,7 +377,7 @@ public class ScenarioApi extends RestBehavior {
     // the scenario. Finished simulations are NOT deleted - they detach and remain as history, like
     // any chained simulation. No-op for manual scenarios.
     this.scenarioService.existsInScope(ctx, scenarioId);
-    this.autonomousRunService.deleteForScenario(scenarioId);
+    this.autonomousRunService.deleteForScenario(ctx, scenarioId);
     this.scenarioService.deleteScenario(ctx, scenarioId);
   }
 
@@ -704,14 +706,20 @@ public class ScenarioApi extends RestBehavior {
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId) throws ChainingException {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     String launchedById = currentUser().getId();
-    boolean chaining = workflowService.isScenarioChaining(scenarioId);
+    // The scenario's workflow is read, and its simulation's started, in the scenario's own tenant
+    // whatever the caller's scope: access to the scenario was granted, its workflow follows it.
+    boolean chaining =
+        workflowOwnerScope.call(scenario, () -> workflowService.isScenarioChaining(scenarioId));
 
     if (chaining) {
       // A normal (operator-driven) launch makes any prior autonomous AI outcome on this scenario
       // stale: clear a settled run so the scenario reverts to its normal overview / hero (the AI
       // plan or run outcome is no longer the latest activity). No-op when the scenario carries no
-      // run or the feature is off, and never tears down a still-active run.
-      autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId);
+      // run or the feature is off, and never tears down a still-active run. Read and written in
+      // the scenario's own tenant, like its workflow: the run follows its scenario, whatever the
+      // caller's scope.
+      workflowOwnerScope.run(
+          scenario, () -> autonomousRunService.supersedeSettledRunOnManualLaunch(scenarioId));
     } else {
       this.scenarioService.throwIfScenarioNotLaunchable(scenario);
     }
@@ -735,11 +743,15 @@ public class ScenarioApi extends RestBehavior {
                       true,
                       launchedBy);
               if (chaining) {
-                workflowService.startWorkflowByScenarioIdAndSimulation(scenarioId, simulation);
+                workflowOwnerScope.run(
+                    scenario,
+                    () ->
+                        workflowService.startWorkflowByScenarioIdAndSimulation(
+                            scenarioId, simulation));
               }
               return simulation.getId();
             });
-    return exerciseService.exercise(simulationId);
+    return exerciseService.exercise(ctx, simulationId);
   }
 
   @PostMapping({

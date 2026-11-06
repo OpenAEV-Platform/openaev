@@ -78,6 +78,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -595,7 +597,7 @@ public class AutonomousRunService {
     // Relaunching is first-class: a scenario whose previous autonomous run (or plan) has settled
     // can be launched again. The settled run row is superseded so the new run can bind (one run
     // per scenario); a still-active run is refused instead.
-    supersedePriorRun(scenarioId, "scenario relaunched in autonomous mode");
+    supersedePriorRun(ctx, scenarioId, "scenario relaunched in autonomous mode");
     AutonomousRunCreateInput effective = input != null ? input : new AutonomousRunCreateInput();
     effective.setScenarioId(scenarioId);
     effective.setPlanMode(false);
@@ -671,7 +673,7 @@ public class AutonomousRunService {
       TxCtx ctx, String scenarioId, Scenario scenario, AutonomousRunCreateInput effective) {
     // Supersede the previous settled run (if any) so the fresh plan run can bind, then wipe the
     // whole logic map (steps + events/triggers) so the orchestrator starts fresh.
-    supersedePriorRun(scenarioId, "plan rebuilt by operator");
+    supersedePriorRun(ctx, scenarioId, "plan rebuilt by operator");
     workflowService.deleteAllScenarioSteps(scenarioId);
     if (!hasText(effective.getObjective()) && !hasText(effective.getObjectiveTemplateKey())) {
       effective.setObjective(
@@ -741,7 +743,7 @@ public class AutonomousRunService {
       // the single by-scenario run can rebind, then start a fresh plan run.
       reusePrior = prior.isPlanMode();
       if (!reusePrior) {
-        supersedePriorRun(scenarioId, "scenario logic refined by operator");
+        supersedePriorRun(ctx, scenarioId, "scenario logic refined by operator");
         prior = null;
       }
     }
@@ -1112,10 +1114,10 @@ public class AutonomousRunService {
    * up from the current OpenAEV + shared state).
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun pause(String runId) {
+  public AutonomousRun pause(TxCtx ctx, String runId) {
     AutonomousRun run = requireForUpdate(runId);
     assertRunNotTerminal(run, "paused");
-    transitionSimulation(run, ExerciseStatus.PAUSED);
+    transitionSimulation(ctx, run, ExerciseStatus.PAUSED);
     run.setStatus(AutonomousRunStatus.PAUSED);
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
@@ -1134,10 +1136,10 @@ public class AutonomousRunService {
 
   /** Resumes a paused run and its chained simulation, re-engaging the XTM One orchestrator. */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun resume(String runId) {
+  public AutonomousRun resume(TxCtx ctx, String runId) {
     AutonomousRun run = requireForUpdate(runId);
     assertRunNotTerminal(run, "resumed");
-    transitionSimulation(run, ExerciseStatus.RUNNING);
+    transitionSimulation(ctx, run, ExerciseStatus.RUNNING);
     // Mirror start() / addDirective(): a plan-mode run returns to PLANNING (it is still authoring
     // the scenario logic, and stampDeadline below leaves it deadline-free), a live run to RUNNING.
     // Forcing RUNNING here flipped a resumed plan build into an "executing" run in the UI and moved
@@ -1170,7 +1172,7 @@ public class AutonomousRunService {
    * (never rolls the cancel back) and a run already terminal is an idempotent no-op.
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun cancel(String runId) {
+  public AutonomousRun cancel(TxCtx ctx, String runId) {
     AutonomousRun run = require(runId);
     if (run.getStatus() == AutonomousRunStatus.CANCELED) {
       return run;
@@ -1192,7 +1194,7 @@ public class AutonomousRunService {
             runId, tenantId, AutonomousRunStatus.CANCELED, now());
     // Best-effort, not strict: an already-CANCELED/FINISHED simulation must not block the run from
     // settling to CANCELED, otherwise a mid-cancel crash leaves the operator permanently stuck.
-    transitionSimulationQuietly(run, ExerciseStatus.CANCELED);
+    transitionSimulationQuietly(ctx, run, ExerciseStatus.CANCELED);
     // Narrate at most once per run life: if a reconcile / watchdog already claimed this flip
     // (changed == 0) or already narrated the run's end, the guard drops this line.
     if (changed > 0) {
@@ -1511,7 +1513,7 @@ public class AutonomousRunService {
    * re-provisions the TEMPLATE workflow so the AI rebuilds the plan from scratch.
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun restart(String runId) {
+  public AutonomousRun restart(TxCtx ctx, String runId) {
     // Row-locked read: the reset purges the decision timeline (deleteByRun takes the per-run event
     // advisory lock) and rewrites the run row, so it must hold the run ROW lock FIRST - the same
     // row -> advisory acquisition order as the settle paths (conditional row-locking UPDATE, then
@@ -1526,10 +1528,10 @@ public class AutonomousRunService {
     // Tear the previous simulation down (attack-path executions + findings included) so the graph
     // and posture reset to empty rather than lingering from the previous run.
     if (hasText(run.getSimulationId())) {
-      exerciseService.deleteById(run.getSimulationId());
+      exerciseService.deleteById(ctx, run.getSimulationId());
     }
     // Fresh simulation from the SAME scenario - no new scenario is ever provisioned on restart.
-    Scenario scenario = scenarioService.scenario(run.getScenarioId());
+    Scenario scenario = scenarioService.scenario(ctx, run.getScenarioId());
     // Clear EVERY step on the scenario workflow (the seed the fresh simulation is copied from), not
     // just the ones tracked in the run's best-effort stepMirror. An un-mirrored step (a swallowed
     // mirror failure or a lost update on the run row) would otherwise survive and re-seed the
@@ -1598,7 +1600,7 @@ public class AutonomousRunService {
    * empty attack path. The caller then {@link #start}s it again.
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun promoteToRealRun(String runId) {
+  public AutonomousRun promoteToRealRun(TxCtx ctx, String runId) {
     // Row-locked read, like restart(): the promotion purges the decision timeline (deleteByRun
     // takes the per-run event advisory lock) and rewrites the run row, so the run ROW lock comes
     // first (row -> advisory, the settle paths' order). The plan-settled gate below also becomes
@@ -1616,9 +1618,9 @@ public class AutonomousRunService {
     // inherit the plan cycle's assumptions.
     cancelOrchestratorAfterCommit(runId, "plan promoted to a real run by operator", true);
     if (hasText(run.getSimulationId())) {
-      exerciseService.deleteById(run.getSimulationId());
+      exerciseService.deleteById(ctx, run.getSimulationId());
     }
-    Scenario scenario = scenarioService.scenario(run.getScenarioId());
+    Scenario scenario = scenarioService.scenario(ctx, run.getScenarioId());
     // Clear EVERY step on the scenario workflow so the promoted (fresh) simulation starts with an
     // empty attack path and the orchestrator rebuilds it live (guided by planGuidance) rather than
     // replaying - or duplicating - the plan. A full clear rather than the best-effort stepMirror,
@@ -1691,7 +1693,7 @@ public class AutonomousRunService {
    *     DUPLICATE)
    */
   @Transactional(rollbackFor = Exception.class)
-  public Scenario convertToManual(String runId, ConvertToManualMode mode) {
+  public Scenario convertToManual(TxCtx ctx, String runId, ConvertToManualMode mode) {
     AutonomousRun run = require(runId);
     String scenarioId = run.getScenarioId();
     if (!hasText(scenarioId)) {
@@ -1702,7 +1704,7 @@ public class AutonomousRunService {
       // run fully intact. getDuplicateScenario returns a persisted scenario whose autonomous flag
       // defaults to false; we then copy the attack-path workflow (steps + config) with keep-alive
       // forced off so the copy runs-and-ends like a hand-built chained scenario.
-      Scenario duplicate = scenarioService.getDuplicateScenario(scenarioId);
+      Scenario duplicate = scenarioService.getDuplicateScenario(ctx, scenarioId);
       try {
         workflowService.copyScenarioChainingWorkflowAsManual(scenarioId, duplicate);
       } catch (ChainingException e) {
@@ -1734,12 +1736,12 @@ public class AutonomousRunService {
     // scheduled or terminal state, so there is nothing to transition.
     switch (run.getStatus()) {
       case CREATED, PLANNING, RUNNING, PAUSED, WAITING_INPUT ->
-          transitionSimulationQuietly(run, ExerciseStatus.CANCELED);
+          transitionSimulationQuietly(ctx, run, ExerciseStatus.CANCELED);
       default -> {
         // Already settled - leave the simulation state untouched.
       }
     }
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     scenario.setAutonomous(false);
     scenarioService.updateScenario(scenario);
     // A manual chained scenario runs-and-ends: drop the "park forever awaiting the orchestrator"
@@ -1767,7 +1769,7 @@ public class AutonomousRunService {
    * stop it first, mirroring the UI's disabled Delete entry.
    */
   @Transactional(rollbackFor = Exception.class)
-  public void deleteForScenario(String scenarioId) {
+  public void deleteForScenario(TxCtx ctx, String scenarioId) {
     AutonomousRun run = runRepository.findByScenarioId(scenarioId).orElse(null);
     if (run == null) {
       return;
@@ -1785,7 +1787,7 @@ public class AutonomousRunService {
         || status == AutonomousRunStatus.WAITING_INPUT) {
       throw new ConflictException("Stop the autonomous run before deleting its scenario");
     }
-    tearDownRun(run);
+    tearDownRun(run, simulationId -> exerciseService.deleteById(ctx, simulationId));
   }
 
   /**
@@ -1800,12 +1802,12 @@ public class AutonomousRunService {
    * can call it unconditionally per id.
    */
   @Transactional(rollbackFor = Exception.class)
-  public void deleteForScenarioForce(String scenarioId) {
+  public void deleteForScenarioForce(TxCtx ctx, String scenarioId) {
     AutonomousRun run = runRepository.findByScenarioId(scenarioId).orElse(null);
     if (run == null) {
       return;
     }
-    tearDownRun(run);
+    tearDownRun(run, simulationId -> exerciseService.deleteById(ctx, simulationId));
   }
 
   /**
@@ -1820,7 +1822,7 @@ public class AutonomousRunService {
    * #supersedePriorRun}. Only a non-executing plan-mode substrate simulation (a throwaway with no
    * results) is deleted with the run.
    */
-  private void tearDownRun(AutonomousRun run) {
+  private void tearDownRun(AutonomousRun run, Consumer<String> deleteSimulation) {
     // Row-locked re-read first: the teardown purges the timeline (deleteByRun takes the per-run
     // event advisory lock) and deletes the run row, so the run ROW lock must come first
     // (row -> advisory, the settle paths' order) or this teardown could deadlock a concurrent
@@ -1837,7 +1839,7 @@ public class AutonomousRunService {
     // scenario never destroys a simulation, which is the legacy 1:1 scenario<->simulation coupling
     // we no longer want.
     if (run.isPlanMode() && hasText(run.getSimulationId())) {
-      exerciseService.deleteById(run.getSimulationId());
+      deleteSimulation.accept(run.getSimulationId());
     }
     directiveRepository.deleteByRunId(runId);
     eventService.deleteByRun(runId);
@@ -1859,8 +1861,9 @@ public class AutonomousRunService {
    * stays as history, consistent with "a scenario can carry many simulations" (relaunching must
    * never destroy the previous run's results).
    */
-  private void supersedePriorRun(String scenarioId, String reason) {
-    supersedePriorRun(scenarioId, reason, true);
+  private void supersedePriorRun(TxCtx ctx, String scenarioId, String reason) {
+    supersedePriorRun(
+        scenarioId, reason, true, simulationId -> exerciseService.deleteById(ctx, simulationId));
   }
 
   /**
@@ -1869,7 +1872,8 @@ public class AutonomousRunService {
    * the normal-launch contract, where an active run is left untouched as a defensive no-op rather
    * than torn down (see {@link #supersedeSettledRunOnManualLaunch}).
    */
-  private void supersedePriorRun(String scenarioId, String reason, boolean refuseIfActive) {
+  private void supersedePriorRun(
+      String scenarioId, String reason, boolean refuseIfActive, Consumer<String> deleteSimulation) {
     AutonomousRun prior = runRepository.findByScenarioId(scenarioId).orElse(null);
     if (prior == null) {
       return;
@@ -1896,7 +1900,7 @@ public class AutonomousRunService {
     String priorId = prior.getId();
     cancelOrchestratorAfterCommit(priorId, reason, true);
     if (prior.isPlanMode() && hasText(prior.getSimulationId())) {
-      exerciseService.deleteById(prior.getSimulationId());
+      deleteSimulation.accept(prior.getSimulationId());
     }
     directiveRepository.deleteByRunId(priorId);
     eventService.deleteByRun(priorId);
@@ -1924,7 +1928,13 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       return;
     }
-    supersedePriorRun(scenarioId, "scenario relaunched as a normal simulation", false);
+    // Reached under the scenario owner's ambient tenant (WorkflowOwnerScope), without a request
+    // scope of its own.
+    supersedePriorRun(
+        scenarioId,
+        "scenario relaunched as a normal simulation",
+        false,
+        exerciseService::deleteById);
   }
 
   // endregion
@@ -4527,13 +4537,17 @@ public class AutonomousRunService {
     }
   }
 
-  /** Transitions the chained simulation, surfacing an invalid transition as a 400. */
-  private void transitionSimulation(AutonomousRun run, ExerciseStatus target) {
+  /**
+   * Transitions the chained simulation, surfacing an invalid transition as a 400. The simulation is
+   * loaded in the request scope: the ambient tenant is the default one on the non-prefixed route,
+   * whatever tenant the run and its simulation belong to.
+   */
+  private void transitionSimulation(TxCtx ctx, AutonomousRun run, ExerciseStatus target) {
     if (run.getSimulationId() == null) {
       return;
     }
     try {
-      exerciseService.changeExerciseStatus(target, run.getSimulationId());
+      exerciseService.changeExerciseStatus(ctx, target, run.getSimulationId());
     } catch (ChainingException | UnsupportedOperationException e) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
@@ -4575,13 +4589,33 @@ public class AutonomousRunService {
     }
   }
 
-  /** Best-effort terminal transition from an orchestrator callback; never fails the callback. */
+  /**
+   * Best-effort terminal transition from an operator action, loading the simulation in the request
+   * scope; never fails the action.
+   */
+  private void transitionSimulationQuietly(TxCtx ctx, AutonomousRun run, ExerciseStatus target) {
+    transitionSimulationQuietly(
+        run,
+        target,
+        () -> exerciseService.changeExerciseStatus(ctx, target, run.getSimulationId()));
+  }
+
+  /**
+   * Best-effort terminal transition from a background sweep or an orchestrator callback, which set
+   * the ambient tenant themselves; never fails the caller.
+   */
   private void transitionSimulationQuietly(AutonomousRun run, ExerciseStatus target) {
+    transitionSimulationQuietly(
+        run, target, () -> exerciseService.changeExerciseStatus(target, run.getSimulationId()));
+  }
+
+  private void transitionSimulationQuietly(
+      AutonomousRun run, ExerciseStatus target, Callable<Exercise> transition) {
     if (run.getSimulationId() == null) {
       return;
     }
     try {
-      exerciseService.changeExerciseStatus(target, run.getSimulationId());
+      transition.call();
     } catch (Exception e) {
       log.warn(
           "[Autonomous] Could not move simulation {} to {} on run {} completion",
