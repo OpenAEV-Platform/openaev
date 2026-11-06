@@ -13,6 +13,7 @@ import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static java.time.Instant.now;
 
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tag;
@@ -61,6 +62,7 @@ public class PlayerService {
   private final TeamRepository teamRepository;
   private final OrganizationRepository organizationRepository;
   private final TenantUserService tenantUserService;
+  private final TenantWriteScopeResolver writeScopeResolver;
   @PersistenceContext private EntityManager entityManager;
 
   private final UserRepository userRepository;
@@ -192,12 +194,13 @@ public class PlayerService {
     return new PageImpl<>(players, pageable, total);
   }
 
-  public User createPlayer(@Valid @RequestBody PlayerInput input) {
+  public User createPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     var existingUser = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
-      tenantUserService.attachToTenant(userId, TenantContext.getCurrentTenant());
+      tenantUserService.attachToTenant(userId, tenantId);
       // Reload user after @Modifying queries cleared the persistence context
       return userRepository.findById(userId).orElseThrow();
     }
@@ -205,14 +208,15 @@ public class PlayerService {
     user.setUpdateAttributes(input);
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     User savedUser = userRepository.save(user);
-    assignOrganization(savedUser, input.getOrganizationId());
+    assignOrganization(savedUser, input.getOrganizationId(), tenantId);
     userService.createUserToken(savedUser);
-    tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+    tenantUserService.attachToTenant(savedUser.getId(), tenantId);
     return savedUser;
   }
 
-  public User upsertPlayer(@Valid @RequestBody PlayerInput input) {
+  public User upsertPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Optional<User> user = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (user.isPresent()) {
       if (!requireUpdate(user.get(), input)) {
@@ -236,9 +240,9 @@ public class PlayerService {
               .toList();
       existingUser.setTeams(fromIterable(teamRepository.findAllById(teams)));
       if (StringUtils.hasText(input.getOrganizationId())) {
-        assignOrganization(existingUser, input.getOrganizationId());
+        assignOrganization(existingUser, input.getOrganizationId(), tenantId);
       }
-      tenantUserService.attachToTenant(existingUser.getId(), TenantContext.getCurrentTenant());
+      tenantUserService.attachToTenant(existingUser.getId(), tenantId);
       return userRepository.save(existingUser);
     } else {
       User newUser = new User();
@@ -246,19 +250,19 @@ public class PlayerService {
       newUser.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
       newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
       User savedUser = userRepository.save(newUser);
-      assignOrganization(savedUser, input.getOrganizationId());
+      assignOrganization(savedUser, input.getOrganizationId(), tenantId);
       userService.createUserToken(savedUser);
-      tenantUserService.attachToTenant(savedUser.getId(), TenantContext.getCurrentTenant());
+      tenantUserService.attachToTenant(savedUser.getId(), tenantId);
       return savedUser;
     }
   }
 
   /**
-   * Sets the organization of the user in the current tenant, an empty id clearing it. The ones the
+   * Sets the organization of the user in the given tenant, an empty id clearing it. The ones the
    * user holds in other tenants are left untouched.
    */
-  public void assignOrganization(@NotNull final User user, final String organizationId) {
-    String tenantId = TenantContext.getCurrentTenant();
+  private void assignOrganization(
+      @NotNull final User user, final String organizationId, final String tenantId) {
     userRepository.assignOrganization(
         user,
         tenantId,

@@ -1,11 +1,13 @@
 package io.openaev.rest.user;
 
+import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.rest.user.TenantUserApi.USER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -16,12 +18,18 @@ import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
+import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.PlayerFixture;
 import io.openaev.utils.fixtures.UserFixture;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -69,6 +77,7 @@ public class TenantMembershipGuardTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
+  @Autowired private UserComposer userComposer;
 
   private static UserInput userInput() {
     return new UserInput(
@@ -83,6 +92,22 @@ public class TenantMembershipGuardTest extends IntegrationTest {
         List.of(),
         false,
         List.of());
+  }
+
+  private static PlayerInput playerInput() {
+    PlayerInput input = PlayerFixture.createPlayerInput();
+    input.setEmail("membership-player-" + UUID.randomUUID() + "@filigran.io");
+    return input;
+  }
+
+  private List<String> membershipTenantsOf(String email) {
+    entityManager.flush();
+    return entityManager
+        .createNativeQuery(
+            "SELECT ut.tenant_id FROM users_tenants ut JOIN users u ON u.user_id = ut.user_id"
+                + " WHERE lower(u.user_email) = lower(:email)")
+        .setParameter("email", email)
+        .getResultList();
   }
 
   private long membershipRowsIn(String tenantId) {
@@ -153,6 +178,145 @@ public class TenantMembershipGuardTest extends IntegrationTest {
       mvc.perform(get(USER_URI).accept(MediaType.APPLICATION_JSON))
           // -- ASSERT --
           .andExpect(status().isForbidden());
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant of a permitted membership write")
+  class AttributionOfAPermittedWrite {
+
+    private static final String TENANT_HEADER = "X-Tenant-Ids";
+
+    private String tenantB;
+
+    /**
+     * The caller belongs to the default tenant and to B, so nothing but the request's write scope
+     * tells the membership which of the two it joins.
+     */
+    @BeforeEach
+    void callerOfTwoTenants() throws Exception {
+      tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
+      tenantB = tenantIsolationHelper.createTenantWithCurrentUser("membership-b").getId();
+      entityManager.flush();
+      entityManager.clear();
+      // The fixtures leave B on the test thread; the header route reaches the handler with none.
+      TenantContext.clearCurrentTenant();
+      assertEquals(
+          Tenant.DEFAULT_TENANT_UUID,
+          TenantContext.getCurrentTenant(),
+          "The ambient tenant must be the default one for the header route to prove anything");
+    }
+
+    @AfterEach
+    void clearAmbientTenant() {
+      TenantContext.clearCurrentTenant();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player created with X-Tenant-Ids joins the tenant the header names")
+    void given_headerNamingTenantB_should_attachThePlayerToB() throws Exception {
+      // -- PREPARE --
+      PlayerInput input = playerInput();
+
+      // -- EXECUTE --
+      mvc.perform(
+              post(PLAYER_URI)
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertEquals(List.of(tenantB), membershipTenantsOf(input.getEmail()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player upserted with X-Tenant-Ids joins the tenant the header names")
+    void given_headerNamingTenantB_should_attachTheUpsertedPlayerToB() throws Exception {
+      // -- PREPARE --
+      PlayerInput input = playerInput();
+
+      // -- EXECUTE --
+      mvc.perform(
+              post(PLAYER_URI + "/upsert")
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertEquals(List.of(tenantB), membershipTenantsOf(input.getEmail()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A user created with X-Tenant-Ids joins the tenant the header names")
+    void given_headerNamingTenantB_should_attachTheUserToB() throws Exception {
+      // -- PREPARE --
+      UserInput input = userInput();
+
+      // -- EXECUTE --
+      mvc.perform(
+              post(USER_URI)
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isCreated());
+
+      // -- ASSERT --
+      assertEquals(List.of(tenantB), membershipTenantsOf(input.email()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A user detached with X-Tenant-Ids leaves the tenant the header names only")
+    void given_headerNamingTenantB_should_detachTheUserFromBOnly() throws Exception {
+      // -- PREPARE --
+      User member = userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist().get();
+      tenantRepository.addUserToTenant(member.getId(), Tenant.DEFAULT_TENANT_UUID);
+      tenantRepository.addUserToTenant(member.getId(), tenantB);
+      entityManager.flush();
+      entityManager.clear();
+      TenantContext.clearCurrentTenant();
+
+      // -- EXECUTE --
+      mvc.perform(
+              delete(USER_URI + "/" + member.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNoContent());
+
+      // -- ASSERT --
+      assertEquals(List.of(Tenant.DEFAULT_TENANT_UUID), membershipTenantsOf(member.getEmail()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player created under the tenant prefix joins the addressed tenant")
+    void given_tenantPrefix_should_attachThePlayerToTheAddressedTenant() throws Exception {
+      // -- PREPARE --
+      PlayerInput input = playerInput();
+
+      // -- EXECUTE --
+      mvc.perform(
+              post("/api/tenants/" + tenantB + "/players")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertEquals(List.of(tenantB), membershipTenantsOf(input.getEmail()));
     }
   }
 

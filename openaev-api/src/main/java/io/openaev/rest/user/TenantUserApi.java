@@ -8,6 +8,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.aop.UserRoleDescription;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -53,8 +54,8 @@ public class TenantUserApi extends RestBehavior {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
-  public UserOutput create(TxCtx ctx, @Valid @RequestBody UserInput input) {
-    return tenantUserService.createOrAttach(input);
+  public UserOutput create(@RequireTenantSelector TxCtx ctx, @Valid @RequestBody UserInput input) {
+    return tenantUserService.createOrAttach(ctx, input);
   }
 
   // -- READ --
@@ -122,7 +123,7 @@ public class TenantUserApi extends RestBehavior {
   @DeleteMapping("/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional
-  public void delete(TxCtx ctx, @PathVariable String userId) {
-    tenantUserService.detach(userId);
+  public void delete(@RequireTenantSelector TxCtx ctx, @PathVariable String userId) {
+    tenantUserService.detach(ctx, userId);
   }
 }

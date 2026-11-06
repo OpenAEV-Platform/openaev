@@ -10,8 +10,10 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserMapper;
 import io.openaev.api.users.dto.UserOutput;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -50,16 +52,18 @@ public class TenantUserService implements DependenciesManager {
   private final UserRepository userRepository;
   private final TenantRepository tenantRepository;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final TenantWriteScopeResolver writeScopeResolver;
   private final OrganizationService organizationService;
   @PersistenceContext private EntityManager entityManager;
 
   // -- CREATE --
 
   /**
-   * Creates a user and attaches it to the current tenant, or silently attaches an existing user.
+   * Creates a user and attaches it to the tenant of the request's write scope, or silently attaches
+   * an existing user.
    */
-  public UserOutput createOrAttach(UserInput input) {
-    String tenantId = tenantId();
+  public UserOutput createOrAttach(TxCtx ctx, UserInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     var existingUser = userRepository.findByEmailIgnoreCase(input.email());
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
@@ -67,15 +71,15 @@ public class TenantUserService implements DependenciesManager {
       userService.assignAutoAssignGroups(userId, List.of(tenantId));
       // Reload user after @Modifying queries cleared the persistence context
       User reloaded = userRepository.findById(userId).orElseThrow();
-      return toOutput(reloaded);
+      return toOutput(reloaded, tenantId);
     }
     User user = userService.createUser(input, UserCreationScope.TENANT);
-    applyOrganization(user, input.organizationId());
+    applyOrganization(user, input.organizationId(), tenantId);
     attachToTenant(user.getId(), tenantId);
     userService.assignAutoAssignGroups(user.getId(), List.of(tenantId));
     // Reload user after @Modifying queries cleared the persistence context
     User reloaded = userRepository.findById(user.getId()).orElseThrow();
-    return toOutput(reloaded);
+    return toOutput(reloaded, tenantId);
   }
 
   public void attachToTenant(@NotBlank String userId, @NotBlank String tenantId) {
@@ -148,7 +152,7 @@ public class TenantUserService implements DependenciesManager {
     ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
     PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
     userService.applyProfile(existing, input);
-    applyOrganization(existing, input.organizationId());
+    applyOrganization(existing, input.organizationId(), tenantId());
     return toOutput(userRepository.save(existing));
   }
 
@@ -157,8 +161,7 @@ public class TenantUserService implements DependenciesManager {
    * tenants untouched. An empty value clears the current tenant's organization; an unknown
    * organization, or one of another tenant, is rejected rather than cleared.
    */
-  private void applyOrganization(User user, String organizationId) {
-    String tenantId = tenantId();
+  private void applyOrganization(User user, String organizationId, String tenantId) {
     Organization organization = null;
     if (StringUtils.hasText(organizationId)) {
       organization = organizationService.findById(organizationId);
@@ -173,25 +176,34 @@ public class TenantUserService implements DependenciesManager {
 
   // Only the current tenant's organization is exposed: a user may belong to another tenant's.
   private UserOutput toOutput(User user) {
-    return toOutputs(List.of(user)).getFirst();
+    return toOutput(user, tenantId());
+  }
+
+  private UserOutput toOutput(User user, String tenantId) {
+    return toOutputs(List.of(user), tenantId).getFirst();
   }
 
   private List<UserOutput> toOutputs(List<User> users) {
+    return toOutputs(users, tenantId());
+  }
+
+  private List<UserOutput> toOutputs(List<User> users, String tenantId) {
     Map<String, Organization> organizations =
-        organizationService.usersOrganizationsInTenant(users, tenantId());
+        organizationService.usersOrganizationsInTenant(users, tenantId);
     return users.stream().map(user -> UserMapper.toOutput(user, organizations)).toList();
   }
 
   // -- DELETE --
 
-  /** Detaches a user from the current tenant without deleting the user. */
-  public void detach(String userId) {
+  /** Detaches a user from the tenant of the request's write scope without deleting the user. */
+  public void detach(TxCtx ctx, String userId) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     User user = userService.user(userId);
     ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
     // Before the membership row goes away, so the groups it granted go with it.
-    userService.revokeTenantGroups(userId, List.of(tenantId()));
-    tenantRepository.removeUserFromTenant(userId, tenantId());
-    tenantMembershipCacheManager.evict(userId, tenantId());
+    userService.revokeTenantGroups(userId, List.of(tenantId));
+    tenantRepository.removeUserFromTenant(userId, tenantId);
+    tenantMembershipCacheManager.evict(userId, tenantId);
   }
 
   // -- DEPENDENCIES MANAGER --

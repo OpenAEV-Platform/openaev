@@ -12,6 +12,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.api.users.dto.UserOutput;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -45,6 +46,11 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_METHOD)
 @WithMockUser
 class TenantUserServiceTest extends IntegrationTest {
+
+  /** The write scope of a request addressed to the ambient tenant. */
+  private static TxCtx ctx() {
+    return TxCtx.forTenant(TenantContext.getCurrentTenant());
+  }
 
   @Autowired private TenantUserService tenantUserService;
   @Autowired private TenantRepository tenantRepository;
@@ -91,7 +97,7 @@ class TenantUserServiceTest extends IntegrationTest {
       UserInput input = getUserInput("newuser@test.invalid", "Elliot", "Alderson");
 
       // -- ACT --
-      UserOutput result = tenantUserService.createOrAttach(input);
+      UserOutput result = tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       assertThat(result).isNotNull();
@@ -118,7 +124,7 @@ class TenantUserServiceTest extends IntegrationTest {
       UserInput input = getUserInput("existing@test.invalid", "Darlene", "Alderson");
 
       // -- ACT --
-      UserOutput result = tenantUserService.createOrAttach(input);
+      UserOutput result = tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       assertThat(result).isNotNull();
@@ -248,7 +254,7 @@ class TenantUserServiceTest extends IntegrationTest {
       User user = persistedUserInTenant("Edward", "Alderson", "max@test.invalid");
 
       // -- ACT --
-      tenantUserService.detach(user.getId());
+      tenantUserService.detach(ctx(), user.getId());
       entityManager.flush();
       entityManager.clear();
 
@@ -267,7 +273,7 @@ class TenantUserServiceTest extends IntegrationTest {
       entityManager.flush();
       UserOutput created =
           tenantUserService.createOrAttach(
-              getUserInput("tenant-detach@test.invalid", "Detach", "Tenant"));
+              ctx(), getUserInput("tenant-detach@test.invalid", "Detach", "Tenant"));
       entityManager.flush();
       entityManager.clear();
       assertThat(groupRepository.findById(autoGroup.getId()).orElseThrow().getUsers())
@@ -275,7 +281,7 @@ class TenantUserServiceTest extends IntegrationTest {
           .contains(created.id());
 
       // -- ACT --
-      tenantUserService.detach(created.id());
+      tenantUserService.detach(ctx(), created.id());
 
       // -- ASSERT --
       entityManager.flush();
@@ -299,8 +305,8 @@ class TenantUserServiceTest extends IntegrationTest {
               "shared-tenant@test.invalid", "Shared", "Tenant", "BrandNewP@ssword!", null);
 
       // -- ACT --
-      tenantUserService.detach(user.getId());
-      UserOutput reattached = tenantUserService.createOrAttach(reAttachInput);
+      tenantUserService.detach(ctx(), user.getId());
+      UserOutput reattached = tenantUserService.createOrAttach(ctx(), reAttachInput);
 
       // -- ASSERT --
       entityManager.flush();
@@ -332,7 +338,7 @@ class TenantUserServiceTest extends IntegrationTest {
       UserInput input = getUserInput("tenant-auto@test.invalid", "TenantAuto", "Assign");
 
       // -- ACT --
-      UserOutput result = tenantUserService.createOrAttach(input);
+      UserOutput result = tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       entityManager.flush();
@@ -353,7 +359,7 @@ class TenantUserServiceTest extends IntegrationTest {
       UserInput input = getUserInput("tenant-noauto@test.invalid", "NoAuto", "Tenant");
 
       // -- ACT --
-      UserOutput result = tenantUserService.createOrAttach(input);
+      UserOutput result = tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       entityManager.flush();
@@ -380,7 +386,7 @@ class TenantUserServiceTest extends IntegrationTest {
       UserInput input = getUserInput("existing-auto@test.invalid", "Existing", "User");
 
       // -- ACT --
-      tenantUserService.createOrAttach(input);
+      tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       entityManager.flush();
@@ -404,7 +410,7 @@ class TenantUserServiceTest extends IntegrationTest {
       UserInput input = getUserInput("tenant-scoped@test.invalid", "Tenant", "Scoped");
 
       // -- ACT --
-      UserOutput result = tenantUserService.createOrAttach(input);
+      UserOutput result = tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       entityManager.flush();
@@ -437,7 +443,7 @@ class TenantUserServiceTest extends IntegrationTest {
               List.of(otherTenant.getId()));
 
       // -- ACT --
-      UserOutput result = tenantUserService.createOrAttach(input);
+      UserOutput result = tenantUserService.createOrAttach(ctx(), input);
 
       // -- ASSERT --
       entityManager.flush();
