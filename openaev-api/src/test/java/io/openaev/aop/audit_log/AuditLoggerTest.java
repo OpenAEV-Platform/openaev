@@ -310,10 +310,22 @@ class AuditLoggerTest extends IntegrationTest {
       Mockito.clearInvocations(platformSettingsService);
     }
 
+    /**
+     * The banner is written only when its state changes, so a test of one state first puts the
+     * shared service in the other one.
+     */
+    private void putBannerInState(boolean cleared) {
+      Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(cleared);
+      auditLogger.isAuditLoggingEnabled();
+      Mockito.clearInvocations(platformSettingsService);
+      Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
+    }
+
     @Test
     @DisplayName("given_auditFlagDisabled_should_cleanBanner")
     void given_auditFlagDisabled_should_cleanBanner() {
       // Arrange
+      putBannerInState(false);
       Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any())).thenReturn(false);
 
       // Act
@@ -329,6 +341,7 @@ class AuditLoggerTest extends IntegrationTest {
     @DisplayName("given_auditFlagEnabled_and_licenseActive_should_cleanBanner")
     void given_auditFlagEnabled_and_licenseActive_should_cleanBanner() {
       // Arrange
+      putBannerInState(false);
       Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any())).thenReturn(true);
       Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(true);
 
@@ -345,6 +358,7 @@ class AuditLoggerTest extends IntegrationTest {
     @DisplayName("given_auditFlagEnabled_and_licenseInactive_should_showBanner")
     void given_auditFlagEnabled_and_licenseInactive_should_showBanner() {
       // Arrange
+      putBannerInState(true);
       Mockito.when(previewFeatureService.isFeatureEnabled(Mockito.any())).thenReturn(true);
       Mockito.when(enterpriseEditionService.isLicenseActive(Mockito.any())).thenReturn(false);
 
