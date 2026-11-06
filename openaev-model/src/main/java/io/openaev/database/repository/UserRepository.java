@@ -325,6 +325,26 @@ public interface UserRepository
   void addOrganization(
       @Param("userId") String userId, @Param("organizationId") String organizationId);
 
+  // Native: atomic upsert (ON CONFLICT) on a join table that is not indexed, audited nor streamed.
+  // It adds one link without rewriting the association: Hibernate only knows the tags in the scope
+  // of the transaction, so replacing the collection would delete the links to the ones out of it.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "INSERT INTO users_tags (user_id, tag_id) VALUES (:userId, :tagId)"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addTag(@Param("userId") String userId, @Param("tagId") String tagId);
+
+  // Native: same rationale as addTag, for the teams of the user.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "INSERT INTO users_teams (user_id, team_id) VALUES (:userId, :teamId)"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addTeam(@Param("userId") String userId, @Param("teamId") String teamId);
+
   // -- DELETE --
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)

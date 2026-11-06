@@ -42,7 +42,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
 import org.springframework.data.domain.Page;
@@ -225,25 +224,22 @@ public class PlayerService {
       User existingUser = user.get();
       existingUser.setUpdateAttributes(input);
       existingUser.setUpdatedAt(now());
-      Iterable<String> tags =
-          Stream.concat(
-                  existingUser.getTags().stream().map(Tag::getId).toList().stream(),
-                  input.getTagIds().stream())
-              .distinct()
-              .toList();
-      existingUser.setTags(iterableToSet(tagRepository.findAllById(tags)));
-      Iterable<String> teams =
-          Stream.concat(
-                  existingUser.getTeams().stream().map(Team::getId).toList().stream(),
-                  input.getTeamIds().stream())
-              .distinct()
-              .toList();
-      existingUser.setTeams(fromIterable(teamRepository.findAllById(teams)));
       if (StringUtils.hasText(input.getOrganizationId())) {
         assignOrganization(existingUser, input.getOrganizationId(), tenantId);
       }
+      userRepository.save(existingUser);
+      // The player is platform-level, so it may hold tags and teams of tenants this request does
+      // not see. They are added one link at a time: replacing the collections would delete the
+      // links the request cannot see.
+      tagRepository
+          .findAllById(input.getTagIds())
+          .forEach(tag -> userRepository.addTag(existingUser.getId(), tag.getId()));
+      teamRepository
+          .findAllById(input.getTeamIds())
+          .forEach(team -> userRepository.addTeam(existingUser.getId(), team.getId()));
       tenantUserService.attachToTenant(existingUser.getId(), tenantId);
-      return forTenant(userRepository.save(existingUser), tenantId);
+      // Reload user after @Modifying queries cleared the persistence context
+      return forTenant(userRepository.findById(existingUser.getId()).orElseThrow(), tenantId);
     } else {
       User newUser = new User();
       newUser.setUpdateAttributes(input);
