@@ -19,10 +19,10 @@ import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.author.Authored;
 import io.openaev.database.model.author.Authorship;
-import io.openaev.helper.CollectorTypeNameSerializer;
+import io.openaev.database.model.payload.HasPayloadIdentity;
+import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
-import io.openaev.jsonapi.JsonApiExtraAttributes;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -71,8 +71,7 @@ import org.hibernate.type.SqlTypes;
       @DiscriminatorMapping(value = AiAttack.AI_ATTACK_TYPE, schema = AiAttack.class)
     })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
-public class Payload
-    implements GrantableBase, TenantBase, Authored, JsonApiExtraAttributes, Auditable {
+public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadIdentity, Auditable {
 
   private static final int DEFAULT_NUMBER_OF_ACTIONS_FOR_PAYLOAD = 1;
 
@@ -188,6 +187,11 @@ public class Payload
   @JsonIgnore
   private Tenant tenant;
 
+  public void setTenant(Tenant tenant) {
+    this.tenant = tenant;
+    identity.setTenant(tenant);
+  }
+
   // -- IDENTITY --
 
   // EAGER: read after the transaction closes. The database deletes it with its last version.
@@ -196,13 +200,19 @@ public class Payload
       cascade = {CascadeType.PERSIST, CascadeType.MERGE})
   @JoinColumn(name = "payload_identity", nullable = false)
   @JsonIgnore
-  private PayloadIdentity identity;
+  private PayloadIdentity identity = new PayloadIdentity();
 
   public static final String FIRST_VERSION = "1.0.0";
 
   @Column(name = "payload_version", nullable = false)
   @JsonIgnore
   private String version = FIRST_VERSION;
+
+  @Override
+  @Queryable(filterable = true, path = "identity.source")
+  public PAYLOAD_SOURCE getSource() {
+    return HasPayloadIdentity.super.getSource();
+  }
 
   // -- AUTHOR --
   @Embedded
@@ -276,79 +286,6 @@ public class Payload
   @JsonProperty("payload_updated_at")
   @NotNull
   private Instant updatedAt = now();
-
-  @JsonIgnore
-  public PayloadIdentity identityOrNew() {
-    if (identity == null) {
-      identity = new PayloadIdentity();
-      identity.setTenant(tenant);
-    }
-    return identity;
-  }
-
-  @PrePersist
-  void ensureIdentity() {
-    identityOrNew();
-  }
-
-  public void setTenant(Tenant tenant) {
-    this.tenant = tenant;
-    if (identity != null && identity.getId() == null) {
-      identity.setTenant(tenant);
-    }
-  }
-
-  @JsonProperty("payload_external_id")
-  public String getExternalId() {
-    return identity == null ? null : identity.getExternalId();
-  }
-
-  @JsonProperty("payload_external_id")
-  public void setExternalId(String externalId) {
-    identityOrNew().setExternalId(externalId);
-  }
-
-  @JsonProperty("payload_source")
-  @Queryable(filterable = true, path = "identity.source")
-  @NotNull
-  public PAYLOAD_SOURCE getSource() {
-    return identity == null ? null : identity.getSource();
-  }
-
-  @JsonProperty("payload_source")
-  public void setSource(PAYLOAD_SOURCE source) {
-    identityOrNew().setSource(source);
-  }
-
-  @JsonProperty("payload_collector_type")
-  @JsonSerialize(using = CollectorTypeNameSerializer.class)
-  @Schema(implementation = String.class)
-  public CollectorType getCollectorType() {
-    return identity == null ? null : identity.getCollectorType();
-  }
-
-  @JsonIgnore
-  public void setCollectorType(CollectorType collectorType) {
-    identityOrNew().setCollectorType(collectorType);
-  }
-
-  @Override
-  public Map<String, Object> extraAttributes() {
-    Map<String, Object> attributes = new LinkedHashMap<>();
-    attributes.put("payload_external_id", getExternalId());
-    attributes.put("payload_source", getSource() == null ? null : getSource().name());
-    return attributes;
-  }
-
-  @Override
-  public void applyExtraAttributes(Map<String, Object> attributes) {
-    if (attributes.get("payload_external_id") instanceof String externalId) {
-      setExternalId(externalId);
-    }
-    if (attributes.get("payload_source") instanceof String source) {
-      setSource(PAYLOAD_SOURCE.valueOf(source));
-    }
-  }
 
   @JsonIgnore
   public String getCollectorTypeValue() {

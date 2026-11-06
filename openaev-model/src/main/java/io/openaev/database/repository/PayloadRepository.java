@@ -28,8 +28,7 @@ public interface PayloadRepository
   Optional<Payload> findByIdAndTenantId(
       @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
-  @Query("SELECT p FROM Payload p WHERE p.identity.externalId = :externalId")
-  Optional<Payload> findByExternalId(@NotNull @Param("externalId") String externalId);
+  Optional<Payload> findByIdentityExternalId(@NotNull String externalId);
 
   /**
    * Icon metadata for a batch of payloads in one read: {@code [id, payloadType,

@@ -2062,7 +2062,7 @@ public class V1_DataImporter implements Importer {
         return contractFromPayload.get();
       }
 
-      Optional<Payload> existingPayload = payloadRepository.findByExternalId(externalId);
+      Optional<Payload> existingPayload = payloadRepository.findByIdentityExternalId(externalId);
       if (existingPayload.isPresent()) {
         Optional<InjectorContract> contractFromExternalId =
             injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
@@ -2107,7 +2107,7 @@ public class V1_DataImporter implements Importer {
     if (contractFromPayload.isPresent()) {
       return contractFromPayload;
     }
-    Optional<Payload> existingPayload = payloadRepository.findByExternalId(externalId);
+    Optional<Payload> existingPayload = payloadRepository.findByIdentityExternalId(externalId);
     if (existingPayload.isPresent()) {
       return injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
     }
