@@ -102,7 +102,7 @@ const LeftBar = () => {
           label: 'Threat Arsenal',
           userRight: ability.can(ACTIONS.ACCESS, SUBJECTS.THREAT_ARSENALS)
             || ability.can(ACTIONS.ACCESS, SUBJECTS.SECURITY_PLATFORMS)
-            || ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE),
+            || ability.can(ACTIONS.ACCESS, SUBJECTS.THREAT_ARSENAL_RESOURCE),
         },
       ],
     },

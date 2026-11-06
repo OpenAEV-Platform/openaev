@@ -27,10 +27,20 @@ vi.mock('../../../../utils/utils', () => ({ isFeatureEnabled: () => false }));
 describe('LeftBar Threat Arsenal navigation', () => {
   afterEach(cleanup);
 
-  describe.each(['OBSERVER', 'PLANNER', 'LAUNCHER'])('with a direct %s grant', (role) => {
+  describe.each(
+    (['OBSERVER', 'PLANNER', 'LAUNCHER'] as const).flatMap(grant => (['THREAT_ARSENAL', 'PAYLOAD'] as const).map(type => ({
+      grant,
+      type,
+    }))),
+  )('with a direct $grant grant on a $type', ({ grant, type }) => {
     it('shows the link without granting global manage or delete permissions', () => {
       // Arrange
-      const ability = defineAbility([], { 'granted-resource': role }, false);
+      const ability = defineAbility([], {
+        'granted-resource': {
+          grant,
+          type,
+        },
+      }, false);
 
       // Act
       render(<AbilityProvider value={ability}><LeftBar /></AbilityProvider>);
@@ -39,6 +49,25 @@ describe('LeftBar Threat Arsenal navigation', () => {
       expect(screen.getByRole('link', { name: 'Threat Arsenal' }).getAttribute('href')).toBe('/admin/threat-arsenal');
       expect(ability.can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS)).toBe(false);
       expect(ability.can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS)).toBe(false);
+    });
+  });
+
+  describe.each(['SCENARIO', 'SIMULATION', 'ATOMIC_TESTING', 'UNKNOWN'] as const)('with a direct grant on a %s only', (type) => {
+    it('hides the link but keeps the grant on the resource', () => {
+      // Arrange
+      const ability = defineAbility([], {
+        'granted-resource': {
+          grant: 'OBSERVER',
+          type,
+        },
+      }, false);
+
+      // Act
+      render(<AbilityProvider value={ability}><LeftBar /></AbilityProvider>);
+
+      // Assert
+      expect(screen.queryByRole('link', { name: 'Threat Arsenal' })).toBeNull();
+      expect(ability.can(ACTIONS.ACCESS, SUBJECTS.RESOURCE, 'granted-resource')).toBe(true);
     });
   });
 
