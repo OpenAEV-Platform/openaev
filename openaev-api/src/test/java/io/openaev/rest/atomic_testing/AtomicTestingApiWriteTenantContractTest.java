@@ -1,5 +1,6 @@
 package io.openaev.rest.atomic_testing;
 
+import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.atomic_testing.AtomicTestingApi.ATOMIC_TESTING_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,5 +118,51 @@ class AtomicTestingApiWriteTenantContractTest extends IntegrationTest {
     assertThat(tenantId)
         .as("the inject is attributed to the selected tenant, not the ambient default")
         .isEqualTo(otherTenantId);
+  }
+
+  @Test
+  @DisplayName(
+      "given the non-prefixed route and an explicit injector of the selected tenant, should create"
+          + " the inject with that injector, not look it up in the ambient default")
+  void given_nonPrefixedRouteWithExplicitInjectorOfSelectedTenant_should_createWithThatInjector()
+      throws Exception {
+    // -- ARRANGE --
+    // The injector id repeats across tenants (a composite key), so only a lookup in the contract's
+    // tenant finds the selected tenant's copy; the ambient tenant of this route is the default one.
+    String injectorId =
+        new JdbcTemplate(dataSource)
+            .queryForObject(
+                "SELECT i.injector_id FROM injectors i JOIN injectors_injector_contracts l ON"
+                    + " l.injector_id = i.injector_id AND l.tenant_id = i.tenant_id WHERE"
+                    + " l.injector_contract_id = ? AND i.tenant_id = ?",
+                String.class,
+                EMAIL_DEFAULT,
+                otherTenantId);
+    TenantContext.clearCurrentTenant();
+    assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+    AtomicTestingInput input = InjectFixture.createAtomicTesting("write-tenant-injector", null);
+    input.setInjectorId(injectorId);
+
+    // -- ACT --
+    MockHttpServletResponse response =
+        mvc.perform(
+                post(ATOMIC_TESTING_URI)
+                    .header(TENANT_IDS_HEADER, otherTenantId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input))
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse();
+
+    // -- ASSERT --
+    String injectId = JsonPath.read(response.getContentAsString(), "$.inject_id");
+    assertThat(
+            new JdbcTemplate(dataSource)
+                .queryForObject(
+                    "SELECT inject_injector FROM injects WHERE inject_id = ?",
+                    String.class,
+                    injectId))
+        .isEqualTo(injectorId);
   }
 }

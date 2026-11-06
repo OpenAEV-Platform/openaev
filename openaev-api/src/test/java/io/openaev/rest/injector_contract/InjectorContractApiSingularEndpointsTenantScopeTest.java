@@ -1,26 +1,35 @@
 package io.openaev.rest.injector_contract;
 
 import static io.openaev.rest.injector_contract.InjectorContractApi.INJECTOR_CONTRACT_URL;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.rest.exception.TenantSingleScopeRequiredException;
+import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
+import io.openaev.rest.injector_contract.form.InjectorContractUpdateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -154,6 +163,50 @@ class InjectorContractApiSingularEndpointsTenantScopeTest extends IntegrationTes
     assertThat(result.getResponse().getContentAsString())
         .as("the refusal says a single tenant is needed, not that a write was refused")
         .contains(TenantSingleScopeRequiredException.CODE);
+  }
+
+  @Test
+  @DisplayName(
+      "given a header-selected update with a new domain, should create the domain in the contract's"
+          + " tenant, not the ambient default")
+  void given_headerSelectedUpdateWithNewDomain_should_createTheDomainInTheContractTenant()
+      throws Exception {
+    // -- ARRANGE --
+    // The ambient tenant of the non-prefixed route is the default one; the header selects the
+    // other tenant, whose copy of the contract is the one updated.
+    TenantContext.clearCurrentTenant();
+    String domainName = "ic-update-domain-" + UUID.randomUUID();
+    InjectorContractUpdateInput input = new InjectorContractUpdateInput();
+    input.setContent("{\"fields\":[]}");
+    input.setLabels(Map.of("en", OTHER_LABEL));
+    input.setDomains(Set.of(domainDto(domainName)));
+
+    // -- ACT --
+    MvcResult result =
+        mvc.perform(
+                put(URL + "/" + ManualContract.MANUAL_DEFAULT)
+                    .header("X-Tenant-Ids", otherTenantId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input))
+                    .with(csrf()))
+            .andReturn();
+
+    // -- ASSERT --
+    assertThat(result.getResponse().getStatus()).isEqualTo(200);
+    assertThat(
+            new JdbcTemplate(dataSource)
+                .queryForList(
+                    "SELECT tenant_id FROM domains WHERE domain_name = ?",
+                    String.class,
+                    domainName))
+        .containsExactly(otherTenantId);
+  }
+
+  private static InjectorContractDomainDTO domainDto(String name) {
+    InjectorContractDomainDTO dto = new InjectorContractDomainDTO();
+    dto.setName(name);
+    dto.setColor("#112233");
+    return dto;
   }
 
   private static String labelOf(MvcResult result) throws Exception {

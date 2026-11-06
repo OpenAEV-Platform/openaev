@@ -330,7 +330,7 @@ public class InjectorContractService implements DependenciesManager {
 
     injectorContract.setDomains(
         injector != null && !injector.isPayloads()
-            ? this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
+            ? this.domainService.upserts(input.getDomains(), injector.getTenantId())
             : new HashSet<>());
     InjectorContract saved = injectorContractRepository.save(injectorContract);
     // The join row is persisted through the contract's cascade over the join entity (addInjector)
@@ -431,8 +431,10 @@ public class InjectorContractService implements DependenciesManager {
             new HashSet<>(input.getAttackPatternsIds())));
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
+    // The domains live in the contract's tenant: the ambient one is the default tenant on the
+    // non-prefixed route, whatever tenant the selector chose.
     injectorContract.setDomains(
-        this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant()));
+        this.domainService.upserts(input.getDomains(), injectorContract.getTenant().getId()));
 
     reconcileExternalInjectorAuthorship(injectorContract);
 

@@ -1095,7 +1095,8 @@ public class InjectService {
 
     // Resolve injector explicitly (BeanUtils cannot copy String → Injector)
     if (StringUtils.isNotBlank(input.getInjectorId())) {
-      inject.setInjector(injectUtils.resolveInjector(input.getInjectorId(), null));
+      inject.setInjector(
+          injectUtils.resolveInjectorInTenant(input.getInjectorId(), inject.getTenant().getId()));
     }
 
     // Set dependencies
