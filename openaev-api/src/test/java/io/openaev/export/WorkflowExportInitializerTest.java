@@ -21,6 +21,7 @@ import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.ScopeRuleValueType;
+import io.openaev.database.model.Step;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
@@ -31,12 +32,16 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class WorkflowExportInitializerTest {
+
+  private static final String TENANT_ID = "tenant-id";
 
   @Test
   void given_workflowExportData_should_preservePropertiesAndEnrichContractMetadata()
@@ -61,7 +66,7 @@ class WorkflowExportInitializerTest {
     injectorContract.setId("contract-id");
     injectorContract.setDomains(Set.of(domain("domain-id-1"), domain("domain-id-2")));
     injectorContract.setTags(Set.of(tag("tag-id-1"), tag("tag-id-2")));
-    when(injectorContractRepository.findById("contract-id"))
+    when(injectorContractRepository.findByContractIdAndTenant("contract-id", TENANT_ID))
         .thenReturn(Optional.of(injectorContract));
     when(conditionRepository.findAllByWorkflowIdAndConditionParentIsNullAndTypeNot(
             eq("workflow-id"), eq(ConditionType.MAPPER)))
@@ -173,7 +178,7 @@ class WorkflowExportInitializerTest {
 
     // -- Act --
     workflowExportInitializer.enrichWorkflowDataForExport(
-        exportNode, "exercise_workflow", objectMapper);
+        exportNode, "exercise_workflow", objectMapper, TENANT_ID);
 
     // -- Assert --
     ObjectNode exportedWorkflow = (ObjectNode) exportNode.get("exercise_workflow");
@@ -277,7 +282,7 @@ class WorkflowExportInitializerTest {
     exportNode.set("exercise_workflow", workflowNode);
 
     workflowExportInitializer.enrichWorkflowDataForExport(
-        exportNode, "exercise_workflow", objectMapper);
+        exportNode, "exercise_workflow", objectMapper, TENANT_ID);
 
     ObjectNode exportedWorkflow = (ObjectNode) exportNode.get("exercise_workflow");
     assertFalse(
@@ -316,7 +321,7 @@ class WorkflowExportInitializerTest {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setId("contract-id");
     injectorContract.setAttackPatterns(new ArrayList<>());
-    when(injectorContractRepository.findById("contract-id"))
+    when(injectorContractRepository.findByContractIdAndTenant("contract-id", TENANT_ID))
         .thenReturn(Optional.of(injectorContract));
     when(injectorContractContentUtils.hasField(injectorContract, "teams")).thenReturn(true);
 
@@ -352,7 +357,7 @@ class WorkflowExportInitializerTest {
     exportNode.set("exercise_workflow", workflowNode);
 
     workflowExportInitializer.enrichWorkflowDataForExport(
-        exportNode, "exercise_workflow", objectMapper);
+        exportNode, "exercise_workflow", objectMapper, TENANT_ID);
 
     ObjectNode exportedStepData =
         (ObjectNode)
@@ -483,5 +488,30 @@ class WorkflowExportInitializerTest {
     // -- Assert --
     verify(conditionRepository)
         .findAllByWorkflowIdAndConditionParentIsNullAndTypeNot("workflow-id", ConditionType.MAPPER);
+  }
+
+  @Test
+  void given_workflowStepOnAContract_should_collectTagsOfTheContractInTheGivenTenant() {
+    // -- Arrange --
+    WorkflowExportInitializer workflowExportInitializer = new WorkflowExportInitializer();
+    InjectorContractRepository injectorContractRepository = mock(InjectorContractRepository.class);
+    ReflectionTestUtils.setField(
+        workflowExportInitializer, "injectorContractRepository", injectorContractRepository);
+    InjectorContract injectorContract = new InjectorContract();
+    injectorContract.setId("contract-id");
+    injectorContract.setTags(Set.of(tag("tag-id-1")));
+    when(injectorContractRepository.findByContractIdAndTenant("contract-id", TENANT_ID))
+        .thenReturn(Optional.of(injectorContract));
+
+    Step step = new Step();
+    step.setData("{\"inject_injector_contract\":{\"injector_contract_id\":\"contract-id\"}}");
+    Workflow workflow = new Workflow();
+    workflow.setSteps(new ArrayList<>(List.of(step)));
+
+    // -- Act --
+    Set<Tag> tags = workflowExportInitializer.collectWorkflowTags(workflow, TENANT_ID);
+
+    // -- Assert --
+    assertEquals(Set.of("tag-id-1"), tags.stream().map(Tag::getId).collect(Collectors.toSet()));
   }
 }
