@@ -55,6 +55,7 @@ public class SecurityService {
     String email = ofNullable(emailAttribute).orElseThrow();
     List<String> adminRoles = getAdminRoles(registrationId);
     boolean allAdmin = isAllAdmin(registrationId);
+    boolean adminConfigured = allAdmin || !adminRoles.isEmpty();
     boolean isAdmin = allAdmin || adminRoles.stream().anyMatch(roles::contains);
     if (hasLength(email)) {
       Optional<User> optionalUser = userRepository.findByEmailIgnoreCase(email);
@@ -62,20 +63,21 @@ public class SecurityService {
       if (optionalUser.isEmpty()) {
         User user =
             this.userService.createInternalUser(
-                email, firstName, lastName, isAdmin, UUID.randomUUID().toString());
+                email, firstName, lastName, false, UUID.randomUUID().toString());
         this.userEventService.createUserCreatedEvent(user, registrationId);
         userEventService.createLoginSuccessEvent(user);
-        return mapGroupsAttachTenantAndSave(registrationId, user, groups);
+        return mapGroupsAttachTenantAndSave(registrationId, user, groups, adminConfigured, isAdmin);
       } else {
         // If user exists, update it
         User currentUser = optionalUser.get();
         currentUser.setFirstname(firstName);
         currentUser.setLastname(lastName);
-        if (allAdmin || !adminRoles.isEmpty()) {
-          currentUser.setAdmin(isAdmin);
+        if (adminConfigured && !isAdmin && !User.ADMIN_UUID.equals(currentUser.getId())) {
+          currentUser.setAdmin(false);
         }
         userEventService.createLoginSuccessEvent(currentUser);
-        return mapGroupsAttachTenantAndSave(registrationId, currentUser, groups);
+        return mapGroupsAttachTenantAndSave(
+            registrationId, currentUser, groups, adminConfigured, isAdmin);
       }
     }
     return null;
@@ -96,10 +98,7 @@ public class SecurityService {
    * deliberately removed from the user is never re-granted on a later login.
    */
   private Optional<String> attachTenant(String registrationId, User user) {
-    String configuredTenantId =
-        env.getProperty(
-            OPENAEV_PROVIDER_PATH_PREFIX + registrationId + TENANT_ID_SUFFIX, String.class, "");
-    String tenantId = hasText(configuredTenantId) ? configuredTenantId : Tenant.DEFAULT_TENANT_UUID;
+    String tenantId = providerTenantId(registrationId);
     boolean alreadyAttached = user.getTenants().stream().anyMatch(t -> t.getId().equals(tenantId));
     if (alreadyAttached) {
       return Optional.empty();
@@ -113,11 +112,23 @@ public class SecurityService {
     return Optional.of(tenantId);
   }
 
+  private String providerTenantId(String registrationId) {
+    String configuredTenantId =
+        env.getProperty(
+            OPENAEV_PROVIDER_PATH_PREFIX + registrationId + TENANT_ID_SUFFIX, String.class, "");
+    return hasText(configuredTenantId) ? configuredTenantId : Tenant.DEFAULT_TENANT_UUID;
+  }
+
   /**
    * Maps the SSO groups on the user, attaches the tenant of the identity provider, grants its
-   * auto-assign groups and saves the user.
+   * auto-assign groups, puts admins in its "Admin" group and saves the user.
    */
-  private User mapGroupsAttachTenantAndSave(String registrationId, User user, List<String> groups) {
+  private User mapGroupsAttachTenantAndSave(
+      String registrationId,
+      User user,
+      List<String> groups,
+      boolean adminConfigured,
+      boolean isAdmin) {
     String groupsManagementObject =
         env.getProperty(
             OPENAEV_PROVIDER_PATH_PREFIX + registrationId + GROUPS_MANAGEMENT_SUFFIX,
@@ -127,6 +138,9 @@ public class SecurityService {
     Optional<String> attachedTenantId = attachTenant(registrationId, user);
     attachedTenantId.ifPresent(
         tenantId -> userService.assignAutoAssignGroups(user.getId(), List.of(tenantId)));
+    if (adminConfigured) {
+      userMappingService.mapAdminGroup(user, providerTenantId(registrationId), isAdmin);
+    }
     User savedUser = this.userService.saveUser(user);
     // The new membership is only flushed at commit, but granting the auto-assign groups already
     // cached the user's tenants without it (JDBC read), which would deny every request in the
