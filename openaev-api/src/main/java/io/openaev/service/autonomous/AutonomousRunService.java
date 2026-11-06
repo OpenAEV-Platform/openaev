@@ -4037,7 +4037,13 @@ public class AutonomousRunService {
     return readDefaultAdditionalAgentIds();
   }
 
-  /** Persists the tenant's default additional agents (ids). */
+  /**
+   * Persists the tenant's default additional agents (ids). Stored as a tenant-scoped {@code
+   * parameters} row ({@code tenant_id} set to the caller's tenant), not a platform row: this is
+   * per-tenant configuration, and attributing it to the platform would both be wrong (one tenant's
+   * choice silently overwriting every other tenant's) and, once {@code parameters} is a v2-active
+   * dual-scope table, refused outright by the platform-write rule (this runs on a tenant route).
+   */
   @Transactional(rollbackFor = Exception.class)
   public List<String> updateDefaultAdditionalAgentIds(List<String> agentIds) {
     List<String> cleaned = new ArrayList<>();
@@ -4049,8 +4055,11 @@ public class AutonomousRunService {
       }
     }
     String key = TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENTS.key();
+    String tenantId = TenantContext.getCurrentTenant();
     Setting setting =
-        settingRepository.findByKeyAndTenantIsNull(key).orElseGet(() -> new Setting(key, "[]"));
+        settingRepository
+            .findByKeyAndTenantId(key, tenantId)
+            .orElseGet(() -> newTenantSetting(key, "[]", tenantId));
     try {
       setting.setValue(objectMapper.writeValueAsString(cleaned));
     } catch (Exception e) {
@@ -4061,10 +4070,17 @@ public class AutonomousRunService {
     return cleaned;
   }
 
+  /** A new tenant-scoped {@code Setting}, attributed to {@code tenantId} by reference (no load). */
+  private Setting newTenantSetting(String key, String value, String tenantId) {
+    Setting setting = new Setting(key, value);
+    setting.setTenant(entityManager.getReference(Tenant.class, tenantId));
+    return setting;
+  }
+
   private List<String> readDefaultAdditionalAgentIds() {
     Optional<Setting> setting =
-        settingRepository.findByKeyAndTenantIsNull(
-            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENTS.key());
+        settingRepository.findByKeyAndTenantId(
+            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENTS.key(), TenantContext.getCurrentTenant());
     // No row at all: the tenant has never configured this, so the license-independent built-in
     // payload creator is the enabled-by-default specialist. An existing row (even an empty "[]") is
     // authoritative - it means the admin explicitly chose the set, up to disabling the built-in.
@@ -4109,13 +4125,20 @@ public class AutonomousRunService {
     return readDefaultAdditionalAgentModes();
   }
 
-  /** Persists the tenant's default per-agent discovery modes (canonicalized to valid modes). */
+  /**
+   * Persists the tenant's default per-agent discovery modes (canonicalized to valid modes). Stored
+   * as a tenant-scoped {@code parameters} row; see {@link #updateDefaultAdditionalAgentIds} for
+   * why.
+   */
   @Transactional(rollbackFor = Exception.class)
   public Map<String, String> updateDefaultAdditionalAgentModes(Map<String, String> agentModes) {
     Map<String, String> cleaned = normalizeAgentModes(agentModes, null);
     String key = TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key();
+    String tenantId = TenantContext.getCurrentTenant();
     Setting setting =
-        settingRepository.findByKeyAndTenantIsNull(key).orElseGet(() -> new Setting(key, "{}"));
+        settingRepository
+            .findByKeyAndTenantId(key, tenantId)
+            .orElseGet(() -> newTenantSetting(key, "{}", tenantId));
     try {
       setting.setValue(objectMapper.writeValueAsString(cleaned));
     } catch (Exception e) {
@@ -4128,8 +4151,9 @@ public class AutonomousRunService {
 
   private Map<String, String> readDefaultAdditionalAgentModes() {
     Optional<Setting> setting =
-        settingRepository.findByKeyAndTenantIsNull(
-            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key());
+        settingRepository.findByKeyAndTenantId(
+            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key(),
+            TenantContext.getCurrentTenant());
     if (setting.isEmpty() || !hasText(setting.get().getValue())) {
       return new HashMap<>();
     }
