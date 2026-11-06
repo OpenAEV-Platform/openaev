@@ -146,7 +146,8 @@ Location: `openaev-api/src/test/java/io/openaev/api/{feature}/`
 
 Location: `openaev-front/src/actions/{feature}/` and `src/admin/components/`
 
-- `{feature}-action.ts` — API calls (CRUD + search)
+- `{feature}-action.ts` — API calls (CRUD + search), as plain calls resolving to the data
+- `{feature}-queries.ts` — key factory and `queryOptions` with `meta: liveMeta(...)` for details and non-paginated reads, read with `useQuery`; mutations through `useLiveMutation` (see Data Loading & State). Paginated lists stay on `PaginationComponentV2`, which fetches on its own
 - `{feature}-helper.d.ts` — TypeScript types (or use auto-generated `api-types.d.ts`)
 - `{feature}-schema.ts` — Zod validation schema
 - List page with `Queryable` + `DataTable`

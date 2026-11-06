@@ -62,6 +62,15 @@ These thresholds trigger automatic severity levels regardless of subjective asse
 | **Mutable export** | `export let` / `export var` instead of a `const` or a getter/setter function; lint enforces it (`custom-rules/no-mutable-exports`), so flag a new `eslint-disable` of that rule | 🟡 MEDIUM |
 | **Main component export** | A module's main component exported only by name (helpers, constants and hooks modules may use named exports) | 🟢 LOW |
 | **Button convention** | Affirmative confirm not `priority="primary"`, Cancel not `priority="secondary"`, or irreversible delete confirm not `variant="destructive"` (per `frontend.instructions.md`) | 🟡 MEDIUM |
+| **Query cache written by hand** | `setQueryData`, `removeQueries`, an optimistic update or a direct `invalidateQueries` in feature code — describe the change through `useLiveMutation` / `useApplyChanges` instead (`frontend.instructions.md` → Data Loading & State) | 🟠 HIGH |
+| **Mixed data sources** | A screen migrated to TanStack Query that still reads the same server data from Redux (`useHelper`) or `useDataLoader` | 🟠 HIGH |
+| **Live query without `meta.live`** | A query that a change (stream or mutation) can make stale but declares no `meta.live`, builds it without `liveMeta` (untyped `refs`, type names outside `ENTITY_TYPES`), misses embedded entities in `refs`, or is a count / filtered list without `watch` | 🟡 MEDIUM |
+| **Query data mutated or copied** | Sorting or editing a query's `data` in place, or copying it into `useState` / Redux — sort in a stable `select` | 🟠 HIGH |
+| **Error over data** | A query's error rendered in place of data it still has after a failed refetch (5xx, network), instead of only without data or on a client error (`isClientError`) | 🟡 MEDIUM |
+| **Thunk in a query or mutation** | A `queryFn` / `mutationFn` calling `dispatch(...)` or a `*Referential` action instead of a plain call resolving to the data | 🟠 HIGH |
+| **TanStack default overridden** | A query or the client overriding `staleTime`, `retry`, `refetchOnWindowFocus`, `refetchInterval`… without a stated reason (a query being live is not one) | 🟡 MEDIUM |
+| **Second stream** | A new `EventSource` for platform data changes outside `utils/stream/streamClient.ts` | 🟠 HIGH |
+| **Stream payload read** | A new caller of `onStreamMessage` (or any read of the event `instance`) outside the Redux adapter `useDataLoader.js` and the stream adapter (`toEntityChange`, `PARENTS_OF`) — consume `EntityChange` through live queries | 🟠 HIGH |
 | **Props count** | Component with >8 props → suggest decomposition or context | 🟢 LOW |
 
 ## What NOT to Flag
