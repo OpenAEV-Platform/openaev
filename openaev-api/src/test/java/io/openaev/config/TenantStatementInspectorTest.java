@@ -586,11 +586,13 @@ class TenantStatementInspectorTest {
   }
 
   @Test
-  @DisplayName("a write to a dual-scope table does not reach platform rows (no allow_platform)")
-  void updateDualScopeTargetExcludesPlatform() {
+  @DisplayName("a write to a dual-scope table's platform row needs the platform-write marker")
+  void updateDualScopeTargetChecksPlatformWrite() {
     String out = inspect("UPDATE groups g SET x = 1 WHERE g.id = ?");
-    assertTrue(out.contains("can_access_tenant(g.tenant_id)"), out);
-    assertFalse(out.contains("can_access_tenant(g.tenant_id, true)"), out);
+    assertTrue(out.contains("can_write_tenant(g.tenant_id, true)"), out);
+    // The plain can_access_tenant predicate (no platform-write branch) is what a strict table's
+    // write uses; a dual-scope table's write must not fall back to it unconditionally.
+    assertFalse(out.contains("can_access_tenant(g.tenant_id)"), out);
   }
 
   // --- INSERT --------------------------------------------------------------
@@ -649,6 +651,47 @@ class TenantStatementInspectorTest {
   void insertValuesSubqueryFiltered() {
     String out = inspect("INSERT INTO documents (id) VALUES ((SELECT max(f.x) FROM findings f))");
     assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+  }
+
+  // --- Dual-scope table writes (the platform-write rule) --------------------
+
+  @Test
+  @DisplayName(
+      "an INSERT ... VALUES into a dual-scope table is rewritten so a platform row needs the"
+          + " platform-write marker")
+  void insertValuesIntoDualScopeTableChecksPlatformWriteOnTheNullCase() {
+    String out = inspect("INSERT INTO groups (id, tenant_id) VALUES (1, NULL)");
+    assertTrue(out.contains("FROM (VALUES (1, NULL))"), out);
+    assertTrue(out.contains("v.tenant_id IS NOT NULL OR is_platform_write()"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "an INSERT ... VALUES into a dual-scope table's tenant row is rewritten the same way, the"
+          + " predicate just never rejects it")
+  void insertValuesIntoDualScopeTableTenantRowIsRewrittenButNeverRejected() {
+    String out = inspect("INSERT INTO groups (id, tenant_id) VALUES (1, 'tenant-a')");
+    assertTrue(out.contains("v.tenant_id IS NOT NULL OR is_platform_write()"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "an INSERT ... VALUES into a strict table is left exactly as unvalidated as today, even"
+          + " when tenant_id is present")
+  void insertValuesIntoStrictTableStaysUnvalidated() {
+    String out = inspect("INSERT INTO documents (id, tenant_id) VALUES (1, NULL)");
+    assertFalse(out.contains("is_platform_write"), out);
+    assertFalse(out.contains("can_access_tenant"), out);
+    assertFalse(out.contains("FROM (VALUES"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "an INSERT ... SELECT into a dual-scope table checks the platform-write marker for the"
+          + " written tenant_id")
+  void insertSelectIntoDualScopeTableChecksPlatformWrite() {
+    String out = inspect("INSERT INTO groups (id, tenant_id) SELECT u.id, u.tid FROM users u");
+    assertTrue(out.contains("can_write_tenant(u.tid, true)"), out);
   }
 
   @Test

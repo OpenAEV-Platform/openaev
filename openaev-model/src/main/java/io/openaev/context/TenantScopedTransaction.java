@@ -70,7 +70,7 @@ public class TenantScopedTransaction {
               + " primitive call is an explicit scope boundary. Use executeNew() for deliberate"
               + " nesting.");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, false, work);
   }
 
   /** Same as {@link #execute(TxCtx, Supplier)} for work that returns nothing. */
@@ -95,12 +95,65 @@ public class TenantScopedTransaction {
           "TenantScopedTransaction.executeNew() is for deliberate nesting inside an active"
               + " transaction. At the top level, open through execute().");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, false, work);
   }
 
   /** Same as {@link #executeNew(TxCtx, Supplier)} for work that returns nothing. */
   public void executeNew(TxCtx ctx, Runnable work) {
     executeNew(
+        ctx,
+        () -> {
+          work.run();
+          return null;
+        });
+  }
+
+  /**
+   * Same as {@link #execute(TxCtx, Supplier)}, and also marks the transaction platform-write (see
+   * {@code app.platform_write}, checked by {@code can_write_tenant} before a write reaches a
+   * dual-scope table's platform row). For a background entry point that genuinely needs to create
+   * or update a platform row: today, {@code App.init()}'s instance-id bootstrap and the
+   * external-service health-check settings ({@code SmtpService}/{@code ImapService}). Never call
+   * this from code reachable by a tenant request.
+   */
+  public <T> T executeAsPlatformWrite(TxCtx ctx, Supplier<T> work) {
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.executeAsPlatformWrite() refuses to open inside an active"
+              + " transaction: a primitive call is an explicit scope boundary. Use"
+              + " executeNewAsPlatformWrite() for deliberate nesting.");
+    }
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, true, work);
+  }
+
+  /** Same as {@link #executeAsPlatformWrite(TxCtx, Supplier)} for work that returns nothing. */
+  public void executeAsPlatformWrite(TxCtx ctx, Runnable work) {
+    executeAsPlatformWrite(
+        ctx,
+        () -> {
+          work.run();
+          return null;
+        });
+  }
+
+  /**
+   * Same as {@link #executeNew(TxCtx, Supplier)}, and also marks the new transaction
+   * platform-write; see {@link #executeAsPlatformWrite(TxCtx, Supplier)}. For deliberate nesting
+   * inside an already active transaction that is not itself platform-write (e.g. a tenant-scoped
+   * background job that also needs to update a platform-wide operational status, never user data).
+   */
+  public <T> T executeNewAsPlatformWrite(TxCtx ctx, Supplier<T> work) {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.executeNewAsPlatformWrite() is for deliberate nesting inside an"
+              + " active transaction. At the top level, open through executeAsPlatformWrite().");
+    }
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, true, work);
+  }
+
+  /** Same as {@link #executeNewAsPlatformWrite(TxCtx, Supplier)} for work that returns nothing. */
+  public void executeNewAsPlatformWrite(TxCtx ctx, Runnable work) {
+    executeNewAsPlatformWrite(
         ctx,
         () -> {
           work.run();
@@ -148,6 +201,22 @@ public class TenantScopedTransaction {
     }
     setScope(resolved.toGuc());
     setMarkingScope(systemClearance(resolved).toGuc());
+  }
+
+  /**
+   * Marks the CURRENT, already-active transaction platform-write; see {@link
+   * #executeAsPlatformWrite}. For code that must widen an ambient transaction it does not own
+   * (typically a test building a platform row directly, outside the HTTP entrypoint that would
+   * normally carry {@link io.openaev.aop.PlatformWrite}) rather than opening a new one.
+   */
+  public void setPlatformWriteOnCurrentTransaction() {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.setPlatformWriteOnCurrentTransaction() has nothing to join: no"
+              + " transaction is active. It only makes sense inside an ambient transaction opened"
+              + " by the caller.");
+    }
+    setPlatformWrite();
   }
 
   /**
@@ -323,7 +392,7 @@ public class TenantScopedTransaction {
     }
   }
 
-  private <T> T run(TxCtx ctx, int propagation, Supplier<T> work) {
+  private <T> T run(TxCtx ctx, int propagation, boolean platformWrite, Supplier<T> work) {
     requireScope(ctx);
     TransactionTemplate transaction = new TransactionTemplate(transactionManager);
     transaction.setPropagationBehavior(propagation);
@@ -334,6 +403,9 @@ public class TenantScopedTransaction {
           TxCtx resolved = intentionResolver.resolve(ctx);
           setScope(resolved.toGuc());
           setMarkingScope(systemClearance(resolved).toGuc());
+          if (platformWrite) {
+            setPlatformWrite();
+          }
           return work.get();
         });
   }
@@ -416,6 +488,13 @@ public class TenantScopedTransaction {
         .createNativeQuery("SELECT set_config('app.current_markings', :scope, true)")
         .setFlushMode(FlushModeType.COMMIT)
         .setParameter("scope", scope)
+        .getSingleResult();
+  }
+
+  private void setPlatformWrite() {
+    entityManager
+        .createNativeQuery("SELECT set_config('app.platform_write', 'true', true)")
+        .setFlushMode(FlushModeType.COMMIT)
         .getSingleResult();
   }
 }

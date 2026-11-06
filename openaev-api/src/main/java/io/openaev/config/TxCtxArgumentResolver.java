@@ -67,10 +67,22 @@ public class TxCtxArgumentResolver implements HandlerMethodArgumentResolver {
       ModelAndViewContainer mavContainer,
       NativeWebRequest webRequest,
       WebDataBinderFactory binderFactory) {
+    if (parameter.hasParameterAnnotation(PlatformScope.class)) {
+      return platformScope();
+    }
     if (parameter.hasParameterAnnotation(RunTenantScope.class) && !hasPathTenant(webRequest)) {
       return runTenantScope(parameter, webRequest);
     }
     return callerScope(parameter, webRequest);
+  }
+
+  /**
+   * Scope for a {@link PlatformScope}-annotated parameter: any non-empty scope lets a dual-scope
+   * table's platform row through on read, so the caller's identity (anonymous or authenticated) and
+   * any selector are irrelevant here. See the annotation's javadoc.
+   */
+  private TxCtx platformScope() {
+    return TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
   }
 
   /**
