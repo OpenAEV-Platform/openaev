@@ -6,10 +6,6 @@ name: "🔍 Aikido Rolling Image Scan"
 # fail the run, a scanner error does.
 
 on:
-  # Temporary: runs the scan from this branch before merge. Drop before merging.
-  push:
-    branches:
-      - ci/aikido-rolling-image-scan
   schedule:
     - cron: "30 3 * * *"
   workflow_dispatch:
