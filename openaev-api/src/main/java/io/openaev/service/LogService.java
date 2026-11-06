@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -65,6 +66,15 @@ public class LogService {
   private final LicenseCacheManager licenseCacheManager;
   private final PlatformSettingsService platformSettingsService;
   private final TenantScopedTransaction tenantScopedTransaction;
+
+  /**
+   * The state the audit banner was last written in ({@code true}: cleared), so an audited request
+   * only writes it when the licence state changed. Empty until the first write. Each instance
+   * writes its own first state: the write is idempotent.
+   */
+  private final AtomicReference<Boolean> bannerCleared = new AtomicReference<>();
+
+  private final Object bannerLock = new Object();
 
   /** Ensures the EE audit-disabled warning is logged only once. */
   private final AtomicBoolean auditEeDisabledWarningLogged = new AtomicBoolean(false);
@@ -126,6 +136,20 @@ public class LogService {
    * @param shouldClean {@code true} → clear the banner; {@code false} → show the banner.
    */
   private void updateBanner(boolean shouldClean) {
+    if (Boolean.valueOf(shouldClean).equals(bannerCleared.get())) {
+      return;
+    }
+    // One writer at a time: the write is a find then an insert, and the platform row is unique.
+    synchronized (bannerLock) {
+      if (Boolean.valueOf(shouldClean).equals(bannerCleared.get())) {
+        return;
+      }
+      writeBanner(shouldClean);
+      bannerCleared.set(shouldClean);
+    }
+  }
+
+  private void writeBanner(boolean shouldClean) {
     Runnable write =
         shouldClean
             ? () ->

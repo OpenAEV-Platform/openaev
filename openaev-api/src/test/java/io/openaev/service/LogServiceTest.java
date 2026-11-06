@@ -16,6 +16,7 @@ import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ThreadPoolTaskLoggerConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.EventStatus;
 import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
@@ -82,6 +83,43 @@ class LogServiceTest {
             tenantScopedTransaction);
     lenient().when(auditLogProperties.isEnabled()).thenReturn(true);
     lenient().when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+  }
+
+  @Nested
+  @DisplayName("audit banner")
+  class AuditBanner {
+
+    @Test
+    @DisplayName("given_theLicenseStateDoesNotChange_should_writeTheBannerOnce")
+    void given_theLicenseStateDoesNotChange_should_writeTheBannerOnce() {
+      // -- PREPARE --
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+
+      // -- EXECUTE --
+      logService.isEnabled();
+      logService.isEnabled();
+      logService.isEnabled();
+
+      // -- VERIFY --
+      verify(tenantScopedTransaction, times(1))
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+    }
+
+    @Test
+    @DisplayName("given_theLicenseStateChanges_should_writeTheBannerAgain")
+    void given_theLicenseStateChanges_should_writeTheBannerAgain() {
+      // -- PREPARE --
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false, true, true);
+
+      // -- EXECUTE --
+      logService.isEnabled();
+      logService.isEnabled();
+      logService.isEnabled();
+
+      // -- VERIFY --
+      verify(tenantScopedTransaction, times(2))
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+    }
   }
 
   @Nested
