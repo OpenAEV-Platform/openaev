@@ -191,8 +191,12 @@ public class AccessControlAspect {
    * The controller method's own {@link TxCtx} argument, resolved by {@code TxCtxArgumentResolver}
    * before this advice runs. {@link PermissionService#checkedResource} needs it to load a parent
    * that is not yet v2-active (an inject) in the request's own scope rather than the ambient tenant
-   * alone. {@link TxCtx#missing()} when the method declares none, which keeps that load's existing
-   * ambient-tenant fallback for an entrypoint this task does not touch.
+   * alone. {@link TxCtx#missing()} when the method declares none: {@code
+   * TxCtxScopeUtils#requestReadScope} resolves that to the ambient tenant alone (never an empty,
+   * fail-closed scope), narrower than the fully unscoped by-id load the inject parent used before
+   * {@code InjectService#findInScope} existed. Every {@code @AccessControl(resourceType = INJECT)}
+   * endpoint today declares a {@code TxCtx} parameter, so this fallback is not exercised in
+   * production; it only guards a future endpoint that omits the parameter.
    */
   private static TxCtx requestTxCtx(Object[] args) {
     for (Object arg : args) {
