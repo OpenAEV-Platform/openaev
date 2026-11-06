@@ -724,7 +724,6 @@ class InjectExpectationServiceTest {
                   "inject-id",
                   "agent-id",
                   null,
-                  null,
                   BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
                   List.of()));
 
@@ -742,7 +741,6 @@ class InjectExpectationServiceTest {
               injectExpectationService.appendExpectationSignatures(
                   "inject-id",
                   "agent-id",
-                  null,
                   null,
                   BaseInjectExpectation.EXPECTATION_TYPE.MANUAL,
                   signatures));
@@ -764,7 +762,6 @@ class InjectExpectationServiceTest {
       injectExpectationService.appendExpectationSignatures(
           "inject-id",
           "agent-id",
-          null,
           null,
           BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
           List.of(new ExpectationSignature("signature-type", "signature-value")));

@@ -4956,11 +4956,6 @@ export interface EndpointTargetOutput {
    * @uniqueItems true
    */
   asset_agents?: AgentOutput[];
-  /**
-   * List of asset groups this asset was targeted through. Empty for an asset targeted directly.
-   * @uniqueItems true
-   */
-  asset_groups?: AssetGroupSimple[];
   /** Hostname */
   asset_hostname?: string;
   /**

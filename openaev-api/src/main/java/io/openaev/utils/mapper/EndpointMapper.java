@@ -5,7 +5,6 @@ import static io.openaev.utils.AgentUtils.getPrimaryAgents;
 import static java.util.Collections.emptySet;
 
 import io.openaev.database.model.Asset;
-import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tag;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
@@ -36,7 +35,6 @@ import org.springframework.stereotype.Component;
 public class EndpointMapper {
 
   final AgentMapper agentMapper;
-  final AssetGroupMapper assetGroupMapper;
 
   /**
    * Marking ids are stored as a nullable {@code text[]} (unmarked rows are {@code null} or empty),
@@ -159,17 +157,14 @@ public class EndpointMapper {
   }
 
   /**
-   * Converts an endpoint to a target-focused output DTO, carrying the asset groups it was targeted
-   * through.
+   * Converts an endpoint to a target-focused output DTO.
    *
    * <p>Used for displaying endpoint information in targeting contexts.
    *
    * @param endpoint the endpoint to convert
-   * @param assetGroups the asset groups the endpoint was targeted through
    * @return the endpoint target output DTO
    */
-  public EndpointTargetOutput toEndpointTargetOutput(
-      Endpoint endpoint, Set<AssetGroup> assetGroups) {
+  public EndpointTargetOutput toEndpointTargetOutput(Endpoint endpoint) {
     return EndpointTargetOutput.builder()
         .id(endpoint.getId())
         .hostname(endpoint.getHostname())
@@ -179,7 +174,6 @@ public class EndpointMapper {
                 ? new HashSet<>(Arrays.asList(setIps(endpoint.getIps())))
                 : emptySet())
         .agents(agentMapper.toAgentOutputs(endpoint.getAgents()))
-        .assetGroups(assetGroupMapper.toAssetGroupSimples(assetGroups))
         .build();
   }
 

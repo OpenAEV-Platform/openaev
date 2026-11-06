@@ -1095,7 +1095,6 @@ public class InjectExpectationService {
       @NotBlank String injectId,
       @Nullable String agentId,
       @Nullable String assetId,
-      @Nullable String assetGroupId,
       @NotNull BaseInjectExpectation.EXPECTATION_TYPE expectationType,
       @NotNull List<ExpectationSignature> signatures) {
     if (signatures.isEmpty()) {
@@ -1103,27 +1102,25 @@ public class InjectExpectationService {
     }
     if (!List.of(DETECTION, PREVENTION).contains(expectationType)) {
       log.warn(
-          "Signature structured output is only supported for DETECTION and PREVENTION expectations (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
+          "Signature structured output is only supported for DETECTION and PREVENTION expectations (injectId={}, agentId={}, assetId={}, expectationType={})",
           injectId,
           agentId,
           assetId,
-          assetGroupId,
           expectationType);
       return;
     }
 
     List<TechnicalInjectExpectation> expectations =
-        findTechnicalExpectationsForTarget(injectId, agentId, assetId, assetGroupId).stream()
+        findTechnicalExpectationsForTarget(injectId, agentId, assetId).stream()
             .filter(expectation -> expectation.getType().equals(expectationType))
             .toList();
 
     if (expectations.isEmpty()) {
       log.warn(
-          "No inject expectation found for structured signatures (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
+          "No inject expectation found for structured signatures (injectId={}, agentId={}, assetId={}, expectationType={})",
           injectId,
           agentId,
           assetId,
-          assetGroupId,
           expectationType);
       return;
     }
@@ -1135,10 +1132,7 @@ public class InjectExpectationService {
   }
 
   private List<TechnicalInjectExpectation> findTechnicalExpectationsForTarget(
-      @NotBlank String injectId,
-      @Nullable String agentId,
-      @Nullable String assetId,
-      @Nullable String assetGroupId) {
+      @NotBlank String injectId, @Nullable String agentId, @Nullable String assetId) {
     if (agentId != null) {
       return filterTechnicalExpectations(
           injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId));
@@ -1146,10 +1140,6 @@ public class InjectExpectationService {
     if (assetId != null) {
       return filterTechnicalExpectations(
           injectExpectationRepository.findAllByInjectAndAsset(injectId, assetId));
-    }
-    if (assetGroupId != null) {
-      return filterTechnicalExpectations(
-          injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, assetGroupId));
     }
     return Collections.emptyList();
   }

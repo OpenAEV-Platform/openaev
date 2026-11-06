@@ -2,7 +2,6 @@ package io.openaev.rest.asset.endpoint.output;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.rest.asset.endpoint.form.AgentOutput;
-import io.openaev.rest.asset_group.form.AssetGroupSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Set;
@@ -35,10 +34,4 @@ public class EndpointTargetOutput {
   @Schema(description = "List agents installed")
   @JsonProperty("asset_agents")
   private Set<AgentOutput> agents;
-
-  @Schema(
-      description =
-          "List of asset groups this asset was targeted through. Empty for an asset targeted directly.")
-  @JsonProperty("asset_groups")
-  private Set<AssetGroupSimple> assetGroups;
 }

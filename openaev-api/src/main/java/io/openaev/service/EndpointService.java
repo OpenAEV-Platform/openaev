@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import static io.openaev.database.model.Filters.FilterMode.and;
 import static io.openaev.database.model.Filters.isEmptyFilterGroup;
 import static io.openaev.database.specification.EndpointSpecification.*;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -13,8 +12,6 @@ import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
 import static io.openaev.utils.SecurityUtils.validateJFrogUri;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
 import static java.time.Instant.now;
-import static java.util.Optional.ofNullable;
-import static java.util.stream.Collectors.toList;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.OpenAEVConfig;
@@ -67,8 +64,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 public class EndpointService implements AuditLoggedService {
-
-  private static final String ASSET_GROUP_FILTER = "assetGroups";
 
   public static final int DELETE_TTL = 86400000; // 24 hours
   public static final String OPENAEV_AGENT_INSTALLER = "openaev-agent-installer";
@@ -280,141 +275,6 @@ public class EndpointService implements AuditLoggedService {
         Endpoint.class);
   }
 
-  private List<Specification<Endpoint>> getDynamicAssetGroupSpecifications(
-      List<AssetGroup> assetGroups) {
-    return assetGroups.stream()
-        .filter(assetGroup -> !isEmptyFilterGroup(assetGroup.getDynamicFilter()))
-        .map(
-            assetGroup -> {
-              Specification<Endpoint> specificationDynamic =
-                  computeFilterGroupJpa(assetGroup.getDynamicFilter());
-              return specificationDynamic;
-            })
-        .collect(toList());
-  }
-
-  private List<AssetGroup> getAssetGroupFromFilter(Filters.Filter assetGroupFilter) {
-    return fromIterable(assetGroupRepository.findAllById(assetGroupFilter.getValues()));
-  }
-
-  private Specification<Endpoint> getStaticAssetGroupSpecification(
-      SearchPaginationInput searchPaginationInput, Filters.Filter assetGroupFilter) {
-    Filters.FilterGroup filterGroup = new Filters.FilterGroup();
-    filterGroup.setMode(searchPaginationInput.getFilterGroup().getMode());
-    filterGroup.setFilters(List.of(assetGroupFilter));
-    return computeFilterGroupJpa(filterGroup);
-  }
-
-  private Specification<Endpoint> buildAdditionalEndpointSpecifications(
-      SearchPaginationInput searchPaginationInput) {
-    Optional<Filters.Filter> assetGroupFilter =
-        ofNullable(searchPaginationInput.getFilterGroup())
-            .flatMap(f -> f.findByKey(ASSET_GROUP_FILTER));
-
-    if (assetGroupFilter.isEmpty()) {
-      return findEndpointsForInjectionOrAgentlessEndpoints();
-    }
-
-    // Handle dynamic asset group filters
-    List<AssetGroup> assetGroups = getAssetGroupFromFilter(assetGroupFilter.get());
-    List<Specification<Endpoint>> assetGroupSpecifications =
-        getDynamicAssetGroupSpecifications(assetGroups);
-
-    // Handle static asset group filter
-    assetGroupSpecifications.add(
-        getStaticAssetGroupSpecification(searchPaginationInput, assetGroupFilter.get()));
-    searchPaginationInput.getFilterGroup().removeByKey(ASSET_GROUP_FILTER);
-
-    return Specification.anyOf(assetGroupSpecifications)
-        .and(findEndpointsForInjectionOrAgentlessEndpoints());
-  }
-
-  public Page<Endpoint> searchManagedEndpoints(SearchPaginationInput searchPaginationInput) {
-    if (searchPaginationInput.getFilterGroup() == null) {
-      searchPaginationInput.setFilterGroup(Filters.FilterGroup.defaultFilterGroup());
-    }
-    Specification<Endpoint> finalSpec =
-        buildAdditionalEndpointSpecifications(searchPaginationInput);
-    Filters.FilterMode mode = searchPaginationInput.getFilterGroup().getMode();
-
-    return buildPaginationJPA(
-        (Specification<Endpoint> specification, Pageable pageable) ->
-            this.endpointRepository.findAll(
-                searchPaginationInput.getFilterGroup().getFilters().isEmpty()
-                    ? finalSpec
-                    : (and.equals(mode)
-                        ? finalSpec.and(specification)
-                        : finalSpec.or(specification)),
-                pageable),
-        handleEndpointFilter(searchPaginationInput),
-        Endpoint.class);
-  }
-
-  /**
-   * A page of managed endpoints, with the requested asset groups each one belongs to.
-   *
-   * @param endpoints the page of endpoints
-   * @param assetGroupsByEndpoint for each endpoint ID, the requested asset groups it belongs to;
-   *     endpoints in none of them are absent
-   */
-  public record EndpointTargets(
-      Page<Endpoint> endpoints, Map<String, Set<AssetGroup>> assetGroupsByEndpoint) {}
-
-  /**
-   * Searches managed endpoints like {@link #searchManagedEndpoints}, and resolves which of the
-   * requested asset groups (the {@code assetGroups} filter values) each endpoint belongs to.
-   *
-   * <p>Lets an injector targeting several groups attribute each target to its groups from this one
-   * response, instead of fetching every group's members separately and pairing them back. Dynamic
-   * memberships are included, which {@link Asset#getAssetGroups()} does not hold.
-   *
-   * @param searchPaginationInput the search input, possibly holding an {@code assetGroups} filter
-   * @return the page of endpoints and their requested asset group IDs
-   */
-  public EndpointTargets searchManagedEndpointTargets(SearchPaginationInput searchPaginationInput) {
-    // Read before the search: it removes the assetGroups filter from the input.
-    List<String> requestedAssetGroupIds =
-        ofNullable(searchPaginationInput.getFilterGroup())
-            .flatMap(f -> f.findByKey(ASSET_GROUP_FILTER))
-            .map(filter -> List.copyOf(filter.getValues()))
-            .orElse(List.of());
-    Page<Endpoint> endpoints = searchManagedEndpoints(searchPaginationInput);
-    return new EndpointTargets(
-        endpoints, findAssetGroupsByEndpoint(endpoints.getContent(), requestedAssetGroupIds));
-  }
-
-  /**
-   * For each endpoint, the given asset groups it belongs to. One query per asset group, bounded to
-   * the given endpoints.
-   */
-  private Map<String, Set<AssetGroup>> findAssetGroupsByEndpoint(
-      List<Endpoint> endpoints, List<String> assetGroupIds) {
-    if (endpoints.isEmpty() || assetGroupIds.isEmpty()) {
-      return Map.of();
-    }
-    List<String> endpointIds = endpoints.stream().map(Endpoint::getId).toList();
-    Map<String, Set<AssetGroup>> assetGroupIdsByEndpoint = new HashMap<>();
-    for (AssetGroup assetGroup : assetGroupRepository.findAllById(assetGroupIds)) {
-      endpointRepository
-          .findAll(fromIds(endpointIds).and(assetGroupMembership(assetGroup)))
-          .forEach(
-              endpoint ->
-                  assetGroupIdsByEndpoint
-                      .computeIfAbsent(endpoint.getId(), id -> new HashSet<>())
-                      .add(assetGroup));
-    }
-    return assetGroupIdsByEndpoint;
-  }
-
-  /** Endpoints that are static members of the asset group, or match its dynamic filter. */
-  private Specification<Endpoint> assetGroupMembership(AssetGroup assetGroup) {
-    Specification<Endpoint> membership = findEndpointsForAssetGroup(assetGroup.getId());
-    if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
-      membership = membership.or(computeFilterGroupJpa(assetGroup.getDynamicFilter()));
-    }
-    return membership;
-  }
-
   public Page<Endpoint> searchManagedEndpointsByAssetGroup(
       String assetGroupId, SearchPaginationInput searchPaginationInput) {
     AssetGroup assetGroup =
@@ -422,11 +282,17 @@ public class EndpointService implements AuditLoggedService {
             .findById(assetGroupId)
             .orElseThrow(() -> new IllegalArgumentException("Asset group not found"));
 
-    // Static members OR dynamic members, resolved in a SINGLE paginated query. Running two separate
-    // queries and concatenating their pages double-counted the endpoints belonging to both sets
-    // (the total was a plain sum) and broke sorting/pagination past the first page.
+    Specification<Endpoint> membership = findEndpointsForAssetGroup(assetGroupId);
+
+    if (!isEmptyFilterGroup(assetGroup.getDynamicFilter())) {
+      // Static members OR dynamic members, resolved in a SINGLE paginated query. Running two
+      // separate queries and concatenating their pages double-counted the endpoints belonging to
+      // both sets (the total was a plain sum) and broke sorting/pagination past the first page.
+      membership = membership.or(computeFilterGroupJpa(assetGroup.getDynamicFilter()));
+    }
+
     Specification<Endpoint> finalSpec =
-        assetGroupMembership(assetGroup).and(findEndpointsForInjectionOrAgentlessEndpoints());
+        membership.and(findEndpointsForInjectionOrAgentlessEndpoints());
 
     return buildPaginationJPA(
         (Specification<Endpoint> specification, Pageable pageable) ->
