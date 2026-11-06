@@ -1,6 +1,7 @@
 package io.openaev.architecture;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
+import static io.openaev.architecture.InjectEndpointScopeGuardRules.Outcome.GUARDED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
@@ -9,6 +10,7 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.EvaluationResult;
 import io.openaev.architecture.fixture.InjectEndpointScopeGuardFixtures;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -33,12 +35,7 @@ class InjectEndpointScopeGuardRulesTest {
         "given the fixtures, should select the by-id INJECT, ATOMIC_TESTING and INJECT_SECRET endpoints only")
     void given_fixtures_should_selectByIdInjectEndpointsOnly() {
       // Act
-      List<String> selected =
-          FIXTURE_CLASSES.stream()
-              .flatMap(javaClass -> javaClass.getMethods().stream())
-              .filter(InjectEndpointScopeGuardRules.byIdInjectEndpoints())
-              .map(JavaMethod::getName)
-              .toList();
+      List<String> selected = endpoints().map(JavaMethod::getName).toList();
 
       // Assert: no resource id, another resource type and a plain method are left out
       assertThat(selected)
@@ -47,9 +44,12 @@ class InjectEndpointScopeGuardRulesTest {
               "guardedThroughAHelper",
               "guardedSecret",
               "guardedInALambda",
-              "guardedThroughAMethodReference",
+              "guardedWithTheIdSecond",
               "unguarded",
-              "guardTooFarAway");
+              "guardTooFarAway",
+              "guardOnAnotherId",
+              "guardAfterTheWrite",
+              "guardAfterTheWriteInTheHelper");
     }
   }
 
@@ -59,7 +59,7 @@ class InjectEndpointScopeGuardRulesTest {
 
     @Test
     @DisplayName(
-        "given a direct call, a helper, a lambda and a method reference, should accept them")
+        "given a direct call, a helper, a lambda and an id in another position, should accept them")
     void given_everyShapeOfGuard_should_acceptIt() {
       // Arrange
       List<String> guarded =
@@ -68,38 +68,52 @@ class InjectEndpointScopeGuardRulesTest {
               "guardedThroughAHelper",
               "guardedSecret",
               "guardedInALambda",
-              "guardedThroughAMethodReference");
+              "guardedWithTheIdSecond");
 
       // Act
-      List<String> reaching =
-          FIXTURE_CLASSES.stream()
-              .flatMap(javaClass -> javaClass.getMethods().stream())
-              .filter(method -> guarded.contains(method.getName()))
-              .filter(InjectEndpointScopeGuardRules::reachesAScopeGuard)
+      List<String> accepted =
+          endpoints()
+              .filter(method -> InjectEndpointScopeGuardRules.outcomeOf(method) == GUARDED)
               .map(JavaMethod::getName)
               .toList();
 
       // Assert
-      assertThat(reaching).containsExactlyInAnyOrderElementsOf(guarded);
+      assertThat(accepted).containsExactlyInAnyOrderElementsOf(guarded);
     }
 
     @Test
     @DisplayName(
-        "given an endpoint calling the unscoped lookup and one whose guard is too far away,"
-            + " should flag exactly those two")
-    void given_unguardedAndDistantGuard_should_flagExactlyThose() {
+        "given an unscoped lookup, a guard too far away, a guard on another id and a guard after"
+            + " a write, should flag exactly those, each for its own reason")
+    void given_weakGuards_should_flagExactlyThose() {
       // Act
       EvaluationResult result =
           methods()
               .that(InjectEndpointScopeGuardRules.byIdInjectEndpoints())
-              .should(InjectEndpointScopeGuardRules.reachAScopeGuard())
+              .should(InjectEndpointScopeGuardRules.guardTheResourceIdBeforeAnyWrite())
               .evaluate(FIXTURE_CLASSES);
 
       // Assert
       assertThat(result.getFailureReport().getDetails())
-          .hasSize(2)
-          .anyMatch(detail -> detail.contains("InjectEndpointScopeGuardFixtures#unguarded "))
-          .anyMatch(detail -> detail.contains("InjectEndpointScopeGuardFixtures#guardTooFarAway "));
+          .hasSize(5)
+          .anyMatch(
+              detail -> detail.contains("#unguarded never passes its resource id to a scope guard"))
+          .anyMatch(
+              detail ->
+                  detail.contains("#guardTooFarAway never passes its resource id to a scope guard"))
+          .anyMatch(
+              detail ->
+                  detail.contains(
+                      "#guardOnAnotherId never passes its resource id to a scope guard"))
+          .anyMatch(detail -> detail.contains("#guardAfterTheWrite writes before it guards"))
+          .anyMatch(
+              detail -> detail.contains("#guardAfterTheWriteInTheHelper writes before it guards"));
     }
+  }
+
+  private static Stream<JavaMethod> endpoints() {
+    return FIXTURE_CLASSES.stream()
+        .flatMap(javaClass -> javaClass.getMethods().stream())
+        .filter(InjectEndpointScopeGuardRules.byIdInjectEndpoints());
   }
 }
