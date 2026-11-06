@@ -49,6 +49,17 @@ public class ThreatArsenalApi {
 
   // -- READ --
 
+  /**
+   * Retrieves a threat arsenal action by ID.
+   *
+   * <p>A request with no tenant selector is pinned to the default tenant by the tenant selector
+   * rule of this endpoint, also when the caller belongs to several tenants and meant another one:
+   * select the tenant with {@code X-Tenant-Ids} or the tenant-prefixed route. A selector naming
+   * several tenants is refused.
+   *
+   * @param actionId the action ID or external ID
+   * @return the action
+   */
   @GetMapping({THREAT_ARSENAL_URL + "/{actionId}", TENANT_THREAT_ARSENAL_URL + "/{actionId}"})
   @Transactional
   @AccessControl(

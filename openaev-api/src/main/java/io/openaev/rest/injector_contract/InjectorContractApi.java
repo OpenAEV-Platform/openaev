@@ -151,6 +151,11 @@ public class InjectorContractApi extends RestBehavior {
   /**
    * Retrieves a specific injector contract by ID.
    *
+   * <p>A request with no tenant selector is pinned to the default tenant by the tenant selector
+   * rule of this endpoint, also when the caller belongs to several tenants and meant another one:
+   * select the tenant with {@code X-Tenant-Ids} or the tenant-prefixed route. A selector naming
+   * several tenants is refused.
+   *
    * @param injectorContractId the contract ID or external ID
    * @return the injector contract
    */
@@ -191,6 +196,11 @@ public class InjectorContractApi extends RestBehavior {
   /**
    * Updates an existing injector contract.
    *
+   * <p>A request with no tenant selector is pinned to the default tenant by the tenant selector
+   * rule of this endpoint, also when the caller belongs to several tenants and meant another one:
+   * select the tenant with {@code X-Tenant-Ids} or the tenant-prefixed route. A selector naming
+   * several tenants is refused.
+   *
    * @param injectorContractId the contract ID to update
    * @param input the update data
    * @return the updated injector contract
@@ -216,6 +226,11 @@ public class InjectorContractApi extends RestBehavior {
 
   /**
    * Updates the attack pattern tags and domains mappings for a contract.
+   *
+   * <p>A request with no tenant selector is pinned to the default tenant by the tenant selector
+   * rule of this endpoint, also when the caller belongs to several tenants and meant another one:
+   * select the tenant with {@code X-Tenant-Ids} or the tenant-prefixed route. A selector naming
+   * several tenants is refused.
    *
    * @param injectorContractId the contract ID to update
    * @param input the mapping update data
@@ -245,6 +260,11 @@ public class InjectorContractApi extends RestBehavior {
    * Deletes a custom injector contract.
    *
    * <p>Only custom (user-created) contracts can be deleted.
+   *
+   * <p>A request with no tenant selector is pinned to the default tenant by the tenant selector
+   * rule of this endpoint, also when the caller belongs to several tenants and meant another one:
+   * select the tenant with {@code X-Tenant-Ids} or the tenant-prefixed route. A selector naming
+   * several tenants is refused.
    *
    * @param injectorContractId the contract ID to delete
    */
