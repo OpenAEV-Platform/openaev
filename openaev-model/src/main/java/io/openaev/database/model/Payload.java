@@ -6,6 +6,7 @@ import static lombok.AccessLevel.NONE;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
@@ -17,6 +18,7 @@ import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.author.Authored;
 import io.openaev.database.model.author.Authorship;
 import io.openaev.helper.CollectorTypeNameSerializer;
+import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.jsonapi.IncludeOption;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
@@ -222,6 +224,7 @@ public class Payload implements GrantableBase, TenantBase, Authored {
   @JsonIgnore(false)
   @JsonProperty("payload_author_user")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @Queryable(dynamicValues = true, filterable = true, path = "author.user.id")
   @Schema(description = "User author of the payload", type = "string")
   public User getAuthorUser() {
@@ -232,6 +235,7 @@ public class Payload implements GrantableBase, TenantBase, Authored {
   @JsonIgnore(false)
   @JsonProperty("payload_author_organization")
   @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
   @Queryable(dynamicValues = true, filterable = true, path = "author.organization.id")
   @Schema(description = "Organization author of the payload", type = "string")
   public Organization getAuthorOrganization() {
