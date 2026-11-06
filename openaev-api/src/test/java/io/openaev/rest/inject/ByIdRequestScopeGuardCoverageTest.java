@@ -1,5 +1,7 @@
 package io.openaev.rest.inject;
 
+import static io.openaev.rest.finding.FindingApi.FINDING_URI;
+import static io.openaev.rest.finding.FindingApi.TENANT_FINDING_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -9,6 +11,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.database.model.Capability;
 import io.openaev.rest.inject.form.InjectAttachmentInput;
+import io.openaev.rest.inject.form.InjectExecutionAction;
+import io.openaev.rest.inject.form.InjectExecutionInput;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.Set;
 import java.util.function.Function;
@@ -58,6 +63,12 @@ class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTables
         Arguments.of(
             "GET /injects/{injectId}/execution-result",
             (Call) ByIdRequestScopeGuardCoverageTest::getExecutionResultPayload),
+        Arguments.of(
+            "POST /injects/execution/callback/{injectId}",
+            (Call) ByIdRequestScopeGuardCoverageTest::postExecutionCallback),
+        Arguments.of(
+            "POST /findings/injects/{injectId}/search",
+            (Call) ByIdRequestScopeGuardCoverageTest::searchFindingsByInject),
         Arguments.of(
             "GET /atomic-testings/{injectId}/payload",
             (Call) ByIdRequestScopeGuardCoverageTest::getAtomicTestingPayloadCall),
@@ -272,6 +283,31 @@ class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTables
             get(injectsBaseUri(route) + "/" + injectId + "/execution-result")
                 .param("targetId", "nonexistent-target")
                 .param("targetType", "TEAMS")));
+  }
+
+  private int postExecutionCallback(Route route, String injectId) throws Exception {
+    InjectExecutionInput input = new InjectExecutionInput();
+    input.setAction(InjectExecutionAction.complete);
+    input.setStatus("SUCCESS");
+    input.setMessage("completed");
+    input.setDuration(0);
+    return status(
+        route.with(
+            post(injectsBaseUri(route) + "/execution/callback/" + injectId)
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)));
+  }
+
+  private int searchFindingsByInject(Route route, String injectId) throws Exception {
+    String base =
+        route.pathTenant() == null
+            ? FINDING_URI
+            : TENANT_FINDING_URI.replace("{tenantId}", route.pathTenant());
+    return status(
+        route.with(
+            post(base + "/injects/" + injectId + "/search")
+                .content(asJsonString(new SearchPaginationInput()))
+                .contentType(MediaType.APPLICATION_JSON)));
   }
 
   private int getAtomicTestingPayloadCall(Route route, String injectId) throws Exception {
