@@ -16,6 +16,7 @@ scenarios behave like time-based ones.
 ## TODO
 
 - [ ] Check with Eva for the next snapshot feature (asset deleted, my code)
+- [ ] 
 
 ## 2. Decisions
 
