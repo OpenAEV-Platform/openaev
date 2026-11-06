@@ -754,7 +754,7 @@ public class InjectorContractService implements DependenciesManager {
 
   private record InjectorContractQueryContext(
       Join<InjectorContract, Payload> payloadJoin,
-      Join<Payload, CollectorType> payloadCollectorTypeJoin,
+      Join<?, CollectorType> payloadCollectorTypeJoin,
       Join<?, Injector> injectorJoin,
       Expression<String[]> injectorIdsExpression,
       Expression<String[]> injectorNamesExpression,
@@ -765,8 +765,8 @@ public class InjectorContractService implements DependenciesManager {
   private InjectorContractQueryContext buildCommonInjectorContractContext(
       CriteriaBuilder cb, Root<InjectorContract> injectorContractRoot) {
     Join<InjectorContract, Payload> payloadJoin = createLeftJoin(injectorContractRoot, "payload");
-    Join<Payload, CollectorType> payloadCollectorTypeJoin =
-        payloadJoin.join("collectorType", JoinType.LEFT);
+    Join<?, CollectorType> payloadCollectorTypeJoin =
+        payloadJoin.join("identity", JoinType.LEFT).join("collectorType", JoinType.LEFT);
     Join<?, Injector> injectorContractInjectorJoin =
         injectorContractRoot.join("injectorLinks", JoinType.LEFT).join("injector", JoinType.LEFT);
 

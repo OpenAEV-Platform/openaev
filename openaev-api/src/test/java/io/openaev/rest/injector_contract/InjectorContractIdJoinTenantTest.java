@@ -73,8 +73,14 @@ class InjectorContractIdJoinTenantTest extends IntegrationTest {
       payloadId = UUID.randomUUID().toString();
       externalId = "T9" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
       execute(
-          "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id)"
-              + " VALUES (?1, 'Command', 'Contract id join payload', ?2)",
+          "INSERT INTO payload_identities (payload_identity_id, tenant_id, payload_source)"
+              + " VALUES (?1, ?2, 'MANUAL')",
+          payloadId,
+          tenantA.getId());
+      execute(
+          "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id, payload_identity,"
+              + " payload_version) VALUES (?1, 'Command', 'Contract id join payload', ?2, ?1,"
+              + " '1.0.0')",
           payloadId,
           tenantA.getId());
       insertContract(tenantA, payloadId, "Linux");
