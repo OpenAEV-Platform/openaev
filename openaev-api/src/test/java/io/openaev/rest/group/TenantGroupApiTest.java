@@ -928,6 +928,41 @@ public class TenantGroupApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser
+    @DisplayName(
+        "Given ASSIGN_MARKING in the default tenant only, should forbid turning it on in another tenant")
+    void given_assignMarkingInDefaultTenantOnly_should_forbidTurningItOnInOtherTenant()
+        throws Exception {
+      // -------- Arrange --------
+      String defaultTenantId = TenantContext.getCurrentTenant();
+      tenantIsolationHelper.grantCapabilitiesInTenant(
+          defaultTenantId, Set.of(Capability.ASSIGN_MARKING));
+      String otherTenantId =
+          tenantIsolationHelper
+              .createTenantWithCapabilities(
+                  "auto-marking-other-tenant",
+                  Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES))
+              .getId();
+      tenantIsolationHelper.switchToTenant(otherTenantId, entityManager);
+      Group group =
+          tenantGroupComposer
+              .forGroup(TenantGroupFixture.getGroup("AutoOnOtherTenant"))
+              .persist()
+              .get();
+      tenantIsolationHelper.switchToTenant(defaultTenantId, entityManager);
+
+      // -------- Act & Assert --------
+      mvc.perform(
+              put(GROUP_URI + "/" + group.getId() + "/markings")
+                  .header("X-Tenant-Ids", otherTenantId)
+                  .content(asJsonString(new GroupUpdateMarkingsInput(List.of(), true)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
     @WithMockUser(
         withCapabilities = {
           Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,

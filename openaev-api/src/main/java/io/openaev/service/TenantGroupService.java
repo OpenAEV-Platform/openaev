@@ -316,6 +316,7 @@ public class TenantGroupService {
   /** Gives a new marking to every group of its tenant that receives new markings. */
   public void grantToAutoNewMarkingGroups(@NotNull final MarkingDefinition marking) {
     String tenantId = marking.getTenant().getId();
+    lockAutoNewMarking(tenantId);
     groupRepository
         .findAllByTenantIdAndAutoNewMarkingTrue(tenantId)
         .forEach(group -> grantMissingMarkings(group, List.of(marking)));
@@ -323,6 +324,7 @@ public class TenantGroupService {
 
   /** Makes the group receive every marking of its tenant, existing and future. */
   public void receiveEveryMarking(@NotBlank final String tenantId, @NotNull final Group group) {
+    lockAutoNewMarking(tenantId);
     receiveEveryMarking(group, markingDefinitionRepository.findAllByTenantId(tenantId));
   }
 
@@ -337,10 +339,14 @@ public class TenantGroupService {
       return;
     }
     User currentUser = userService.currentUser();
-    if (!permissionService.hasCapabilityPermission(
-        currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
+    if (!permissionService.holdsInTenant(
+        tenantId,
+        () ->
+            permissionService.hasCapabilityPermission(
+                currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE))) {
       throw new ForbiddenException("Missing the ASSIGN_MARKING capability");
     }
+    lockAutoNewMarking(tenantId);
     List<MarkingDefinition> markings = markingDefinitionRepository.findAllByTenantId(tenantId);
     assertHolds(tenantId, currentUser, markings);
     receiveEveryMarking(group, markings);
@@ -371,6 +377,11 @@ public class TenantGroupService {
     if (previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)) {
       assertHolds(tenantId, userService.currentUser(), group.getMarkings());
     }
+  }
+
+  /** A new marking and a group turning auto on wait for each other, so neither misses the other. */
+  private void lockAutoNewMarking(String tenantId) {
+    groupRepository.lockAutoNewMarking(("auto-new-marking:" + tenantId).hashCode());
   }
 
   private void assertHolds(String tenantId, User user, Collection<MarkingDefinition> markings) {

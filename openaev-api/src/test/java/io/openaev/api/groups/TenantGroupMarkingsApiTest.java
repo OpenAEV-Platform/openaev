@@ -23,6 +23,7 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -72,6 +73,7 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private GroupRepository groupRepository;
+  @Autowired private MarkingDefinitionRepository markingDefinitionRepository;
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
   @Autowired private MarkingClearanceCacheManager clearanceCache;
@@ -281,27 +283,79 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
       assertFalse(clearanceOfMember().contains(created), "new marking held");
       assertTrue(reloadedGroup().getMarkings().isEmpty());
     }
+  }
 
-    private String createMarking() throws Exception {
-      // Order above GREEN and RED so no other grant implies it.
-      String response =
-          mvc.perform(
-                  post("/api/tenants/{tenantId}/marking_definitions", tenantId)
-                      .content(
-                          asJsonString(
-                              createInput(
-                                  MarkingDefinition.TYPE_TLP, uniqueDefinition(), 80, "#c62828")))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andExpect(status().isCreated())
-              .andReturn()
-              .getResponse()
-              .getContentAsString();
-      return JsonPath.read(response, "$.marking_definition_id");
+  @Nested
+  @DisplayName("receiving every marking, set from the API")
+  class AutoNewMarking {
+
+    @Test
+    @DisplayName(
+        "given every marking held, should give them all when turned on, keep them when turned off, and stop new ones")
+    void given_everyMarkingHeld_should_giveAllThenKeepThemWhenTurnedOff() throws Exception {
+      // -- ARRANGE --
+      holderGroup.setMarkings(
+          new HashSet<>(markingDefinitionRepository.findAllByTenantId(tenantId)));
+      groupRepository.save(holderGroup);
+      entityManager.flush();
+      clearanceCache.evictForUser(userId);
+      // Warm the cache: without eviction the next read would serve this value.
+      clearanceOfMember();
+
+      // -- ACT: turn it on --
+      updateMarkings(List.of(), true).andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertTrue(reloadedGroup().isAutoNewMarking());
+      Set<String> clearance = clearanceOfMember();
+      assertTrue(clearance.contains(green.getId()), "GREEN should be held: " + clearance);
+      assertTrue(clearance.contains(red.getId()), "RED should be held: " + clearance);
+
+      // -- ACT: turn it off, keeping its markings --
+      List<String> held =
+          reloadedGroup().getMarkings().stream().map(MarkingDefinition::getId).toList();
+      updateMarkings(held, false).andExpect(status().is2xxSuccessful());
+      String created = createMarking();
+
+      // -- ASSERT --
+      Group reloaded = reloadedGroup();
+      assertFalse(reloaded.isAutoNewMarking());
+      Set<String> kept = Set.copyOf(held);
+      assertTrue(
+          reloaded.getMarkings().stream().map(MarkingDefinition::getId).toList().containsAll(kept));
+      assertFalse(clearanceOfMember().contains(created), "new marking held");
+    }
+
+    private ResultActions updateMarkings(List<String> markingIds, Boolean autoNewMarking)
+        throws Exception {
+      return mvc.perform(
+          put(TENANT_GROUP_URI + "/{groupId}/markings", tenantId, group.getId())
+              .content(asJsonString(new GroupUpdateMarkingsInput(markingIds, autoNewMarking)))
+              .contentType(MediaType.APPLICATION_JSON)
+              .accept(MediaType.APPLICATION_JSON)
+              .with(csrf()));
     }
   }
 
   // -- HELPERS --
+
+  private String createMarking() throws Exception {
+    // Order above GREEN and RED so no other grant implies it.
+    String response =
+        mvc.perform(
+                post("/api/tenants/{tenantId}/marking_definitions", tenantId)
+                    .content(
+                        asJsonString(
+                            createInput(
+                                MarkingDefinition.TYPE_TLP, uniqueDefinition(), 80, "#c62828")))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return JsonPath.read(response, "$.marking_definition_id");
+  }
 
   private ResultActions assignMarkings(List<String> markingIds) throws Exception {
     return mvc.perform(
