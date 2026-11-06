@@ -13,8 +13,12 @@ import io.openaev.database.model.Token;
 import io.openaev.database.model.attackpath.AttackPathGraphVersion;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @DisplayName("TenantTables.fromEntities")
 class TenantTablesTest {
@@ -150,6 +154,36 @@ class TenantTablesTest {
     assertEquals(
         Set.of(tableOf(AttackPathGraphVersion.class), tableOf(Tenant.class), "users_tenants"),
         TenantTables.selfIsolatedTables());
+  }
+
+  static Stream<String> selfIsolatedTables() {
+    return TenantTables.selfIsolatedTables().stream().sorted();
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("selfIsolatedTables")
+  @DisplayName("a self-isolated table named in an explicit allowlist fails fast")
+  void restrictToRejectsASelfIsolatedTable(String table) {
+    // The model knows the table as strict, as the schema derivation does, so the refusal cannot be
+    // the "not a tenant table" one.
+    TenantTables model =
+        new TenantTables(
+            Stream.concat(Stream.of("documents"), TenantTables.selfIsolatedTables().stream())
+                .collect(Collectors.toSet()),
+            Set.of());
+
+    IllegalArgumentException alone =
+        assertThrows(IllegalArgumentException.class, () -> model.restrictTo(Set.of(table)));
+    IllegalArgumentException amongOthers =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> model.restrictTo(Set.of("documents", table.toUpperCase())));
+
+    assertTrue(alone.getMessage().contains(table), alone.getMessage());
+    assertTrue(amongOthers.getMessage().contains(table), amongOthers.getMessage());
+    assertTrue(
+        alone.getMessage().contains("self-isolated"),
+        "the error must say why the table is refused: " + alone.getMessage());
   }
 
   @Test

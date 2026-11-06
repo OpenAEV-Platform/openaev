@@ -25,7 +25,7 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
    * table does not rely on the inspector for its isolation, for one of the reasons given per table
    * below: it carries its own tenant predicates, it holds no tenant-scoped data at all, or gating
    * it would make the scope depend on the rows that compute it. Naming one of them in an explicit
-   * active-tables list is a configuration error that {@link #restrictTo} does not reject today.
+   * active-tables list is a configuration error that {@link #restrictTo} rejects at startup.
    *
    * <ul>
    *   <li>{@code attackpath_graph_version}: its version counter is bumped by a single native {@code
@@ -155,7 +155,9 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
    * Restricts these tables to an activation allowlist: only listed tables stay active. This is the
    * table-by-table rollout knob; an empty allowlist activates nothing, so the inspector stays
    * inert. An entry that is not a known tenant table fails fast, to surface a typo at startup
-   * rather than silently leave a table unprotected.
+   * rather than silently leave a table unprotected. So does an entry that is a self-isolated table
+   * ({@link #selfIsolatedTables()}): gating one is never what an operator means, and for the
+   * membership mapping it refuses every member every tenant-prefixed request.
    *
    * <p>The single entry {@value #ALL_STRICT} activates every strict table except those listed in
    * {@code SELF_ISOLATED_TABLES}, and no dual-scope one: the rollout's terminal state, and what the
@@ -177,6 +179,13 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
       Set<String> activable = new HashSet<>(strict);
       activable.removeAll(SELF_ISOLATED_TABLES);
       return new TenantTables(activable, Set.of());
+    }
+    Set<String> selfIsolated = new HashSet<>(allowed);
+    selfIsolated.retainAll(SELF_ISOLATED_TABLES);
+    if (!selfIsolated.isEmpty()) {
+      throw new IllegalArgumentException(
+          "active-tables names self-isolated tables, which the statement inspector must never gate: "
+              + selfIsolated);
     }
     Set<String> known = new HashSet<>(strict);
     known.addAll(dualScope);
