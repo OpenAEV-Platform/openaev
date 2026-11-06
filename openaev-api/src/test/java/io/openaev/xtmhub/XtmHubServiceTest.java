@@ -130,6 +130,15 @@ class XtmHubServiceTest {
     lenient()
         .when(tenantTx.execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Object>>any()))
         .thenAnswer(inv -> inv.<Supplier<Object>>getArgument(1).get());
+    // The notification flag is written in a platform-write transaction: run its work inline.
+    lenient()
+        .doAnswer(
+            inv -> {
+              inv.<Runnable>getArgument(1).run();
+              return null;
+            })
+        .when(tenantTx)
+        .executeAsPlatformWrite(any(TxCtx.class), ArgumentMatchers.<Runnable>any());
     // forEachTenant simulates the real per-tenant loop: derive tenant ids from
     // findAllByTenantNotDeleted(), then re-stub findByTenantId(tenantId) with doReturn (not
     // when(...).thenReturn(...), which would re-invoke and recurse into this very stub) so the

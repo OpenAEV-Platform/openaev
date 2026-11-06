@@ -363,14 +363,25 @@ public class XtmHubService {
         checkResults.stream().anyMatch(r -> r.status() == XtmHubConnectivityStatus.ACTIVE);
 
     if (connectivityRestored) {
-      platformSettingsService.updateXTMHubEmailNotification(true);
+      updateEmailNotificationFlag(true);
       return;
     }
 
     if (shouldSendConnectivityLossEmail(settings, checkResults)) {
-      platformSettingsService.updateXTMHubEmailNotification(false);
+      updateEmailNotificationFlag(false);
       xtmHubEmailService.sendLostConnectivityEmail();
     }
+  }
+
+  /**
+   * The flag is a platform row of the settings table: the scheduled run has no request and no
+   * transaction around it, so the write opens its own platform-write one, kept apart from the HTTP
+   * and SMTP calls around it.
+   */
+  private void updateEmailNotificationFlag(boolean shouldSendConnectivityEmail) {
+    tenantTx.executeAsPlatformWrite(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> platformSettingsService.updateXTMHubEmailNotification(shouldSendConnectivityEmail));
   }
 
   private void handleTenantConnectivityLossNotification(ConnectivityCheckResult checkResult) {
