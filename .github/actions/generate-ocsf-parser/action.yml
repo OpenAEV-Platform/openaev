@@ -11,6 +11,8 @@ runs:
   steps:
     - name: Invoke the plugin
       id: invoke-openaev-plugin
+      env:
+        OCSF_VERSION: ${{ inputs.version }}
       run: |
-        mvn io.openaev:openaev-maven-plugin:generate-ocsf-parser -Dversion=${{ inputs.version }} && mvn spotless:apply
+        mvn io.openaev:openaev-maven-plugin:generate-ocsf-parser "-Dversion=${OCSF_VERSION}" && mvn spotless:apply
       shell: bash

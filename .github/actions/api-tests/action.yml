@@ -160,6 +160,8 @@ runs:
 
     - name: Wait for services
       shell: bash
+      env:
+        SEARCH_ENGINE: ${{ inputs.search-engine }}
       run: |
         echo "⏳ Waiting for PostgreSQL..."
         for i in $(seq 1 30); do
@@ -168,12 +170,12 @@ runs:
         done
         docker exec pgsql pg_isready -U openaev || { echo "❌ PostgreSQL failed to start"; exit 1; }
 
-        echo "⏳ Waiting for ${{ inputs.search-engine }}..."
+        echo "⏳ Waiting for ${SEARCH_ENGINE}..."
         for i in $(seq 1 30); do
           curl -sf http://localhost:9200/_cluster/health && break
           sleep 2
         done
-        curl -sf http://localhost:9200/_cluster/health || { echo "❌ ${{ inputs.search-engine }} failed to start"; exit 1; }
+        curl -sf http://localhost:9200/_cluster/health || { echo "❌ ${SEARCH_ENGINE} failed to start"; exit 1; }
 
         echo "⏳ Waiting for RabbitMQ..."
         for i in $(seq 1 30); do
@@ -245,7 +247,7 @@ runs:
         MODE: ${{ inputs.tenant-mode }}
       run: |
         if [ -z "$MODE" ]; then
-          echo "args=" >> "$GITHUB_OUTPUT"
+          echo "gate_mode=" >> "$GITHUB_OUTPUT"
           echo "ℹ️ tenant shadow: off (test profile, inspector inert)"
           exit 0
         fi
@@ -281,7 +283,6 @@ runs:
         # the failures instead made the job green whatever happened, which is the one state nobody can
         # read. Every later step in this action is guarded by !cancelled() or failure(), so they all
         # still run when the test step is red.
-        # Single-quoted so '*' reaches the JVM instead of being glob-expanded by the shell below.
         # The write-attribution detector rides the same shadow run as the fail-closed one.
         # openaev.failclosed.shadow-mode names the armed set to the fail-closed gate, which then
         # reports its signatures against THAT mode's own stored list instead of asserting per test.
@@ -292,17 +293,34 @@ runs:
         # FailClosedShadowSummaryMarkerTest; the gate refuses an unknown one rather than quietly
         # re-arming the per-test assertion.
         echo "   gate-mode=$GATE_MODE"
-        echo "args=-Dopenaev.tenant.active-tables='$LIST' -Dopenaev.failclosed.detector=on -Dopenaev.failclosed.shadow-mode=$GATE_MODE -Dopenaev.writeattr.detector=on" >> "$GITHUB_OUTPUT"
+        echo "active_tables=$LIST" >> "$GITHUB_OUTPUT"
+        echo "gate_mode=$GATE_MODE" >> "$GITHUB_OUTPUT"
 
     - name: Run API tests (shard ${{ inputs.shard }} — ${{ inputs.shard-name }})
       id: run-tests
       shell: bash
+      env:
+        SUREFIRE_ARG: ${{ steps.suite.outputs.surefire_arg }}
+        ACTIVE_TABLES: ${{ steps.tenant.outputs.active_tables }}
+        GATE_MODE: ${{ steps.tenant.outputs.gate_mode }}
       # Run test goals directly to avoid recompiling downloaded classes.
       run: |
+        ARGS=()
+        if [ -n "$SUREFIRE_ARG" ]; then
+          ARGS+=("$SUREFIRE_ARG")
+        fi
+        if [ -n "$GATE_MODE" ]; then
+          # Quoted so '*' reaches the JVM instead of being glob-expanded by the shell.
+          ARGS+=(
+            "-Dopenaev.tenant.active-tables=${ACTIVE_TABLES}"
+            -Dopenaev.failclosed.detector=on
+            "-Dopenaev.failclosed.shadow-mode=${GATE_MODE}"
+            -Dopenaev.writeattr.detector=on
+          )
+        fi
         mvn -B -ntp -pl openaev-api \
           initialize surefire:test@default-test jacoco:report@report \
-          ${{ steps.suite.outputs.surefire_arg }} \
-          ${{ steps.tenant.outputs.args }}
+          "${ARGS[@]}"
 
     - name: Remove compiled OpenAEV artifacts before caching
       if: ${{ !cancelled() && inputs.no-cache != 'true' && github.ref == 'refs/heads/main' && inputs.shard == '1' && steps.maven-cache.outputs.cache-hit != 'true' }}
