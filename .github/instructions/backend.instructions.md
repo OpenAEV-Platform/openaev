@@ -22,11 +22,26 @@ description: "Backend Java/Spring conventions: entities, services, controllers, 
 
 ## Layering
 
-- **Controller (API)** → depends only on **Service** — never inject a Repository in a controller
-- Service → can call other Services and its own Repositories
-- Repository → data access only, never called from controllers or utils
+> Applies to code added or modified by a PR. Legacy code (`io.openaev.rest.*`, existing services) is not refactored retroactively.
+
+| Layer | Does | Never |
+|---|---|---|
+| API (`io.openaev.api.*`) | validate (`@Valid`), map Input → entity/args, call **one** service method, map result → Output | inject a repository, hold a business rule, catch or translate an exception, chain service calls with logic in between |
+| Service | business rules, transactions; calls other services and **its own** repository | return an `*Output`, build HTTP (`ResponseEntity`, `ResponseStatusException`, servlet types), inject another aggregate's repository |
+| Repository | data access | be injected outside its owning service |
+| Entity | state + JPA mapping | business logic (see Entities) |
+| Utils | static methods | hold state |
+
+- Own repository = the aggregate the service is named after (`ScenarioService` → `ScenarioRepository`).
+  Need another aggregate's data → call its service. Child entities with no service of their own
+  (join tables, e.g. `ScenarioTeamUser`) belong to the parent aggregate's service.
+- An endpoint needing several service calls is a missing service method: add it to the service, the controller calls it once.
+- A service never returns an `*Output`: it returns entities, and the API layer maps them with `{Entity}Mapper` (see API DTOs, Mappers).
+- Errors: services throw an existing domain exception from `io.openaev.rest.exception` (`ElementNotFoundException`,
+  `BadRequestException`, `ConflictException`…). The HTTP status is decided only in `RestBehavior` (`@RestControllerAdvice`):
+  never `ResponseStatusException`, never a try/catch in a controller to translate an exception. A new exception type gets
+  its `@ExceptionHandler` in `RestBehavior`.
 - **Repository methods used by other services must be exposed through the owning service.** A repository is a private implementation detail of its associated service. If another service needs data from that repository, the owning service must expose a pass-through method — the consuming service must never inject the repository directly. When adding a repository method intended for cross-service use, always add the corresponding service method in the same commit.
-- Utils → static methods only, no state
 
 ## New Controllers (package `io.openaev.api.*`)
 
@@ -84,6 +99,11 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - Collections: mutable (`new ArrayList<>()`) + `@Fetch(FetchMode.SUBSELECT)`
 - Several kinds of one thing with their own fields: one table, one class per kind
   (`@Inheritance(SINGLE_TABLE)`, as `Asset` / `Endpoint`), never one class whose fields only apply to some rows
+- **No business logic in entities**: fields, JPA mapping, accessors, collection plumbing (`clear()` + `addAll()`),
+  lifecycle callbacks, `equals`/`hashCode`. A one-expression getter on the entity's own fields is fine (`isDeleted()`).
+  No computed `@JsonProperty` getter, stream, branching, state machine or static factory: rules go in the service,
+  display values in the mapper. Existing ones (`Inject`, `InjectorContract`, `Exercise`, `User`…) are legacy kept for
+  `rest/` endpoints returning entities: don't add any, don't extend them.
 
 ## Hibernate
 
@@ -106,11 +126,13 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - Read methods: `@Transactional(readOnly = true)`
 - Always use `org.springframework.transaction.annotation.Transactional` — **never** `jakarta.transaction.Transactional` (which lacks `rollbackFor`, `readOnly`, etc.)
 - Organize methods with section comments in this order: `// -- LIST --`, `// -- SEARCH --`, `// -- CREATE --`, `// -- UPDATE --`, `// -- DELETE --`, `// -- OPTIONS --`
-- JavaDoc on all public methods (what + why)
 - Fail fast: `Objects.requireNonNull()`, custom exceptions for business rules
 - **Resolving associations from IDs**: use `ReferenceResolver.resolve(ids, Entity.class, repo::countByIdIn)` — never loop `findById()` (see `performance.instructions.md`)
 - **One role per service**: split a service whose methods have different jobs or transaction rules
   (check files outside a transaction, write in one, list read-only)
+- **One aggregate per service**: a new use case that mainly orchestrates several aggregates (export, import,
+  conversion, duplication) goes in a service named after the use case (`ScenarioToExerciseService`), not in an
+  existing aggregate service
 - **A long method reads like a recipe**: named private steps (`latestRelease`, `refuseIfOlder`, `saveItems`),
   plain loops; no generic `Supplier`/`Consumer` machinery to save a few lines
 - **A rule that depends on a type lives on its enum** (e.g. the resource an event type is limited to), not
@@ -139,5 +161,7 @@ public Page<{Entity}Output> search(...) { return service.search(input).map({Enti
 - **Don't comment the obvious**: never add a comment that merely restates what the code already
   makes clear (e.g. `// Safe: newConnector is transient, not managed by Hibernate` when it's
   created with `new Connector()`). Comments should explain *why*, not *what*.
+- **Javadoc only for what the signature does not say**: side effects, thrown exceptions, non-obvious behaviour.
+  Never a sentence that paraphrases the method name (`/** Updates a tenant. */`). Same rule for private methods: most need none.
 - **Don't duplicate computed values**: compute once (e.g. `String logoFilename = getLogoFilename()`)
   and pass as an argument — never repeat the same `.formatted(...)` expression in multiple places.
