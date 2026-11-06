@@ -172,6 +172,7 @@ class AppTest extends IntegrationTest {
   @Transactional
   public class LicenceCacheTest {
     @Autowired private SettingRepository settingRepository;
+    @Autowired private TenantScopedTransaction platformWriteTransaction;
 
     @DisplayName("Should validate licence for configured instance id")
     @Test
@@ -185,6 +186,9 @@ class AppTest extends IntegrationTest {
               any(X509Certificate.class), any(X509Certificate.class)))
           .thenReturn(true);
 
+      // The mocked transaction runs the bootstrap inline on this test's transaction, so this
+      // transaction carries the platform-write marker that the real primitive sets for App.init().
+      platformWriteTransaction.setPlatformWriteOnCurrentTransaction();
       new App(settingRepository, openAEVConfig, licenseCacheManager, tenantScopedTransaction)
           .init();
 
