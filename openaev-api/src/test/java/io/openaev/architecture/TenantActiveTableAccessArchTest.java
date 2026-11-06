@@ -2469,7 +2469,7 @@ class TenantActiveTableAccessArchTest {
   @ArchTest
   static final ArchRule injector_contract_bare_by_id_lookup_is_called_only_by =
       bareByIdLookupIsCalledOnlyBy(
-          // The singular GET/PUT/mapping-PUT/DELETE endpoints: writeScopeResolver.tenantForWrite
+          // The singular GET/PUT/mapping-PUT/DELETE endpoints: TxCtxScopeUtils.requireSingleTenant
           // refuses any scope that does not pin exactly one tenant before reaching the lookup.
           InjectorContractApi.class,
           // updateInjectorContract, updateInjectorContractTTPDomainsAndTags and
@@ -2478,9 +2478,9 @@ class TenantActiveTableAccessArchTest {
           // DELETE endpoints above, which pin the scope first.
           InjectorContractService.class,
           // Every endpoint reaching ThreatArsenalService's lookup pins the scope first: the plain
-          // GET via writeScopeResolver.tenantForWrite (#7905 round 3), update/duplicate via the
-          // same call, and security-platforms/export/delete are mapped on the tenant-prefixed
-          // route only, so the path itself pins exactly one tenant.
+          // GET via TxCtxScopeUtils.requireSingleTenant (#7905 round 3), update/duplicate via
+          // writeScopeResolver.tenantForWrite, and security-platforms/export/delete are mapped on
+          // the tenant-prefixed route only, so the path itself pins exactly one tenant.
           ThreatArsenalService.class,
           // Mapped on the tenant-prefixed route only: the path pins exactly one tenant.
           ThreatArsenalApiExporter.class,
