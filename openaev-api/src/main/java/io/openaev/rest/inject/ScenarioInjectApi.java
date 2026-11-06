@@ -214,9 +214,10 @@ public class ScenarioInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String injectId) {
     // The scenario and the inject are resolved in the request scope first so an id outside it
     // answers not found before any work. A faithful copy keeps the targets the user is not cleared
-    // for; the response
-    // is read back under their clearance. The copy starts from a cleared persistence context, so
-    // the scenario is reloaded by id inside it rather than reusing the entity resolved above.
+    // for; the response is read back under their clearance. The copy starts from a cleared
+    // persistence context, so the scenario is reloaded by id inside it rather than reusing the
+    // entity
+    // resolved above.
     scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
     scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
     String duplicateId =
