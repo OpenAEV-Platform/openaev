@@ -124,6 +124,9 @@ class InjectorContractCollectorTypeGroupByTest extends IntegrationTest {
           injectorContractRepository.deleteById(
               new InjectorContractId(injectorContractId, tenantId));
           payloadRepository.deleteById(payloadId);
+          // The database deletes the identity with its last version: drop the session's copy.
+          entityManager.flush();
+          entityManager.clear();
           injectorRepository.deleteByInjectorId(injectorId);
           collectorTypeRepository.deleteById(collectorTypeId);
         });

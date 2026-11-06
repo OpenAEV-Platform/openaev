@@ -36,6 +36,7 @@ import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.model.Widget;
 import io.openaev.database.model.attackpath.AttackPathExecution;
+import io.openaev.database.model.payload.HasPayloadIdentity;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.AssetAgentJobRepository;
@@ -2347,7 +2348,7 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // No repository: an identity is only read and written through its payload.
-              Payload.class, InjectorContract.class)
+              Payload.class, HasPayloadIdentity.class, InjectorContract.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(PayloadIdentity.class)
