@@ -1,12 +1,11 @@
-"""Line coverage of a JaCoCo XML report, counted the way Codecov counts it.
+"""Line coverage of a JaCoCo XML report, counting lines where only some branches ran as missing.
 
-Codecov reads each `<line>` of the report as:
+Each `<line>` of the report is read as:
 
 - a line with branches: a hit when every branch ran, a miss when none ran, partial in between;
 - a line without branches: a hit when its instructions ran, a miss otherwise.
 
-Partial lines are not hits. JaCoCo's own LINE counter, and diff-cover, call them covered, so they
-read higher. Counting like Codecov keeps the CI check and the Codecov comment on the same numbers.
+Partial lines are not hits. JaCoCo's own LINE counter calls them covered, so it reads higher.
 """
 
 from __future__ import annotations

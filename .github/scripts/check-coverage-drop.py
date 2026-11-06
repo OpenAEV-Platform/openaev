@@ -7,16 +7,12 @@ the newest such artifact whose commit is the base commit or one of its ancestors
 the base commit itself has not finished yet, the closest earlier one stands in for it.
 
 The base commit is the tip of the target branch, the first parent of the merge commit CI checks
-out. Codecov compares with the commit the pull request branched from instead. The two are the
-same once the branch is up to date with its target, so a pull request that is behind and shows
-another drop in Codecov is fixed by a rebase.
+out.
 
-Line coverage is counted the way Codecov counts it (see jacoco_lines.py): a line where only some
-branches ran is partial, and partial lines are not covered.
+Line coverage counts a line where only some branches ran as not covered (see jacoco_lines.py).
 
 No base report (artifacts expired, or no green run on the base branch for a while) is not a
-failure: the check cannot measure a drop, says so in its output and passes. Codecov reports the
-numbers on the pull request; this script only passes or fails.
+failure: the check cannot measure a drop, says so in its output and passes.
 
 Needs `gh` with a token that can read the repository's Actions artifacts (GH_TOKEN), and
 GITHUB_REPOSITORY.

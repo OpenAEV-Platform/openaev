@@ -1,0 +1,61 @@
+name: Aikido Coverage Upload
+description: >
+  Upload the coverage of the backend, the frontend unit tests and the E2E tests to Aikido, in one
+  upload: Aikido keeps the last report uploaded for a branch, so reports sent one by one would
+  replace each other. Downloads the backend `jacoco-api` report, the frontend `vitest-coverage`
+  report and the `playwright-coverage-*` reports of the E2E shards, prepares them
+  (prepare-aikido-coverage.py), then uploads them with Aikido's action. Authenticates with
+  GitHub's OIDC token, so the job must grant `id-token: write`, and needs a checkout of the
+  repository. The upload is best effort: a failure is a warning, not a red job.
+
+inputs:
+  region:
+    description: "Aikido region: eu, us, au or us-gov"
+    required: false
+    default: "eu"
+
+runs:
+  using: composite
+  steps:
+    - name: Download backend coverage
+      uses: actions/download-artifact@v8
+      with:
+        name: jacoco-api
+        path: coverage/backend
+
+    - name: Download frontend coverage
+      uses: actions/download-artifact@v8
+      with:
+        name: vitest-coverage
+        path: coverage/frontend
+
+    # One folder per shard: every shard writes its own lcov.info.
+    - name: Download E2E coverage
+      uses: actions/download-artifact@v8
+      with:
+        pattern: playwright-coverage-*
+        path: coverage/e2e
+
+    - name: Prepare the reports
+      id: prepare
+      shell: bash
+      run: |
+        args=(--out coverage/upload --jacoco coverage/backend/jacoco.xml)
+        args+=(--lcov "frontend=coverage/frontend/lcov.info")
+        for report in coverage/e2e/*/lcov.info; do
+          args+=(--lcov "e2e-$(basename "$(dirname "$report")")=$report")
+        done
+        python3 .github/scripts/prepare-aikido-coverage.py "${args[@]}"
+        {
+          echo "files<<EOF"
+          ls coverage/upload/*
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    # Pinned to the commit of v2.1.1, as the other third-party actions are.
+    - name: Upload coverage to Aikido
+      uses: AikidoSec/code-coverage-github-action@e0637ab96a560c1ab11671c41a4a4668075bae0e # v2.1.1
+      with:
+        file-paths: ${{ steps.prepare.outputs.files }}
+        region: ${{ inputs.region }}
+        fail-on-error: "false"

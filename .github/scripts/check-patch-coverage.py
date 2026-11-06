@@ -2,10 +2,9 @@
 """Fail when too few of the backend lines a pull request changes are covered by tests.
 
 The changed lines are the lines the pull request adds or changes under the source root, read from
-`git diff <base>...HEAD`. Their state comes from the JaCoCo report, counted the way Codecov counts
-it (see jacoco_lines.py): a line where only some branches ran is partial, and partial lines are
-not covered. Only lines that the report knows count, so blank lines, comments and declarations
-are left out.
+`git diff <base>...HEAD`. Their state comes from the JaCoCo report (see jacoco_lines.py): a line
+where only some branches ran is partial, and partial lines are not covered. Only lines that the
+report knows count, so blank lines, comments and declarations are left out.
 
 Run it from the repository root, with the pull request's commit checked out and the report built
 by `mvn test` or by CI:
@@ -63,7 +62,7 @@ def ranges(numbers: list[int]) -> str:
 
 
 def percent(hits: int, total: int) -> float:
-    """Coverage rounded down to two decimals, as Codecov shows it."""
+    """Coverage rounded down to two decimals."""
     return math.floor(10000 * hits / total) / 100
 
 

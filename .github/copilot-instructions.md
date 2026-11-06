@@ -49,7 +49,7 @@ ignore unless your changes touch these.
 
 **Backend**: `mvn test` (requires services running), at least 80% of the backend lines a PR changes covered
 **Frontend**: `yarn test` (Vitest), `yarn test:e2e` (Playwright, requires app running)
-**Coverage check**: after `mvn test`, `python3 .github/scripts/check-patch-coverage.py --report openaev-api/target/site/jacoco/jacoco.xml --base origin/main --fail-under 80` (same counting as CI and Codecov: a line where only some branches ran is not covered)
+**Coverage check**: after `mvn test`, `python3 .github/scripts/check-patch-coverage.py --report openaev-api/target/site/jacoco/jacoco.xml --base origin/main --fail-under 80` (same counting as CI: a line where only some branches ran is not covered)
 
 ## Continuous Integration
 

@@ -2,9 +2,9 @@ name: Backend Coverage Report
 description: >
   Merge the JaCoCo exec files of every API test shard and build the backend coverage report at
   openaev-api/target/site/jacoco/jacoco.xml. Reuses the jars and build output from Backend Compile
-  rather than building again. Used by both the Codecov upload and the backend coverage check, so
-  that each starts as soon as the API tests are green instead of waiting for a shared report job.
-  Expects a checkout of the repository.
+  rather than building again. Used by the backend report job, which uploads the report, and by the
+  backend coverage check, so that each starts as soon as the API tests are green instead of
+  waiting for a shared report job. Expects a checkout of the repository.
 
 inputs:
   no-cache:

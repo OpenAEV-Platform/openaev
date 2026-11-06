@@ -52,16 +52,15 @@ The Docker handoff checks producer conclusions every 15 seconds and aborts on an
 terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 `skipped`, so consumers stop promptly instead of waiting for artifacts that cannot arrive.
 
-### The seven real `needs:` edges
+### The six real `needs:` edges
 
 | Job | `needs:` | Why a hard dependency is correct |
 |-----|----------|----------------------------------|
 | **Backend Package (glibc)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Needs all three outputs on disk before packaging |
 | **Backend Package (musl)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Same, inside an Alpine Maven container |
-| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec, uploads `jacoco-api` and the Codecov flag; green API tests only |
+| **Coverage Report (backend)** | API Tests | Merges every shard's JaCoCo exec into the `jacoco-api` artifact; green API tests only |
+| **Coverage Upload** | Coverage Report (backend), Frontend Quality, E2E Tests | Uploads the three suites' reports to Aikido in one upload; branches and same-repository PRs, all green |
 | **Backend Coverage Check** | API Tests | Builds the same report itself, next to the upload; pull requests with green API tests only |
-| **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
-| **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
 | **Pipeline Gate** | 20 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
@@ -122,10 +121,9 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 |-----|-------------------|---------|
 | 📦 **Backend Package (glibc)** | 15 min | Fat JAR for standard Linux → `openaev-api-jar` |
 | 📦 **Backend Package (musl)** | 15 min | Fat JAR for Alpine, built in `maven:3.9-eclipse-temurin-21-alpine` |
-| 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → artifact `jacoco-api` + Codecov flag `backend` |
-| 🔎 **Backend Coverage Check** | 15 min | ≥ 80% of changed lines covered, line coverage drop ≤ 0.1 point, both counted like Codecov, against the target branch's latest report; on a failure, posts a `Backend Coverage (advisory)` check that explains it and stays green; when that check cannot be posted (fork PRs), the job fails itself. Steps in `.github/actions/backend-coverage-check` |
-| 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
-| 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
+| 📊 **Coverage Report (backend)** | 15 min | Merges JaCoCo shards → artifact `jacoco-api` |
+| 🔎 **Backend Coverage Check** | 15 min | ≥ 80% of changed lines covered, line coverage drop ≤ 0.1 point, against the target branch's latest report, a line where only some branches ran not counting as covered; on a failure, posts a `Backend Coverage (advisory)` check that explains it and stays green; when that check cannot be posted (fork PRs), the job fails itself. Steps in `.github/actions/backend-coverage-check` |
+| 📊 **Coverage Upload** | 10 min | JaCoCo (as Cobertura), Vitest and Playwright reports → Aikido, in one upload |
 | 🔐 **Tenant shadow verdict** | 10 min | Nightly only. Collects the shadow shards' pass or fail into one table |
 | ✅ **Pipeline Gate** | 10 min | Branch-protection status check |
 
@@ -148,8 +146,9 @@ and never fail it. A new check starts there so a false positive cannot block a m
 the advisory list in the gate makes it blocking.
 
 **Coverage upload is deliberately excluded.** It is best-effort reporting and must never hold a
-merge. Codecov reports in its PR comment, and all its statuses are informational. The backend
-coverage rules that pass or fail run in our own `coverage-backend-gate` job.
+merge. It needs the three suites green and goes up as one upload, because Aikido keeps the last
+report uploaded for a branch. The backend coverage rules that pass or fail run in our own
+`coverage-backend-gate` job.
 
 **The tenant shadow verdict is deliberately excluded too.** It only exists when the caller's
 `api-matrix` carries shadow entries, which today means Nightly, and it is red whenever a shadow

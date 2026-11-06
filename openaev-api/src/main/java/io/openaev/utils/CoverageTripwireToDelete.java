@@ -1,6 +1,6 @@
 package io.openaev.utils;
 
-/** Temporary uncovered code that trips the Codecov backend statuses. Delete before merging. */
+/** Temporary uncovered code that trips the backend coverage checks. Delete before merging. */
 public final class CoverageTripwireToDelete {
 
   private CoverageTripwireToDelete() {}

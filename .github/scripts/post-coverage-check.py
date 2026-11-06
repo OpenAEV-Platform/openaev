@@ -3,9 +3,9 @@
 
 The backend-coverage-check action runs the two rules (check-patch-coverage.py on the changed
 lines, then check-coverage-drop.py on the whole backend) and only passes or fails. When one
-fails, this check run says, in words, which one, with the tool output, how to fix it, and why
-Codecov's comment can show slightly other numbers. It is posted with the PR checks app, like the
-PR title check, so it shows as its own check on the pull request.
+fails, this check run says, in words, which one, with the tool output and how to fix it. It is
+posted with the PR checks app, like the PR title check, so it shows as its own check on the pull
+request.
 
 Needs `gh`, GH_TOKEN with checks:write, and GITHUB_REPOSITORY.
 """
@@ -45,16 +45,6 @@ def fix(min_coverage: str) -> str:
 not covered: cover the other branches too.
 - **Whole backend**: the drop usually comes from the same untested lines, or from tests that were \
 removed or no longer reach the code. Covering the changed lines is often enough.
-"""
-
-
-CODECOV = """\
-### Codecov's numbers
-
-This check counts lines the way Codecov does, so its figures should match Codecov's comment. \
-Codecov compares with the commit the pull request branched from, this check with the latest \
-report of the target branch. They are the same once your branch is up to date with its target, so \
-when the two disagree and your branch is behind, rebase it or update it with the target branch.
 """
 
 
@@ -122,7 +112,6 @@ def main() -> int:
             section(patch_ok, "Changed lines", patch_log),
             section(project_ok, "Whole backend", project_log),
             fix(args.min_coverage),
-            CODECOV,
             "This check is advisory for now: it does not block the merge.",
         ]
     )

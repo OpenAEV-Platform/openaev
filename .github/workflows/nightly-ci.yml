@@ -14,6 +14,8 @@ permissions:
   contents: read
   actions: read
   packages: write
+  # The coverage upload job asks Aikido's API for an OIDC identity.
+  id-token: write
 
 jobs:
   pipeline:

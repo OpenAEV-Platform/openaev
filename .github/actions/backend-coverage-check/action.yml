@@ -3,10 +3,9 @@ description: >
   Check the backend coverage rules of a pull request on the JaCoCo report the coverage-backend job
   builds: at least min-coverage percent of the backend lines it changes are covered
   (check-patch-coverage.py), and backend line coverage does not drop by more than max-drop points
-  against the latest report of the target branch (check-coverage-drop.py). Both count lines the
-  way Codecov does, so a line where only some branches ran is not covered, and the results match
-  Codecov's once the branch is up to date with its target. Both rules run to the end. When one fails, a
-  "Backend Coverage (advisory)" check explains why, posted with the PR checks app like the PR
+  against the latest report of the target branch (check-coverage-drop.py). Both count lines
+  strictly: a line where only some branches ran is not covered. Both rules run to the end. When
+  one fails, a "Backend Coverage (advisory)" check explains why, posted with the PR checks app like the PR
   title check, and the step stays green: that check carries the result. When the explanation
   check cannot be posted (pull requests from forks get no app token, or the post fails), the step
   fails itself, so that a broken rule is never silent.

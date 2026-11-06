@@ -77,8 +77,8 @@ For every feature, ensure coverage of:
 ## Coverage Requirements
 
 - **Changed lines**: a PR covers at least 80% of the backend lines it changes. CI checks it in the
-  `coverage-backend-gate` job (advisory in the Pipeline Gate for now), counting lines like Codecov: a
-  line where only some branches ran is partial, and does not count as covered.
+  `coverage-backend-gate` job (advisory in the Pipeline Gate for now), a line where only
+  some branches ran is partial, and does not count as covered.
 - **Project**: a PR does not drop backend line coverage by more than 0.1 point against its base commit.
   The same job checks it.
 - **Check it locally** after `mvn test`, which writes `openaev-api/target/site/jacoco/jacoco.xml`:

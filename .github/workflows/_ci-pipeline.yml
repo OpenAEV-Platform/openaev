@@ -405,16 +405,15 @@ jobs:
           no-cache: ${{ inputs.no-cache }}
 
   # ════════════════════════════════════════════════════════════════════
-  # Coverage — one Codecov upload per flag, each starting as soon as its own tests finish
+  # Coverage — the backend report, one upload to Aikido, the backend coverage rules
   # ════════════════════════════════════════════════════════════════════
-  # One upload per flag with explicit files: a single upload tags every file with every flag,
-  # and .codecov.yml counts uploads (after_n_builds) before it comments on the PR.
-  # Codecov only reports, in its PR comment. The backend coverage rules run in
-  # coverage-backend-gate, next to the backend upload and without waiting for it.
+  # Aikido keeps the last report uploaded for a branch, so the three suites go up together, once
+  # all of them are green. The backend coverage rules run in coverage-backend-gate, next to the
+  # report job and without waiting for the upload.
 
   # Only after green API tests: a failed shard leaves a partial report, which reads as a drop.
   coverage-backend:
-    name: "📊 Coverage Upload (backend)"
+    name: "📊 Coverage Report (backend)"
     needs: [api-tests]
     if: ${{ !cancelled() && needs.api-tests.result == 'success' }}
     runs-on: ubuntu-24.04
@@ -426,24 +425,14 @@ jobs:
         with:
           no-cache: ${{ inputs.no-cache }}
 
-      # coverage-backend-gate reads this artifact on the base branch, as the base commit's
-      # coverage.
+      # The upload reads this artifact, and coverage-backend-gate reads it on the base branch, as
+      # the base commit's coverage.
       - name: Upload API coverage
         uses: actions/upload-artifact@v7
         with:
           name: jacoco-api
           path: openaev-api/target/site/jacoco/jacoco.xml
           if-no-files-found: error
-
-      - name: Upload backend coverage to Codecov
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: openaev-api/target/site/jacoco/jacoco.xml
-          flags: backend
-          disable_search: true
-          fail_ci_if_error: false
-        continue-on-error: true
 
   # The backend coverage rules, on pull requests: at least 80% of the backend lines the pull request
   # changes are covered, and backend line coverage does not drop by more than 0.1 point against
@@ -477,64 +466,29 @@ jobs:
           app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
           private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
 
-  coverage-frontend:
-    name: "📊 Coverage Upload (frontend)"
-    needs: [frontend-quality]
-    if: ${{ !cancelled() && needs.frontend-quality.result == 'success' }}
+  # Branches and same-repository pull requests only: pull requests from forks get no OIDC token,
+  # and a tag or a scheduled run is not a state of a branch. Best effort, outside the Pipeline Gate.
+  coverage-upload:
+    name: "📊 Coverage Upload"
+    needs: [coverage-backend, frontend-quality, e2e-tests]
+    if: >-
+      ${{ !cancelled()
+      && needs.coverage-backend.result == 'success'
+      && needs.frontend-quality.result == 'success'
+      && needs.e2e-tests.result == 'success'
+      && ((github.event_name == 'push' && github.ref_type == 'branch')
+      || (github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository)) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7
 
-      - name: Download vitest coverage
-        uses: actions/download-artifact@v8
-        with:
-          name: vitest-coverage
-          path: coverage/frontend
-        continue-on-error: true
-
-      - name: Upload frontend coverage to Codecov
-        if: ${{ hashFiles('coverage/frontend/lcov.info') != '' }}
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage/frontend/lcov.info
-          flags: frontend
-          disable_search: true
-          fail_ci_if_error: false
-        continue-on-error: true
-
-  coverage-e2e:
-    name: "📊 Coverage Upload (e2e)"
-    needs: [e2e-tests]
-    if: ${{ !cancelled() && needs.e2e-tests.result == 'success' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v7
-
-      # One directory per shard: every shard writes lcov.info, so merging would keep only the last one.
-      - name: Download playwright coverage
-        uses: actions/download-artifact@v8
-        with:
-          pattern: playwright-coverage-*
-          path: coverage/e2e
-        continue-on-error: true
-
-      - name: List E2E coverage files
-        id: e2e-coverage
-        run: echo "files=$(find coverage/e2e -name lcov.info 2>/dev/null | paste -sd, -)" >> "$GITHUB_OUTPUT"
-
-      - name: Upload E2E coverage to Codecov
-        if: ${{ steps.e2e-coverage.outputs.files != '' }}
-        uses: codecov/codecov-action@v7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ${{ steps.e2e-coverage.outputs.files }}
-          flags: e2e
-          disable_search: true
-          fail_ci_if_error: false
-        continue-on-error: true
+      - uses: ./.github/actions/aikido-coverage-upload
 
   # ════════════════════════════════════════════════════════════════════
   # Packaging

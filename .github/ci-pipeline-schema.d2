@@ -116,14 +116,14 @@ wave0.build -> gated.bp: "needs: Backend Compile\n+ Frontend Build\n+ Prepare Bu
 wave0.build -> gated.bpm: "needs: same three" {class: needs}
 
 # ═══ 4. Aggregation ══════════════════════════════════════════════════════════
-cov: "📊 Coverage Upload ×3 (backend · frontend · e2e)\none job per Codecov flag, each starting when its own tests finish\nbest-effort, and deliberately NOT wired into the Gate\nbackend: report from green API tests only\nCodecov comments, all its statuses informational" {
+cov: "📊 Coverage Upload\none upload to Aikido: backend + frontend + e2e reports\nbest-effort, and deliberately NOT wired into the Gate\nbranches and same-repo PRs, all three suites green" {
 style: {fill: "#FCE4EC"; stroke: "#AD1457"; stroke-width: 3                                                                                                     ; border-radius: 8; font-size: 21}
 }
 
-wave0.tests -> cov: "backend needs: API Tests\ne2e needs: E2E" {class: needs}
-wave0.quality -> cov: "frontend needs: Frontend Quality" {class: needs}
+wave0.tests -> cov: "needs: backend report (API Tests)\n+ E2E Tests" {class: needs}
+wave0.quality -> cov: "+ Frontend Quality" {class: needs}
 
-bcov: "🔎 Backend Coverage Check\ntimeout 15 min · pull requests only\n≥ 80% of changed lines covered\ncounted like Codecov\nline coverage drop ≤ 0.1 point vs base\nadvisory in the Gate" {class: quality}
+bcov: "🔎 Backend Coverage Check\ntimeout 15 min · pull requests only\n≥ 80% of changed lines covered\nline coverage drop ≤ 0.1 point vs base\nadvisory in the Gate" {class: quality}
 
 wave0.tests -> bcov: "needs: green API Tests\nbuilds its own report, next to the upload" {class: needs}
 bcov -> gate: "advisory" {class: needs}
