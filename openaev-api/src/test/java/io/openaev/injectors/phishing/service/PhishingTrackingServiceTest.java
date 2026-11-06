@@ -279,6 +279,119 @@ class PhishingTrackingServiceTest {
         "the recipient's own origin must survive the later probe");
   }
 
+  private static final String SCANNER_UA = "Mozilla/5.0 (compatible; BingPreview/1.0b)";
+  private static final String HUMAN_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120";
+
+  @Test
+  @DisplayName("markOpened should not score a scanner pixel hit as an open")
+  void markOpened_should_notScoreScannerUserAgent() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+
+    // -- ACT --
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markOpened("token-1", "40.94.2.10", SCANNER_UA);
+
+    // -- ASSERT --
+    assertTrue(updated.isPresent());
+    assertNull(updated.get().getOpenedAt(), "the recipient's own open slot must stay free");
+    verify(phishingResultRepository, never()).save(any(PhishingResult.class));
+  }
+
+  @Test
+  @DisplayName("markClicked should not score a scanner click as a click")
+  void markClicked_should_notScoreScannerUserAgent() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+
+    // -- ACT --
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markClicked("token-1", "40.94.2.10", SCANNER_UA);
+
+    // -- ASSERT --
+    assertTrue(updated.isPresent());
+    assertNull(updated.get().getOpenedAt());
+    assertNull(updated.get().getClickedAt(), "the recipient's own click slot must stay free");
+    verify(phishingResultRepository, never()).save(any(PhishingResult.class));
+  }
+
+  @Test
+  @DisplayName("markPageFetched should change nothing for a browser-like fetch")
+  void markPageFetched_should_changeNothingForHumanLookingFetch() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+
+    // -- ACT --
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markPageFetched("token-1", "203.0.113.7", HUMAN_UA);
+
+    // -- ASSERT -- loading the page is not a click: only the interaction confirmation is.
+    assertTrue(updated.isPresent());
+    assertNull(updated.get().getClickedAt());
+    assertNull(updated.get().getOpenedAt());
+    verify(phishingResultRepository, never()).save(any(PhishingResult.class));
+  }
+
+  @Test
+  @DisplayName("markPageFetched should not score a scanner fetch")
+  void markPageFetched_should_notScoreScannerUserAgent() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+
+    // -- ACT --
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markPageFetched("token-1", "40.94.2.10", SCANNER_UA);
+
+    // -- ASSERT --
+    assertTrue(updated.isPresent());
+    assertNull(updated.get().getClickedAt());
+  }
+
+  @Test
+  @DisplayName("markBotClicked should not score a client-flagged bot with a browser user agent")
+  void markBotClicked_should_notScoreClientFlaggedBot() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    ManualInjectExpectation clicked = resistedStep(PhishingTrackingService.STEP_CLICKED);
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(clicked));
+
+    // -- ACT -- e.g. a headless Chrome reporting navigator.webdriver.
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markBotClicked("token-1", "203.0.113.7", HUMAN_UA);
+
+    // -- ASSERT --
+    assertTrue(updated.isPresent());
+    assertNull(updated.get().getClickedAt());
+    assertEquals(100.0, clicked.getScore(), "a bot click must never flip the step to RED");
+  }
+
+  @Test
+  @DisplayName("a bot click followed by a genuine click should still score the genuine one")
+  void markClicked_should_scoreGenuineClickAfterBotClick() {
+    // -- ARRANGE --
+    PhishingResult result = resultWith(false, false);
+    when(phishingResultRepository.findByToken("token-1")).thenReturn(Optional.of(result));
+    when(phishingResultRepository.save(any(PhishingResult.class)))
+        .thenAnswer(i -> i.getArgument(0));
+    ManualInjectExpectation clicked = resistedStep(PhishingTrackingService.STEP_CLICKED);
+    when(injectExpectationRepository.findAllByInjectId("inject-1")).thenReturn(List.of(clicked));
+
+    // -- ACT --
+    phishingTrackingService.markClicked("token-1", "40.94.2.10", SCANNER_UA);
+    Optional<PhishingResult> updated =
+        phishingTrackingService.markClicked("token-1", "203.0.113.7", HUMAN_UA);
+
+    // -- ASSERT --
+    assertTrue(updated.isPresent());
+    assertNotNull(updated.get().getClickedAt(), "the genuine click must still be recorded");
+    assertEquals(0.0, clicked.getScore());
+  }
+
   @Test
   @DisplayName("buildSourceMetadata should cap attacker-controlled header values")
   void markClicked_should_truncateOversizedUserAgentMetadata() {

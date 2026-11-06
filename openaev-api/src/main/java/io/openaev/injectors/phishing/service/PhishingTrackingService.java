@@ -432,6 +432,26 @@ public class PhishingTrackingService {
   }
 
   /**
+   * Scoped entry point for {@code markPageFetched}, see {@link #resolveAndBackfillByToken(TxCtx,
+   * String)}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Optional<PhishingResult> markPageFetched(
+      final TxCtx ctx, @NotBlank final String token, final String ip, final String userAgent) {
+    return markPageFetched(token, ip, userAgent);
+  }
+
+  /**
+   * Scoped entry point for {@code markBotClicked}, see {@link #resolveAndBackfillByToken(TxCtx,
+   * String)}.
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public Optional<PhishingResult> markBotClicked(
+      final TxCtx ctx, @NotBlank final String token, final String ip, final String userAgent) {
+    return markBotClicked(token, ip, userAgent);
+  }
+
+  /**
    * Scoped entry point for {@code markSubmitted}, see {@link #resolveAndBackfillByToken(TxCtx,
    * String)}. {@code resolvedLandingPage} keeps feeding credential capture, as in the unscoped
    * overload below: the caller resolved it under its own single-tenant scope and {@code
@@ -478,6 +498,7 @@ public class PhishingTrackingService {
         result -> {
           if (isAutomatedProbe(result, userAgent)) {
             annotateResistedSteps(result, Set.of(STEP_OPENED), ip, userAgent);
+            recordBotActivity(result, false);
             return result;
           }
           if (result.getOpenedAt() == null) {
@@ -505,6 +526,7 @@ public class PhishingTrackingService {
         result -> {
           if (isAutomatedProbe(result, userAgent)) {
             annotateResistedSteps(result, Set.of(STEP_OPENED, STEP_CLICKED), ip, userAgent);
+            recordBotActivity(result, true);
             return result;
           }
           if (result.getOpenedAt() == null) {
@@ -523,6 +545,49 @@ public class PhishingTrackingService {
               userAgent);
           return saved;
         });
+  }
+
+  /**
+   * Handles the landing page content being fetched, which on its own is NOT a click: only the
+   * browser-side confirmation (see {@link #markBotClicked} and {@link #markClicked}) proves a human
+   * interacted with the page. A fetch identified as an automated probe is still logged as
+   * automated, exactly like {@link #markClicked} would; any other fetch changes nothing.
+   */
+  public Optional<PhishingResult> markPageFetched(
+      @NotBlank final String token, final String ip, final String userAgent) {
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
+    optResult.ifPresent(
+        result -> {
+          if (isAutomatedProbe(result, userAgent)) {
+            annotateResistedSteps(result, Set.of(STEP_OPENED, STEP_CLICKED), ip, userAgent);
+            recordBotActivity(result, true);
+          }
+        });
+    return optResult;
+  }
+
+  /**
+   * Logs a click the landing page itself reported as automated (webdriver flag, or a confirmation
+   * sent before any human could have reacted). Never scores: same treatment as an automated probe
+   * caught by {@link #isAutomatedProbe}.
+   */
+  public Optional<PhishingResult> markBotClicked(
+      @NotBlank final String token, final String ip, final String userAgent) {
+    Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
+    optResult.ifPresent(
+        result -> {
+          annotateResistedSteps(result, Set.of(STEP_OPENED, STEP_CLICKED), ip, userAgent);
+          recordBotActivity(result, true);
+        });
+    return optResult;
+  }
+
+  /** Logs an automated hit that was not scored; nothing is persisted on the tracking row. */
+  private void recordBotActivity(final PhishingResult result, final boolean clicked) {
+    log.info(
+        "Phishing automated {} ignored for scoring (result {})",
+        clicked ? "click" : "open",
+        result.getId());
   }
 
   /**

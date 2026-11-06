@@ -47,6 +47,8 @@ const isSafeRedirect = (url: string): boolean => {
   return scheme === 'http' || scheme === 'https';
 };
 
+const MIN_DWELL_MS = 800;
+
 const PhishingPage = () => {
   const { tenantId, token } = useParams() as {
     tenantId?: string;
@@ -62,10 +64,47 @@ const PhishingPage = () => {
     ? `${APP_BASE_PATH}/api/phishing/tracking/${tenantId}/s/${token}`
     : `${APP_BASE_PATH}/api/hosted/s/${token}`;
 
+  const confirmUrl = `${APP_BASE_PATH}/api/hosted/confirm/${token}`;
+
   const [page, setPage] = useState<PhishingLandingPageReader | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Loading the page is not a click: mail scanners render it too. The click is confirmed on the
+  // visitor's first interaction (mouse, touch, keyboard or scroll), sent no sooner than
+  // MIN_DWELL_MS after the page rendered. Only the benign route confirms; the legacy one has no
+  // confirm endpoint and keeps counting the click on load.
+  useEffect(() => {
+    if (!page || tenantId) return undefined;
+    const renderedAt = Date.now();
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const interactionEvents = ['pointermove', 'pointerdown', 'touchstart', 'keydown', 'scroll'];
+
+    const onInteraction = () => {
+      controller.abort();
+      const wait = Math.max(0, MIN_DWELL_MS - (Date.now() - renderedAt));
+      timer = setTimeout(() => {
+        api().post(confirmUrl, {
+          dwell_ms: Date.now() - renderedAt,
+          webdriver: navigator.webdriver === true,
+        }).catch(() => {
+          // Silently ignore: the visitor should never see an application error.
+        });
+      }, wait);
+    };
+
+    interactionEvents.forEach(name => window.addEventListener(name, onInteraction, {
+      capture: true,
+      passive: true,
+      signal: controller.signal,
+    }));
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [page]);
 
   useEffect(() => {
     let active = true;
