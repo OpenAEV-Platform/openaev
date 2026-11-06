@@ -405,6 +405,25 @@ class TenantScopedTransactionIntegrationTest extends IntegrationTest {
 
   @Test
   @DisplayName(
+      "setScopeOnCurrentTransaction with Missing replaces the previous scope and denies every row")
+  void setScopeOnCurrentTransactionWithMissingDeniesEveryRow() {
+    rawTransaction(TransactionDefinition.PROPAGATION_REQUIRED)
+        .execute(
+            status -> {
+              tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantA));
+              assertTrue(importMapperRepository.count() > 0, "tenant A's row is visible first");
+
+              tenantTx.setScopeOnCurrentTransaction(TxCtx.missing());
+
+              assertEquals("", currentScopeInCurrentTransaction());
+              assertEquals(0L, importMapperRepository.count(), "Missing must deny every row");
+              status.setRollbackOnly();
+              return null;
+            });
+  }
+
+  @Test
+  @DisplayName(
       "setScopeOnCurrentTransaction shares the ambient transaction's fate: a later failure rolls"
           + " back the scoped work")
   void setScopeOnCurrentTransactionSharesTheAmbientTransactionFate() {
