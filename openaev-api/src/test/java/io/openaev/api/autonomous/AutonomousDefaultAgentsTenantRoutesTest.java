@@ -164,5 +164,41 @@ class AutonomousDefaultAgentsTenantRoutesTest extends IntegrationTest {
       assertThat(storedValue(tenantA)).isNull();
       assertThat(storedValue(tenantB)).isNull();
     }
+
+    @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    @DisplayName("given_aCallerOfTheDefaultTenantAndNoSelector_should_storeTheDefaultTenantsRow")
+    void given_aCallerOfTheDefaultTenantAndNoSelector_should_storeTheDefaultTenantsRow()
+        throws Exception {
+      // Arrange: the caller belongs to A, B and the default tenant, and names none
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      mvc.perform(put(PLAIN).contentType(MediaType.APPLICATION_JSON).content(BODY).with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert
+      assertThat(storedValue(Tenant.DEFAULT_TENANT_UUID)).contains("agent-of-b");
+      assertThat(storedValue(tenantA)).isNull();
+      assertThat(storedValue(tenantB)).isNull();
+    }
+
+    @Test
+    @DisplayName("given_aHeaderNamingTwoTenants_should_refuseTheWriteAndCreateNoRow")
+    void given_aHeaderNamingTwoTenants_should_refuseTheWriteAndCreateNoRow() throws Exception {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+
+      // Act + Assert
+      mvc.perform(
+              put(PLAIN)
+                  .header("X-Tenant-Ids", tenantA + "," + tenantB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(BODY)
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+      assertThat(storedValue(tenantA)).isNull();
+      assertThat(storedValue(tenantB)).isNull();
+    }
   }
 }
