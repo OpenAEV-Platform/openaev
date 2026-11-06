@@ -18,26 +18,35 @@ on:
   workflow_dispatch:
     inputs:
       pr_number:
-        description: "PR number"
-        required: true
+        description: "PR number, empty for a branch deployed without a PR"
+        required: false
         type: string
       head_ref:
-        description: "PR branch name"
+        description: "Branch name"
         required: true
         type: string
       head_sha:
-        description: "PR head commit SHA"
+        description: "Head commit SHA"
         required: true
         type: string
       deployment_id:
         description: "GitHub deployment ID to report status on"
         required: true
         type: string
+      environment:
+        description: "GitHub deployment environment (feature-pr-<number> or feature-branch-<branch>)"
+        required: true
+        type: string
+      openaev_config:
+        description: "Startup environment variables, a JSON object validated by the dispatcher"
+        required: false
+        type: string
+        default: "{}"
 
 concurrency:
   # The dispatcher finishes immediately, so concurrency must cover the actual
-  # build workflow. A newer /deploy request for the same PR supersedes the old one.
-  group: feature-deploy-build-${{ inputs.pr_number }}
+  # build workflow. A newer request for the same environment supersedes the old one.
+  group: feature-deploy-build-${{ inputs.environment }}
   cancel-in-progress: true
 
 permissions:
@@ -98,16 +107,24 @@ jobs:
           HEAD_REF: ${{ inputs.head_ref }}
           HEAD_SHA: ${{ inputs.head_sha }}
           DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          OPENAEV_CONFIG: ${{ inputs.openaev_config }}
           BUILD_RESULT: success
         run: |
           mkdir -p metadata
+          # The promotion validates the variables again before using them
+          CONFIG="${OPENAEV_CONFIG:-}"
+          [ -n "$CONFIG" ] || CONFIG='{}'
           jq -n \
             --arg pr "$PR_NUMBER" \
             --arg ref "$HEAD_REF" \
             --arg sha "$HEAD_SHA" \
             --arg did "$DEPLOYMENT_ID" \
+            --arg env "$ENVIRONMENT" \
+            --argjson cfg "$CONFIG" \
             --arg res "$BUILD_RESULT" \
-            '{pr_number: $pr, head_ref: $ref, head_sha: $sha, deployment_id: $did, build_result: $res}' \
+            '{pr_number: $pr, head_ref: $ref, head_sha: $sha, deployment_id: $did,
+              environment: $env, openaev_config: $cfg, build_result: $res}' \
             > metadata/deploy-metadata.json
       - uses: actions/upload-artifact@v7
         with:

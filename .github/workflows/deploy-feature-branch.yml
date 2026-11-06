@@ -1,8 +1,9 @@
 name: "[Core] Deploy Feature Branch"
 
 # Entry point for feature branch deployments. Progress is reported through the
-# GitHub Deployments API (environment `feature-pr-<number>`), which renders on
-# the PR timeline and in the branch deployment panel — no PR comments.
+# GitHub Deployments API (environment `feature-pr-<number>` for a PR,
+# `feature-branch-<branch>` for a branch deployed without a PR), which renders
+# on the PR timeline and in the branch deployment panel — no PR comments.
 #
 # The deployment panel only shows the PR head commit:
 #   - pending: the image is building (this workflow), the previous commit stays live
@@ -21,29 +22,54 @@ name: "[Core] Deploy Feature Branch"
 #   - Same-repo PRs opened without the template get the Deployment section
 #     appended.
 #
+# Startup environment variables: the `env` block under the checkbox holds one
+# KEY=VALUE per line. They are merged over the feature environment defaults
+# by the promotion, so they can also override them. While the box is ticked,
+# changing the block redeploys the PR head. PR descriptions are public: the
+# block must never hold secrets.
+#
+# Manual run (workflow_dispatch, from main): deploys a branch of this
+# repository. A branch with an open PR is deployed as `/deploy` would, with
+# the variables of the PR description. A branch without a PR gets its own
+# environment and takes its variables from the `env` input, a JSON object.
+#
 # Security:
 #   - Fork PRs are never deployed, since anyone can push to a fork: a ticked
 #     box is unticked and `/deploy` is ignored. Only branches of this
 #     repository, which need write access to push, are built.
 #   - Only users with write access to the repository can deploy. The API
-#     permission of whoever ticked the box, commented or pushed is checked; a
-#     box ticked by anyone else is unticked again, and so is the box of a PR
-#     that anyone else (bots included) pushes to. Bot edits are ignored.
-#   - Only an unticked -> ticked change deploys, so other description edits
-#     never trigger a build.
+#     permission of whoever ticked the box, edited the variables, commented,
+#     pushed or ran the workflow is checked; a box ticked by anyone else is
+#     unticked again, and so is the box of a PR that anyone else (bots
+#     included) pushes to. Bot edits are ignored.
+#   - Only an unticked -> ticked change, or a variable change while ticked,
+#     deploys, so other description edits never trigger a build.
+#   - The variables are validated here and again by the promotion. They only
+#     travel as JSON through inputs, env and artifacts, never through shell
+#     interpolation.
 #   - This workflow NEVER checks out PR code. It only does API calls.
 #     pull_request_target is used so same-repo and fork PRs get a write token;
 #     it runs the workflow from the base branch. PR-controlled values (branch
 #     name, body) only reach scripts through env or the event payload.
 #
-# A newer deploy request for the same PR cancels the older dispatch here, and
-# the build workflow's own concurrency group cancels the older build.
+# A newer deploy request for the same environment cancels the older dispatch
+# here, and the build workflow's own concurrency group cancels the older build.
 
 on:
   issue_comment:
     types: [created]
   pull_request_target:
     types: [opened, reopened, edited, synchronize, closed]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch of this repository to deploy"
+        required: true
+        type: string
+      env:
+        description: 'Startup environment variables as a JSON object, e.g. {"OPENAEV_SOME_FLAG": "true"}. Only for a branch without an open PR; a PR takes them from its description. Never secrets: run inputs are visible to everyone with read access.'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -52,7 +78,7 @@ jobs:
   decide:
     name: "🔐 Check deploy request"
     if: >-
-      (
+      github.event_name == 'workflow_dispatch' || (
         github.event_name == 'issue_comment' &&
         github.event.issue.pull_request &&
         (github.event.comment.body == '/deploy' || startsWith(github.event.comment.body, '/deploy ')) &&
@@ -78,6 +104,9 @@ jobs:
       deploy: ${{ steps.decide.outputs.deploy }}
       head_sha: ${{ steps.decide.outputs.head_sha }}
       head_ref: ${{ steps.decide.outputs.head_ref }}
+      pr_number: ${{ steps.decide.outputs.pr_number }}
+      environment: ${{ steps.decide.outputs.environment }}
+      openaev_config: ${{ steps.decide.outputs.openaev_config }}
     steps:
       - name: Decide whether to deploy
         id: decide
@@ -85,13 +114,18 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const prNumber = context.issue.number;
             const action = context.payload.action;
             const sender = context.payload.sender;
 
             // Keep in sync with the Deployment section of .github/PULL_REQUEST_TEMPLATE.md
             const BOX = /^([ \t]*[-*+][ \t]+\[)([ xX])(\][^\n]*<!--\s*feature-deploy\s*-->)/m;
             const LABEL = '🚀 Deploy this branch to a staging environment <!-- feature-deploy -->';
+            const ENV_BLOCK = /<!--\s*feature-deploy-env\s*-->[ \t]*\r?\n[ \t]*```env[ \t]*\r?\n([\s\S]*?)^[ \t]*```/m;
+            // Same limits as the promotion in the release repository
+            const ENV_KEY = /^[A-Z][A-Z0-9_.-]*$/;
+            const ENV_MAX_KEYS = 50;
+            const ENV_MAX_BYTES = 4096;
+
             const hasBox = body => BOX.test(body || '');
             const isChecked = body => {
               const m = (body || '').match(BOX);
@@ -102,7 +136,7 @@ jobs:
               : `${(body || '').trimEnd()}\n\n### Deployment\n\n- [${checked ? 'x' : ' '}] ${LABEL}\n`;
 
             // Re-read the body right before writing so a concurrent human edit is kept
-            async function updateBox(checked) {
+            async function updateBox(prNumber, checked) {
               const { data: fresh } = await github.rest.pulls.get({ owner, repo, pull_number: prNumber });
               const body = fresh.body || '';
               const next = setBox(body, checked);
@@ -125,73 +159,222 @@ jobs:
               }
             }
 
-            const pr = context.payload.pull_request
-              ?? (await github.rest.pulls.get({ owner, repo, pull_number: prNumber })).data;
-            // Only branches of this repository are deployed: pushing to them needs write
-            // access, while anyone can push to a fork. A deleted fork has no head repo.
-            const isFork = pr.head.repo?.full_name !== `${owner}/${repo}`;
+            // Startup variables as [name, value] pairs -> { name: value }. Errors are
+            // shown to whoever asked for the deploy.
+            function checkEnv(entries) {
+              const config = {};
+              for (const [key, raw] of entries) {
+                if (!ENV_KEY.test(key)) {
+                  throw new Error(`Invalid variable name "${key}": use A-Z, 0-9, _, . and -, starting with a letter.`);
+                }
+                if (Object.hasOwn(config, key)) {
+                  throw new Error(`Variable ${key} is set twice.`);
+                }
+                if (raw === null || typeof raw === 'object') {
+                  throw new Error(`Variable ${key} must be a string, a number or a boolean.`);
+                }
+                const value = String(raw);
+                if (/[\r\n]/.test(value)) {
+                  throw new Error(`Variable ${key} spans several lines.`);
+                }
+                config[key] = value;
+              }
+              if (Object.keys(config).length > ENV_MAX_KEYS) {
+                throw new Error(`At most ${ENV_MAX_KEYS} variables can be set.`);
+              }
+              if (Buffer.byteLength(JSON.stringify(config)) > ENV_MAX_BYTES) {
+                throw new Error(`The variables exceed ${ENV_MAX_BYTES} bytes once encoded as JSON.`);
+              }
+              return config;
+            }
 
-            let deploy = false;
-            if (isFork) {
-              if (context.eventName === 'issue_comment') {
-                core.warning('Fork PRs cannot be deployed, /deploy ignored. Push the branch to this repository instead.');
-              } else if (isChecked(pr.body)) {
-                core.warning('Fork PRs cannot be deployed, unticking the Deployment box.');
-                await updateBox(false);
-              }
-            } else if (context.eventName === 'issue_comment') {
-              if (await canDeploy(sender)) {
-                deploy = true;
-                await updateBox(true);
-              } else {
-                core.warning(`${sender.login} has no write access, /deploy ignored.`);
-              }
-            } else if (action === 'opened' || action === 'reopened') {
-              if (isChecked(pr.body)) {
-                if (await canDeploy(sender)) {
-                  deploy = true;
-                } else {
-                  core.warning(`${sender.login} has no write access, unticking the Deployment box.`);
-                  await updateBox(false);
+            // The ```env block under the Deployment checkbox: KEY=VALUE lines, # comments
+            function envFromBody(body) {
+              const m = (body || '').match(ENV_BLOCK);
+              if (!m) return {};
+              const entries = [];
+              for (const line of m[1].split(/\r?\n/)) {
+                const text = line.trim();
+                if (!text || text.startsWith('#')) continue;
+                const eq = text.indexOf('=');
+                if (eq < 1) {
+                  throw new Error(`Line "${text}" of the env block is not KEY=VALUE.`);
                 }
-              } else if (!hasBox(pr.body) && pr.user.type !== 'Bot') {
-                await updateBox(false);
+                let value = text.slice(eq + 1).trim();
+                const quoted = value.match(/^(["'])(.*)\1$/);
+                if (quoted) value = quoted[2];
+                entries.push([text.slice(0, eq).trim(), value]);
               }
-            } else if (action === 'edited') {
-              const change = context.payload.changes?.body;
-              if (!change || sender.type === 'Bot') {
-                core.info('No body change by a user, nothing to do.');
-              } else if (!isChecked(change.from) && isChecked(pr.body)) {
-                if (await canDeploy(sender)) {
-                  deploy = true;
-                } else {
-                  core.warning(`${sender.login} has no write access, unticking the Deployment box.`);
-                  await updateBox(false);
-                }
+              return checkEnv(entries);
+            }
+
+            function envFromInput(input) {
+              if (!input || !input.trim()) return {};
+              const usage = 'The env input must be a JSON object, e.g. {"OPENAEV_SOME_FLAG": "true"}.';
+              let parsed;
+              try {
+                parsed = JSON.parse(input);
+              } catch {
+                throw new Error(usage);
               }
-            } else if (action === 'synchronize' && isChecked(pr.body)) {
-              // Only commits pushed by a user with write access are redeployed; a push by
-              // anyone else (bots and apps included) waits for a maintainer to tick again.
-              if (await canDeploy(sender)) {
-                deploy = true;
-              } else {
-                core.warning(`${sender.login} has no write access, unticking the Deployment box.`);
-                await updateBox(false);
+              if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                throw new Error(usage);
+              }
+              return checkEnv(Object.entries(parsed));
+            }
+
+            // Tells whether an edit changed the variables; an invalid block compares by its text
+            function envSignature(body) {
+              try {
+                return JSON.stringify(envFromBody(body));
+              } catch {
+                return `invalid:${(body || '').match(ENV_BLOCK)?.[1] ?? ''}`;
               }
             }
 
-            core.info(`deploy=${deploy} (event=${context.eventName}/${action}, fork=${isFork})`);
+            let deploy = false;
+            let pr = null;
+            let branch = null;
+
+            if (context.eventName === 'workflow_dispatch') {
+              const inputs = context.payload.inputs || {};
+              const name = (inputs.branch || '').trim();
+              // Promotion only accepts builds dispatched from main
+              if (context.ref !== 'refs/heads/main') {
+                core.setFailed('Run this workflow from main: the branch to deploy is an input.');
+                return;
+              }
+              if (!(await canDeploy(sender))) {
+                core.setFailed(`${sender.login} has no write access to ${owner}/${repo}.`);
+                return;
+              }
+              if (!/^[A-Za-z0-9._\/-]+$/.test(name)) {
+                core.setFailed(`Invalid branch name "${name}".`);
+                return;
+              }
+              let head;
+              try {
+                ({ data: head } = await github.rest.repos.getBranch({ owner, repo, branch: name }));
+              } catch (error) {
+                if (error.status === 404) {
+                  core.setFailed(`Branch ${name} does not exist in ${owner}/${repo}.`);
+                  return;
+                }
+                throw error;
+              }
+              const { data: prs } = await github.rest.pulls.list({
+                owner, repo, state: 'open', head: `${owner}:${name}`, per_page: 1
+              });
+              if (prs.length > 0) {
+                pr = prs[0];
+                if ((inputs.env || '').trim()) {
+                  core.setFailed(`${name} has an open PR (#${pr.number}): set the variables in the env block of its description, not in the env input.`);
+                  return;
+                }
+                core.info(`${name} has an open PR (#${pr.number}), deploying it as /deploy would.`);
+                await updateBox(pr.number, true);
+              } else {
+                branch = { ref: name, sha: head.commit.sha };
+              }
+              deploy = true;
+            } else {
+              const prNumber = context.issue.number;
+              pr = context.payload.pull_request
+                ?? (await github.rest.pulls.get({ owner, repo, pull_number: prNumber })).data;
+              // Only branches of this repository are deployed: pushing to them needs write
+              // access, while anyone can push to a fork. A deleted fork has no head repo.
+              const isFork = pr.head.repo?.full_name !== `${owner}/${repo}`;
+
+              if (isFork) {
+                if (context.eventName === 'issue_comment') {
+                  core.warning('Fork PRs cannot be deployed, /deploy ignored. Push the branch to this repository instead.');
+                } else if (isChecked(pr.body)) {
+                  core.warning('Fork PRs cannot be deployed, unticking the Deployment box.');
+                  await updateBox(prNumber, false);
+                }
+              } else if (context.eventName === 'issue_comment') {
+                if (await canDeploy(sender)) {
+                  deploy = true;
+                  await updateBox(prNumber, true);
+                } else {
+                  core.warning(`${sender.login} has no write access, /deploy ignored.`);
+                }
+              } else if (action === 'opened' || action === 'reopened') {
+                if (isChecked(pr.body)) {
+                  if (await canDeploy(sender)) {
+                    deploy = true;
+                  } else {
+                    core.warning(`${sender.login} has no write access, unticking the Deployment box.`);
+                    await updateBox(prNumber, false);
+                  }
+                } else if (!hasBox(pr.body) && pr.user.type !== 'Bot') {
+                  await updateBox(prNumber, false);
+                }
+              } else if (action === 'edited') {
+                const change = context.payload.changes?.body;
+                const ticked = !!change && !isChecked(change.from) && isChecked(pr.body);
+                const envChanged = !!change && isChecked(change.from) && isChecked(pr.body)
+                  && envSignature(change.from) !== envSignature(pr.body);
+                if (!change || sender.type === 'Bot') {
+                  core.info('No body change by a user, nothing to do.');
+                } else if (ticked || envChanged) {
+                  if (await canDeploy(sender)) {
+                    deploy = true;
+                  } else {
+                    core.warning(`${sender.login} has no write access, unticking the Deployment box.`);
+                    await updateBox(prNumber, false);
+                  }
+                }
+              } else if (action === 'synchronize' && isChecked(pr.body)) {
+                // Only commits pushed by a user with write access are redeployed; a push by
+                // anyone else (bots and apps included) waits for a maintainer to tick again.
+                if (await canDeploy(sender)) {
+                  deploy = true;
+                } else {
+                  core.warning(`${sender.login} has no write access, unticking the Deployment box.`);
+                  await updateBox(prNumber, false);
+                }
+              }
+            }
+
+            let config = {};
+            if (deploy) {
+              try {
+                config = pr ? envFromBody(pr.body) : envFromInput(context.payload.inputs?.env);
+              } catch (error) {
+                core.setFailed(`Not deployed: ${error.message}`);
+                return;
+              }
+            }
+
+            // GitHub environment names: the branch flattened to [a-z0-9-]
+            const slug = ref => ref.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            const target = pr
+              ? { prNumber: String(pr.number), ref: pr.head.ref, sha: pr.head.sha, environment: `feature-pr-${pr.number}` }
+              : branch
+                ? { prNumber: '', ref: branch.ref, sha: branch.sha, environment: `feature-branch-${slug(branch.ref)}` }
+                : null;
+
+            core.info(`deploy=${deploy} (event=${context.eventName}/${action}, environment=${target?.environment})`);
+            if (deploy && Object.keys(config).length > 0) {
+              core.info(`Startup variables: ${Object.keys(config).join(', ')}`);
+            }
             core.setOutput('deploy', String(deploy));
-            // Build the commit seen at request time, not whatever the head is later
-            core.setOutput('head_sha', pr.head.sha);
-            core.setOutput('head_ref', pr.head.ref);
+            if (deploy) {
+              // Build the commit seen at request time, not whatever the head is later
+              core.setOutput('head_sha', target.sha);
+              core.setOutput('head_ref', target.ref);
+              core.setOutput('pr_number', target.prNumber);
+              core.setOutput('environment', target.environment);
+              core.setOutput('openaev_config', JSON.stringify(config));
+            }
 
   dispatch-build:
     name: "🚀 Dispatch feature build"
     needs: decide
     if: needs.decide.outputs.deploy == 'true'
     concurrency:
-      group: feature-deploy-${{ github.event.issue.number || github.event.pull_request.number }}
+      group: feature-deploy-${{ needs.decide.outputs.environment }}
       cancel-in-progress: true
     permissions:
       actions: write # needed to dispatch the build workflow
@@ -203,25 +386,32 @@ jobs:
         env:
           HEAD_SHA: ${{ needs.decide.outputs.head_sha }}
           HEAD_REF: ${{ needs.decide.outputs.head_ref }}
+          PR_NUMBER: ${{ needs.decide.outputs.pr_number }}
+          ENVIRONMENT: ${{ needs.decide.outputs.environment }}
+          OPENAEV_CONFIG: ${{ needs.decide.outputs.openaev_config }}
         with:
           script: |
             const { owner, repo } = context.repo;
-            const prNumber = context.issue.number;
-            const environment = `feature-pr-${prNumber}`;
-            const { HEAD_SHA: headSha, HEAD_REF: headRef } = process.env;
+            const {
+              HEAD_SHA: headSha,
+              HEAD_REF: headRef,
+              PR_NUMBER: prNumber,
+              ENVIRONMENT: environment,
+              OPENAEV_CONFIG: openaevConfig
+            } = process.env;
 
             const { data: deployment } = await github.rest.repos.createDeployment({
               owner, repo,
               ref: headSha,
               environment,
-              description: `Feature branch ${headRef}`,
+              description: prNumber ? `Feature branch ${headRef}` : `Branch ${headRef} (no PR)`,
               // Not transient: GitHub only auto-inactivates prior non-transient deployments,
               // which retires the previously live commit once a newer one succeeds
               transient_environment: false,
               production_environment: false,
               auto_merge: false,
               required_contexts: [],
-              payload: { pr_number: prNumber, head_ref: headRef }
+              payload: { pr_number: prNumber ? Number(prNumber) : null, head_ref: headRef }
             });
 
             const { data: run } = await github.rest.actions.createWorkflowDispatch({
@@ -232,10 +422,12 @@ jobs:
                 'X-GitHub-Api-Version': '2026-03-10'
               },
               inputs: {
-                pr_number: String(prNumber),
+                pr_number: prNumber,
                 head_ref: headRef,
                 head_sha: headSha,
-                deployment_id: String(deployment.id)
+                deployment_id: String(deployment.id),
+                environment,
+                openaev_config: openaevConfig
               }
             });
 
@@ -256,7 +448,7 @@ jobs:
     name: "🧹 Deactivate feature deployments"
     if: github.event_name == 'pull_request_target' && github.event.action == 'closed'
     concurrency:
-      group: feature-deploy-${{ github.event.pull_request.number }}
+      group: feature-deploy-feature-pr-${{ github.event.pull_request.number }}
       cancel-in-progress: true
     permissions:
       deployments: write # needed to mark deployments inactive
