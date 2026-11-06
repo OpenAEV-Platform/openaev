@@ -23,6 +23,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -222,7 +223,7 @@ public class MdeExecutorService implements Runnable {
               input.setHostname(device.getComputerDnsName());
               input.setSeenIp(device.getLastExternalIpAddress());
               input.setIps(ips.toArray(new String[0]));
-              input.setMacAddresses(new String[0]);
+              input.setMacAddresses(macAddresses(device));
               Endpoint.PLATFORM_TYPE platform = toPlatform(device.getOsPlatform());
               input.setPlatform(platform);
               input.setArch(
@@ -239,6 +240,16 @@ public class MdeExecutorService implements Runnable {
               return input;
             })
         .collect(Collectors.toList());
+  }
+
+  private static String[] macAddresses(MdeDevice device) {
+    if (device.getIpAddresses() == null) {
+      return new String[0];
+    }
+    return device.getIpAddresses().stream()
+        .map(MdeDevice.MdeIpAddress::getMacAddress)
+        .filter(Objects::nonNull)
+        .toArray(String[]::new);
   }
 
   /**

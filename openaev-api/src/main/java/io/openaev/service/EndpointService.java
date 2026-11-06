@@ -476,22 +476,13 @@ public class EndpointService implements AuditLoggedService {
     // Create new agents/endpoints
     if (!inputs.isEmpty()) {
       for (AgentRegisterInput inputToUpdate : inputs) {
-        Optional<Endpoint> existingEndpoint =
-            StringUtils.isBlank(inputToUpdate.getExternalReference())
-                ? Optional.empty()
-                : findEndpointByExternalReference(inputToUpdate.getExternalReference(), tenantId);
-        if (existingEndpoint.isPresent()) {
-          endpointToSave = existingEndpoint.get();
-          setUpdatedEndpointAttributes(endpointToSave, inputToUpdate);
-        } else {
-          endpointToSave = new Endpoint();
-          endpointToSave.setUpdateAttributes(inputToUpdate);
-          endpointToSave.setIps(inputToUpdate.getIps());
-          endpointToSave.setSeenIp(inputToUpdate.getSeenIp());
-          endpointToSave.setMacAddresses(inputToUpdate.getMacAddresses());
-          // Set tenant explicitly so TenantBaseListener is not needed for this background path.
-          endpointToSave.setTenant(new Tenant(tenantId));
-        }
+        endpointToSave = new Endpoint();
+        endpointToSave.setUpdateAttributes(inputToUpdate);
+        endpointToSave.setIps(inputToUpdate.getIps());
+        endpointToSave.setSeenIp(inputToUpdate.getSeenIp());
+        endpointToSave.setMacAddresses(inputToUpdate.getMacAddresses());
+        // Set tenant explicitly so TenantBaseListener is not needed for this background path.
+        endpointToSave.setTenant(new Tenant(tenantId));
         endpointsToSave.add(endpointToSave);
         agentToSave = new Agent();
         setNewAgentAttributes(inputToUpdate, agentToSave);

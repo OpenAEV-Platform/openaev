@@ -1,6 +1,7 @@
 package io.openaev.executors.mde.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.List;
 import lombok.Data;
 
 @Data
@@ -21,4 +22,11 @@ public class MdeDevice {
   private String healthStatus;
   private String lastSeen;
   private String agentVersion;
+  private List<MdeIpAddress> ipAddresses;
+
+  @Data
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class MdeIpAddress {
+    private String macAddress;
+  }
 }
