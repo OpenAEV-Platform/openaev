@@ -185,7 +185,10 @@ class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTables
     // Act
     Set<String> declared =
         handlerMapping.getHandlerMethods().entrySet().stream()
-            .filter(entry -> isByIdInjectEndpoint(entry.getValue()))
+            .filter(
+                entry ->
+                    isByIdInjectEndpoint(entry.getValue())
+                        || isInjectOfAParent(entry.getKey(), entry.getValue()))
             .flatMap(entry -> endpointNames(entry.getKey()))
             .collect(Collectors.toCollection(TreeSet::new));
 
@@ -205,6 +208,16 @@ class ByIdRequestScopeGuardCoverageTest extends ByIdRequestScopeProductionTables
         && Set.of(ResourceType.INJECT, ResourceType.ATOMIC_TESTING, ResourceType.INJECT_SECRET)
             .contains(accessControl.resourceType())
         && !accessControl.resourceId().isBlank();
+  }
+
+  /** An endpoint typed with the scenario or simulation that owns the inject its path names. */
+  private static boolean isInjectOfAParent(RequestMappingInfo mapping, HandlerMethod handler) {
+    AccessControl accessControl = handler.getMethodAnnotation(AccessControl.class);
+    return accessControl != null
+        && Set.of(ResourceType.SCENARIO, ResourceType.SIMULATION)
+            .contains(accessControl.resourceType())
+        && mapping.getPathPatternsCondition().getPatternValues().stream()
+            .anyMatch(path -> path.endsWith("/injects/{injectId}"));
   }
 
   /** {@code VERB /path} with the {@code /api} and tenant prefixes dropped, one per route. */

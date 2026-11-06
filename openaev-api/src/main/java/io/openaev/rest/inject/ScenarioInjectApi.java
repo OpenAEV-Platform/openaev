@@ -132,6 +132,7 @@ public class ScenarioInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String injectId) {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     assert scenarioId.equals(scenario.getId());
+    this.scenarioInjectService.requireInjectInScenario(ctx, scenarioId, injectId);
     return hydrateKillChainPhases(
         injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new));
   }
