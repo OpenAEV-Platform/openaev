@@ -1,0 +1,84 @@
+name: "🔍 Aikido Rolling Image Scan"
+
+# Daily Aikido scan of the rolling platform images published on Docker Hub, run
+# with Aikido's local scanner. Reports high and critical vulnerabilities to the
+# Aikido dashboard and as job artifacts: findings do not fail the run, a scanner
+# error does.
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Release to scan (for example 3.261009.0); empty scans the rolling images"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aikido-rolling-image-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: "🔍 Scan openaev/platform:${{ matrix.tag }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJSON(inputs.release && format('["{0}", "{0}-ubi9"]', inputs.release) || '["rolling", "rolling-ubi9"]') }}
+    steps:
+      - name: Run Aikido image scan
+        env:
+          AIKIDO_API_KEY: ${{ secrets.AIKIDO_API_KEY }}
+          SCANNER: aikidosecurity/local-scanner:v1.0.163@sha256:c96405a39c65070db69d2bc22fee697415448b8e1ef9650022b92991a825d4bc
+          IMAGE: openaev/platform:${{ matrix.tag }}
+          TAG: ${{ matrix.tag }}
+          REPORT: aikido-platform-${{ matrix.tag }}
+        run: |
+          set -euo pipefail
+
+          # The standard and UBI9 variants are separate images in Aikido, so a
+          # scan of one does not replace the results of the other.
+          case "$TAG" in
+            *-ubi9) image_name=openaev/platform-ubi9 ;;
+            *)      image_name=openaev/platform ;;
+          esac
+
+          # The scanner reads the image from the local Docker daemon.
+          docker pull "$IMAGE"
+
+          # Release gating mode is the only one that writes the open issues to a
+          # file. It exits non-zero both on findings and on a scanner error; the
+          # report is written only once the scan has finished, so a non-zero
+          # exit without a report is the scanner failing.
+          status=0
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD:/report" \
+            "$SCANNER" \
+            image-scan "$IMAGE" \
+            --image-name "$image_name" \
+            --tag "$TAG" \
+            --apikey "$AIKIDO_API_KEY" \
+            --fail-on high \
+            --gating-result-output "/report/$REPORT.json" \
+            | tee "$REPORT.txt" || status=$?
+
+          if [ "$status" -ne 0 ] && [ ! -s "$REPORT.json" ]; then
+            echo "::error::Aikido scan of $IMAGE failed (exit code $status)"
+            exit "$status"
+          fi
+
+      - name: Upload Aikido report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: aikido-platform-${{ matrix.tag }}
+          path: aikido-platform-${{ matrix.tag }}.*
+          if-no-files-found: ignore
+          retention-days: 30
