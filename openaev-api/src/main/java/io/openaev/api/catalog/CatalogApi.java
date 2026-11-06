@@ -33,6 +33,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class CatalogApi {
 
+  public static final String CATALOG_URI = "/api/catalog";
   public static final String TENANT_CATALOG_URI = TENANT_PREFIX + "/catalog";
 
   private final CatalogListService catalogListService;
@@ -67,17 +68,18 @@ public class CatalogApi {
   @Operation(
       summary = "Receive a catalogue release from the collector",
       description = "Refused items or releases send a Sync blocked notification event.")
-  @PostMapping(value = TENANT_CATALOG_URI + "/sync", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PostMapping(
+      value = {CATALOG_URI + "/sync", TENANT_CATALOG_URI + "/sync"},
+      consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.CATALOG_SYNC)
   @Transactional(propagation = Propagation.SUPPORTS)
   public CatalogSyncOutput sync(
       TxCtx ctx,
-      @PathVariable String tenantId,
       @RequestPart("manifest") MultipartFile manifestFile,
       @RequestPart(value = "archives", required = false) List<MultipartFile> archiveFiles)
       throws Exception {
     requireCatalog();
-    String writeTenantId = writeScopeResolver.tenantForWrite(ctx, tenantId);
+    String writeTenantId = writeScopeResolver.tenantForWrite(ctx, null);
     CatalogManifest manifest = readManifest(manifestFile);
     if (manifest == null) {
       catalogSyncService.refuse(writeTenantId, null, "Unreadable manifest");

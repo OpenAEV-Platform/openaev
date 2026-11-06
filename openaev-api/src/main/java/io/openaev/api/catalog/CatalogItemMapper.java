@@ -20,7 +20,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CatalogItemMapper {
 
-  private static final String DEFAULT_AUTHOR = "Filigran";
+  private static final String FILIGRAN = "Filigran";
+  private static final String COMMUNITY = "community";
 
   private final ObjectMapper mapper;
 
@@ -56,8 +57,7 @@ public class CatalogItemMapper {
     target.setStatus(CatalogItemStatus.fromManifest(item.status()));
     target.setName(item.name());
     target.setDescription(item.description());
-    target.setAuthor(
-        item.author() == null || item.author().isBlank() ? DEFAULT_AUTHOR : item.author());
+    target.setAuthor(COMMUNITY.equals(item.origin()) ? item.contributor() : FILIGRAN);
     target.setSeverity(item.severity());
     target.setCategory(item.category());
     target.setMainFocus(item.mainFocus());

@@ -1,5 +1,6 @@
 package io.openaev.api.catalog;
 
+import static io.openaev.api.catalog.CatalogApi.CATALOG_URI;
 import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
@@ -96,8 +97,34 @@ class CatalogSyncApiTest extends IntegrationTest {
       return this;
     }
 
+    Release community(String contributor) {
+      items.getLast().put("origin", "community");
+      items.getLast().put("contributor", contributor);
+      return this;
+    }
+
     ResultActions sync() throws Exception {
       return post(mapper.writeValueAsBytes(manifest(name, items, payloads)), files);
+    }
+
+    ResultActions syncWithoutTenant(String... tenantIds) throws Exception {
+      MockMultipartHttpServletRequestBuilder request =
+          multipart(CATALOG_URI + "/sync")
+              .file(
+                  new MockMultipartFile(
+                      "manifest",
+                      "manifest.json",
+                      MediaType.APPLICATION_JSON_VALUE,
+                      mapper.writeValueAsBytes(manifest(name, items, payloads))));
+      files.forEach(
+          (fileName, content) ->
+              request.file(
+                  new MockMultipartFile(
+                      "archives", fileName, "application/octet-stream", content)));
+      if (tenantIds.length > 0) {
+        request.header("X-Tenant-Ids", String.join(",", tenantIds));
+      }
+      return mvc.perform(request.with(csrf()));
     }
   }
 
@@ -230,6 +257,64 @@ class CatalogSyncApiTest extends IntegrationTest {
       assertThat(output.path("refused").findValuesAsText("reason"))
           .containsExactly("Archive hash does not match the manifest");
       assertThat(list("scenarios").findValuesAsText("catalog_scenario_external_id")).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Reading who wrote a scenario")
+  class Origin {
+
+    @Test
+    @DisplayName("A community scenario is authored by its contributor, a Filigran one by Filigran")
+    void given_origin_should_setTheAuthor() throws Exception {
+      // Act
+      release("1.261105.0")
+          .scenario("1.0.0", "VERIFIED", archive("{\"v\":1}"))
+          .scenario("1.1.0", "VERIFIED", archive("{\"v\":2}"))
+          .community("octocat")
+          .sync()
+          .andExpect(status().isOk());
+
+      // Assert
+      assertThat(
+              entityManager
+                  .createNativeQuery(
+                      "SELECT catalog_item_version || ':' || catalog_item_author FROM catalog_items"
+                          + " WHERE catalog_item_external_id = :id")
+                  .setParameter("id", SCENARIO_ID)
+                  .getResultList())
+          .containsExactlyInAnyOrder("1.0.0:Filigran", "1.1.0:octocat");
+    }
+  }
+
+  @Nested
+  @DisplayName("Sending without a tenant in the URL")
+  class WithoutTenant {
+
+    @Test
+    @DisplayName("A caller in one tenant applies the release in that tenant")
+    void given_singleTenantCaller_should_applyInItsTenant() throws Exception {
+      // Act & Assert
+      release("1.261105.0")
+          .scenario("1.0.0", "VERIFIED", archive("{\"v\":1}"))
+          .syncWithoutTenant(DEFAULT_TENANT_UUID)
+          .andExpect(status().isOk());
+      assertThat(list("scenarios").findValuesAsText("catalog_scenario_version"))
+          .containsExactly("1.0.0");
+    }
+
+    @Test
+    @DisplayName("A caller in several tenants is refused instead of writing to the default tenant")
+    void given_severalTenants_should_beRefused() throws Exception {
+      // Arrange
+      String other = tenantIsolationTestHelper.createTenantWithCurrentUser("Catalog other").getId();
+
+      // Act & Assert
+      release("1.261105.0")
+          .scenario("1.0.0", "VERIFIED", archive("{\"v\":1}"))
+          .syncWithoutTenant(DEFAULT_TENANT_UUID, other)
+          .andExpect(status().isBadRequest());
+      assertThat(list("scenarios").findValuesAsText("catalog_scenario_version")).isEmpty();
     }
   }
 
