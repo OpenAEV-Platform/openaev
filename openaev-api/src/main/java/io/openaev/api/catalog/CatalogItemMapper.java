@@ -21,7 +21,8 @@ import org.springframework.stereotype.Component;
 public class CatalogItemMapper {
 
   private static final String FILIGRAN = "Filigran";
-  private static final String COMMUNITY = "community";
+  private static final String ORIGIN_FILIGRAN = "filigran";
+  private static final String ORIGIN_COMMUNITY = "community";
 
   private final ObjectMapper mapper;
 
@@ -57,7 +58,7 @@ public class CatalogItemMapper {
     target.setStatus(CatalogItemStatus.fromManifest(item.status()));
     target.setName(item.name());
     target.setDescription(item.description());
-    target.setAuthor(COMMUNITY.equals(item.origin()) ? item.contributor() : FILIGRAN);
+    target.setAuthor(author(item));
     target.setSeverity(item.severity());
     target.setCategory(item.category());
     target.setMainFocus(item.mainFocus());
@@ -80,6 +81,14 @@ public class CatalogItemMapper {
     } catch (Exception e) {
       throw new IllegalArgumentException("Unreadable payload references", e);
     }
+  }
+
+  // An item without a known origin has no author.
+  private static String author(CatalogManifest.Item item) {
+    if (ORIGIN_FILIGRAN.equals(item.origin())) {
+      return FILIGRAN;
+    }
+    return ORIGIN_COMMUNITY.equals(item.origin()) ? item.contributor() : null;
   }
 
   // -- OUTPUT --

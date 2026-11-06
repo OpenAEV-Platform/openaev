@@ -97,6 +97,11 @@ class CatalogSyncApiTest extends IntegrationTest {
       return this;
     }
 
+    Release filigran() {
+      items.getLast().put("origin", "filigran");
+      return this;
+    }
+
     Release community(String contributor) {
       items.getLast().put("origin", "community");
       items.getLast().put("contributor", contributor);
@@ -265,13 +270,16 @@ class CatalogSyncApiTest extends IntegrationTest {
   class Origin {
 
     @Test
-    @DisplayName("A community scenario is authored by its contributor, a Filigran one by Filigran")
+    @DisplayName(
+        "Filigran and community scenarios get their author, one without a known origin none")
     void given_origin_should_setTheAuthor() throws Exception {
       // Act
       release("1.261105.0")
           .scenario("1.0.0", "VERIFIED", archive("{\"v\":1}"))
+          .filigran()
           .scenario("1.1.0", "VERIFIED", archive("{\"v\":2}"))
           .community("octocat")
+          .scenario("1.2.0", "VERIFIED", archive("{\"v\":3}"))
           .sync()
           .andExpect(status().isOk());
 
@@ -279,11 +287,12 @@ class CatalogSyncApiTest extends IntegrationTest {
       assertThat(
               entityManager
                   .createNativeQuery(
-                      "SELECT catalog_item_version || ':' || catalog_item_author FROM catalog_items"
+                      "SELECT catalog_item_version || ':' || COALESCE(catalog_item_author, '')"
+                          + " FROM catalog_items"
                           + " WHERE catalog_item_external_id = :id")
                   .setParameter("id", SCENARIO_ID)
                   .getResultList())
-          .containsExactlyInAnyOrder("1.0.0:Filigran", "1.1.0:octocat");
+          .containsExactlyInAnyOrder("1.0.0:Filigran", "1.1.0:octocat", "1.2.0:");
     }
   }
 
