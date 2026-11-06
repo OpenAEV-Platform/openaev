@@ -111,14 +111,13 @@ public class MarkingDefinitionService {
    * @param ctx transaction context containing tenant scope
    * @param tenantId the single tenant whose definitions and clearance are being read
    * @param userId the caller, whose clearance narrows the result
-   * @param bypass whether the caller is an admin/bypass identity - resolves to every tenant id
    * @return marking definitions the caller may assign, ascending by order
    */
   @Transactional(readOnly = true)
   public List<MarkingDefinition> listAssignable(
-      @NotNull TxCtx ctx, @NotBlank String tenantId, @NotBlank String userId, boolean bypass) {
+      @NotNull TxCtx ctx, @NotBlank String tenantId, @NotBlank String userId) {
     List<MarkingDefinition> all = listInternal(ctx);
-    MarkingCtx clearance = markingClearanceCacheManager.findClearance(userId, tenantId, bypass);
+    MarkingCtx clearance = markingClearanceCacheManager.findClearance(userId, tenantId);
     return switch (clearance) {
       case MarkingCtx.None ignored -> List.of();
       case MarkingCtx.Restricted restricted -> {
@@ -126,9 +125,9 @@ public class MarkingDefinitionService {
         yield all.stream().filter(definition -> held.contains(definition.getId())).toList();
       }
       // All is an unresolved, background-only intention (see MarkingCtx's javadoc) that
-      // findClearance never actually returns on the HTTP path - bypass resolves to a Restricted
-      // set of every tenant id instead. Handled defensively as "sees everything" to keep this
-      // switch exhaustive without assuming that invariant holds forever.
+      // findClearance never actually returns on the HTTP path - the first admin resolves to a
+      // Restricted set of every tenant id instead. Handled defensively as "sees everything" to
+      // keep this switch exhaustive without assuming that invariant holds forever.
       case MarkingCtx.All ignored -> all;
     };
   }
@@ -185,10 +184,9 @@ public class MarkingDefinitionService {
    *
    * <p>🔴 Evicts every cached clearance, for the same reason as an order change (see {@link
    * #update}): {@link MarkingClearanceCacheManager#findClearance} caches the <i>whole resolved
-   * set</i>, bypass included. A cached bypass entry was resolved against the tenant's definitions
-   * as they stood before this call, so it does not contain the new id — without the evict, a bypass
-   * caller who warmed their cache before creating this definition stays unable to assign or read it
-   * until the TTL expires, even though bypass should see everything unconditionally.
+   * set</i>. The first admin's cached entry was resolved against the tenant's definitions as they
+   * stood before this call, so it does not contain the new id — without the evict, they stay unable
+   * to assign or read it until the TTL expires, even though they should see everything.
    *
    * @param input create payload
    * @param tenantId tenant that owns the new row

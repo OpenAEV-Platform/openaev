@@ -15,6 +15,8 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
+import io.openaev.database.model.author.Authored;
+import io.openaev.database.model.author.Authorship;
 import io.openaev.helper.InjectStatisticsHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
@@ -82,7 +84,7 @@ import org.hibernate.type.SqlTypes;
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("injects")})
 })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SCENARIO)
-public class Scenario extends ModelBehaviour implements GrantableBase, TenantBase {
+public class Scenario extends ModelBehaviour implements GrantableBase, TenantBase, Authored {
 
   /** Status of scenario recurrence scheduling. */
   public enum RECURRENCE_STATUS {
@@ -292,6 +294,16 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @JsonProperty("scenario_scheduled_by")
   @Schema(implementation = String.class)
   private User scheduledBy;
+
+  // -- AUTHOR --
+
+  @Embedded
+  @AssociationOverride(name = "user", joinColumns = @JoinColumn(name = "scenario_author_user"))
+  @AssociationOverride(
+      name = "organization",
+      joinColumns = @JoinColumn(name = "scenario_author_organization"))
+  @JsonIgnore
+  private Authorship author;
 
   // -- MESSAGE --
 

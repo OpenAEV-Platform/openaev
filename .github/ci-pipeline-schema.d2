@@ -46,7 +46,7 @@ triggers: "① WHEN IT LAUNCHES" {
 direction: right
 style: {fill: "#FFF8E1"; stroke: "#FF8F00"; stroke-width: 3 ; font-size: 24; bold: true}
 
-core: "▶️  [Core] CI\n\npush → main, testing-xtm-one\npull_request → main\npush tag  N.N.N" {
+core: "▶️  [Core] CI\n\npush → main, testing-xtm-one\npull_request → any branch\npush tag  N.N.N" {
 style: {fill: "#FFE0B2"; stroke: "#E65100"; stroke-width: 3                                              ; border-radius: 20; bold: true; font-size: 21}
 }
 nightly: "🌙  [Core] Nightly CI\n\nschedule:  cron 0 3 * * *\n(daily, 03:00 UTC)\nworkflow_dispatch" {
@@ -116,14 +116,19 @@ wave0.build -> gated.bp: "needs: Backend Compile\n+ Frontend Build\n+ Prepare Bu
 wave0.build -> gated.bpm: "needs: same three" {class: needs}
 
 # ═══ 4. Aggregation ══════════════════════════════════════════════════════════
-cov: "📊 Coverage Upload ×3 (backend · frontend · e2e)\none job per Codecov flag, each starting when its own tests finish\nbest-effort, and deliberately NOT wired into the Gate" {
+cov: "📊 Coverage Upload ×3 (backend · frontend · e2e)\none job per Codecov flag, each starting when its own tests finish\nbest-effort, and deliberately NOT wired into the Gate\nbackend: report from green API tests only\nCodecov comments, all its statuses informational" {
 style: {fill: "#FCE4EC"; stroke: "#AD1457"; stroke-width: 3                                                                                                     ; border-radius: 8; font-size: 21}
 }
 
 wave0.tests -> cov: "backend needs: API Tests\ne2e needs: E2E" {class: needs}
 wave0.quality -> cov: "frontend needs: Frontend Quality" {class: needs}
 
-gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 16 jobs  ·  Coverage excluded" {
+bcov: "🔎 Backend Coverage Check\ntimeout 15 min · pull requests only\n≥ 80% of changed lines covered\ncounted like Codecov\nline coverage drop ≤ 0.1 point vs base\nadvisory in the Gate" {class: quality}
+
+wave0.tests -> bcov: "needs: green API Tests\nbuilds its own report, next to the upload" {class: needs}
+bcov -> gate: "advisory" {class: needs}
+
+gate: "✅   PIPELINE GATE\nrequired branch-protection status check\n\"pipeline / ✅ Pipeline Gate\"\n\nif: always()  ·  timeout 10 min  ·  needs: 19 jobs  ·  Coverage upload excluded" {
 style: {fill: "#FFCDD2"; stroke: "#B71C1C"; stroke-width: 5                                                                                                                             ; border-radius: 8; font-size: 28; bold: true}
 }
 

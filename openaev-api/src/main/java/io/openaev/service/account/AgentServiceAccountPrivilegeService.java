@@ -1,6 +1,7 @@
 package io.openaev.service.account;
 
 import io.openaev.config.SessionManager;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -25,8 +26,14 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
       TenantGroupService tenantGroupService,
       UserService userService,
       TenantUserService tenantUserService,
+      MarkingClearanceCacheManager markingClearanceCacheManager,
       SessionManager sessionManager) {
-    super(tenantRoleService, tenantGroupService, userService, tenantUserService);
+    super(
+        tenantRoleService,
+        tenantGroupService,
+        userService,
+        tenantUserService,
+        markingClearanceCacheManager);
     this.sessionManager = sessionManager;
   }
 

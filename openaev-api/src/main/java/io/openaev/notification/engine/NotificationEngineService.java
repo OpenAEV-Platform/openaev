@@ -149,6 +149,7 @@ public class NotificationEngineService {
           case UPDATE -> "updated";
           case DELETE -> "deleted";
           case SCORE_DEGRADATION -> "score degraded";
+          case SYNC_BLOCKED -> "sync blocked";
         };
     String resourceLabel = entry.getResourceType().name().toLowerCase().replace('_', ' ');
     return "[" + resourceLabel + "] " + label + " " + operation;

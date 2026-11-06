@@ -52,16 +52,17 @@ The Docker handoff checks producer conclusions every 15 seconds and aborts on an
 terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 `skipped`, so consumers stop promptly instead of waiting for artifacts that cannot arrive.
 
-### The six real `needs:` edges
+### The seven real `needs:` edges
 
 | Job | `needs:` | Why a hard dependency is correct |
 |-----|----------|----------------------------------|
 | **Backend Package (glibc)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Needs all three outputs on disk before packaging |
 | **Backend Package (musl)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Same, inside an Alpine Maven container |
-| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec; runs on success or failure |
+| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec, uploads `jacoco-api` and the Codecov flag; green API tests only |
+| **Backend Coverage Check** | API Tests | Builds the same report itself, next to the upload; pull requests with green API tests only |
 | **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
 | **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
-| **Pipeline Gate** | 15 jobs (see below) | Aggregates results; runs `if: always()` |
+| **Pipeline Gate** | 20 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
 
@@ -121,7 +122,8 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 |-----|-------------------|---------|
 | 📦 **Backend Package (glibc)** | 15 min | Fat JAR for standard Linux → `openaev-api-jar` |
 | 📦 **Backend Package (musl)** | 15 min | Fat JAR for Alpine, built in `maven:3.9-eclipse-temurin-21-alpine` |
-| 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → Codecov flag `backend` |
+| 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → artifact `jacoco-api` + Codecov flag `backend` |
+| 🔎 **Backend Coverage Check** | 15 min | ≥ 80% of changed lines covered, line coverage drop ≤ 0.1 point, both counted like Codecov, against the latest report of `main`; on a failure, posts a `Backend Coverage (advisory)` check that explains it and stays green; when that check cannot be posted (fork PRs), the job fails itself. Steps in `.github/actions/backend-coverage-check` |
 | 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
 | 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
 | 🔐 **Tenant shadow verdict** | 10 min | Nightly only. Collects the shadow shards' pass or fail into one table |
@@ -134,14 +136,20 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 ⚠️ **Required status check for branch protection.** Full name: `pipeline / ✅ Pipeline Gate`.
 If the caller's job key changes, the branch-protection rule must be updated.
 
-It `needs:` these 16 jobs:
+It `needs:` these 20 jobs:
 
-`ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
-`spotless-check`, `bom-override-guard`, `frontend-quality`, `api-tests`, `e2e-tests`, `api-types-check`,
-`backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `aikido-image-scan`
+`adr-numbering`, `ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`,
+`prepare-bundled-assets`, `spotless-check`, `bom-override-guard`, `frontend-quality`, `fds-conformity`,
+`fds-mui-regression`, `api-tests`, `coverage-backend-gate`, `e2e-tests`, `api-types-check`, `backend-package`,
+`backend-package-musl`, `docker-build`, `docker-merge`, `aikido-image-scan`
 
-**Coverage is deliberately excluded.** Coverage upload is best-effort reporting and must
-never hold a merge.
+**Advisory jobs.** `bom-override-guard`, `coverage-backend-gate` and `aikido-image-scan` show ⚠️ in the gate when they fail,
+and never fail it. A new check starts there so a false positive cannot block a merge; taking it out of
+the advisory list in the gate makes it blocking.
+
+**Coverage upload is deliberately excluded.** It is best-effort reporting and must never hold a
+merge. Codecov reports in its PR comment, and all its statuses are informational. The backend
+coverage rules that pass or fail run in our own `coverage-backend-gate` job.
 
 **The tenant shadow verdict is deliberately excluded too.** It only exists when the caller's
 `api-matrix` carries shadow entries, which today means Nightly, and it is red whenever a shadow
@@ -178,8 +186,8 @@ it blocking.
 
 | | Core CI | Nightly CI |
 |-|---------|------------|
-| Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → `main` | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
-| Total expanded jobs | ≈ 35 | ≈ 58 |
+| Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → any branch | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
+| Total expanded jobs | ≈ 36 | ≈ 59 |
 
 ### API Tests matrix
 

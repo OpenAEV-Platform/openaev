@@ -184,11 +184,6 @@ const useRetrieveOptions = () => {
           setOptions(response.data);
         });
         break;
-      case 'payload_author_team':
-        searchTeamByIdAsOption(ids).then((response) => {
-          setOptions(response.data);
-        });
-        break;
       case 'payload_author_organization':
         searchOrganizationByIdAsOptions(ids).then((response) => {
           setOptions(response.data);
@@ -243,15 +238,14 @@ const useRetrieveOptions = () => {
           setOptions([...teams.data, ...assetGroups.data]);
         });
         break;
-      // Author filter: an id may belong to a person, a team or an organization -
-      // resolve across all three and merge (each id only matches its own type).
+      // Author filter: an id may belong to a person or an organization -
+      // resolve across both and merge (each id only matches its own type).
       case 'action_author':
         Promise.all([
           searchPlayerByIdAsOption(ids),
-          searchTeamByIdAsOption(ids),
           searchOrganizationByIdAsOptions(ids),
-        ]).then(([players, teams, organizations]) => {
-          setOptions([...players.data, ...teams.data, ...organizations.data]);
+        ]).then(([players, organizations]) => {
+          setOptions([...players.data, ...organizations.data]);
         });
         break;
       case CUSTOM_DASHBOARD:

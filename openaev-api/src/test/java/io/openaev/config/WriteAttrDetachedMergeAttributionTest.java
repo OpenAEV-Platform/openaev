@@ -9,10 +9,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.api.groups.TenantGroupApi;
 import io.openaev.config.WriteAttrDetectorRecorder.Violation;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
+import io.openaev.rest.role.TenantRoleApi;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
  * the write falls back to the flush stack. Flushed from a test frame, it is then waived as
  * test-driven: a real production wrong-tenant write dropped in silence.
  *
- * <p>The production shape is the tenant group create on the non-prefixed route: the service assigns
+ * <p>The production shape is the tenant role create on the non-prefixed route: the service assigns
  * the id, takes the tenant from the ambient context (the default tenant, since the header route
  * does not set it) and saves, while the request scope is tenant B.
  */
@@ -49,7 +49,7 @@ import org.springframework.transaction.annotation.Transactional;
 class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
-  private static final String CONTROLLER = "io.openaev.api.groups.TenantGroupApi.createGroup";
+  private static final String CONTROLLER = "io.openaev.rest.role.TenantRoleApi.create";
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -88,7 +88,7 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
       WriteAttrDetectorRecorder.start();
 
       // Act
-      String id = postGroup();
+      String id = postRole();
       // No explicit flush: the pending insert of the managed copy is forced out by a native read
       // from this test method, so the flush stack holds no production frame.
       String writtenTenant = readTenantFromTestFrame(id);
@@ -99,37 +99,38 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
           DEFAULT_TENANT,
           writtenTenant,
           "precondition: the header-route create stamps the row with the default tenant");
-      List<Violation> groupViolations =
+      List<Violation> roleViolations =
           WriteAttrDetectorRecorder.violations().stream()
-              .filter(v -> "groups".equals(v.table()))
+              .filter(v -> "roles".equals(v.table()))
               .toList();
-      assertFalse(groupViolations.isEmpty(), "the trigger must see the group write");
+      assertFalse(roleViolations.isEmpty(), "the trigger must see the role write");
       List<String> attributed =
           WriteAttrGateExtension.offendingSignatures(
               WriteAttrDetectorRecorder.violations(), Set.of());
       assertTrue(
-          attributed.contains("groups DEFAULT " + CONTROLLER),
+          attributed.contains("roles DEFAULT " + CONTROLLER),
           "the merged copy must be attributed to the controller, not waived as test-driven;"
               + " attributed="
               + attributed
               + " violations="
-              + groupViolations);
+              + roleViolations);
     }
   }
 
-  private String postGroup() throws Exception {
+  private String postRole() throws Exception {
     String response =
         mvc.perform(
-                post(TenantGroupApi.GROUP_URI)
+                post(TenantRoleApi.ROLE_URI)
                     .header("X-Tenant-Ids", tenantB)
                     .with(csrf())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"group_name\":\"wattr-merge\"}"))
+                    .content(
+                        "{\"role_name\":\"wattr-merge\",\"role_description\":\"wattr-merge\",\"role_capabilities\":[]}"))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
             .getContentAsString();
-    return JsonPath.read(response, "$.group_id");
+    return JsonPath.read(response, "$.role_id");
   }
 
   /**
@@ -139,9 +140,9 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
    * production active-tables list a scoped native read of an active table would not see a row of
    * another tenant, which is exactly the row this test wrote on purpose.
    */
-  private String readTenantFromTestFrame(String groupId) {
+  private String readTenantFromTestFrame(String roleId) {
     entityManager.createNativeQuery("SELECT 1").getSingleResult();
     return jdbcTemplate.queryForObject(
-        "SELECT tenant_id FROM groups WHERE group_id = ?", String.class, groupId);
+        "SELECT tenant_id FROM roles WHERE role_id = ?", String.class, roleId);
   }
 }
