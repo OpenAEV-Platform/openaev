@@ -238,14 +238,14 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
   }
 
   @Nested
-  @DisplayName("The access-control gate's own by-id load, on an endpoint with no body-level guard")
+  @DisplayName("The execution-traces endpoint refuses an inject outside the caller's scope")
   class AccessControlGateReadsTheInjectInScope {
 
     @Test
     @DisplayName(
-        "given an out-of-scope inject, the capability holder is refused before the handler, not"
-            + " let through to an empty result")
-    void given_outOfScopeInject_should_refuseBeforeTheHandlerRuns() throws Exception {
+        "given an out-of-scope inject, the capability holder is refused, not let through to an"
+            + " empty result")
+    void given_outOfScopeInject_should_refuse() throws Exception {
       // Arrange
       String callerTenant =
           memberWithEveryTenantCapability("by-id-execution-traces-capability-holder");
@@ -256,10 +256,15 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
       int status = injectExecutionTraces(route, otherTenantInjectId, "nonexistent-team", "TEAMS");
 
       // Assert: the capability is role-level and would otherwise pass regardless of which tenant
-      // the inject belongs to (confirmed by the capability-holder's own-tenant case below), so a
-      // 404 here is PermissionService#resolveTarget's own by-id load, refusing an inject outside
-      // the caller's scope, not the handler's execution-trace query (which runs no scope check at
-      // all).
+      // the inject belongs to (confirmed by the capability-holder's own-tenant case below). This
+      // endpoint carries two independent tenant checks for an out-of-scope inject:
+      // PermissionService#resolveTarget's own by-id load, run by the access-control gate before the
+      // handler runs, and the handler's own requireInjectInScope(ctx, injectId) call (added so the
+      // admin/BYPASS callers the gate lets through with no parent load of their own are still
+      // refused). Either one alone already returns 404 here, so this case does not isolate which
+      // layer catches it: ByIdRequestScopeAccessControlAspectCoverageTest covers the two duplicate
+      // endpoints (scenario/exercise inject duplication) where resolveTarget's by-id load is the
+      // only tenant check for a non-admin caller.
       assertThat(status).isEqualTo(404);
     }
 
@@ -274,8 +279,8 @@ class ByIdRequestScopeNonAdminTest extends ByIdRequestScopeNonAdminTestBase {
       // Act
       int status = injectExecutionTraces(route, ownInjectId, "nonexistent-team", "TEAMS");
 
-      // Assert: the capability reaches the caller's own tenant, so the refusal above is the by-id
-      // scope and not a setup mistake; 200 with an empty list, since no trace matches the team.
+      // Assert: the capability reaches the caller's own tenant, so neither guard above refuses it
+      // for the wrong reason; 200 with an empty list, since no trace matches the team.
       assertThat(status).isEqualTo(200);
     }
   }
