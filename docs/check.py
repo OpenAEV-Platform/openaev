@@ -48,6 +48,10 @@ EXCLUDED_DIRS = {".venv", ".cache", "site", "tests", "__pycache__", ".git", ".de
 # which costs nothing when no variable has that name.
 ENV_TAG_RE = re.compile(r"!ENV\s+(\[[^\]]*\]|[A-Za-z_]\w*)")
 NAME_RE = re.compile(r"[A-Za-z_]\w*")
+# What the build reads besides docs/ and the !ENV of mkdocs.yml: the preview features of main.py
+# come from the backend enum and from DOCS_FEATURE_FLAGS.
+OUTSIDE_INPUTS = ("openaev-api/src/main/java/io/openaev/rest/settings/PreviewFeature.java",)
+OTHER_ENV = ("DOCS_FEATURE_FLAGS",)
 
 OK, DOCS_PROBLEMS, CHECK_FAILED = 0, 1, 3
 
@@ -76,11 +80,16 @@ def fingerprint(docs: Path, env: Mapping[str, str]) -> str:
     digest = hashlib.sha256()
     digest.update(f"{sys.version}\0{sys.prefix}".encode())
     config = docs / "mkdocs.yml"
-    for name in env_names(config.read_text(encoding="utf-8") if config.is_file() else ""):
+    names = env_names(config.read_text(encoding="utf-8") if config.is_file() else "")
+    for name in sorted(set(names) | set(OTHER_ENV)):
         digest.update(f"\0env:{name}={env.get(name)}".encode())
     for path in input_files(docs):
         digest.update(f"\0file:{path.relative_to(docs).as_posix()}\0".encode())
         digest.update(path.read_bytes())
+    for relative in OUTSIDE_INPUTS:
+        path = docs.parent / relative
+        digest.update(f"\0outside:{relative}\0".encode())
+        digest.update(path.read_bytes() if path.is_file() else b"<missing>")
     return digest.hexdigest()
 
 

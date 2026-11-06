@@ -45,7 +45,6 @@ class EnvNamesTest(unittest.TestCase):
     def test_the_real_mkdocs_yml(self):
         names = check.env_names((check.DOCS / "mkdocs.yml").read_text(encoding="utf-8"))
         self.assertIn("DOCS_GIT_PLUGINS", names)
-        self.assertIn("DOCS_FEATURE_FLAGS", names)
 
 
 class FingerprintTest(unittest.TestCase):
@@ -83,6 +82,18 @@ class FingerprintTest(unittest.TestCase):
         for name in ("DOCS_GIT_PLUGINS", "DOCS_FEATURE_FLAGS", "MY_TOKEN"):
             self.assertNotEqual(base, check.fingerprint(self.docs, {name: "x"}), name)
         self.assertEqual(base, check.fingerprint(self.docs, {"UNRELATED": "x"}))
+
+    def test_changes_with_the_preview_features_main_py_reads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory)
+            (repository / "docs").mkdir()
+            docs = make_docs(repository / "docs")
+            base = check.fingerprint(docs, {})
+            self.assertNotEqual(base, check.fingerprint(docs, {"DOCS_FEATURE_FLAGS": "*"}))
+            enum = repository / check.OUTSIDE_INPUTS[0]
+            enum.parent.mkdir(parents=True)
+            enum.write_text("enum PreviewFeature { A(), }")
+            self.assertNotEqual(base, check.fingerprint(docs, {}))
 
     def test_changes_with_the_python_environment(self):
         base = check.fingerprint(self.docs, {})

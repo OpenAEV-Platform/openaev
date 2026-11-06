@@ -170,7 +170,7 @@ Hide the documentation of a feature behind its backend `PreviewFeature` constant
 - To hide a whole page, add `preview_feature: CREDENTIAL_ASSET` to its front matter instead of a `feature_visible()`
   block: the `preview_features.py` hook removes it from the `nav` and from the build (no URL, no search entry). Keep
   every link to that page inside a `feature_visible()` block, or the strict build fails.
-- Preview the hidden content locally with `DOCS_FEATURE_FLAGS=CREDENTIAL_ASSET mkdocs serve` (`*` shows all of them).
+- Preview the hidden content locally with `DOCS_FEATURE_FLAGS=CREDENTIAL_ASSET python3 docs/run.py serve` (`*` shows all of them).
 - When the backend removes the constant, the strict build fails until you remove the `feature_visible()` blocks and
   the `preview_feature` front matter.
 
