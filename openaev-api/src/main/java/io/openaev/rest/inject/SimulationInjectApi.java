@@ -292,9 +292,10 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable @NotBlank final String injectId) {
     // The exercise and the inject are resolved in the request scope first so an id outside it
     // answers not found before any work. A faithful copy keeps the targets the user is not cleared
-    // for; the response
-    // is read back under their clearance. The copy starts from a cleared persistence context, so
-    // the exercise is reloaded by id inside it rather than reusing the entity resolved above.
+    // for; the response is read back under their clearance. The copy starts from a cleared
+    // persistence context, so the exercise is reloaded by id inside it rather than reusing the
+    // entity
+    // resolved above.
     exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
     String duplicateId =
