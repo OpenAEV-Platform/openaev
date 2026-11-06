@@ -117,6 +117,7 @@ public class MdeExecutorClient {
    * @param machineId MDE machine ID (40-char hex)
    * @param scriptName name of the script pre-uploaded to the MDE Live Response Library
    * @param encodedCommand Base64-encoded command string passed as script argument
+   * @throws MdeApiException when MDE refuses the action, e.g. another session is open on the device
    */
   public void executeAction(
       @NotBlank String machineId, @NotBlank String scriptName, @NotBlank String encodedCommand) {
@@ -146,12 +147,8 @@ public class MdeExecutorClient {
           machineId,
           scriptName);
       post(MACHINES_URI + "/" + machineId + "/runliveresponse", body);
-    } catch (Exception e) {
-      log.error(
-          "Error executing MDE Live Response action on machine {}: {}",
-          machineId,
-          e.getMessage(),
-          e);
+    } catch (IOException e) {
+      throw new ExecutorException(e, e.getMessage(), MDE_EXECUTOR_NAME);
     }
   }
 
@@ -359,7 +356,12 @@ public class MdeExecutorClient {
                   respBody.length() > 500
                       ? respBody.substring(0, 500) + "...(truncated)"
                       : respBody;
-              log.error("MDE API POST " + uri + " failed: HTTP " + code + " body=" + safeBody);
+              MdeApiException failure = new MdeApiException(uri, code, respBody, objectMapper);
+              // Busy device and rate limit are retried by the caller, which logs each retry.
+              if (!failure.isDeviceBusy() && !failure.isRateLimited()) {
+                log.error("MDE API POST " + uri + " failed: HTTP " + code + " body=" + safeBody);
+              }
+              throw failure;
             }
             return respBody;
           });

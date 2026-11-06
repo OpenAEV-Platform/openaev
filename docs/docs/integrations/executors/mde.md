@@ -167,7 +167,13 @@ group.
 
     Defaults rarely need changing: the API base URL (`https://api.securitycenter.microsoft.com/api`), the auth URL
     (`https://login.microsoftonline.com`), the register interval (device/agent sync, default **1200s**) and the Live
-    Response batch pagination (**10 machines / 5s**, the MDE rate limit is stricter than CrowdStrike).
+    Response batch pagination (**10 machines per minute**, the MDE Live Response rate limit).
+
+!!! info "One Live Response session per device"
+
+    MDE runs one Live Response session at a time on a device. When an inject reaches a device that is still busy
+    (another inject, or another tool using Live Response), OpenAEV retries every 30 seconds for up to 7 minutes and
+    logs each retry. Keep a few minutes between injects that target the same device.
 
 ![MDE executor advanced options](assets/mde-executor-advanced.png)
 
