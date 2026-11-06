@@ -1,12 +1,17 @@
 package io.openaev.rest.stream;
 
 import static io.openaev.database.audit.ModelBaseListener.DATA_UPDATE;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.config.DefaultOpenAEVPrincipal;
@@ -43,6 +48,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -237,6 +243,43 @@ class StreamServiceInjectsScopeTest extends IntegrationTest {
   @Nested
   @DisplayName("Inject event whose parent could not be captured")
   class UncapturedParent {
+
+    @Test
+    @DisplayName(
+        "given an event targeting a tenant-less inject and a consumer with no tenant, should not"
+            + " deliver it and warn that the check was refused")
+    void given_eventTargetingATenantlessInjectAndNoConsumerTenant_should_refuseAndWarn()
+        throws Exception {
+      // Arrange: no tenant on the event or on the consumer, so PermissionService can resolve the
+      // inject in no scope and refuses it
+      Logger streamLogger = (Logger) LoggerFactory.getLogger(StreamService.class);
+      Level previousLevel = streamLogger.getLevel();
+      ListAppender<ILoggingEvent> appender = new ListAppender<>();
+      appender.start();
+      streamLogger.addAppender(appender);
+      streamLogger.setLevel(Level.DEBUG);
+      try {
+        FluxSink<Object> consumerSink = subscribe("");
+        BaseEvent event = new BaseEvent(DATA_UPDATE, new Inject(), mapper);
+        ReflectionTestUtils.setField(event, "permissionResourceId", injectId);
+        ReflectionTestUtils.setField(event, "permissionResourceType", ResourceType.INJECT);
+
+        // Act
+        streamService.listenDatabaseUpdate(event);
+
+        // Assert
+        verify(consumerSink, after(2_000).never()).next(argThat(m -> m instanceof ServerSentEvent));
+        assertThat(appender.list)
+            .anyMatch(
+                logged ->
+                    logged.getLevel() == Level.WARN
+                        && logged.getFormattedMessage().contains("refused"));
+      } finally {
+        streamLogger.setLevel(previousLevel);
+        streamLogger.detachAppender(appender);
+        appender.stop();
+      }
+    }
 
     /**
      * The event BaseEvent builds when it cannot read the parent: the inject is its own target.
