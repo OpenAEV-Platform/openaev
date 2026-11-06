@@ -119,8 +119,11 @@ class TenantTablesTest {
   void restrictToAllStrictSkipsSelfIsolatedTables() {
     String graphVersion = tableOf(AttackPathGraphVersion.class);
     String tenants = tableOf(Tenant.class);
+    // A join table with no entity class, so its name cannot be read from a mapping.
+    String usersTenants = "users_tenants";
     TenantTables model =
-        new TenantTables(Set.of("documents", graphVersion, tenants), Set.of("groups"));
+        new TenantTables(
+            Set.of("documents", graphVersion, tenants, usersTenants), Set.of("groups"));
 
     TenantTables active = model.restrictTo(Set.of(TenantTables.ALL_STRICT));
 
@@ -133,13 +136,19 @@ class TenantTablesTest {
         TenantTables.Family.NONE,
         active.family(tenants),
         "the tenant registry is not tenant-scoped data; gating it stops the platform from bootstrapping");
+    assertEquals(
+        TenantTables.Family.NONE,
+        active.family(usersTenants),
+        "the membership check that computes the scope reads it before any scope exists");
   }
 
   @Test
-  @DisplayName("the self-isolated set is the tenant registry and the self-predicated graph version")
+  @DisplayName(
+      "the self-isolated set is the tenant registry, the membership mapping and the"
+          + " self-predicated graph version")
   void selfIsolatedTablesAreExposedForDerivation() {
     assertEquals(
-        Set.of(tableOf(AttackPathGraphVersion.class), tableOf(Tenant.class)),
+        Set.of(tableOf(AttackPathGraphVersion.class), tableOf(Tenant.class), "users_tenants"),
         TenantTables.selfIsolatedTables());
   }
 

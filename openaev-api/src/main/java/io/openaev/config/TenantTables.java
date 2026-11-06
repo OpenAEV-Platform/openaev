@@ -22,10 +22,10 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
   /**
    * Self-isolated tables: tables the schema derivation reads as strict but that must not be gated
    * by the statement inspector, so {@link #ALL_STRICT} leaves them out. "Self-isolated" means the
-   * table does not rely on the inspector for its isolation, for one of two reasons given per table
-   * below: it carries its own tenant predicates, or it holds no tenant-scoped data at all. Naming
-   * one of them in an explicit active-tables list is a configuration error that {@link #restrictTo}
-   * does not reject today.
+   * table does not rely on the inspector for its isolation, for one of the reasons given per table
+   * below: it carries its own tenant predicates, it holds no tenant-scoped data at all, or gating
+   * it would make the scope depend on the rows that compute it. Naming one of them in an explicit
+   * active-tables list is a configuration error that {@link #restrictTo} does not reject today.
    *
    * <ul>
    *   <li>{@code attackpath_graph_version}: its version counter is bumped by a single native {@code
@@ -41,12 +41,25 @@ public record TenantTables(Set<String> strict, Set<String> dualScope) {
    *       resolving the tenant. Which tenants a caller may see is a permission question, answered
    *       by group membership (see #7248), not a row-filtering one; two mechanisms answering it
    *       would eventually disagree.
+   *   <li>{@code users_tenants}: the membership mapping between a user and a tenant, platform data
+   *       rather than a tenant's. Its {@code tenant_id} is half of the primary key and a foreign
+   *       key onto the registry, never an attribution stamp, and the column is not nullable, so the
+   *       table cannot hold a platform row either. It is derived as a tenant table only because
+   *       that column is {@code NOT NULL}. Gating it is circular: the membership check that
+   *       computes a request's scope runs in {@code TenantInterceptor.preHandle}, before any
+   *       transaction and so before any scope exists, and {@code can_access_tenant} answers false
+   *       when there is no scope, so every member would be refused every tenant-prefixed request.
+   *       The same holds for token authentication and the membership reads of background threads.
+   *       Every statement on the table binds its own {@code user_id} or {@code tenant_id}, and the
+   *       endpoints that write it are guarded by the caller's membership in the addressed tenant
+   *       (prefixed route) and by the capability resolution in the default tenant (non-prefixed
+   *       route); see {@code TenantMembershipGuardTest}.
    * </ul>
    *
    * A table belongs here only with that kind of written reason. "Not activated yet" is not one.
    */
   private static final Set<String> SELF_ISOLATED_TABLES =
-      Set.of("attackpath_graph_version", "tenants");
+      Set.of("attackpath_graph_version", "tenants", "users_tenants");
 
   /**
    * The self-isolated tables, exposed so tooling that must leave them out (a schema-wide sweep, a
