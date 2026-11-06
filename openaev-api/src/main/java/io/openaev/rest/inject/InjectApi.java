@@ -101,6 +101,26 @@ public class InjectApi extends RestBehavior {
 
   // -- INJECTS --
 
+  /** Resolves the inject inside the request's tenant scope, or answers not found. */
+  private void requireInjectInScope(final TxCtx ctx, final String injectId) {
+    injectService.existsInScope(ctx, injectId);
+  }
+
+  /**
+   * Checks that the inject belongs to the given exercise, or answers not found. Loads the inject by
+   * primary key inside the request's tenant scope, the shape {@link InjectService#findInScope}
+   * uses, rather than a derived query: {@code existsByIdAndExerciseId} runs under Inject's still-
+   * active v1 filter, keyed on the ambient tenant rather than the request's resolved scope.
+   */
+  private void requireInjectBelongsToExercise(
+      final TxCtx ctx, final String exerciseId, final String injectId) {
+    Inject inject = injectService.inject(ctx, injectId);
+    if (!exerciseId.equals(inject.getExercise() == null ? null : inject.getExercise().getId())) {
+      throw new ElementNotFoundException(
+          "Inject not found with id: " + injectId + " in simulation: " + exerciseId);
+    }
+  }
+
   @GetMapping({INJECT_URI + "/{injectId}", TENANT_INJECT_URI + "/{injectId}"})
   @Transactional
   @AccessControl(
@@ -108,8 +128,7 @@ public class InjectApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
   public Inject inject(TxCtx ctx, @PathVariable @NotBlank final String injectId) {
-    Inject inject =
-        this.injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    Inject inject = this.injectService.inject(ctx, injectId);
     KillChainPhaseInitializer.initializeFromInjects(List.of(inject));
     InjectLinksInitializer.initialize(List.of(inject));
     return inject;
@@ -209,7 +228,7 @@ public class InjectApi extends RestBehavior {
       HttpServletResponse response)
       throws IOException {
 
-    Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    Inject inject = injectService.inject(ctx, injectId);
     int exportOptionsMask =
         ExportOptions.mask(
             injectIndividualExportRequestInput.getExportOptions().isWithPlayers(),
@@ -272,7 +291,7 @@ public class InjectApi extends RestBehavior {
       throw new BadRequestException(String.format("Invalid target type %s", targetType));
     }
 
-    Inject inject = injectService.inject(injectId);
+    Inject inject = injectService.inject(ctx, injectId);
 
     return targetService.searchTargets(injectTargetTypeEnum, inject, input);
   }
@@ -317,7 +336,7 @@ public class InjectApi extends RestBehavior {
       throw new BadRequestException(String.format("Invalid target type %s", targetType));
     }
 
-    Inject inject = injectService.inject(injectId);
+    Inject inject = injectService.inject(ctx, injectId);
 
     return targetService.getTargetOptions(
         injectTargetTypeEnum, inject, StringUtils.trimToEmpty(searchText));
@@ -368,7 +387,7 @@ public class InjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   public Inject injectExecutionReception(
       TxCtx ctx, @PathVariable String injectId, @Valid @RequestBody InjectReceptionInput input) {
-    Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    Inject inject = injectService.inject(ctx, injectId);
     InjectStatus injectStatus = inject.getStatus().orElseThrow(ElementNotFoundException::new);
     injectStatus.setName(ExecutionStatus.PENDING);
     Inject saved = injectRepository.save(inject);
@@ -481,7 +500,8 @@ public class InjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectInput input) {
     Exercise exercise =
-        exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+        exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    requireInjectBelongsToExercise(ctx, exerciseId, injectId);
     Inject inject = injectService.updateInject(injectId, input);
 
     // It should not be possible to add a EE executor on inject when the exercise is already
@@ -593,6 +613,13 @@ public class InjectApi extends RestBehavior {
       @RequestParam String injectId,
       @RequestParam String targetId,
       @RequestParam TargetType targetType) {
+    // Target-type validation runs first, so an unsupported type still 400s regardless of whether
+    // injectId exists (InjectApiTest#shouldReturn400WhenTargetTypeIsUnsupported pins that
+    // precedence with a nonexistent injectId), then the inject's own scope is checked explicitly:
+    // the admin and BYPASS callers this @AccessControl gate lets through with no parent load of
+    // their own still need it.
+    injectService.requireSupportedExecutionTraceTargetType(targetType);
+    requireInjectInScope(ctx, injectId);
     return this.injectService.getInjectTracesOutputFromInjectAndTarget(
         injectId, targetId, targetType);
   }
@@ -607,6 +634,7 @@ public class InjectApi extends RestBehavior {
   @LogExecutionTime
   public InjectStatusOutput getInjectStatusWithGlobalExecutionTraces(
       TxCtx ctx, @RequestParam String injectId) {
+    requireInjectInScope(ctx, injectId);
     return this.injectService.getInjectStatusWithGlobalExecutionTraces(injectId);
   }
 
@@ -623,6 +651,7 @@ public class InjectApi extends RestBehavior {
   @LogExecutionTime
   public InjectStatusOutput getInjectStatusWithAllExecutionTraces(
       TxCtx ctx, @RequestParam String injectId) {
+    requireInjectInScope(ctx, injectId);
     return this.injectService.getInjectStatusWithAllExecutionTraces(injectId);
   }
 
@@ -638,6 +667,7 @@ public class InjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   public List<DetectionRemediationOutput> getPayloadDetectionRemediations(
       TxCtx ctx, @PathVariable String injectId) {
+    requireInjectInScope(ctx, injectId);
     return payloadMapper.toDetectionRemediationOutputs(
         injectService.fetchDetectionRemediationsByInjectId(injectId));
   }
@@ -654,6 +684,7 @@ public class InjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   public List<RawDocument> getPayloadDocumentsByInjectIdAndPayloadId(
       TxCtx ctx, @PathVariable String injectId, @PathVariable String payloadId) {
+    requireInjectInScope(ctx, injectId);
     Payload payload = injectService.getPayloadByInjectId(injectId);
 
     if (!payloadId.equals(payload.getId())) {
@@ -677,6 +708,7 @@ public class InjectApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank String injectId,
       @RequestBody @Valid InjectAttachmentInput input) {
+    requireInjectInScope(ctx, injectId);
     return credentialService.resolveCredentialSecret(
         injectService.getSecretReferenceOrThrow(injectId, input));
   }

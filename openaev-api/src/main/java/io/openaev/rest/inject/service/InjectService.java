@@ -73,6 +73,7 @@ import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.JpaUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
@@ -282,6 +283,51 @@ public class InjectService {
     return this.injectRepository
         .findById(injectId)
         .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
+  }
+
+  /**
+   * Looks an inject up by id inside the request's tenant scope: the path tenant on the tenant
+   * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route.
+   * Loads by primary key, which Hibernate filters do not apply to, then keeps the row only when its
+   * tenant lies in the request's scope: a derived query such as {@code findByIdAndTenantIdIn} would
+   * instead run under Inject's still-active v1 filter, which the non-prefixed route keys on the
+   * default tenant regardless of the resolved scope.
+   *
+   * <p>Carries its own read-only transaction so the request's tenant scope reaches the lookup even
+   * when the caller runs under {@code Propagation.SUPPORTS} with no transaction already open: the
+   * guard then opens a short one of its own instead of running unscoped.
+   */
+  @Transactional(readOnly = true)
+  public Optional<Inject> findInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
+    return doFindInScope(ctx, injectId);
+  }
+
+  /** Loads an inject inside the request's tenant scope. Throws if not found there. */
+  @Transactional(readOnly = true)
+  public Inject inject(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
+    return doFindInScope(ctx, injectId)
+        .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
+  }
+
+  /** Validates that the inject exists inside the request's tenant scope. Throws if not. */
+  @Transactional(readOnly = true)
+  public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
+    if (doFindInScope(ctx, injectId).isEmpty()) {
+      throw new ElementNotFoundException("Inject not found with id: " + injectId);
+    }
+  }
+
+  /**
+   * Body of {@link #findInScope}. Kept un-annotated so {@link #inject(TxCtx, String)} and {@link
+   * #existsInScope} can reuse it without the intra-class {@code @Transactional} self-invocation
+   * trap (a same-class call bypasses the Spring proxy). Must be called inside a transaction; each
+   * of the three public entry points above carries its own.
+   */
+  private Optional<Inject> doFindInScope(final TxCtx ctx, final String injectId) {
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
+    return this.injectRepository
+        .findById(injectId)
+        .filter(inject -> scope.contains(inject.getTenant().getId()));
   }
 
   /**
@@ -1318,6 +1364,20 @@ public class InjectService {
       final String injectId, final String targetId, final TargetType targetType) {
     return toExecutionTracesOutput(
         getInjectTracesFromInjectAndTarget(injectId, targetId, targetType));
+  }
+
+  /**
+   * Validates that an execution-trace target type is one this family resolves traces for. Called
+   * ahead of the by-id scope guard, so an unsupported type answers 400 regardless of whether the
+   * inject itself exists in the request's scope.
+   */
+  public void requireSupportedExecutionTraceTargetType(final TargetType targetType) {
+    switch (targetType) {
+      case AGENT, ASSETS, AI_TARGETS, TEAMS, PLAYERS, MANUAL -> {
+        // supported
+      }
+      default -> throw new BadRequestException("Target type " + targetType + " is not supported");
+    }
   }
 
   public List<ExecutionTrace> getInjectTracesFromInjectAndTarget(
