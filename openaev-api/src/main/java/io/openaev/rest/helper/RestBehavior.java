@@ -570,6 +570,13 @@ public class RestBehavior {
   }
 
   @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(TenantSingleScopeRequiredException.class)
+  public ResponseEntity<ErrorMessage> handleTenantSingleScopeRequiredException(
+      TenantSingleScopeRequiredException ex) {
+    return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.BAD_REQUEST);
+  }
+
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
   @ExceptionHandler(TenantWriteScopeException.class)
   public ResponseEntity<ErrorMessage> handleTenantWriteScopeException(
       TenantWriteScopeException ex) {
