@@ -428,7 +428,8 @@ public class ExecutionExecutorServiceTest {
       return inject;
     }
 
-    private void stubFindByExecutorId(String executorId, ConnectorInstancePersisted instance) {
+    private void stubConnectorInstanceOfExecutor(
+        String executorId, ConnectorInstancePersisted instance) {
       ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase ids =
           mock(ConnectorInstanceConfigurationRepository.ConnectorIdsFromDatabase.class);
       when(ids.getConnectorInstanceId()).thenReturn(instance.getId());
@@ -460,15 +461,15 @@ public class ExecutionExecutorServiceTest {
 
       ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
       connectorInstance.setId("instance-1");
-      stubFindByExecutorId(executor.getId(), connectorInstance);
+      stubConnectorInstanceOfExecutor(executor.getId(), connectorInstance);
 
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);
       when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
           .thenReturn(mockContextService);
       when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenReturn(List.of());
-      when(agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
-          .thenReturn("token");
+      when(agentServiceAccountPrivilegeService.findTokenUserServiceAccountByTenant(anyString()))
+          .thenReturn(Optional.of("token"));
 
       // Act
       executorService.launchExecutorContext(inject, RESOLVED_TARGETS);
@@ -530,15 +531,15 @@ public class ExecutionExecutorServiceTest {
 
       ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
       connectorInstance.setId("instance-no-simulation");
-      stubFindByExecutorId(executor.getId(), connectorInstance);
+      stubConnectorInstanceOfExecutor(executor.getId(), connectorInstance);
 
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);
       when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
           .thenReturn(mockContextService);
       when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenReturn(List.of());
-      when(agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
-          .thenReturn("token");
+      when(agentServiceAccountPrivilegeService.findTokenUserServiceAccountByTenant(anyString()))
+          .thenReturn(Optional.of("token"));
 
       // Act
       executorService.launchExecutorContext(inject, RESOLVED_TARGETS);
@@ -571,15 +572,15 @@ public class ExecutionExecutorServiceTest {
 
       ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
       connectorInstance.setId("instance-fail");
-      stubFindByExecutorId(executor.getId(), connectorInstance);
+      stubConnectorInstanceOfExecutor(executor.getId(), connectorInstance);
 
       ExecutorContextService mockContextService = mock(ExecutorContextService.class);
       when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
           .thenReturn(mockContextService);
       when(mockContextService.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenThrow(new RuntimeException("CrowdStrike API timeout"));
-      when(agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
-          .thenReturn("token");
+      when(agentServiceAccountPrivilegeService.findTokenUserServiceAccountByTenant(anyString()))
+          .thenReturn(Optional.of("token"));
 
       // Act & Assert
       assertThatThrownBy(() -> executorService.launchExecutorContext(inject, RESOLVED_TARGETS))
@@ -593,6 +594,82 @@ public class ExecutionExecutorServiceTest {
       assertThat(errorTraces).hasSize(1);
       assertThat(errorTraces.getFirst().getStatus()).isEqualTo(ExecutionTraceStatus.ERROR);
       assertThat(errorTraces.getFirst().getMessage()).isEqualTo("CrowdStrike API timeout");
+    }
+
+    @Test
+    @DisplayName(
+        "Given external executor without connector instance, should trace the agents in error and skip the executor")
+    void given_externalExecutorWithoutConnectorInstance_should_traceAgentErrorsAndSkipExecutor()
+        throws Exception {
+      // Arrange: no connector instance owns the executor on the tenant
+      Executor executor = new Executor();
+      executor.setId("executor-no-instance");
+      executor.setName("CrowdStrike");
+      executor.setType("openaev_crowdstrike");
+      executor.setExternal(true);
+      Inject inject = createInjectWithActiveAgent(executor);
+      Manager manager = mock(Manager.class);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
+
+      // Act & Assert: final for this executor, so no asset is executed
+      assertThatThrownBy(() -> executorService.launchExecutorContext(inject, RESOLVED_TARGETS))
+          .isInstanceOf(ExecutionExecutorException.class)
+          .hasMessageContaining("No asset executed");
+
+      // Assert
+      ArgumentCaptor<List<ExecutionTrace>> captor = ArgumentCaptor.forClass(List.class);
+      verify(executionTraceRepository).saveAll(captor.capture());
+      assertThat(captor.getValue())
+          .singleElement()
+          .satisfies(
+              trace -> {
+                assertThat(trace.getStatus()).isEqualTo(ExecutionTraceStatus.ERROR);
+                assertThat(trace.getMessage())
+                    .isEqualTo("No connector instance found for executor ID: " + executor.getId());
+              });
+      verify(manager, never()).requestForInstance(any(), any());
+      verify(agentServiceAccountPrivilegeService, never())
+          .findTokenUserServiceAccountByTenant(anyString());
+    }
+
+    @Test
+    @DisplayName(
+        "Given no service account token on the tenant, should trace the agents in error and skip the executor")
+    void given_noServiceAccountToken_should_traceAgentErrorsAndSkipExecutor() throws Exception {
+      // Arrange
+      Executor executor = new Executor();
+      executor.setId("executor-no-token");
+      executor.setName("CrowdStrike");
+      executor.setType("openaev_crowdstrike");
+      executor.setExternal(true);
+      Inject inject = createInjectWithActiveAgent(executor);
+      Manager manager = mock(Manager.class);
+      when(managerFactory.getManager(anyString())).thenReturn(manager);
+      ConnectorInstancePersisted connectorInstance = new ConnectorInstancePersisted();
+      connectorInstance.setId("instance-no-token");
+      stubConnectorInstanceOfExecutor(executor.getId(), connectorInstance);
+      ExecutorContextService mockContextService = mock(ExecutorContextService.class);
+      when(manager.requestForInstance(eq(connectorInstance), eq(ExecutorContextService.class)))
+          .thenReturn(mockContextService);
+      when(agentServiceAccountPrivilegeService.findTokenUserServiceAccountByTenant(anyString()))
+          .thenReturn(Optional.empty());
+
+      // Act & Assert: final for this executor, so no asset is executed
+      assertThatThrownBy(() -> executorService.launchExecutorContext(inject, RESOLVED_TARGETS))
+          .isInstanceOf(ExecutionExecutorException.class)
+          .hasMessageContaining("No asset executed");
+
+      // Assert
+      ArgumentCaptor<List<ExecutionTrace>> captor = ArgumentCaptor.forClass(List.class);
+      verify(executionTraceRepository).saveAll(captor.capture());
+      assertThat(captor.getValue())
+          .singleElement()
+          .satisfies(
+              trace -> {
+                assertThat(trace.getStatus()).isEqualTo(ExecutionTraceStatus.ERROR);
+                assertThat(trace.getMessage()).isEqualTo("Token not found");
+              });
+      verifyNoInteractions(mockContextService);
     }
 
     @Test
@@ -651,8 +728,8 @@ public class ExecutionExecutorServiceTest {
       ConnectorInstancePersisted instance2 = new ConnectorInstancePersisted();
       instance2.setId("instance-cs-2");
 
-      stubFindByExecutorId("executor-cs-1", instance1);
-      stubFindByExecutorId("executor-cs-2", instance2);
+      stubConnectorInstanceOfExecutor("executor-cs-1", instance1);
+      stubConnectorInstanceOfExecutor("executor-cs-2", instance2);
 
       ExecutorContextService mockCtx1 = mock(ExecutorContextService.class);
       ExecutorContextService mockCtx2 = mock(ExecutorContextService.class);
@@ -665,8 +742,8 @@ public class ExecutionExecutorServiceTest {
           .thenReturn(List.of());
       when(mockCtx2.launchBatchExecutorSubprocess(any(), any(), any(), anyString()))
           .thenReturn(List.of());
-      when(agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(anyString()))
-          .thenReturn("token");
+      when(agentServiceAccountPrivilegeService.findTokenUserServiceAccountByTenant(anyString()))
+          .thenReturn(Optional.of("token"));
 
       // Act
       executorService.launchExecutorContext(inject, RESOLVED_TARGETS);
