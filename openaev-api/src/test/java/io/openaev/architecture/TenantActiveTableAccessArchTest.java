@@ -253,6 +253,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
 import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.PlatformAdoptionMetricCollector;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
@@ -1237,6 +1238,11 @@ class TenantActiveTableAccessArchTest {
               // (setScopeOnCurrentTransaction(forTenant(...))) before reading getInjector(), so the
               // lazy load resolves under a real scope instead of fail-closing to null:
               ScenarioToExerciseService.class,
+              // Reads the injector type of an inject a user just created, updated or duplicated.
+              // Every caller runs under its HTTP entrypoint's TxCtx-scoped transaction (inject,
+              // atomic testing, simulation, scenario and autonomous run APIs), so the lazy load
+              // resolves; a miss would only export "unknown":
+              CredentialMetricCollector.class,
               // --- PRE_EXISTING_UNVERIFIED_CALLERS (tracked follow-up, see comment above) ---
               InjectExecutionStep.class,
               AttackPathExecution.class,
