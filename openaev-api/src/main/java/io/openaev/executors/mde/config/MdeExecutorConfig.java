@@ -111,7 +111,7 @@ public class MdeExecutorConfig extends BaseIntegrationConfiguration {
       key = "EXECUTOR_MDE_API_BATCH_EXECUTION_ACTION_PAGINATION",
       jsonType = CONNECTOR_CONFIGURATION_TYPE.INTEGER,
       description =
-          "Number of machines sent per 5 seconds to MDE Live Response API to execute a payload (MDE rate limit is stricter than CrowdStrike)")
+          "Number of machines sent per minute to MDE Live Response API to execute a payload (MDE allows 10 calls per minute)")
   @Getter
   @NotNull
   @Min(1)
