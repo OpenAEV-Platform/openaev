@@ -18,7 +18,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  */
 @WithMockUser
 @DisplayName(
-    "The AccessControlAspect INJECT parent load covers scenario and simulation inject endpoints")
+    "A non-admin caller reaches the inject endpoints of its own tenant's scenarios and simulations,"
+        + " and not those of another tenant's")
 class ByIdRequestScopeAccessControlAspectCoverageTest extends ByIdRequestScopeNonAdminTestBase {
 
   @Nested
