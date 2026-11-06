@@ -374,7 +374,7 @@ public class AutonomousRunApi extends RestBehavior {
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun pause(TxCtx ctx, @PathVariable String runId) {
-    return autonomousRunService.pause(runId);
+    return autonomousRunService.pause(ctx, runId);
   }
 
   @Operation(summary = "Resume a paused run and its chained simulation")
@@ -386,7 +386,7 @@ public class AutonomousRunApi extends RestBehavior {
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun resume(TxCtx ctx, @PathVariable String runId) {
-    return autonomousRunService.resume(runId);
+    return autonomousRunService.resume(ctx, runId);
   }
 
   @Operation(summary = "Cancel a run and its chained simulation")
@@ -398,7 +398,7 @@ public class AutonomousRunApi extends RestBehavior {
       resourceId = "#runId",
       isEnterpriseEdition = true)
   public AutonomousRun cancel(TxCtx ctx, @PathVariable String runId) {
-    return autonomousRunService.cancel(runId);
+    return autonomousRunService.cancel(ctx, runId);
   }
 
   @Operation(
