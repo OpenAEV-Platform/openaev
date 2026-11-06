@@ -447,7 +447,7 @@ jobs:
 
   # The backend coverage rules, on pull requests: at least 80% of the backend lines the pull request
   # changes are covered, and backend line coverage does not drop by more than 0.1 point against
-  # the base commit. It builds its own report, next to coverage-backend rather than after it.
+  # the last commit of main. It builds its own report, next to coverage-backend rather than after it.
   # Reported through the Pipeline Gate as advisory, never blocking, until it has run clean for a
   # while on real PRs. Making it blocking means taking the job out of the advisory list in the
   # gate below.
