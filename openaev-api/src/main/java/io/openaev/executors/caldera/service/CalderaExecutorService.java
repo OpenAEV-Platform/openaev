@@ -116,10 +116,34 @@ public class CalderaExecutorService implements Runnable {
       for (AgentRegisterInput input : endpointRegisterList) {
         registerAgentEndpoint(input);
       }
-      this.platformSettingsService.cleanMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+      clearCalderaUnavailableBanner();
     } catch (Exception e) {
-      this.platformSettingsService.errorMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+      setCalderaUnavailableBanner();
     }
+  }
+
+  /**
+   * The Caldera-unavailable banner is a platform-wide operational status, not tenant data, stored
+   * as a platform row of the dual-scope {@code parameters} table ({@code tenant_id IS NULL}).
+   * {@code doRun()} already runs inside the tenant-scoped transaction {@link #run()} opened for
+   * {@code executor.getTenantId()}, so the write needs its own nested, platform-write-marked
+   * transaction rather than relying on the ambient one, which is tenant-scoped and never
+   * platform-write.
+   */
+  private void clearCalderaUnavailableBanner() {
+    tenantTx.executeNewAsPlatformWrite(
+        TxCtx.forTenant(executor.getTenantId()),
+        () ->
+            this.platformSettingsService.cleanMessage(
+                BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE));
+  }
+
+  private void setCalderaUnavailableBanner() {
+    tenantTx.executeNewAsPlatformWrite(
+        TxCtx.forTenant(executor.getTenantId()),
+        () ->
+            this.platformSettingsService.errorMessage(
+                BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE));
   }
 
   private void registerAgentEndpoint(AgentRegisterInput input) {
