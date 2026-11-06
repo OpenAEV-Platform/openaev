@@ -1,6 +1,6 @@
 import { ButtonGroup, ButtonGroupItem, Chip, IconButton, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { FileDownloadOutlined, GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Skeleton } from '@mui/material';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { FileChartOutline } from 'mdi-material-ui';
 import { type CSSProperties, useMemo, useState } from 'react';
 import { Link } from 'react-router';
@@ -8,6 +8,7 @@ import { makeStyles } from 'tss-react/mui';
 
 import { downloadReportingGenerationUrl, searchReportings } from '../../../actions/reporting/reporting-actions';
 import Breadcrumbs from '../../../components/Breadcrumbs';
+import CardGrid from '../../../components/common/card/CardGrid';
 import { initSorting } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -149,41 +150,18 @@ const Reportings = () => {
     </ButtonGroup>
   );
 
-  const renderCards = () => {
-    if (loading) {
-      return (
-        <Box sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          gap: 2,
-          mt: 2,
-        }}
-        >
-          {Array.from({ length: 8 }).map((_, idx) => (
-            <Skeleton key={idx} variant="rectangular" height={170} animation="wave" sx={{ borderRadius: 1 }} />
-          ))}
-        </Box>
-      );
-    }
-    return (
-      <Box sx={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-        gap: 2,
-        mt: 2,
-      }}
-      >
-        {reportings.map((reporting: Reporting) => (
-          <ReportingCard
-            key={reporting.reporting_id}
-            reporting={reporting}
-            onUpdate={onUpdate}
-            onDelete={onDelete}
-          />
-        ))}
-      </Box>
-    );
-  };
+  const renderCards = () => (
+    <CardGrid loading={loading} style={{ marginTop: 16 }}>
+      {reportings.map((reporting: Reporting) => (
+        <ReportingCard
+          key={reporting.reporting_id}
+          reporting={reporting}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+        />
+      ))}
+    </CardGrid>
+  );
 
   return (
     <>
