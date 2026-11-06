@@ -246,6 +246,7 @@ public class ScenarioToExerciseService {
       scenarioInjects.forEach(
           scenarioInject -> {
             Inject exerciseInject = new Inject();
+            exerciseInject.setTenant(scenario.getTenant());
             exerciseInject.setTitle(scenarioInject.getTitle());
             exerciseInject.setDescription(scenarioInject.getDescription());
             exerciseInject.setInjectorContract(scenarioInject.getInjectorContract().orElse(null));

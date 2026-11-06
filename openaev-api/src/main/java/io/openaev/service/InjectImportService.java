@@ -650,6 +650,7 @@ public class InjectImportService {
 
     // Creating the inject
     Inject inject = new Inject();
+    inject.setTenant(new Tenant(writeTenant));
     inject.setDependsDuration(0L);
 
     // Adding the description

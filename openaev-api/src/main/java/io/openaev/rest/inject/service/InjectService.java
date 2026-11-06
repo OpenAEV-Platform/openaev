@@ -208,6 +208,10 @@ public class InjectService {
     // Get common attributes
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
     Inject inject = input.toInject(injectorContract, injector);
+    // The inject is stamped with the tenant its contract was resolved in: the composite key
+    // (inject_injector_contract, tenant_id) ties the two, and the ambient tenant the listener
+    // would stamp is the default one on the non-prefixed route.
+    inject.setTenant(new Tenant(parentTenantId));
     inject.setUser(this.userService.currentUser());
     inject.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
     inject.setAssets(fromIterable(assetService.assets(input.getAssets())));
