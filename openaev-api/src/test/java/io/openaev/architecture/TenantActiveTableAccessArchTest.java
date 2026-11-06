@@ -2445,14 +2445,26 @@ class TenantActiveTableAccessArchTest {
    * A built-in injector contract id/external id repeats across every tenant that holds a copy
    * (#8485), so {@link InjectorContractService#injectorContract(String)} and the repository's bare
    * {@link InjectorContractRepository#findById(String)} / {@link
-   * InjectorContractRepository#findByIdOrExternalId} / {@link
-   * InjectorContractRepository#findAllById} resolve a unique row only when the caller's scope is
-   * already pinned to exactly one tenant. #7905 round 3 found three callers that reached one of
-   * these from a scope that could legitimately span several ({@code ThreatArsenalApi
+   * InjectorContractRepository#findByIdOrExternalId} resolve a unique row only when the caller's
+   * scope is already pinned to exactly one tenant. #7905 round 3 found three callers that reached
+   * one of these from a scope that could legitimately span several ({@code ThreatArsenalApi
    * #threatArsenal}, the four {@code InjectorContractApi} singular endpoints, {@code
    * AttackPathGraphService#executionDetail}) and fixed each by pinning its own scope or resolving
    * in a known parent's tenant instead. This rule closes the gap for every future caller: it is
    * caught here rather than in a review.
+   *
+   * <p>Out of scope by construction, not by oversight: {@code
+   * CrudRepository#findById(InjectorContractId)} and {@code CrudRepository#findAllById(Iterable)},
+   * inherited from {@code CrudRepository<InjectorContract, InjectorContractId>}, take the composite
+   * key, which already carries {@code tenant_id}, so a call to either can never be
+   * bare-id-ambiguous. They are also unreachable for {@link #bareByIdLookupIsCalledOnlyBy} to catch
+   * even if they were: ArchUnit resolves a call to a method a type inherits without overriding to
+   * the declaring supertype ({@code CrudRepository}), never to {@code InjectorContractRepository},
+   * so an owner-based check keyed on {@code InjectorContractRepository.class.getName()} cannot
+   * match it. Measured by probe: calling {@code findById(String)}, {@code findByIdOrExternalId} and
+   * {@code InjectorContractService#injectorContract(String)} from an unlisted class fails this
+   * rule; calling the inherited {@code findAllById(List<InjectorContractId>)} from the same
+   * unlisted class does not.
    */
   @ArchTest
   static final ArchRule injector_contract_bare_by_id_lookup_is_called_only_by =
@@ -2520,8 +2532,16 @@ class TenantActiveTableAccessArchTest {
   /**
    * Finds, by reflection on the call target rather than a fixed list, every call to the bare
    * injector-contract by-id lookups whose uniqueness depends on the caller's scope being pinned to
-   * one tenant: {@link InjectorContractService#injectorContract(String)} and the repository's
-   * {@code findById}, {@code findByIdOrExternalId} and {@code findAllById}.
+   * one tenant: {@link InjectorContractService#injectorContract(String)} and the repository's own
+   * declared {@code findById(String)} and {@code findByIdOrExternalId}.
+   *
+   * <p>Deliberately does not list {@code findById(InjectorContractId)} or {@code
+   * findAllById(Iterable<InjectorContractId>)}: both are inherited, unoverridden, from {@code
+   * CrudRepository<InjectorContract, InjectorContractId>}, so their composite-key argument already
+   * carries {@code tenant_id} and a call to either is never bare-id-ambiguous. ArchUnit also
+   * resolves such an inherited call to its declaring supertype rather than to {@code
+   * InjectorContractRepository}, so an owner-name check like this one could not catch it anyway;
+   * listing it here would document a protection that does not exist.
    */
   private static ArchRule bareByIdLookupIsCalledOnlyBy(Class<?>... allowed) {
     DescribedPredicate<JavaMethodCall> callsBareByIdLookup =
@@ -2538,9 +2558,7 @@ class TenantActiveTableAccessArchTest {
                             return name.equals("injectorContract");
                           }
                           if (owner.equals(InjectorContractRepository.class.getName())) {
-                            return name.equals("findById")
-                                || name.equals("findByIdOrExternalId")
-                                || name.equals("findAllById");
+                            return name.equals("findById") || name.equals("findByIdOrExternalId");
                           }
                           return false;
                         })
