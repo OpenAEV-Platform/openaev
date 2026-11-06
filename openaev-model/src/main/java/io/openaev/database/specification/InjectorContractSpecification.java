@@ -3,6 +3,7 @@ package io.openaev.database.specification;
 import io.openaev.database.model.*;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
 public class InjectorContractSpecification {
@@ -50,16 +51,17 @@ public class InjectorContractSpecification {
         return cb.conjunction();
       }
 
-      return root.get("compositeId")
-          .get("id")
-          .in(
-              SpecificationUtils.accessibleResourcesSubquery(
-                  query,
-                  cb,
-                  currentUser.getId(),
-                  currentUser.scopedTenantId(),
-                  Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
-                  Grant.GRANT_TYPE.OBSERVER.andHigher()));
+      Subquery<String> granted =
+          SpecificationUtils.accessibleResourcesSubquery(
+              query,
+              cb,
+              currentUser.getId(),
+              currentUser.scopedTenantId(),
+              Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
+              Grant.GRANT_TYPE.OBSERVER.andHigher());
+      return cb.or(
+          root.get("compositeId").get("id").in(granted),
+          root.join("payload", JoinType.LEFT).get("identity").get("id").in(granted));
     };
   }
 }

@@ -983,6 +983,7 @@ public class InjectorContractService implements DependenciesManager {
             .when(cb.isNotNull(authorUserJoin.get("id")), cb.literal("user"))
             .when(cb.isNotNull(authorOrgJoin.get("id")), cb.literal("organization"))
             .otherwise(cb.nullLiteral(String.class));
+    Expression<String> payloadIdentityId = ctx.payloadJoin().get("identity").<String>get("id");
 
     cq.multiselect(
         injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
@@ -1000,9 +1001,12 @@ public class InjectorContractService implements DependenciesManager {
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
         authorId.alias("injector_contract_payload_author"),
         authorName.alias("injector_contract_payload_author_name"),
-        authorType.alias("injector_contract_payload_author_type"));
+        authorType.alias("injector_contract_payload_author_type"),
+        cb.coalesce(payloadIdentityId, injectorContractRoot.get("compositeId").<String>get("id"))
+            .alias("injector_contract_grant_resource_id"));
 
     List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
+    groupBy.add(payloadIdentityId);
     groupBy.add(cAuthorUserJoin.get("id"));
     groupBy.add(cAuthorUserJoin.get("email"));
     groupBy.add(cAuthorUserJoin.get("firstname"));
@@ -1066,7 +1070,8 @@ public class InjectorContractService implements DependenciesManager {
         dedupePreservingOrder(tuple.get("injector_contract_attack_patterns", String[].class)),
         tuple.get("injector_contract_payload_author", String.class),
         tuple.get("injector_contract_payload_author_name", String.class),
-        tuple.get("injector_contract_payload_author_type", String.class));
+        tuple.get("injector_contract_payload_author_type", String.class),
+        tuple.get("injector_contract_grant_resource_id", String.class));
   }
 
   private ThreatArsenalActionWithContentOutput mapThreatArsenalContent(Tuple tuple) {

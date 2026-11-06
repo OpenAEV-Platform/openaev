@@ -12956,6 +12956,11 @@ export interface ThreatArsenalAction {
    * @uniqueItems true
    */
   action_domains_ids: string[];
+  /**
+   * Id the action's grants target: its payload identity, else the contract
+   * @minLength 1
+   */
+  action_grant_resource_id: string;
   /** Injector type */
   action_injector_type?: string;
   /** Labels */

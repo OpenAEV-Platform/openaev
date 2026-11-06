@@ -17,6 +17,7 @@ import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import jakarta.validation.constraints.NotNull;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -405,13 +406,17 @@ public class PermissionService {
       return true;
     }
 
+    List<String> resourceIds =
+        ResourceType.THREAT_ARSENAL.equals(resourceType) && resourceId != null
+            ? grantService.threatArsenalGrantResources(resourceId)
+            : Collections.singletonList(resourceId);
     switch (action) {
       case READ:
-        return grantService.hasReadGrant(resourceId, user);
+        return resourceIds.stream().anyMatch(id -> grantService.hasReadGrant(id, user));
       case WRITE, DELETE:
-        return grantService.hasWriteGrant(resourceId, user);
+        return resourceIds.stream().anyMatch(id -> grantService.hasWriteGrant(id, user));
       case LAUNCH:
-        return grantService.hasLaunchGrant(resourceId, user);
+        return resourceIds.stream().anyMatch(id -> grantService.hasLaunchGrant(id, user));
       default:
         return false;
     }
