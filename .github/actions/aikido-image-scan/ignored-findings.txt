@@ -1,0 +1,15 @@
+# Findings of the Aikido image scan that are false positives for the OpenAEV images.
+# One per line: <ID> | <package> | <reason>, the package as the report shows it (any case).
+# An ignored finding is left out of the report's table and of the fixable count, and listed with
+# its reason. Remove a line once the scanner stops reporting it.
+
+# The image ships the MinIO Java client (io.minio:minio), matched against MinIO server CVEs.
+CVE-2020-11012 | minio | MinIO server LDAP flaw; the image has the MinIO Java client, not the server
+CVE-2021-21287 | minio | MinIO server browser SSRF; the image has the MinIO Java client, not the server
+CVE-2021-43858 | minio | MinIO server admin API flaw; the image has the MinIO Java client, not the server
+CVE-2022-35919 | minio | MinIO server admin API flaw; the image has the MinIO Java client, not the server
+CVE-2023-28434 | minio | MinIO server bucket name flaw; the image has the MinIO Java client, not the server
+
+# The embedded Tomcat of the Spring Boot jar, matched against flaws of the RHEL tomcat package.
+CVE-2016-5425 | Apache Tomcat | RHEL tomcat package tmpfiles configuration; not in the embedded Tomcat library
+CVE-2016-6325 | Apache Tomcat | RHEL tomcat package file permissions; not in the embedded Tomcat library

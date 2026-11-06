@@ -41,8 +41,10 @@ or upgrade the package in that stage.
 `pom.xml` to a fixed version.
 
 The "Fixed in" column lists the fixed versions Aikido knows for every distribution, not only the \
-one of the image: check that one of them applies before bumping. The JSON findings and the \
-scanner output are in the `aikido-image-scan-*` artifacts of the run.
+one of the image: check that one of them applies before bumping. A false positive, such as a \
+server CVE matched against a client library, goes in \
+`.github/actions/aikido-image-scan/ignored-findings.txt` with its reason. The JSON findings and \
+the scanner output are in the `aikido-image-scan-*` artifacts of the run.
 """
 
 

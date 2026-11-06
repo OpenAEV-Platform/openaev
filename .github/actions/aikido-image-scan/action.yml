@@ -4,7 +4,8 @@ description: >
   in ephemeral mode: findings are written to a file and nothing is kept in
   Aikido. The findings at or above the severity threshold, with or without a
   fix, are listed with their details in the job summary and uploaded with the
-  JSON findings and the scanner output as an artifact. Findings never fail the
+  JSON findings and the scanner output as an artifact. False positives listed in
+  ignored-findings.txt are left out and listed apart. Findings never fail the
   action: it outputs how many of them have a fix, for the caller to act on. A
   scanner error or a missing token fails it. The calling job must run
   actions/checkout first.
@@ -71,7 +72,8 @@ runs:
         THRESHOLD: ${{ inputs.severity-threshold }}
       run: |
         set -euo pipefail
-        python3 "$GITHUB_ACTION_PATH/report.py" "$REPORT.json" "$IMAGE" "$THRESHOLD" "$REPORT.md" >> "$GITHUB_OUTPUT"
+        python3 "$GITHUB_ACTION_PATH/report.py" "$REPORT.json" "$IMAGE" "$THRESHOLD" "$REPORT.md" \
+          "$GITHUB_ACTION_PATH/ignored-findings.txt" >> "$GITHUB_OUTPUT"
         cat "$REPORT.md" >> "$GITHUB_STEP_SUMMARY"
 
     - name: Upload report
