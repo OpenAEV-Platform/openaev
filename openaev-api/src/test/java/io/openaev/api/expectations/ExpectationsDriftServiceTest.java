@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -39,6 +40,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -302,11 +304,15 @@ class ExpectationsDriftServiceTest {
     stubScenarioInjects(drifted, aligned);
     stubChunkRunnerPassthrough();
     when(bulkOperationMonitor.start(anyString(), anyString(), anyInt())).thenReturn("op-1");
-    when(injectRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    when(injectRepository.updateContent(anyString(), any(), any())).thenReturn(1);
 
     ExpectationsRealignOutput output = service.realignScenario(TxCtx.missing(), SCENARIO_ID);
 
     assertThat(output.realignedInjectCount()).isEqualTo(1);
+    // Only the drifted inject's content is written, with its realigned expectations.
+    verify(injectRepository)
+        .updateContent(drifted.getId(), drifted.getContent(), drifted.getUpdatedAt());
+    verify(injectRepository, never()).updateContent(eq(aligned.getId()), any(), any());
     JsonNode expectations = drifted.getContent().get("expectations");
     assertThat(expectations).hasSize(2);
     expectations.forEach(
@@ -334,7 +340,34 @@ class ExpectationsDriftServiceTest {
 
     assertThat(output.realignedInjectCount()).isZero();
     verifyNoInteractions(bulkOperationMonitor);
+    verify(injectRepository, never()).updateContent(anyString(), any(), any());
     verify(injectRepository, never()).saveAll(any());
+  }
+
+  @Test
+  @DisplayName(
+      "Realign writes only the inject content and never re-saves the inject with its associations")
+  void realignUpdatesContentOnlyWithoutMergingAssociations() {
+    // #8645: re-saving the whole inject merged its asset groups, and one asset group row that
+    // could no longer be loaded failed the realignment with a 500.
+    InjectorContract contract =
+        contractWithExpectations(
+            expectationNode("PREVENTION", false, 100, true),
+            expectationNode("DETECTION", false, 100, true));
+    Inject drifted = injectWith(contract, expectationNode("PREVENTION", false, 100, true));
+    stubScenarioInjects(drifted);
+    stubChunkRunnerPassthrough();
+    when(bulkOperationMonitor.start(anyString(), anyString(), anyInt())).thenReturn("op-1");
+    when(injectRepository.updateContent(anyString(), any(), any())).thenReturn(1);
+
+    ExpectationsRealignOutput output = service.realignScenario(TxCtx.missing(), SCENARIO_ID);
+
+    assertThat(output.realignedInjectCount()).isEqualTo(1);
+    ArgumentCaptor<ObjectNode> content = ArgumentCaptor.forClass(ObjectNode.class);
+    verify(injectRepository).updateContent(eq(drifted.getId()), content.capture(), any());
+    assertThat(content.getValue().get("expectations")).hasSize(2);
+    verify(injectRepository, never()).saveAll(any());
+    verify(injectRepository, never()).save(any(Inject.class));
   }
 
   @Test
@@ -348,7 +381,8 @@ class ExpectationsDriftServiceTest {
     stubScenarioInjects(drifted);
     stubChunkRunnerPassthrough();
     when(bulkOperationMonitor.start(anyString(), anyString(), anyInt())).thenReturn("op-1");
-    when(injectRepository.saveAll(any())).thenThrow(new IllegalStateException("boom"));
+    when(injectRepository.updateContent(anyString(), any(), any()))
+        .thenThrow(new IllegalStateException("boom"));
 
     assertThatThrownBy(() -> service.realignScenario(TxCtx.missing(), SCENARIO_ID))
         .isInstanceOf(IllegalStateException.class);
