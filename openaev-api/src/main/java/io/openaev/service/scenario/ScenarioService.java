@@ -202,7 +202,8 @@ public class ScenarioService {
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
     Scenario preparedScenario = prepareScenarioFromScenarioInput(tenantId, scenarioInput);
-    Scenario scenario = createScenario(preparedScenario);
+    authorService.authorByCurrentUser(preparedScenario);
+    Scenario scenario = computeAndCreateScenario(preparedScenario);
     this.injectService.createInjectsFromInjectorContractInput(
         null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
     KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
