@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.DomainRepository;
 import io.openaev.database.repository.InjectorContractRepository;
@@ -55,6 +56,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +67,12 @@ import org.springframework.transaction.annotation.Transactional;
 @WithMockUser(isAdmin = true)
 @DisplayName("Injector Contract API tests")
 public class InjectorContractApiTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   @Autowired private MockMvc mvc;
   @Autowired private EntityManager em;
@@ -1218,6 +1227,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("With classic SearchPaginationInput, search returns expected items")
     void WithClassicSearchPaginationInput() throws Exception {
       SearchPaginationInput input =
@@ -1249,6 +1259,7 @@ public class InjectorContractApiTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName(
         "With SearchPaginationWithSerialisationOptionsInput and ignore content option is set,"
             + " search returns expected items with no content")
@@ -1604,6 +1615,7 @@ public class InjectorContractApiTest extends IntegrationTest {
   @DisplayName("When contracts are linked to security domains")
   class WhenContractsAreLinkedToDomains {
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("It should aggregate counts correctly by domain category")
     void getDomainCountsReturnAggregation() throws Exception {
       domainRepository.deleteAll();
