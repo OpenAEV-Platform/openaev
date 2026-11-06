@@ -657,21 +657,64 @@ class TenantStatementInspectorTest {
 
   @Test
   @DisplayName(
-      "an INSERT ... VALUES into a dual-scope table is rewritten so a platform row needs the"
-          + " platform-write marker")
-  void insertValuesIntoDualScopeTableChecksPlatformWriteOnTheNullCase() {
+      "an INSERT ... VALUES into a dual-scope table is rewritten so a refused write raises instead"
+          + " of inserting no row")
+  void insertValuesIntoDualScopeTableRaisesOnARefusedWrite() {
     String out = inspect("INSERT INTO groups (id, tenant_id) VALUES (1, NULL)");
     assertTrue(out.contains("FROM (VALUES (1, NULL))"), out);
-    assertTrue(out.contains("v.tenant_id IS NOT NULL OR is_platform_write()"), out);
+    assertTrue(out.contains("require_tenant_write(v.tenant_id, true)"), out);
+    assertFalse(out.contains("can_write_tenant"), out);
   }
 
   @Test
   @DisplayName(
-      "an INSERT ... VALUES into a dual-scope table's tenant row is rewritten the same way, the"
-          + " predicate just never rejects it")
-  void insertValuesIntoDualScopeTableTenantRowIsRewrittenButNeverRejected() {
+      "an INSERT ... VALUES into a dual-scope table's tenant row is checked against the scope too")
+  void insertValuesIntoDualScopeTableChecksATenantRowAgainstTheScope() {
     String out = inspect("INSERT INTO groups (id, tenant_id) VALUES (1, 'tenant-a')");
-    assertTrue(out.contains("v.tenant_id IS NOT NULL OR is_platform_write()"), out);
+    assertTrue(out.contains("require_tenant_write(v.tenant_id, true)"), out);
+  }
+
+  @Test
+  @DisplayName("an INSERT ... VALUES into a dual-scope table keeps its source in one parenthesis")
+  void insertValuesIntoDualScopeTableParenthesisesItsPredicate() {
+    String out = inspect("INSERT INTO groups (id, tenant_id) VALUES (1, NULL)");
+    assertTrue(out.contains("WHERE (require_tenant_write(v.tenant_id, true))"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "an INSERT into a dual-scope table that omits tenant_id is refused: the omitted column is a"
+          + " platform row")
+  void insertValuesIntoDualScopeTableWithoutTenantIdIsRefused() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("INSERT INTO groups (id, x) VALUES (1, 2)"));
+  }
+
+  @Test
+  @DisplayName("an INSERT into a dual-scope table with no column list is refused")
+  void insertValuesIntoDualScopeTableWithoutColumnListIsRefused() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("INSERT INTO groups VALUES (1, 2)"));
+  }
+
+  @Test
+  @DisplayName("an INSERT ... DEFAULT VALUES into a dual-scope table is refused")
+  void insertDefaultValuesIntoDualScopeTableIsRefused() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("INSERT INTO groups DEFAULT VALUES"));
+  }
+
+  @Test
+  @DisplayName("a tenant sub-query inside an INSERT ... VALUES into a dual-scope table is filtered")
+  void insertValuesIntoDualScopeTableFiltersItsSubqueries() {
+    String out =
+        inspect(
+            "INSERT INTO groups (id, tenant_id) VALUES ((SELECT max(f.x) FROM findings f), NULL)");
+    assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
+    assertTrue(out.contains("require_tenant_write(v.tenant_id, true)"), out);
   }
 
   @Test
@@ -680,18 +723,16 @@ class TenantStatementInspectorTest {
           + " present")
   void insertValuesIntoStrictTableStaysUnvalidated() {
     String out = inspect("INSERT INTO documents (id, tenant_id) VALUES (1, NULL)");
-    assertFalse(out.contains("is_platform_write"), out);
+    assertFalse(out.contains("require_tenant_write"), out);
     assertFalse(out.contains("can_access_tenant"), out);
     assertFalse(out.contains("FROM (VALUES"), out);
   }
 
   @Test
-  @DisplayName(
-      "an INSERT ... SELECT into a dual-scope table checks the platform-write marker for the"
-          + " written tenant_id")
+  @DisplayName("an INSERT ... SELECT into a dual-scope table raises on a refused written tenant_id")
   void insertSelectIntoDualScopeTableChecksPlatformWrite() {
     String out = inspect("INSERT INTO groups (id, tenant_id) SELECT u.id, u.tid FROM users u");
-    assertTrue(out.contains("can_write_tenant(u.tid, true)"), out);
+    assertTrue(out.contains("require_tenant_write(u.tid, true)"), out);
   }
 
   @Test

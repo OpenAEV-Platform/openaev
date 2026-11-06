@@ -73,4 +73,14 @@ public interface ScopeDimension {
   default String writeValuesAttributionPredicate(String table, String valueExpression) {
     return null;
   }
+
+  /**
+   * Whether a plain {@code INSERT} into {@code table} must name {@link #writeAttributionColumn()}
+   * and carry its values in a {@code VALUES} list, because this dimension validates that column by
+   * rewriting. An insert that omits the column, or has no column list or no {@code VALUES} source,
+   * writes an unvalidated value and is refused. Only called when the column is non-null.
+   */
+  default boolean guardsValuesInsert(String table) {
+    return false;
+  }
 }

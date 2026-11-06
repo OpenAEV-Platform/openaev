@@ -166,15 +166,18 @@ public class ScopeStatementInspector implements StatementInspector {
     }
     Select source = insert.getSelect();
     if (insert.getTable() != null && source instanceof Values values) {
-      // A VALUES insert cannot carry a WHERE of its own, so a guarding dimension (today: the
-      // platform-row case of a dual-scope table) is rewritten through a derived table instead; see
-      // rewriteValuesInsert. Every other table's VALUES insert is returned unchanged: scope
-      // attribution for it is an application concern.
+      // The sub-queries of the VALUES tuples are read-filtered like any select. A VALUES insert
+      // cannot carry a WHERE of its own, so a guarding dimension (today: a dual-scope table's
+      // written tenant) is rewritten through a derived table instead; see rewriteValuesInsert.
+      // Every other table's VALUES insert is returned unchanged: scope attribution for it is an
+      // application concern.
+      filterContainedSelects(insert);
       String rewritten = rewriteValuesInsert(insert, values);
-      if (rewritten != null) {
-        return rewritten;
-      }
-    } else if (insert.getTable() != null && source != null) {
+      return rewritten != null ? rewritten : insert.toString();
+    }
+    if (insert.getTable() != null && source == null) {
+      refuseIfValuesInsertIsGuarded(insert.getTable().getName(), "has no VALUES source");
+    } else if (insert.getTable() != null) {
       // An INSERT ... SELECT into a scoped table must write only in-scope values; the written scope
       // column is validated against the scope.
       for (ScopeDimension dimension : dimensions) {
@@ -190,6 +193,27 @@ public class ScopeStatementInspector implements StatementInspector {
   }
 
   /**
+   * Refuses an {@code INSERT} into a table whose written scope column a dimension validates by
+   * rewriting, when the statement offers nothing to validate: the column would be written as NULL,
+   * which for a dual-scope table is a platform row created with no check.
+   */
+  private void refuseIfValuesInsertIsGuarded(String tableName, String why) {
+    for (ScopeDimension dimension : dimensions) {
+      if (dimension.covers(tableName)
+          && dimension.writeAttributionColumn() != null
+          && dimension.guardsValuesInsert(tableName)) {
+        throw new TenantFilteringException(
+            "INSERT into a "
+                + dimension.name()
+                + " table must set "
+                + dimension.writeAttributionColumn()
+                + " in a column list and a VALUES list: this one "
+                + why);
+      }
+    }
+  }
+
+  /**
    * Rewrites {@code INSERT INTO t (cols) VALUES (...)} into {@code INSERT INTO t (cols) SELECT
    * v.c1, ... FROM (VALUES (...)) AS v(cols) WHERE <predicate>} when at least one dimension guards
    * this table's VALUES shape (today: {@link TenantDimension#writeValuesAttributionPredicate} for a
@@ -199,15 +223,15 @@ public class ScopeStatementInspector implements StatementInspector {
    * table outside the platform-write rule, including every strict table): the insert is then
    * returned unchanged by the caller.
    *
-   * <p>A dimension whose {@link ScopeDimension#writeAttributionColumn()} names a column absent from
-   * this statement's column list does not guard that statement: the ORM includes every mapped
-   * column for the entities this covers ({@code Setting}), and the VALUES clause alone offers no
-   * value to reference for a missing column.
+   * <p>A dimension that guards this table's VALUES shape ({@link
+   * ScopeDimension#guardsValuesInsert}) refuses a statement with no column list or without its
+   * written scope column: the omitted column is written as NULL, and there is no value to validate.
    */
   private String rewriteValuesInsert(Insert insert, Values values) {
     String tableName = insert.getTable().getName();
     ExpressionList<Column> columns = insert.getColumns();
     if (columns == null) {
+      refuseIfValuesInsertIsGuarded(tableName, "has no column list");
       return null;
     }
     List<String> predicates = new ArrayList<>();
@@ -221,11 +245,12 @@ public class ScopeStatementInspector implements StatementInspector {
       }
       int idx = columnIndex(columns, column);
       if (idx < 0) {
+        refuseIfValuesInsertIsGuarded(tableName, "does not name " + column);
         continue;
       }
       String predicate = dimension.writeValuesAttributionPredicate(tableName, "v." + column);
       if (predicate != null) {
-        predicates.add(predicate);
+        predicates.add("(" + predicate + ")");
       }
     }
     if (predicates.isEmpty()) {
