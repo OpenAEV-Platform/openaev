@@ -7,6 +7,7 @@ import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.SessionManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -101,15 +102,17 @@ public class PlayerApi extends RestBehavior {
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
-  public User createPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
-    return hydrateUserForResponse(playerService.createPlayer(input));
+  public User createPlayer(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PlayerInput input) {
+    return hydrateUserForResponse(playerService.createPlayer(ctx, input));
   }
 
   @PostMapping({PLAYER_URI + "/upsert", TENANT_PLAYER_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
-  public User upsertPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
-    return hydrateUserForResponse(playerService.upsertPlayer(input));
+  public User upsertPlayer(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PlayerInput input) {
+    return hydrateUserForResponse(playerService.upsertPlayer(ctx, input));
   }
 
   @PutMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})

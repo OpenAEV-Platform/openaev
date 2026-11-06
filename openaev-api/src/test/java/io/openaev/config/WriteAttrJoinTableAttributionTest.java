@@ -103,9 +103,7 @@ class WriteAttrJoinTableAttributionTest extends IntegrationTest {
     entityManager.clear();
     contractId = contract.getId();
     attackPatternId = attackPattern.getId();
-    entityManager
-        .unwrap(Session.class)
-        .doWork(c -> WriteAttrDetectorTrigger.install(c, TenantTables.selfIsolatedTables()));
+    entityManager.unwrap(Session.class).doWork(c -> WriteAttrDetectorTrigger.install(c));
   }
 
   @AfterEach
