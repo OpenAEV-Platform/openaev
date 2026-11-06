@@ -15,13 +15,19 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.rest.atomic_testing.form.AtomicTestingUpdateTagsInput;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import java.util.ArrayList;
@@ -56,6 +62,8 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
   @Autowired TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private InjectRepository injectRepository;
+  @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private TenantRepository tenantRepository;
   @Autowired private DataSource dataSource;
   @Autowired private TestUserHolder testUserHolder;
@@ -100,6 +108,58 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
             });
     seededInjects.add(id);
     return id;
+  }
+
+  /** Seeds a simulation (an exercise, not an atomic testing) in the given tenant. */
+  String seedExercise(String tenantId) {
+    return inTenantScope(
+        tenantId,
+        () -> {
+          Exercise exercise = ExerciseFixture.getExercise();
+          exercise.setTenant(new Tenant(tenantId));
+          return exerciseRepository.save(exercise).getId();
+        });
+  }
+
+  /** Seeds an inject that belongs to the given exercise (not a bare atomic testing). */
+  String seedInjectForExercise(String tenantId, String exerciseId) {
+    return inTenantScope(
+        tenantId,
+        () -> {
+          Inject inject = InjectFixture.getDefaultInject();
+          inject.setTenant(new Tenant(tenantId));
+          inject.setExercise(exerciseRepository.getReferenceById(exerciseId));
+          return injectRepository.save(inject).getId();
+        });
+  }
+
+  /** Seeds a scenario in the given tenant. */
+  String seedScenario(String tenantId) {
+    return inTenantScope(
+        tenantId,
+        () -> {
+          Scenario scenario = ScenarioFixture.getScenario();
+          scenario.setTenant(new Tenant(tenantId));
+          return scenarioRepository.save(scenario).getId();
+        });
+  }
+
+  /** Seeds an inject that belongs to the given scenario. */
+  String seedInjectForScenario(String tenantId, String scenarioId) {
+    return inTenantScope(
+        tenantId,
+        () -> {
+          Inject inject = InjectFixture.getDefaultInject();
+          inject.setTenant(new Tenant(tenantId));
+          inject.setScenario(scenarioRepository.getReferenceById(scenarioId));
+          return injectRepository.save(inject).getId();
+        });
+  }
+
+  String injectTitle(String injectId) {
+    return new JdbcTemplate(dataSource)
+        .queryForObject(
+            "SELECT inject_title FROM injects WHERE inject_id = ?", String.class, injectId);
   }
 
   boolean atomicTestingExists(String id) {
