@@ -1,10 +1,11 @@
-import { Button } from '@filigran/design-system';
-import { ChevronRight } from '@mui/icons-material';
+import { Button, IconButton } from '@filigran/design-system';
+import { ChevronRight, Close } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 import { type ComponentProps } from 'react';
 
 import type { LoggedHelper } from '../../../actions/helper';
+import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { isNotEmptyField } from '../../../utils/utils';
 import { SYSTEM_BANNER_HEIGHT, TOP_BANNER_HEIGHT } from './constants';
@@ -45,10 +46,13 @@ interface TopBannerProps {
   /** Primitive token the action button is filled with, matching the band it sits on. */
   buttonColor?: BannerButtonColor;
   onButtonClick?: () => void;
+  /** Adds a close control at the end of the strip; remembering the dismissal is up to the caller. */
+  onDismiss?: () => void;
 }
 
-const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, buttonColor, onButtonClick }: TopBannerProps) => {
+const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, buttonColor, onButtonClick, onDismiss }: TopBannerProps) => {
   const theme = useTheme();
+  const { t } = useFormatter();
   const { settings } = useHelper((helper: LoggedHelper) => {
     return { settings: helper.getPlatformSettings() };
   });
@@ -86,6 +90,22 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
         >
           {buttonText}
         </Button>
+      )}
+      {onDismiss && (
+        <IconButton
+          icon={<Close fontSize="small" />}
+          aria-label={t('Close')}
+          priority="tertiary"
+          size="sm"
+          onClick={onDismiss}
+          style={{
+            position: 'absolute',
+            right: theme.spacing(1),
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'var(--text-negative-primary)',
+          }}
+        />
       )}
     </div>
   );
