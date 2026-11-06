@@ -1,4 +1,4 @@
-# ADR-019: Immutable payload versions under a shared identity
+# ADR-020: Immutable payload versions under a shared identity
 
 |  |  |
 | --- | --- |
