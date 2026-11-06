@@ -105,13 +105,6 @@ public interface EndpointRepository
       @NotNull @Param("tenantId") String tenantId);
 
   @Query(
-      "select e from Endpoint e where e.externalReference in :externalReferences"
-          + " and e.tenant.id = :tenantId")
-  List<Endpoint> findByExternalReferences(
-      @NotNull @Param("externalReferences") List<String> externalReferences,
-      @NotNull @Param("tenantId") String tenantId);
-
-  @Query(
       "SELECT a FROM Inject i"
           + " JOIN i.assets a"
           + " WHERE ("

@@ -69,7 +69,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class EndpointService implements AuditLoggedService {
 
   private static final String ASSET_GROUP_FILTER = "assetGroups";
-  private static final int EXTERNAL_REFERENCE_BATCH_SIZE = 1000;
 
   public static final int DELETE_TTL = 86400000; // 24 hours
   public static final String OPENAEV_AGENT_INSTALLER = "openaev-agent-installer";
@@ -476,14 +475,20 @@ public class EndpointService implements AuditLoggedService {
     }
     // Create new agents/endpoints
     if (!inputs.isEmpty()) {
-      // The external reference is unique per tenant: a known one must go on its endpoint
-      Map<String, Endpoint> existingEndpoints = findEndpointsByExternalReference(inputs, tenantId);
       for (AgentRegisterInput inputToUpdate : inputs) {
-        endpointToSave = existingEndpoints.get(inputToUpdate.getExternalReference());
-        if (endpointToSave != null) {
+        Optional<Endpoint> existingEndpoint =
+            StringUtils.isBlank(inputToUpdate.getExternalReference())
+                ? Optional.empty()
+                : findEndpointByExternalReference(inputToUpdate.getExternalReference(), tenantId);
+        if (existingEndpoint.isPresent()) {
+          endpointToSave = existingEndpoint.get();
           setUpdatedEndpointAttributes(endpointToSave, inputToUpdate);
         } else {
-          endpointToSave = newEndpoint(inputToUpdate);
+          endpointToSave = new Endpoint();
+          endpointToSave.setUpdateAttributes(inputToUpdate);
+          endpointToSave.setIps(inputToUpdate.getIps());
+          endpointToSave.setSeenIp(inputToUpdate.getSeenIp());
+          endpointToSave.setMacAddresses(inputToUpdate.getMacAddresses());
           // Set tenant explicitly so TenantBaseListener is not needed for this background path.
           endpointToSave.setTenant(new Tenant(tenantId));
         }
@@ -834,37 +839,12 @@ public class EndpointService implements AuditLoggedService {
     agent.setVersion(input.getAgentVersion());
   }
 
-  private Map<String, Endpoint> findEndpointsByExternalReference(
-      List<AgentRegisterInput> inputs, String tenantId) {
-    List<String> externalReferences =
-        inputs.stream()
-            .map(AgentRegisterInput::getExternalReference)
-            .filter(StringUtils::isNotBlank)
-            .distinct()
-            .toList();
-    Map<String, Endpoint> endpoints = new HashMap<>();
-    for (int i = 0; i < externalReferences.size(); i += EXTERNAL_REFERENCE_BATCH_SIZE) {
-      List<String> batch =
-          externalReferences.subList(
-              i, Math.min(i + EXTERNAL_REFERENCE_BATCH_SIZE, externalReferences.size()));
-      endpointRepository
-          .findByExternalReferences(batch, tenantId)
-          .forEach(endpoint -> endpoints.put(endpoint.getExternalReference(), endpoint));
-    }
-    return endpoints;
-  }
-
-  private Endpoint newEndpoint(AgentRegisterInput input) {
+  private Agent createNewEndpointAndAgent(AgentRegisterInput input) {
     Endpoint endpoint = new Endpoint();
     endpoint.setUpdateAttributes(input);
     endpoint.setIps(input.getIps());
     endpoint.setSeenIp(input.getSeenIp());
     endpoint.setMacAddresses(input.getMacAddresses());
-    return endpoint;
-  }
-
-  private Agent createNewEndpointAndAgent(AgentRegisterInput input) {
-    Endpoint endpoint = newEndpoint(input);
     // The create stamps the tenant itself; passing it here is what makes that explicit.
     Agent agent = new Agent();
     setNewAgentAttributes(input, agent);
