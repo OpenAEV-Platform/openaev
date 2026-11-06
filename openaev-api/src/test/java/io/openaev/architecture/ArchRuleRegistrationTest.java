@@ -135,7 +135,7 @@ class ArchRuleRegistrationTest {
                   + " table and allowlist to build its own rule"),
           new Helper(
               TenantActiveTableAccessArchTest.class,
-              "bareByIdLookupIsCalledOnlyBy",
+              "tenantlessInjectorContractQueryIsCalledOnlyBy",
               TenantActiveTableAccessArchTest.class,
               "a parameterised rule factory; its one @ArchTest field calls it with the allowlist to"
                   + " build its rule"));

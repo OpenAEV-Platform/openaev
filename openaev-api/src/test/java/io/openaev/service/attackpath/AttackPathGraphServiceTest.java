@@ -3,6 +3,7 @@ package io.openaev.service.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetCriticality;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
@@ -42,6 +43,7 @@ import java.time.Instant;
 import java.util.Map;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -76,9 +78,17 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   private String exec1Id;
   private String exec2Id;
 
+  @AfterEach
+  void clearAmbientTenant() {
+    TenantContext.clearCurrentTenant();
+  }
+
   @BeforeEach
   void seedGraph() {
     tenant = tenantRepository.save(TenantFixture.getTenant("ap-graph-tenant"));
+    // The graph resolves a contract in the tenant its simulation runs in, so the contracts the
+    // fixtures create are stamped with the same tenant as the executions.
+    TenantContext.setCurrentTenant(tenant.getId());
     // NMAP hits CORP-DC-01 twice: one prevented, one detected-but-not-prevented -> ORANGE
     // (worst-case), one grouped edge of count 2.
     exec1Id =
@@ -649,9 +659,9 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     AttackPathEndpointRelationsDTO dto =
         service.endpointRelations(SIM, "dc-01", PageRequest.of(0, 50));
     // A bounded, constant number of statements whatever the endpoint's size: the edge set, the feed
-    // page and its total. Not one any more (#6647, spec 003: the feed is paged), but still not a
-    // function of the row count.
-    assertThat(stats.getPrepareStatementCount()).isEqualTo(3);
+    // page and its total, and the simulation's tenant the feed's contracts are read in. Not one any
+    // more (#6647, spec 003: the feed is paged), but still not a function of the row count.
+    assertThat(stats.getPrepareStatementCount()).isEqualTo(4);
 
     assertThat(dto.executions()).hasSize(2);
     assertThat(dto.totalExecutions()).isEqualTo(2);

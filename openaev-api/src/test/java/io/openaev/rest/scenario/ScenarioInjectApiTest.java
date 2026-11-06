@@ -62,6 +62,7 @@ class ScenarioInjectApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private AttackPatternComposer attackPatternComposer;
+  @Autowired private VulnerabilityComposer vulnerabilityComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DomainComposer domainComposer;
@@ -466,6 +467,80 @@ class ScenarioInjectApiTest extends IntegrationTest {
       }
 
       // Assert: the technical contract in tenant B was selected, not the manual placeholder.
+      assertEquals(1, generated.size());
+      assertEquals(
+          technicalContract.getId(),
+          generated.getFirst().getInjectorContract().orElseThrow().getId());
+    }
+
+    @DisplayName(
+        "Given a scenario in another tenant with no ambient tenant set, should create the injects"
+            + " of a vulnerability from that tenant's contract")
+    @Test
+    void
+        given_noAmbientTenantAndScenarioInAnotherTenant_should_selectVulnerabilityContractInThatTenant()
+            throws Exception {
+      // Arrange: tenant B holds the vulnerability and the contract linked to it, nothing of it in
+      // the default tenant the ambient tenant falls back to. The service is called directly for the
+      // reason given by the sibling test above.
+      Tenant tenantB = tenantHelper.createTenantWithCurrentUser("inject-assistant-vuln-b");
+      builtinConnectorRegistration.register(manualInjectorIntegrationFactory, tenantB.getId());
+
+      Vulnerability vulnerabilityB = new Vulnerability();
+      vulnerabilityB.setExternalId(VulnerabilityFixture.getRandomExternalVulnerabilityId());
+      vulnerabilityB.setCvssV31(VulnerabilityFixture.VULNERABILITY_CVSS_V31);
+      vulnerabilityB.setTenant(new Tenant(tenantB.getId()));
+
+      Scenario scenarioB = new Scenario();
+      scenarioB.setName("Header route vulnerability scenario B");
+      scenarioB.setTenant(new Tenant(tenantB.getId()));
+      scenarioB = scenarioService.createScenario(scenarioB);
+
+      InjectorContract technicalContract = InjectorContractFixture.createDefaultInjectorContract();
+      technicalContract.setTenant(new Tenant(tenantB.getId()));
+
+      String previousTenant = TenantContext.getCurrentTenant();
+      TenantContext.setCurrentTenant(tenantB.getId());
+      Injector injectorB;
+      try {
+        injectorB = injectorFixture.getWellKnownOaevImplantInjector();
+      } finally {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+
+      InjectorContractComposer.Composer contractComposer =
+          injectorContractComposer
+              .forInjectorContract(technicalContract)
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+              .withInjector(injectorB)
+              .withVulnerability(vulnerabilityComposer.forVulnerability(vulnerabilityB))
+              .persist();
+      injectorContractWrapperComposers.add(contractComposer);
+
+      // The contract a placeholder inject would carry: a different row, so the two outcomes differ.
+      InjectorContract placeholderContract =
+          InjectorContractFixture.createDefaultInjectorContract();
+      placeholderContract.setTenant(new Tenant(tenantB.getId()));
+      injectorContractWrapperComposers.add(
+          injectorContractComposer
+              .forInjectorContract(placeholderContract)
+              .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()).persist())
+              .withInjector(injectorB)
+              .persist());
+
+      // Act: no ambient tenant set, as on the non-prefixed route.
+      TenantContext.clearCurrentTenant();
+      List<Inject> generated;
+      try {
+        generated =
+            injectAssistantService.generateInjectsWithTargetsByVulnerabilities(
+                scenarioB, Set.of(vulnerabilityB), Map.of(), 1, placeholderContract);
+      } finally {
+        TenantContext.setCurrentTenant(previousTenant);
+      }
+
+      // Assert: the contract of tenant B linked to the vulnerability was selected, not the
+      // placeholder.
       assertEquals(1, generated.size());
       assertEquals(
           technicalContract.getId(),

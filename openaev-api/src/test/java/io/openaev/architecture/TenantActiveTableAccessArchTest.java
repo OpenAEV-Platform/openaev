@@ -6,8 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.AccessTarget;
+import com.tngtech.archunit.core.domain.JavaAccess;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.domain.JavaCodeUnit;
+import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -25,6 +31,7 @@ import io.openaev.api.notifier.NotifierApi;
 import io.openaev.api.payload.PayloadApiExporter;
 import io.openaev.api.threat_arsenal.ThreatArsenalApiExporter;
 import io.openaev.api.xtmhub.XtmHubApi;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CatalogConnector;
@@ -33,11 +40,13 @@ import io.openaev.database.model.Document;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityPlatform;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.model.Widget;
 import io.openaev.database.model.attackpath.AttackPathExecution;
@@ -292,15 +301,22 @@ import io.openaev.xtmhub.XtmHubService;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 
 /**
  * Interim guard for the activation blind spot: once a table is in {@code
@@ -2838,32 +2854,24 @@ class TenantActiveTableAccessArchTest {
 
   /**
    * A built-in injector contract id/external id repeats across every tenant that holds a copy
-   * (#8485), so {@link InjectorContractService#injectorContract(String)} and the repository's bare
-   * {@link InjectorContractRepository#findById(String)} / {@link
-   * InjectorContractRepository#findByIdOrExternalId} resolve a unique row only when the caller's
-   * scope is already pinned to exactly one tenant. #7905 round 3 found three callers that reached
-   * one of these from a scope that could legitimately span several ({@code ThreatArsenalApi
-   * #threatArsenal}, the four {@code InjectorContractApi} singular endpoints, {@code
-   * AttackPathGraphService#executionDetail}) and fixed each by pinning its own scope or resolving
-   * in a known parent's tenant instead. This rule closes the gap for every future caller: it is
-   * caught here rather than in a review.
+   * (#8485), so a query on {@code injectors_contracts} with no tenant argument answers for every
+   * tenant of the caller's scope: a lookup by id resolves a unique row only when that scope is
+   * already pinned to one tenant, and a list or a technique read merges the copies. This rule keeps
+   * such a query out of every class that is not allowlisted, whatever its name: {@link
+   * #tenantlessInjectorContractQueryIsCalledOnlyBy} derives the set from {@link
+   * InjectorContractRepository} and {@link InjectorContractService}, so a query added later is
+   * covered without editing this file.
    *
-   * <p>Out of scope by construction, not by oversight: {@code
-   * CrudRepository#findById(InjectorContractId)} and {@code CrudRepository#findAllById(Iterable)},
-   * inherited from {@code CrudRepository<InjectorContract, InjectorContractId>}, take the composite
-   * key, which already carries {@code tenant_id}, so a call to either can never be
-   * bare-id-ambiguous. They are also unreachable for {@link #bareByIdLookupIsCalledOnlyBy} to catch
-   * even if they were: ArchUnit resolves a call to a method a type inherits without overriding to
-   * the declaring supertype ({@code CrudRepository}), never to {@code InjectorContractRepository},
-   * so an owner-based check keyed on {@code InjectorContractRepository.class.getName()} cannot
-   * match it. Measured by probe: calling {@code findById(String)}, {@code findByIdOrExternalId} and
-   * {@code InjectorContractService#injectorContract(String)} from an unlisted class fails this
-   * rule; calling the inherited {@code findAllById(List<InjectorContractId>)} from the same
-   * unlisted class does not.
+   * <p>Out of scope by construction, not by oversight: the {@code CrudRepository} methods that take
+   * the composite key or the entity ({@code findById(InjectorContractId)}, {@code findAllById},
+   * {@code save}, {@code delete}), whose argument already carries {@code tenant_id}. {@code
+   * TenantActiveTableAccessRulesTest} fires the rule from an unlisted class on a declared lookup, a
+   * payload-keyed query, a read by specification, an argument-less {@code CrudRepository} read, a
+   * method reference and a service wrapper, and checks that the tenant-carrying forms pass.
    */
   @ArchTest
-  static final ArchRule injector_contract_bare_by_id_lookup_is_called_only_by =
-      bareByIdLookupIsCalledOnlyBy(
+  static final ArchRule injector_contract_tenantless_query_is_called_only_by =
+      tenantlessInjectorContractQueryIsCalledOnlyBy(
           // The singular GET/PUT/mapping-PUT/DELETE endpoints: TxCtxScopeUtils.requireSingleTenant
           // refuses any scope that does not pin exactly one tenant before reaching the lookup.
           InjectorContractApi.class,
@@ -2879,8 +2887,32 @@ class TenantActiveTableAccessArchTest {
           ThreatArsenalService.class,
           // Mapped on the tenant-prefixed route only: the path pins exactly one tenant.
           ThreatArsenalApiExporter.class,
-          // Exports, behind the scenario and simulation export endpoints:
-          io.openaev.export.WorkflowExportInitializer.class,
+          // Its own default method getAllRawInjectorsContractsGranted(String) delegates to the
+          // two-argument query; nothing outside the interface is involved.
+          InjectorContractRepository.class,
+          // Payload-keyed: a contract lives in its payload's tenant and a payload backs at most
+          // one contract per tenant (injector_contract_payload_unique), so the contract found by
+          // payload is the payload's own. Sync, duplicate, delete and read-back of a payload:
+          io.openaev.rest.payload.service.PayloadService.class,
+          io.openaev.rest.payload.service.PayloadUpsertService.class,
+          io.openaev.service.stix.SecurityCoverageInjectService.class,
+          // Keyed by the injector being deleted: the contracts it is linked to.
+          io.openaev.service.InjectorService.class,
+          // Lists and aggregates over the contracts of the request scope, never one row picked out
+          // of several: the contracts linked to an attack pattern, the contracts of an injector,
+          // the platforms of a simulation's injects (a distinct set), the contracts of a mapper
+          // export, and the advisory capability index, which reports the arsenal of the whole
+          // scope. Every row is a contract of a tenant the caller belongs to.
+          io.openaev.rest.attack_pattern.AttackPatternApi.class,
+          io.openaev.rest.injector.InjectorApi.class,
+          io.openaev.rest.exercise.ExerciseApi.class,
+          io.openaev.service.MapperService.class,
+          io.openaev.service.autonomous.CapabilityResolverService.class,
+          // Open, not a reason: the import finds a contract through a payload external id, by a
+          // specification and by PayloadRepository#findByExternalId, neither of which takes a
+          // tenant, while the transaction keeps the scope of the request. It is as exposed as
+          // that payload lookup, which this rule does not cover.
+          io.openaev.importer.V1_DataImporter.class,
           // Runtime migration, under the migration processor's forTenant scope:
           io.openaev.processor.core.V20260725_Fix_starter_pack_payload_contracts.class,
           // getInjectFromDataStep's bare lookup (InjectExecutionStep.java) runs only from #run,
@@ -2925,50 +2957,130 @@ class TenantActiveTableAccessArchTest {
   }
 
   /**
-   * Finds, by reflection on the call target rather than a fixed list, every call to the bare
-   * injector-contract by-id lookups whose uniqueness depends on the caller's scope being pinned to
-   * one tenant: {@link InjectorContractService#injectorContract(String)} and the repository's own
-   * declared {@code findById(String)} and {@code findByIdOrExternalId}.
+   * Finds every access to an {@link InjectorContractRepository} query, or to an {@link
+   * InjectorContractService} method wrapping one, that takes no tenant argument. The set is derived
+   * from the two classes, never from a list of names, so a method added later is covered without
+   * editing this file.
    *
-   * <p>Deliberately does not list {@code findById(InjectorContractId)} or {@code
-   * findAllById(Iterable<InjectorContractId>)}: both are inherited, unoverridden, from {@code
-   * CrudRepository<InjectorContract, InjectorContractId>}, so their composite-key argument already
-   * carries {@code tenant_id} and a call to either is never bare-id-ambiguous. ArchUnit also
-   * resolves such an inherited call to its declaring supertype rather than to {@code
-   * InjectorContractRepository}, so an owner-name check like this one could not catch it anyway;
-   * listing it here would document a protection that does not exist.
+   * <p>A parameter carries a tenant when its type is {@code InjectorContract}, {@code
+   * InjectorContractId}, {@code Tenant} or {@code TxCtx}, or when its name (the Spring Data
+   * {@code @Param} value, or the compiled parameter name) contains "tenant". On the repository that
+   * covers what it declares and what it inherits from {@code JpaSpecificationExecutor}
+   * (specification reads, which carry no tenant); of {@code CrudRepository}'s methods only those
+   * without a parameter ({@code findAll()}, {@code count()}, {@code deleteAll()}) qualify, since
+   * the others take the composite key or the entity, which already carry {@code tenant_id}. On the
+   * service it covers the public methods that reach such a query, directly or through a private
+   * helper of the class.
+   *
+   * <p>The access is matched on the type the call is made against, which is {@code
+   * InjectorContractRepository} even for an inherited method, and method references count as
+   * accesses, so a {@code repository::findById} is seen as well as a call.
    */
-  private static ArchRule bareByIdLookupIsCalledOnlyBy(Class<?>... allowed) {
-    DescribedPredicate<JavaMethodCall> callsBareByIdLookup =
+  private static ArchRule tenantlessInjectorContractQueryIsCalledOnlyBy(Class<?>... allowed) {
+    Set<Method> tenantlessServiceMethods = tenantlessInjectorContractServiceMethods();
+    DescribedPredicate<JavaAccess<?>> isTenantlessQuery =
         DescribedPredicate.describe(
-            "a bare, tenant-ambiguous injector contract by-id lookup",
-            call ->
-                call.getTarget()
-                    .resolveMember()
-                    .map(
-                        method -> {
-                          String owner = method.getOwner().getFullName();
-                          String name = method.getName();
-                          if (owner.equals(InjectorContractService.class.getName())) {
-                            return name.equals("injectorContract");
-                          }
-                          if (owner.equals(InjectorContractRepository.class.getName())) {
-                            return name.equals("findById") || name.equals("findByIdOrExternalId");
-                          }
-                          return false;
-                        })
-                    .orElse(false));
+            "an injector contract query that takes no tenant argument",
+            access -> {
+              if (!(access.getTarget() instanceof AccessTarget.CodeUnitAccessTarget codeUnit)) {
+                return false;
+              }
+              Method method = reflectedMethod(codeUnit);
+              if (method == null) {
+                return false;
+              }
+              String owner = codeUnit.getOwner().getFullName();
+              if (owner.equals(InjectorContractRepository.class.getName())) {
+                return isTenantlessRepositoryQuery(method);
+              }
+              return owner.equals(InjectorContractService.class.getName())
+                  && tenantlessServiceMethods.contains(method);
+            });
     return noClasses()
         .that()
         .doNotBelongToAnyOf(allowed)
         .should()
-        .callMethodWhere(callsBareByIdLookup)
+        .accessTargetWhere(isTenantlessQuery)
         .because(
-            "a built-in injector contract id/external id repeats across tenants (#8485): this"
-                + " lookup resolves a unique row only when the caller's scope is already pinned to"
-                + " one tenant. New callers must resolve the contract within a known tenant"
-                + " (injectorContractInTenant / findByContractIdAndTenant /"
-                + " findByIdOrExternalIdAndTenant) and be allowlisted here only if their own scope"
-                + " is pinned to exactly one tenant by construction");
+            "a built-in injector contract id/external id repeats across tenants (#8485): a query"
+                + " with no tenant argument resolves a unique row, or the right rows, only when the"
+                + " caller's scope is already pinned to one tenant, and otherwise answers for every"
+                + " tenant in the scope. New callers must pass the tenant (injectorContractInTenant"
+                + " / findByContractIdAndTenant / findByIdOrExternalIdAndTenant) and be allowlisted"
+                + " here only with the reason their scope is right");
+  }
+
+  private static Method reflectedMethod(AccessTarget.CodeUnitAccessTarget target) {
+    try {
+      Class<?>[] parameterTypes =
+          target.getRawParameterTypes().stream().map(JavaClass::reflect).toArray(Class<?>[]::new);
+      return target.getOwner().reflect().getMethod(target.getName(), parameterTypes);
+    } catch (NoSuchMethodException | RuntimeException | LinkageError e) {
+      return null;
+    }
+  }
+
+  private static boolean isTenantlessRepositoryQuery(Method method) {
+    if (method.getDeclaringClass().equals(CrudRepository.class)) {
+      return method.getParameterCount() == 0;
+    }
+    return Arrays.stream(method.getParameters()).noneMatch(p -> carriesTenant(p));
+  }
+
+  private static boolean carriesTenant(Parameter parameter) {
+    Class<?> type = parameter.getType();
+    if (type.equals(InjectorContract.class)
+        || type.equals(InjectorContractId.class)
+        || type.equals(Tenant.class)
+        || type.equals(TxCtx.class)) {
+      return true;
+    }
+    Param param = parameter.getAnnotation(Param.class);
+    String name = param != null ? param.value() : parameter.getName();
+    return name.toLowerCase(Locale.ROOT).contains("tenant");
+  }
+
+  /**
+   * The public {@link InjectorContractService} methods that take no tenant argument and reach a
+   * tenant-less repository query, directly or through a method of the same class.
+   */
+  private static Set<Method> tenantlessInjectorContractServiceMethods() {
+    JavaClass service = new ClassFileImporter().importClass(InjectorContractService.class);
+    Set<Method> wrappers = new HashSet<>();
+    for (JavaMethod method : service.getMethods()) {
+      Method reflected = method.reflect();
+      if (Modifier.isPublic(reflected.getModifiers())
+          && Arrays.stream(reflected.getParameters()).noneMatch(p -> carriesTenant(p))
+          && reachesTenantlessRepositoryQuery(method, new HashSet<>())) {
+        wrappers.add(reflected);
+      }
+    }
+    return wrappers;
+  }
+
+  private static boolean reachesTenantlessRepositoryQuery(
+      JavaMethod method, Set<JavaMethod> visited) {
+    if (!visited.add(method)) {
+      return false;
+    }
+    for (JavaAccess<?> access : method.getAccessesFromSelf()) {
+      if (!(access.getTarget() instanceof AccessTarget.CodeUnitAccessTarget codeUnit)) {
+        continue;
+      }
+      if (codeUnit.getOwner().isEquivalentTo(InjectorContractRepository.class)) {
+        Method reflected = reflectedMethod(codeUnit);
+        if (reflected != null && isTenantlessRepositoryQuery(reflected)) {
+          return true;
+        }
+      } else if (codeUnit.getOwner().isEquivalentTo(InjectorContractService.class)) {
+        Optional<? extends JavaCodeUnit> callee = codeUnit.resolveMember();
+        if (callee.isPresent()
+            && callee.get() instanceof JavaMethod calleeMethod
+            && reachesTenantlessRepositoryQuery(calleeMethod, visited)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

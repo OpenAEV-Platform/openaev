@@ -64,10 +64,13 @@ public class GrantService {
    *
    * @param resourceId the resource ID to validate
    * @param resourceType the declared grant resource type
+   * @param tenantId the tenant of the group the grant is for: a built-in contract id repeats across
+   *     tenants, so a contract only counts when it exists in that one
    * @throws IllegalArgumentException if the resource ID is blank, the type is not grantable through
    *     a group, or no resource of that type has this ID
    */
-  public void validateResourceIdForGrant(String resourceId, GRANT_RESOURCE_TYPE resourceType) {
+  public void validateResourceIdForGrant(
+      String resourceId, GRANT_RESOURCE_TYPE resourceType, String tenantId) {
     if (StringUtils.isBlank(resourceId)) {
       throw new IllegalArgumentException("A valid resource ID should be present");
     }
@@ -83,8 +86,8 @@ public class GrantService {
               injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(resourceId);
           // Threat arsenal: on the payload identity, else on the injector contract ID.
           case THREAT_ARSENAL ->
-              injectorContractRepository.existsByPayloadIdentityId(resourceId)
-                  || injectorContractRepository.existsByContractId(resourceId);
+              injectorContractRepository.existsByPayloadIdentityIdAndTenant(resourceId, tenantId)
+                  || injectorContractRepository.existsByContractIdAndTenant(resourceId, tenantId);
           default -> false;
         };
 

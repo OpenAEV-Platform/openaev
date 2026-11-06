@@ -130,7 +130,7 @@ public class AttackPathDeltaService {
     List<AttackPathExecutionRow> executions =
         withProducersOf(simulationId, changedExecutions, findings);
 
-    AttackPathDTO partial = graphService.assemble(executions, findings, 0);
+    AttackPathDTO partial = graphService.assemble(simulationId, executions, findings, 0);
     Map<String, AttackPathNodeDTO> nodesById = new LinkedHashMap<>();
     partial.attackPathNodes().forEach(node -> nodesById.put(node.getId(), node));
     Map<String, AttackPathEdges> edgesById = new LinkedHashMap<>();
