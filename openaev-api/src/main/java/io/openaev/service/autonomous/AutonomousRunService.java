@@ -78,6 +78,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -1112,10 +1113,10 @@ public class AutonomousRunService {
    * up from the current OpenAEV + shared state).
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun pause(String runId) {
+  public AutonomousRun pause(TxCtx ctx, String runId) {
     AutonomousRun run = requireForUpdate(runId);
     assertRunNotTerminal(run, "paused");
-    transitionSimulation(run, ExerciseStatus.PAUSED);
+    transitionSimulation(ctx, run, ExerciseStatus.PAUSED);
     run.setStatus(AutonomousRunStatus.PAUSED);
     AutonomousRun saved = runRepository.save(run);
     eventService.append(
@@ -1134,10 +1135,10 @@ public class AutonomousRunService {
 
   /** Resumes a paused run and its chained simulation, re-engaging the XTM One orchestrator. */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun resume(String runId) {
+  public AutonomousRun resume(TxCtx ctx, String runId) {
     AutonomousRun run = requireForUpdate(runId);
     assertRunNotTerminal(run, "resumed");
-    transitionSimulation(run, ExerciseStatus.RUNNING);
+    transitionSimulation(ctx, run, ExerciseStatus.RUNNING);
     // Mirror start() / addDirective(): a plan-mode run returns to PLANNING (it is still authoring
     // the scenario logic, and stampDeadline below leaves it deadline-free), a live run to RUNNING.
     // Forcing RUNNING here flipped a resumed plan build into an "executing" run in the UI and moved
@@ -1170,7 +1171,7 @@ public class AutonomousRunService {
    * (never rolls the cancel back) and a run already terminal is an idempotent no-op.
    */
   @Transactional(rollbackFor = Exception.class)
-  public AutonomousRun cancel(String runId) {
+  public AutonomousRun cancel(TxCtx ctx, String runId) {
     AutonomousRun run = require(runId);
     if (run.getStatus() == AutonomousRunStatus.CANCELED) {
       return run;
@@ -1192,7 +1193,7 @@ public class AutonomousRunService {
             runId, tenantId, AutonomousRunStatus.CANCELED, now());
     // Best-effort, not strict: an already-CANCELED/FINISHED simulation must not block the run from
     // settling to CANCELED, otherwise a mid-cancel crash leaves the operator permanently stuck.
-    transitionSimulationQuietly(run, ExerciseStatus.CANCELED);
+    transitionSimulationQuietly(ctx, run, ExerciseStatus.CANCELED);
     // Narrate at most once per run life: if a reconcile / watchdog already claimed this flip
     // (changed == 0) or already narrated the run's end, the guard drops this line.
     if (changed > 0) {
@@ -1526,7 +1527,7 @@ public class AutonomousRunService {
     // Tear the previous simulation down (attack-path executions + findings included) so the graph
     // and posture reset to empty rather than lingering from the previous run.
     if (hasText(run.getSimulationId())) {
-      exerciseService.deleteById(run.getSimulationId());
+      exerciseService.deleteById(ctx, run.getSimulationId());
     }
     // Fresh simulation from the SAME scenario - no new scenario is ever provisioned on restart.
     Scenario scenario = scenarioService.scenario(ctx, run.getScenarioId());
@@ -1616,7 +1617,7 @@ public class AutonomousRunService {
     // inherit the plan cycle's assumptions.
     cancelOrchestratorAfterCommit(runId, "plan promoted to a real run by operator", true);
     if (hasText(run.getSimulationId())) {
-      exerciseService.deleteById(run.getSimulationId());
+      exerciseService.deleteById(ctx, run.getSimulationId());
     }
     Scenario scenario = scenarioService.scenario(ctx, run.getScenarioId());
     // Clear EVERY step on the scenario workflow so the promoted (fresh) simulation starts with an
@@ -1702,7 +1703,7 @@ public class AutonomousRunService {
       // run fully intact. getDuplicateScenario returns a persisted scenario whose autonomous flag
       // defaults to false; we then copy the attack-path workflow (steps + config) with keep-alive
       // forced off so the copy runs-and-ends like a hand-built chained scenario.
-      Scenario duplicate = scenarioService.getDuplicateScenario(scenarioId);
+      Scenario duplicate = scenarioService.getDuplicateScenario(ctx, scenarioId);
       try {
         workflowService.copyScenarioChainingWorkflowAsManual(scenarioId, duplicate);
       } catch (ChainingException e) {
@@ -1734,7 +1735,7 @@ public class AutonomousRunService {
     // scheduled or terminal state, so there is nothing to transition.
     switch (run.getStatus()) {
       case CREATED, PLANNING, RUNNING, PAUSED, WAITING_INPUT ->
-          transitionSimulationQuietly(run, ExerciseStatus.CANCELED);
+          transitionSimulationQuietly(ctx, run, ExerciseStatus.CANCELED);
       default -> {
         // Already settled - leave the simulation state untouched.
       }
@@ -4527,13 +4528,17 @@ public class AutonomousRunService {
     }
   }
 
-  /** Transitions the chained simulation, surfacing an invalid transition as a 400. */
-  private void transitionSimulation(AutonomousRun run, ExerciseStatus target) {
+  /**
+   * Transitions the chained simulation, surfacing an invalid transition as a 400. The simulation is
+   * loaded in the request scope: the ambient tenant is the default one on the non-prefixed route,
+   * whatever tenant the run and its simulation belong to.
+   */
+  private void transitionSimulation(TxCtx ctx, AutonomousRun run, ExerciseStatus target) {
     if (run.getSimulationId() == null) {
       return;
     }
     try {
-      exerciseService.changeExerciseStatus(target, run.getSimulationId());
+      exerciseService.changeExerciseStatus(ctx, target, run.getSimulationId());
     } catch (ChainingException | UnsupportedOperationException e) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
@@ -4575,13 +4580,33 @@ public class AutonomousRunService {
     }
   }
 
-  /** Best-effort terminal transition from an orchestrator callback; never fails the callback. */
+  /**
+   * Best-effort terminal transition from an operator action, loading the simulation in the request
+   * scope; never fails the action.
+   */
+  private void transitionSimulationQuietly(TxCtx ctx, AutonomousRun run, ExerciseStatus target) {
+    transitionSimulationQuietly(
+        run,
+        target,
+        () -> exerciseService.changeExerciseStatus(ctx, target, run.getSimulationId()));
+  }
+
+  /**
+   * Best-effort terminal transition from a background sweep or an orchestrator callback, which set
+   * the ambient tenant themselves; never fails the caller.
+   */
   private void transitionSimulationQuietly(AutonomousRun run, ExerciseStatus target) {
+    transitionSimulationQuietly(
+        run, target, () -> exerciseService.changeExerciseStatus(target, run.getSimulationId()));
+  }
+
+  private void transitionSimulationQuietly(
+      AutonomousRun run, ExerciseStatus target, Callable<Exercise> transition) {
     if (run.getSimulationId() == null) {
       return;
     }
     try {
-      exerciseService.changeExerciseStatus(target, run.getSimulationId());
+      transition.call();
     } catch (Exception e) {
       log.warn(
           "[Autonomous] Could not move simulation {} to {} on run {} completion",

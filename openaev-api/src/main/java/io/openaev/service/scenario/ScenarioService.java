@@ -1356,6 +1356,15 @@ public class ScenarioService {
    * @return the persisted duplicate
    */
   @Transactional
+  public Scenario getDuplicateScenario(@NotNull TxCtx ctx, @NotBlank String scenarioId) {
+    return copyScenarioContent(ctx, scenarioId);
+  }
+
+  /**
+   * Same as {@link #getDuplicateScenario(TxCtx, String)} for a scenario of the current tenant, for
+   * work that runs without a request scope.
+   */
+  @Transactional
   public Scenario getDuplicateScenario(@NotBlank String scenarioId) {
     return copyScenarioContent(scenarioId);
   }
