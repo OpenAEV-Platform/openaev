@@ -657,28 +657,62 @@ class TenantStatementInspectorTest {
 
   @Test
   @DisplayName(
-      "an INSERT ... VALUES into a dual-scope table is rewritten so a refused write raises instead"
-          + " of inserting no row")
-  void insertValuesIntoDualScopeTableRaisesOnARefusedWrite() {
-    String out = inspect("INSERT INTO groups (id, tenant_id) VALUES (1, NULL)");
-    assertTrue(out.contains("FROM (VALUES (1, NULL))"), out);
-    assertTrue(out.contains("require_tenant_write(v.tenant_id, true)"), out);
+      "an INSERT ... VALUES into a dual-scope table keeps its shape and guards the written tenant")
+  void insertValuesIntoDualScopeTableGuardsTheWrittenTenantInPlace() {
+    String out = inspect("INSERT INTO groups (id, flag, tenant_id) VALUES (1, NULL, NULL)");
+    // The tuple is not turned into a derived table: PostgreSQL then types NULL by the target column
+    assertTrue(out.contains("VALUES (1, NULL, tenant_write_value(NULL, true))"), out);
+    assertFalse(out.contains("FROM (VALUES"), out);
     assertFalse(out.contains("can_write_tenant"), out);
   }
 
   @Test
-  @DisplayName(
-      "an INSERT ... VALUES into a dual-scope table's tenant row is checked against the scope too")
-  void insertValuesIntoDualScopeTableChecksATenantRowAgainstTheScope() {
-    String out = inspect("INSERT INTO groups (id, tenant_id) VALUES (1, 'tenant-a')");
-    assertTrue(out.contains("require_tenant_write(v.tenant_id, true)"), out);
+  @DisplayName("a bind-parameter tenant keeps its place among the placeholders")
+  void insertValuesIntoDualScopeTableKeepsThePlaceholderOrder() {
+    String out = inspect("INSERT INTO groups (id, tenant_id, flag) VALUES (?, ?, ?)");
+    assertTrue(out.contains("VALUES (?, tenant_write_value(?, true), ?)"), out);
   }
 
   @Test
-  @DisplayName("an INSERT ... VALUES into a dual-scope table keeps its source in one parenthesis")
-  void insertValuesIntoDualScopeTableParenthesisesItsPredicate() {
-    String out = inspect("INSERT INTO groups (id, tenant_id) VALUES (1, NULL)");
-    assertTrue(out.contains("WHERE (require_tenant_write(v.tenant_id, true))"), out);
+  @DisplayName("every row of a multi-row VALUES has its written tenant guarded")
+  void insertValuesIntoDualScopeTableGuardsEveryRow() {
+    String out = inspect("INSERT INTO groups (id, tenant_id) VALUES (?, ?), (?, NULL)");
+    assertTrue(
+        out.contains(
+            "VALUES (?, tenant_write_value(?, true)), (?, tenant_write_value(NULL, true))"),
+        out);
+  }
+
+  @Test
+  @DisplayName("an UPDATE of a dual-scope table guards the tenant it assigns")
+  void updateOfDualScopeTableGuardsTheAssignedTenant() {
+    String out = inspect("UPDATE groups g SET name = ?, tenant_id = ? WHERE g.id = ?");
+    assertTrue(out.contains("tenant_id = tenant_write_value(?, true)"), out);
+    assertTrue(out.contains("name = ?"), out);
+  }
+
+  @Test
+  @DisplayName("an UPDATE of a dual-scope table that assigns no tenant is left as it is")
+  void updateOfDualScopeTableWithoutTenantIsUnchangedBesideTheScope() {
+    String out = inspect("UPDATE groups g SET name = ? WHERE g.id = ?");
+    assertFalse(out.contains("tenant_write_value"), out);
+  }
+
+  @Test
+  @DisplayName("an UPDATE of a strict table does not guard the tenant it assigns")
+  void updateOfStrictTableDoesNotGuardTheAssignedTenant() {
+    String out = inspect("UPDATE documents d SET tenant_id = ? WHERE d.id = ?");
+    assertFalse(out.contains("tenant_write_value"), out);
+  }
+
+  @Test
+  @DisplayName("ON CONFLICT DO UPDATE on a dual-scope table guards the tenant it assigns")
+  void onConflictDoUpdateOfDualScopeTableGuardsTheAssignedTenant() {
+    String out =
+        inspect(
+            "INSERT INTO groups (id, tenant_id) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET"
+                + " tenant_id = EXCLUDED.tenant_id");
+    assertTrue(out.contains("tenant_id = tenant_write_value(EXCLUDED.tenant_id, true)"), out);
   }
 
   @Test
@@ -714,7 +748,7 @@ class TenantStatementInspectorTest {
         inspect(
             "INSERT INTO groups (id, tenant_id) VALUES ((SELECT max(f.x) FROM findings f), NULL)");
     assertTrue(out.contains("can_access_tenant(f.tenant_id)"), out);
-    assertTrue(out.contains("require_tenant_write(v.tenant_id, true)"), out);
+    assertTrue(out.contains("tenant_write_value(NULL, true)"), out);
   }
 
   @Test
@@ -723,7 +757,7 @@ class TenantStatementInspectorTest {
           + " present")
   void insertValuesIntoStrictTableStaysUnvalidated() {
     String out = inspect("INSERT INTO documents (id, tenant_id) VALUES (1, NULL)");
-    assertFalse(out.contains("require_tenant_write"), out);
+    assertFalse(out.contains("tenant_write_value"), out);
     assertFalse(out.contains("can_access_tenant"), out);
     assertFalse(out.contains("FROM (VALUES"), out);
   }

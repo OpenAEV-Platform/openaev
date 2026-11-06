@@ -72,21 +72,22 @@ public final class TenantDimension implements ScopeDimension {
   }
 
   /**
-   * Used for a plain {@code INSERT ... VALUES}. Only dual-scope tables are guarded here, for the
-   * platform row (it needs the platform-write marker) and for a tenant row (its tenant must be in
-   * the scope); a strict table's {@code VALUES} insert is not validated (see the interface javadoc
-   * for why). The check raises when the write is refused.
+   * Used for a plain {@code INSERT ... VALUES}, an {@code UPDATE ... SET} and an {@code ON CONFLICT
+   * DO UPDATE SET}. Only dual-scope tables are guarded here: the written tenant is passed through
+   * {@code tenant_write_value}, which returns it when the write is allowed and raises otherwise (a
+   * platform row needs the marker, a tenant row needs its tenant in the scope). A strict table's
+   * write is not validated (see the interface javadoc for why).
    */
   @Override
-  public String writeValuesAttributionPredicate(String table, String valueExpression) {
+  public String guardedWrittenValue(String table, String valueExpression) {
     if (tables.family(table) != TenantTables.Family.DUAL) {
       return null;
     }
-    return "require_tenant_write(" + valueExpression + ", true)";
+    return "tenant_write_value(" + valueExpression + ", true)";
   }
 
   @Override
-  public boolean guardsValuesInsert(String table) {
+  public boolean guardsWrittenValue(String table) {
     return tables.family(table) == TenantTables.Family.DUAL;
   }
 }
