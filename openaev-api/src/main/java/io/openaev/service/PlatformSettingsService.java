@@ -166,16 +166,6 @@ public class PlatformSettingsService {
     return new Setting(themeKey, value);
   }
 
-  /**
-   * Save setting
-   *
-   * @param setting setting to save
-   * @return setting saved
-   */
-  public Setting save(Setting setting) {
-    return this.settingRepository.save(setting);
-  }
-
   private RunMode resolveRunMode() {
     return ofNullable(openAEVConfig.getRunMode()).orElse(RunMode.NORMAL);
   }

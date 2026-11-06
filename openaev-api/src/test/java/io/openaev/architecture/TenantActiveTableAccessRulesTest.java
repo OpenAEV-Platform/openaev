@@ -65,4 +65,63 @@ class TenantActiveTableAccessRulesTest {
           .contains("AutonomousObjectiveTemplateRepository");
     }
   }
+
+  @Nested
+  @DisplayName("parameters platform row writers")
+  class ParametersPlatformRowWriters {
+
+    @Test
+    @DisplayName("given a writer reached from no marker, should violate")
+    void given_aWriterReachedFromNoMarker_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest
+                  .parameters_platform_row_writers_run_under_platform_write,
+              TenantActiveTableAccessFixtures.UnmarkedPlatformRowWriter.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("UnmarkedPlatformRowWriter.write")
+          .contains("UnmarkedPlatformRowWriter.entry");
+    }
+
+    @Test
+    @DisplayName("given a writer with one unmarked caller, should violate on that caller only")
+    void given_aWriterWithOneUnmarkedCaller_should_violateOnThatCallerOnly() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest
+                  .parameters_platform_row_writers_run_under_platform_write,
+              TenantActiveTableAccessFixtures.PlatformRowWriterWithAnUnmarkedCaller.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("unmarkedEntry")
+          .doesNotContain(".markedEntry(");
+    }
+
+    @Test
+    @DisplayName("given writers under the annotation or the primitive, should not violate")
+    void given_writersUnderTheAnnotationOrThePrimitive_should_notViolate() {
+      // Act
+      EvaluationResult annotated =
+          evaluate(
+              TenantActiveTableAccessArchTest
+                  .parameters_platform_row_writers_run_under_platform_write,
+              TenantActiveTableAccessFixtures.PlatformRowWriterUnderTheAnnotation.class);
+      EvaluationResult primitive =
+          evaluate(
+              TenantActiveTableAccessArchTest
+                  .parameters_platform_row_writers_run_under_platform_write,
+              TenantActiveTableAccessFixtures.PlatformRowWriterUnderThePrimitive.class);
+
+      // Assert
+      assertThat(annotated.hasViolation()).as(annotated.getFailureReport().toString()).isFalse();
+      assertThat(primitive.hasViolation()).as(primitive.getFailureReport().toString()).isFalse();
+    }
+  }
 }

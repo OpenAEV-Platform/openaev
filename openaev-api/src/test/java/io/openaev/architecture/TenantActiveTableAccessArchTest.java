@@ -1,5 +1,6 @@
 package io.openaev.architecture;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -2341,50 +2342,28 @@ class TenantActiveTableAccessArchTest {
 
   /**
    * {@code parameters} (entity {@code Setting}) is dual-scope, not strict: a platform row ({@code
-   * tenant_id IS NULL}) is readable under any non-empty scope and writable only inside a
-   * platform-write transaction ({@code TenantDimension}, {@code io.openaev.aop.PlatformWrite}).
-   * Every class below was reviewed for exactly that: its reads carry a scope, and any write it
-   * makes to a platform row runs under {@code @PlatformWrite} or {@code
-   * TenantScopedTransaction#executeAsPlatformWrite}/{@code executeNewAsPlatformWrite}.
+   * tenant_id IS NULL}) is readable under any scope, the empty one included, so reads need no
+   * review here. What a tenant must never do is WRITE it: only a platform-write transaction ({@code
+   * io.openaev.aop.PlatformWrite}, {@code TenantScopedTransaction#executeAsPlatformWrite}/{@code
+   * executeNewAsPlatformWrite}) may, and a refused write raises. So the guard follows the writers:
+   * every method that saves or deletes through {@code SettingRepository}, directly or through
+   * {@code SettingService} and {@code PlatformSettingsService}, is reached only through such a
+   * marker. The three classes below write tenant rows only (a {@code Setting} with its tenant set,
+   * checked against the scope), never a platform row. A tenant row read with no scope still comes
+   * back empty; those readers are not covered by this rule.
    */
   @ArchTest
-  static final ArchRule parameters_repository_access_is_reviewed =
-      noClasses()
-          .that()
-          .doNotBelongToAnyOf(
-              // Platform-row reads/writes, each behind @PlatformWrite on its TxCtx-carrying
-              // controller method (PlatformSettingsApi) or an explicit
-              // platform-write/platform-scope
-              // background transaction (App, ExternalServiceBase and its two subclasses):
-              io.openaev.service.PlatformSettingsService.class,
-              io.openaev.service.settings.SettingService.class,
-              io.openaev.App.class,
-              io.openaev.utils.base.ExternalServiceBase.class,
-              io.openaev.injectors.email.service.SmtpService.class,
-              io.openaev.injectors.email.service.ImapService.class,
-              // Tenant-row reads/writes only (findByKeyAndTenantId / setTenant), plus one platform
-              // fallback READ under the request's own non-empty scope (resolveValue):
-              io.openaev.service.settings.TenantSettingsService.class,
-              io.openaev.service.autonomous.AutonomousRunService.class,
-              // Provisioning datapack: writes a tenant-scoped Setting under MigrationProcessor's
-              // own
-              // tenant-scoped transaction (same primitive as the cwes/marking_definitions seeds
-              // above); never touches a platform row.
-              io.openaev.processor.datapack.V20260101_Starter_pack.class,
-              // Read-only: a context-refresh @Bean method and a metric gauge supplier, both with
-              // an Optional/default fallback on an empty read, no write, no crash.
-              io.openaev.telemetry.OpenTelemetryConfig.class,
-              io.openaev.telemetry.metric_collectors.AiMetricCollector.class,
-              // Read-only: license/instance reads with their own Optional/default fallback,
-              // reached from the request-scoped PlatformSettingsApi path and from a cache miss
-              // after App.init()'s boot-time eviction (no scope at that point).
-              io.openaev.ee.EnterpriseEditionService.class)
-          .should()
-          .dependOnClassesThat()
-          .areAssignableTo(io.openaev.database.repository.SettingRepository.class)
+  static final ArchRule parameters_platform_row_writers_run_under_platform_write =
+      methods()
+          .that(
+              PlatformRowWriters.writeThroughTheSettingsRepository(
+                  Set.of(
+                      io.openaev.service.settings.TenantSettingsService.class,
+                      io.openaev.service.autonomous.AutonomousRunService.class,
+                      io.openaev.processor.datapack.V20260101_Starter_pack.class)))
+          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite())
           .because(
-              "parameters is tenant-active (dual-scope): an accessor without a scope reads"
-                  + " zero rows, and a write to a platform row without the platform-write marker is"
-                  + " refused by can_write_tenant. New accessors must carry a scope and be"
-                  + " allowlisted here");
+              "parameters is dual-scope: a write of a platform row outside a platform-write"
+                  + " transaction is refused with an error. Every writer must sit under"
+                  + " @PlatformWrite or executeAsPlatformWrite/executeNewAsPlatformWrite");
 }

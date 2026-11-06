@@ -20,10 +20,6 @@ public class UserEventRetentionConfig {
     return settingService.getBoolean(USER_EVENTS_RETENTION_ENABLED);
   }
 
-  public void setEnabled(boolean value) {
-    settingService.setBoolean(USER_EVENTS_RETENTION_ENABLED, value);
-  }
-
   public int getDefaultDays() {
     return settingService.getInt(USER_EVENTS_RETENTION_DEFAULT_DAYS);
   }
