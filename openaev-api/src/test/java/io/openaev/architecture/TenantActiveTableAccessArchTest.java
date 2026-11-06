@@ -2908,10 +2908,9 @@ class TenantActiveTableAccessArchTest {
           io.openaev.rest.exercise.ExerciseApi.class,
           io.openaev.service.MapperService.class,
           io.openaev.service.autonomous.CapabilityResolverService.class,
-          // Open, not a reason: the import finds a contract through a payload external id, by a
-          // specification and by PayloadRepository#findByExternalId, neither of which takes a
-          // tenant, while the transaction keeps the scope of the request. It is as exposed as
-          // that payload lookup, which this rule does not cover.
+          // Payload-keyed: the contract is read behind a payload the importer resolved in its
+          // write tenant (a tenant-scoped payload lookup), and a payload backs at most one
+          // contract per tenant. The external id lookups name the write tenant themselves.
           io.openaev.importer.V1_DataImporter.class,
           // Runtime migration, under the migration processor's forTenant scope:
           io.openaev.processor.core.V20260725_Fix_starter_pack_payload_contracts.class,

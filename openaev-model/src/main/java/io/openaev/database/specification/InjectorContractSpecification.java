@@ -24,17 +24,6 @@ public class InjectorContractSpecification {
     };
   }
 
-  public static Specification<InjectorContract> byPayloadExternalId(
-      final String payloadExternalId) {
-    if (payloadExternalId == null || payloadExternalId.isEmpty()) {
-      throw new IllegalArgumentException("Payload external ID must not be null or empty");
-    }
-    return (root, query, cb) -> {
-      Join<Object, Object> payload = root.join("payload", JoinType.LEFT);
-      return cb.equal(payload.get("identity").get("externalId"), payloadExternalId);
-    };
-  }
-
   /**
    * Specification to filter InjectorContracts based on user grants. Only injector contracts on
    * which the user has at least an OBSERVER grant (grant_resource = injector_contract_id,

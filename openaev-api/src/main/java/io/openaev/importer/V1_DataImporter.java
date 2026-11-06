@@ -1,6 +1,5 @@
 package io.openaev.importer;
 
-import static io.openaev.database.specification.InjectorContractSpecification.byPayloadExternalId;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.injectors.challenge.ChallengeContract.CHALLENGE_PUBLISH;
@@ -239,11 +238,11 @@ public class V1_DataImporter implements Importer {
     // Resolve the write tenant once. A bundle imported into an existing simulation or scenario is
     // written in the tenant of that parent, which must lie inside the request scope; a bundle with
     // no parent takes the single tenant of the scope. Documents, tags, teams, challenges, channels
-    // and the imported exercise or scenario are attributed to it explicitly. Injects and injector
-    // contracts, whose tables are not tenant-active yet, are still stamped from the ambient tenant
-    // and matched against existing rows through it, and a few rows (domains among them) are
-    // attributed from the ambient tenant by the importer itself. Running the whole import with the
-    // ambient tenant aligned on the write tenant keeps the bundle in one tenant on every route.
+    // and the imported exercise or scenario are attributed to it explicitly, and so are the
+    // injector contracts it creates and the lookups that find one. A few rows (domains among them)
+    // are still attributed from the ambient tenant by the importer itself. Running the whole import
+    // with the ambient tenant aligned on the write tenant keeps the bundle in one tenant on every
+    // route.
     String writeTenant =
         tenantWriteScopeResolver.tenantForWrite(ctx, parentTenantId(exercise, scenario));
     // The nested importers resolve the tenant of the rows they create (tags, challenges, channels,
@@ -1837,11 +1836,12 @@ public class V1_DataImporter implements Importer {
   private InjectorContract importInjectorContractFromStarterPack(
       TxCtx ctx, JsonNode importNode, Payload payload, Map<String, Base> baseIds) {
     InjectorContract injectorContract = new InjectorContract();
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
 
     injectorContract.setId(importNode.get("injector_contract_id").textValue());
     injectorContract.setCustom(false);
     injectorContract.setContent(importNode.get("injector_contract_content").textValue());
-    injectorContract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    injectorContract.setTenant(new Tenant(writeTenant));
     injectorContract.setConvertedContent((ObjectNode) importNode.get("convertedContent"));
     injectorContract.setExternalId(importNode.get("injector_contract_external_id").textValue());
 
@@ -1862,7 +1862,7 @@ public class V1_DataImporter implements Importer {
             "injector_contract_",
             importNode.get("injector_contract_payload"),
             "payload_",
-            tenantWriteScopeResolver.tenantForWrite(ctx, null)));
+            writeTenant));
 
     // Attack patterns
     injectorContract.setAttackPatterns(
@@ -2070,19 +2070,11 @@ public class V1_DataImporter implements Importer {
             : null;
 
     if (hasText(externalId)) {
-      Optional<InjectorContract> contractFromPayload =
-          injectorContractRepository.findOne(byPayloadExternalId(externalId));
-      if (contractFromPayload.isPresent()) {
-        return contractFromPayload.get();
-      }
-
-      Optional<Payload> existingPayload = payloadRepository.findByIdentityExternalId(externalId);
-      if (existingPayload.isPresent()) {
-        Optional<InjectorContract> contractFromExternalId =
-            injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
-        if (contractFromExternalId.isPresent()) {
-          return contractFromExternalId.get();
-        }
+      Optional<InjectorContract> existing =
+          findContractByPayloadExternalId(
+              externalId, tenantWriteScopeResolver.tenantForWrite(ctx, null));
+      if (existing.isPresent()) {
+        return existing.get();
       }
     }
 
@@ -2101,7 +2093,8 @@ public class V1_DataImporter implements Importer {
    * @return the already-existing injector contract resolvable from the payload external id, or
    *     empty when nothing matches (caller must treat the step as unresolvable)
    */
-  private Optional<InjectorContract> resolveInjectorContractReadOnly(JsonNode injectContractNode) {
+  private Optional<InjectorContract> resolveInjectorContractReadOnly(
+      JsonNode injectContractNode, String writeTenant) {
     if (injectContractNode == null || injectContractNode.isNull()) {
       return Optional.empty();
     }
@@ -2116,16 +2109,25 @@ public class V1_DataImporter implements Importer {
     if (!hasText(externalId)) {
       return Optional.empty();
     }
+    return findContractByPayloadExternalId(externalId, writeTenant);
+  }
+
+  /**
+   * The contract a payload external id leads to in {@code tenantId}. The external id repeats across
+   * the tenants that hold a copy of the same payload, and the transaction keeps the scope of the
+   * request, so both lookups name the write tenant instead of answering for every tenant of the
+   * scope.
+   */
+  private Optional<InjectorContract> findContractByPayloadExternalId(
+      String externalId, String tenantId) {
     Optional<InjectorContract> contractFromPayload =
-        injectorContractRepository.findOne(byPayloadExternalId(externalId));
+        injectorContractRepository.findByPayloadExternalIdAndTenant(externalId, tenantId);
     if (contractFromPayload.isPresent()) {
       return contractFromPayload;
     }
-    Optional<Payload> existingPayload = payloadRepository.findByIdentityExternalId(externalId);
-    if (existingPayload.isPresent()) {
-      return injectorContractRepository.findInjectorContractByPayload(existingPayload.get());
-    }
-    return Optional.empty();
+    return payloadRepository
+        .findByExternalIdAndTenantId(externalId, tenantId)
+        .flatMap(injectorContractRepository::findInjectorContractByPayload);
   }
 
   private InjectorContract importPayload(
@@ -2902,7 +2904,7 @@ public class V1_DataImporter implements Importer {
       // instance must NOT be recreated: skip it (no saveStep, no stepIdMap entry) so no orphan
       // contract/payload is created. Dependent steps may stay blocked — accepted by product.
       Optional<SkippedWorkflowStep> skipReason =
-          evaluateChainingStepResolvability(stepNode, resolvedContracts);
+          evaluateChainingStepResolvability(ctx, stepNode, resolvedContracts);
       if (skipReason.isPresent()) {
         SkippedWorkflowStep skipped = skipReason.get();
         skippedSteps.add(skipped);
@@ -3018,7 +3020,7 @@ public class V1_DataImporter implements Importer {
    * @return the skip descriptor when the step is unresolvable, empty when it can be imported
    */
   private Optional<SkippedWorkflowStep> evaluateChainingStepResolvability(
-      JsonNode stepNode, Map<String, String> resolvedContracts) {
+      TxCtx ctx, JsonNode stepNode, Map<String, String> resolvedContracts) {
     JsonNode stepDataNode = stepNode.get("step_data");
     if (stepDataNode == null || stepDataNode.isNull()) {
       return Optional.empty();
@@ -3051,7 +3053,9 @@ public class V1_DataImporter implements Importer {
                 && (injectorContractRepository.existsByContractIdAndTenant(
                         injectorContractId, TenantContext.getCurrentTenant())
                     || resolvedContracts.containsKey(injectorContractId)))
-            || resolveInjectorContractReadOnly(injectContractNode).isPresent();
+            || resolveInjectorContractReadOnly(
+                    injectContractNode, tenantWriteScopeResolver.tenantForWrite(ctx, null))
+                .isPresent();
     // A contract carrying embedded, self-sufficient payload data (typically a MANUAL payload with
     // no payload_external_id, e.g. a Command payload) can be recreated locally: do NOT skip it here
     // even when it is neither already present nor resolvable read-only — leave resolveStepData to

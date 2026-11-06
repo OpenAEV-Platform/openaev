@@ -239,6 +239,17 @@ public interface InjectorContractRepository
   @NotNull
   Optional<InjectorContract> findInjectorContractByPayload(@NotNull Payload payload);
 
+  /**
+   * The contract of a tenant behind the payload carrying an external id. The external id repeats
+   * across the tenants that hold a copy of the same payload, so a caller whose scope spans several
+   * tenants resolves the contract of the one it writes in.
+   */
+  @Query(
+      "SELECT ic FROM InjectorContract ic WHERE ic.payload.identity.externalId = :externalId"
+          + " AND ic.compositeId.tenantId = :tenantId")
+  Optional<InjectorContract> findByPayloadExternalIdAndTenant(
+      @Param("externalId") String externalId, @Param("tenantId") String tenantId);
+
   @Query(
       value =
           """
