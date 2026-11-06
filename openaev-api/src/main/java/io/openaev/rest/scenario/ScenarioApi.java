@@ -378,7 +378,7 @@ public class ScenarioApi extends RestBehavior {
     // the scenario. Finished simulations are NOT deleted - they detach and remain as history, like
     // any chained simulation. No-op for manual scenarios.
     this.scenarioService.existsInScope(ctx, scenarioId);
-    this.autonomousRunService.deleteForScenario(scenarioId);
+    this.autonomousRunService.deleteForScenario(ctx, scenarioId);
     this.scenarioService.deleteScenario(ctx, scenarioId);
   }
 
