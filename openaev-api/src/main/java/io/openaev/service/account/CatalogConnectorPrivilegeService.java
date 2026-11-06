@@ -47,6 +47,11 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
     return ReservedServiceAccount.CATALOG_CONNECTOR.access();
   }
 
+  @Override
+  protected boolean receivesEveryMarking() {
+    return true;
+  }
+
   /** Email of the tenant's catalog connector account. */
   public static String accountEmail(String tenantId) {
     return ReservedServiceAccount.CATALOG_CONNECTOR.emailPattern().formatted(tenantId);

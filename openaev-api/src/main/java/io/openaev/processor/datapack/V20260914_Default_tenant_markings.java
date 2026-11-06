@@ -4,6 +4,7 @@ import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.service.DataPackService;
+import io.openaev.service.TenantGroupService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
@@ -14,12 +15,16 @@ import org.springframework.stereotype.Component;
 public class V20260914_Default_tenant_markings extends DataPack {
 
   private final MarkingDefinitionRepository markingDefinitionRepository;
+  private final TenantGroupService tenantGroupService;
   @PersistenceContext private EntityManager entityManager;
 
   public V20260914_Default_tenant_markings(
-      DataPackService dataPackService, MarkingDefinitionRepository markingDefinitionRepository) {
+      DataPackService dataPackService,
+      MarkingDefinitionRepository markingDefinitionRepository,
+      TenantGroupService tenantGroupService) {
     super(dataPackService);
     this.markingDefinitionRepository = markingDefinitionRepository;
+    this.tenantGroupService = tenantGroupService;
   }
 
   @Override
@@ -54,6 +59,7 @@ public class V20260914_Default_tenant_markings extends DataPack {
     markingDefinition.setOrder(seed.order());
     markingDefinition.setProtectedDefinition(true);
     markingDefinition.setTenant(entityManager.getReference(Tenant.class, tenant.getId()));
-    markingDefinitionRepository.save(markingDefinition);
+    tenantGroupService.grantToAutoNewMarkingGroups(
+        markingDefinitionRepository.save(markingDefinition));
   }
 }

@@ -6342,6 +6342,7 @@ export interface Grant {
 }
 
 export interface Group {
+  group_auto_new_marking?: boolean;
   group_default_user_assign?: boolean;
   group_description?: string;
   group_grants?: Grant[];

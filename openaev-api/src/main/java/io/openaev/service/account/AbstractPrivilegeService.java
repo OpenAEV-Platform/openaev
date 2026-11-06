@@ -23,6 +23,11 @@ public abstract class AbstractPrivilegeService {
 
   protected abstract WellKnownAccess wellKnownAccess();
 
+  /** Whether the group receives every marking of its tenant, existing and future. */
+  protected boolean receivesEveryMarking() {
+    return false;
+  }
+
   protected Role ensureWellKnownRole(String tenantId) {
     WellKnownAccess access = wellKnownAccess();
     String id = getUUIDFromName(access.roleId(), tenantId);
@@ -46,10 +51,14 @@ public abstract class AbstractPrivilegeService {
     input.setDefaultUserAssignation(false);
 
     List<Role> roles = new ArrayList<>(List.of(role));
-    if (group.isPresent()) {
-      return tenantGroupService.updateInternalGroupWithRoles(group.get(), input, roles);
+    Group saved =
+        group.isPresent()
+            ? tenantGroupService.updateInternalGroupWithRoles(group.get(), input, roles)
+            : tenantGroupService.createInternalGroupWithRole(groupId, input, roles, tenantId);
+    if (receivesEveryMarking()) {
+      tenantGroupService.receiveEveryMarking(saved, tenantId);
     }
-    return tenantGroupService.createInternalGroupWithRole(groupId, input, roles, tenantId);
+    return saved;
   }
 
   public static String getUUIDFromName(String name, String tenantId) {

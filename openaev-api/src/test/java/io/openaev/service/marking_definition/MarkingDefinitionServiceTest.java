@@ -24,6 +24,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.TenantGroupService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -57,6 +58,7 @@ class MarkingDefinitionServiceTest {
   @Mock private AllTablesWithMarkingIds allTablesWithMarkingIds;
   @Mock private MarkingClearanceCacheManager markingClearanceCacheManager;
   @Mock private JdbcTemplate jdbcTemplate;
+  @Mock private TenantGroupService tenantGroupService;
 
   private MarkingDefinitionService service() {
     return new MarkingDefinitionService(
@@ -64,7 +66,8 @@ class MarkingDefinitionServiceTest {
         actionMetricCollector,
         allTablesWithMarkingIds,
         markingClearanceCacheManager,
-        jdbcTemplate);
+        jdbcTemplate,
+        tenantGroupService);
   }
 
   @AfterEach

@@ -46,6 +46,11 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
     return ReservedServiceAccount.OPENCTI_CONNECTOR.access();
   }
 
+  @Override
+  protected boolean receivesEveryMarking() {
+    return true;
+  }
+
   /**
    * Ensures a privileged technical user exists for the given OpenCTI connector. Creates or updates
    * the user, its group, role, and tenant attachment as needed.
