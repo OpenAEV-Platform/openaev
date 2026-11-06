@@ -45,15 +45,16 @@ phishing_email_templates DEFAULT io.openaev.service.tenants.TenantService.create
 phishing_landing_pages DEFAULT io.openaev.service.tenants.TenantService.create
 
 # --- Tenant creation, provisioning of the new tenant. TenantService.create writes the new tenant's
-# own rows (its preset domains, DomainService.createDependencyForTenant) while the transaction's
-# scope is still the creator's, so they are OTHER by the detector's definition and correct by
-# intent. The creator's users_tenants link is not listed: the table is self-isolated, so the
-# detector does not watch it. The waiver is NOT permanent: the signature cannot tell "the tenant
-# being created" from "some other tenant", so a regression that provisioned rows for the wrong
-# tenant would be masked here. What holds that line today is TenantServiceTest (the ten preset
-# domains are asserted under the created tenant's id), not this file. Retired when tenant
-# provisioning runs under the created tenant's scope through the v2 primitive (forTenant(created
-# tenant)), after which these writes are inside the scope and the signature is no longer produced.
+# own rows (the creator's users_tenants link, TenantUserService.createDependencyForTenant, and its
+# preset domains, DomainService.createDependencyForTenant) while the transaction's scope is still the
+# creator's, so they are OTHER by the detector's definition and correct by intent. The waiver is
+# NOT permanent: the signature cannot tell "the tenant being created" from "some other tenant", so a
+# regression that provisioned rows for the wrong tenant would be masked here. What holds that line
+# today is TenantServiceTest (the ten preset domains are asserted under the created tenant's id), not
+# this file. Retired when tenant provisioning runs under the created tenant's scope through the v2
+# primitive (forTenant(created tenant)), after which these writes are inside the scope and the
+# signature is no longer produced.
+users_tenants OTHER io.openaev.service.tenants.TenantService.create
 domains OTHER io.openaev.service.tenants.TenantService.create
 
 # --- RETIRED by the documents activation (#7904), confirmed on a re-check
