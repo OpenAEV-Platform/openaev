@@ -5,7 +5,6 @@ import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -67,12 +66,12 @@ import org.springframework.stereotype.Component;
  * repeats the same set of tenants is tolerated. A nested method that needs a different scope must
  * open a {@code REQUIRES_NEW} transaction.
  *
- * <p>A method (or its declaring class) carrying {@link PlatformWrite} also gets {@code
- * app.platform_write} set to {@code 'true'} for the transaction, which is what lets a write reach a
- * dual-scope table's platform row ({@code tenant_id IS NULL}); every other transaction never
- * touches that setting, so it reads as unset (false) by default. This only runs when a {@link
- * TxCtx} argument is also present, same as the tenant scope above: a {@code @Transactional} method
- * with no {@link TxCtx} parameter is untouched by this aspect entirely.
+ * <p>A method carrying {@link PlatformWrite} also gets {@code app.platform_write} set to {@code
+ * 'true'} for the transaction, which is what lets a write reach a dual-scope table's platform row
+ * ({@code tenant_id IS NULL}); every other transaction never touches that setting, so it reads as
+ * unset (false) by default. This only runs when a {@link TxCtx} argument is also present, same as
+ * the tenant scope above: a {@code @Transactional} method with no {@link TxCtx} parameter is
+ * untouched by this aspect entirely.
  */
 @Aspect
 @Component
@@ -124,14 +123,12 @@ public class TenantScopeTransactionAspect {
     }
   }
 
-  /** Whether the advised method (or its declaring class) carries {@link PlatformWrite}. */
+  /** Whether the advised method carries {@link PlatformWrite}. */
   private static boolean isPlatformWrite(JoinPoint joinPoint) {
     if (!(joinPoint.getSignature() instanceof MethodSignature signature)) {
       return false;
     }
-    Method method = signature.getMethod();
-    return AnnotatedElementUtils.hasAnnotation(method, PlatformWrite.class)
-        || AnnotatedElementUtils.hasAnnotation(method.getDeclaringClass(), PlatformWrite.class);
+    return AnnotatedElementUtils.hasAnnotation(signature.getMethod(), PlatformWrite.class);
   }
 
   /**

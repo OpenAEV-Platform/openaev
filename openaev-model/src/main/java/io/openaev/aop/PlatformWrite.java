@@ -22,5 +22,5 @@ import java.lang.annotation.Target;
  * for a transaction the server has already decided is allowed to make one.
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.METHOD, ElementType.TYPE})
+@Target(ElementType.METHOD)
 public @interface PlatformWrite {}

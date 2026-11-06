@@ -7,6 +7,8 @@ import io.openaev.database.model.Setting;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
+import jakarta.persistence.EntityManager;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Accessors of a tenant-active table's repository that no access rule allowlists. */
 public final class TenantActiveTableAccessFixtures {
@@ -68,7 +70,8 @@ public final class TenantActiveTableAccessFixtures {
     }
 
     @PlatformWrite
-    public void entry(Setting setting) {
+    @Transactional
+    public void entry(TxCtx ctx, Setting setting) {
       write(setting);
     }
 
@@ -104,7 +107,8 @@ public final class TenantActiveTableAccessFixtures {
     }
 
     @PlatformWrite
-    public void markedEntry(Setting setting) {
+    @Transactional
+    public void markedEntry(TxCtx ctx, Setting setting) {
       write(setting);
     }
 
@@ -113,6 +117,293 @@ public final class TenantActiveTableAccessFixtures {
     }
 
     private void write(Setting setting) {
+      settingRepository.save(setting);
+    }
+  }
+
+  /** Opens the platform-write callback, then writes directly once the primitive has returned. */
+  public static class PlatformRowWriterAfterThePrimitiveReturned {
+
+    private final SettingRepository settingRepository;
+    private final TenantScopedTransaction tenantScopedTransaction;
+
+    public PlatformRowWriterAfterThePrimitiveReturned(
+        SettingRepository settingRepository, TenantScopedTransaction tenantScopedTransaction) {
+      this.settingRepository = settingRepository;
+      this.tenantScopedTransaction = tenantScopedTransaction;
+    }
+
+    public void entry(TxCtx ctx, Setting setting) {
+      tenantScopedTransaction.executeAsPlatformWrite(ctx, () -> settingRepository.save(setting));
+      settingRepository.save(setting);
+    }
+  }
+
+  /** A class that opens the platform-write primitive in one method and has an unrelated lambda. */
+  public static class UnrelatedLambdaInAClassThatOpensThePrimitive {
+
+    private final SettingRepository settingRepository;
+    private final TenantScopedTransaction tenantScopedTransaction;
+
+    public UnrelatedLambdaInAClassThatOpensThePrimitive(
+        SettingRepository settingRepository, TenantScopedTransaction tenantScopedTransaction) {
+      this.settingRepository = settingRepository;
+      this.tenantScopedTransaction = tenantScopedTransaction;
+    }
+
+    public void marked(TxCtx ctx, Setting setting) {
+      tenantScopedTransaction.executeAsPlatformWrite(ctx, () -> settingRepository.save(setting));
+    }
+
+    public void unrelated(Setting setting) {
+      Runnable write = () -> settingRepository.save(setting);
+      write.run();
+    }
+  }
+
+  /** The write follows the current-transaction marker in the same method. */
+  public static class PlatformRowWriterAfterTheCurrentTransactionMarker {
+
+    private final SettingRepository settingRepository;
+    private final TenantScopedTransaction tenantScopedTransaction;
+
+    public PlatformRowWriterAfterTheCurrentTransactionMarker(
+        SettingRepository settingRepository, TenantScopedTransaction tenantScopedTransaction) {
+      this.settingRepository = settingRepository;
+      this.tenantScopedTransaction = tenantScopedTransaction;
+    }
+
+    public void entry(Setting setting) {
+      tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
+      settingRepository.save(setting);
+    }
+  }
+
+  /** The write comes BEFORE the current-transaction marker. */
+  public static class PlatformRowWriterBeforeTheCurrentTransactionMarker {
+
+    private final SettingRepository settingRepository;
+    private final TenantScopedTransaction tenantScopedTransaction;
+
+    public PlatformRowWriterBeforeTheCurrentTransactionMarker(
+        SettingRepository settingRepository, TenantScopedTransaction tenantScopedTransaction) {
+      this.settingRepository = settingRepository;
+      this.tenantScopedTransaction = tenantScopedTransaction;
+    }
+
+    public void entry(Setting setting) {
+      settingRepository.save(setting);
+      tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
+    }
+  }
+
+  /** The annotation is on a method the aspect ignores: no @Transactional. */
+  public static class PlatformWriteWithoutTransactional {
+
+    private final SettingRepository settingRepository;
+
+    public PlatformWriteWithoutTransactional(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    @PlatformWrite
+    public void entry(TxCtx ctx, Setting setting) {
+      settingRepository.save(setting);
+    }
+  }
+
+  /** The annotation is on a transactional method with no TxCtx parameter. */
+  public static class PlatformWriteWithoutTxCtx {
+
+    private final SettingRepository settingRepository;
+
+    public PlatformWriteWithoutTxCtx(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    @PlatformWrite
+    @Transactional
+    public void entry(Setting setting) {
+      settingRepository.save(setting);
+    }
+  }
+
+  /** The annotation is honoured: transactional with a TxCtx. */
+  public static class PlatformWriteHonoured {
+
+    private final SettingRepository settingRepository;
+
+    public PlatformWriteHonoured(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    @PlatformWrite
+    @Transactional
+    public void entry(TxCtx ctx, Setting setting) {
+      settingRepository.save(setting);
+    }
+  }
+
+  /** Writes a Setting through the entity manager. */
+  public static class PlatformRowEntityManagerWriter {
+
+    private final EntityManager entityManager;
+
+    public PlatformRowEntityManagerWriter(EntityManager entityManager) {
+      this.entityManager = entityManager;
+    }
+
+    public void entry(Setting setting) {
+      entityManager.persist(setting);
+    }
+  }
+
+  /** Writes something that is not a Setting through the entity manager. */
+  public static class EntityManagerWriterOfAnotherEntity {
+
+    private final EntityManager entityManager;
+
+    public EntityManagerWriterOfAnotherEntity(EntityManager entityManager) {
+      this.entityManager = entityManager;
+    }
+
+    public void entry(String other) {
+      entityManager.persist(other);
+    }
+  }
+
+  /** Inherited CrudRepository write that is not named save/delete. */
+  public static class PlatformRowInheritedWriter {
+
+    private final SettingRepository settingRepository;
+
+    public PlatformRowInheritedWriter(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    public void entry(java.util.List<Setting> settings) {
+      settingRepository.saveAll(settings);
+    }
+  }
+
+  /** The read is private and reached from a job method that sets no scope. */
+  public static class TenantRowReaderFromAnUnscopedRoot {
+
+    private final SettingRepository settingRepository;
+
+    public TenantRowReaderFromAnUnscopedRoot(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    public void job() {
+      read();
+    }
+
+    private void read() {
+      settingRepository.findByKeyAndTenantId("k", "t");
+    }
+  }
+
+  /** The aspect scopes a transactional method that takes a TxCtx. */
+  public static class TenantRowReaderUnderATxCtx {
+
+    private final SettingRepository settingRepository;
+
+    public TenantRowReaderUnderATxCtx(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public void entry(TxCtx ctx) {
+      settingRepository.findAllByTenantId("t");
+    }
+  }
+
+  /** The read is in the callback of the primitive. */
+  public static class TenantRowReaderInThePrimitiveCallback {
+
+    private final SettingRepository settingRepository;
+    private final TenantScopedTransaction tenantScopedTransaction;
+
+    public TenantRowReaderInThePrimitiveCallback(
+        SettingRepository settingRepository, TenantScopedTransaction tenantScopedTransaction) {
+      this.settingRepository = settingRepository;
+      this.tenantScopedTransaction = tenantScopedTransaction;
+    }
+
+    public void job(TxCtx ctx) {
+      tenantScopedTransaction.execute(ctx, () -> settingRepository.findAllByTenantId("t"));
+    }
+  }
+
+  /** The callback is handed to a helper that runs it inside the primitive. */
+  public static class TenantRowReaderInAHelperCallback {
+
+    private final SettingRepository settingRepository;
+    private final TenantScopedTransaction tenantScopedTransaction;
+
+    public TenantRowReaderInAHelperCallback(
+        SettingRepository settingRepository, TenantScopedTransaction tenantScopedTransaction) {
+      this.settingRepository = settingRepository;
+      this.tenantScopedTransaction = tenantScopedTransaction;
+    }
+
+    public void job(TxCtx ctx) {
+      inTenant(ctx, () -> settingRepository.findAllByTenantId("t"));
+    }
+
+    private void inTenant(TxCtx ctx, Runnable work) {
+      tenantScopedTransaction.execute(ctx, work);
+    }
+  }
+
+  /** The read follows the primitive's return, outside its callback. */
+  public static class TenantRowReaderAfterThePrimitiveReturned {
+
+    private final SettingRepository settingRepository;
+    private final TenantScopedTransaction tenantScopedTransaction;
+
+    public TenantRowReaderAfterThePrimitiveReturned(
+        SettingRepository settingRepository, TenantScopedTransaction tenantScopedTransaction) {
+      this.settingRepository = settingRepository;
+      this.tenantScopedTransaction = tenantScopedTransaction;
+    }
+
+    public void job(TxCtx ctx) {
+      tenantScopedTransaction.execute(ctx, () -> settingRepository.findAllByTenantId("t"));
+      settingRepository.findAllByTenantId("t");
+    }
+  }
+
+  /** Reads the platform row only. */
+  public static class PlatformRowReaderOnly {
+
+    private final SettingRepository settingRepository;
+
+    public PlatformRowReaderOnly(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    public void job() {
+      settingRepository.findByKeyAndTenantIsNull("k");
+    }
+  }
+
+  /** The same repository write is made twice, once before and once after the marker. */
+  public static class PlatformRowWriterBeforeAndAfterTheCurrentTransactionMarker {
+
+    private final SettingRepository settingRepository;
+    private final TenantScopedTransaction tenantScopedTransaction;
+
+    public PlatformRowWriterBeforeAndAfterTheCurrentTransactionMarker(
+        SettingRepository settingRepository, TenantScopedTransaction tenantScopedTransaction) {
+      this.settingRepository = settingRepository;
+      this.tenantScopedTransaction = tenantScopedTransaction;
+    }
+
+    public void entry(Setting setting) {
+      settingRepository.save(setting);
+      tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
       settingRepository.save(setting);
     }
   }
