@@ -4,9 +4,9 @@
 The pull request's JaCoCo report is compared with the report of the last commit of the main
 branch. Core CI uploads that report as the `jacoco-api` artifact on every push to main, and only
 there: a branch that is not main has no reports of its own, so main is the base whatever branch the
-pull request targets. The base report is the newest artifact whose commit is the tip of main or
-one of its ancestors: when the run on the tip itself has not finished yet, the closest earlier one
-stands in for it.
+pull request targets. The base report is the one of the tip of main or, when the run on the tip
+has not uploaded it yet, of its nearest ancestor that has one, following the commit history rather
+than the order the runs finished in.
 
 A pull request that is behind main lacks the commits that main got since, and their tests. When
 the drop is over the limit and the base report has commits the pull request does not, the output
@@ -38,9 +38,9 @@ from jacoco_lines import line_totals, report_lines
 
 SRC_ROOT = "openaev-api/src/main/java"
 ARTIFACT = "jacoco-api"
-WORKFLOW = ".github/workflows/core-ci.yml"
-# Artifacts come newest first; past this many pages the base branch has had no usable run for long.
-MAX_PAGES = 10
+WORKFLOW = "core-ci.yml"
+# How far back main is searched for a commit with a report, in commits and in Core CI runs.
+HISTORY = 100
 
 
 def gh_api(path: str) -> bytes:
@@ -53,13 +53,6 @@ def line_coverage(xml: bytes) -> tuple[int, int]:
     return hits, hits + partials + misses
 
 
-def is_ancestor(repo: str, sha: str, of: str) -> bool:
-    if sha == of:
-        return True
-    status = json.loads(gh_api(f"repos/{repo}/compare/{sha}...{of}"))["status"]
-    return status in ("ahead", "identical")
-
-
 def commits_missing(repo: str, target_sha: str, report_sha: str) -> int:
     """Commits in the base report that the target branch does not have."""
     return json.loads(gh_api(f"repos/{repo}/compare/{target_sha}...{report_sha}"))["ahead_by"]
@@ -70,23 +63,27 @@ def main_tip(repo: str, main_branch: str) -> str:
 
 
 def find_base_report(repo: str, base_sha: str, main_branch: str) -> tuple[str, bytes] | None:
-    for page in range(1, MAX_PAGES + 1):
-        artifacts = json.loads(
-            gh_api(f"repos/{repo}/actions/artifacts?name={ARTIFACT}&per_page=100&page={page}")
-        )["artifacts"]
-        if not artifacts:
-            return None
-        for artifact in artifacts:
-            run = artifact.get("workflow_run") or {}
-            if artifact["expired"] or run.get("head_branch") != main_branch:
-                continue
-            details = json.loads(gh_api(f"repos/{repo}/actions/runs/{run['id']}"))
-            if details["path"] != WORKFLOW or details["event"] != "push":
-                continue
-            if not is_ancestor(repo, run["head_sha"], base_sha):
-                continue
-            archive = gh_api(f"repos/{repo}/actions/artifacts/{artifact['id']}/zip")
-            return run["head_sha"], zipfile.ZipFile(io.BytesIO(archive)).read("jacoco.xml")
+    """Report of base_sha, or else of its nearest ancestor that has one."""
+    runs: dict[str, list[int]] = {}
+    for run in json.loads(
+        gh_api(
+            f"repos/{repo}/actions/workflows/{WORKFLOW}/runs"
+            f"?branch={main_branch}&event=push&per_page={HISTORY}"
+        )
+    )["workflow_runs"]:
+        runs.setdefault(run["head_sha"], []).append(run["id"])
+    # Newest first, following the history of base_sha: the first commit with a report is the
+    # nearest one, whatever order the runs finished or were retried in.
+    for commit in json.loads(gh_api(f"repos/{repo}/commits?sha={base_sha}&per_page={HISTORY}")):
+        for run_id in runs.get(commit["sha"], []):
+            artifacts = json.loads(
+                gh_api(f"repos/{repo}/actions/runs/{run_id}/artifacts?name={ARTIFACT}")
+            )["artifacts"]
+            for artifact in artifacts:
+                if artifact["expired"]:
+                    continue
+                archive = gh_api(f"repos/{repo}/actions/artifacts/{artifact['id']}/zip")
+                return commit["sha"], zipfile.ZipFile(io.BytesIO(archive)).read("jacoco.xml")
     return None
 
 
@@ -127,7 +124,8 @@ def main() -> int:
         compared += f", closest report before {base_sha[:10]}"
     print(f"Base ({compared}): {base_covered} / {base_total} lines, {base_cov:.2f}%")
     print(f"Pull request: {head_covered} / {head_total} lines, {head:.2f}%")
-    if drop > args.max_drop:
+    # Rounded as printed: a drop of exactly max-drop passes despite floating-point noise.
+    if round(drop, 2) > args.max_drop:
         print(f"Line coverage drops by {drop:.2f} points, more than {args.max_drop}.")
         if behind := commits_missing(repo, args.target_sha, found_sha):
             print(f"This branch is {behind} commits behind main: rebase it and let CI run again.")

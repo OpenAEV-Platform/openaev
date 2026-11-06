@@ -65,10 +65,11 @@ runs:
           --target-sha "$(git rev-parse HEAD^1)" \
           --max-drop "$MAX_DROP" | tee "$RUNNER_TEMP/project-coverage.txt"
 
-    # Only when a rule failed: a passing pull request gets no extra check.
+    # A passing pull request gets no extra check, unless an earlier run on the same commit posted a
+    # failure: the script then replaces it with a passing one.
     - name: Explain the failure in a check
       id: explain
-      if: ${{ steps.generate-token.outputs.token != '' && (steps.patch.outcome != 'success' || steps.project.outcome != 'success') }}
+      if: ${{ steps.generate-token.outputs.token != '' }}
       continue-on-error: true
       shell: bash
       env:

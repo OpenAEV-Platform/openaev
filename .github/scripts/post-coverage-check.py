@@ -5,7 +5,8 @@ The backend-coverage-check action runs the two rules (check-patch-coverage.py on
 lines, then check-coverage-drop.py on the whole backend) and only passes or fails. When one
 fails, this check run says, in words, which one, with the tool output and how to fix it. A rule
 that passed is left out. When the pull request is behind main, the fix it gives for a drop is a
-rebase. It is posted with the PR checks app, like the PR title check, so it shows as its own check
+rebase. When both rules pass, it posts nothing, unless an earlier run on the same commit posted a
+failure: a passing check then replaces it. It is posted with the PR checks app, like the PR title check, so it shows as its own check
 on the pull request.
 
 Needs `gh`, GH_TOKEN with checks:write, and GITHUB_REPOSITORY.
@@ -89,6 +90,40 @@ Line coverage must not drop by more than {max_drop} point against the latest rep
 """
 
 
+def gh_api(*args: str, payload: dict | None = None) -> bytes:
+    return subprocess.run(
+        ["gh", "api", *args],
+        input=json.dumps(payload).encode() if payload else None,
+        check=True,
+        capture_output=True,
+    ).stdout
+
+
+def failed_before(sha: str) -> bool:
+    """Whether an earlier run posted this check as a failure on the commit."""
+    runs = json.loads(
+        gh_api(
+            f"repos/{os.environ['GITHUB_REPOSITORY']}/commits/{sha}/check-runs?filter=latest",
+            "-f", f"check_name={NAME}", "-X", "GET",
+        )
+    )["check_runs"]
+    return any(run["conclusion"] == "failure" for run in runs)
+
+
+def post(sha: str, conclusion: str, title: str, summary: str) -> None:
+    gh_api(
+        f"repos/{os.environ['GITHUB_REPOSITORY']}/check-runs",
+        "--input", "-",
+        payload={
+            "name": NAME,
+            "head_sha": sha,
+            "status": "completed",
+            "conclusion": conclusion,
+            "output": {"title": title, "summary": summary},
+        },
+    )
+
+
 def read(path: str) -> str:
     try:
         with open(path, encoding="utf-8") as log:
@@ -118,26 +153,16 @@ def main() -> int:
         titles.append(project_title(project_log, args.max_drop))
         sections.append(project_section(project_log, args.max_drop))
     if not titles:
+        if failed_before(args.sha):
+            post(args.sha, "success", "✅ Coverage rules pass", "Both rules pass on the latest run.")
         return 0
 
-    payload = {
-        "name": NAME,
-        "head_sha": args.sha,
-        "status": "completed",
-        "conclusion": "failure",
-        # The PR checks list shows about 100 characters of "name — title": the figures come first.
-        "output": {
-            "title": " · ".join(titles),
-            "summary": "\n".join(
-                sections + ["This check is advisory for now: it does not block the merge."]
-            ),
-        },
-    }
-    subprocess.run(
-        ["gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/check-runs", "--input", "-"],
-        input=json.dumps(payload).encode(),
-        check=True,
-        stdout=subprocess.DEVNULL,
+    # The PR checks list shows about 100 characters of "name — title": the figures come first.
+    post(
+        args.sha,
+        "failure",
+        " · ".join(titles),
+        "\n".join(sections + ["This check is advisory for now: it does not block the merge."]),
     )
     return 0
 
