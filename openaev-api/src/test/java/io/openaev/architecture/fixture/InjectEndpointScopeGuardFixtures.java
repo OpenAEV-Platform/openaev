@@ -4,6 +4,7 @@ import io.openaev.aop.AccessControl;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.inject.service.InjectService;
 import java.util.function.Supplier;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,9 +16,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public class InjectEndpointScopeGuardFixtures {
 
   private final InjectService injectService;
+  private final InjectRepository injectRepository;
 
-  public InjectEndpointScopeGuardFixtures(InjectService injectService) {
+  public InjectEndpointScopeGuardFixtures(
+      InjectService injectService, InjectRepository injectRepository) {
     this.injectService = injectService;
+    this.injectRepository = injectRepository;
   }
 
   @RequestMapping("/guarded-directly")
@@ -56,13 +60,41 @@ public class InjectEndpointScopeGuardFixtures {
     return () -> injectService.inject(ctx, injectId);
   }
 
-  @RequestMapping("/guarded-through-a-method-reference")
+  @RequestMapping("/guarded-with-the-id-second")
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.READ,
       resourceType = ResourceType.INJECT)
-  public Supplier<Object> guardedThroughAMethodReference() {
-    return this::lookUp;
+  public void guardedWithTheIdSecond(String other, String injectId, TxCtx ctx) {
+    requireInScope(ctx, injectId);
+  }
+
+  @RequestMapping("/guard-on-another-id")
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.INJECT)
+  public void guardOnAnotherId(TxCtx ctx, String injectId, String otherId) {
+    injectService.existsInScope(ctx, otherId);
+  }
+
+  @RequestMapping("/guard-after-the-write")
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.INJECT)
+  public void guardAfterTheWrite(TxCtx ctx, String injectId) {
+    injectRepository.deleteById(injectId);
+    injectService.existsInScope(ctx, injectId);
+  }
+
+  @RequestMapping("/guard-after-the-write-in-the-helper")
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.INJECT)
+  public void guardAfterTheWriteInTheHelper(TxCtx ctx, String injectId) {
+    deleteThenRequire(ctx, injectId);
   }
 
   @RequestMapping("/unguarded")
@@ -102,8 +134,9 @@ public class InjectEndpointScopeGuardFixtures {
     injectService.inject(ctx, injectId);
   }
 
-  private Object lookUp() {
-    return injectService.findInScope(null, "id");
+  private void deleteThenRequire(TxCtx ctx, String injectId) {
+    injectRepository.deleteById(injectId);
+    injectService.existsInScope(ctx, injectId);
   }
 
   private void hopOne(TxCtx ctx, String injectId) {
