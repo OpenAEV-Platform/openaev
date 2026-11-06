@@ -110,7 +110,7 @@ class InjectorContractIdJoinTenantTest extends IntegrationTest {
     private List<InjectorContract> search() {
       entityManager.flush();
       return injectorContractRepositoryHelper.searchInjectorContractsByAttackPatternAndEnvironment(
-          externalId, List.of("Linux"), 10);
+          externalId, List.of("Linux"), 10, tenantA.getId());
     }
 
     private void mapAttackPattern(Tenant tenant) {
