@@ -32,6 +32,7 @@ import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceHealthInput;
 import io.openaev.rest.connector_instance.dto.ConnectorInstanceLogsInput;
 import io.openaev.service.PlatformSettingsService;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceConfigurationComposer;
@@ -55,6 +56,7 @@ public class XtmComposerApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private PlatformSettingsService platformSettingsService;
   @Autowired private TenantScopedTransaction tenantScopedTransaction;
+  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
   @Autowired private ConnectorInstanceRepository connectorInstanceRepository;
   @Autowired private ConnectorInstanceLogRepository connectorInstanceLogRepository;
 
@@ -65,6 +67,26 @@ public class XtmComposerApiTest extends IntegrationTest {
   @BeforeAll
   void setUp() {
     openAEVConfig.setVersion("test-version");
+  }
+
+  /**
+   * Writes the composer's platform settings directly (not through the register endpoint, whose
+   * {@code @PlatformWrite} would otherwise mark the transaction), then reads each one back, so a
+   * refused write fails the calling test instead of leaving the composer unregistered.
+   */
+  private void persistComposerSettings(Map<String, String> settings) {
+    tenantScopedTransaction.setScopeOnCurrentTransaction(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
+    tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
+    platformSettingsService.saveSettings(settings);
+    entityManager.flush();
+    entityManager.clear();
+    settings.forEach(
+        (key, value) ->
+            assertEquals(
+                value,
+                platformSettingsService.setting(key).map(Setting::getValue).orElse(null),
+                "persisted value of " + key));
   }
 
   @Nested
@@ -175,7 +197,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         Instant timeBeforeRequest = Instant.now();
 
         mvc.perform(
@@ -201,7 +223,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         mvc.perform(
                 put(XTMCOMPOSER_URI + "/fake-composer-id/refresh-connectivity")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -222,7 +244,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         composerSettings.put(
             XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(),
             Instant.now().minus(3, ChronoUnit.HOURS).toString());
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         String response =
             mvc.perform(
                     get(XTMCOMPOSER_URI + "/reachable")
@@ -244,13 +266,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
         composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), now.toString());
-        // This writes the parameters table's platform row directly (not through the register()
-        // endpoint), so it needs the same platform-write marker that endpoint's @PlatformWrite
-        // would set, on the current, already-active (test-managed, rolled back) transaction.
-        tenantScopedTransaction.setScopeOnCurrentTransaction(
-            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
-        tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         String response =
             mvc.perform(
                     get(XTMCOMPOSER_URI + "/reachable")
@@ -269,6 +285,16 @@ public class XtmComposerApiTest extends IntegrationTest {
   @Nested
   @DisplayName("Instances management from xtmComposer endpoints")
   class XtmComposerInstance {
+    /**
+     * These endpoints read the composer registration under the caller's own scope, which is empty
+     * for a user with no tenant membership: the caller is a member of the default tenant, as every
+     * user of a deployment is.
+     */
+    @BeforeEach
+    void attachCallerToTheDefaultTenant() {
+      tenantIsolationTestHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+    }
+
     private ConnectorInstancePersisted getConnectorInstance(String connectorName)
         throws JsonProcessingException {
       return connectorInstanceComposer
@@ -291,7 +317,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         mvc.perform(
                 get(XTMCOMPOSER_URI + "/fake-composer-id/connector-instances")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -315,7 +341,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         String response =
             mvc.perform(
                     get(XTMCOMPOSER_URI + "/composer-id-test/connector-instances")
@@ -371,7 +397,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         XtmComposerUpdateStatusInput input = new XtmComposerUpdateStatusInput();
         input.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.started);
         mvc.perform(
@@ -396,7 +422,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
 
         XtmComposerUpdateStatusInput input = new XtmComposerUpdateStatusInput();
         input.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.started);
@@ -435,7 +461,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
 
         XtmComposerUpdateStatusInput input2 = new XtmComposerUpdateStatusInput();
         input2.setCurrentStatus(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
@@ -469,7 +495,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         ConnectorInstanceLogsInput input = new ConnectorInstanceLogsInput();
         input.setLogs(new ArrayList<>());
         mvc.perform(
@@ -495,7 +521,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
 
         ConnectorInstanceLogsInput input = new ConnectorInstanceLogsInput();
         input.setLogs(List.of("New logs", "New logs 2"));
@@ -574,7 +600,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
       }
 
       private void pushLogs(ConnectorInstance instance, List<String> lines) throws Exception {
@@ -609,7 +635,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         ConnectorInstanceHealthInput input = new ConnectorInstanceHealthInput();
         input.setStartedAt(Instant.now());
         input.setRestartCount(1);
@@ -637,7 +663,7 @@ public class XtmComposerApiTest extends IntegrationTest {
         Map<String, String> composerSettings = new HashMap<>();
         composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
         composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
-        platformSettingsService.saveSettings(composerSettings);
+        persistComposerSettings(composerSettings);
         ConnectorInstanceHealthInput input = new ConnectorInstanceHealthInput();
         Instant startTime = Instant.now();
         input.setStartedAt(startTime);
