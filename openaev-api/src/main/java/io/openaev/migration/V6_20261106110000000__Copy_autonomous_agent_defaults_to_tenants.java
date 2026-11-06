@@ -12,6 +12,11 @@ import org.springframework.stereotype.Component;
  * each platform row ({@code tenant_id IS NULL}) of those two keys to every tenant that has no row
  * for that key, then deletes the platform row, so an existing deployment keeps the value it had.
  * Re-running it finds no platform row and changes nothing.
+ *
+ * <p>It copies to the tenants that exist when it runs. A tenant created afterwards gets no copy:
+ * tenant creation ({@code TenantService#create} and the dependency managers it runs) writes none of
+ * these keys, they have no platform fallback, and the platform row is gone, so such a tenant starts
+ * with the built-in default until an administrator sets its own.
  */
 @Component
 public class V6_20261106110000000__Copy_autonomous_agent_defaults_to_tenants
