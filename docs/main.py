@@ -4,8 +4,8 @@ A preview feature is a constant of the backend `PreviewFeature` enum. Its docume
 exists, and shows once the backend removes it:
 
 - `{% if feature_visible("NAME") %}` hides content inside a page.
-- `preview_feature: NAME` in the front matter of a page removes the page from the navigation (`preview_features.py`
-  hook, which imports `is_visible()` from this module).
+- `preview_feature: NAME` in the front matter of a page removes the page from the navigation and from the build
+  (`preview_features.py` hook, which imports `is_visible()` from this module).
 
 Once the backend removes the constant, both warn, so the strict build of the pull request fails until the
 `feature_visible()` block and the `preview_feature` front matter are removed.

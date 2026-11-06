@@ -1,7 +1,8 @@
-"""MkDocs hook that removes the pages of hidden preview features from the navigation.
+"""MkDocs hook that leaves the pages of hidden preview features out of the site.
 
-A page with `preview_feature: NAME` in its front matter is left out of the `nav` while `NAME` is hidden, following the
-same rule as the `feature_visible()` macro (see `main.py`). The page stays reachable by its URL.
+A page with `preview_feature: NAME` in its front matter is left out of the `nav` and of the build while `NAME` is
+hidden, following the same rule as the `feature_visible()` macro (see `main.py`): no URL, no search entry, no sitemap
+entry.
 """
 
 from pathlib import Path
@@ -39,3 +40,10 @@ def on_config(config):
     if config.nav:
         config.nav = _filter_nav(config.docs_dir, config.nav)
     return config
+
+
+def on_files(files, config):
+    for file in list(files.documentation_pages()):
+        if not _page_visible(config.docs_dir, file.src_uri):
+            files.remove(file)
+    return files

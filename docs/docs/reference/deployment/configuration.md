@@ -141,6 +141,7 @@ The inject execution engine runs the actions described in the Injector contracts
 |:----------------------------------------------|:----------------------------------------------|:--------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | openaev.scheduling.inject-staleness-threshold | OPENAEV_SCHEDULING_INJECT-STALENESS-THRESHOLD | 4             | Grace period in minutes after the start time of a time-based Inject, during which it can still run. Past this period, the Inject is set in error. Values below `1` are treated as `1`. |
 
+{% if feature_visible("CREDENTIAL_ASSET") %}
 #### Credential status validation
 
 A scheduled job re-checks the stored [Credentials](../../usage/build/credentials.md) against their cloud provider and
@@ -156,6 +157,8 @@ no remote counterpart (username/password, hash) are never checked and keep the `
 | openaev.credentials.status-validation.revalidate-after-days | OPENAEV_CREDENTIALS_STATUS-VALIDATION_REVALIDATE-AFTER-DAYS | 1             | How long a credential status stays fresh. Past this age the credential is checked again.                 |
 | openaev.credentials.status-validation.max-per-run           | OPENAEV_CREDENTIALS_STATUS-VALIDATION_MAX-PER-RUN          | 500           | Maximum number of credentials checked per tenant and per run. Oldest verification first.                 |
 | openaev.credentials.status-validation.timeout-seconds       | OPENAEV_CREDENTIALS_STATUS-VALIDATION_TIMEOUT-SECONDS      | 10            | Per-call budget for a single provider probe. A probe exceeding it is inconclusive, not a rejection.      |
+
+{% endif %}
 
 #### Report rendering
 
