@@ -135,7 +135,7 @@ public class TenantUserService implements DependenciesManager {
                 tenantSpec.and(spec).and(organizationsOfTenant),
                 tenantSpec.and(specCount).and(organizationsOfTenant),
                 pageable,
-                (cq, root) -> UserQueryHelper.select(cb, cq, root),
+                (cq, root) -> UserQueryHelper.select(cb, cq, root, tenantId),
                 UserQueryHelper::execution),
         searchPaginationInput,
         User.class);
