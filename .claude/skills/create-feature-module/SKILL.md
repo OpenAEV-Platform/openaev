@@ -38,6 +38,7 @@ Follow `Group.java` (tenant-scoped) or `Tenant.java` (platform-level):
 - `@Queryable` on filterable fields
 - `@Transient @JsonIgnore ResourceType` field
 - Collections initialized as mutable (`new ArrayList<>()`)
+- No business logic: state and mapping only (see `backend.instructions.md` → Entities)
 - Follow conventions from `database.instructions.md`
 
 **If dual-scope** (Settings, User, Role, Group pattern):
@@ -77,7 +78,8 @@ Location: `openaev-api/src/main/java/io/openaev/service/`
 
 - `@Service @RequiredArgsConstructor @Transactional(rollbackFor = Exception.class)`
 - CRUD + search with pagination
-- JavaDoc on all public methods
+- Inject only `{Entity}Repository`; other aggregates through their service
+- Return entities, never an `*Output`; throw domain exceptions, never `ResponseStatusException`
 
 **If dual-scope — create TWO services:**
 - `Platform{Entity}Service` — all queries use `findByTenantIsNull()` variants, never receives `tenantId`
@@ -97,6 +99,7 @@ Location: `openaev-api/src/main/java/io/openaev/api/{feature}/`
 
 - `@AccessControl` + `@Operation` on every endpoint; `@LogExecutionTime` only on endpoints at risk of being slow
 - CRUD + search endpoints
+- Each endpoint is `return toOutput(service.x(...))`: one service call, no repository, no try/catch
 - **All new tenant-scoped APIs use `TENANT_PREFIX`**: `@RequestMapping(TENANT_PREFIX + "/{entities}")` → resolves to `/api/tenants/{tenantId}/{entities}`
 
 **If dual-scope — create TWO controllers:**
