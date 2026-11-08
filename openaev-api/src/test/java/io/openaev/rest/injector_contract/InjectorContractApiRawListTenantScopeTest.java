@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.Tenant;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -76,5 +78,29 @@ class InjectorContractApiRawListTenantScopeTest extends IntegrationTest {
     List<String> ids =
         JsonPath.read(result.getResponse().getContentAsString(), "$[*].injector_contract_id");
     assertThat(ids).containsOnlyOnce(ManualContract.MANUAL_DEFAULT);
+  }
+
+  @Test
+  @DisplayName("given_callerOfTwoTenantsAndNoHeader_should_listOneRowPerTenantCopyOfTheSameId")
+  void given_callerOfTwoTenantsAndNoHeader_should_listOneRowPerTenantCopyOfTheSameId()
+      throws Exception {
+    // Arrange: the caller belongs to the default tenant and to B, both holding the built-in
+    // contract under the same id. With no header the scope is the whole membership while the
+    // ambient tenant stays the default one: TenantContext is set on the prefixed route only.
+    tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+    builtinConnectorRegistration.register(
+        manualInjectorIntegrationFactory, Tenant.DEFAULT_TENANT_UUID);
+    TenantContext.clearCurrentTenant();
+    assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+    // Act
+    MvcResult result = mvc.perform(get(INJECTOR_CONTRACT_URL).with(csrf())).andReturn();
+
+    // Assert: one row per tenant copy. A list that also filtered on the ambient tenant would
+    // answer the default tenant's copy alone.
+    assertThat(result.getResponse().getStatus()).isEqualTo(200);
+    List<String> ids =
+        JsonPath.read(result.getResponse().getContentAsString(), "$[*].injector_contract_id");
+    assertThat(ids.stream().filter(ManualContract.MANUAL_DEFAULT::equals).count()).isEqualTo(2);
   }
 }
