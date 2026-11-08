@@ -710,6 +710,30 @@ class TenantStatementInspectorTest {
     assertFalse(out.contains("tenant_write_value"), out);
   }
 
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(
+      strings = {
+        "UPDATE groups SET (tenant_id, name) = (SELECT 1, 2) WHERE id = ?",
+        "UPDATE groups SET (name, tenant_id) = (SELECT 1, 2) WHERE id = ?",
+        "INSERT INTO groups (id, tenant_id) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET"
+            + " (tenant_id, name) = (SELECT 1, 2)",
+        "INSERT INTO groups (id, tenant_id) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET"
+            + " (name, tenant_id) = (SELECT 1, 2)"
+      })
+  @DisplayName("an assignment of the tenant that does not line up with its columns is refused")
+  void assignmentOfTheTenantThatDoesNotLineUpIsRefused(String sql) {
+    TenantFilteringException refusal =
+        assertThrows(TenantFilteringException.class, () -> inspector.inspect(sql));
+    assertTrue(refusal.getMessage().contains("does not line up"), refusal.getMessage());
+  }
+
+  @Test
+  @DisplayName("a multi-column UPDATE assigning the tenant from a list guards the tenant")
+  void multiColumnUpdateOfDualScopeTableGuardsTheAssignedTenant() {
+    String out = inspect("UPDATE groups SET (name, tenant_id) = (?, ?) WHERE id = ?");
+    assertTrue(out.contains("tenant_write_value(?, true)"), out);
+  }
+
   @Test
   @DisplayName("an UPDATE of a strict table does not guard the tenant it assigns")
   void updateOfStrictTableDoesNotGuardTheAssignedTenant() {

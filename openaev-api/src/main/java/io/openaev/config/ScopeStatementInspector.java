@@ -295,8 +295,19 @@ public class ScopeStatementInspector implements StatementInspector {
         if (idx < 0) {
           continue;
         }
+        // A value per column, in order: a sub-select or a list of another size cannot be guarded
+        // per column, so it is refused rather than written unchecked.
+        ExpressionList<?> values = set.getValues();
+        if (values == null || values.size() != set.getColumns().size()) {
+          throw new TenantFilteringException(
+              "UPDATE ... SET of a "
+                  + dimension.name()
+                  + " table assigns "
+                  + column
+                  + " from a value that does not line up with its columns");
+        }
         @SuppressWarnings("unchecked")
-        ExpressionList<Expression> assigned = (ExpressionList<Expression>) set.getValues();
+        ExpressionList<Expression> assigned = (ExpressionList<Expression>) values;
         Expression guarded = guardedValue(dimension, tableName, assigned.get(idx));
         if (guarded != null) {
           assigned.set(idx, guarded);
