@@ -28,6 +28,8 @@ import io.openaev.service.account.CatalogConnectorPrivilegeService;
 import io.openaev.service.tenants.TenantUserService;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
+import org.springframework.data.jpa.repository.Query;
 
 /**
  * Who writes {@code users_tenants}, and where each writer gets the tenant of the row. The table is
@@ -49,8 +51,15 @@ import java.util.Set;
  * </ul>
  *
  * <p>Denominator: the main classes of {@code io.openaev}, a call counting when it names one of the
- * methods above. Not seen: a membership written through spelled-out SQL (none today), the foreign
- * key cascade that removes the rows of a deleted tenant or user, and Flyway migrations.
+ * methods above, plus every repository method whose {@code @Query} writes {@code users_tenants}
+ * (see {@code only_the_two_known_queries_write_users_tenants}: a third statement spelled out in a
+ * repository fails). Not seen: a membership written through SQL that is not an {@code @Query}
+ * annotation ({@code JdbcTemplate}, {@code EntityManager#createNativeQuery}, a string built at run
+ * time), a mutation of the {@code tenants} collection through a reference that is not a {@code
+ * getTenants} or {@code setTenants} call (reflection, a copy constructor), the foreign key cascade
+ * that removes the rows of a deleted tenant or user, and Flyway migrations. A user saved after an
+ * unrelated {@code getTenants} caller needs no rule: reading the collection does not dirty it, only
+ * a caller that adds to it or sets it does, and those are the listed ones.
  *
  * <p>Each list is also checked the other way: an entry that no longer calls its method is stale and
  * fails, so the lists name the writers of the tree exactly.
@@ -151,6 +160,38 @@ class UsersTenantsWritersArchTest {
           .because(
               "saving a user writes the rows of its tenants collection to users_tenants: add the"
                   + " caller to ENTITY_COLLECTION_USERS with where its tenant comes from");
+
+  @ArchTest
+  static void only_the_two_known_queries_write_users_tenants(JavaClasses classes) {
+    List<String> writers =
+        classes.stream()
+            .flatMap(javaClass -> javaClass.getMethods().stream())
+            .filter(
+                method ->
+                    method
+                        .tryGetAnnotationOfType(Query.class)
+                        .map(Query::value)
+                        .filter(UsersTenantsWritersArchTest::writesUsersTenants)
+                        .isPresent())
+            .map(method -> method.getOwner().getSimpleName() + "#" + method.getName())
+            .sorted()
+            .toList();
+    assertThat(writers)
+        .as(
+            "repository queries that write users_tenants: a new one is a new writer of a table the"
+                + " inspector does not gate, so name it here with where its tenant comes from")
+        .containsExactly(
+            "TenantRepository#addUserToTenant", "TenantRepository#removeUserFromTenant");
+  }
+
+  private static boolean writesUsersTenants(String query) {
+    String sql = query.toLowerCase(java.util.Locale.ROOT);
+    return sql.contains("users_tenants") && WRITE_STATEMENT.matcher(sql).find();
+  }
+
+  /** A write statement, also one inside a CTE; a column named {@code user_updated_at} is not. */
+  private static final Pattern WRITE_STATEMENT =
+      Pattern.compile("\\binsert\\s+into\\b|\\bdelete\\s+from\\b|\\bupdate\\s+\\S+\\s+set\\b");
 
   @ArchTest
   static void every_listed_writer_still_calls_its_method(JavaClasses classes) {
