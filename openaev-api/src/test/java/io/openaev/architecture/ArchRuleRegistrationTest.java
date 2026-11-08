@@ -138,7 +138,13 @@ class ArchRuleRegistrationTest {
               "tenantlessInjectorContractQueryIsCalledOnlyBy",
               TenantActiveTableAccessArchTest.class,
               "a parameterised rule factory; its one @ArchTest field calls it with the allowlist to"
-                  + " build its rule"));
+                  + " build its rule"),
+          new Helper(
+              TenantActiveTableAccessArchTest.class,
+              "pinnedCallersPinBeforeTheLookup",
+              TenantActiveTableAccessArchTest.class,
+              "a parameterised rule factory; its one @ArchTest field calls it with the same"
+                  + " allowlist to build its rule"));
 
   /** The members the ArchUnit engine can run as a rule, whether or not they are annotated. */
   private static Stream<JavaMember> ruleMembers() {

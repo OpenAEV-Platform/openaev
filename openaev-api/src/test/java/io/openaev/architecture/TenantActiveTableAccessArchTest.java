@@ -33,8 +33,10 @@ import io.openaev.api.notification.NotificationApi;
 import io.openaev.api.notification_trigger.NotificationTriggerMapper;
 import io.openaev.api.notifier.NotifierApi;
 import io.openaev.api.payload.PayloadApiExporter;
+import io.openaev.api.threat_arsenal.ThreatArsenalApi;
 import io.openaev.api.threat_arsenal.ThreatArsenalApiExporter;
 import io.openaev.api.xtmhub.XtmHubApi;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.AttackPattern;
@@ -295,6 +297,7 @@ import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
 import io.openaev.utils.ExpectationUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.ResultUtils;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.DocumentMapper;
 import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.mapper.InjectMapper;
@@ -2861,6 +2864,249 @@ class TenantActiveTableAccessArchTest {
           io.openaev.rest.payload.service.PayloadService.class,
           io.openaev.service.InjectorService.class);
 
+  /** The calling methods allowed to make a tenant-less injector contract access. */
+  private static final AllowedCall[] INJECTOR_CONTRACT_ALLOWED_CALLS = {
+    // The singular endpoints: requireSingleTenant refuses any scope that does not pin
+    // exactly one tenant before the call reaches the lookup.
+    allowPinned(
+        InjectorContractApi.class,
+        "injectorContract",
+        "injectorContract",
+        "requireSingleTenant pins the scope to one tenant first",
+        Pin.requireSingleTenant(
+            InjectorContractApi.class,
+            "injectorContract",
+            InjectorContractService.class,
+            "injectorContract")),
+    allowPinned(
+        InjectorContractApi.class,
+        "updateInjectorContract",
+        "updateInjectorContract",
+        "requireSingleTenant pins the scope to one tenant first",
+        Pin.requireSingleTenant(
+            InjectorContractApi.class,
+            "updateInjectorContract",
+            InjectorContractService.class,
+            "updateInjectorContract")),
+    allowPinned(
+        InjectorContractApi.class,
+        "updateInjectorContractMapping",
+        "updateInjectorContractTTPDomainsAndTags",
+        "requireSingleTenant pins the scope to one tenant first",
+        Pin.requireSingleTenant(
+            InjectorContractApi.class,
+            "updateInjectorContractMapping",
+            InjectorContractService.class,
+            "updateInjectorContractTTPDomainsAndTags")),
+    allowPinned(
+        InjectorContractApi.class,
+        "deleteInjectorContract",
+        "deleteInjectorContract",
+        "requireSingleTenant pins the scope to one tenant first",
+        Pin.requireSingleTenant(
+            InjectorContractApi.class,
+            "deleteInjectorContract",
+            InjectorContractService.class,
+            "deleteInjectorContract")),
+    // The same bare lookup redone inside the service; the only callers of these three are
+    // the endpoints above, and the service's own #injectorContract(String) is used by the
+    // threat arsenal callers listed below.
+    allow(
+        InjectorContractService.class,
+        "injectorContract",
+        "findByIdOrExternalId",
+        "reached only from the endpoints above and the threat arsenal methods below, whose"
+            + " scope is one tenant"),
+    allow(
+        InjectorContractService.class,
+        "updateInjectorContract",
+        "findByIdOrExternalId",
+        "reached only from InjectorContractApi#updateInjectorContract, one-tenant scope"),
+    allow(
+        InjectorContractService.class,
+        "updateInjectorContractTTPDomainsAndTags",
+        "findByIdOrExternalId",
+        "reached only from InjectorContractApi#updateInjectorContractMapping, one-tenant"
+            + " scope"),
+    allow(
+        InjectorContractService.class,
+        "deleteInjectorContract",
+        "findByIdOrExternalId",
+        "reached only from InjectorContractApi#deleteInjectorContract, one-tenant scope"),
+    // The raw list answers for the contracts of the request scope, grouped per tenant.
+    allow(
+        InjectorContractApi.class,
+        "injectContracts",
+        "getAllRawInjectContracts",
+        "a list of the request scope's contracts, one row per contract and tenant"),
+    allow(
+        InjectorContractService.class,
+        "getAllRawInjectContracts",
+        "getAllRawInjectorsContracts",
+        "a list of the request scope's contracts, one row per contract and tenant"),
+    allow(
+        InjectorContractService.class,
+        "getAllRawInjectContracts",
+        "getAllRawInjectorsContractsGranted",
+        "a list of the request scope's granted contracts, one row per contract and tenant"),
+    allow(
+        InjectorContractRepository.class,
+        "getAllRawInjectorsContractsGranted",
+        "getAllRawInjectorsContractsGranted",
+        "the default method delegates to the two-argument query of the same interface"),
+    // Threat arsenal: every caller of these service methods is a ThreatArsenalApi endpoint
+    // that pins one tenant: the plain GET through requireSingleTenant, update and duplicate
+    // through writeScopeResolver.tenantForWrite, and delete and security-platforms mapped on
+    // the tenant-prefixed route only, where the path pins the tenant.
+    allowPinned(
+        ThreatArsenalService.class,
+        "findById",
+        "injectorContract",
+        "ThreatArsenalApi#threatArsenal calls requireSingleTenant first",
+        Pin.requireSingleTenant(
+            ThreatArsenalApi.class, "threatArsenal", ThreatArsenalService.class, "findById")),
+    allowPinned(
+        ThreatArsenalService.class,
+        "update",
+        "injectorContract",
+        "ThreatArsenalApi#updateAction calls tenantForWrite first, which refuses a scope of"
+            + " several tenants",
+        Pin.tenantForWrite(
+            ThreatArsenalApi.class, "updateAction", ThreatArsenalService.class, "update")),
+    allowPinned(
+        ThreatArsenalService.class,
+        "duplicate",
+        "injectorContract",
+        "ThreatArsenalApi#duplicateAction calls tenantForWrite first, which refuses a scope"
+            + " of several tenants",
+        Pin.tenantForWrite(
+            ThreatArsenalApi.class, "duplicateAction", ThreatArsenalService.class, "duplicate")),
+    allow(
+        ThreatArsenalService.class,
+        "delete",
+        "injectorContract",
+        "ThreatArsenalApi#deleteAction is mapped on the tenant-prefixed route only"),
+    allow(
+        ThreatArsenalService.class,
+        "getSecurityPlatformsForActionRemediation",
+        "injectorContract",
+        "ThreatArsenalApi#securityPlatformsFromAction is mapped on the tenant-prefixed route"
+            + " only"),
+    allow(
+        ThreatArsenalService.class,
+        "isEligibleForDeletion",
+        "injectorContract",
+        "reached from delete (tenant-prefixed route) and from bulkDeleteInTenant, which runs"
+            + " the resolution under the scope of one tenant"),
+    allow(
+        ThreatArsenalApiExporter.class,
+        "export",
+        "injectorContract",
+        "the exporter is mapped on the tenant-prefixed route only"),
+    // Lists and aggregates over the contracts of the request scope, never one row picked out
+    // of several.
+    allow(
+        io.openaev.rest.attack_pattern.AttackPatternApi.class,
+        "injectorContracts",
+        "findAll",
+        "lists the contracts linked to one attack pattern, every row a contract of the scope"),
+    allow(
+        io.openaev.service.MapperService.class,
+        "getInjectorContractsToExport",
+        "findAll",
+        "exports the contracts a search selects, every row a contract of the scope"),
+    allow(
+        io.openaev.service.autonomous.CapabilityResolverService.class,
+        "buildIndex",
+        "findAll",
+        "the advisory capability index reports the arsenal of the whole scope"),
+    // The platforms of one simulation's injects, a distinct set: an inject joins the
+    // contract of its own tenant through the composite key.
+    allow(
+        io.openaev.rest.exercise.ExerciseApi.class,
+        "exercise",
+        "findDistinctPlatformsByExerciseId",
+        "keyed by the simulation, whose injects join the contract of their own tenant"),
+    // Keyed by one injector row: the contracts linked to it.
+    allow(
+        io.openaev.rest.injector.InjectorApi.class,
+        "injectorInjectTypes",
+        "findByInjectorsContaining",
+        "keyed by the injector entity, resolved under a RequireTenantSelector scope"),
+    allow(
+        io.openaev.service.InjectorService.class,
+        "deleteInjector",
+        "findByInjectorsContaining",
+        "keyed by the injector entity being deleted"),
+    // Payload-keyed: a payload id is unique and backs at most one contract, in its own
+    // tenant, so the contract read behind a payload entity the caller already holds is that
+    // payload's own whatever the scope.
+    allow(
+        io.openaev.rest.payload.service.PayloadService.class,
+        "duplicate",
+        "findInjectorContractByPayload",
+        "keyed by the payload entity"),
+    allow(
+        io.openaev.rest.payload.service.PayloadService.class,
+        "synchroniseInjectorContractBasedOnPayload",
+        "findInjectorContractByPayload",
+        "keyed by the payload entity"),
+    allow(
+        io.openaev.rest.payload.service.PayloadService.class,
+        "synchroniseInjectorContractBasedOnPayload",
+        "addContractToPayloadsInjectors",
+        "joins the injector and the contract on the same tenant"),
+    allow(
+        io.openaev.rest.payload.service.PayloadService.class,
+        "findPayloadWithRelatedEntities",
+        "findRelatedIdsByPayloadId",
+        "keyed by the payload id"),
+    allow(
+        io.openaev.rest.payload.service.PayloadService.class,
+        "delete",
+        "findContractIdsByPayloadIdPerTenant",
+        "keyed by the payload id, and returns each contract with its own tenant"),
+    allow(
+        InjectorContractService.class,
+        "findContractIdsByPayloadIdPerTenant",
+        "findContractTenantPairsByPayloadId",
+        "keyed by the payload id, and returns each contract with its own tenant"),
+    allow(
+        io.openaev.rest.payload.service.PayloadUpsertService.class,
+        "updatePayloadFromUpsert",
+        "findInjectorContractByPayload",
+        "keyed by the payload entity"),
+    allow(
+        io.openaev.service.stix.SecurityCoverageInjectService.class,
+        "createInjectsByInjectorContracts",
+        "findInjectorContractByPayload",
+        "keyed by the payload entity"),
+    allow(
+        io.openaev.importer.V1_DataImporter.class,
+        "findContractByPayloadExternalId",
+        "findInjectorContractByPayload",
+        "keyed by a payload found in the write tenant by findByExternalIdAndTenantId"),
+    allow(
+        io.openaev.importer.V1_DataImporter.class,
+        "readableContractForPayload",
+        "findInjectorContractByPayload",
+        "keyed by a payload the importer resolved in its write tenant"),
+    // Run only from StepEventService#run, inside the TxCtx.forTenant(tenantId) transaction of
+    // the step's own tenant, the one the step was consumed from the ready queue under.
+    allow(
+        InjectExecutionStep.class,
+        "getInjectFromDataStep",
+        "findById",
+        "InjectExecutionStep#run is called only from StepEventService, in the step's tenant"
+            + " scope"),
+    // Runtime migration, under the migration processor's forTenant scope:
+    allow(
+        io.openaev.processor.core.V20260725_Fix_starter_pack_payload_contracts.class,
+        "doMigrate",
+        "findById",
+        "runs once per tenant under the migration processor's forTenant scope")
+  };
+
   /**
    * A built-in injector contract id/external id repeats across every tenant that holds a copy
    * (#8485), so a query on {@code injectors_contracts} with no tenant argument answers for every
@@ -2880,220 +3126,17 @@ class TenantActiveTableAccessArchTest {
    */
   @ArchTest
   static final ArchRule injector_contract_tenantless_query_is_called_only_by =
-      tenantlessInjectorContractQueryIsCalledOnlyBy(
-          // The singular endpoints: requireSingleTenant refuses any scope that does not pin
-          // exactly one tenant before the call reaches the lookup.
-          allow(
-              InjectorContractApi.class,
-              "injectorContract",
-              "injectorContract",
-              "requireSingleTenant pins the scope to one tenant first"),
-          allow(
-              InjectorContractApi.class,
-              "updateInjectorContract",
-              "updateInjectorContract",
-              "requireSingleTenant pins the scope to one tenant first"),
-          allow(
-              InjectorContractApi.class,
-              "updateInjectorContractMapping",
-              "updateInjectorContractTTPDomainsAndTags",
-              "requireSingleTenant pins the scope to one tenant first"),
-          allow(
-              InjectorContractApi.class,
-              "deleteInjectorContract",
-              "deleteInjectorContract",
-              "requireSingleTenant pins the scope to one tenant first"),
-          // The same bare lookup redone inside the service; the only callers of these three are
-          // the endpoints above, and the service's own #injectorContract(String) is used by the
-          // threat arsenal callers listed below.
-          allow(
-              InjectorContractService.class,
-              "injectorContract",
-              "findByIdOrExternalId",
-              "reached only from the endpoints above and the threat arsenal methods below, whose"
-                  + " scope is one tenant"),
-          allow(
-              InjectorContractService.class,
-              "updateInjectorContract",
-              "findByIdOrExternalId",
-              "reached only from InjectorContractApi#updateInjectorContract, one-tenant scope"),
-          allow(
-              InjectorContractService.class,
-              "updateInjectorContractTTPDomainsAndTags",
-              "findByIdOrExternalId",
-              "reached only from InjectorContractApi#updateInjectorContractMapping, one-tenant"
-                  + " scope"),
-          allow(
-              InjectorContractService.class,
-              "deleteInjectorContract",
-              "findByIdOrExternalId",
-              "reached only from InjectorContractApi#deleteInjectorContract, one-tenant scope"),
-          // The raw list answers for the contracts of the request scope, grouped per tenant.
-          allow(
-              InjectorContractApi.class,
-              "injectContracts",
-              "getAllRawInjectContracts",
-              "a list of the request scope's contracts, one row per contract and tenant"),
-          allow(
-              InjectorContractService.class,
-              "getAllRawInjectContracts",
-              "getAllRawInjectorsContracts",
-              "a list of the request scope's contracts, one row per contract and tenant"),
-          allow(
-              InjectorContractService.class,
-              "getAllRawInjectContracts",
-              "getAllRawInjectorsContractsGranted",
-              "a list of the request scope's granted contracts, one row per contract and tenant"),
-          allow(
-              InjectorContractRepository.class,
-              "getAllRawInjectorsContractsGranted",
-              "getAllRawInjectorsContractsGranted",
-              "the default method delegates to the two-argument query of the same interface"),
-          // Threat arsenal: every caller of these service methods is a ThreatArsenalApi endpoint
-          // that pins one tenant: the plain GET through requireSingleTenant, update and duplicate
-          // through writeScopeResolver.tenantForWrite, and delete and security-platforms mapped on
-          // the tenant-prefixed route only, where the path pins the tenant.
-          allow(
-              ThreatArsenalService.class,
-              "findById",
-              "injectorContract",
-              "ThreatArsenalApi#threatArsenal calls requireSingleTenant first"),
-          allow(
-              ThreatArsenalService.class,
-              "update",
-              "injectorContract",
-              "ThreatArsenalApi#updateAction calls tenantForWrite first, which refuses a scope of"
-                  + " several tenants"),
-          allow(
-              ThreatArsenalService.class,
-              "duplicate",
-              "injectorContract",
-              "ThreatArsenalApi#duplicateAction calls tenantForWrite first, which refuses a scope"
-                  + " of several tenants"),
-          allow(
-              ThreatArsenalService.class,
-              "delete",
-              "injectorContract",
-              "ThreatArsenalApi#deleteAction is mapped on the tenant-prefixed route only"),
-          allow(
-              ThreatArsenalService.class,
-              "getSecurityPlatformsForActionRemediation",
-              "injectorContract",
-              "ThreatArsenalApi#securityPlatformsFromAction is mapped on the tenant-prefixed route"
-                  + " only"),
-          allow(
-              ThreatArsenalService.class,
-              "isEligibleForDeletion",
-              "injectorContract",
-              "reached from delete (tenant-prefixed route) and from bulkDeleteInTenant, which runs"
-                  + " the resolution under the scope of one tenant"),
-          allow(
-              ThreatArsenalApiExporter.class,
-              "export",
-              "injectorContract",
-              "the exporter is mapped on the tenant-prefixed route only"),
-          // Lists and aggregates over the contracts of the request scope, never one row picked out
-          // of several.
-          allow(
-              io.openaev.rest.attack_pattern.AttackPatternApi.class,
-              "injectorContracts",
-              "findAll",
-              "lists the contracts linked to one attack pattern, every row a contract of the scope"),
-          allow(
-              io.openaev.service.MapperService.class,
-              "getInjectorContractsToExport",
-              "findAll",
-              "exports the contracts a search selects, every row a contract of the scope"),
-          allow(
-              io.openaev.service.autonomous.CapabilityResolverService.class,
-              "buildIndex",
-              "findAll",
-              "the advisory capability index reports the arsenal of the whole scope"),
-          // The platforms of one simulation's injects, a distinct set: an inject joins the
-          // contract of its own tenant through the composite key.
-          allow(
-              io.openaev.rest.exercise.ExerciseApi.class,
-              "exercise",
-              "findDistinctPlatformsByExerciseId",
-              "keyed by the simulation, whose injects join the contract of their own tenant"),
-          // Keyed by one injector row: the contracts linked to it.
-          allow(
-              io.openaev.rest.injector.InjectorApi.class,
-              "injectorInjectTypes",
-              "findByInjectorsContaining",
-              "keyed by the injector entity, resolved under a RequireTenantSelector scope"),
-          allow(
-              io.openaev.service.InjectorService.class,
-              "deleteInjector",
-              "findByInjectorsContaining",
-              "keyed by the injector entity being deleted"),
-          // Payload-keyed: a payload id is unique and backs at most one contract, in its own
-          // tenant, so the contract read behind a payload entity the caller already holds is that
-          // payload's own whatever the scope.
-          allow(
-              io.openaev.rest.payload.service.PayloadService.class,
-              "duplicate",
-              "findInjectorContractByPayload",
-              "keyed by the payload entity"),
-          allow(
-              io.openaev.rest.payload.service.PayloadService.class,
-              "synchroniseInjectorContractBasedOnPayload",
-              "findInjectorContractByPayload",
-              "keyed by the payload entity"),
-          allow(
-              io.openaev.rest.payload.service.PayloadService.class,
-              "synchroniseInjectorContractBasedOnPayload",
-              "addContractToPayloadsInjectors",
-              "joins the injector and the contract on the same tenant"),
-          allow(
-              io.openaev.rest.payload.service.PayloadService.class,
-              "findPayloadWithRelatedEntities",
-              "findRelatedIdsByPayloadId",
-              "keyed by the payload id"),
-          allow(
-              io.openaev.rest.payload.service.PayloadService.class,
-              "delete",
-              "findContractIdsByPayloadIdPerTenant",
-              "keyed by the payload id, and returns each contract with its own tenant"),
-          allow(
-              InjectorContractService.class,
-              "findContractIdsByPayloadIdPerTenant",
-              "findContractTenantPairsByPayloadId",
-              "keyed by the payload id, and returns each contract with its own tenant"),
-          allow(
-              io.openaev.rest.payload.service.PayloadUpsertService.class,
-              "updatePayloadFromUpsert",
-              "findInjectorContractByPayload",
-              "keyed by the payload entity"),
-          allow(
-              io.openaev.service.stix.SecurityCoverageInjectService.class,
-              "createInjectsByInjectorContracts",
-              "findInjectorContractByPayload",
-              "keyed by the payload entity"),
-          allow(
-              io.openaev.importer.V1_DataImporter.class,
-              "findContractByPayloadExternalId",
-              "findInjectorContractByPayload",
-              "keyed by a payload found in the write tenant by findByExternalIdAndTenantId"),
-          allow(
-              io.openaev.importer.V1_DataImporter.class,
-              "readableContractForPayload",
-              "findInjectorContractByPayload",
-              "keyed by a payload the importer resolved in its write tenant"),
-          // Run only from StepEventService#run, inside the TxCtx.forTenant(tenantId) transaction of
-          // the step's own tenant, the one the step was consumed from the ready queue under.
-          allow(
-              InjectExecutionStep.class,
-              "getInjectFromDataStep",
-              "findById",
-              "InjectExecutionStep#run is called only from StepEventService, in the step's tenant"
-                  + " scope"),
-          // Runtime migration, under the migration processor's forTenant scope:
-          allow(
-              io.openaev.processor.core.V20260725_Fix_starter_pack_payload_contracts.class,
-              "doMigrate",
-              "findById",
-              "runs once per tenant under the migration processor's forTenant scope"));
+      tenantlessInjectorContractQueryIsCalledOnlyBy(INJECTOR_CONTRACT_ALLOWED_CALLS);
+
+  /**
+   * The allowlist reasons that say a pin refuses a scope of several tenants first are checked here,
+   * not taken on trust: the pin must be called in the endpoint, and before the call that reaches
+   * the lookup. {@code TenantActiveTableAccessRulesTest} fires it on a pin that comes after the
+   * lookup, on a missing pin, and on a pin in another method.
+   */
+  @ArchTest
+  static final ArchRule injector_contract_pins_are_called_before_the_lookup =
+      pinnedCallersPinBeforeTheLookup(INJECTOR_CONTRACT_ALLOWED_CALLS);
 
   /**
    * The five link tables of injectors_contracts have no repository of their own: an entity load of
@@ -3179,9 +3222,15 @@ class TenantActiveTableAccessArchTest {
 
   /**
    * One calling method allowed to make one tenant-less access, with the reason its scope is one
-   * tenant. A lambda counts as the method that contains it.
+   * tenant. A lambda counts as the method that contains it. A reason that says a pin refuses a
+   * scope of several tenants first carries the {@link Pin} it names, which {@link
+   * #pinnedCallersPinBeforeTheLookup} checks.
    */
-  record AllowedCall(Class<?> caller, String method, String target, String reason) {
+  record AllowedCall(Class<?> caller, String method, String target, String reason, Pin pin) {
+
+    AllowedCall(Class<?> caller, String method, String target, String reason) {
+      this(caller, method, target, reason, null);
+    }
 
     boolean permits(JavaAccess<?> access) {
       JavaCodeUnit origin = access.getOrigin();
@@ -3197,6 +3246,126 @@ class TenantActiveTableAccessArchTest {
   }
 
   private static final Pattern LAMBDA_NAME = Pattern.compile("lambda\\$(.+?)\\$\\d+");
+
+  /**
+   * A pin an allowlist reason relies on: {@code inClass#inMethod} calls {@code pinOwner#pinName},
+   * which refuses a scope of several tenants, before the first call of {@code
+   * lookupOwner#lookupName}, the call that reaches the contract lookup. For an endpoint the lookup
+   * call is the one into its service; the allowlisted caller is then that service method.
+   */
+  record Pin(
+      Class<?> inClass,
+      String inMethod,
+      Class<?> pinOwner,
+      String pinName,
+      Class<?> lookupOwner,
+      String lookupName) {
+
+    static Pin requireSingleTenant(
+        Class<?> inClass, String inMethod, Class<?> lookupOwner, String lookupName) {
+      return new Pin(
+          inClass, inMethod, TxCtxScopeUtils.class, "requireSingleTenant", lookupOwner, lookupName);
+    }
+
+    static Pin tenantForWrite(
+        Class<?> inClass, String inMethod, Class<?> lookupOwner, String lookupName) {
+      return new Pin(
+          inClass,
+          inMethod,
+          TenantWriteScopeResolver.class,
+          "tenantForWrite",
+          lookupOwner,
+          lookupName);
+    }
+
+    /** Why the pin does not come first, or empty when it does. */
+    Optional<String> violation() {
+      List<MethodCallOrder.Call> calls = MethodCallOrder.callsInOrder(inClass, inMethod);
+      int pinned = calls.indexOf(new MethodCallOrder.Call(pinOwner.getName(), pinName));
+      int lookup = calls.indexOf(new MethodCallOrder.Call(lookupOwner.getName(), lookupName));
+      String where = inClass.getSimpleName() + "#" + inMethod;
+      if (lookup < 0) {
+        return Optional.of(
+            where + " never calls " + lookupOwner.getSimpleName() + "#" + lookupName);
+      }
+      if (pinned < 0) {
+        return Optional.of(
+            where
+                + " never calls "
+                + pinOwner.getSimpleName()
+                + "#"
+                + pinName
+                + " before "
+                + lookupOwner.getSimpleName()
+                + "#"
+                + lookupName);
+      }
+      return pinned < lookup
+          ? Optional.empty()
+          : Optional.of(
+              where
+                  + " calls "
+                  + pinOwner.getSimpleName()
+                  + "#"
+                  + pinName
+                  + " after "
+                  + lookupOwner.getSimpleName()
+                  + "#"
+                  + lookupName);
+    }
+  }
+
+  /** Allowed access whose reason names a pin that must be called before the lookup. */
+  private static AllowedCall allowPinned(
+      Class<?> caller, String method, String target, String reason, Pin pin) {
+    return new AllowedCall(caller, method, target, reason, pin);
+  }
+
+  /**
+   * Every allowlisted call that names a {@link Pin} is checked in the bytecode of the method that
+   * holds the pin: the pin is called, and before the call that reaches the lookup. A class that
+   * holds a pin and is missing from the analysed classes is a violation too, so a renamed endpoint
+   * cannot turn the check into a no-op.
+   */
+  static ArchRule pinnedCallersPinBeforeTheLookup(AllowedCall... allowed) {
+    ArchCondition<JavaClass> pinsComeFirst =
+        new ArchCondition<>("call the pin their allowlist reason names before the lookup") {
+          private final Set<Pin> seen = new HashSet<>();
+
+          @Override
+          public void check(JavaClass javaClass, ConditionEvents events) {
+            for (AllowedCall call : allowed) {
+              Pin pin = call.pin();
+              if (pin != null && pin.inClass().getName().equals(javaClass.getName())) {
+                seen.add(pin);
+                pin.violation()
+                    .ifPresent(
+                        message -> events.add(SimpleConditionEvent.violated(javaClass, message)));
+              }
+            }
+          }
+
+          @Override
+          public void finish(ConditionEvents events) {
+            for (AllowedCall call : allowed) {
+              if (call.pin() != null && !seen.contains(call.pin())) {
+                events.add(
+                    new SimpleConditionEvent(
+                        call,
+                        false,
+                        call.pin().inClass().getSimpleName()
+                            + " was not analysed: its pin is not checked"));
+              }
+            }
+          }
+        };
+    return classes()
+        .should(pinsComeFirst)
+        .because(
+            "an allowlist reason that says a pin refuses a scope of several tenants first must be"
+                + " true of the bytecode: without the pin, a built-in id repeated across the"
+                + " tenants of the scope makes the lookup match several rows");
+  }
 
   /** Allowed access of {@code caller}'s {@code method} to the query or wrapper {@code target}. */
   private static AllowedCall allow(Class<?> caller, String method, String target, String reason) {

@@ -13,6 +13,7 @@ import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.utils.TxCtxScopeUtils;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
@@ -854,6 +855,67 @@ public final class TenantActiveTableAccessFixtures {
       repository.findById(new InjectorContractId("id", "tenant"));
       repository.save(contract);
       service.injectorContractInTenant("id", "tenant");
+    }
+  }
+
+  // -- injectors_contracts: the pin an allowlist reason relies on --
+
+  /** An endpoint shape that pins the scope, then looks the contract up. */
+  public static class PinBeforeLookup {
+    private final InjectorContractService service;
+
+    public PinBeforeLookup(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      TxCtxScopeUtils.requireSingleTenant(ctx);
+      return service.injectorContract(id);
+    }
+  }
+
+  /** The pin is there, but after the lookup it was meant to guard. */
+  public static class PinAfterLookup {
+    private final InjectorContractService service;
+
+    public PinAfterLookup(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      InjectorContract contract = service.injectorContract(id);
+      TxCtxScopeUtils.requireSingleTenant(ctx);
+      return contract;
+    }
+  }
+
+  /** No pin at all: the lookup is the only thing the endpoint does. */
+  public static class LookupWithoutPin {
+    private final InjectorContractService service;
+
+    public LookupWithoutPin(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      return service.injectorContract(id);
+    }
+  }
+
+  /** The pin sits in a sibling method, not in the one that does the lookup. */
+  public static class PinInAnotherMethod {
+    private final InjectorContractService service;
+
+    public PinInAnotherMethod(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public void pin(TxCtx ctx) {
+      TxCtxScopeUtils.requireSingleTenant(ctx);
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      return service.injectorContract(id);
     }
   }
 }

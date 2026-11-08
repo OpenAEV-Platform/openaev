@@ -7,6 +7,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.EvaluationResult;
 import io.openaev.architecture.fixture.TenantActiveTableAccessFixtures;
 import io.openaev.database.model.Tenant;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -693,6 +694,77 @@ class TenantActiveTableAccessRulesTest {
 
       // Assert
       assertThat(result.hasViolation()).isFalse();
+    }
+  }
+
+  @Nested
+  @DisplayName("injectors_contracts: the pin an allowlist reason relies on")
+  class InjectorContractPinOrder {
+
+    private static TenantActiveTableAccessArchTest.AllowedCall pinnedCall(Class<?> fixture) {
+      return new TenantActiveTableAccessArchTest.AllowedCall(
+          fixture,
+          "find",
+          "injectorContract",
+          "the fixture's endpoint pins first",
+          TenantActiveTableAccessArchTest.Pin.requireSingleTenant(
+              fixture, "find", InjectorContractService.class, "injectorContract"));
+    }
+
+    static Stream<Arguments> pinsThatDoNotComeFirst() {
+      return Stream.of(
+          Arguments.of(TenantActiveTableAccessFixtures.PinAfterLookup.class, "after"),
+          Arguments.of(TenantActiveTableAccessFixtures.LookupWithoutPin.class, "never calls"),
+          Arguments.of(TenantActiveTableAccessFixtures.PinInAnotherMethod.class, "never calls"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("pinsThatDoNotComeFirst")
+    @DisplayName("given a pin that is missing or comes after the lookup, should violate")
+    void given_aPinThatIsMissingOrComesAfterTheLookup_should_violate(
+        Class<?> fixture, String expected) {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.pinnedCallersPinBeforeTheLookup(pinnedCall(fixture)),
+              fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains(expected);
+    }
+
+    @Test
+    @DisplayName("given a pin called before the lookup, should not violate")
+    void given_aPinCalledBeforeTheLookup_should_notViolate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.PinBeforeLookup.class;
+
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.pinnedCallersPinBeforeTheLookup(pinnedCall(fixture)),
+              fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a pin whose class is not analysed, should violate instead of passing")
+    void given_aPinWhoseClassIsNotAnalysed_should_violate() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.pinnedCallersPinBeforeTheLookup(
+              pinnedCall(TenantActiveTableAccessFixtures.PinBeforeLookup.class));
+
+      // Act
+      EvaluationResult result =
+          evaluate(rule, TenantActiveTableAccessFixtures.LookupWithoutPin.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("was not analysed");
     }
   }
 }
