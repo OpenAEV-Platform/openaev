@@ -377,6 +377,7 @@ public interface InjectorContractRepository
             FROM injectors_contracts ic
             JOIN injectors_contracts_vulnerabilities icv
               ON ic.injector_contract_id = icv.injector_contract_id
+              AND ic.tenant_id = icv.tenant_id
             JOIN vulnerabilities vulnerability
               ON icv.vulnerability_id = vulnerability.vulnerability_id
             WHERE LOWER(vulnerability.vulnerability_external_id) IN (:externalIds)
