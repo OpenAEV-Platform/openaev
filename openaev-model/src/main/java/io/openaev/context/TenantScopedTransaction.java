@@ -112,9 +112,13 @@ public class TenantScopedTransaction {
    * Same as {@link #execute(TxCtx, Supplier)}, and also marks the transaction platform-write (see
    * {@code app.platform_write}, checked by {@code can_write_tenant} before a write reaches a
    * dual-scope table's platform row). For a background entry point that genuinely needs to create
-   * or update a platform row: today, {@code App.init()}'s instance-id bootstrap and the
-   * external-service health-check settings ({@code SmtpService}/{@code ImapService}). Never call
-   * this from code reachable by a tenant request.
+   * or update a platform row, such as the startup bootstrap, the scheduled health-check and banner
+   * writers of the settings. Which methods write a platform row, and that every path to one crosses
+   * this method, {@link #executeNewAsPlatformWrite}, {@link #setPlatformWriteOnCurrentTransaction}
+   * or {@code @PlatformWrite}, is checked by the {@code
+   * parameters_platform_row_writers_run_under_platform_write} architecture rule in {@code
+   * TenantActiveTableAccessArchTest}, which also lists what it cannot see. Never call this from
+   * code reachable by a tenant request.
    */
   public <T> T executeAsPlatformWrite(TxCtx ctx, Supplier<T> work) {
     if (TransactionSynchronizationManager.isActualTransactionActive()) {

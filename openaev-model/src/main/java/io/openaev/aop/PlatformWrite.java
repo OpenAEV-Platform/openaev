@@ -13,7 +13,7 @@ import java.lang.annotation.Target;
  * tenant_id IS NULL}). The aspect does nothing for any other method, so the annotation is refused
  * anywhere else ({@code TenantActiveTableAccessArchTest}).
  *
- * <p>The marker is set from exactly these call sites, and nowhere else:
+ * <p>The annotation is used on:
  *
  * <ul>
  *   <li>the platform settings endpoints ({@code PlatformSettingsApi}, {@code /api/settings}), which
@@ -22,11 +22,16 @@ import java.lang.annotation.Target;
  *       Composer registration, a platform row. They are mounted on the platform route and on the
  *       tenant route (the composer's own identity keeps its access, {@code TODO v2: #7248}), and
  *       are gated by the platform setting write right: the tenant-scoped catalog write that {@code
- *       MANAGE_TENANT_SETTINGS} grants does not reach them on either route;
- *   <li>off the request thread, the {@code executeAsPlatformWrite}, {@code
- *       executeNewAsPlatformWrite} and {@code setPlatformWriteOnCurrentTransaction} methods of
- *       {@code TenantScopedTransaction}, used by startup and the scheduled writers of the settings.
+ *       MANAGE_TENANT_SETTINGS} grants does not reach them on either route.
  * </ul>
+ *
+ * <p>Off the request thread the marker is set by the {@code executeAsPlatformWrite}, {@code
+ * executeNewAsPlatformWrite} and {@code setPlatformWriteOnCurrentTransaction} methods of {@code
+ * TenantScopedTransaction}, which have more callers than the two above. The list of writers and the
+ * check that each one sits under one of these markers is the {@code
+ * parameters_platform_row_writers_run_under_platform_write} architecture rule ({@code
+ * TenantActiveTableAccessArchTest}); the code does not otherwise stop a new caller from setting the
+ * marker, so review it there.
  *
  * <p>Adding this to a method does not by itself authorize anything: {@code @AccessControl} still
  * decides who may call it. This annotation only lifts the SQL-level refusal of a platform-row write
