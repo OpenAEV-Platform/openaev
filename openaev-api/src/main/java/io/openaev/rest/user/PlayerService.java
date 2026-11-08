@@ -260,10 +260,15 @@ public class PlayerService {
   }
 
   /**
-   * Updates the profile of a player. The tags of the tenants out of the request's scope are left
-   * alone, and so are the organizations the player holds in other tenants.
+   * Updates the profile of a player in the tenant the request writes in: the organization is
+   * assigned or cleared in that tenant only, the ones the player holds in other tenants stay. The
+   * tags of the tenants out of the request's scope are left alone too.
+   *
+   * @return the saved player, as the response shows it
    */
-  public User updatePlayer(User user, PlayerInput input) {
+  public User updatePlayer(TxCtx ctx, User user, PlayerInput input) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    BaseEvent.attributeRequestEventsTo(tenantId);
     user.setFirstname(input.getFirstname());
     user.setLastname(input.getLastname());
     user.setPhone(input.getPhone());
@@ -271,9 +276,8 @@ public class PlayerService {
     user.setPgpKey(input.getPgpKey());
     user.setCountry(input.getCountry());
     userService.replaceTags(user, iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    String tenantId = TenantContext.getCurrentTenant();
     assignOrganization(user, input.getOrganizationId(), tenantId);
-    return userRepository.save(user);
+    return forTenant(userRepository.save(user), tenantId);
   }
 
   /**

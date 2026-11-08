@@ -930,7 +930,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player ID and input, should update player but never its address")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validPlayerIdAndInput_should_updatePlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();

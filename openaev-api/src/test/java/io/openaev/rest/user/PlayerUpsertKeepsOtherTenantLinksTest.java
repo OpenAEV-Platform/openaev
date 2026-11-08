@@ -19,15 +19,18 @@ import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.PlayerFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.TeamFixture;
@@ -85,6 +88,7 @@ public class PlayerUpsertKeepsOtherTenantLinksTest extends IntegrationTest {
   @Autowired private UserComposer userComposer;
   @Autowired private TagRepository tagRepository;
   @Autowired private TeamRepository teamRepository;
+  @Autowired private OrganizationRepository organizationRepository;
 
   private String tenantB;
   private User player;
@@ -425,6 +429,82 @@ public class PlayerUpsertKeepsOtherTenantLinksTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.user_tags").value(containsInAnyOrder(tagOfB.getId())));
       assertEquals(sorted(tagOfDefault.getId(), tagOfB.getId()), linksOf("users_tags", "tag_id"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Updating the organization of a player")
+  class OrganizationAssignment {
+
+    private Organization organizationOfDefault;
+    private Organization organizationOfB;
+
+    @BeforeEach
+    void playerHoldingAnOrganizationInEachTenant() {
+      organizationOfDefault = organizationIn(Tenant.DEFAULT_TENANT_UUID);
+      organizationOfB = organizationIn(tenantB);
+      link("users_organizations", "organization_id", organizationOfDefault.getId());
+      link("users_organizations", "organization_id", organizationOfB.getId());
+      entityManager.flush();
+      entityManager.clear();
+      TenantContext.clearCurrentTenant();
+    }
+
+    private Organization organizationIn(String tenantId) {
+      Organization organization = OrganizationFixture.createDefaultOrganisation();
+      organization.setTenant(new Tenant(tenantId));
+      return organizationRepository.save(organization);
+    }
+
+    private PlayerInput playerInputWithOrganization(String organizationId) {
+      PlayerInput input = playerInputWithTags(List.of());
+      input.setOrganizationId(organizationId);
+      return input;
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, clearing the organization keeps the default one")
+    void given_headerNamingTenantB_should_keepTheOrganizationOfTheDefaultTenantWhenClearing()
+        throws Exception {
+      // -- EXECUTE --
+      mvc.perform(
+              put(PLAYER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(playerInputWithOrganization(null)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(
+          sorted(organizationOfDefault.getId()), linksOf("users_organizations", "organization_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, an organization of B replaces the one of B only")
+    void given_headerNamingTenantB_should_replaceTheOrganizationOfBOnly() throws Exception {
+      // -- PREPARE --
+      Organization replacement = organizationIn(tenantB);
+      entityManager.flush();
+      entityManager.clear();
+      TenantContext.clearCurrentTenant();
+
+      // -- EXECUTE --
+      mvc.perform(
+              put(PLAYER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(playerInputWithOrganization(replacement.getId())))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.user_organization").value(replacement.getId()));
+      assertEquals(
+          sorted(organizationOfDefault.getId(), replacement.getId()),
+          linksOf("users_organizations", "organization_id"));
     }
   }
 

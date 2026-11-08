@@ -117,14 +117,16 @@ public class PlayerApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.PLAYER)
   public User updatePlayer(
-      TxCtx ctx, @PathVariable String userId, @Valid @RequestBody PlayerInput input) {
+      @RequireTenantSelector TxCtx ctx,
+      @PathVariable String userId,
+      @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
     ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
     if (user.isAdmin() && !userService.currentUser().isAdmin()) {
       throw new ForbiddenException("Only an administrator can update a platform administrator");
     }
-    return hydrateUserForResponse(playerService.updatePlayer(user, input));
+    return hydrateUserForResponse(playerService.updatePlayer(ctx, user, input));
   }
 
   @DeleteMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
