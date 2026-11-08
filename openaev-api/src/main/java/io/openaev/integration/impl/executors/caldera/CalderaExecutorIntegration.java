@@ -137,7 +137,8 @@ public class CalderaExecutorIntegration extends Integration {
             injectorService,
             platformSettingsService,
             agentService,
-            tenantTx);
+            tenantTx,
+            taskScheduler);
 
     calderaExecutorContextService.registerAbilities();
 
@@ -160,19 +161,34 @@ public class CalderaExecutorIntegration extends Integration {
   @Override
   protected void innerStop() {
     // Same platform-wide operational status as CalderaExecutorService's banner (see its javadoc).
-    // The monitoring job stops an integration inside its tenant transaction, a shutdown or a test
-    // outside any: the write opens the shape TenantScopedTransaction needs for each.
-    TxCtx ctx = TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID);
-    Runnable clearBanner =
-        () ->
-            this.platformSettingsService.cleanMessage(
-                BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+    // The monitoring job stops an integration inside its tenant transaction, which holds a
+    // connection: there the write is handed to the scheduler and opens its own transaction, so
+    // stopping never waits for a second connection. A shutdown or a test stops it outside any
+    // transaction, where the write runs at once. Either way a failed write never fails the stop.
+    Runnable clearBanner = this::clearBanner;
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
-      tenantTx.executeNewAsPlatformWrite(ctx, clearBanner);
+      try {
+        taskScheduler.execute(clearBanner);
+      } catch (RuntimeException e) {
+        log.warn(
+            "Could not schedule the Caldera unavailable banner clearing: {}", e.getMessage(), e);
+      }
     } else {
-      tenantTx.executeAsPlatformWrite(ctx, clearBanner);
+      clearBanner.run();
     }
     timers.forEach(timer -> timer.cancel(true));
     timers.clear();
+  }
+
+  private void clearBanner() {
+    try {
+      tenantTx.executeAsPlatformWrite(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () ->
+              this.platformSettingsService.cleanMessage(
+                  BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE));
+    } catch (Exception e) {
+      log.warn("Failed to clear the Caldera unavailable banner: {}", e.getMessage(), e);
+    }
   }
 }

@@ -40,6 +40,14 @@ public class CalderaExecutorService implements Runnable {
   private final PlatformSettingsService platformSettingsService;
   private final AgentService agentService;
   private final TenantScopedTransaction tenantTx;
+
+  /**
+   * Runs the banner writes. {@link #run()} holds a connection for its whole transaction, so the
+   * banner is written on another thread, in its own transaction, and the run never waits for a
+   * second connection.
+   */
+  private final java.util.concurrent.Executor bannerExecutor;
+
   private Executor executor;
 
   public static Endpoint.PLATFORM_TYPE toPlatform(@NotBlank final String platform) {
@@ -68,7 +76,8 @@ public class CalderaExecutorService implements Runnable {
       InjectorService injectorService,
       PlatformSettingsService platformSettingsService,
       AgentService agentService,
-      TenantScopedTransaction tenantTx) {
+      TenantScopedTransaction tenantTx,
+      java.util.concurrent.Executor bannerExecutor) {
     this.client = client;
     this.endpointService = endpointService;
     this.calderaExecutorContextService = calderaExecutorContextService;
@@ -77,6 +86,7 @@ public class CalderaExecutorService implements Runnable {
     this.agentService = agentService;
     this.executor = executor;
     this.tenantTx = tenantTx;
+    this.bannerExecutor = bannerExecutor;
   }
 
   @Override
@@ -100,6 +110,7 @@ public class CalderaExecutorService implements Runnable {
   }
 
   private void doRun() {
+    boolean available;
     try {
       log.info("Running Caldera executor endpoints gathering...");
       // The executor only retrieve "main" agents (without the keyword "executor")
@@ -116,34 +127,47 @@ public class CalderaExecutorService implements Runnable {
       for (AgentRegisterInput input : endpointRegisterList) {
         registerAgentEndpoint(input);
       }
-      clearCalderaUnavailableBanner();
+      available = true;
     } catch (Exception e) {
-      setCalderaUnavailableBanner();
+      available = false;
     }
+    // Outside the try: only Caldera's own answer decides the banner, never the banner write.
+    requestBanner(available);
   }
 
   /**
    * The Caldera-unavailable banner is a platform-wide operational status, not tenant data, stored
-   * as a platform row of the dual-scope {@code parameters} table ({@code tenant_id IS NULL}).
-   * {@code doRun()} already runs inside the tenant-scoped transaction {@link #run()} opened for
-   * {@code executor.getTenantId()}, so the write needs its own nested, platform-write-marked
-   * transaction rather than relying on the ambient one, which is tenant-scoped and never
-   * platform-write.
+   * as a platform row of the dual-scope {@code parameters} table ({@code tenant_id IS NULL}). The
+   * write is handed to {@link #bannerExecutor} and runs in its own platform-write transaction
+   * there: {@code doRun()} runs inside the tenant transaction of {@link #run()}, which holds a
+   * connection, so a nested transaction would need a second one. A failed write, or an executor
+   * that refuses it, is logged and never fails the run: the banner is written again by the next
+   * run, a minute later.
    */
-  private void clearCalderaUnavailableBanner() {
-    tenantTx.executeNewAsPlatformWrite(
-        TxCtx.forTenant(executor.getTenantId()),
-        () ->
-            this.platformSettingsService.cleanMessage(
-                BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE));
+  private void requestBanner(boolean available) {
+    try {
+      bannerExecutor.execute(() -> writeBanner(available));
+    } catch (RuntimeException e) {
+      log.warn("Could not schedule the Caldera unavailable banner write: {}", e.getMessage(), e);
+    }
   }
 
-  private void setCalderaUnavailableBanner() {
-    tenantTx.executeNewAsPlatformWrite(
-        TxCtx.forTenant(executor.getTenantId()),
-        () ->
-            this.platformSettingsService.errorMessage(
-                BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE));
+  private void writeBanner(boolean available) {
+    try {
+      tenantTx.executeAsPlatformWrite(
+          TxCtx.forTenant(executor.getTenantId()),
+          () -> {
+            if (available) {
+              this.platformSettingsService.cleanMessage(
+                  BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+            } else {
+              this.platformSettingsService.errorMessage(
+                  BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+            }
+          });
+    } catch (Exception e) {
+      log.warn("Failed to write the Caldera unavailable banner: {}", e.getMessage(), e);
+    }
   }
 
   private void registerAgentEndpoint(AgentRegisterInput input) {

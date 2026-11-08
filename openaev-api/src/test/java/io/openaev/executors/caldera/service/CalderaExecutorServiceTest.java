@@ -66,6 +66,8 @@ public class CalderaExecutorServiceTest {
 
   @Mock private TenantScopedTransaction tenantTx;
 
+  @Mock private java.util.concurrent.Executor bannerExecutor;
+
   @InjectMocks private CalderaExecutorService calderaExecutorService;
 
   @InjectMocks private CalderaExecutorContextService calderaExecutorContextService;
@@ -184,6 +186,97 @@ public class CalderaExecutorServiceTest {
     assertArrayEquals(new String[] {CALDERA_AGENT_IP}, capturedEndpoint.getIps());
     assertEquals(Endpoint.PLATFORM_TYPE.Windows, capturedEndpoint.getPlatform());
     assertEquals(Endpoint.PLATFORM_ARCH.x86_64, capturedEndpoint.getArch());
+  }
+
+  @Nested
+  @DisplayName("Caldera unavailable banner")
+  class UnavailableBanner {
+
+    /** The write the run asked the banner executor for; nothing has executed it yet. */
+    private Runnable requestedBannerWrite() {
+      ArgumentCaptor<Runnable> write = ArgumentCaptor.forClass(Runnable.class);
+      verify(bannerExecutor).execute(write.capture());
+      return write.getValue();
+    }
+
+    private void runPlatformWritesInline() {
+      lenient()
+          .doAnswer(
+              invocation -> {
+                ((Runnable) invocation.getArgument(1)).run();
+                return null;
+              })
+          .when(tenantTx)
+          .executeAsPlatformWrite(any(), any(Runnable.class));
+    }
+
+    @Test
+    @DisplayName("given Caldera answers, should clear the banner on the executor, not in the run")
+    void given_calderaAnswers_should_clearTheBannerOnTheExecutorNotInTheRun() {
+      // Arrange
+      when(client.agents()).thenReturn(List.of());
+      runPlatformWritesInline();
+
+      // Act
+      calderaExecutorService.run();
+
+      // Assert: the run only asked; nothing was written, nor nested, on its connection
+      Runnable write = requestedBannerWrite();
+      verify(tenantTx, never()).executeNewAsPlatformWrite(any(), any(Runnable.class));
+      verify(tenantTx, never()).executeAsPlatformWrite(any(), any(Runnable.class));
+      verify(platformSettingsService, never()).cleanMessage(any());
+      write.run();
+      verify(platformSettingsService).cleanMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+      verify(platformSettingsService, never()).errorMessage(any());
+    }
+
+    @Test
+    @DisplayName("given Caldera does not answer, should show the banner on the executor")
+    void given_calderaDoesNotAnswer_should_showTheBannerOnTheExecutor() {
+      // Arrange
+      when(client.agents()).thenThrow(new IllegalStateException("caldera is down"));
+      runPlatformWritesInline();
+
+      // Act
+      calderaExecutorService.run();
+      requestedBannerWrite().run();
+
+      // Assert
+      verify(platformSettingsService).errorMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+      verify(platformSettingsService, never()).cleanMessage(any());
+    }
+
+    @Test
+    @DisplayName("given the banner write fails, should not fail the run nor show the banner")
+    void given_theBannerWriteFails_should_notFailTheRunNorShowTheBanner() {
+      // Arrange: Caldera is healthy, the write is refused
+      when(client.agents()).thenReturn(List.of());
+      doThrow(new IllegalStateException("no transaction"))
+          .when(tenantTx)
+          .executeAsPlatformWrite(any(), any(Runnable.class));
+
+      // Act
+      assertDoesNotThrow(calderaExecutorService::run);
+      Runnable write = requestedBannerWrite();
+
+      // Assert: the failure stays in the write, and is not read as "Caldera is down"
+      assertDoesNotThrow(write::run);
+      verify(platformSettingsService, never()).errorMessage(any());
+    }
+
+    @Test
+    @DisplayName("given the executor refuses the write, should not fail the run")
+    void given_theExecutorRefusesTheWrite_should_notFailTheRun() {
+      // Arrange
+      when(client.agents()).thenReturn(List.of());
+      doThrow(new java.util.concurrent.RejectedExecutionException("full"))
+          .when(bannerExecutor)
+          .execute(any());
+
+      // Act + Assert
+      assertDoesNotThrow(calderaExecutorService::run);
+      verify(platformSettingsService, never()).errorMessage(any());
+    }
   }
 
   @Nested
