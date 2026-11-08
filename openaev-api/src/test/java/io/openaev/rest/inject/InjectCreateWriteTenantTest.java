@@ -110,7 +110,7 @@ class InjectCreateWriteTenantTest extends IntegrationTest {
           bothTenantsScope(),
           () -> {
             Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
-            injectService.createAndSaveInject(null, scenario, input);
+            injectService.createAndSaveInject(bothTenantsScope(), null, scenario, input);
           });
 
       // -- ASSERT --
@@ -131,7 +131,8 @@ class InjectCreateWriteTenantTest extends IntegrationTest {
           bothTenantsScope(),
           () -> {
             Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
-            injectService.createAndSaveInjectList(null, scenario, List.of(first, second));
+            injectService.createAndSaveInjectList(
+                bothTenantsScope(), null, scenario, List.of(first, second));
           });
 
       // -- ASSERT --
@@ -157,7 +158,7 @@ class InjectCreateWriteTenantTest extends IntegrationTest {
           bothTenantsScope(),
           () -> {
             Exercise exercise = exerciseRepository.findById(exerciseId).orElseThrow();
-            injectService.createAndSaveInject(exercise, null, input);
+            injectService.createAndSaveInject(bothTenantsScope(), exercise, null, input);
           });
 
       // -- ASSERT --
@@ -179,7 +180,7 @@ class InjectCreateWriteTenantTest extends IntegrationTest {
           bothTenantsScope(),
           () -> {
             Scenario scenario = scenarioRepository.findById(scenarioId).orElseThrow();
-            injectService.createAndSaveInject(null, scenario, input);
+            injectService.createAndSaveInject(bothTenantsScope(), null, scenario, input);
           });
       withNoAmbientTenant();
 
