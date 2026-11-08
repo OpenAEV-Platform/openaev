@@ -9,6 +9,7 @@ import static io.openaev.database.model.SettingKeys.XTM_COMPOSER_PUBLIC_KEY;
 import static io.openaev.database.model.SettingKeys.XTM_COMPOSER_VERSION;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -20,7 +21,9 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Action;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
 import io.openaev.service.PlatformSettingsService;
@@ -183,6 +186,47 @@ class XtmComposerRegistrationAuthorizationTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isForbidden());
+      assertRegistrationUntouched();
+    }
+  }
+
+  @Nested
+  @DisplayName("an identity that holds the catalog write right and nothing platform-wide")
+  class CatalogOnlyIdentity {
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_SETTINGS})
+    @DisplayName("given_aCatalogWriteIdentityWithNoMembership_should_refuseBothWritesOnBothRoutes")
+    void given_aCatalogWriteIdentityWithNoMembership_should_refuseBothWritesOnBothRoutes()
+        throws Exception {
+      // Arrange: the one capability that carries the catalog write right, no platform right, and
+      // no tenant membership, which is the shape of a token user made for the composer
+      assertEquals(
+          Capability.MANAGE_TENANT_SETTINGS,
+          Capability.of(ResourceType.CATALOG, Action.WRITE).orElseThrow());
+      assertNotEquals(
+          Capability.MANAGE_TENANT_SETTINGS,
+          Capability.of(ResourceType.PLATFORM_SETTING, Action.WRITE).orElseThrow());
+      seedRegistration();
+      String tenantRoute = TENANT_XTMCOMPOSER_URI.replace("{tenantId}", Tenant.DEFAULT_TENANT_UUID);
+
+      // Act + Assert: the decision is the platform setting write right; a caller who only holds
+      // the catalog write right must be given it to register or refresh
+      for (String base : new String[] {XTMCOMPOSER_URI, tenantRoute}) {
+        mvc.perform(
+                post(base + "/register")
+                    .content(registerBody("hijacked-composer", "hijacked-public-key"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().isForbidden());
+        mvc.perform(
+                put(base + "/" + REGISTERED_ID + "/refresh-connectivity")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().isForbidden());
+      }
       assertRegistrationUntouched();
     }
   }

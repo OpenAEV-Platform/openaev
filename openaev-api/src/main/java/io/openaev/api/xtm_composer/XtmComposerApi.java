@@ -39,15 +39,14 @@ public class XtmComposerApi extends RestBehavior {
   private final XtmComposerService xtmComposerService;
   private final ConnectorOrchestrationService orchestrationService;
 
-  // Tenant URI needed for RBAC only, NOT because the underlying data is tenant-scoped.
-  // Without the tenant path here, a user whose only CATALOG-capable group lives on a
-  // non-default tenant would resolve zero capabilities and get a 403, even though registration
-  // itself is not scoped to any tenant (issue #6485).
+  // Tenant URI needed for RBAC only, NOT because the underlying data is tenant-scoped: the
+  // registration is not scoped to any tenant (issue #6485).
   // The registration is a platform row of the parameters table: readable under any scope, the
   // empty one of a composer identity with no tenant membership included, and written only under
   // @PlatformWrite. The two writes need the platform setting write right, which a tenant
   // administrator does not hold: the tenant-scoped catalog write that MANAGE_TENANT_SETTINGS grants
-  // does not reach them, on either route.
+  // does not reach them, on either route. A composer token user that only holds the catalog write
+  // right must be given the platform setting write right.
   // TODO v2: #7248
   @PostMapping(value = {XTMCOMPOSER_URI + "/register", TENANT_XTMCOMPOSER_URI + "/register"})
   @Operation(
