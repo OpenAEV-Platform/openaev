@@ -755,6 +755,24 @@ public final class TenantActiveTableAccessFixtures {
     }
   }
 
+  /** Two methods of one class making the same bare lookup, one of them reviewed. */
+  public static class ReviewedAndUnreviewedLookup {
+    private final InjectorContractRepository repository;
+
+    public ReviewedAndUnreviewedLookup(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    /** The reviewed method; its lookup sits in a lambda, which counts as the method. */
+    public Optional<InjectorContract> approvedLookup(String id) {
+      return Optional.of(id).flatMap(value -> repository.findById(value));
+    }
+
+    public Optional<InjectorContract> newLookup(String id) {
+      return repository.findById(id);
+    }
+  }
+
   /** A declared query keyed on a payload, with no tenant. */
   public static class DeclaredPayloadLookup {
     private final InjectorContractRepository repository;

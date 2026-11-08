@@ -309,11 +309,6 @@ public interface InjectorContractRepository
       nativeQuery = true)
   List<RawContractTenant> findContractTenantPairsByPayloadId(@Param("payloadId") String payloadId);
 
-  @Query(
-      "SELECT CASE WHEN COUNT(ic) > 0 THEN true ELSE false END "
-          + "FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.payload IS NOT NULL")
-  boolean existsByIdAndPayloadIsNotNull(@Param("id") String id);
-
   /**
    * Returns the ids of payload-bearing contracts that are not linked to any injector, scoped to a
    * tenant. Starter-pack imports create such orphan contracts before any payload-supporting

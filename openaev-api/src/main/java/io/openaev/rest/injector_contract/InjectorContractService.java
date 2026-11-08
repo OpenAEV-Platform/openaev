@@ -623,16 +623,6 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
-   * Checks whether the given injector contract is payload-based without loading the full entity.
-   *
-   * @param injectorContractId the contract ID to check
-   * @return true if the contract exists and has a non-null payload
-   */
-  public boolean isPayloadBased(String injectorContractId) {
-    return this.injectorContractRepository.existsByIdAndPayloadIsNotNull(injectorContractId);
-  }
-
-  /**
    * Returns the injector contract ids backed by the given payload, grouped by tenant - the service
    * pass-through for {@code InjectorContractRepository#findContractTenantPairsByPayloadId} so
    * consumers outside this service (the payload-delete path) never touch the repository directly.

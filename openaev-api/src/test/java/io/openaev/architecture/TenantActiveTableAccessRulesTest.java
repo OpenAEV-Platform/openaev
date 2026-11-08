@@ -663,6 +663,26 @@ class TenantActiveTableAccessRulesTest {
     }
 
     @Test
+    @DisplayName("given a new lookup in a class with a reviewed method, should violate on it only")
+    void given_aNewLookupInAClassWithAReviewedMethod_should_violateOnTheNewMethodOnly() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.ReviewedAndUnreviewedLookup.class;
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.tenantlessInjectorContractQueryIsCalledOnlyBy(
+              new TenantActiveTableAccessArchTest.AllowedCall(
+                  fixture, "approvedLookup", "findById", "the fixture's reviewed method"));
+
+      // Act
+      EvaluationResult result = evaluate(rule, fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("newLookup")
+          .doesNotContain("approvedLookup");
+    }
+
+    @Test
     @DisplayName("given an access that carries a tenant, should not violate")
     void given_anAccessThatCarriesATenant_should_notViolate() {
       // Act
