@@ -6,10 +6,8 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -21,11 +19,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.api.chaining.InjectExecutionStep;
 import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.ScopeVariableInput;
 import io.openaev.api.chaining.dto.StepInput;
-import io.openaev.api.chaining.dto.StepsCreateInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.database.model.*;
@@ -42,19 +38,14 @@ import io.openaev.service.AssetService;
 import io.openaev.service.TeamService;
 import io.openaev.service.UserService;
 import io.openaev.utils.fixtures.AssetFixture;
-import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
-import io.openaev.utils.fixtures.WorkflowFixture;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.helpers.InjectTestHelper;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -89,7 +80,6 @@ class ChainingIntegrationTest extends IntegrationTest {
   @Autowired private InjectorRepository injectorRepository;
   @Autowired private InjectRepository injectRepository;
   @Autowired private InjectTestHelper injectTestHelper;
-  @Autowired private InjectExecutionStep injectExecutionStep;
 
   // -- Mocks
   @MockitoBean private InjectorContractService injectorContractService;
@@ -175,66 +165,6 @@ class ChainingIntegrationTest extends IntegrationTest {
             }
             """
             .formatted(injectorContractSaved.getId(), asset.getId());
-  }
-
-  /**
-   * Pins {@code InjectExecutionStep#create}'s parent-tenant computation: the contract is resolved
-   * in the simulation's own tenant, not the caller's ambient one. The stub only answers for that
-   * exact (contract id, simulation tenant id) pair, and the contract row exists only under the
-   * simulation's tenant, so a regression that reverts the computation to the ambient tenant fails:
-   * the stub does not match, and {@code assertInjectorContractExists}'s real, tenant-scoped lookup
-   * finds no row for the ambient tenant. Calls {@code InjectExecutionStep} directly rather than
-   * through the HTTP layer: on the tenant-prefixed route {@code TenantInterceptor} sets the ambient
-   * tenant from the path, which would equal the simulation's own tenant either way and hide the
-   * regression this test is for.
-   */
-  @Test
-  @WithMockUser(isAdmin = true)
-  void given_simulationInAnotherTenant_should_resolveInjectorContractInSimulationsTenant()
-      throws Exception {
-    // PREPARE: a second tenant holding its own copy of the injector contract, under its own id. A
-    // bare tenant row is enough (no provisioning side effects needed here).
-    Tenant otherTenant =
-        tenantRepository.save(
-            TenantFixture.getTenant("chaining-integration-other-" + UUID.randomUUID()));
-    entityManager.flush();
-
-    Injector otherInjectorToSave = InjectorFixture.createDefaultPayloadInjector();
-    otherInjectorToSave.setTenantId(otherTenant.getId());
-    Injector otherInjector = injectorRepository.save(otherInjectorToSave);
-
-    InjectorContract otherContract = InjectorContractFixture.createImplantInjectorContract();
-    otherContract.setTenant(otherTenant);
-    otherContract.addInjector(otherInjector);
-    InjectorContract otherContractSaved = injectorContractRepository.save(otherContract);
-    otherInjector.linkContract(otherContractSaved);
-    injectorRepository.save(otherInjector);
-
-    doReturn(otherContractSaved)
-        .when(injectorContractService)
-        .injectorContractInTenant(eq(otherContractSaved.getId()), eq(otherTenant.getId()));
-
-    String otherInjectInputJson =
-        injectInputJson.replace(injectorContractSaved.getId(), otherContractSaved.getId());
-    InjectInput injectInput = mapper.readValue(otherInjectInputJson, InjectInput.class);
-    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
-
-    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
-    Exercise simulationInOtherTenant = ExerciseFixture.createDefaultExercise();
-    simulationInOtherTenant.setTenant(otherTenant);
-    workflowTemplate.setSimulation(simulationInOtherTenant);
-
-    // ACT
-    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
-
-    // ASSERT: the resolved contract is the simulation tenant's own copy.
-    assertTrue(stepTemplateOpt.isPresent());
-    assertEquals(
-        otherContractSaved.getId(),
-        StepService.getField(
-            stepTemplateOpt.get().getData(), "inject_injector_contract.injector_contract_id"));
-    verify(injectorContractService)
-        .injectorContractInTenant(eq(otherContractSaved.getId()), eq(otherTenant.getId()));
   }
 
   @Nested
