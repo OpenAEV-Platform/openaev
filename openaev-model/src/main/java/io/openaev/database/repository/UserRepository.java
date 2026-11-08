@@ -336,6 +336,15 @@ public interface UserRepository
       nativeQuery = true)
   void addTag(@Param("userId") String userId, @Param("tagId") String tagId);
 
+  // JPQL, not the loaded collection: the collection may have been read before the row of the user
+  // was locked, while this reads the links as committed once the lock is held. Rooted on Tag, since
+  // selecting the id through the join table alone never reads the tags table: only the tags in the
+  // scope of the transaction come back.
+  @Query(
+      "SELECT t.id FROM Tag t WHERE t.id IN"
+          + " (SELECT linked.id FROM User u JOIN u.tags linked WHERE u.id = :userId)")
+  List<String> tagIdsInScope(@Param("userId") String userId);
+
   // Native: a set-based delete of the listed links only, on a join table that is not indexed,
   // audited nor streamed. Replacing the collection would delete every row of the user, the links
   // to the tags the transaction's scope cannot see included.
