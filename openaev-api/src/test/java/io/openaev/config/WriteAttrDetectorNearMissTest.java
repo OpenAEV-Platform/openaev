@@ -201,9 +201,7 @@ class WriteAttrDetectorNearMissTest extends IntegrationTest {
   }
 
   private void installTrigger() {
-    entityManager
-        .unwrap(Session.class)
-        .doWork(c -> WriteAttrDetectorTrigger.install(c, TenantTables.selfIsolatedTables()));
+    entityManager.unwrap(Session.class).doWork(c -> WriteAttrDetectorTrigger.install(c));
   }
 
   private void startScoped(String scope) {
