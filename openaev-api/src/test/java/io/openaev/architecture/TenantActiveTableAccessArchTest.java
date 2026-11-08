@@ -2747,8 +2747,12 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.attackpath.AttackPathGraphService.class,
               io.openaev.service.autonomous.CapabilityResolverService.class,
               io.openaev.service.GrantService.class,
-              // Scenario inject generation and the STIX bundle import; the STIX path refuses any
-              // scope but a single tenant before it reaches the contracts:
+              // Scenario inject generation and the STIX bundle import. The STIX path throws unless
+              // the scope pins one tenant
+              // (SecurityCoverageService#handleSecurityCoverageProcessing,
+              // before any contract is read), and its placeholder contract is read in the
+              // scenario's own tenant (SecurityCoverageInjectService#createdInjectsForScenario
+              // AndSecurityCoverage, findByContractIdAndTenant):
               io.openaev.rest.inject.service.InjectAssistantService.class,
               io.openaev.service.stix.SecurityCoverageInjectService.class,
               // Exports, behind the scenario and simulation export endpoints:
@@ -2770,8 +2774,8 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.MailingService.class,
               // Chaining: authoring runs under the step endpoints' TxCtx (StepApi#createStep and
               // siblings all declare one), execution under the ready-step worker's forTenant scope
-              // (StepEventService), and the autonomous run's isolated mirror now carries the scope
-              // into its REQUIRES_NEW transaction (AutonomousRunService:2279, fixed by #8666).
+              // (StepEventService). The contract reads of this class are the authoring lookups in
+              // the step's parent tenant and the findById of the allowlisted run path.
               io.openaev.api.chaining.InjectExecutionStep.class)
           .should()
           .dependOnClassesThat()
