@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
  * through this predicate.
  */
 @Component
-public class V6_20261105120000000__Add_platform_write_functions extends BaseJavaMigration {
+public class V6_20261106105000000__Add_platform_write_functions extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
