@@ -2,16 +2,20 @@ package io.openaev.migration;
 
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantSettingKeys;
 import io.openaev.database.repository.SettingRepository;
+import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.xtmone.XtmOneClient;
 import java.sql.Connection;
 import java.util.List;
 import org.flywaydb.core.api.configuration.Configuration;
@@ -22,6 +26,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -46,6 +51,9 @@ class CopyAutonomousAgentDefaultsToTenantsMigrationTest extends IntegrationTest 
   @Autowired private SettingRepository settingRepository;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantScopedTransaction;
+  @Autowired private AutonomousRunService autonomousRunService;
+
+  @MockitoBean private XtmOneClient xtmOneClient;
 
   @Nested
   @DisplayName("Upgrade of a platform row")
@@ -113,6 +121,36 @@ class CopyAutonomousAgentDefaultsToTenantsMigrationTest extends IntegrationTest 
       // Assert
       assertThat(read(AGENTS_KEY, other.getId())).isNull();
       assertThat(read(MODES_KEY, DEFAULT_TENANT_UUID)).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("Tenant created after the upgrade")
+  class TenantCreatedAfterTheUpgrade {
+
+    @Test
+    @DisplayName("A tenant created after the upgrade reads the built-in default, not the old value")
+    void given_aTenantCreatedAfterTheUpgrade_should_readTheBuiltInDefault() throws Exception {
+      // Arrange: the platform value was copied to the tenants that existed, then removed
+      seed(AGENTS_KEY, PLATFORM_AGENTS, null);
+      runMigration();
+      when(xtmOneClient.listAdditionalAttackAgents())
+          .thenReturn(
+              List.of(
+                  new ChatbotAgentOutput(
+                      "built-in-agent", "Payload creator", "openaev-payload-creator", "built-in")));
+
+      // Act
+      Tenant created =
+          tenantHelper.createTenantWithCurrentUser("autonomous-defaults-created-later");
+      tenantScopedTransaction.setScopeOnCurrentTransaction(TxCtx.forTenant(created.getId()));
+      List<String> defaults =
+          autonomousRunService.defaultAdditionalAgentIds(TxCtx.forTenant(created.getId()));
+
+      // Assert: no row was written for it, and the old platform value is gone
+      assertThat(defaults).containsExactly("built-in-agent");
+      assertThat(read(AGENTS_KEY, created.getId())).isNull();
+      assertThat(platformRowCount()).isZero();
     }
   }
 
