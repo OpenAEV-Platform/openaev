@@ -52,10 +52,12 @@ public class ThreatArsenalApi {
   /**
    * Retrieves a threat arsenal action by ID.
    *
-   * <p>A request with no tenant selector is pinned to the default tenant by the tenant selector
-   * rule of this endpoint, also when the caller belongs to several tenants and meant another one:
-   * select the tenant with {@code X-Tenant-Ids} or the tenant-prefixed route. A selector naming
-   * several tenants is refused.
+   * <p>A request with no tenant selector is resolved by {@code @RequireTenantSelector}: a caller of
+   * a single tenant gets that tenant's row; a caller of several tenants that include the default
+   * one gets the default tenant's row, also when it meant another one; a caller of several tenants
+   * without the default one is refused with {@code TENANT_SELECTOR_REQUIRED}. Select the tenant
+   * with {@code X-Tenant-Ids} or the tenant-prefixed route. A selector naming several tenants, or a
+   * caller of no tenant, is refused with {@code TENANT_SINGLE_SCOPE_REQUIRED}.
    *
    * @param actionId the action ID or external ID
    * @return the action
