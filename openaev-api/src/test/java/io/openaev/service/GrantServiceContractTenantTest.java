@@ -81,10 +81,13 @@ class GrantServiceContractTenantTest extends IntegrationTest {
 
     // -- ACT / ASSERT --
     assertThatThrownBy(
-            () -> grantService.validateResourceIdForGrant(
+            () ->
+                grantService.validateResourceIdForGrant(
                     contractId, THREAT_ARSENAL, Tenant.DEFAULT_TENANT_UUID))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatCode(() -> grantService.validateResourceIdForGrant(contractId, THREAT_ARSENAL, otherTenantId))
+    assertThatCode(
+            () ->
+                grantService.validateResourceIdForGrant(contractId, THREAT_ARSENAL, otherTenantId))
         .doesNotThrowAnyException();
   }
 }

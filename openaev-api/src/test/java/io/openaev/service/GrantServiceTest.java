@@ -156,7 +156,8 @@ class GrantServiceTest {
   void given_resourceOfTheDeclaredType_should_acceptGrant() {
     when(exerciseRepository.existsById(RESOURCE_ID)).thenReturn(true);
 
-    assertDoesNotThrow(() -> grantService.validateResourceIdForGrant(RESOURCE_ID, SIMULATION, TENANT_ID));
+    assertDoesNotThrow(
+        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, SIMULATION, TENANT_ID));
     verifyNoInteractions(scenarioRepository, injectRepository, injectorContractRepository);
   }
 
@@ -176,7 +177,8 @@ class GrantServiceTest {
     when(scenarioRepository.existsById(RESOURCE_ID)).thenReturn(true);
     when(injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(RESOURCE_ID))
         .thenReturn(true);
-    when(injectorContractRepository.existsByContractIdAndTenant(RESOURCE_ID, TENANT_ID)).thenReturn(true);
+    when(injectorContractRepository.existsByContractIdAndTenant(RESOURCE_ID, TENANT_ID))
+        .thenReturn(true);
 
     assertDoesNotThrow(
         () ->
