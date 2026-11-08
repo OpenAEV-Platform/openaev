@@ -202,7 +202,7 @@ public class PlayerService {
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
       tenantUserService.attachToTenant(userId, tenantId);
-      // Reload user after @Modifying queries cleared the persistence context
+      // Attaching the user ran a query that cleared the persistence context: reload it.
       return forTenant(userRepository.findById(userId).orElseThrow(), tenantId);
     }
     User user = new User();
@@ -244,7 +244,8 @@ public class PlayerService {
       }
       userRepository.save(existingUser);
       tenantUserService.attachToTenant(existingUser.getId(), tenantId);
-      // Reload user after @Modifying queries cleared the persistence context
+      // Attaching the user ran a query that flushed the changes above and cleared the persistence
+      // context, so the entity held here is detached: reload it to answer with what it now holds.
       return forTenant(userRepository.findById(existingUser.getId()).orElseThrow(), tenantId);
     } else {
       User newUser = new User();
