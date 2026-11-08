@@ -785,6 +785,7 @@ class InjectApiTest extends IntegrationTest {
     injectInput.setDependsDuration(0L);
     InjectorContract emailContract = injectorContractFixture.getWellKnownSingleEmailContract();
     Inject inject = injectInput.toInject(emailContract, emailContract.getFirstInjector());
+    inject.setExercise(EXERCISE);
     Inject savedInject = injectRepository.save(inject);
 
     Inject injectToUpdate = injectRepository.findById(savedInject.getId()).orElseThrow();

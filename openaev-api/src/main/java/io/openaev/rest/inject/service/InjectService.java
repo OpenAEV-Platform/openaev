@@ -78,6 +78,7 @@ import io.openaev.utils.InjectContentUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.JpaUtils;
 import io.openaev.utils.TargetType;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.InjectStatusMapper;
@@ -171,22 +172,25 @@ public class InjectService {
   // -- CRUD --
 
   public Inject createAndSaveInject(
+      @NotNull final TxCtx ctx,
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {
-    Inject inject = buildInject(exercise, scenario, input);
+    Inject inject = buildInject(ctx, exercise, scenario, input);
     Inject savedInject = injectRepository.save(inject);
     credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(inject, Set.of());
     return savedInject;
   }
 
   public List<Inject> createAndSaveInjectList(
+      @NotNull final TxCtx ctx,
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       List<InjectInput> injectInputs) {
 
     List<Inject> injects = new ArrayList<>();
-    injectInputs.forEach(injectInput -> injects.add(buildInject(exercise, scenario, injectInput)));
+    injectInputs.forEach(
+        injectInput -> injects.add(buildInject(ctx, exercise, scenario, injectInput)));
     List<Inject> savedInjects = injectRepository.saveAll(injects);
     injects.forEach(
         inject ->
@@ -195,6 +199,7 @@ public class InjectService {
   }
 
   private Inject buildInject(
+      @NotNull final TxCtx ctx,
       @Nullable final Exercise exercise,
       @Nullable final Scenario scenario,
       @NotNull final InjectInput input) {
@@ -233,7 +238,8 @@ public class InjectService {
                       injectDependencyInput ->
                           injectDependencyInput.toInjectDependency(
                               inject,
-                              this.inject(
+                              injectInScope(
+                                  ctx,
                                   injectDependencyInput.getRelationship().getInjectParentId())))
                   .toList());
     }
@@ -242,7 +248,7 @@ public class InjectService {
     // EXERCISE
     if (exercise != null) {
       tags = exercise.getTags();
-      inject.setExercise(exercise);
+      InjectUtils.attachToExercise(inject, exercise);
       // Linked documents directly to the exercise
       inject
           .getDocuments()
@@ -256,7 +262,7 @@ public class InjectService {
     // SCENARIO
     if (scenario != null) {
       tags = scenario.getTags();
-      inject.setScenario(scenario);
+      InjectUtils.attachToScenario(inject, scenario);
       // Linked documents directly to the scenario
       inject
           .getDocuments()
@@ -287,10 +293,68 @@ public class InjectService {
     return inject;
   }
 
+  /**
+   * Loads an inject by primary key, in no request scope. For background work and for a row the
+   * caller has just created or already guarded; a request that receives the id uses {@link
+   * #inject(TxCtx, String)}.
+   */
   public Inject inject(@NotBlank final String injectId) {
     return this.injectRepository
         .findById(injectId)
         .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
+  }
+
+  /**
+   * Looks an inject up by id inside the request's tenant scope: the path tenant on the tenant
+   * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route.
+   * Loads by primary key, which Hibernate filters do not apply to, then keeps the row only when its
+   * tenant lies in the request's scope: a derived query such as {@code findByIdAndTenantIdIn} would
+   * instead run under Inject's still-active v1 filter, which the non-prefixed route keys on the
+   * default tenant regardless of the resolved scope.
+   *
+   * <p>Carries its own read-only transaction so the request's tenant scope reaches the lookup even
+   * when the caller runs under {@code Propagation.SUPPORTS} with no transaction already open: the
+   * guard then opens a short one of its own instead of running unscoped.
+   */
+  @Transactional(readOnly = true)
+  public Optional<Inject> findInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
+    return doFindInScope(ctx, injectId);
+  }
+
+  /** Loads an inject inside the request's tenant scope. Throws if not found there. */
+  @Transactional(readOnly = true)
+  public Inject inject(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
+    return injectInScope(ctx, injectId);
+  }
+
+  /** Validates that the inject exists inside the request's tenant scope. Throws if not. */
+  @Transactional(readOnly = true)
+  public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String injectId) {
+    if (doFindInScope(ctx, injectId).isEmpty()) {
+      throw new ElementNotFoundException("Inject not found with id: " + injectId);
+    }
+  }
+
+  /**
+   * Body of {@link #inject(TxCtx, String)}, for the callers of this class that already run inside
+   * the request's transaction.
+   */
+  private Inject injectInScope(final TxCtx ctx, final String injectId) {
+    return doFindInScope(ctx, injectId)
+        .orElseThrow(() -> new ElementNotFoundException("Inject not found with id: " + injectId));
+  }
+
+  /**
+   * Body of {@link #findInScope}. Kept un-annotated so {@link #inject(TxCtx, String)} and {@link
+   * #existsInScope} can reuse it without the intra-class {@code @Transactional} self-invocation
+   * trap (a same-class call bypasses the Spring proxy). Must be called inside a transaction; each
+   * of the three public entry points above carries its own.
+   */
+  private Optional<Inject> doFindInScope(final TxCtx ctx, final String injectId) {
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
+    return this.injectRepository
+        .findById(injectId)
+        .filter(inject -> scope.contains(inject.getTenant().getId()));
   }
 
   /**
@@ -1337,8 +1401,20 @@ public class InjectService {
         getInjectTracesFromInjectAndTarget(injectId, targetId, targetType));
   }
 
+  /**
+   * Validates that an execution-trace target type is one this family resolves traces for. Called
+   * ahead of the by-id scope guard, so an unsupported type answers 400 regardless of whether the
+   * inject itself exists in the request's scope.
+   */
+  public void requireSupportedExecutionTraceTargetType(final TargetType targetType) {
+    if (!targetType.hasExecutionTraces()) {
+      throw new BadRequestException("Target type " + targetType + " is not supported");
+    }
+  }
+
   public List<ExecutionTrace> getInjectTracesFromInjectAndTarget(
       final String injectId, final String targetId, final TargetType targetType) {
+    requireSupportedExecutionTraceTargetType(targetType);
     return switch (targetType) {
       case AGENT -> this.executionTraceRepository.findByInjectIdAndAgentId(injectId, targetId);
       // AI targets are plain assets (asset_category driven), so their traces are asset-scoped.
@@ -1349,7 +1425,9 @@ public class InjectService {
       // Network injectors report one inject-level trace for all their manual targets (raw IPs or
       // hostnames from the content), so no trace belongs to a single manual target.
       case MANUAL -> List.of();
-      default -> throw new BadRequestException("Target type " + targetType + " is not supported");
+      default ->
+          throw new IllegalStateException(
+              "No execution trace lookup for target type " + targetType);
     };
   }
 
@@ -1766,12 +1844,14 @@ public class InjectService {
    * Tracked as a massive operation (header progress indicator): the operation is registered lazily
    * once the first contract page reveals the total, and progresses page by page.
    *
+   * @param ctx the request's tenant scope
    * @param exercise to link injects on
    * @param scenarios to link injects on
    * @param input to retrieve all Injector Contracts
    * @param locale to set default inject label
    */
   public void createInjectsFromInjectorContractInput(
+      TxCtx ctx,
       Exercise exercise,
       List<Scenario> scenarios,
       InjectorContractSearchPaginationInput input,
@@ -1796,7 +1876,8 @@ public class InjectService {
         }
         List<InjectInput> injectInputs = toInjectInputs(page.getContent(), locale);
         if (!injectInputs.isEmpty()) {
-          scenarios.forEach(scenario -> createAndSaveInjectList(exercise, scenario, injectInputs));
+          scenarios.forEach(
+              scenario -> createAndSaveInjectList(ctx, exercise, scenario, injectInputs));
           bulkOperationMonitor.progress(operationId, injectInputs.size() * scenarios.size());
         }
         pageNumber++;

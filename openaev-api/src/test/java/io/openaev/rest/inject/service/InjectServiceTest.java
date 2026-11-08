@@ -835,7 +835,7 @@ class InjectServiceTest {
     injectInput.setInjectorContract(injectorContractId);
     when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
 
-    injectService.createAndSaveInject(null, scenario, injectInput);
+    injectService.createAndSaveInject(TxCtx.missing(), null, scenario, injectInput);
 
     ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
     verify(injectRepository).save(injectCaptor.capture());
@@ -878,7 +878,7 @@ class InjectServiceTest {
     when(injectUtils.resolveInjector(injectorId, injectorContract)).thenReturn(explicitInjector);
 
     // -- ACT --
-    injectService.createAndSaveInject(null, scenario, injectInput);
+    injectService.createAndSaveInject(TxCtx.missing(), null, scenario, injectInput);
 
     // -- ASSERT --
     ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
@@ -922,7 +922,7 @@ class InjectServiceTest {
     when(injectUtils.resolveInjector(null, injectorContract)).thenReturn(contractInjector);
 
     // -- ACT --
-    injectService.createAndSaveInject(null, scenario, injectInput);
+    injectService.createAndSaveInject(TxCtx.missing(), null, scenario, injectInput);
 
     // -- ASSERT --
     ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
@@ -964,7 +964,7 @@ class InjectServiceTest {
     // -- ACT & ASSERT --
     assertThrows(
         ElementNotFoundException.class,
-        () -> injectService.createAndSaveInject(null, scenario, injectInput));
+        () -> injectService.createAndSaveInject(TxCtx.missing(), null, scenario, injectInput));
     verify(injectUtils).resolveInjector(unknownInjectorId, injectorContract);
     verify(injectRepository, never()).save(any());
   }
