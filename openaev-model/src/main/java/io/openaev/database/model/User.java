@@ -337,6 +337,20 @@ public class User implements Base {
   @Queryable(dynamicValues = true, filterable = true, path = "teams.id")
   private List<Team> teams = new ArrayList<>();
 
+  /**
+   * Makes the tags of the user the given ones, editing the loaded collection instead of replacing
+   * it. Replacing it makes Hibernate delete every {@code users_tags} row of the user and write the
+   * new set back, which removes the links to tags the caller's tenant scope cannot see (a user is
+   * platform-level, its tags may belong to several tenants). Editing writes only the links that
+   * changed, among the ones the collection holds.
+   *
+   * @param wanted the tags the user must hold among the ones in scope
+   */
+  public void replaceTagsInPlace(final Set<Tag> wanted) {
+    tags.retainAll(wanted);
+    tags.addAll(wanted);
+  }
+
   @ArraySchema(schema = @Schema(description = "Tag IDs of the user", implementation = String.class))
   @Setter
   @ManyToMany(fetch = FetchType.LAZY)

@@ -158,7 +158,8 @@ public class UserService {
     List<String> tenantIds = scope == UserCreationScope.PLATFORM ? input.tenantIds() : List.of();
     User user = new User();
     user.setUpdateAttributes(input);
-    user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
+    user.replaceTagsInPlace(
+        referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
     user.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
@@ -308,7 +309,8 @@ public class UserService {
     user.setPhone(input.phone());
     user.setPhone2(input.phone2());
     user.setPgpKey(input.pgpKey());
-    user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
+    user.replaceTagsInPlace(
+        referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
   }
 
   /**

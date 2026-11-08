@@ -1,16 +1,19 @@
 package io.openaev.rest.user;
 
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
+import static io.openaev.rest.user.TenantUserApi.USER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tag;
@@ -32,6 +35,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,10 +56,14 @@ import org.springframework.transaction.annotation.Transactional;
  * each. With no selector the request is narrowed to the default tenant
  * ({@code @RequireTenantSelector}), and with {@code X-Tenant-Ids: B} to B: either way the links of
  * the other tenant have to survive.
+ *
+ * <p>The same holds for the updates of a user and of a player that replace the tags from the
+ * request: the tags of the tenant the request works on are replaced, the ones of the other tenant
+ * stay.
  */
 @TestInstance(PER_CLASS)
 @Transactional
-@DisplayName("Player upsert keeps the links of the tenants it does not work on")
+@DisplayName("Player and user writes keep the links of the tenants they do not work on")
 public class PlayerUpsertKeepsOtherTenantLinksTest extends IntegrationTest {
 
   @DynamicPropertySource
@@ -229,5 +237,104 @@ public class PlayerUpsertKeepsOtherTenantLinksTest extends IntegrationTest {
     assertEquals(
         sorted(teamOfDefault.getId(), teamOfB.getId(), addedTeam.getId()),
         linksOf("users_teams", "team_id"));
+  }
+
+  private UserInput userInputReplacingTagsWith(Tag tag) {
+    return new UserInput(
+        player.getEmail(),
+        "Changed",
+        "User",
+        UserFixture.RAW_PASSWORD,
+        null,
+        null,
+        null,
+        null,
+        List.of(tag.getId()),
+        false,
+        List.of());
+  }
+
+  private PlayerInput playerInputReplacingTagsWith(Tag tag) {
+    PlayerInput input = PlayerFixture.createPlayerInput();
+    input.setEmail(player.getEmail());
+    input.setTagIds(List.of(tag.getId()));
+    input.setTeamIds(List.of());
+    return input;
+  }
+
+  private Tag addedTagIn(String tenantId) {
+    Tag tag = tagIn(tenantId);
+    entityManager.flush();
+    entityManager.clear();
+    TenantContext.clearCurrentTenant();
+    return tag;
+  }
+
+  @Nested
+  @DisplayName("Updating the tags of a user")
+  class TagReplacement {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With no selector, a user update replaces the tags of the default tenant only")
+    void given_noSelectorOnDefaultTenant_should_keepTheTagsOfBOnUserUpdate() throws Exception {
+      // -- PREPARE --
+      Tag replacement = addedTagIn(Tenant.DEFAULT_TENANT_UUID);
+
+      // -- EXECUTE --
+      mvc.perform(
+              put(USER_URI + "/" + player.getId())
+                  .content(asJsonString(userInputReplacingTagsWith(replacement)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(sorted(tagOfB.getId(), replacement.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, a user update replaces the tags of B only")
+    void given_headerNamingTenantB_should_keepTheTagsOfTheDefaultTenantOnUserUpdate()
+        throws Exception {
+      // -- PREPARE --
+      Tag replacement = addedTagIn(tenantB);
+
+      // -- EXECUTE --
+      mvc.perform(
+              put(USER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(userInputReplacingTagsWith(replacement)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(
+          sorted(tagOfDefault.getId(), replacement.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, a player update replaces the tags of B only")
+    void given_headerNamingTenantB_should_keepTheTagsOfTheDefaultTenantOnPlayerUpdate()
+        throws Exception {
+      // -- PREPARE --
+      Tag replacement = addedTagIn(tenantB);
+
+      // -- EXECUTE --
+      mvc.perform(
+              put(PLAYER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(playerInputReplacingTagsWith(replacement)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(
+          sorted(tagOfDefault.getId(), replacement.getId()), linksOf("users_tags", "tag_id"));
+    }
   }
 }
