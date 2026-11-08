@@ -146,3 +146,21 @@ executors DEFAULT io.openaev.executors.ExecutorService.register
 scenarios DEFAULT io.openaev.service.scenario.ScenarioService.createScenario
 reporting_schedules DEFAULT io.openaev.rest.reporting.service.ReportingScheduleLoader.markLastRun
 reporting_schedules DEFAULT unattributed(io.openaev.config.WriteAttrDirtyUpdateReportingTest$DirtyUpdate.given_entityLoadedBeforeRecording_should_beReportedUnattributed)
+
+# --- The attack-path version counter, bumped by tests that call a production service directly.
+# attackpath_graph_version is a self-isolated table, so the detector's trigger watches it
+# (WriteAttrDetectorTrigger). Every production caller of AttackPathVersionRepository#bump passes the
+# tenant of its own scope: the ingestion services and the autonomous event append take it from the
+# inject or the run and bump inside TenantScopedTransaction with TxCtx.forTenant of that same tenant,
+# and the seed endpoint (AttackPathApi#seedCausal) takes it from requireSingleTenant(ctx). The
+# signatures below are produced only by tests that call AttackPathVersionService or
+# AttackPathCausalSeedService themselves, outside any request or job scope, with a tenant they created while the ambient scope
+# is the default one (AttackPathVersionServiceTest, the AttackPathCausalSeed*Test classes,
+# AttackPathSeedServiceTest). Retired with the tests that produce them.
+attackpath_graph_version OTHER io.openaev.service.attackpath.ingestion.AttackPathVersionService.bump
+attackpath_graph_version OTHER io.openaev.service.attackpath.AttackPathCausalSeedService.seedMinimalCausalChain
+attackpath_graph_version OTHER io.openaev.service.attackpath.AttackPathCausalSeedService.seedRealisticChain
+attackpath_graph_version OTHER io.openaev.service.attackpath.AttackPathCausalSeedService.seedDeepIntrusion
+attackpath_graph_version OTHER io.openaev.service.attackpath.AttackPathCausalSeedService.seedScaledChain
+attackpath_graph_version OTHER io.openaev.service.attackpath.AttackPathCausalSeedService.seedRansomwareChain
+attackpath_graph_version OTHER io.openaev.service.attackpath.AttackPathCausalSeedService.replayRansomwareNextStage
