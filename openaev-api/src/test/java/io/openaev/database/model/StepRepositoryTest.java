@@ -11,6 +11,7 @@ import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -403,7 +404,7 @@ class StepRepositoryTest extends IntegrationTest {
   }
 
   @Test
-  void whenExistsInjectorContractByWorkflowIdAndInjectorContractId_thenChecksBothJsonShapes() {
+  void whenFindWorkflowTenantIdIfReferencesInjectorContract_thenChecksBothJsonShapes() {
     // GIVEN
     String objectContractId = "contract-object";
     String stringContractId = "contract-string";
@@ -432,14 +433,18 @@ class StepRepositoryTest extends IntegrationTest {
             .get();
 
     // WHEN / THEN
-    Assertions.assertTrue(
-        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
+    String tenantId = workflow.getTenant().getId();
+    Assertions.assertEquals(
+        Optional.of(tenantId),
+        stepRepository.findWorkflowTenantIdIfReferencesInjectorContract(
             workflow.getId(), objectContractId));
-    Assertions.assertTrue(
-        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
+    Assertions.assertEquals(
+        Optional.of(tenantId),
+        stepRepository.findWorkflowTenantIdIfReferencesInjectorContract(
             workflow.getId(), stringContractId));
-    Assertions.assertFalse(
-        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
+    Assertions.assertEquals(
+        Optional.empty(),
+        stepRepository.findWorkflowTenantIdIfReferencesInjectorContract(
             workflow.getId(), "contract-missing"));
   }
 }

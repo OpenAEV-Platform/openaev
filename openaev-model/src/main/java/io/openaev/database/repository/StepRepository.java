@@ -313,44 +313,14 @@ public interface StepRepository extends JpaRepository<Step, String> {
   boolean existsByStepTemplateId(String stepTemplateId);
 
   /**
-   * Checks whether the given workflow references the given injector contract in one of its steps.
+   * The tenant of the given workflow, if one of its steps references the given injector contract.
+   * The tenant comes back from the same query instead of a separate workflow fetch, which would
+   * introduce a circular dependency ({@code InjectorContractService} -> {@code WorkflowService} ->
+   * ... -> {@code InjectorContractService}).
    *
    * <p>{@code step_data.inject_injector_contract} holds the serialized {@link
    * io.openaev.database.model.InjectorContract} for steps created through the chaining UI, but
    * legacy steps may only hold the contract ID as a plain string: both shapes are handled.
-   *
-   * @param workflowId the ID of the workflow whose steps are inspected
-   * @param injectorContractId the injector contract ID to look for
-   * @return {@code true} if the workflow references the injector contract
-   */
-  @Query(
-      value =
-          """
-        SELECT EXISTS (
-          SELECT 1
-          FROM steps s
-          WHERE s.step_workflow_id = :workflowId
-            AND (
-              (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'object'
-                AND s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id' = :injectorContractId)
-              OR
-              (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'string'
-                AND s.step_data ->> 'inject_injector_contract' = :injectorContractId)
-            )
-        )
-        """,
-      nativeQuery = true)
-  boolean existsInjectorContractByWorkflowIdAndInjectorContractId(
-      @Param("workflowId") String workflowId,
-      @Param("injectorContractId") String injectorContractId);
-
-  /**
-   * The tenant of the given workflow, if one of its steps references the given injector contract -
-   * the tenant-scoped counterpart of {@link
-   * #existsInjectorContractByWorkflowIdAndInjectorContractId}, returning the resolved tenant in the
-   * same query instead of a separate workflow fetch, which would introduce a circular dependency
-   * ({@code InjectorContractService} -> {@code WorkflowService} -> ... -> {@code
-   * InjectorContractService}).
    *
    * <p>Native because it reads {@code step_data} through jsonb operators JPQL cannot express; it is
    * read-only, so no indexed, audited or streamed row is skipped. {@code workflows} and {@code
