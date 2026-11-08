@@ -2,6 +2,7 @@ package io.openaev.utils;
 
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
+import io.openaev.rest.exception.TenantSelectorRequiredException;
 import io.openaev.rest.exception.TenantWriteScopeException;
 import java.util.Objects;
 import java.util.Set;
@@ -27,6 +28,19 @@ public final class TxCtxScopeUtils {
             "AllTenants is not valid - provide a single-tenant scope or an explicit tenant selector.");
       }
     };
+  }
+
+  /**
+   * The one tenant a request reads from. A read of a single tenant's configuration is refused, as a
+   * missing tenant selector, when the scope holds none or several tenants: it never picks one for
+   * the caller.
+   */
+  public static String requireSingleTenant(TxCtx ctx) {
+    Set<String> tenantIds = tenantIdsFromHTTPCtx(ctx);
+    if (tenantIds.size() != 1) {
+      throw new TenantSelectorRequiredException();
+    }
+    return tenantIds.iterator().next();
   }
 
   /**

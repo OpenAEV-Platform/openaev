@@ -4041,7 +4041,7 @@ public class AutonomousRunService {
    */
   @Transactional(readOnly = true)
   public List<String> defaultAdditionalAgentIds(TxCtx ctx) {
-    return readDefaultAdditionalAgentIds(writeScopeResolver.tenantForWrite(ctx, null));
+    return readDefaultAdditionalAgentIds(TxCtxScopeUtils.requireSingleTenant(ctx));
   }
 
   /**
@@ -4132,7 +4132,7 @@ public class AutonomousRunService {
    */
   @Transactional(readOnly = true)
   public Map<String, String> defaultAdditionalAgentModes(TxCtx ctx) {
-    return readDefaultAdditionalAgentModes(writeScopeResolver.tenantForWrite(ctx, null));
+    return readDefaultAdditionalAgentModes(TxCtxScopeUtils.requireSingleTenant(ctx));
   }
 
   /**

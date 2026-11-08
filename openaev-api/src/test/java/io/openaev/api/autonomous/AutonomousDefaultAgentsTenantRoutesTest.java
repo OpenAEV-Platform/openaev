@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
@@ -181,6 +182,33 @@ class AutonomousDefaultAgentsTenantRoutesTest extends IntegrationTest {
       assertThat(storedValue(Tenant.DEFAULT_TENANT_UUID)).contains("agent-of-b");
       assertThat(storedValue(tenantA)).isNull();
       assertThat(storedValue(tenantB)).isNull();
+    }
+
+    @Test
+    @DisplayName("given_aHeaderNamingTwoTenants_should_refuseTheReadAsAMissingSelector")
+    void given_aHeaderNamingTwoTenants_should_refuseTheReadAsAMissingSelector() throws Exception {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+
+      // Act + Assert: a read is refused as a read, never as a create
+      mvc.perform(
+              get(PLAIN)
+                  .header("X-Tenant-Ids", tenantA + "," + tenantB)
+                  .accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_SELECTOR_REQUIRED"));
+    }
+
+    @Test
+    @DisplayName("given_twoTenantsAndNoSelector_should_refuseTheReadAsAMissingSelector")
+    void given_twoTenantsAndNoSelector_should_refuseTheReadAsAMissingSelector() throws Exception {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+
+      // Act + Assert: the caller belongs to A and B but not to the default tenant
+      mvc.perform(get(PLAIN).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_SELECTOR_REQUIRED"));
     }
 
     @Test
