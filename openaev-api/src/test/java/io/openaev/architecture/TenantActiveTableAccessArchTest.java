@@ -3251,7 +3251,8 @@ class TenantActiveTableAccessArchTest {
    * A pin an allowlist reason relies on: {@code inClass#inMethod} calls {@code pinOwner#pinName},
    * which refuses a scope of several tenants, before the first call of {@code
    * lookupOwner#lookupName}, the call that reaches the contract lookup. For an endpoint the lookup
-   * call is the one into its service; the allowlisted caller is then that service method.
+   * call is the one into its service; the allowlisted caller is then that service method. The pin
+   * must run on every execution: no jump, switch, try block or catch handler comes before it.
    */
   record Pin(
       Class<?> inClass,
@@ -3278,40 +3279,39 @@ class TenantActiveTableAccessArchTest {
           lookupName);
     }
 
-    /** Why the pin does not come first, or empty when it does. */
+    /**
+     * Why the pin does not always run first, or empty when it does. The pin must be a call of the
+     * method itself, with no jump, switch, try block or catch handler before it, so that every
+     * execution that reaches the lookup has run it; a pin inside an {@code if}, a {@code try} or a
+     * lambda does not count.
+     */
     Optional<String> violation() {
       List<MethodCallOrder.Call> calls = MethodCallOrder.callsInOrder(inClass, inMethod);
-      int pinned = calls.indexOf(new MethodCallOrder.Call(pinOwner.getName(), pinName));
-      int lookup = calls.indexOf(new MethodCallOrder.Call(lookupOwner.getName(), lookupName));
+      Optional<Integer> lookup =
+          MethodCallOrder.firstIndexOf(calls, lookupOwner.getName(), lookupName);
+      Optional<Integer> anyPin = MethodCallOrder.firstIndexOf(calls, pinOwner.getName(), pinName);
+      Optional<Integer> pinned =
+          MethodCallOrder.firstUnconditionalIndexOf(calls, pinOwner.getName(), pinName);
       String where = inClass.getSimpleName() + "#" + inMethod;
-      if (lookup < 0) {
-        return Optional.of(
-            where + " never calls " + lookupOwner.getSimpleName() + "#" + lookupName);
+      String pinCall = pinOwner.getSimpleName() + "#" + pinName;
+      String lookupCall = lookupOwner.getSimpleName() + "#" + lookupName;
+      if (lookup.isEmpty()) {
+        return Optional.of(where + " never calls " + lookupCall);
       }
-      if (pinned < 0) {
+      if (anyPin.isEmpty()) {
+        return Optional.of(where + " never calls " + pinCall + " before " + lookupCall);
+      }
+      if (pinned.isEmpty()) {
         return Optional.of(
             where
-                + " never calls "
-                + pinOwner.getSimpleName()
-                + "#"
-                + pinName
-                + " before "
-                + lookupOwner.getSimpleName()
-                + "#"
-                + lookupName);
+                + " calls "
+                + pinCall
+                + " only after a branch or inside a try block, so it does not always run before "
+                + lookupCall);
       }
-      return pinned < lookup
+      return pinned.get() < lookup.get()
           ? Optional.empty()
-          : Optional.of(
-              where
-                  + " calls "
-                  + pinOwner.getSimpleName()
-                  + "#"
-                  + pinName
-                  + " after "
-                  + lookupOwner.getSimpleName()
-                  + "#"
-                  + lookupName);
+          : Optional.of(where + " calls " + pinCall + " after " + lookupCall);
     }
   }
 

@@ -918,4 +918,69 @@ public final class TenantActiveTableAccessFixtures {
       return service.injectorContract(id);
     }
   }
+
+  /** The pin is behind a condition: a caller with no context skips it and reaches the lookup. */
+  public static class PinInsideIf {
+    private final InjectorContractService service;
+
+    public PinInsideIf(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      if (ctx != null) {
+        TxCtxScopeUtils.requireSingleTenant(ctx);
+      }
+      return service.injectorContract(id);
+    }
+  }
+
+  /** The pin is inside a try block whose handler swallows its refusal. */
+  public static class PinInsideTry {
+    private final InjectorContractService service;
+
+    public PinInsideTry(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      try {
+        TxCtxScopeUtils.requireSingleTenant(ctx);
+      } catch (RuntimeException ignored) {
+        // the refusal is dropped and the lookup runs anyway
+      }
+      return service.injectorContract(id);
+    }
+  }
+
+  /** The pin is inside a lambda that is never run before the lookup. */
+  public static class PinInsideLambda {
+    private final InjectorContractService service;
+
+    public PinInsideLambda(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      Runnable pin = () -> TxCtxScopeUtils.requireSingleTenant(ctx);
+      return service.injectorContract(id);
+    }
+  }
+
+  /** The pin runs first on every execution, and the branch that follows it is the caller's own. */
+  public static class PinBeforeABranch {
+    private final InjectorContractService service;
+
+    public PinBeforeABranch(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      TxCtxScopeUtils.requireSingleTenant(ctx);
+      if (id == null) {
+        return null;
+      }
+      return service.injectorContract(id);
+    }
+  }
 }

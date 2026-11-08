@@ -17,6 +17,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Proves the repository access rules of {@link TenantActiveTableAccessArchTest} fire on an accessor
@@ -715,14 +716,17 @@ class TenantActiveTableAccessRulesTest {
       return Stream.of(
           Arguments.of(TenantActiveTableAccessFixtures.PinAfterLookup.class, "after"),
           Arguments.of(TenantActiveTableAccessFixtures.LookupWithoutPin.class, "never calls"),
-          Arguments.of(TenantActiveTableAccessFixtures.PinInAnotherMethod.class, "never calls"));
+          Arguments.of(TenantActiveTableAccessFixtures.PinInAnotherMethod.class, "never calls"),
+          Arguments.of(TenantActiveTableAccessFixtures.PinInsideIf.class, "only after a branch"),
+          Arguments.of(TenantActiveTableAccessFixtures.PinInsideTry.class, "only after a branch"),
+          Arguments.of(TenantActiveTableAccessFixtures.PinInsideLambda.class, "never calls"));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("pinsThatDoNotComeFirst")
-    @DisplayName("given a pin that is missing or comes after the lookup, should violate")
-    void given_aPinThatIsMissingOrComesAfterTheLookup_should_violate(
-        Class<?> fixture, String expected) {
+    @DisplayName(
+        "given a pin that is missing, conditional, in a lambda or after the lookup, should violate")
+    void given_aPinThatDoesNotAlwaysRunFirst_should_violate(Class<?> fixture, String expected) {
       // Act
       EvaluationResult result =
           evaluate(
@@ -734,12 +738,14 @@ class TenantActiveTableAccessRulesTest {
       assertThat(result.getFailureReport().toString()).contains(expected);
     }
 
-    @Test
-    @DisplayName("given a pin called before the lookup, should not violate")
-    void given_aPinCalledBeforeTheLookup_should_notViolate() {
-      // Arrange
-      Class<?> fixture = TenantActiveTableAccessFixtures.PinBeforeLookup.class;
-
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        classes = {
+          TenantActiveTableAccessFixtures.PinBeforeLookup.class,
+          TenantActiveTableAccessFixtures.PinBeforeABranch.class
+        })
+    @DisplayName("given a pin called first, before the lookup, should not violate")
+    void given_aPinCalledFirstBeforeTheLookup_should_notViolate(Class<?> fixture) {
       // Act
       EvaluationResult result =
           evaluate(
