@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -33,6 +34,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -54,6 +57,14 @@ import org.springframework.test.web.servlet.MockMvc;
 @WithMockUser(isAdmin = true)
 @DisplayName("GET /injector_contracts attack pattern aggregation across tenants")
 class InjectorContractRawAttackPatternJoinTest extends IntegrationTest {
+
+  // The list carries no predicate on the ambient tenant: the statement inspector is what scopes it
+  // to the tenant of the path, so the class runs with the production list of isolated tables.
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   private static final String PATTERN_A = "T9001.001";
   private static final String PATTERN_B = "T9002.002";

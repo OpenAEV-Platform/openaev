@@ -11,6 +11,7 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Organization;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.model.author.Authored;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -187,6 +188,7 @@ class InjectorContractAuthorshipTest {
     private InjectorContract existingContract(String externalId, User authorUser) {
       InjectorContract contract = new InjectorContract();
       contract.setId("contract-1");
+      contract.setTenant(new Tenant(TENANT_ID));
       contract.setExternalId(externalId);
       contract.setAuthorUser(authorUser);
       contract.addInjector(injector);
