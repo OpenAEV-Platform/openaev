@@ -590,9 +590,21 @@ class TenantStatementInspectorTest {
   void updateDualScopeTargetChecksPlatformWrite() {
     String out = inspect("UPDATE groups g SET x = 1 WHERE g.id = ?");
     assertTrue(out.contains("can_write_tenant(g.tenant_id, true)"), out);
+    // A platform row it refuses is an error, not a statement that matches no row.
+    assertTrue(
+        out.contains("g.tenant_id IS NULL AND require_tenant_write(g.tenant_id, true)"), out);
     // The plain can_access_tenant predicate (no platform-write branch) is what a strict table's
     // write uses; a dual-scope table's write must not fall back to it unconditionally.
     assertFalse(out.contains("can_access_tenant(g.tenant_id)"), out);
+  }
+
+  @Test
+  @DisplayName("a DELETE of a dual-scope table's platform row without the marker is an error")
+  void deleteDualScopeTargetRaisesForAPlatformRow() {
+    String out = inspect("DELETE FROM groups g WHERE g.id = ?");
+    assertTrue(out.contains("can_write_tenant(g.tenant_id, true)"), out);
+    assertTrue(
+        out.contains("g.tenant_id IS NULL AND require_tenant_write(g.tenant_id, true)"), out);
   }
 
   // --- INSERT --------------------------------------------------------------

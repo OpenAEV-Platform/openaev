@@ -11,9 +11,10 @@ import java.util.Set;
  * without a scope: a platform row belongs to no tenant. A write to a dual-scope table's platform
  * row ({@code tenant_id IS NULL}) is allowed only inside a transaction the server has marked
  * platform-write ({@code can_write_tenant}'s {@code allow_platform_write} branch, backed by the
- * {@code app.platform_write} setting); a write to its tenant row needs its tenant in the scope. An
- * {@code INSERT} the policy refuses raises ({@code require_tenant_write}). A strict table's write
- * predicate is unchanged by any of this.
+ * {@code app.platform_write} setting); a write to its tenant row needs its tenant in the scope. A
+ * write of a platform row the policy refuses raises ({@code require_tenant_write}), whether it is
+ * an {@code INSERT}, an {@code UPDATE} or a {@code DELETE}. A strict table's write predicate is
+ * unchanged by any of this.
  */
 public final class TenantDimension implements ScopeDimension {
 
@@ -47,11 +48,26 @@ public final class TenantDimension implements ScopeDimension {
         : "can_access_tenant(" + alias + ".tenant_id)";
   }
 
+  /**
+   * For a dual-scope table, a row the statement matches is written when {@code can_write_tenant}
+   * allows it. A platform row it refuses ends in {@code require_tenant_write}'s error, never in a
+   * statement that matches zero rows and reports success; a tenant row outside the scope stays
+   * outside the statement, as for a strict table. The raising call is declared costly, so the
+   * planner evaluates it after the statement's own conditions.
+   */
   @Override
   public String writePredicate(String table, String alias) {
-    return tables.family(table) == TenantTables.Family.DUAL
-        ? "can_write_tenant(" + alias + ".tenant_id, true)"
-        : "can_access_tenant(" + alias + ".tenant_id)";
+    if (tables.family(table) != TenantTables.Family.DUAL) {
+      return "can_access_tenant(" + alias + ".tenant_id)";
+    }
+    String tenant = alias + ".tenant_id";
+    return "(can_write_tenant("
+        + tenant
+        + ", true) OR ("
+        + tenant
+        + " IS NULL AND require_tenant_write("
+        + tenant
+        + ", true)))";
   }
 
   @Override

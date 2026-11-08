@@ -178,13 +178,86 @@ class PlatformSettingsUnscopedAccessTest extends IntegrationTest {
       // Arrange
       putPlatformSetting(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key(), "5");
 
-      // Act + Assert
-      assertThrows(
-          Throwable.class,
-          () ->
-              settingRepository.deleteByKeyIn(
-                  List.of(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key())));
+      // Act + Assert: the refusal is the platform-write one, not an unrelated flush failure
+      Throwable thrown =
+          assertThrows(
+              Throwable.class,
+              () ->
+                  settingRepository.deleteByKeyIn(
+                      List.of(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key())));
+      assertTrue(rootMessage(thrown).contains("platform-write"), rootMessage(thrown));
       assertEquals(5, settingService.getInt(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT));
+    }
+
+    @Test
+    @DisplayName("given_noPlatformWriteMarker_should_refuseABulkUpdateOfAPlatformRowWithAnError")
+    void given_noPlatformWriteMarker_should_refuseABulkUpdateOfAPlatformRowWithAnError() {
+      // Arrange
+      putPlatformSetting(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key(), "5");
+
+      // Act + Assert: a bulk write skips the entity row-count check, so the refusal must be raised
+      // by the statement itself
+      Throwable thrown =
+          assertThrows(
+              Throwable.class,
+              () ->
+                  tenantScopedTransaction.execute(
+                      TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+                      () ->
+                          entityManager
+                              .createQuery(
+                                  "update Setting s set s.value = :value where s.key = :key")
+                              .setParameter("value", "9")
+                              .setParameter(
+                                  "key", SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key())
+                              .executeUpdate()));
+      assertTrue(rootMessage(thrown).contains("platform-write"), rootMessage(thrown));
+      assertEquals(5, settingService.getInt(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT));
+    }
+
+    @Test
+    @DisplayName("given_noPlatformWriteMarker_should_refuseABulkDeleteOfAPlatformRowWithAnError")
+    void given_noPlatformWriteMarker_should_refuseABulkDeleteOfAPlatformRowWithAnError() {
+      // Arrange
+      putPlatformSetting(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key(), "5");
+
+      // Act + Assert
+      Throwable thrown =
+          assertThrows(
+              Throwable.class,
+              () ->
+                  tenantScopedTransaction.execute(
+                      TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+                      () ->
+                          entityManager
+                              .createQuery("delete from Setting s where s.key = :key")
+                              .setParameter(
+                                  "key", SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key())
+                              .executeUpdate()));
+      assertTrue(rootMessage(thrown).contains("platform-write"), rootMessage(thrown));
+      assertEquals(5, settingService.getInt(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT));
+    }
+
+    @Test
+    @DisplayName("given_aPlatformWriteTransaction_should_applyABulkUpdateOfAPlatformRow")
+    void given_aPlatformWriteTransaction_should_applyABulkUpdateOfAPlatformRow() {
+      // Arrange
+      putPlatformSetting(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key(), "5");
+
+      // Act
+      int updated =
+          tenantScopedTransaction.executeAsPlatformWrite(
+              TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+              () ->
+                  entityManager
+                      .createQuery("update Setting s set s.value = :value where s.key = :key")
+                      .setParameter("value", "9")
+                      .setParameter("key", SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key())
+                      .executeUpdate());
+
+      // Assert
+      assertEquals(1, updated);
+      assertEquals(9, settingService.getInt(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT));
     }
   }
 

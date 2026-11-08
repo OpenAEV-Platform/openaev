@@ -24,7 +24,7 @@ import io.openaev.rest.settings.form.SettingsSessionsUpdateInput;
 import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
-import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.PersistenceException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -130,21 +130,20 @@ class DualScopeParametersActivationTest extends IntegrationTest {
               .orElseThrow();
       existing.setValue("written-by-a-tenant-route");
 
-      // Act + Assert: can_write_tenant(tenant_id, true) is false for a NULL tenant_id with no
-      // app.platform_write set, so the UPDATE matches 0 rows and Hibernate's own row-count check
-      // throws a StaleStateException, translated to its JPA equivalent by the entityManager.
-      OptimisticLockException thrown =
+      // Act + Assert: the UPDATE of a platform row with no app.platform_write raises, instead of
+      // matching zero rows and surfacing as a row-count mismatch of the entity write
+      PersistenceException thrown =
           assertThrows(
-              OptimisticLockException.class,
+              PersistenceException.class,
               () -> {
                 settingRepository.save(existing);
                 entityManager.flush();
               });
-      assertTrue(
-          thrown.getCause() != null
-              && thrown.getCause().getMessage() != null
-              && thrown.getCause().getMessage().contains("expected row count 1 but was 0"),
-          String.valueOf(thrown.getCause()));
+      Throwable cause = thrown;
+      while (cause.getCause() != null && cause.getCause() != cause) {
+        cause = cause.getCause();
+      }
+      assertTrue(String.valueOf(cause.getMessage()).contains("platform-write"), cause.getMessage());
     }
 
     @Test
