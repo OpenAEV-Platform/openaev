@@ -16,6 +16,7 @@ import static java.time.Instant.now;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
@@ -196,6 +197,7 @@ public class PlayerService {
   public User createPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    BaseEvent.attributeRequestEventsTo(tenantId);
     var existingUser = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
@@ -216,6 +218,7 @@ public class PlayerService {
   public User upsertPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    BaseEvent.attributeRequestEventsTo(tenantId);
     Optional<User> user = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (user.isPresent()) {
       if (!requireUpdate(user.get(), input)) {

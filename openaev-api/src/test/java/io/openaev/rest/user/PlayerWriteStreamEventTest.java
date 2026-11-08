@@ -6,6 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
@@ -23,6 +29,10 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.user.form.player.PlayerInput;
+import io.openaev.service.PermissionService;
+import io.openaev.service.StreamService;
+import io.openaev.service.UserService;
+import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.PlayerFixture;
@@ -30,7 +40,11 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.RecordComponent;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,14 +52,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.FluxSink;
 
 /**
  * What the activity stream is told when a player is written. The stream serializes the very
@@ -83,6 +101,8 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
   @Autowired private UserComposer userComposer;
   @Autowired private TagRepository tagRepository;
   @Autowired private OrganizationRepository organizationRepository;
+  @Autowired private UserService userService;
+  @Autowired private AttackPathAccessControl attackPathAccessControl;
 
   private String tenantB;
 
@@ -200,6 +220,109 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
                       instance.path("user_tags"),
                       mapper.getTypeFactory().constructCollectionType(List.class, String.class)),
                   "The streamed player must carry the added tag"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Player created in B, streamed to the consumers of both tenants")
+  class FanOut {
+
+    @SuppressWarnings("unchecked")
+    private FluxSink<Object> consumerOf(StreamService stream, String sessionId, String tenantId)
+        throws Exception {
+      OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
+      when(principal.getId()).thenReturn(userService.currentUser().getId());
+      FluxSink<Object> sink = mock(FluxSink.class);
+      Class<?> consumerClass = Class.forName("io.openaev.service.StreamService$StreamConsumer");
+      RecordComponent[] components = consumerClass.getRecordComponents();
+      Constructor<?> constructor =
+          consumerClass.getDeclaredConstructor(
+              components[0].getType(), components[1].getType(), components[2].getType());
+      constructor.setAccessible(true);
+      ((Map<String, Object>) ReflectionTestUtils.getField(stream, "consumers"))
+          .put(sessionId, constructor.newInstance(principal, tenantId, sink));
+      return sink;
+    }
+
+    /** The instances the consumer was sent, as they travel on the wire. */
+    @SuppressWarnings("unchecked")
+    private List<JsonNode> receivedBy(FluxSink<Object> sink) {
+      ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+      verify(sink, atLeast(0)).next(captor.capture());
+      List<JsonNode> instances = new ArrayList<>();
+      for (Object sent : captor.getAllValues()) {
+        JsonNode wire = mapper.valueToTree(((ServerSentEvent<BaseEvent>) sent).data());
+        instances.add(wire.path("instance"));
+      }
+      return instances;
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Each consumer gets the organization of its own tenant, never another's")
+    void given_headerNamingTenantB_should_streamTheOrganizationOfBToTheConsumersOfB()
+        throws Exception {
+      // -- PREPARE --
+      Organization organization = OrganizationFixture.createDefaultOrganisation();
+      organization.setTenant(new Tenant(tenantB));
+      String organizationId = organizationRepository.save(organization).getId();
+      PlayerInput input = PlayerFixture.createPlayerInput();
+      input.setEmail("fan-out-" + UUID.randomUUID() + "@filigran.io");
+      input.setOrganizationId(organizationId);
+      entityManager.flush();
+      entityManager.clear();
+      TenantContext.clearCurrentTenant();
+      // The permission check runs in a transaction of its own in production, where each consumer
+      // gets its tenant scope; this test shares one transaction, so it is not what is under test.
+      PermissionService permissions = mock(PermissionService.class);
+      when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
+      StreamService stream =
+          new StreamService(permissions, userService, attackPathAccessControl, mapper);
+      FluxSink<Object> sinkOfDefault = consumerOf(stream, "default", Tenant.DEFAULT_TENANT_UUID);
+      FluxSink<Object> sinkOfB = consumerOf(stream, "b", tenantB);
+
+      // -- EXECUTE --
+      String userId =
+          mapper
+              .readTree(
+                  mvc.perform(
+                          post(PLAYER_URI)
+                              .header(TENANT_HEADER, tenantB)
+                              .content(asJsonString(input))
+                              .contentType(MediaType.APPLICATION_JSON)
+                              .accept(MediaType.APPLICATION_JSON)
+                              .with(csrf()))
+                      .andExpect(status().is2xxSuccessful())
+                      .andReturn()
+                      .getResponse()
+                      .getContentAsString())
+              .path("user_id")
+              .asText();
+      List<BaseEvent> events =
+          applicationEvents.stream(BaseEvent.class)
+              .filter(
+                  event -> event.getInstance() instanceof User user && userId.equals(user.getId()))
+              .toList();
+      assertFalse(events.isEmpty(), "The create must have published an event for the player");
+      events.forEach(stream::listenDatabaseUpdate);
+
+      // -- ASSERT --
+      List<JsonNode> receivedByB = receivedBy(sinkOfB);
+      assertFalse(receivedByB.isEmpty(), "The consumer of B must receive the player");
+      receivedByB.forEach(
+          instance ->
+              assertEquals(
+                  organizationId,
+                  instance.path("user_organization").asText(),
+                  "The consumer of B must receive the organization of B"));
+      List<JsonNode> receivedByDefault = receivedBy(sinkOfDefault);
+      assertFalse(
+          receivedByDefault.isEmpty(), "The consumer of the default tenant gets the player");
+      receivedByDefault.forEach(
+          instance ->
+              assertFalse(
+                  instance.has("user_organization"),
+                  "The consumer of the default tenant must keep the organization it holds"));
     }
   }
 }

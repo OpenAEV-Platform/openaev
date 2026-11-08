@@ -57,9 +57,12 @@ public class BaseEvent implements Cloneable {
 
   @JsonIgnore private final ResourceType permissionResourceType;
 
+  private static final String WRITE_TENANT_ATTRIBUTE = BaseEvent.class.getName() + ".writeTenant";
+
   /**
-   * The tenant the change was made in ({@link TenantContext#getCurrentTenant()} when the event was
-   * built). A value that depends on the tenant, such as the organization of a user, is only valid
+   * The tenant the change was made in: the one the request declared with {@link
+   * #attributeRequestEventsTo}, else {@link TenantContext#getCurrentTenant()} when the event was
+   * built. A value that depends on the tenant, such as the organization of a user, is only valid
    * for the consumers of this tenant.
    */
   @JsonIgnore private final String tenantId;
@@ -110,7 +113,13 @@ public class BaseEvent implements Cloneable {
       // Falls back to the entity itself, which consumers resolve through its own resource type.
       log.debug("Cannot resolve permission resource of {}", data.getClass().getSimpleName(), e);
     }
-    this.tenantId = TenantContext.getCurrentTenant();
+    String writeTenantId =
+        requestAttributes != null
+            ? (String)
+                requestAttributes.getAttribute(
+                    WRITE_TENANT_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST)
+            : null;
+    this.tenantId = writeTenantId != null ? writeTenantId : TenantContext.getCurrentTenant();
     this.permissionResourceId = resolvedPermissionResourceId;
     this.permissionResourceType = resolvedPermissionResourceType;
     Class<?> baseClass = data.getClass();
@@ -168,6 +177,21 @@ public class BaseEvent implements Cloneable {
           break;
         }
       }
+    }
+  }
+
+  /**
+   * Declares the tenant the writes of the current request go to, for the events they publish. The
+   * ambient tenant is the default one when the request names another in {@code X-Tenant-Ids}, so it
+   * would attribute those events to the wrong tenant. Does nothing outside a request.
+   *
+   * @param tenantId the tenant the request writes in
+   */
+  public static void attributeRequestEventsTo(String tenantId) {
+    RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+    if (requestAttributes != null) {
+      requestAttributes.setAttribute(
+          WRITE_TENANT_ATTRIBUTE, tenantId, RequestAttributes.SCOPE_REQUEST);
     }
   }
 
