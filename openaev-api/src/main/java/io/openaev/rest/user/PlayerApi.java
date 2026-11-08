@@ -1,15 +1,12 @@
 package io.openaev.rest.user;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
 import static io.openaev.helper.StreamHelper.fromIterable;
-import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.SessionManager;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
@@ -50,9 +47,7 @@ public class PlayerApi extends RestBehavior {
   @Resource private SessionManager sessionManager;
 
   private final CommunicationRepository communicationRepository;
-  private final OrganizationRepository organizationRepository;
   private final UserRepository userRepository;
-  private final TagRepository tagRepository;
   private final UserService userService;
   private final PlayerService playerService;
   private final InjectSearchService injectSearchService;
@@ -129,23 +124,7 @@ public class PlayerApi extends RestBehavior {
     if (user.isAdmin() && !userService.currentUser().isAdmin()) {
       throw new ForbiddenException("Only an administrator can update a platform administrator");
     }
-    applyProfile(user, input);
-    return hydrateUserForResponse(userRepository.save(user));
-  }
-
-  private void applyProfile(User user, PlayerInput input) {
-    user.setFirstname(input.getFirstname());
-    user.setLastname(input.getLastname());
-    user.setPhone(input.getPhone());
-    user.setPhone2(input.getPhone2());
-    user.setPgpKey(input.getPgpKey());
-    user.setCountry(input.getCountry());
-    user.replaceTagsInPlace(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    String tenantId = TenantContext.getCurrentTenant();
-    userRepository.assignOrganization(
-        user,
-        tenantId,
-        resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
+    return hydrateUserForResponse(playerService.updatePlayer(user, input));
   }
 
   @DeleteMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})

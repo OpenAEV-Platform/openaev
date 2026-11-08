@@ -25,6 +25,7 @@ import lombok.Setter;
 import org.hibernate.Hibernate;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.Immutable;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -371,21 +372,17 @@ public class User implements Base {
   private List<Team> teams = new ArrayList<>();
 
   /**
-   * Makes the tags of the user the given ones, editing the loaded collection instead of replacing
-   * it. Replacing it makes Hibernate delete every {@code users_tags} row of the user and write the
-   * new set back, which removes the links to tags the caller's tenant scope cannot see (a user is
-   * platform-level, its tags may belong to several tenants). Editing writes only the links that
-   * changed, among the ones the collection holds.
-   *
-   * @param wanted the tags the user must hold among the ones in scope
+   * Owning side of {@code users_tags}, but a user is platform-level and its tags may belong to
+   * several tenants, so the collection only holds the ones in the scope of the transaction. The
+   * tags of an existing user are never written through it: a flush of this collection deletes every
+   * row of the user as soon as it is empty, the links to the tags out of scope included. The links
+   * of an existing user are written by {@code UserService#replaceTags}; the setter is for a user
+   * that is not saved yet, and {@link Immutable} makes any later change of the loaded collection
+   * fail at flush instead of deleting links.
    */
-  public void replaceTagsInPlace(final Set<Tag> wanted) {
-    tags.retainAll(wanted);
-    tags.addAll(wanted);
-  }
-
   @ArraySchema(schema = @Schema(description = "Tag IDs of the user", implementation = String.class))
   @Setter
+  @Immutable
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "users_tags",

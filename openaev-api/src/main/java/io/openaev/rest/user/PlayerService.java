@@ -257,6 +257,23 @@ public class PlayerService {
   }
 
   /**
+   * Updates the profile of a player. The tags of the tenants out of the request's scope are left
+   * alone, and so are the organizations the player holds in other tenants.
+   */
+  public User updatePlayer(User user, PlayerInput input) {
+    user.setFirstname(input.getFirstname());
+    user.setLastname(input.getLastname());
+    user.setPhone(input.getPhone());
+    user.setPhone2(input.getPhone2());
+    user.setPgpKey(input.getPgpKey());
+    user.setCountry(input.getCountry());
+    userService.replaceTags(user, iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    String tenantId = TenantContext.getCurrentTenant();
+    assignOrganization(user, input.getOrganizationId(), tenantId);
+    return userRepository.save(user);
+  }
+
+  /**
    * The user as the response shows it: its organization is the one of the tenant the write went to,
    * not of the ambient tenant, which is the default one when the request names another in {@code
    * X-Tenant-Ids}. A copy, because the entity itself is the one the stream serializes afterwards

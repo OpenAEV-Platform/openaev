@@ -40,6 +40,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.springframework.beans.factory.ObjectProvider;
@@ -158,8 +159,7 @@ public class UserService {
     List<String> tenantIds = scope == UserCreationScope.PLATFORM ? input.tenantIds() : List.of();
     User user = new User();
     user.setUpdateAttributes(input);
-    user.replaceTagsInPlace(
-        referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
+    user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
     user.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
@@ -309,8 +309,38 @@ public class UserService {
     user.setPhone(input.phone());
     user.setPhone2(input.phone2());
     user.setPgpKey(input.pgpKey());
-    user.replaceTagsInPlace(
-        referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
+    replaceTags(
+        user, referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
+  }
+
+  /**
+   * Makes the tags of a saved user the given ones among the ones the transaction's scope sees. A
+   * user is platform-level and its tags may belong to several tenants, so the links to the tags out
+   * of scope are left alone: the ones to drop are deleted one by one and the missing ones inserted,
+   * where replacing the collection would delete every row of the user as soon as it is empty. The
+   * user is reloaded afterwards so that it answers with the links it now holds.
+   *
+   * @param user the saved user
+   * @param wanted the tags the user must hold among the ones in scope
+   */
+  public void replaceTags(User user, Set<Tag> wanted) {
+    Set<String> wantedIds = wanted.stream().map(Tag::getId).collect(Collectors.toSet());
+    Set<String> heldIds = user.getTags().stream().map(Tag::getId).collect(Collectors.toSet());
+    Set<String> toRemove = new HashSet<>(heldIds);
+    toRemove.removeAll(wantedIds);
+    Set<String> toAdd = new HashSet<>(wantedIds);
+    toAdd.removeAll(heldIds);
+    if (toRemove.isEmpty() && toAdd.isEmpty()) {
+      return;
+    }
+    // The join table is written in SQL, so the user row would stay untouched and no update event
+    // would reach the connected clients: marking the user updated makes Hibernate publish it.
+    user.setUpdatedAt(Instant.now());
+    if (!toRemove.isEmpty()) {
+      userRepository.removeTags(user.getId(), toRemove);
+    }
+    toAdd.forEach(tagId -> userRepository.addTag(user.getId(), tagId));
+    entityManager.refresh(user);
   }
 
   /**

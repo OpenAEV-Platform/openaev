@@ -336,6 +336,15 @@ public interface UserRepository
       nativeQuery = true)
   void addTag(@Param("userId") String userId, @Param("tagId") String tagId);
 
+  // Native: a set-based delete of the listed links only, on a join table that is not indexed,
+  // audited nor streamed. Replacing the collection would delete every row of the user, the links
+  // to the tags the transaction's scope cannot see included.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value = "DELETE FROM users_tags WHERE user_id = :userId AND tag_id IN :tagIds",
+      nativeQuery = true)
+  void removeTags(@Param("userId") String userId, @Param("tagIds") Collection<String> tagIds);
+
   // Native: same rationale as addTag, for the teams of the user.
   @Modifying(flushAutomatically = true)
   @Query(
