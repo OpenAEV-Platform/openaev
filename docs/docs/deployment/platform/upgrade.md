@@ -6,6 +6,10 @@ This page explains how to upgrade OpenAEV. The steps depend on your [installatio
 
     OpenAEV runs the database migrations on startup. You can upgrade from any version to the latest one, including across several major releases. Check the [breaking changes](../breaking-changes.md) before you upgrade.
 
+!!! warning "Update every instance together"
+
+    If you run several instances, update all of them at the same time for this release: the default agents of the autonomous run move from a platform setting to per-tenant settings, so an instance that still runs the previous version does not read or save the new values.
+
 ## Using Docker
 
 Update the image versions in your `docker-compose.yml` file first.
