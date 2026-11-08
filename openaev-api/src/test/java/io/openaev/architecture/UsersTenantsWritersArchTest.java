@@ -189,9 +189,43 @@ class UsersTenantsWritersArchTest {
     return sql.contains("users_tenants") && WRITE_STATEMENT.matcher(sql).find();
   }
 
-  /** A write statement, also one inside a CTE; a column named {@code user_updated_at} is not. */
+  /**
+   * A write statement, also one inside a CTE; a column named {@code user_updated_at} is not. The
+   * table of an UPDATE may carry an alias, with or without {@code AS}; the tables of an INSERT and
+   * of a DELETE are not read, so their aliases change nothing.
+   */
   private static final Pattern WRITE_STATEMENT =
-      Pattern.compile("\\binsert\\s+into\\b|\\bdelete\\s+from\\b|\\bupdate\\s+\\S+\\s+set\\b");
+      Pattern.compile(
+          "\\binsert\\s+into\\b|\\bdelete\\s+from\\b"
+              + "|\\bupdate\\s+\\S+(?:\\s+(?:as\\s+)?\\w+)?\\s+set\\b");
+
+  private static final List<String> WRITES_OF_USERS_TENANTS =
+      List.of(
+          "UPDATE users_tenants SET tenant_id = :tenantId WHERE user_id = :userId",
+          "UPDATE users_tenants ut SET tenant_id = :tenantId WHERE ut.user_id = :userId",
+          "UPDATE users_tenants AS ut SET tenant_id = :tenantId WHERE ut.user_id = :userId",
+          "UPDATE\n    users_tenants\n    AS ut\n  SET tenant_id = :tenantId",
+          "DELETE FROM users_tenants ut WHERE ut.user_id = :userId",
+          "DELETE FROM users_tenants AS ut WHERE ut.user_id = :userId",
+          "INSERT INTO users_tenants AS ut (user_id, tenant_id) VALUES (:userId, :tenantId)",
+          "WITH moved AS (UPDATE users_tenants ut SET tenant_id = :t RETURNING user_id)"
+              + " SELECT * FROM moved");
+
+  private static final List<String> READS_OF_USERS_TENANTS =
+      List.of(
+          "SELECT ut.tenant_id FROM users_tenants ut WHERE ut.user_id = :userId",
+          "SELECT u.user_updated_at FROM users u JOIN users_tenants ut ON ut.user_id = u.user_id",
+          "SELECT * FROM users_tenants ut ORDER BY ut.user_id");
+
+  @ArchTest
+  static void the_writer_detection_reads_aliased_statements(JavaClasses classes) {
+    assertThat(WRITES_OF_USERS_TENANTS)
+        .as("statements the detection must report as writing users_tenants")
+        .allMatch(UsersTenantsWritersArchTest::writesUsersTenants);
+    assertThat(READS_OF_USERS_TENANTS)
+        .as("statements the detection must not report")
+        .noneMatch(UsersTenantsWritersArchTest::writesUsersTenants);
+  }
 
   @ArchTest
   static void every_listed_writer_still_calls_its_method(JavaClasses classes) {
