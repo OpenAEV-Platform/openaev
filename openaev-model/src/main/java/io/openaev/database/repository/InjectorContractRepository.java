@@ -84,7 +84,8 @@ public interface InjectorContractRepository
    * Retrieves injector contracts that a specific user has been granted access to.
    *
    * <p>Returns only contracts where the user has a THREAT_ARSENAL grant on the injector contract ID
-   * through their group memberships.
+   * through a group of the contract's tenant or a platform group: a grant applies in the tenant of
+   * the group that holds it.
    *
    * <p>Same tenant-carrying mapping join as {@link #getAllRawInjectorsContracts()}.
    *
@@ -113,6 +114,7 @@ public interface InjectorContractRepository
               + "  WHERE u.user_id = :userId "
               + "  AND gr.grant_resource = injcon.injector_contract_id "
               + "  AND gr.grant_resource_type = :resourceType "
+              + "  AND (g.tenant_id IS NULL OR g.tenant_id = injcon.tenant_id) "
               + ") "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)

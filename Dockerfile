@@ -1,4 +1,4 @@
-FROM node:24.22.1-alpine3.24 AS front-builder
+FROM node:24.22.2-alpine3.24 AS front-builder
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front/packages ./packages
@@ -26,7 +26,7 @@ COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 RUN mvn install -DskipTests -Pdev
 
-FROM eclipse-temurin:21.0.12_8-jre-noble AS app
+FROM eclipse-temurin:21.0.13_9-jre-noble AS app
 
 # Fixed world-readable browser path so any runtime UID finds the Chromium bundle (reporting)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright

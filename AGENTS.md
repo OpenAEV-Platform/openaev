@@ -47,6 +47,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | **ORM** (write correctness, native-query justification, test methodology) | [orm.instructions.md](.github/instructions/orm.instructions.md) | Java in `openaev-api`, `openaev-model`, `openaev-api` `*Test.java` |
 | **Multi-Tenancy** (isolation, filters, context) | [multi-tenancy.instructions.md](.github/instructions/multi-tenancy.instructions.md) | Java in `openaev-api`, `openaev-model`, `**/migration/**` |
 | **Testing** (unit, integration, coverage) | [testing.instructions.md](.github/instructions/testing.instructions.md) | `*Test*.java`, `**/test/**`, `*.test.*`, `*.spec.*`, `tests_e2e/**` |
+| **CI** (workflows, composite actions, template injection) | [ci.instructions.md](.github/instructions/ci.instructions.md) | `.github/workflows/**`, `.github/actions/**` |
 | **Code Review** (review checklist) | [code-review.instructions.md](.github/instructions/code-review.instructions.md) | All files |
 | **Chaining Engine** (steps, conditions, queues, state, workflows) | [chaining-engine.instructions.md](.github/instructions/chaining-engine.instructions.md) | `**/chaining/**`, `QueueChainingJob`, `WorkflowTimeoutJob`, workflow entities and repositories |
 
@@ -158,6 +159,8 @@ hand:
   moved since its last CI run: a green check from before another ADR merged does not see that ADR.
 - **Before opening or updating a pull request** that touches `adr/` or references an ADR, run
   `adr/scripts/validate-adrs.sh` and fix every ❌.
+- **Keep an ADR short**: the decision and its "because", each option with its pros and cons. Checks,
+  thresholds and field lists go in the RFC or the code, not in the ADR.
 - The scripts run in bash on macOS, Linux and Windows (Git Bash or WSL; from PowerShell, prefix them with
   `bash`).
 
@@ -167,14 +170,15 @@ hand:
 > Read the template before writing the body — never invent your own headings.
 
 Sections, verbatim and in this order: `### Proposed changes`, `### Testing Instructions`,
-`### Related issues`, `### Checklist`, `### Further comments`.
 
-- `Related issues` is mandatory — every PR is linked to an issue: `* Closes #1234` when the PR finishes it
+`### Related issues`, `### Checklist`, `### Further comments`.
+- `Related issues` is mandatory for public issues. Use `* N/A` when the related issue is in a private repository. — every PR is linked to an issue: `* Closes #1234` when the PR finishes it
   (closed at merge), `* Related #1234` when the PR is one step of it (sub-task, epic, `feature-flag` issue before
   the flag is removed).
 - Keep all checklist lines **unchecked** — never tick a box, the human author does that.
 - Drop the template's HTML comments from the final body.
-- Title follows Conventional Commits and ends with the issue reference.
+- Title follows Conventional Commits and ends with the issue reference, unless the related issue is in a private repository.
+- Never expose a private issue reference in a public PR. Link the public PR from the private issue instead.
 
 Full rules: [copilot-instructions.md → PR description format](.github/copilot-instructions.md#pr-description-format).
 
@@ -196,6 +200,7 @@ The mapping is:
 | `migration.instructions.md` | `migration-reviewer.agent.md` |
 | `testing.instructions.md` | `test-specialist.agent.md` |
 | `code-review.instructions.md` | `code-reviewer.agent.md` |
+| `ci.instructions.md` | `code-reviewer.agent.md` |
 
 If no agent exists yet for a new instruction file → create one following the pattern in `migration-reviewer.agent.md`.
 
@@ -213,7 +218,8 @@ A folder with its own `AGENTS.md` (e.g. `docs/`, `fds-migration/`) also needs a 
 
 All commits, pull requests and issues in this repository follow the
 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-specification with a GitHub issue reference:
+specification. Pull request titles include a GitHub issue reference unless the
+related issue is in a private repository:
 
 ```
 type(scope?)!?: description (#issue)
@@ -226,7 +232,10 @@ type(scope?)!?: description (#issue)
 - The old `[backend]` / `[frontend]` bracket prefixes are discontinued — use a
   Conventional Commits scope instead.
 - Pull request titles **must** end with the related issue reference, e.g.
-  `(#1234)`, and every pull request must be linked to an issue.
+  `(#1234)`, and every pull request must be linked to an issue. Pull requests
+  tracked by an issue in a private repository are exempt: do not expose the
+  private issue reference in the public pull request, and link the public pull
+  request from the private issue instead.
 - Sign your commits.
 
 When generating commit messages, PR titles or issue titles, always follow this

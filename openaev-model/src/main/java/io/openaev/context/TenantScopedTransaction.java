@@ -1,16 +1,17 @@
 package io.openaev.context;
 
-import io.openaev.database.repository.MarkingDefinitionRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -57,7 +58,9 @@ public class TenantScopedTransaction {
   private final PlatformTransactionManager transactionManager;
   private final EntityManager entityManager;
   private final TenantScopeIntentionResolver intentionResolver;
-  private final MarkingDefinitionRepository markingDefinitionRepository;
+  // A provider, as in the scope aspect: the implementation lives in openaev-api and reaches
+  // services that are themselves built on this primitive.
+  private final ObjectProvider<MarkingScopeSupplier> markingScopeSupplier;
 
   /** Opens a background transaction carrying {@code ctx}; refuses to run inside an active one. */
   public <T> T execute(TxCtx ctx, Supplier<T> work) {
@@ -125,6 +128,12 @@ public class TenantScopedTransaction {
    * <p>Also sets the marking scope, same as {@link #run}: joining an ambient transaction is still a
    * scope boundary for both dimensions, and the marking GUC is transaction-local like the tenant
    * one, so it must be (re)set here too rather than inherited from whatever ran before.
+   *
+   * <p>A transaction already scoped to exactly these tenants is left as it is, marking scope
+   * included: there is no boundary to cross. This is what keeps a shared service that only needs
+   * the tenant scope (e.g. {@code ScenarioToExerciseService.toExercise}) from widening an HTTP
+   * request to the system clearance for the rest of its transaction: the request keeps the user's
+   * clearance. A transaction the primitive scoped already runs at the system clearance.
    */
   public void setScopeOnCurrentTransaction(TxCtx ctx) {
     if (!TransactionSynchronizationManager.isActualTransactionActive()) {
@@ -134,8 +143,124 @@ public class TenantScopedTransaction {
               + " by the caller.");
     }
     TxCtx resolved = intentionResolver.resolve(ctx);
+    if (tenants(resolved.toGuc()).equals(tenants(currentScope()))) {
+      return;
+    }
     setScope(resolved.toGuc());
     setMarkingScope(systemClearance(resolved).toGuc());
+  }
+
+  /**
+   * Runs {@code work} on the CURRENT transaction with the system clearance (every marking of its
+   * tenants), then gives the transaction back the clearance it had. The tenant scope is not
+   * touched: {@code ctx} must name exactly the tenants already in scope, so only the marking
+   * dimension widens, and only for {@code work}.
+   *
+   * <p>The one HTTP-side use, through {@code FaithfulCopyTransaction} only: a copy (duplicate,
+   * relaunch, scenario launch) that must keep the targets the requester is not cleared for. It
+   * joins the request's transaction rather than opening one, so it sees what the request already
+   * wrote. The persistence context is flushed and cleared on both sides of {@code work}: nothing
+   * loaded under one clearance is reused under the other, and the caller reloads what it needs.
+   *
+   * <p>If {@code work} fails, the clearance is still restored when the transaction can run one more
+   * statement. When it cannot (a failed statement aborted it), it can only roll back, and reads
+   * nothing more under either clearance.
+   */
+  public <T> T withSystemClearance(TxCtx ctx, Supplier<T> work) {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.withSystemClearance() widens the clearance of the current"
+              + " transaction: no transaction is active.");
+    }
+    TxCtx resolved = intentionResolver.resolve(ctx);
+    String currentTenants = currentScope();
+    if (!tenants(resolved.toGuc()).equals(tenants(currentTenants))) {
+      throw new IllegalStateException(
+          "withSystemClearance() never changes the tenant scope: the transaction carries '"
+              + currentTenants
+              + "', the work asked for '"
+              + resolved.toGuc()
+              + "'.");
+    }
+    String previousClearance = currentMarkingScope();
+    entityManager.flush();
+    entityManager.clear();
+    setMarkingScope(systemClearance(resolved).toGuc());
+    boolean done = false;
+    try {
+      T result = work.get();
+      entityManager.flush();
+      done = true;
+      return result;
+    } finally {
+      entityManager.clear();
+      try {
+        setMarkingScope(previousClearance);
+      } catch (RuntimeException restoreFailure) {
+        if (done) {
+          throw restoreFailure;
+        }
+        log.warn("withSystemClearance: the transaction is aborted, its clearance is moot");
+      }
+    }
+  }
+
+  /**
+   * Captures the tenant scope and the marking scope of the CURRENT, already-active transaction, for
+   * a caller that narrows that transaction with {@link #setScopeOnCurrentTransaction} for part of
+   * its work only. Open it in a try-with-resources around that part: closing the handle puts both
+   * scopes back, so the rest of the transaction reads and writes with the scope and clearance it
+   * had before.
+   *
+   * <p>Capturing flushes the caller's pending changes first, while its scope and clearance still
+   * apply, and closing flushes again before putting them back, so every statement runs under the
+   * scope its change was made in. When the flush on closing fails, both scopes are still put back
+   * and the flush failure is the one thrown.
+   *
+   * <p>Refuses to run outside an active transaction: there is no scope to capture.
+   */
+  public CapturedScope captureScopeOfCurrentTransaction() {
+    if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.captureScopeOfCurrentTransaction() has nothing to capture: no"
+              + " transaction is active.");
+    }
+    entityManager.flush();
+    return new CapturedScope(currentScope(), currentMarkingScope());
+  }
+
+  /** The scopes of a transaction, put back by {@link #close()}. */
+  public final class CapturedScope implements AutoCloseable {
+
+    private final String tenants;
+    private final String markings;
+
+    private CapturedScope(String tenants, String markings) {
+      this.tenants = tenants;
+      this.markings = markings;
+    }
+
+    @Override
+    public void close() {
+      RuntimeException flushFailure = null;
+      try {
+        entityManager.flush();
+      } catch (RuntimeException failure) {
+        flushFailure = failure;
+      }
+      try {
+        setScope(tenants);
+        setMarkingScope(markings);
+      } catch (RuntimeException restoreFailure) {
+        if (flushFailure == null) {
+          throw restoreFailure;
+        }
+        flushFailure.addSuppressed(restoreFailure);
+      }
+      if (flushFailure != null) {
+        throw flushFailure;
+      }
+    }
   }
 
   /**
@@ -239,6 +364,11 @@ public class TenantScopedTransaction {
    *
    * <p>A tenant with no marking definitions yields {@link MarkingCtx#none()}, which is correct
    * rather than degraded: with nothing marked, every row is unmarked and therefore visible.
+   *
+   * <p>Resolved by {@link MarkingScopeSupplier#systemClearanceFor}, the same resolution a bypassing
+   * caller gets, and read fresh at every transaction (never cached). Unlike the aspect, a missing
+   * supplier is an error, not a fall back to {@code none()}: a job running without the marked rows
+   * would silently skip work, for instance the TLP:RED targets of an inject.
    */
   private MarkingCtx systemClearance(TxCtx resolved) {
     if (!(resolved instanceof TxCtx.Restricted restricted)) {
@@ -248,9 +378,17 @@ public class TenantScopedTransaction {
               + " can be resolved; got "
               + resolved.getClass().getSimpleName());
     }
-    List<String> markingIds =
-        markingDefinitionRepository.findAllIdsByTenantIds(restricted.tenantIds());
-    return markingIds.isEmpty() ? MarkingCtx.none() : MarkingCtx.forMarkings(markingIds);
+    return markingScopeSupplier.getObject().systemClearanceFor(restricted);
+  }
+
+  // The scope queries touch no table, so they must not trigger Hibernate's auto-flush.
+  private String currentSetting(String name) {
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT coalesce(current_setting(:name, true), '')")
+            .setFlushMode(FlushModeType.COMMIT)
+            .setParameter("name", name)
+            .getSingleResult();
   }
 
   private void setScope(String scope) {
@@ -259,6 +397,18 @@ public class TenantScopedTransaction {
         .setFlushMode(FlushModeType.COMMIT)
         .setParameter("scope", scope)
         .getSingleResult();
+  }
+
+  private String currentScope() {
+    return currentSetting("app.current_tenants");
+  }
+
+  private String currentMarkingScope() {
+    return currentSetting("app.current_markings");
+  }
+
+  private static Set<String> tenants(String guc) {
+    return guc.isEmpty() ? Set.of() : Set.of(guc.split(","));
   }
 
   private void setMarkingScope(String scope) {

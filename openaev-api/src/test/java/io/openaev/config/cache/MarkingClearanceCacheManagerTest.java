@@ -10,6 +10,7 @@ import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.config.MarkingScopeResolver;
 import io.openaev.config.MarkingScopeResolver.MarkingRef;
 import io.openaev.context.MarkingCtx;
+import io.openaev.database.model.User;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -28,7 +29,7 @@ import org.springframework.jdbc.core.RowMapper;
  * inspector that would otherwise scope it. That is sanctioned here only because the read bootstraps
  * the scope (it runs during argument resolution, before any transaction exists) — the same
  * chicken-and-egg the {@code AutonomousRunTenantLocator} exemption rests on. What replaces the
- * inspector is an explicit {@code tenant_id} bind in both statements, so this test pins that bind:
+ * inspector is an explicit {@code tenant_id} bind in every statement, so this test pins that bind:
  * dropping it would silently resolve a clearance from every tenant's markings at once.
  */
 @ExtendWith(MockitoExtension.class)
@@ -54,25 +55,29 @@ class MarkingClearanceCacheManagerTest {
   class SqlExemption {
 
     @Test
-    @DisplayName("both statements must filter on tenant_id, the inspector's replacement")
-    void bothStatementsAreTenantBound() {
+    @DisplayName("every statement must filter on tenant_id, the inspector's replacement")
+    void everyStatementIsTenantBound() {
       // -- ACT & ASSERT --
       assertTrue(
           MarkingClearanceCacheManager.TENANT_MARKINGS_SQL.contains("where tenant_id = ?"),
           "the definitions read must be tenant-bound");
+      assertTrue(
+          MarkingClearanceCacheManager.TENANTS_MARKINGS_SQL.contains("where tenant_id = any(?)"),
+          "the system clearance read must be bound to the tenants in scope");
       assertTrue(
           MarkingClearanceCacheManager.GRANTED_MARKING_IDS_SQL.contains("md.tenant_id = ?"),
           "the grants read must be tenant-bound through the definition side");
     }
 
     @Test
-    @DisplayName("both statements must be read-only SELECTs")
-    void bothStatementsAreReadOnly() {
+    @DisplayName("every statement must be a read-only SELECT")
+    void everyStatementIsReadOnly() {
       // -- ACT & ASSERT --
       // A write here would bypass the inspector's write predicate as well as its read one.
       for (String sql :
           List.of(
               MarkingClearanceCacheManager.TENANT_MARKINGS_SQL,
+              MarkingClearanceCacheManager.TENANTS_MARKINGS_SQL,
               MarkingClearanceCacheManager.GRANTED_MARKING_IDS_SQL)) {
         assertTrue(sql.trim().toLowerCase().startsWith("select"), sql);
         assertFalse(sql.toLowerCase().matches(".*\\b(insert|update|delete|merge)\\b.*"), sql);
@@ -113,7 +118,7 @@ class MarkingClearanceCacheManagerTest {
           .thenReturn(List.of("tlp-green"));
 
       // -- ACT --
-      MarkingCtx clearance = manager().findClearance(USER, TENANT, false);
+      MarkingCtx clearance = manager().findClearance(USER, TENANT);
 
       // -- ASSERT --
       assertEquals("tlp-green", clearance.toGuc());
@@ -121,8 +126,8 @@ class MarkingClearanceCacheManagerTest {
     }
 
     @Test
-    @DisplayName("given a bypassing caller, should skip the grants query entirely")
-    void given_bypass_should_notQueryGrants() {
+    @DisplayName("given the first admin, should skip the grants query entirely")
+    void given_firstAdmin_should_notQueryGrants() {
       // -- ARRANGE --
       when(jdbcTemplate.query(
               eq(MarkingClearanceCacheManager.TENANT_MARKINGS_SQL),
@@ -131,10 +136,10 @@ class MarkingClearanceCacheManagerTest {
           .thenReturn(List.of(new MarkingRef("tlp-red", "TLP", 50)));
 
       // -- ACT --
-      MarkingCtx clearance = manager().findClearance(USER, TENANT, true);
+      MarkingCtx clearance = manager().findClearance(User.ADMIN_UUID, TENANT);
 
       // -- ASSERT --
-      // The grants cannot change a bypassing caller's answer, so the round trip is waste.
+      // The grants cannot change the first admin's answer, so the round trip is waste.
       assertEquals("tlp-red", clearance.toGuc());
       verify(jdbcTemplate, never())
           .queryForList(anyString(), eq(String.class), any(Object[].class));
@@ -153,7 +158,7 @@ class MarkingClearanceCacheManagerTest {
           .thenReturn(List.of());
 
       // -- ACT & ASSERT --
-      assertEquals(MarkingCtx.none(), manager().findClearance(USER, TENANT, false));
+      assertEquals(MarkingCtx.none(), manager().findClearance(USER, TENANT));
     }
   }
 }

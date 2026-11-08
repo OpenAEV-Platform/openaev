@@ -1,12 +1,14 @@
 package io.openaev.service.expectation;
 
 import static io.openaev.service.InjectExpectationService.COLLECTOR;
+import static io.openaev.service.InjectExpectationService.SECURITY_PLATFORM;
 import static io.openaev.service.InjectExpectationUtils.computeScore;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.getSourceAssetId;
 import static io.openaev.utils.inject_expectation_result.ExpectationResultBuilder.getSourcePlatform;
 
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Collector;
+import io.openaev.database.model.SecurityPlatform;
 import io.openaev.rest.exercise.form.InjectExpectationUpdateFromUIInput;
 import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import jakarta.annotation.Nullable;
@@ -18,8 +20,8 @@ import lombok.Builder;
 /**
  * Result written on the leaves of an expectation by an {@link ExpectationBehavior}: who answered
  * (the source) and with which score. It is the single input of the behaviors, whatever the entry
- * point (UI, challenge, media pressure, expiration, collectors), so the API inputs stay free to
- * evolve with their own clients.
+ * point (UI, challenge, media pressure, expiration, collectors, security platforms), so the API
+ * inputs stay free to evolve with their own clients.
  *
  * @param sourceId the ID of the source, the upsert key of the result on a leaf
  * @param sourceType the kind of source (collector, challenge, media pressure...)
@@ -71,6 +73,30 @@ public record ExpectationVerdict(
     return collectorSource(collector)
         .score(computeScore(expectation, input.getIsSuccess()))
         .metadata(input.getMetadata())
+        .build();
+  }
+
+  /**
+   * Verdict given by a security platform instead of a collector (e.g. an assessment injector such
+   * as Nuclei answering vulnerability expectations itself): its success flag is scored against the
+   * expected score of the expectation it answers.
+   *
+   * @param securityPlatform the security platform the verdict is attributed to
+   * @param isSuccess whether the platform reports a success (e.g. "Not vulnerable")
+   * @param expectation the expectation the platform answers, providing the expected score
+   */
+  public static ExpectationVerdict fromSecurityPlatform(
+      SecurityPlatform securityPlatform, boolean isSuccess, BaseInjectExpectation expectation) {
+    return ExpectationVerdict.builder()
+        .sourceId(securityPlatform.getId())
+        .sourceType(SECURITY_PLATFORM)
+        .sourceName(securityPlatform.getName())
+        .sourcePlatform(
+            securityPlatform.getSecurityPlatformType() != null
+                ? securityPlatform.getSecurityPlatformType().name()
+                : null)
+        .sourceAssetId(securityPlatform.getId())
+        .score(computeScore(expectation, isSuccess))
         .build();
   }
 

@@ -85,9 +85,7 @@ class WriteAttrDirtyUpdateReportingTest extends IntegrationTest {
     entityManager.flush();
     entityManager.clear();
     scheduleId = schedule.getId();
-    entityManager
-        .unwrap(Session.class)
-        .doWork(c -> WriteAttrDetectorTrigger.install(c, TenantTables.selfIsolatedTables()));
+    entityManager.unwrap(Session.class).doWork(c -> WriteAttrDetectorTrigger.install(c));
   }
 
   @AfterEach

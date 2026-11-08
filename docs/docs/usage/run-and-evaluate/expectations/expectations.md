@@ -96,7 +96,8 @@ When the score is set depends on the Expectation type:
 
 - **Detection and Prevention**: OpenAEV settles the Expectation as soon as one result reaches the expected score. OpenAEV does not wait for the other security platforms. A result they send later is still recorded but cannot lower the score.
 - **Detection and Prevention without a success**: OpenAEV waits until every expected security platform has answered, then keeps the highest score. If the Expectation expires first, OpenAEV marks the missing results as failed.
-- **Vulnerability**: OpenAEV always waits until every expected source has answered, even after a first result.
+- **Vulnerability**: OpenAEV settles the Expectation as soon as one source reports the Asset as vulnerable. OpenAEV does not wait for the other sources, because none of them can make the Asset less vulnerable.
+- **Vulnerability without a finding**: OpenAEV waits until every expected source has answered "Not vulnerable". If the Expectation expires first, OpenAEV marks the missing results as "Not vulnerable": no finding means the Asset is not vulnerable.
 
 !!! warning
 

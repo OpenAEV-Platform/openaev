@@ -5,12 +5,12 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.8</version>
+        <version>4.1.2</version>
     </parent>
 
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>3.261029.0</version>
+    <version>3.261104.0</version>
     <packaging>pom</packaging>
 
     <name>OpenAEV platform</name>
@@ -23,11 +23,11 @@
         <minio.version>8.6.0</minio.version>
         <minio.okhttp3.version>5.5.1</minio.okhttp3.version>
         <snappy-java.version>1.1.10.12</snappy-java.version>
-        <gson.version>2.14.0</gson.version>
+        <gson.version>2.15.0</gson.version>
         <commons-io.version>2.22.0</commons-io.version>
         <commons-validator.version>1.11.0</commons-validator.version>
         <maven-compiler-plugin.version>3.16.0</maven-compiler-plugin.version>
-        <jacoco-plugin.version>0.8.15</jacoco-plugin.version>
+        <jacoco-plugin.version>0.8.16</jacoco-plugin.version>
         <jjwt.version>0.13.0</jjwt.version>
         <pyroscope.version>2.9.2</pyroscope.version>
         <bouncycastle.version>1.86.2</bouncycastle.version>
@@ -49,7 +49,7 @@
         <opentelemetry.version>1.67.0</opentelemetry.version>
         <amqp-client.version>5.35.0</amqp-client.version>
         <rabbit-amqp-client.version>${amqp-client.version}</rabbit-amqp-client.version>
-        <micrometer.version>1.17.1</micrometer.version>
+        <micrometer.version>1.17.2</micrometer.version>
         <micrometer-tracing.version>1.7.2</micrometer-tracing.version>
         <freemarker.version>2.3.35</freemarker.version>
         <postgresql.version>42.7.14</postgresql.version>

@@ -108,10 +108,10 @@ public class TeamService {
   }
 
   /**
-   * Loads the players of a team in scope with their tags and teams, for the endpoint that returns
-   * the raw users: {@code tags} and {@code teams} are both v2-active, so a lazy load at
-   * serialization time fails closed to an empty array. The player edit form is filled from that
-   * response, and an empty tag list erased the player's tags on save.
+   * Loads the players of a team in scope with their tags, teams and organizations, for the endpoint
+   * that returns the raw users: {@code tags}, {@code teams} and {@code organizations} are all
+   * v2-active, so a lazy load at serialization time fails closed to an empty array. The player edit
+   * form is filled from that response, and an empty tag list erased the player's tags on save.
    */
   public List<User> teamPlayersInScope(@NotNull final TxCtx ctx, @NotNull final String teamId) {
     List<User> players = teamInScope(ctx, teamId).getUsers();
@@ -119,6 +119,7 @@ public class TeamService {
         player -> {
           Hibernate.initialize(player.getTags());
           Hibernate.initialize(player.getTeams());
+          player.loadOrganizations();
         });
     return players;
   }

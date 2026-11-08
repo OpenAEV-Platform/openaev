@@ -187,7 +187,7 @@ public class AssetGroupApi extends RestBehavior {
       @PathVariable @NotBlank final String assetGroupId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return injectSearchService.getPageOfInjectResultsForAssetGroup(
-        assetGroupId, searchPaginationInput);
+        ctx, assetGroupId, searchPaginationInput);
   }
 
   @PostMapping({ASSET_GROUP_URI + "/find", TENANT_ASSET_GROUP_URI + "/find"})

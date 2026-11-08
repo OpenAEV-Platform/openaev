@@ -44,7 +44,7 @@ public class VariableApi extends RestBehavior {
       @Valid @RequestBody final VariableInput input) {
     Variable variable = new Variable();
     variable.setUpdateAttributes(input);
-    Exercise exercise = this.exerciseService.exercise(exerciseId);
+    Exercise exercise = this.exerciseService.exercise(ctx, exerciseId);
     variable.setExercise(exercise);
     return this.variableService.createVariable(variable);
   }
@@ -116,7 +116,7 @@ public class VariableApi extends RestBehavior {
       @Valid @RequestBody final VariableInput input) {
     Variable variable = new Variable();
     variable.setUpdateAttributes(input);
-    Scenario scenario = this.scenarioService.scenario(scenarioId);
+    Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     variable.setScenario(scenario);
     return this.variableService.createVariable(variable);
   }

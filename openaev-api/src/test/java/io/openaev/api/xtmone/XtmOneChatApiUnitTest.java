@@ -69,7 +69,8 @@ class XtmOneChatApiUnitTest {
     body.put("context", context);
 
     // -- ACT --
-    ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
+    ResponseEntity<StreamingResponseBody> response =
+        api.sendMessage(TxCtx.missing(), body, new MockHttpServletResponse());
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
@@ -88,7 +89,8 @@ class XtmOneChatApiUnitTest {
     body.put("agent_slug", "agent-1");
 
     // -- ACT --
-    ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
+    ResponseEntity<StreamingResponseBody> response =
+        api.sendMessage(TxCtx.missing(), body, new MockHttpServletResponse());
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
@@ -108,7 +110,8 @@ class XtmOneChatApiUnitTest {
     body.put("supports_tool_approval", true);
 
     // -- ACT --
-    ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
+    ResponseEntity<StreamingResponseBody> response =
+        api.sendMessage(TxCtx.missing(), body, new MockHttpServletResponse());
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
@@ -127,7 +130,8 @@ class XtmOneChatApiUnitTest {
     body.put("supports_tool_approval", false);
 
     // -- ACT --
-    ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
+    ResponseEntity<StreamingResponseBody> response =
+        api.sendMessage(TxCtx.missing(), body, new MockHttpServletResponse());
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
@@ -145,7 +149,8 @@ class XtmOneChatApiUnitTest {
     body.put("supports_tool_approval", "true");
 
     // -- ACT --
-    ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
+    ResponseEntity<StreamingResponseBody> response =
+        api.sendMessage(TxCtx.missing(), body, new MockHttpServletResponse());
     response.getBody().writeTo(new ByteArrayOutputStream());
 
     // -- ASSERT --
@@ -359,7 +364,8 @@ class XtmOneChatApiUnitTest {
       body.put("content", "a deck please");
       body.put("supports_artifacts", true);
 
-      ResponseEntity<StreamingResponseBody> response = api.sendMessage(TxCtx.missing(), body);
+      ResponseEntity<StreamingResponseBody> response =
+          api.sendMessage(TxCtx.missing(), body, new MockHttpServletResponse());
       response.getBody().writeTo(new ByteArrayOutputStream());
 
       verify(client)

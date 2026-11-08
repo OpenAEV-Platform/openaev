@@ -135,6 +135,40 @@ class AssetMarkingIsolationTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("with rights that used to skip markings, and only TLP:GREEN")
+  class RightsDoNotWiden {
+
+    @BeforeEach
+    void grantGreen() {
+      grant(tlpGreen);
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSETS, Capability.BYPASS})
+    @DisplayName("given a BYPASS user, should hide RED")
+    void given_bypassUser_should_hideRed() throws Exception {
+      // -- ACT --
+      List<String> visible = searchEndpointIds();
+
+      // -- ASSERT --
+      assertTrue(visible.contains(greenOnly.getId()), "GREEN endpoint must be visible");
+      assertFalse(visible.contains(redOnly.getId()), "RED endpoint must be hidden");
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given an admin who is not the first admin, should hide RED")
+    void given_otherAdmin_should_hideRed() throws Exception {
+      // -- ACT --
+      List<String> visible = searchEndpointIds();
+
+      // -- ASSERT --
+      assertTrue(visible.contains(greenOnly.getId()), "GREEN endpoint must be visible");
+      assertFalse(visible.contains(redOnly.getId()), "RED endpoint must be hidden");
+    }
+  }
+
+  @Nested
   @DisplayName("with a TLP:GREEN clearance")
   class GreenCleared {
 

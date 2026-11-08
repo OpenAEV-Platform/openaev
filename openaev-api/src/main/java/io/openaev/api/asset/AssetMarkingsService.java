@@ -82,7 +82,7 @@ public class AssetMarkingsService {
    * {@code row_markings ⊆ clearance}; so the asset you just marked is still readable by you. The
    * same guard that stops escalation stops the lockout.
    *
-   * @param tenantId the tenant whose clearance the caller is checked against
+   * @param tenantId the tenant whose clearance and capabilities the caller is checked against
    */
   @Transactional(rollbackFor = Exception.class)
   public Asset updateAssetMarkings(
@@ -108,9 +108,7 @@ public class AssetMarkingsService {
 
     User currentUser = userService.currentUser();
     assertCanAssignMarkings(
-        markingClearanceCacheManager.findClearance(
-            currentUser.getId(), tenantId, currentUser.isAdminOrBypass()),
-        markings);
+        markingClearanceCacheManager.findClearance(currentUser.getId(), tenantId), markings);
 
     // Read before the marking_ids array is overwritten below - this is the "before" side of the
     // diff.
@@ -122,13 +120,19 @@ public class AssetMarkingsService {
     addedIds.removeAll(previous);
 
     if (!removedIds.isEmpty()
-        && !permissionService.hasCapabilityPermission(
-            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.DELETE)) {
+        && !permissionService.holdsInTenant(
+            tenantId,
+            () ->
+                permissionService.hasCapabilityPermission(
+                    currentUser, ResourceType.MARKING_ASSIGNMENT, Action.DELETE))) {
       throw new ForbiddenException("Missing the DELETE_MARKING_ASSIGNMENT capability");
     }
     if (!addedIds.isEmpty()
-        && !permissionService.hasCapabilityPermission(
-            currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE)) {
+        && !permissionService.holdsInTenant(
+            tenantId,
+            () ->
+                permissionService.hasCapabilityPermission(
+                    currentUser, ResourceType.MARKING_ASSIGNMENT, Action.WRITE))) {
       throw new ForbiddenException("Missing the ASSIGN_MARKING capability");
     }
 

@@ -1,6 +1,7 @@
 package io.openaev.service.account;
 
 import io.openaev.config.SessionManager;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -25,8 +26,14 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
       TenantGroupService tenantGroupService,
       UserService userService,
       TenantUserService tenantUserService,
+      MarkingClearanceCacheManager markingClearanceCacheManager,
       SessionManager sessionManager) {
-    super(tenantRoleService, tenantGroupService, userService, tenantUserService);
+    super(
+        tenantRoleService,
+        tenantGroupService,
+        userService,
+        tenantUserService,
+        markingClearanceCacheManager);
     this.sessionManager = sessionManager;
   }
 
@@ -35,9 +42,14 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
     return ReservedServiceAccount.AGENT.access();
   }
 
+  @Override
+  protected boolean receivesEveryMarking() {
+    return true;
+  }
+
   @Transactional
   public void ensurePrivilegedUserExists(String tenantId) {
-    Group group = createWellKnownGroupWithRole(createWellKnownRole(tenantId), tenantId);
+    Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(tenantId), tenantId);
     // UNIQUE by tenant
     String email = ReservedServiceAccount.AGENT.emailPattern().formatted(tenantId);
 

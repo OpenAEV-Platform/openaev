@@ -1,7 +1,6 @@
 import {
   CancelOutlined,
   DomainOutlined,
-  GroupsOutlined,
   PendingOutlined,
   PersonOffOutlined,
   PersonOutlined,
@@ -183,8 +182,6 @@ export const useAuthorFacetFilter = (
 
 const authorIconComponent = (type?: string) => {
   switch (type) {
-    case 'team':
-      return GroupsOutlined;
     case 'organization':
       return DomainOutlined;
     default:
