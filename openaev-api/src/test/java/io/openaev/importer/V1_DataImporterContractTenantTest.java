@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
@@ -42,6 +43,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
@@ -260,6 +262,43 @@ class V1_DataImporterContractTenantTest extends IntegrationTest {
                   source.getTitle(),
                   source.getId()))
           .doesNotContain(source.getInjectorContract().orElseThrow().getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("Chaining step resolvability")
+  class ChainingStepResolvability {
+
+    @Test
+    @DisplayName("given_contractOnlyInTheWriteTenantAndAnotherAmbientTenant_should_keepTheStep")
+    void given_contractOnlyInTheWriteTenantAndAnotherAmbientTenant_should_keepTheStep()
+        throws Exception {
+      // Arrange: the import writes into B, whose contract the step references by id, while the
+      // ambient tenant of the thread is the default one (the non-prefixed route).
+      String tenantB = tenantHelper.createTenantWithCurrentUser("importer-step-b").getId();
+      TenantContext.setCurrentTenant(tenantB);
+      String contractInB = composeContract("external-" + UUID.randomUUID());
+      TenantContext.clearCurrentTenant();
+      DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenantB);
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      ObjectMapper mapper = new ObjectMapper();
+      ObjectNode stepData = mapper.createObjectNode();
+      stepData.put("inject_title", "step-" + UUID.randomUUID());
+      stepData.put("inject_injector_contract", contractInB);
+      ObjectNode stepNode = mapper.createObjectNode();
+      stepNode.put("step_data", mapper.writeValueAsString(stepData));
+
+      // Act
+      Optional<?> skipped =
+          ReflectionTestUtils.invokeMethod(
+              importer,
+              "evaluateChainingStepResolvability",
+              TxCtx.forTenant(tenantB),
+              stepNode,
+              new HashMap<String, String>());
+
+      // Assert: the contract is looked up in B, so the step is not reported as a missing action.
+      assertThat(skipped).isEmpty();
     }
   }
 

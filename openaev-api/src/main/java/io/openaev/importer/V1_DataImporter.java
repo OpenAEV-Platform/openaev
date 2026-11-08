@@ -3047,15 +3047,16 @@ public class V1_DataImporter implements Importer {
     }
 
     // (a) Injector contract must already exist on the target or be resolvable read-only.
+    // The import's write tenant answers both questions: the contract id is looked up in the tenant
+    // the step is imported into, whatever the ambient tenant of the request is.
+    String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     String injectorContractId = extractInjectorContractId(injectContractNode);
     boolean alreadyResolvable =
         (hasText(injectorContractId)
                 && (injectorContractRepository.existsByContractIdAndTenant(
-                        injectorContractId, TenantContext.getCurrentTenant())
+                        injectorContractId, writeTenant)
                     || resolvedContracts.containsKey(injectorContractId)))
-            || resolveInjectorContractReadOnly(
-                    injectContractNode, tenantWriteScopeResolver.tenantForWrite(ctx, null))
-                .isPresent();
+            || resolveInjectorContractReadOnly(injectContractNode, writeTenant).isPresent();
     // A contract carrying embedded, self-sufficient payload data (typically a MANUAL payload with
     // no payload_external_id, e.g. a Command payload) can be recreated locally: do NOT skip it here
     // even when it is neither already present nor resolvable read-only — leave resolveStepData to
