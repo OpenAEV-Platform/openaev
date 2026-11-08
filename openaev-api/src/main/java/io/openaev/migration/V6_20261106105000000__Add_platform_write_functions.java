@@ -14,10 +14,9 @@ import org.springframework.stereotype.Component;
  * allow_platform_write} is true AND the transaction set {@code app.platform_write}. {@code
  * app.platform_write} is set only by a small, named list of call sites, listed in {@code
  * io.openaev.aop.PlatformWrite}: the platform settings endpoints, the XTM Composer registration
- * endpoints (also mounted on the tenant route and gated by the {@code CATALOG} write capability),
- * and the platform-write primitives of {@code TenantScopedTransaction} used by startup and the
- * scheduled writers. Any other transaction, a tenant route's included, cannot write a platform row
- * through this predicate.
+ * endpoints (gated by the platform setting write right), and the platform-write primitives of
+ * {@code TenantScopedTransaction} used by startup and the scheduled writers. Any other transaction
+ * cannot write a platform row through this predicate.
  */
 @Component
 public class V6_20261106105000000__Add_platform_write_functions extends BaseJavaMigration {

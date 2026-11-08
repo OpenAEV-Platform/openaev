@@ -45,17 +45,16 @@ public class XtmComposerApi extends RestBehavior {
   // itself is not scoped to any tenant (issue #6485).
   // The registration is a platform row of the parameters table: readable under any scope, the
   // empty one of a composer identity with no tenant membership included, and written only under
-  // @PlatformWrite. ctx is the caller's own scope, so the right is checked in the caller's tenants.
-  // CATALOG write is also granted by the tenant-scoped MANAGE_TENANT_SETTINGS, so a tenant
-  // administrator reaches this write through the tenant route: the route and the capability are
-  // not changed here (see io.openaev.aop.PlatformWrite).
+  // @PlatformWrite. The two writes need the platform setting write right, which a tenant
+  // administrator does not hold: the tenant-scoped catalog write that MANAGE_TENANT_SETTINGS grants
+  // does not reach them, on either route.
   // TODO v2: #7248
   @PostMapping(value = {XTMCOMPOSER_URI + "/register", TENANT_XTMCOMPOSER_URI + "/register"})
   @Operation(
       summary = "Register XtmComposer",
       description = "Save registration data into settings from XTM Composer registration")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful registration")})
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @Transactional(rollbackFor = Exception.class)
   @PlatformWrite
   public XtmComposerOutput register(TxCtx ctx, @Valid @RequestBody XtmComposerRegisterInput input) {
@@ -72,7 +71,7 @@ public class XtmComposerApi extends RestBehavior {
   @Operation(
       summary = "Refresh connectivity with XTM composer",
       description = "Refresh last check connectivity in settings and version in XTM Composer")
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful refresh")})
   @Transactional(rollbackFor = Exception.class)
   @PlatformWrite

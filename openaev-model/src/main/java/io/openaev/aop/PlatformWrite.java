@@ -19,11 +19,10 @@ import java.lang.annotation.Target;
  *   <li>the platform settings endpoints ({@code PlatformSettingsApi}, {@code /api/settings}), which
  *       exist on the platform route only and are gated by platform capabilities;
  *   <li>{@code XtmComposerApi#register} and {@code #refreshConnectivity}, which write the XTM
- *       Composer registration, a platform row. They are mounted on the platform route AND on the
- *       tenant route (so a composer identity whose only capability is held in a tenant keeps its
- *       access, {@code TODO v2: #7248}), and are gated by the {@code CATALOG} write capability,
- *       which the tenant-scoped {@code MANAGE_TENANT_SETTINGS} also grants. A tenant route can
- *       therefore reach a platform-write transaction through these two endpoints and no other;
+ *       Composer registration, a platform row. They are mounted on the platform route and on the
+ *       tenant route (the composer's own identity keeps its access, {@code TODO v2: #7248}), and
+ *       are gated by the platform setting write right: the tenant-scoped catalog write that {@code
+ *       MANAGE_TENANT_SETTINGS} grants does not reach them on either route;
  *   <li>off the request thread, the {@code executeAsPlatformWrite}, {@code
  *       executeNewAsPlatformWrite} and {@code setPlatformWriteOnCurrentTransaction} methods of
  *       {@code TenantScopedTransaction}, used by startup and the scheduled writers of the settings.
