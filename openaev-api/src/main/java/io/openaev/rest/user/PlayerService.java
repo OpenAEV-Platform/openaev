@@ -222,21 +222,24 @@ public class PlayerService {
         return forTenant(user.get(), tenantId);
       }
       User existingUser = user.get();
-      existingUser.setUpdateAttributes(input);
-      existingUser.setUpdatedAt(now());
-      if (StringUtils.hasText(input.getOrganizationId())) {
-        assignOrganization(existingUser, input.getOrganizationId(), tenantId);
-      }
-      userRepository.save(existingUser);
       // The player is platform-level, so it may hold tags and teams of tenants this request does
       // not see. They are added one link at a time: replacing the collections would delete the
-      // links the request cannot see.
+      // links the request cannot see. They go first, and the user is refreshed before its profile
+      // changes, so the update event that the flush publishes carries the links just added: the
+      // stream serializes that very instance afterwards.
       tagRepository
           .findAllById(input.getTagIds())
           .forEach(tag -> userRepository.addTag(existingUser.getId(), tag.getId()));
       teamRepository
           .findAllById(input.getTeamIds())
           .forEach(team -> userRepository.addTeam(existingUser.getId(), team.getId()));
+      entityManager.refresh(existingUser);
+      existingUser.setUpdateAttributes(input);
+      existingUser.setUpdatedAt(now());
+      if (StringUtils.hasText(input.getOrganizationId())) {
+        assignOrganization(existingUser, input.getOrganizationId(), tenantId);
+      }
+      userRepository.save(existingUser);
       tenantUserService.attachToTenant(existingUser.getId(), tenantId);
       // Reload user after @Modifying queries cleared the persistence context
       return forTenant(userRepository.findById(existingUser.getId()).orElseThrow(), tenantId);
@@ -256,11 +259,11 @@ public class PlayerService {
   /**
    * The user as the response shows it: its organization is the one of the tenant the write went to,
    * not of the ambient tenant, which is the default one when the request names another in {@code
-   * X-Tenant-Ids}.
+   * X-Tenant-Ids}. A copy, because the entity itself is the one the stream serializes afterwards
+   * for the consumers of every tenant.
    */
   private User forTenant(User user, String tenantId) {
-    user.answerOrganizationOfTenant(tenantId);
-    return user;
+    return user.responseViewFor(tenantId);
   }
 
   /**

@@ -210,8 +210,8 @@ public class User implements Base {
 
   /**
    * The tenant whose organization {@link #getOrganization()} answers for, when it is not the
-   * ambient one: a request that works on a tenant named by {@code X-Tenant-Ids} still has the
-   * default tenant as its ambient tenant. Never persisted, never serialized.
+   * ambient one. Only ever set on a {@link #responseViewFor response view}, never on an entity the
+   * persistence context or a lifecycle event holds. Never persisted, never serialized.
    */
   @Transient
   @JsonIgnore
@@ -219,13 +219,46 @@ public class User implements Base {
   private String organizationTenantId;
 
   /**
-   * Makes {@link #getOrganization()}, so the {@code user_organization} of the response, answer for
-   * the given tenant instead of the ambient one.
+   * A detached copy of the user for the response of a request that works on the given tenant: its
+   * {@link #getOrganization()}, so the {@code user_organization} of the response, answers for that
+   * tenant instead of the ambient one, which is the default tenant when the request names another
+   * in {@code X-Tenant-Ids}. The copy shares the loaded associations of this user and is never
+   * persisted. The entity itself is left as it is: a lifecycle event keeps it and serializes it
+   * later, for the consumers of other tenants, which must not see the organization of this one.
    *
    * @param tenantId the tenant the request works on
    */
-  public void answerOrganizationOfTenant(final String tenantId) {
-    this.organizationTenantId = tenantId;
+  public User responseViewFor(final String tenantId) {
+    User view = new User();
+    view.id = id;
+    view.firstname = firstname;
+    view.lastname = lastname;
+    view.lang = lang;
+    view.theme = theme;
+    view.homeDashboard = homeDashboard;
+    view.unsubscribedNewsFeedTypes = unsubscribedNewsFeedTypes;
+    view.email = email;
+    view.phone = phone;
+    view.phone2 = phone2;
+    view.pgpKey = pgpKey;
+    view.status = status;
+    view.password = password;
+    view.createdAt = createdAt;
+    view.updatedAt = updatedAt;
+    view.organizations = organizations;
+    view.admin = admin;
+    view.country = country;
+    view.city = city;
+    view.groups = groups;
+    view.teams = teams;
+    view.tags = tags;
+    view.communications = communications;
+    view.exerciseTeamUsers = exerciseTeamUsers;
+    view.tokens = tokens;
+    view.tenants = tenants;
+    view.comcheckStatuses = comcheckStatuses;
+    view.organizationTenantId = tenantId;
+    return view;
   }
 
   /**
