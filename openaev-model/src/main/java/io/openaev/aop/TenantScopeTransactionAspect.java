@@ -10,8 +10,9 @@ import java.util.HashSet;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.Ordered;
@@ -67,11 +68,15 @@ import org.springframework.stereotype.Component;
  * open a {@code REQUIRES_NEW} transaction.
  *
  * <p>A method carrying {@link PlatformWrite} also gets {@code app.platform_write} set to {@code
- * 'true'} for the transaction, which is what lets a write reach a dual-scope table's platform row
- * ({@code tenant_id IS NULL}); every other transaction never touches that setting, so it reads as
- * unset (false) by default. This only runs when a {@link TxCtx} argument is also present, same as
- * the tenant scope above: a {@code @Transactional} method with no {@link TxCtx} parameter is
- * untouched by this aspect entirely.
+ * 'true'} while it runs, which is what lets a write reach a dual-scope table's platform row ({@code
+ * tenant_id IS NULL}); every other transaction never touches that setting, so it reads as unset
+ * (false) by default. The marker belongs to the method: Hibernate defers writes to the flush, so
+ * the aspect flushes what is pending before it sets the marker (those writes were not made under
+ * it) and again before it clears it (the method's own writes were), and a tenant method that called
+ * a {@link PlatformWrite} method writes under no marker afterwards. A transaction that already
+ * carries the marker, set explicitly for the whole transaction, keeps it. This only runs when a
+ * {@link TxCtx} argument is also present, same as the tenant scope above: a {@code @Transactional}
+ * method with no {@link TxCtx} parameter is untouched by this aspect entirely.
  */
 @Aspect
 @Component
@@ -90,37 +95,55 @@ public class TenantScopeTransactionAspect {
    */
   private final ObjectProvider<MarkingScopeSupplier> markingScopeSupplier;
 
-  @Before(
+  @Around(
       "@annotation(org.springframework.transaction.annotation.Transactional) || "
           + "@annotation(jakarta.transaction.Transactional)")
-  public void applyScope(JoinPoint joinPoint) {
+  public Object applyScope(ProceedingJoinPoint joinPoint) throws Throwable {
     TxCtx ctx = findTxCtx(joinPoint.getArgs());
     if (ctx == null) {
-      return;
+      return joinPoint.proceed();
     }
     String desired = ctx.toGuc();
     String current = currentScope();
     if (!current.isEmpty()) {
       // A scope is the set of tenants it grants, not its textual order, so compare as sets.
-      if (tenants(current).equals(tenants(desired))) {
-        // The scope is already set (a nested @Transactional call): still honour this method's own
-        // PlatformWrite, since the outer method that opened the transaction may not carry it.
-        if (isPlatformWrite(joinPoint)) {
-          setPlatformWrite();
-        }
-        return;
+      if (!tenants(current).equals(tenants(desired))) {
+        throw new IllegalStateException(
+            ("Tenant scope '%s' is already set for this transaction; method '%s' tried to change it"
+                    + " to '%s'. A nested @Transactional method must not redefine the scope; pass"
+                    + " the same TxCtx or open a REQUIRES_NEW transaction.")
+                .formatted(current, joinPoint.getSignature().toShortString(), desired));
       }
-      throw new IllegalStateException(
-          ("Tenant scope '%s' is already set for this transaction; method '%s' tried to change it to"
-                  + " '%s'. A nested @Transactional method must not redefine the scope; pass the same"
-                  + " TxCtx or open a REQUIRES_NEW transaction.")
-              .formatted(current, joinPoint.getSignature().toShortString(), desired));
+      // The scope is already set (a nested @Transactional call): still honour this method's own
+      // PlatformWrite, since the outer method that opened the transaction may not carry it.
+    } else {
+      setScope(desired);
+      setMarkingScope(markingScopeFor(ctx));
     }
-    setScope(desired);
-    setMarkingScope(markingScopeFor(ctx));
-    if (isPlatformWrite(joinPoint)) {
-      setPlatformWrite();
+    if (!isPlatformWrite(joinPoint) || platformWriteIsSet()) {
+      return joinPoint.proceed();
     }
+    return proceedAsPlatformWrite(joinPoint);
+  }
+
+  /**
+   * Runs the method with the platform-write marker set, and clears it when the method is done. The
+   * flushes on both sides keep each write under the marker it was made under, since Hibernate would
+   * otherwise send them at the end of the transaction, after the marker is gone.
+   */
+  private Object proceedAsPlatformWrite(ProceedingJoinPoint joinPoint) throws Throwable {
+    entityManager.flush();
+    setPlatformWrite("true");
+    Object result;
+    try {
+      result = joinPoint.proceed();
+      entityManager.flush();
+    } catch (Throwable failure) {
+      clearPlatformWriteQuietly();
+      throw failure;
+    }
+    setPlatformWrite("");
+    return result;
   }
 
   /** Whether the advised method carries {@link PlatformWrite}. */
@@ -175,11 +198,31 @@ public class TenantScopeTransactionAspect {
         .getSingleResult();
   }
 
-  private void setPlatformWrite() {
+  private boolean platformWriteIsSet() {
+    return "true"
+        .equals(
+            entityManager
+                .createNativeQuery(
+                    "SELECT coalesce(current_setting('app.platform_write', true), '')")
+                .setFlushMode(FlushModeType.COMMIT)
+                .getSingleResult());
+  }
+
+  private void setPlatformWrite(String value) {
     entityManager
-        .createNativeQuery("SELECT set_config('app.platform_write', 'true', true)")
+        .createNativeQuery("SELECT set_config('app.platform_write', :value, true)")
         .setFlushMode(FlushModeType.COMMIT)
+        .setParameter("value", value)
         .getSingleResult();
+  }
+
+  /** The method failed, so its transaction is most likely unusable: the original failure wins. */
+  private void clearPlatformWriteQuietly() {
+    try {
+      setPlatformWrite("");
+    } catch (RuntimeException ignored) {
+      // the transaction rolls back and takes the setting with it
+    }
   }
 
   private static TxCtx findTxCtx(Object[] args) {
