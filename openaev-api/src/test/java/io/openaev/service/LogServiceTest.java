@@ -27,6 +27,13 @@ import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +44,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("LogService - logSessionExpiredEvent")
@@ -53,16 +61,17 @@ class LogServiceTest {
 
   private LogService logService;
 
+  private final io.openaev.engine.facade.EngineService engineService =
+      mock(io.openaev.engine.facade.EngineService.class);
+  private final io.openaev.utils.object.ObjectNormalizationUtils objectNormalizationUtils =
+      mock(io.openaev.utils.object.ObjectNormalizationUtils.class);
+
   @BeforeEach
   void setUp() {
-    io.openaev.engine.facade.EngineService engineService =
-        mock(io.openaev.engine.facade.EngineService.class);
     lenient().when(engineService.getObjectMapper()).thenReturn(objectMapper);
 
     // Pass-through so the assertions below target redaction only; Mockito's default (null) would
     // blank out input/output before they reach the transport.
-    io.openaev.utils.object.ObjectNormalizationUtils objectNormalizationUtils =
-        mock(io.openaev.utils.object.ObjectNormalizationUtils.class);
     lenient()
         .when(objectNormalizationUtils.normalize(any(JsonNode.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
@@ -70,19 +79,24 @@ class LogServiceTest {
         .when(objectNormalizationUtils.normalize(any(JsonNode.class), anyString()))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    logService =
-        new LogService(
-            auditLogProperties,
-            auditLogTransportDispatcherUtils,
-            objectNormalizationUtils,
-            engineService,
-            mock(UserService.class),
-            enterpriseEditionService,
-            licenseCacheManager,
-            platformSettingsService,
-            tenantScopedTransaction);
+    // The banner is written on the calling thread, so the assertions below can read it at once.
+    logService = logServiceOn(Runnable::run);
     lenient().when(auditLogProperties.isEnabled()).thenReturn(true);
     lenient().when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
+  }
+
+  private LogService logServiceOn(Executor taskLoggerExecutor) {
+    return new LogService(
+        auditLogProperties,
+        auditLogTransportDispatcherUtils,
+        objectNormalizationUtils,
+        engineService,
+        mock(UserService.class),
+        enterpriseEditionService,
+        licenseCacheManager,
+        platformSettingsService,
+        tenantScopedTransaction,
+        taskLoggerExecutor);
   }
 
   @Nested
@@ -119,6 +133,68 @@ class LogServiceTest {
       // -- VERIFY --
       verify(tenantScopedTransaction, times(2))
           .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+    }
+
+    @Test
+    @DisplayName("given_theBannerWasWritten_should_writeItAgainOnceTheRecheckIntervalHasPassed")
+    void given_theBannerWasWritten_should_writeItAgainOnceTheRecheckIntervalHasPassed() {
+      // -- PREPARE -- another node, or a manual edit, may have removed the row since
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+      logService.isEnabled();
+      logService.isEnabled();
+      verify(tenantScopedTransaction, times(1))
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+
+      // -- EXECUTE --
+      ReflectionTestUtils.setField(logService, "bannerRequestedAt", new AtomicLong(0L));
+      logService.isEnabled();
+
+      // -- VERIFY --
+      verify(tenantScopedTransaction, times(2))
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+    }
+
+    @Test
+    @DisplayName("given_theBannerWriteFails_should_leaveTheAuditStateAsTheLicenseDecides")
+    void given_theBannerWriteFails_should_leaveTheAuditStateAsTheLicenseDecides() {
+      // -- PREPARE -- a pool that cannot give a connection to the banner write
+      doThrow(new IllegalStateException("no connection available"))
+          .when(tenantScopedTransaction)
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+
+      // -- EXECUTE + VERIFY -- the license is valid, so audit stays on
+      assertThat(logService.isEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("given_aLicenseStateChange_should_writeTheBannerOnTheExecutorNotTheCallingThread")
+    void given_aLicenseStateChange_should_writeTheBannerOnTheExecutorNotTheCallingThread()
+        throws Exception {
+      // -- PREPARE --
+      ExecutorService executor = Executors.newSingleThreadExecutor();
+      try {
+        LogService offThread = logServiceOn(executor);
+        when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+        AtomicReference<Thread> writer = new AtomicReference<>();
+        CountDownLatch written = new CountDownLatch(1);
+        doAnswer(
+                invocation -> {
+                  writer.set(Thread.currentThread());
+                  written.countDown();
+                  return null;
+                })
+            .when(tenantScopedTransaction)
+            .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+
+        // -- EXECUTE --
+        offThread.isEnabled();
+
+        // -- VERIFY --
+        assertThat(written.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(writer.get()).isNotSameAs(Thread.currentThread());
+      } finally {
+        executor.shutdownNow();
+      }
     }
   }
 

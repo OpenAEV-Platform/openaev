@@ -36,8 +36,11 @@ import io.openaev.utils.mockUser.WithMockUser;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -307,17 +310,29 @@ class AuditLoggerTest extends IntegrationTest {
   @DisplayName("checkLicenseBanner()")
   class CheckLicenseBanner {
 
+    private static final long BANNER_WRITE_TIMEOUT_MS = 5_000;
+
     @BeforeEach
     void clearPlatformSettingsInvocations() {
+      // The audit-enabled check of the class-level setup may have a banner write still running on
+      // the executor: let it finish, or its call would land after the invocations are cleared.
+      Object running = AopTestUtils.getUltimateTargetObject(logService);
+      Awaitility.await()
+          .atMost(Duration.ofSeconds(5))
+          .until(
+              () ->
+                  !((AtomicBoolean) ReflectionTestUtils.getField(running, "bannerWriting")).get());
       // checkLicenseBanner() is also triggered at context startup via
       // @EventListener(ApplicationReadyEvent).
       // Clearing invocations here ensures verify() counts only the call made in each test body.
       Mockito.clearInvocations(platformSettingsService);
-      // The banner is written only when its state changes, and the service remembers the last state
-      // it wrote (per instance, for the life of the context). Forget it, so each test starts from
-      // "nothing written yet" whatever ran before it, the startup event included.
+      // The banner is written when its state changes, and the service remembers the last state it
+      // asked for (per instance, for the life of the context). Forget it, so each test starts from
+      // "nothing requested yet" whatever ran before it, the startup event included. The write runs
+      // on the task logger executor, so each test waits for it.
       Object target = AopTestUtils.getUltimateTargetObject(logService);
-      ReflectionTestUtils.setField(target, "bannerCleared", new AtomicReference<Boolean>());
+      ReflectionTestUtils.setField(target, "bannerRequested", new AtomicReference<Boolean>());
+      ReflectionTestUtils.setField(target, "bannerWriting", new AtomicBoolean(false));
     }
 
     @Test
@@ -330,7 +345,7 @@ class AuditLoggerTest extends IntegrationTest {
       auditLogger.isAuditLoggingEnabled();
 
       // Assert
-      Mockito.verify(platformSettingsService)
+      Mockito.verify(platformSettingsService, Mockito.timeout(BANNER_WRITE_TIMEOUT_MS))
           .cleanMessage(BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
       Mockito.verify(platformSettingsService, Mockito.never()).errorMessage(Mockito.any());
     }
@@ -346,7 +361,7 @@ class AuditLoggerTest extends IntegrationTest {
       auditLogger.isAuditLoggingEnabled();
 
       // Assert
-      Mockito.verify(platformSettingsService)
+      Mockito.verify(platformSettingsService, Mockito.timeout(BANNER_WRITE_TIMEOUT_MS))
           .cleanMessage(BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
       Mockito.verify(platformSettingsService, Mockito.never()).errorMessage(Mockito.any());
     }
@@ -362,7 +377,7 @@ class AuditLoggerTest extends IntegrationTest {
       auditLogger.isAuditLoggingEnabled();
 
       // Assert
-      Mockito.verify(platformSettingsService)
+      Mockito.verify(platformSettingsService, Mockito.timeout(BANNER_WRITE_TIMEOUT_MS))
           .errorMessage(BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
       Mockito.verify(platformSettingsService, Mockito.never()).cleanMessage(Mockito.any());
     }
