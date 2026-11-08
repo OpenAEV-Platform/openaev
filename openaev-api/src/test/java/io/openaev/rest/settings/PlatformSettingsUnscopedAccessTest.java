@@ -50,6 +50,7 @@ class PlatformSettingsUnscopedAccessTest extends IntegrationTest {
   @Autowired private SettingService settingService;
   @Autowired private EnterpriseEditionService enterpriseEditionService;
   @Autowired private TenantScopedTransaction tenantScopedTransaction;
+  @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
   /** Previous platform values of the keys a test touched, restored by {@link #restore()}. */
   private final java.util.Map<String, Optional<String>> previous = new java.util.LinkedHashMap<>();
@@ -236,6 +237,80 @@ class PlatformSettingsUnscopedAccessTest extends IntegrationTest {
                               .executeUpdate()));
       assertTrue(rootMessage(thrown).contains("platform-write"), rootMessage(thrown));
       assertEquals(5, settingService.getInt(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT));
+    }
+
+    @Test
+    @DisplayName("given_noPlatformWriteMarker_should_refuseANativeUpdateOfAPlatformRowWithAnError")
+    void given_noPlatformWriteMarker_should_refuseANativeUpdateOfAPlatformRowWithAnError() {
+      // Arrange
+      putPlatformSetting(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key(), "5");
+
+      // Act + Assert: a statement the architecture rule cannot read the table of is refused here
+      Throwable thrown =
+          assertThrows(
+              Throwable.class,
+              () ->
+                  tenantScopedTransaction.execute(
+                      TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+                      () ->
+                          entityManager
+                              .createNativeQuery(
+                                  "UPDATE parameters SET parameter_value = :value"
+                                      + " WHERE parameter_key = :key")
+                              .setParameter("value", "9")
+                              .setParameter(
+                                  "key", SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key())
+                              .executeUpdate()));
+      assertTrue(rootMessage(thrown).contains("platform-write"), rootMessage(thrown));
+      assertEquals(5, settingService.getInt(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT));
+    }
+
+    @Test
+    @DisplayName("given_noPlatformWriteMarker_should_refuseTheFlushOfAModifiedPlatformRow")
+    void given_noPlatformWriteMarker_should_refuseTheFlushOfAModifiedPlatformRow() {
+      // Arrange
+      putPlatformSetting(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key(), "5");
+
+      // Act + Assert: dirty checking writes a managed row with no save call anywhere
+      Throwable thrown =
+          assertThrows(
+              Throwable.class,
+              () ->
+                  tenantScopedTransaction.execute(
+                      TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+                      () -> {
+                        Setting managed =
+                            settingRepository
+                                .findByKeyAndTenantIsNull(
+                                    SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key())
+                                .orElseThrow();
+                        managed.setValue("9");
+                        entityManager.flush();
+                      }));
+      assertTrue(rootMessage(thrown).contains("platform-write"), rootMessage(thrown));
+      assertEquals(5, settingService.getInt(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT));
+    }
+
+    @Test
+    @DisplayName("given_aJdbcUpdate_should_notBeSeenByThePlatformWriteRefusal")
+    void given_aJdbcUpdate_should_notBeSeenByThePlatformWriteRefusal() {
+      // Arrange
+      putPlatformSetting(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key(), "5");
+
+      // Act: the refusal is part of the statement rewrite done for Hibernate, so a statement sent
+      // straight to JDBC is not refused. The architecture rule is the only guard of that shape
+      // (PlatformRowWriters follows JdbcTemplate and Statement calls naming the table); if this
+      // test turns red the database closed the gap and the rule's Javadoc must say so.
+      tenantScopedTransaction.execute(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () ->
+              jdbcTemplate.update(
+                  "UPDATE parameters SET parameter_value = ? WHERE parameter_key = ?",
+                  "9",
+                  SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key()));
+
+      // Assert
+      assertEquals(9, settingService.getInt(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT));
     }
 
     @Test

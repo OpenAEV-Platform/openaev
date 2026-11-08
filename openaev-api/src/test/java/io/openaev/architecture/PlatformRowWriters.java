@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 
 /**
  * What the guards on {@code parameters} check, and how. A platform row ({@code tenant_id IS NULL})
@@ -28,12 +29,45 @@ import org.springframework.data.jpa.repository.Modifying;
  * read with no scope comes back empty. So the guards follow the WRITES of a {@code Setting} and the
  * READS of one: every path that reaches one must cross a marker.
  *
- * <p>A writer is a method that modifies a {@code Setting}: a modifying method of {@link
- * SettingRepository} (a {@code @Modifying} query, or a name starting {@code save}, {@code delete},
- * {@code remove}, {@code update}, {@code insert}, {@code upsert}, which takes in every inherited
- * {@code CrudRepository} write), or an {@code EntityManager} {@code persist}/{@code merge}/{@code
- * remove} in a method that names {@code Setting} in its signature or touches one. A reader is any
- * repository {@code find*}/{@code exists*}/{@code count*} not named for the platform row.
+ * <p>A writer is a method that makes one of these calls, and a path is followed from there to its
+ * callers, services included ({@code SettingService}, {@code PlatformSettingsService}, {@code
+ * TenantSettingsService} are writers because they make such a call, so what reaches them is
+ * checked):
+ *
+ * <ul>
+ *   <li>a modifying method of {@link SettingRepository}: a {@code @Modifying} query, or a name
+ *       starting {@code save}, {@code delete}, {@code remove}, {@code update}, {@code insert},
+ *       {@code upsert}, which takes in every inherited {@code CrudRepository} write, {@code
+ *       saveAll} included;
+ *   <li>a {@code @Modifying} method of any other repository whose {@code @Query} is a write
+ *       statement naming {@code parameters} or {@code Setting};
+ *   <li>a setter of a {@code Setting} called from outside the entity: a managed row modified and
+ *       then flushed by dirty checking, with no explicit save, is written by the setter;
+ *   <li>in a method that names {@code Setting} in its signature or touches one: an {@code
+ *       EntityManager} {@code persist}/{@code merge}/{@code remove}, a Hibernate {@code Session}
+ *       write, or a query {@code executeUpdate};
+ *   <li>in a method that does either of the above, or whose string constants hold a write statement
+ *       naming the table ({@code update|delete from|insert into|merge into} followed by {@code
+ *       parameters} or {@code Setting}): an {@code executeUpdate}, a {@code JdbcTemplate} / {@code
+ *       NamedParameterJdbcTemplate} {@code update}, {@code batchUpdate}, {@code execute}, or a JDBC
+ *       {@code Statement} execution.
+ * </ul>
+ *
+ * <p>A reader is any repository {@code find*}/{@code exists*}/{@code count*} not named for the
+ * platform row.
+ *
+ * <p>What the rule does not cover: Flyway migrations ({@code io.openaev.migration}), which write
+ * {@code parameters} by raw SQL at boot, before any request, and are reviewed as their own class.
+ *
+ * <p>What the rule cannot see: a statement assembled at run time (the table name arrives in a
+ * variable), a {@code Setting} passed as {@code Object} or a generic to a method that does not name
+ * the type, a write through reflection or a bean copier, and a write made by code outside the
+ * imported classes (a migration, manual SQL). For what goes through Hibernate the database refuses
+ * it at run time: the platform write refusal ({@code require_tenant_write}) raises on an HQL, a
+ * native statement and a dirty-checked row outside a platform-write transaction ({@code
+ * PlatformSettingsUnscopedAccessTest}). It is part of the statement rewrite done for Hibernate, so
+ * a statement sent straight to JDBC is NOT refused (same test): for that shape this rule is the
+ * only guard, which is why it follows {@code JdbcTemplate} and {@code Statement} calls.
  *
  * <p>A call is under a marker when the transaction it runs in is marked at that point:
  *
@@ -85,6 +119,11 @@ final class PlatformRowWriters {
               io.openaev.service.autonomous.AutonomousRunService.class,
               "updateDefaultAdditionalAgentModes",
               "writes the tenant's default agent modes, the tenant is the one the scope pins"),
+          new TenantRowWriter(
+              io.openaev.service.autonomous.AutonomousRunService.class,
+              "newTenantSetting",
+              "builds the tenant's own new row, attributed to the tenant it names; the write is"
+                  + " the save of the default agents writers above"),
           new TenantRowWriter(
               io.openaev.processor.datapack.V20260101_Starter_pack.class,
               "setDefaultDashboard",
@@ -143,6 +182,32 @@ final class PlatformRowWriters {
 
   private static final Set<String> ENTITY_MANAGER_WRITES = Set.of("persist", "merge", "remove");
 
+  private static final Set<String> SESSION_WRITES =
+      Set.of(
+          "save",
+          "saveOrUpdate",
+          "persist",
+          "merge",
+          "remove",
+          "delete",
+          "update",
+          "replicate",
+          "executeUpdate");
+
+  /** Statement executors that take SQL text: the table is only visible in a string constant. */
+  private static final Set<String> JDBC_WRITES =
+      Set.of(
+          "update",
+          "batchUpdate",
+          "execute",
+          "executeUpdate",
+          "executeBatch",
+          "executeLargeUpdate");
+
+  private static final java.util.regex.Pattern WRITE_STATEMENT_ON_TABLE =
+      java.util.regex.Pattern.compile(
+          "(?is)\\b(update|delete\\s+from|insert\\s+into|merge\\s+into)\\s+(only\\s+)?\"?(parameters|Setting)\"?\\b");
+
   private static final Set<String> CALLBACK_TYPES =
       Set.of(
           "java.lang.Runnable",
@@ -164,6 +229,7 @@ final class PlatformRowWriters {
       @Override
       public boolean test(JavaMethod method) {
         return !isBridge(method)
+            && !isMigration(method)
             && !isTenantRowWriter(method, tenantRowWriters)
             && !writesOf(method).isEmpty();
       }
@@ -178,6 +244,14 @@ final class PlatformRowWriters {
         return !isBridge(method) && !readsOf(method).isEmpty();
       }
     };
+  }
+
+  /**
+   * A Flyway migration runs once at boot on the migration connection, before any request, and
+   * writes {@code parameters} by raw SQL: it is reviewed as its own class, not by this guard.
+   */
+  private static boolean isMigration(JavaMethod method) {
+    return method.getOwner().getPackageName().startsWith("io.openaev.migration");
   }
 
   /** The compiler's bridge to a covariant override repeats the call of the real method. */
@@ -205,14 +279,66 @@ final class PlatformRowWriters {
 
   private static List<JavaMethodCall> writesOf(JavaCodeUnit unit) {
     boolean mentionsSetting = mentionsSetting(unit);
+    boolean namesTheTable = namesTheTableInAWriteStatement(unit);
     return unit.getMethodCallsFromSelf().stream()
-        .filter(
-            call ->
-                (call.getTargetOwner().isAssignableTo(SettingRepository.class) && modifies(call))
-                    || (mentionsSetting
-                        && call.getTargetOwner().isAssignableTo(EntityManager.class)
-                        && ENTITY_MANAGER_WRITES.contains(call.getName())))
+        .filter(call -> writes(unit, call, mentionsSetting, namesTheTable))
         .toList();
+  }
+
+  private static boolean writes(
+      JavaCodeUnit unit, JavaMethodCall call, boolean mentionsSetting, boolean namesTheTable) {
+    var target = call.getTargetOwner();
+    if (target.isAssignableTo(SettingRepository.class) && modifies(call)) {
+      return true;
+    }
+    if (modifiesTheTableByQuery(call)) {
+      return true;
+    }
+    // Dirty checking: a managed Setting changed by a setter is flushed with no save call.
+    if (target.isAssignableTo(Setting.class)
+        && call.getName().startsWith("set")
+        && !unit.getOwner().isAssignableTo(Setting.class)) {
+      return true;
+    }
+    if (mentionsSetting
+        && ((target.isAssignableTo(EntityManager.class)
+                && ENTITY_MANAGER_WRITES.contains(call.getName()))
+            || (target.isAssignableTo("org.hibernate.Session")
+                && SESSION_WRITES.contains(call.getName())))) {
+      return true;
+    }
+    boolean executesAQuery =
+        target.isAssignableTo("jakarta.persistence.Query")
+            || target.isAssignableTo("org.hibernate.query.MutationQuery");
+    if (executesAQuery && call.getName().equals("executeUpdate")) {
+      return mentionsSetting || namesTheTable;
+    }
+    boolean executesSql =
+        target.isAssignableTo("org.springframework.jdbc.core.JdbcOperations")
+            || target.isAssignableTo(
+                "org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations")
+            || target.isAssignableTo(
+                "org.springframework.jdbc.core.simple.JdbcClient$StatementSpec")
+            || target.isAssignableTo("java.sql.Statement");
+    return executesSql && JDBC_WRITES.contains(call.getName()) && namesTheTable;
+  }
+
+  /** A {@code @Modifying} method of another repository whose query writes the table. */
+  private static boolean modifiesTheTableByQuery(JavaMethodCall call) {
+    return call.getTarget().resolveMember().stream()
+        .filter(member -> member.isAnnotatedWith(Modifying.class))
+        .flatMap(member -> member.tryGetAnnotationOfType(Query.class).stream())
+        .anyMatch(query -> isWriteOnTheTable(query.value()));
+  }
+
+  /** Whether {@code text} is a statement that writes {@code parameters} / {@code Setting}. */
+  static boolean isWriteOnTheTable(String text) {
+    return WRITE_STATEMENT_ON_TABLE.matcher(text).find();
+  }
+
+  private static boolean namesTheTableInAWriteStatement(JavaCodeUnit unit) {
+    return CallSites.stringConstants(unit.getOwner(), unit.getName()).stream()
+        .anyMatch(PlatformRowWriters::isWriteOnTheTable);
   }
 
   private static List<JavaMethodCall> readsOf(JavaCodeUnit unit) {

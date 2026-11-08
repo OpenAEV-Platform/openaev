@@ -6,9 +6,13 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.EvaluationResult;
 import io.openaev.architecture.fixture.TenantActiveTableAccessFixtures;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /**
  * Proves the repository access rules of {@link TenantActiveTableAccessArchTest} fire on an accessor
@@ -245,6 +249,112 @@ class TenantActiveTableAccessRulesTest {
 
       // Assert
       assertThat(writers).containsExactly("PlatformRowEntityManagerWriter");
+    }
+  }
+
+  @Nested
+  @DisplayName("parameters platform row writers: every shape of write")
+  class ParametersPlatformRowWriterShapes {
+
+    private EvaluationResult writers(Class<?>... fixtures) {
+      return evaluate(
+          TenantActiveTableAccessArchTest.parameters_platform_row_writers_run_under_platform_write,
+          fixtures);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("unmarkedShapes")
+    @DisplayName("given a write of the table in this shape reached from no marker, should violate")
+    void given_aWriteOfTheTableInThisShape_should_violate(Class<?> fixture) {
+      // Act
+      EvaluationResult result = writers(fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains(fixture.getSimpleName());
+    }
+
+    static Stream<Class<?>> unmarkedShapes() {
+      return Stream.of(
+          TenantActiveTableAccessFixtures.PlatformRowDirtyCheckedWriter.class,
+          TenantActiveTableAccessFixtures.PlatformRowHqlWriter.class,
+          TenantActiveTableAccessFixtures.PlatformRowNativeWriter.class,
+          TenantActiveTableAccessFixtures.PlatformRowJdbcWriter.class,
+          TenantActiveTableAccessFixtures.PlatformRowSessionWriter.class);
+    }
+
+    /**
+     * No fixture can carry {@code @Modifying} here (the module forbids repository annotations
+     * outside {@code openaev-model}), so the statement match a {@code @Modifying @Query} of another
+     * repository goes through is tested on its own.
+     */
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiter = '|',
+        value = {
+          "update Setting s set s.value = :v where s.key = :k|true",
+          "DELETE FROM parameters WHERE parameter_key = ?1|true",
+          "insert into parameters (parameter_id) values (?1)|true",
+          "update \"parameters\" set parameter_value = 'x'|true",
+          "delete from Exercise e where e.id = :id|false",
+          "select s from Setting s where s.key = :k|false",
+          "update exercises set exercise_name = 'parameters'|false"
+        })
+    @DisplayName("given a statement, should recognise a write of the table")
+    void given_aStatement_should_recogniseAWriteOfTheTable(String statement, boolean write) {
+      // Act + Assert
+      assertThat(PlatformRowWriters.isWriteOnTheTable(statement)).isEqualTo(write);
+    }
+
+    @Test
+    @DisplayName("given statements and reads that do not write the table, should not be writers")
+    void given_statementsAndReadsThatDoNotWriteTheTable_should_notBeWriters() {
+      // Arrange
+      var classes =
+          new ClassFileImporter()
+              .importClasses(
+                  TenantActiveTableAccessFixtures.StatementsThatAreNotPlatformRowWriters.class);
+
+      // Act
+      var writers =
+          classes.stream()
+              .flatMap(c -> c.getMethods().stream())
+              .filter(PlatformRowWriters.writeASetting(java.util.List.of()))
+              .toList();
+
+      // Assert
+      assertThat(writers).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given every new shape inside the platform-write callback, should not violate")
+    void given_everyNewShapeInsideThePlatformWriteCallback_should_notViolate() {
+      // Act
+      EvaluationResult result =
+          writers(TenantActiveTableAccessFixtures.PlatformRowWritersUnderThePrimitive.class);
+
+      // Assert
+      assertThat(result.hasViolation()).as(result.getFailureReport().toString()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a service that writes on behalf of its callers, should check the callers")
+    void given_aServiceThatWritesOnBehalfOfItsCallers_should_checkTheCallers() {
+      // Arrange
+      var classes =
+          new ClassFileImporter()
+              .importClasses(
+                  io.openaev.service.PlatformSettingsService.class,
+                  TenantActiveTableAccessFixtures.UnmarkedCallerOfThePlatformSettingsService.class);
+
+      // Act
+      EvaluationResult result =
+          TenantActiveTableAccessArchTest.parameters_platform_row_writers_run_under_platform_write
+              .evaluate(classes);
+
+      // Assert
+      assertThat(result.getFailureReport().toString())
+          .contains("UnmarkedCallerOfThePlatformSettingsService");
     }
   }
 

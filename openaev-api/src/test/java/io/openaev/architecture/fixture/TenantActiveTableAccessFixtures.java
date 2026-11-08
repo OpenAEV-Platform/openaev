@@ -286,6 +286,150 @@ public final class TenantActiveTableAccessFixtures {
     }
   }
 
+  /** Changes a managed Setting with a setter and never saves it: dirty checking writes it. */
+  public static class PlatformRowDirtyCheckedWriter {
+
+    public void entry(Setting managed) {
+      managed.setValue("changed");
+    }
+  }
+
+  /** An HQL bulk statement on the table, in a method that never names the entity type. */
+  public static class PlatformRowHqlWriter {
+
+    private final EntityManager entityManager;
+
+    public PlatformRowHqlWriter(EntityManager entityManager) {
+      this.entityManager = entityManager;
+    }
+
+    public int entry(String key) {
+      return entityManager
+          .createQuery("delete from Setting s where s.key = :key")
+          .setParameter("key", key)
+          .executeUpdate();
+    }
+  }
+
+  /** A native statement on the table. */
+  public static class PlatformRowNativeWriter {
+
+    private final EntityManager entityManager;
+
+    public PlatformRowNativeWriter(EntityManager entityManager) {
+      this.entityManager = entityManager;
+    }
+
+    public int entry(String key) {
+      return entityManager
+          .createNativeQuery("UPDATE parameters SET parameter_value = 'x' WHERE parameter_key = ?1")
+          .setParameter(1, key)
+          .executeUpdate();
+    }
+  }
+
+  /** A JDBC statement on the table, the table name split across a concatenation. */
+  public static class PlatformRowJdbcWriter {
+
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    public PlatformRowJdbcWriter(org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+      this.jdbcTemplate = jdbcTemplate;
+    }
+
+    public int entry(String key) {
+      return jdbcTemplate.update("DELETE FROM " + "parameters WHERE parameter_key = ?", key);
+    }
+  }
+
+  /** A Hibernate session write of a Setting. */
+  public static class PlatformRowSessionWriter {
+
+    private final org.hibernate.Session session;
+
+    public PlatformRowSessionWriter(org.hibernate.Session session) {
+      this.session = session;
+    }
+
+    public void entry(Setting setting) {
+      session.merge(setting);
+    }
+  }
+
+  /** Statements and reads that do not touch the table. */
+  public static class StatementsThatAreNotPlatformRowWriters {
+
+    private final EntityManager entityManager;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    public StatementsThatAreNotPlatformRowWriters(
+        EntityManager entityManager, org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+      this.entityManager = entityManager;
+      this.jdbcTemplate = jdbcTemplate;
+    }
+
+    public int otherTable(String id) {
+      return entityManager
+          .createQuery("delete from Exercise e where e.id = :id")
+          .setParameter("id", id)
+          .executeUpdate();
+    }
+
+    public int otherTableByJdbc(String id) {
+      return jdbcTemplate.update(
+          "UPDATE exercises SET exercise_name = 'x' WHERE exercise_id = ?", id);
+    }
+
+    public Object readsTheTable() {
+      return entityManager
+          .createNativeQuery("SELECT parameter_value FROM parameters")
+          .getResultList();
+    }
+
+    public String readsASetting(Setting setting) {
+      return setting.getValue();
+    }
+  }
+
+  /** Writes a platform row through each new shape, every one inside the platform-write callback. */
+  public static class PlatformRowWritersUnderThePrimitive {
+
+    private final EntityManager entityManager;
+    private final TenantScopedTransaction tenantScopedTransaction;
+
+    public PlatformRowWritersUnderThePrimitive(
+        EntityManager entityManager, TenantScopedTransaction tenantScopedTransaction) {
+      this.entityManager = entityManager;
+      this.tenantScopedTransaction = tenantScopedTransaction;
+    }
+
+    public void entry(TxCtx ctx, Setting managed) {
+      tenantScopedTransaction.executeAsPlatformWrite(
+          ctx,
+          () -> {
+            managed.setValue("changed");
+            return entityManager
+                .createNativeQuery("UPDATE parameters SET parameter_value = 'x'")
+                .executeUpdate();
+          });
+    }
+  }
+
+  /** Calls a service method that saves settings, from a method that marks nothing. */
+  public static class UnmarkedCallerOfThePlatformSettingsService {
+
+    private final io.openaev.service.PlatformSettingsService platformSettingsService;
+
+    public UnmarkedCallerOfThePlatformSettingsService(
+        io.openaev.service.PlatformSettingsService platformSettingsService) {
+      this.platformSettingsService = platformSettingsService;
+    }
+
+    public void entry(io.openaev.rest.settings.form.SettingsSessionsUpdateInput input) {
+      platformSettingsService.updateSettingsSessions(input);
+    }
+  }
+
   /** The read is private and reached from a job method that sets no scope. */
   public static class TenantRowReaderFromAnUnscopedRoot {
 

@@ -2351,6 +2351,16 @@ class TenantActiveTableAccessArchTest {
    * such a marker. The methods of {@link PlatformRowWriters#TENANT_ROW_WRITERS} write tenant rows
    * only, each with its reason. A tenant row read with no scope still comes back empty; the readers
    * of tenant rows are covered by {@link #parameters_tenant_row_readers_off_the_request_thread}.
+   *
+   * <p>Covered: the settings repository writes (saveAll included), a setter of a {@code Setting}
+   * (dirty checking), an {@code EntityManager} / {@code Session} write of a {@code Setting}, a
+   * query {@code executeUpdate} and a JDBC statement whose text names the table, a
+   * {@code @Modifying} query of another repository naming it. Not covered: Flyway migrations, a
+   * statement assembled at run time, a {@code Setting} handled as {@code Object}, reflection. For
+   * what goes through Hibernate the platform write refusal in the database ({@code
+   * require_tenant_write}) catches those at run time; raw JDBC is not refused there, so for JDBC
+   * this rule is the only guard (both pinned by {@code PlatformSettingsUnscopedAccessTest}). The
+   * full list is in {@link PlatformRowWriters}.
    */
   @ArchTest
   static final ArchRule parameters_platform_row_writers_run_under_platform_write =
@@ -2359,8 +2369,12 @@ class TenantActiveTableAccessArchTest {
           .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite())
           .because(
               "parameters is dual-scope: a write of a platform row outside a platform-write"
-                  + " transaction is refused with an error. Every writer must sit under"
-                  + " @PlatformWrite or executeAsPlatformWrite/executeNewAsPlatformWrite");
+                  + " transaction is refused with an error. Every writer the rule can see (settings"
+                  + " repository writes, Setting setters, EntityManager/Session writes, statements"
+                  + " naming the table) must sit under @PlatformWrite or"
+                  + " executeAsPlatformWrite/executeNewAsPlatformWrite; migrations, run-time-built"
+                  + " statements and reflection are not seen here, and the database refusal covers"
+                  + " them only when they go through Hibernate");
 
   /**
    * Each tenant-row-only exemption is still a method that modifies a {@code Setting}: an entry for

@@ -34,6 +34,8 @@ final class CallSites {
 
   private static final Map<String, Map<String, Sites>> CACHE = new HashMap<>();
 
+  private static final Map<String, Map<String, Set<String>>> STRINGS = new HashMap<>();
+
   private CallSites() {}
 
   /** The sites of {@code methodName} in {@code owner}, every overload merged. */
@@ -41,6 +43,17 @@ final class CallSites {
     return CACHE
         .computeIfAbsent(owner.getName(), n -> read(owner))
         .getOrDefault(methodName, new Sites());
+  }
+
+  /**
+   * The string constants of {@code methodName} in {@code owner}, its lambdas included, every
+   * overload merged: a literal, a compile-time constant inlined from a field, and the constant
+   * parts of a concatenation. A string built at run time from something else is not here.
+   */
+  static synchronized Set<String> stringConstants(JavaClass owner, String methodName) {
+    return STRINGS
+        .computeIfAbsent(owner.getName(), n -> readStrings(owner))
+        .getOrDefault(methodName, Set.of());
   }
 
   /** True when the call is made from a lambda of the method and from no direct statement of it. */
@@ -123,6 +136,61 @@ final class CallSites {
                 .inLambdas()
                 .addAll(refs));
     return sites;
+  }
+
+  private static Map<String, Set<String>> readStrings(JavaClass owner) {
+    String resource = owner.getName().replace('.', '/') + ".class";
+    Map<String, Set<String>> bodies = new HashMap<>();
+    Map<String, String> creatorOfLambda = new HashMap<>();
+    try (InputStream in = owner.reflect().getClassLoader().getResourceAsStream(resource)) {
+      if (in == null) {
+        return Map.of();
+      }
+      new ClassReader(in)
+          .accept(
+              new ClassVisitor(Opcodes.ASM9) {
+                @Override
+                public MethodVisitor visitMethod(
+                    int access, String name, String descriptor, String signature, String[] ex) {
+                  Set<String> body = bodies.computeIfAbsent(name, n -> new HashSet<>());
+                  return new MethodVisitor(Opcodes.ASM9) {
+                    @Override
+                    public void visitLdcInsn(Object value) {
+                      if (value instanceof String text) {
+                        body.add(text);
+                      }
+                    }
+
+                    @Override
+                    public void visitInvokeDynamicInsn(
+                        String callee, String desc, Handle bsm, Object... bsmArgs) {
+                      for (Object arg : bsmArgs) {
+                        if (arg instanceof String recipe) {
+                          // The recipe of a string concatenation holds its constant parts.
+                          body.add(recipe);
+                        } else if (arg instanceof Handle handle
+                            && handle.getName().startsWith("lambda$")
+                            && handle.getOwner().equals(resource.replace(".class", ""))) {
+                          creatorOfLambda.put(handle.getName(), name);
+                        }
+                      }
+                    }
+                  };
+                }
+              },
+              ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+    } catch (IOException e) {
+      throw new IllegalStateException("cannot read " + resource, e);
+    }
+    Map<String, Set<String>> strings = new HashMap<>();
+    bodies.forEach(
+        (name, constants) ->
+            strings
+                .computeIfAbsent(
+                    name.startsWith("lambda$") ? topCreator(name, creatorOfLambda) : name,
+                    n -> new HashSet<>())
+                .addAll(constants));
+    return strings;
   }
 
   /** A lambda created in a lambda belongs to the method that encloses both. */
