@@ -35,6 +35,7 @@ import io.openaev.execution.ExecutionExecutorException;
 import io.openaev.execution.UnexecutableInjectException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -58,6 +59,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -1771,6 +1773,57 @@ public class InjectExecutionStepTest extends IntegrationTest {
         assertThrows(
             BadRequestException.class, () -> injectExecutionStep.create(step, workflowTemplate));
     assertTrue(ex.getMessage().contains(missingContractId));
+  }
+
+  @Test
+  void create_shouldKeepItsAnswer_whenTheWorkflowHasNeitherSimulationNorScenario()
+      throws Exception {
+    // create() refuses a workflow with no parent before stepData() runs, whatever the contract
+    // is: moving the parent check ahead of the contract check inside stepData() leaves this answer
+    // unchanged.
+    String missingContractId = "missing-" + UUID.randomUUID();
+    InjectInput injectInput =
+        mapper.readValue(
+            injectInputJson.replace(injectorContractSaved.getId(), missingContractId),
+            InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+
+    ChainingException ex =
+        assertThrows(
+            ChainingException.class, () -> injectExecutionStep.create(step, workflowTemplate));
+
+    assertTrue(ex.getMessage().contains("Workflow has no simulation or scenario"));
+  }
+
+  @Test
+  void stepData_shouldAnswerWith400_whenNeitherParentIsGivenAndTheContractDoesNotExist()
+      throws Exception {
+    // The parent tenant is read before the contract is looked up, so a step with neither parent
+    // is refused by the parent check, not by the contract check. Both exceptions are client errors
+    // that the REST layer answers with 400, so the status a caller sees does not change.
+    String missingContractId = "missing-" + UUID.randomUUID();
+    InjectInput injectInput =
+        mapper.readValue(
+            injectInputJson.replace(injectorContractSaved.getId(), missingContractId),
+            InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                ReflectionTestUtils.invokeMethod(
+                    injectExecutionStep, "stepData", step, null, null));
+
+    assertEquals("Exactly one of exercise or scenario should be present", ex.getMessage());
+    assertEquals(
+        HttpStatus.BAD_REQUEST, new RestBehavior().handleIllegalArgument(ex).getStatusCode());
+    assertEquals(
+        HttpStatus.BAD_REQUEST,
+        new RestBehavior()
+            .handleBadRequestException(new BadRequestException("missing"))
+            .getStatusCode());
   }
 
   @Test
