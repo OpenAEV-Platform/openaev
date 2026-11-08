@@ -149,7 +149,8 @@ class AmbientTenantBridgeTest extends IntegrationTest {
                     tenantA,
                     enabledFilterTenant(session),
                     "the filter goes back to the tenant it was armed on, not to the ambient one");
-                assertFalse(TenantContext.hasCurrentTenant(), "the ambient tenant is cleared again");
+                assertFalse(
+                    TenantContext.hasCurrentTenant(), "the ambient tenant is cleared again");
                 return null;
               });
     }
