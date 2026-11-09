@@ -7,6 +7,8 @@ name: "🔍 Aikido Rolling Image Scan"
 # does.
 
 on:
+  push:
+    branches: [ci/aikido-rolling-image-scan]
   schedule:
     - cron: "30 3 * * *"
   workflow_dispatch:
