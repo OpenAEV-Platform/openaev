@@ -22,9 +22,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
  * The direct inject execution attributes the inject it creates to its simulation's tenant on the
- * entity itself. {@link AmbientTenantBridge} is replaced by a pass-through here, so the ambient
- * tenant of the non-prefixed route (the default one) is what a write that relied on it would be
- * stamped with, and the tenant the row carries can only come from the inject.
+ * entity itself: {@code SimulationInjectApi} attaches it with {@code InjectUtils#attachToExercise},
+ * which sets the simulation's tenant before {@code TenantBaseListener} runs, and the listener keeps
+ * a tenant already set. {@link AmbientTenantBridge} is replaced by a pass-through here, so the
+ * ambient tenant of the non-prefixed route is the default one, and the tenant the row carries comes
+ * from the inject.
  */
 @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
 @DisplayName("A directly executed inject carries its simulation's tenant, not the ambient one")

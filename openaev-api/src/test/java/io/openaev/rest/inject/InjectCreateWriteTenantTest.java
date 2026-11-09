@@ -39,10 +39,12 @@ import org.springframework.test.context.DynamicPropertySource;
  * An inject created under a scenario or a simulation takes that parent's tenant. {@code injects}
  * carries the composite foreign key {@code (inject_injector_contract, tenant_id)} onto {@code
  * injectors_contracts}, and the contract is resolved in the parent's tenant, so an inject stamped
- * with any other tenant is refused by the database. Left to {@code TenantBaseListener}, the stamp
- * is the ambient tenant, and the non-prefixed route never sets it ({@code TenantInterceptor} arms
- * it on the tenant-prefixed route only), so a caller who belongs to several tenants reaches the
- * create with the platform default as the ambient tenant.
+ * with any other tenant is refused by the database. {@code InjectService} stamps the inject with
+ * its parent's tenant through {@code InjectUtils#attachToScenario} and {@code
+ * InjectUtils#attachToExercise}, so {@code TenantBaseListener} finds the tenant set and keeps it.
+ * The ambient tenant plays no part: the non-prefixed route never sets it ({@code TenantInterceptor}
+ * arms it on the tenant-prefixed route only), so a caller who belongs to several tenants reaches
+ * the create with the platform default as the ambient tenant.
  *
  * <p>The service is called directly, with a scope spanning the default tenant and the parent's: the
  * scenario and simulation inject endpoints do not find a parent of another tenant on the

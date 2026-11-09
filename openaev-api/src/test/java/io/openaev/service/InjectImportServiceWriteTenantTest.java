@@ -26,9 +26,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The XLS importer resolves the tenant it writes in once ({@code importXls}) and stamps the teams
- * it creates with it. An imported inject takes the same tenant: left to {@code TenantBaseListener},
- * it would carry the ambient tenant, which the non-prefixed route leaves on the platform default
- * while the contract it points at belongs to the target's tenant.
+ * it creates with it. An imported inject takes the same tenant: {@code InjectImportService} sets it
+ * on the inject it builds, and {@code InjectUtils#attachToScenario} or {@code
+ * InjectUtils#attachToExercise} sets the target's tenant when it attaches the inject, so {@code
+ * TenantBaseListener} finds the tenant set and keeps it. The ambient tenant, which the non-prefixed
+ * route leaves on the platform default, plays no part, while the contract the inject points at
+ * belongs to the target's tenant.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
