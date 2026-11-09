@@ -51,6 +51,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -588,20 +589,28 @@ public class PlayerUpsertKeepsOtherTenantLinksTest extends IntegrationTest {
     }
 
     private void updateTagsFromThePlatform(List<String> tagIds) throws Exception {
-      mvc.perform(
-              put(PLATFORM_USER_URI + "/" + player.getId())
-                  .content(
-                      asJsonString(
-                          userInputWithTags(tagIds, List.of(Tenant.DEFAULT_TENANT_UUID, tenantB))))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().isOk());
+      updateTagsFromThePlatform(tagIds, null);
+    }
+
+    /** With a header, the scope of the request is the tenants it names. */
+    private void updateTagsFromThePlatform(List<String> tagIds, String tenantHeader)
+        throws Exception {
+      MockHttpServletRequestBuilder request =
+          put(PLATFORM_USER_URI + "/" + player.getId())
+              .content(
+                  asJsonString(
+                      userInputWithTags(tagIds, List.of(Tenant.DEFAULT_TENANT_UUID, tenantB))))
+              .contentType(MediaType.APPLICATION_JSON)
+              .accept(MediaType.APPLICATION_JSON)
+              .with(csrf());
+      if (tenantHeader != null) {
+        request.header(TENANT_HEADER, tenantHeader);
+      }
+      mvc.perform(request).andExpect(status().isOk());
     }
 
     // This caller's scope covers every tenant, so the tags it asks for and the ones it drops are
-    // all in scope and the whole set is replaced. A platform caller whose scope covers fewer
-    // tenants keeps the links to the tags of the tenants it does not see.
+    // all in scope and the whole set is replaced.
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
     @DisplayName("Clearing the tags removes the links to the tags of every tenant")
@@ -622,6 +631,18 @@ public class PlayerUpsertKeepsOtherTenantLinksTest extends IntegrationTest {
 
       // -- ASSERT --
       assertEquals(sorted(tagOfDefault.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName("A scope of the default tenant only keeps the links to the tags of the others")
+    void given_platformUpdateWithAScopeOfTheDefaultTenant_should_keepTheTagsOutOfScope()
+        throws Exception {
+      // -- EXECUTE --
+      updateTagsFromThePlatform(List.of(), Tenant.DEFAULT_TENANT_UUID);
+
+      // -- ASSERT --
+      assertEquals(sorted(tagOfB.getId(), tagOfOutsider.getId()), linksOf("users_tags", "tag_id"));
     }
   }
 }
