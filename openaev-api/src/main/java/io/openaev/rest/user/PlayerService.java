@@ -295,6 +295,9 @@ public class PlayerService {
   public void deletePlayerOfTenant(TxCtx ctx, String userId) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     BaseEvent.attributeRequestEventsTo(tenantId, User.class);
+    // The deletes of one player from its tenants queue on its row, so the check on the memberships
+    // below reads what the previous one committed.
+    userRepository.lockRow(userId);
     userRepository.removeTeamsOfTenant(userId, tenantId);
     userRepository.removeSimulationTeamUsersOfTenant(userId, tenantId);
     userRepository.removeScenarioTeamUsersOfTenant(userId, tenantId);
