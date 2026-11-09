@@ -981,10 +981,10 @@ class PlayerApiTest extends IntegrationTest {
         .andExpect(status().isForbidden());
   }
 
-  @DisplayName("Given a player of the tenant, should remove it from that tenant")
+  @DisplayName("Given a player of that tenant only, should delete it")
   @Test
   @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-  void given_playerOfTheTenant_should_removeItFromTheTenant() throws Exception {
+  void given_playerOfTheTenantOnly_should_deleteIt() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
     User user = new User();
@@ -1002,7 +1002,7 @@ class PlayerApiTest extends IntegrationTest {
         .andExpect(status().is2xxSuccessful());
 
     // -- ASSERT --
-    assertTrue(this.userRepository.findById(user.getId()).isPresent());
+    assertTrue(this.userRepository.findById(user.getId()).isEmpty());
     assertTrue(this.userRepository.findTenantIdsByUserId(user.getId()).isEmpty());
   }
 

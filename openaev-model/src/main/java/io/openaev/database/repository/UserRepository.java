@@ -315,6 +315,45 @@ public interface UserRepository
   void removeOrganizationsOfTenant(
       @Param("userId") String userId, @Param("tenantId") String tenantId);
 
+  // Native: set-based deletes of the links a user holds in one tenant, each scoped by tenant
+  // through
+  // a sub-query. They touch join tables that are not indexed, audited nor streamed, and a link
+  // table row cannot be removed through the loaded collections without reading every team,
+  // simulation and scenario of the tenant.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM users_teams WHERE user_id = :userId AND team_id IN ("
+              + "SELECT team_id FROM teams WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeTeamsOfTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM users_tags WHERE user_id = :userId AND tag_id IN ("
+              + "SELECT tag_id FROM tags WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeTagsOfTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM exercises_teams_users WHERE user_id = :userId AND exercise_id IN ("
+              + "SELECT exercise_id FROM exercises WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeSimulationTeamUsersOfTenant(
+      @Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM scenarios_teams_users WHERE user_id = :userId AND scenario_id IN ("
+              + "SELECT scenario_id FROM scenarios WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeScenarioTeamUsersOfTenant(
+      @Param("userId") String userId, @Param("tenantId") String tenantId);
+
   // Native: atomic upsert (ON CONFLICT) on a join table that is not indexed, audited nor streamed.
   @Modifying(flushAutomatically = true)
   @Query(

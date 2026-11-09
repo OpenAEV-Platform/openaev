@@ -129,7 +129,10 @@ public class PlayerService {
                   .toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
-        ctx, "players", userIdsToDelete, chunk -> chunk.forEach(id -> detachPlayer(ctx, id)));
+        ctx,
+        "players",
+        userIdsToDelete,
+        chunk -> chunk.forEach(id -> deletePlayerOfTenant(ctx, id)));
   }
 
   public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {
@@ -275,12 +278,23 @@ public class PlayerService {
   }
 
   /**
-   * Removes a player from the tenant the request writes in, as the tenant user endpoint does: its
-   * membership of that tenant and the groups that membership granted go, the user and its
-   * memberships of other tenants stay.
+   * Deletes a player from the tenant the request writes in: every link the player holds in that
+   * tenant goes (team memberships, simulation and scenario team users, tag links, organization),
+   * then its membership and the groups that membership granted. A player left with no membership is
+   * deleted, as on a single-tenant installation; one that still belongs to another tenant keeps its
+   * account and the links it holds there.
    */
-  public void detachPlayer(TxCtx ctx, String userId) {
+  public void deletePlayerOfTenant(TxCtx ctx, String userId) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    userRepository.removeTeamsOfTenant(userId, tenantId);
+    userRepository.removeSimulationTeamUsersOfTenant(userId, tenantId);
+    userRepository.removeScenarioTeamUsersOfTenant(userId, tenantId);
+    userRepository.removeTagsOfTenant(userId, tenantId);
+    userRepository.removeOrganizationsOfTenant(userId, tenantId);
     tenantUserService.detach(ctx, userId);
+    if (userRepository.findTenantIdsByUserId(userId).isEmpty()) {
+      userService.delete(userId);
+    }
   }
 
   /**

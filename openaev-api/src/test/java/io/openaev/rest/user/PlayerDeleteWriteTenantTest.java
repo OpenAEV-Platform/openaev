@@ -11,14 +11,33 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Exercise;
+import io.openaev.database.model.Organization;
+import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Tag;
+import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.OrganizationRepository;
+import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.database.repository.TagRepository;
+import io.openaev.database.repository.TeamRepository;
 import io.openaev.rest.user.form.player.PlayerBulkProcessingInput;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.ExerciseFixture;
+import io.openaev.utils.fixtures.OrganizationFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.TagFixture;
+import io.openaev.utils.fixtures.TeamFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -56,6 +75,11 @@ public class PlayerDeleteWriteTenantTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private UserComposer userComposer;
+  @Autowired private TeamRepository teamRepository;
+  @Autowired private ExerciseRepository exerciseRepository;
+  @Autowired private ScenarioRepository scenarioRepository;
+  @Autowired private TagRepository tagRepository;
+  @Autowired private OrganizationRepository organizationRepository;
 
   private String tenantA;
   private String tenantB;
@@ -92,6 +116,137 @@ public class PlayerDeleteWriteTenantTest extends IntegrationTest {
         .setParameter("id", player.getId())
         .getResultList();
   }
+
+  /** Builds and saves what the fixtures stamp with the ambient tenant, in the given tenant. */
+  private <T> T inTenant(String tenantId, Supplier<T> create) {
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      return create.get();
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+
+  /** What one tenant holds about a player: a team used by a simulation and a scenario, a tag. */
+  private record LinksOf(
+      Team team, Exercise exercise, Scenario scenario, Tag tag, Organization org) {}
+
+  // Tags and organizations are v2 tables: nothing stamps the ambient tenant on them.
+  private static Tag tagOf(String tenantId) {
+    Tag tag = TagFixture.getTagWithText("tag-of-" + tenantId + UUID.randomUUID());
+    tag.setTenant(new Tenant(tenantId));
+    return tag;
+  }
+
+  private static Organization organizationOf(String tenantId) {
+    Organization organization = OrganizationFixture.createDefaultOrganisation();
+    organization.setTenant(new Tenant(tenantId));
+    return organization;
+  }
+
+  private LinksOf linkTo(User player, String tenantId) {
+    LinksOf links =
+        inTenant(
+            tenantId,
+            () ->
+                new LinksOf(
+                    teamRepository.save(TeamFixture.getEmptyTeam()),
+                    exerciseRepository.save(ExerciseFixture.createDefaultExercise()),
+                    scenarioRepository.save(ScenarioFixture.createDefaultCrisisScenario()),
+                    tagRepository.save(tagOf(tenantId)),
+                    organizationRepository.save(organizationOf(tenantId))));
+    entityManager.flush();
+    execute(
+        "INSERT INTO users_teams (user_id, team_id) VALUES (:user, :team)",
+        player,
+        "team",
+        links.team().getId());
+    execute(
+        "INSERT INTO exercises_teams_users (exercise_id, team_id, user_id)"
+            + " VALUES (:exercise, :team, :user)",
+        player,
+        "exercise",
+        links.exercise().getId(),
+        "team",
+        links.team().getId());
+    execute(
+        "INSERT INTO scenarios_teams_users (scenario_id, team_id, user_id)"
+            + " VALUES (:scenario, :team, :user)",
+        player,
+        "scenario",
+        links.scenario().getId(),
+        "team",
+        links.team().getId());
+    execute(
+        "INSERT INTO users_tags (user_id, tag_id) VALUES (:user, :tag)",
+        player,
+        "tag",
+        links.tag().getId());
+    execute(
+        "INSERT INTO users_organizations (user_id, organization_id) VALUES (:user, :org)",
+        player,
+        "org",
+        links.org().getId());
+    return links;
+  }
+
+  private void execute(String sql, User player, Object... namesAndValues) {
+    var query = entityManager.createNativeQuery(sql).setParameter("user", player.getId());
+    for (int i = 0; i < namesAndValues.length; i += 2) {
+      query.setParameter((String) namesAndValues[i], namesAndValues[i + 1]);
+    }
+    query.executeUpdate();
+  }
+
+  /** The number of rows the player holds in a link table, restricted to the given ids. */
+  private int rowsOf(User player, String table, String column, String id) {
+    entityManager.flush();
+    return ((Number)
+            entityManager
+                .createNativeQuery(
+                    "SELECT count(*) FROM "
+                        + table
+                        + " WHERE user_id = :id AND "
+                        + column
+                        + " = :linked")
+                .setParameter("id", player.getId())
+                .setParameter("linked", id)
+                .getSingleResult())
+        .intValue();
+  }
+
+  /** The link rows the player holds to what one tenant owns, by link table. */
+  private Map<String, Integer> linksHeldBy(User player, LinksOf links) {
+    Map<String, Integer> rows = new LinkedHashMap<>();
+    rows.put("users_teams", rowsOf(player, "users_teams", "team_id", links.team().getId()));
+    rows.put(
+        "exercises_teams_users",
+        rowsOf(player, "exercises_teams_users", "exercise_id", links.exercise().getId()));
+    rows.put(
+        "scenarios_teams_users",
+        rowsOf(player, "scenarios_teams_users", "scenario_id", links.scenario().getId()));
+    rows.put("users_tags", rowsOf(player, "users_tags", "tag_id", links.tag().getId()));
+    rows.put(
+        "users_organizations",
+        rowsOf(player, "users_organizations", "organization_id", links.org().getId()));
+    return rows;
+  }
+
+  private static final Map<String, Integer> NO_LINKS =
+      Map.of(
+          "users_teams", 0,
+          "exercises_teams_users", 0,
+          "scenarios_teams_users", 0,
+          "users_tags", 0,
+          "users_organizations", 0);
+
+  private static final Map<String, Integer> ALL_LINKS =
+      Map.of(
+          "users_teams", 1,
+          "exercises_teams_users", 1,
+          "scenarios_teams_users", 1,
+          "users_tags", 1,
+          "users_organizations", 1);
 
   private boolean exists(User player) {
     entityManager.flush();
@@ -194,8 +349,8 @@ public class PlayerDeleteWriteTenantTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given_memberOfBOnly_should_leaveThePlayerWithoutMembership")
-    void given_memberOfBOnly_should_leaveThePlayerWithoutMembership() throws Exception {
+    @DisplayName("given_memberOfBOnly_should_deleteTheAccount")
+    void given_memberOfBOnly_should_deleteTheAccount() throws Exception {
       // Arrange
       User player = playerOf(tenantB);
 
@@ -203,8 +358,43 @@ public class PlayerDeleteWriteTenantTest extends IntegrationTest {
       mvc.perform(deleteOne(player, true)).andExpect(status().is2xxSuccessful());
 
       // Assert
+      assertThat(exists(player)).isFalse();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given_memberOfBOnlyWithLinksOfB_should_removeEveryLinkAndTheAccount")
+    void given_memberOfBOnlyWithLinksOfB_should_removeEveryLinkAndTheAccount() throws Exception {
+      // Arrange
+      User player = playerOf(tenantB);
+      LinksOf linksOfB = linkTo(player, tenantB);
+      assertThat(linksHeldBy(player, linksOfB)).isEqualTo(ALL_LINKS);
+
+      // Act
+      mvc.perform(deleteOne(player, true)).andExpect(status().is2xxSuccessful());
+
+      // Assert
+      assertThat(linksHeldBy(player, linksOfB)).isEqualTo(NO_LINKS);
+      assertThat(exists(player)).isFalse();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given_memberOfAAndBWithLinksOfBoth_should_removeTheLinksOfBOnly")
+    void given_memberOfAAndBWithLinksOfBoth_should_removeTheLinksOfBOnly() throws Exception {
+      // Arrange
+      User player = playerOf(tenantA, tenantB);
+      LinksOf linksOfA = linkTo(player, tenantA);
+      LinksOf linksOfB = linkTo(player, tenantB);
+
+      // Act
+      mvc.perform(deleteOne(player, false)).andExpect(status().is2xxSuccessful());
+
+      // Assert
+      assertThat(linksHeldBy(player, linksOfB)).isEqualTo(NO_LINKS);
+      assertThat(linksHeldBy(player, linksOfA)).isEqualTo(ALL_LINKS);
       assertThat(exists(player)).isTrue();
-      assertThat(membershipsOf(player)).isEmpty();
+      assertThat(membershipsOf(player)).containsExactly(tenantA);
     }
   }
 
@@ -248,6 +438,29 @@ public class PlayerDeleteWriteTenantTest extends IntegrationTest {
       assertThat(exists(ofA)).isTrue();
       assertThat(membershipsOf(ofA)).containsExactly(tenantA);
       assertThat(exists(ofBAndA)).isTrue();
+      assertThat(membershipsOf(ofBAndA)).containsExactly(tenantA);
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given_playersWithLinksOfB_should_removeThemAndDeleteTheOnesWithoutMembership")
+    void given_playersWithLinksOfB_should_removeThemAndDeleteTheOnesWithoutMembership()
+        throws Exception {
+      // Arrange
+      User ofBOnly = playerOf(tenantB);
+      LinksOf linksOfBOnly = linkTo(ofBOnly, tenantB);
+      User ofBAndA = playerOf(tenantA, tenantB);
+      LinksOf linksOfA = linkTo(ofBAndA, tenantA);
+      LinksOf linksOfB = linkTo(ofBAndA, tenantB);
+
+      // Act
+      mvc.perform(deleteMany(true, ofBOnly, ofBAndA)).andExpect(status().isOk());
+
+      // Assert
+      assertThat(linksHeldBy(ofBOnly, linksOfBOnly)).isEqualTo(NO_LINKS);
+      assertThat(exists(ofBOnly)).isFalse();
+      assertThat(linksHeldBy(ofBAndA, linksOfB)).isEqualTo(NO_LINKS);
+      assertThat(linksHeldBy(ofBAndA, linksOfA)).isEqualTo(ALL_LINKS);
       assertThat(membershipsOf(ofBAndA)).containsExactly(tenantA);
     }
   }

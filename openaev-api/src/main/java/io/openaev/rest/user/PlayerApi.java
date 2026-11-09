@@ -145,7 +145,7 @@ public class PlayerApi extends RestBehavior {
     if (user.getId().equals(userService.currentUser().getId())) {
       throw new ForbiddenException("You cannot delete your own account");
     }
-    playerService.detachPlayer(ctx, userId);
+    playerService.deletePlayerOfTenant(ctx, userId);
   }
 
   @ApiResponses(
