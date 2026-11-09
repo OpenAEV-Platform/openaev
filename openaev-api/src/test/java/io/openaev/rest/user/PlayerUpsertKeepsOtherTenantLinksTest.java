@@ -292,9 +292,69 @@ public class PlayerUpsertKeepsOtherTenantLinksTest extends IntegrationTest {
     return tag;
   }
 
+  /** The first and last name the database holds for the player, whatever the session saw. */
+  private List<String> namesOfPlayer() {
+    entityManager.flush();
+    Object[] row =
+        (Object[])
+            entityManager
+                .createNativeQuery(
+                    "SELECT user_firstname, user_lastname FROM users WHERE user_id = :id")
+                .setParameter("id", player.getId())
+                .getSingleResult();
+    return List.of((String) row[0], (String) row[1]);
+  }
+
   @Nested
   @DisplayName("Updating the tags of a user")
   class TagReplacement {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, a player update saves its profile and its tags")
+    void given_headerNamingTenantB_should_saveTheProfileWithTheTagsOfAPlayer() throws Exception {
+      // -- PREPARE --
+      Tag replacement = addedTagIn(tenantB);
+      PlayerInput input = playerInputReplacingTagsWith(replacement);
+      input.setFirstname("Renamed-" + UUID.randomUUID());
+      input.setLastname("Surname-" + UUID.randomUUID());
+
+      // -- EXECUTE --
+      mvc.perform(
+              put(PLAYER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(List.of(input.getFirstname(), input.getLastname()), namesOfPlayer());
+      assertEquals(
+          sorted(tagOfDefault.getId(), replacement.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, a user update saves its profile and its tags")
+    void given_headerNamingTenantB_should_saveTheProfileWithTheTagsOfAUser() throws Exception {
+      // -- PREPARE --
+      Tag replacement = addedTagIn(tenantB);
+
+      // -- EXECUTE --
+      mvc.perform(
+              put(USER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(userInputReplacingTagsWith(replacement)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(List.of("Changed", "User"), namesOfPlayer());
+      assertEquals(
+          sorted(tagOfDefault.getId(), replacement.getId()), linksOf("users_tags", "tag_id"));
+    }
 
     @Test
     @WithMockUser(isAdmin = true)
