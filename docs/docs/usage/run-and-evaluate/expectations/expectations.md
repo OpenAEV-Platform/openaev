@@ -31,7 +31,9 @@ Automatic Expectations are validated by technical signals from connected securit
 |---|---|
 | Prevention | A security control blocks the attack |
 | Detection | A security alert or incident is raised |
+{%- if feature_visible("LOGGING_EXPECTATION") %}
 | Logging | The attack left raw events in the logs of a security tool, whatever its alerts say |
+{%- endif %}
 | Vulnerability | A CVE is present on the target |
 | Article | Targets read or acknowledge a media pressure article |
 
@@ -142,23 +144,28 @@ The default score can be configured via environment variable:
 
 ## Expiration
 
-Expectations must validate within a defined time window. If the time expires, the Expectation fails automatically and the result is marked as "Not Detected", "Not Prevented", "Not Logged", or equivalent.
+Expectations must validate within a defined time window. If the time expires, the Expectation fails automatically and the result is marked as "Not Detected", "Not Prevented", or equivalent.
 
 ### Default expiration values
 
 | Expectation type | Default |
 |---|---|
-| Detection / Prevention / Logging | 6 hours |
+| Detection / Prevention | 6 hours |
+{%- if feature_visible("LOGGING_EXPECTATION") %}
+| Logging | 6 hours |
+{%- endif %}
 | Human (manual, article, challenge) | 24 hours |
 
 Override expiration times globally (environment variables) or per Expectation (UI):
 
 | Parameter | Environment variable | Default (seconds) | Description |
 |---|---|---|---|
-| `openaev.expectation.technical.expiration-time` | `OPENAEV_EXPECTATION_TECHNICAL_EXPIRATION-TIME` | 21600 | Technical Expectations (detection, prevention and logging) |
+| `openaev.expectation.technical.expiration-time` | `OPENAEV_EXPECTATION_TECHNICAL_EXPIRATION-TIME` | 21600 | Technical Expectations (detection and prevention) |
 | `openaev.expectation.detection.expiration-time` | `OPENAEV_EXPECTATION_DETECTION_EXPIRATION-TIME` | 21600 | Detection Expectations |
 | `openaev.expectation.prevention.expiration-time` | `OPENAEV_EXPECTATION_PREVENTION_EXPIRATION-TIME` | 21600 | Prevention Expectations |
-| `openaev.expectation.logging.expiration-time` | `OPENAEV_EXPECTATION_LOGGING_EXPIRATION-TIME` | 21600 | Logging Expectations. When unset, the technical expiration time applies |
+{%- if feature_visible("LOGGING_EXPECTATION") %}
+| `openaev.expectation.logging.expiration-time` | `OPENAEV_EXPECTATION_LOGGING_EXPIRATION-TIME` | 21600 | Logging Expectations ("Not Logged" when they expire). When unset, the technical expiration time applies |
+{%- endif %}
 | `openaev.expectation.human.expiration-time` | `OPENAEV_EXPECTATION_HUMAN_EXPIRATION-TIME` | 86400 | Human Expectations (manual, challenge, article) |
 | `openaev.expectation.challenge.expiration-time` | `OPENAEV_EXPECTATION_CHALLENGE_EXPIRATION-TIME` | 86400 | Challenge Expectations |
 | `openaev.expectation.article.expiration-time` | `OPENAEV_EXPECTATION_ARTICLE_EXPIRATION-TIME` | 86400 | Article Expectations |

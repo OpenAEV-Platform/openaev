@@ -9,8 +9,10 @@ To see the Collectors you can deploy, open **Integrations** and the **Available*
 
 ### Detection & prevention (SIEM, XDR, EDR, NDR)
 
-These Collectors connect to SIEM (Security Information and Event Management), XDR (Extended Detection and Response), EDR (Endpoint Detection and Response) and NDR (Network Detection and Response) tools. They fill the detection and prevention expectations of Injects, and some SIEM Collectors also fill logging
-expectations (see [Logging with SIEM](#logging-with-siem)).
+These Collectors connect to SIEM (Security Information and Event Management), XDR (Extended Detection and Response), EDR (Endpoint Detection and Response) and NDR (Network Detection and Response) tools. They fill the detection and prevention expectations of Injects.
+{% if feature_visible("LOGGING_EXPECTATION") %}
+Some SIEM Collectors also fill logging expectations (see [Logging with SIEM](#logging-with-siem)).
+{% endif %}
 
 If no matching data is found before the expectation expires (6 hours by default), the Inject is marked as not detected or not prevented.
 
@@ -28,6 +30,7 @@ validate it as well.
 
 This means the EDR Collector must first validate the Expectation before the SIEM Collector can perform its task.
 
+{% if feature_visible("LOGGING_EXPECTATION") %}
 #### Logging with SIEM
 
 A SIEM also stores the raw events that the endpoints send, whether or not they raise an alert. A SIEM Collector can
@@ -37,6 +40,7 @@ Expectation first.
 
 The [Splunk Enterprise Security](https://github.com/OpenAEV-Platform/collectors/tree/main/splunk-es) Collector does this
 when Logging is enabled in its configuration.
+{% endif %}
 
 ### Threat intelligence
 
