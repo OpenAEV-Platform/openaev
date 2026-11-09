@@ -264,6 +264,68 @@ class XtmComposerRegistrationAuthorizationTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_PLATFORM_SETTINGS},
+        autoJoinDefaultTenant = true)
+    @DisplayName(
+        "given_platformSettingsManagerOfTheTenant_should_registerAndRefreshOnTheTenantRoute")
+    void given_platformSettingsManagerOfTheTenant_should_registerAndRefreshOnTheTenantRoute()
+        throws Exception {
+      // Arrange: a non-administrator that holds the platform setting write right and is a member
+      // of the tenant the route names
+      seedRegistration();
+      String tenantRoute = TENANT_XTMCOMPOSER_URI.replace("{tenantId}", Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      mvc.perform(
+              post(tenantRoute + "/register")
+                  .content(registerBody("new-composer", "new-public-key"))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+      mvc.perform(
+              put(tenantRoute + "/new-composer/refresh-connectivity")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert
+      assertEquals("new-composer", stored(XTM_COMPOSER_ID.key()));
+      assertEquals("new-public-key", stored(XTM_COMPOSER_PUBLIC_KEY.key()));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_SETTINGS})
+    @DisplayName(
+        "given_platformSettingsManagerWithNoMembership_should_refuseBothWritesOnTheTenantRoute")
+    void given_platformSettingsManagerWithNoMembership_should_refuseBothWritesOnTheTenantRoute()
+        throws Exception {
+      // Arrange: the tenant route admits a caller that is a member of the tenant it names, whatever
+      // the capability the endpoint needs; the platform route is the one for an identity with no
+      // membership
+      seedRegistration();
+      String tenantRoute = TENANT_XTMCOMPOSER_URI.replace("{tenantId}", Tenant.DEFAULT_TENANT_UUID);
+
+      // Act + Assert
+      mvc.perform(
+              post(tenantRoute + "/register")
+                  .content(registerBody("hijacked-composer", "hijacked-public-key"))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+      mvc.perform(
+              put(tenantRoute + "/" + REGISTERED_ID + "/refresh-connectivity")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
+      assertRegistrationUntouched();
+    }
+
+    @Test
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("given_administrator_should_registerOnTheTenantRoute")
     void given_administrator_should_registerOnTheTenantRoute() throws Exception {

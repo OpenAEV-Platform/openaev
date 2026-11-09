@@ -14,9 +14,9 @@ This page explains how to upgrade OpenAEV. The steps depend on your [installatio
 
 !!! warning "XTM Composer needs the platform settings write right"
 
-    XTM Composer registers itself with `POST /api/xtm-composer/register` and refreshes its connectivity with `PUT /api/xtm-composer/{id}/refresh-connectivity`. Both calls require the platform settings write right, on the platform route and on the tenant route. A token user that holds only the catalog write right gets a 403, and the composer stays unregistered.
+    XTM Composer registers itself with `POST /api/xtm-composer/register` and refreshes its connectivity with `PUT /api/xtm-composer/{id}/refresh-connectivity`. Both calls require the platform settings write right. A token user that holds only the catalog write right gets a 403, and the composer stays unregistered.
 
-    Run XTM Composer with an administrator token, or give its user the platform settings write right.
+    Run XTM Composer with an administrator token, or give its user the platform settings write right. A user that belongs to no tenant calls the platform route; the tenant route (`/api/tenants/{tenantId}/xtm-composer/...`) also requires membership of the tenant it names.
 
 !!! warning "Name the tenant when you read or save the autonomous run default agents"
 
