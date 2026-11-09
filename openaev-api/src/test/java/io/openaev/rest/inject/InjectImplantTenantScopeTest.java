@@ -42,6 +42,7 @@ import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.KeepRabbit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -330,6 +331,218 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
       entityManager.flush();
       assertThat(executionTraceCount(seeded.injectId())).isPositive();
     }
+  }
+
+  /**
+   * A caller that holds the runtime capability in two tenants (A and B), with no capability in the
+   * default tenant. Only the prefixed route lets it past {@code @AccessControl}: the non-prefixed
+   * route checks the capability in the ambient tenant, which is the default one, before it looks at
+   * the scope. The scope on the prefixed route is the path tenant, never the union of the
+   * memberships.
+   */
+  @Nested
+  @WithMockUser
+  @DisplayName("A caller with the runtime capability in two tenants, none in the default one")
+  class MultiMembershipCaller {
+
+    private String tenantA;
+    private String tenantB;
+    private String tenantC;
+
+    @BeforeEach
+    void createTenants() throws Exception {
+      tenantA =
+          tenantHelper
+              .createTenantWithCapabilities("implant-a", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      tenantB =
+          tenantHelper
+              .createTenantWithCapabilities("implant-b", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      tenantC =
+          tenantRepository.save(TenantFixture.getTenant("implant-c-" + UUID.randomUUID())).getId();
+    }
+
+    @AfterEach
+    void deleteTenants() {
+      tenantHelper.deleteCommittedTenants(tenantA, tenantB, tenantC);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is served for an inject of the tenant of the path")
+    void given_prefixedRouteOfOneMembership_should_serveAnInjectOfThatTenant(Endpoint endpoint)
+        throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(tenantB, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.PREFIXED, tenantB, seeded);
+
+      // Assert
+      result.andExpect(status().is2xxSuccessful());
+      assertThat(executionTraceCount(seeded.injectId())).isPositive();
+    }
+
+    @ParameterizedTest(name = "{0} on an inject of tenant {1}")
+    @MethodSource("io.openaev.rest.inject.InjectImplantTenantScopeTest#endpointsAndOtherTenants")
+    @DisplayName("is refused, and writes nothing, for an inject outside the tenant of the path")
+    void given_prefixedRoute_should_refuseAnInjectOutsideThePathTenant(
+        Endpoint endpoint, String otherTenant) throws Exception {
+      // Arrange: the agent and its asset are in the path tenant, so only the inject is outside it.
+      // "A" is a tenant the caller belongs to, "C" one it does not.
+      String injectTenant = "A".equals(otherTenant) ? tenantA : tenantC;
+      Seeded seeded = inTenant(injectTenant, InjectImplantTenantScopeTest.this::seed);
+      moveAgentAndAssetTo(seeded, tenantB);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.PREFIXED, tenantB, seeded);
+
+      // Assert
+      assertAgentAccessDenied(result);
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+
+    @ParameterizedTest(name = "{0} on {1}")
+    @MethodSource(UNPREFIXED_CALLS)
+    @DisplayName("is refused on a route that sets no ambient tenant, even for its own tenant")
+    void given_nonPrefixedRoute_should_refuseBeforeTheScopeIsRead(Endpoint endpoint, Route route)
+        throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(tenantB, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result = perform(endpoint, route, tenantB, seeded);
+
+      // Assert
+      result.andExpect(status().isForbidden());
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+  }
+
+  /**
+   * The same caller with the capability in the default tenant too: the ambient tenant of the
+   * non-prefixed route then passes the capability check, and the scope is the whole membership set
+   * (no selector) or the tenant {@code X-Tenant-Ids} names.
+   */
+  @Nested
+  @WithMockUser
+  @DisplayName("A caller with the runtime capability in the default tenant and in two others")
+  class MultiMembershipCallerWithDefault {
+
+    private String tenantA;
+    private String tenantB;
+    private String tenantC;
+    private List<String> defaultGroupIds;
+    private List<String> defaultRoleIds;
+
+    @BeforeEach
+    void createTenants() throws Exception {
+      tenantA =
+          tenantHelper
+              .createTenantWithCapabilities("implant-a", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      tenantB =
+          tenantHelper
+              .createTenantWithCapabilities("implant-b", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      tenantC =
+          tenantRepository.save(TenantFixture.getTenant("implant-c-" + UUID.randomUUID())).getId();
+      tenantHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.AGENT_RUNTIME_ACCESS));
+      JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+      String userId = testUserHolder.get().getId();
+      defaultGroupIds =
+          jdbc.queryForList(
+              "SELECT g.group_id FROM groups g JOIN users_groups ug ON ug.group_id = g.group_id"
+                  + " WHERE g.tenant_id = ? AND ug.user_id = ?",
+              String.class,
+              Tenant.DEFAULT_TENANT_UUID,
+              userId);
+      defaultRoleIds =
+          defaultGroupIds.isEmpty()
+              ? List.of()
+              : jdbc.queryForList(
+                  "SELECT DISTINCT gr.role_id FROM groups_roles gr WHERE gr.group_id IN ("
+                      + String.join(",", Collections.nCopies(defaultGroupIds.size(), "?"))
+                      + ")",
+                  String.class,
+                  defaultGroupIds.toArray());
+    }
+
+    @AfterEach
+    void deleteTenants() {
+      // The role and group granted in the default tenant are committed: remove them.
+      JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+      defaultGroupIds.forEach(
+          id -> {
+            jdbc.update("DELETE FROM users_groups WHERE group_id = ?", id);
+            jdbc.update("DELETE FROM groups_roles WHERE group_id = ?", id);
+            jdbc.update("DELETE FROM groups WHERE group_id = ?", id);
+          });
+      defaultRoleIds.forEach(
+          id -> {
+            jdbc.update("DELETE FROM roles_capabilities WHERE role_id = ?", id);
+            jdbc.update("DELETE FROM roles WHERE role_id = ?", id);
+          });
+      tenantHelper.detachCurrentUserFromTenant(Tenant.DEFAULT_TENANT_UUID);
+      tenantHelper.deleteCommittedTenants(tenantA, tenantB, tenantC);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is served, with no selector, for an inject of one of its tenants")
+    void given_noSelector_should_serveAnInjectOfAMembershipTenant(Endpoint endpoint)
+        throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(tenantB, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.NON_PREFIXED, tenantB, seeded);
+
+      // Assert
+      result.andExpect(status().is2xxSuccessful());
+      assertThat(executionTraceCount(seeded.injectId())).isPositive();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is refused, with no selector, for an inject of a tenant it does not belong to")
+    void given_noSelector_should_refuseAnInjectOfAForeignTenant(Endpoint endpoint)
+        throws Exception {
+      // Arrange: the agent and its asset are in a membership tenant, so only the inject is foreign.
+      Seeded seeded = inTenant(tenantC, InjectImplantTenantScopeTest.this::seed);
+      moveAgentAndAssetTo(seeded, tenantB);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.NON_PREFIXED, tenantB, seeded);
+
+      // Assert
+      assertAgentAccessDenied(result);
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is refused when the selector names another tenant than the one of the inject")
+    void given_selectorOfOneTenant_should_refuseAnInjectOfAnotherMembershipTenant(Endpoint endpoint)
+        throws Exception {
+      // Arrange: both tenants are memberships of the caller, the selector narrows the scope to A.
+      Seeded seeded = inTenant(tenantB, InjectImplantTenantScopeTest.this::seed);
+      moveAgentAndAssetTo(seeded, tenantA);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.SELECTOR_HEADER, tenantA, seeded);
+
+      // Assert
+      assertAgentAccessDenied(result);
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+  }
+
+  static Stream<Arguments> endpointsAndOtherTenants() {
+    return Stream.of(Endpoint.values())
+        .flatMap(endpoint -> Stream.of("A", "C").map(tenant -> Arguments.of(endpoint, tenant)));
   }
 
   // -- helpers --
