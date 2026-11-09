@@ -10,6 +10,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.openaev.IntegrationTest;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
@@ -24,6 +28,7 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.service.InjectExecutionCallbackService;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -67,6 +72,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -143,6 +149,7 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private InjectExecutionCallbackService injectExecutionCallbackService;
+  @Autowired private InjectService injectService;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private InjectorContractComposer injectorContractComposer;
@@ -555,6 +562,90 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
       // Assert
       assertAgentAccessDenied(result);
       assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+  }
+
+  /**
+   * The refusal of the tenant gate logs the inject id the caller chose, on one line. The service is
+   * called directly: the servlet container and the HTTP firewall refuse a line break in a path
+   * before it reaches the endpoint, so this is the gate's own guarantee.
+   */
+  @Nested
+  @WithMockUser
+  @DisplayName("The log line of the tenant gate")
+  class GateLogLine {
+
+    private String memberTenant;
+    private ListAppender<ILoggingEvent> appender;
+    private Logger gateLogger;
+    private Level previousLevel;
+
+    @BeforeEach
+    void captureTheLog() throws Exception {
+      memberTenant =
+          tenantHelper
+              .createTenantWithCapabilities("implant-log", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      gateLogger = (Logger) LoggerFactory.getLogger(InjectService.class);
+      previousLevel = gateLogger.getLevel();
+      // The test configuration keeps the root level at ERROR: the refusal is logged at WARN
+      gateLogger.setLevel(Level.WARN);
+      appender = new ListAppender<>();
+      appender.start();
+      gateLogger.addAppender(appender);
+    }
+
+    @AfterEach
+    void releaseTheLog() {
+      gateLogger.detachAppender(appender);
+      gateLogger.setLevel(previousLevel);
+      tenantHelper.deleteCommittedTenants(memberTenant);
+    }
+
+    @Test
+    @DisplayName("holds no line break of the inject id")
+    void given_lineBreakInTheInjectId_should_logOneLine() {
+      // Arrange
+      String injectId = "before\r\nWARN second line\nafter";
+
+      // Act
+      assertThatThrownBy(() -> refusedGate(injectId)).isInstanceOf(ForbiddenException.class);
+
+      // Assert
+      assertThat(gateMessages())
+          .singleElement()
+          .satisfies(
+              message -> {
+                assertThat(message).contains("beforeWARN second lineafter");
+                assertThat(message).doesNotContain("\r").doesNotContain("\n");
+              });
+    }
+
+    @Test
+    @DisplayName("holds a bounded part of the inject id")
+    void given_longInjectId_should_logABoundedId() {
+      // Arrange
+      String injectId = "x".repeat(500);
+
+      // Act
+      assertThatThrownBy(() -> refusedGate(injectId)).isInstanceOf(ForbiddenException.class);
+
+      // Assert
+      assertThat(gateMessages())
+          .singleElement()
+          .satisfies(message -> assertThat(message.length()).isLessThan(200));
+    }
+
+    private void refusedGate(String injectId) {
+      injectService.requireInScopeForAgent(TxCtx.forTenant(memberTenant), injectId);
+    }
+
+    private List<String> gateMessages() {
+      return appender.list.stream()
+          .filter(event -> event.getLevel() == Level.WARN)
+          .map(ILoggingEvent::getFormattedMessage)
+          .filter(message -> message.startsWith("Agent access to inject denied"))
+          .toList();
     }
   }
 

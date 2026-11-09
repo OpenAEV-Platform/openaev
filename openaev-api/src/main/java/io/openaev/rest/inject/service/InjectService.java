@@ -116,6 +116,7 @@ import org.springframework.util.CollectionUtils;
 @Slf4j
 public class InjectService {
   static final String AGENT_ACCESS_DENIED = "Agent is not allowed to act on this inject";
+  private static final int LOGGED_ID_MAX_LENGTH = 64;
 
   private final TeamRepository teamRepository;
   private final SecretReferenceService secretReferenceService;
@@ -392,9 +393,22 @@ public class InjectService {
             && injectRepository.findTenantIdsByInjectIds(List.of(injectId)).stream()
                 .anyMatch(row -> scope.contains((String) row[1]));
     if (!inScope) {
-      log.warn("Agent access to inject denied: inject {} is not in the request's scope", injectId);
+      log.warn(
+          "Agent access to inject denied: inject {} is not in the request's scope",
+          forLog(injectId));
       throw new ForbiddenException(AGENT_ACCESS_DENIED);
     }
+  }
+
+  /** A path variable the caller chose: no line break, bounded, so it stays on one log line. */
+  private static String forLog(final String injectId) {
+    if (injectId == null) {
+      return null;
+    }
+    String oneLine = injectId.replace("\r", "").replace("\n", "");
+    return oneLine.length() > LOGGED_ID_MAX_LENGTH
+        ? oneLine.substring(0, LOGGED_ID_MAX_LENGTH)
+        : oneLine;
   }
 
   /**
