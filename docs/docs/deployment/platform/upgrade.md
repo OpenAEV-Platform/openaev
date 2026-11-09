@@ -6,15 +6,21 @@ This page explains how to upgrade OpenAEV. The steps depend on your [installatio
 
     OpenAEV runs the database migrations on startup. You can upgrade from any version to the latest one, including across several major releases. Check the [breaking changes](../breaking-changes.md) before you upgrade.
 
-!!! warning "Stop every instance of the previous version first"
+!!! warning "Instances of the previous version cannot save platform settings"
 
-    Stop every instance of the previous version before the first instance of this version starts. The migrations of this version make the platform settings writes of the previous version fail with SQLSTATE 42501: the administrator settings, the SMTP and IMAP health flags, the IMAP read position, the banners, the XTM Hub flag and the default agents of the autonomous run. An instance of the previous version that runs next to an instance of this version cannot save any of them, so a rolling update is not supported.
+    Once the first instance of this version has run its migrations, the database refuses the platform settings writes of an instance of the previous version (SQLSTATE 42501): the administrator settings, the SMTP and IMAP health flags, the IMAP read position, the banners, the XTM Hub flag and the default agents of the autonomous run. During a rolling update, these writes fail on the instances of the previous version until they stop, usually a few minutes; tenant data is not affected, and an administrator whose save fails saves again once the update is complete. To avoid that window, stop every instance of the previous version before the first instance of this version starts.
 
     The default agents of the autonomous run move from a platform setting to per-tenant settings. The existing values are copied to every tenant that exists when the upgrade runs. A tenant created afterwards starts with the built-in default until an administrator sets its own.
 
-!!! warning "Rolling back needs the database backup"
+!!! warning "Rolling back to the previous version"
 
-    Going back to the previous version means restoring the database backup taken before the upgrade. The previous version cannot write its platform settings on the upgraded database, and the upgrade deletes the platform settings that held the default agents and discovery modes of the autonomous run, which are the only ones the previous version reads. Take the backup before you start the first instance of this version.
+    Take a database backup before the first instance of this version starts. To go back to the previous version, restore that backup. If you go back without restoring it, first remove the trigger that refuses the platform settings writes of the previous version:
+
+    ```sql
+    DROP TRIGGER parameters_guard_platform_row ON parameters;
+    ```
+
+    Without the backup, the previous version also reads the built-in default agents and discovery modes of the autonomous run: the upgrade moved them to per-tenant settings, and the previous version reads only the platform setting.
 
 !!! warning "XTM Composer needs the platform settings write right"
 
@@ -42,7 +48,7 @@ docker compose up -d
 
 ### Docker Swarm
 
-Scale every OpenAEV service to zero replicas before the update, so that no instance of the previous version runs next to the first instance of this version (see the warning at the top of this page). Then run this command for each service and scale the services back up:
+Run this command for each service (see the warnings at the top of this page for the instances of the previous version during the update):
 
 ```bash
 docker service update --force service_name
