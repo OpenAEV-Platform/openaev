@@ -2,6 +2,7 @@ package io.openaev.rest.injector_contract;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.InjectorContract.*;
+import static io.openaev.database.specification.InjectorContractSpecification.withLatestInstalledPayload;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
@@ -759,6 +760,8 @@ public class InjectorContractService implements DependenciesManager {
       List<String> idsToProcess) {
     OutputMode safeMode = (mode == null) ? OutputMode.FULL : mode;
     OutputModeConfig config = CONFIGS.get(safeMode);
+    specification = specification.and(withLatestInstalledPayload());
+    specificationCount = specificationCount.and(withLatestInstalledPayload());
 
     if (!CollectionUtils.isEmpty(idsToIgnore)) {
       specification =
@@ -1190,7 +1193,8 @@ public class InjectorContractService implements DependenciesManager {
     return Specification.<InjectorContract>unrestricted()
         .and(filterSpec)
         .and(searchSpec)
-        .and(accessSpec);
+        .and(accessSpec)
+        .and(withLatestInstalledPayload());
   }
 
   /**
