@@ -81,11 +81,11 @@ class InjectorContractApiRawListTenantScopeTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("given_callerOfTwoTenantsAndNoHeader_should_listOneRowPerTenantCopyOfTheSameId")
-  void given_callerOfTwoTenantsAndNoHeader_should_listOneRowPerTenantCopyOfTheSameId()
-      throws Exception {
+  @DisplayName("given_callerOfTwoTenantsAndNoHeader_should_listTheSameIdOnce")
+  void given_callerOfTwoTenantsAndNoHeader_should_listTheSameIdOnce() throws Exception {
     // Arrange: the caller belongs to the default tenant and to B, both holding the built-in
-    // contract under the same id. With no header the scope is the whole membership while the
+    // contract under the same id (the one in B comes from setUp). With no header the scope is the
+    // whole membership while the
     // ambient tenant stays the default one: TenantContext is set on the prefixed route only.
     tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
     builtinConnectorRegistration.register(
@@ -96,11 +96,12 @@ class InjectorContractApiRawListTenantScopeTest extends IntegrationTest {
     // Act
     MvcResult result = mvc.perform(get(INJECTOR_CONTRACT_URL).with(csrf())).andReturn();
 
-    // Assert: one row per tenant copy. A list that also filtered on the ambient tenant would
-    // answer the default tenant's copy alone.
+    // Assert: the response carries no tenant field, so the two copies are one row. A list that
+    // grouped per tenant would repeat the id, and one that also filtered on the ambient tenant
+    // would answer the default tenant's copy alone: either way the id could not be told apart.
     assertThat(result.getResponse().getStatus()).isEqualTo(200);
     List<String> ids =
         JsonPath.read(result.getResponse().getContentAsString(), "$[*].injector_contract_id");
-    assertThat(ids.stream().filter(ManualContract.MANUAL_DEFAULT::equals).count()).isEqualTo(2);
+    assertThat(ids).containsOnlyOnce(ManualContract.MANUAL_DEFAULT);
   }
 }

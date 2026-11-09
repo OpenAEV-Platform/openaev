@@ -68,6 +68,7 @@ class InjectorContractRawAttackPatternJoinTest extends IntegrationTest {
 
   private static final String PATTERN_A = "T9001.001";
   private static final String PATTERN_B = "T9002.002";
+  private static final String PATTERN_SHARED = "T9003.003";
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -88,8 +89,8 @@ class InjectorContractRawAttackPatternJoinTest extends IntegrationTest {
   void seedTheSameContractIdInTwoTenants() throws Exception {
     tenantAId = tenantHelper.createTenantWithCurrentUser("ic-raw-join-a").getId();
     tenantBId = tenantHelper.createTenantWithCurrentUser("ic-raw-join-b").getId();
-    seedContract(tenantAId, PATTERN_A);
-    seedContract(tenantBId, PATTERN_B);
+    seedContract(tenantAId, PATTERN_A, PATTERN_SHARED);
+    seedContract(tenantBId, PATTERN_B, PATTERN_SHARED);
   }
 
   @AfterEach
@@ -117,7 +118,34 @@ class InjectorContractRawAttackPatternJoinTest extends IntegrationTest {
 
     // Assert
     List<String> aggregated = attackPatternsOf(body, sharedContractId);
-    assertThat(aggregated).containsExactly(PATTERN_A);
+    assertThat(aggregated).containsExactlyInAnyOrder(PATTERN_A, PATTERN_SHARED);
+  }
+
+  @Test
+  @DisplayName("A caller of both tenants and no header gets the contract once, with the union")
+  void given_callerOfTwoTenantsAndNoHeader_should_listTheContractOnceWithTheUnionOfItsPatterns()
+      throws Exception {
+    // Arrange: the ambient tenant stays the default one, as on the non-prefixed route
+    TenantContext.clearCurrentTenant();
+
+    // Act
+    String body =
+        mvc.perform(get("/api/injector_contracts"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Assert
+    long rows = 0;
+    for (JsonNode contract : mapper.readTree(body)) {
+      if (sharedContractId.equals(contract.get("injector_contract_id").asText())) {
+        rows++;
+      }
+    }
+    assertThat(rows).isEqualTo(1);
+    assertThat(attackPatternsOf(body, sharedContractId))
+        .containsExactlyInAnyOrder(PATTERN_A, PATTERN_B, PATTERN_SHARED);
   }
 
   private List<String> attackPatternsOf(String body, String contractId) throws Exception {
@@ -133,7 +161,7 @@ class InjectorContractRawAttackPatternJoinTest extends IntegrationTest {
     return patterns;
   }
 
-  private void seedContract(String tenantId, String patternExternalId) {
+  private void seedContract(String tenantId, String... patternExternalIds) {
     tenantTx.execute(
         TxCtx.forTenant(tenantId),
         () -> {
@@ -143,18 +171,22 @@ class InjectorContractRawAttackPatternJoinTest extends IntegrationTest {
           injector.setUpdatedAt(Instant.now());
           injectorIds.add(injectorRepository.save(injector).getId());
 
-          AttackPattern pattern =
-              AttackPatternFixture.createAttackPatternsWithExternalId(patternExternalId);
-          pattern.setTenant(new Tenant(tenantId));
-          AttackPattern savedPattern = attackPatternRepository.save(pattern);
-          patternIds.add(savedPattern.getId());
+          List<AttackPattern> savedPatterns = new ArrayList<>();
+          for (String patternExternalId : patternExternalIds) {
+            AttackPattern pattern =
+                AttackPatternFixture.createAttackPatternsWithExternalId(patternExternalId);
+            pattern.setTenant(new Tenant(tenantId));
+            AttackPattern savedPattern = attackPatternRepository.save(pattern);
+            patternIds.add(savedPattern.getId());
+            savedPatterns.add(savedPattern);
+          }
 
           InjectorContract contract = InjectorContractFixture.createDefaultInjectorContract();
           contract.setId(sharedContractId);
           contract.setTenant(new Tenant(tenantId));
           contract.clearInjectors();
           contract.addInjector(injector);
-          contract.setAttackPatterns(new ArrayList<>(List.of(savedPattern)));
+          contract.setAttackPatterns(new ArrayList<>(savedPatterns));
           injectorContractRepository.save(contract);
           entityManager.flush();
         });

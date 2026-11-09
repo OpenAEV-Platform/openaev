@@ -53,22 +53,23 @@ public interface InjectorContractRepository
    *
    * <p>No predicate on the ambient tenant: the statement inspector scopes {@code
    * injectors_contracts} to the request's tenant scope, which is the selector of {@code
-   * X-Tenant-Ids} on the non-prefixed route where the ambient tenant stays the default one. Rows
-   * are grouped per tenant, so a scope spanning several tenants lists each tenant's copy of a
-   * contract instead of merging their mappings.
+   * X-Tenant-Ids} on the non-prefixed route where the ambient tenant stays the default one. The
+   * projection carries no tenant, so a scope spanning several tenants answers one row per contract
+   * id: its attack patterns are the union of the mappings of every copy in the scope, each copy
+   * still joined to its own tenant's mappings only.
    *
    * @return list of raw injector contract projections
    */
   @Query(
       value =
           "SELECT injcon.injector_contract_id, "
-              + "array_remove(array_agg(attpatt.attack_pattern_external_id), NULL) AS injector_contract_attack_patterns_external_id "
+              + "array_remove(array_agg(DISTINCT attpatt.attack_pattern_external_id), NULL) AS injector_contract_attack_patterns_external_id "
               + "FROM injectors_contracts injcon "
               + "LEFT JOIN injectors_contracts_attack_patterns injconatt "
               + "  ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "  AND injcon.tenant_id = injconatt.tenant_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
-              + "GROUP BY injcon.injector_contract_id, injcon.tenant_id",
+              + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
   List<RawInjectorsContracts> getAllRawInjectorsContracts();
 
@@ -92,7 +93,8 @@ public interface InjectorContractRepository
    * or on its payload identity, through a group of the contract's tenant or a platform group: a
    * grant applies in the tenant of the group that holds it.
    *
-   * <p>Same tenant-carrying mapping join as {@link #getAllRawInjectorsContracts()}.
+   * <p>Same tenant-carrying mapping join and one row per contract id as {@link
+   * #getAllRawInjectorsContracts()}; only the copies the user holds a grant on contribute.
    *
    * @param userId the ID of the user to check access for
    * @return list of raw injector contract projections the user has been granted access to
@@ -105,7 +107,7 @@ public interface InjectorContractRepository
   @Query(
       value =
           "SELECT injcon.injector_contract_id, "
-              + "array_remove(array_agg(attpatt.attack_pattern_external_id), NULL) AS injector_contract_attack_patterns_external_id "
+              + "array_remove(array_agg(DISTINCT attpatt.attack_pattern_external_id), NULL) AS injector_contract_attack_patterns_external_id "
               + "FROM injectors_contracts injcon "
               + "LEFT JOIN injectors_contracts_attack_patterns injconatt "
               + "  ON injcon.injector_contract_id = injconatt.injector_contract_id "
@@ -123,7 +125,7 @@ public interface InjectorContractRepository
               + "  AND gr.grant_resource_type = :resourceType "
               + "  AND (g.tenant_id IS NULL OR g.tenant_id = injcon.tenant_id) "
               + ") "
-              + "GROUP BY injcon.injector_contract_id, injcon.tenant_id",
+              + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
   List<RawInjectorsContracts> getAllRawInjectorsContractsGranted(
       @Param("userId") String userId, @Param("resourceType") String resourceType);

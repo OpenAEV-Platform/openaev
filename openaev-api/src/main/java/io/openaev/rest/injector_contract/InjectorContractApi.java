@@ -47,6 +47,10 @@ public class InjectorContractApi extends RestBehavior {
   private final TenantWriteScopeResolver writeScopeResolver;
 
   @GetMapping({INJECTOR_CONTRACT_URL, TENANT_INJECTOR_CONTRACT_URL})
+  @Operation(
+      summary = "List injector contracts with their attack patterns",
+      description =
+          "One row per contract id; with several tenants and no selector, patterns are merged.")
   @Transactional
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.INJECTOR_CONTRACT)
   // ctx is unused directly: TenantScopeTransactionAspect reads it to scope the transaction, which
