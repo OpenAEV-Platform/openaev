@@ -147,17 +147,11 @@ runs:
           | timeout --kill-after=5s 15s \
               docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
 
-    - name: Resolve built commit and release
+    - name: Resolve built commit
       id: commit
       env:
         CONTEXT: ${{ inputs.context }}
-        REF: ${{ github.ref }}
-        REF_NAME: ${{ github.ref_name }}
-      run: |
-        echo "sha=$(git -C "$CONTEXT" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-        if [[ "$REF" == refs/tags/* ]]; then
-          echo "release=${REF_NAME}" >> "$GITHUB_OUTPUT"
-        fi
+      run: echo "sha=$(git -C "$CONTEXT" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Record build start time
@@ -210,7 +204,7 @@ runs:
         # BUILDKIT_SYNTAX overrides the Dockerfile's `# syntax=` directive
         build-args: |
           OPENAEV_COMMIT=${{ steps.commit.outputs.sha }}
-          OPENAEV_INTEGRATIONS_VERSION=${{ steps.commit.outputs.release }}
+          OPENAEV_INTEGRATIONS_VERSION=${{ github.ref_type == 'tag' && github.ref_name || '' }}
           ${{ inputs.untrusted-context == 'true' && 'BUILDKIT_SYNTAX=docker/dockerfile:1' || '' }}
         cache-from: ${{ steps.cache.outputs.cache_from }}
         cache-to: ${{ steps.cache.outputs.cache_to }}
