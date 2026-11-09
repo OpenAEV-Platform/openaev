@@ -14,10 +14,12 @@ import static io.openaev.utils.pagination.SearchUtilsJpa.computeSearchJpa;
 import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteriaBuilder;
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.User;
@@ -47,6 +49,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.function.TriFunction;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -70,6 +73,8 @@ public class PlayerService {
   private final UserRepository userRepository;
   private final UserService userService;
   private final BulkDeleteExecutor bulkDeleteExecutor;
+  private final ObjectMapper mapper;
+  private final ApplicationEventPublisher eventPublisher;
 
   /**
    * Bulk delete of players, either from an explicit list of ids or from a search input (select
@@ -283,9 +288,13 @@ public class PlayerService {
    * then its membership and the groups that membership granted. A player left with no membership is
    * deleted, as on a single-tenant installation; one that still belongs to another tenant keeps its
    * account and the links it holds there.
+   *
+   * <p>A user event reaches the stream consumers of every tenant, so a removal is only published
+   * for the account that is gone from every tenant.
    */
   public void deletePlayerOfTenant(TxCtx ctx, String userId) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    BaseEvent.attributeRequestEventsTo(tenantId, User.class);
     userRepository.removeTeamsOfTenant(userId, tenantId);
     userRepository.removeSimulationTeamUsersOfTenant(userId, tenantId);
     userRepository.removeScenarioTeamUsersOfTenant(userId, tenantId);
@@ -293,7 +302,10 @@ public class PlayerService {
     userRepository.removeOrganizationsOfTenant(userId, tenantId);
     tenantUserService.detach(ctx, userId);
     if (userRepository.findTenantIdsByUserId(userId).isEmpty()) {
+      BaseEvent removal =
+          new BaseEvent(ModelBaseListener.DATA_DELETE, userService.user(userId), mapper);
       userService.delete(userId);
+      eventPublisher.publishEvent(removal);
     }
   }
 

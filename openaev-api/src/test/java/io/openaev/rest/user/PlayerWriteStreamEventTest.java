@@ -13,6 +13,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -25,6 +26,7 @@ import io.openaev.config.OpenAEVPrincipal;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
@@ -504,6 +506,106 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
       // -- EXECUTE AND ASSERT --
       assertOrganizationOfBStreamedToTheConsumersOfBOnly(
           post(USER_URI).content(asJsonString(userInput(email, organizationId))), organizationId);
+    }
+  }
+
+  @Nested
+  @DisplayName("Player deleted from B, streamed to the consumers of both tenants")
+  class PlayerDeleteFanOut {
+
+    private static final String DELETION = ModelBaseListener.DATA_DELETE;
+
+    private User playerOf(String... tenantIds) {
+      User player = userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist().get();
+      entityManager.flush();
+      for (String tenantId : tenantIds) {
+        tenantIsolationHelper.attachUserToTenant(player.getId(), tenantId);
+      }
+      entityManager.flush();
+      entityManager.clear();
+      TenantContext.clearCurrentTenant();
+      return player;
+    }
+
+    /** The types of the events the consumer receives, as they travel on the wire. */
+    @SuppressWarnings("unchecked")
+    private List<String> eventTypesReceivedBy(FluxSink<Object> sink) {
+      ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+      verify(sink, atLeast(0)).next(captor.capture());
+      return captor.getAllValues().stream()
+          .map(sent -> ((ServerSentEvent<BaseEvent>) sent).data().getType())
+          .toList();
+    }
+
+    /** What a delete publishes, and what each consumer receives of it. */
+    private record Outcome(
+        List<BaseEvent> events, FluxSink<Object> sinkOfDefault, FluxSink<Object> sinkOfB) {}
+
+    /** Deletes the player with {@code X-Tenant-Ids: B}, then streams every event it published. */
+    private Outcome deleteFromB(User player) throws Exception {
+      PermissionService permissions = mock(PermissionService.class);
+      when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
+      StreamService stream =
+          new StreamService(permissions, userService, attackPathAccessControl, mapper);
+      FluxSink<Object> sinkOfDefault = consumerOf(stream, "default", Tenant.DEFAULT_TENANT_UUID);
+      FluxSink<Object> sinkOfB = consumerOf(stream, "b", tenantB);
+
+      long publishedBefore = applicationEvents.stream(BaseEvent.class).count();
+      mvc.perform(
+              delete(PLAYER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+      List<BaseEvent> events =
+          applicationEvents.stream(BaseEvent.class)
+              .skip(publishedBefore)
+              .filter(
+                  event ->
+                      event.getInstance() instanceof User user
+                          && player.getId().equals(user.getId()))
+              .toList();
+      events.forEach(stream::listenDatabaseUpdate);
+      return new Outcome(events, sinkOfDefault, sinkOfB);
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player that stays in another tenant is not announced as deleted to anyone")
+    void given_playerOfDefaultAndB_should_streamNoDeletionToAnyConsumer() throws Exception {
+      // -- PREPARE --
+      User player = playerOf(Tenant.DEFAULT_TENANT_UUID, tenantB);
+
+      // -- EXECUTE --
+      Outcome outcome = deleteFromB(player);
+
+      // -- ASSERT --
+      assertTrue(
+          outcome.events().stream().noneMatch(event -> DELETION.equals(event.getType())),
+          "A user event reaches every tenant: the player still exists in the default tenant");
+      assertFalse(eventTypesReceivedBy(outcome.sinkOfDefault()).contains(DELETION));
+      assertFalse(eventTypesReceivedBy(outcome.sinkOfB()).contains(DELETION));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player left with no membership is announced as deleted, in the write tenant")
+    void given_playerOfBOnly_should_streamTheDeletionToTheConsumersOfBothTenants()
+        throws Exception {
+      // -- PREPARE --
+      User player = playerOf(tenantB);
+
+      // -- EXECUTE --
+      Outcome outcome = deleteFromB(player);
+
+      // -- ASSERT --
+      List<BaseEvent> deletions =
+          outcome.events().stream().filter(event -> DELETION.equals(event.getType())).toList();
+      assertEquals(1, deletions.size(), "The account is deleted once, so it is announced once");
+      assertEquals(tenantB, deletions.getFirst().getTenantId());
+      assertTrue(eventTypesReceivedBy(outcome.sinkOfDefault()).contains(DELETION));
+      assertTrue(eventTypesReceivedBy(outcome.sinkOfB()).contains(DELETION));
     }
   }
 }
