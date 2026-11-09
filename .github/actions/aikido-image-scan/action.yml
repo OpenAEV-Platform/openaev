@@ -1,16 +1,14 @@
 name: Aikido Image Scan
 description: >
-  Scan a container image of the local Docker daemon with Aikido's local scanner.
-  In release or pr mode the scan is kept in Aikido under the given image name,
+  Scan a container image of the local Docker daemon with Aikido's local scanner
+  and one of its gates. The scan is kept in Aikido under the given image name,
   and Aikido decides which issues count: the open issues of the image at or
-  above the severity threshold (release), or the ones the pull request adds
-  (pr). Issues ignored in the Aikido dashboard do not count. In ephemeral mode
-  nothing is kept in Aikido and every finding at or above the threshold, with
-  or without a fix, is listed with its versions and description. The issues are
-  reported in the job summary and uploaded with the JSON result and the scanner
-  output as an artifact. Issues never fail the action: it outputs how many
-  count, for the caller to act on. A scanner error or a missing token fails it.
-  The calling job must run actions/checkout first.
+  above the severity threshold (release), or the ones a pull request adds (pr).
+  Issues ignored in the Aikido dashboard do not count. The issues are reported
+  in the job summary and uploaded with the JSON result and the scanner output
+  as an artifact. Issues never fail the action: it outputs how many count, for
+  the caller to act on. A scanner error or a missing token fails it. The
+  calling job must run actions/checkout first.
 
 inputs:
   image:
@@ -23,13 +21,12 @@ inputs:
     description: "Aikido local scanner token"
     required: true
   mode:
-    description: "release, pr or ephemeral (see the description)"
+    description: "Gating mode: release or pr (see the description)"
     required: false
     default: "release"
   aikido-image-name:
-    description: "Name of the image in Aikido (release and pr modes)"
-    required: false
-    default: ""
+    description: "Name of the image in Aikido"
+    required: true
   base-commit:
     description: "Base commit of the pull request (pr mode)"
     required: false
@@ -46,8 +43,8 @@ inputs:
 outputs:
   issues:
     description: >
-      Number of issues that count: open issues (release), new issues (pr), or
-      findings with a fix (ephemeral), at or above the threshold
+      Number of issues that count: open issues (release) or new issues (pr) at
+      or above the threshold
     value: ${{ steps.report.outputs.issues }}
   report:
     description: "Path of the Markdown report, relative to the working directory"
@@ -76,32 +73,22 @@ runs:
           echo "::error::No Aikido token: set the AIKIDO_TOKEN secret"
           exit 1
         fi
-        ARGS=()
+        # Aikido processes the scan after the upload; the scanner polls for the result about
+        # every 12 seconds, 20 times by default.
+        ARGS=(image-scan "$IMAGE" --image-name "$AIKIDO_IMAGE_NAME" --fail-on "$THRESHOLD"
+          --gating-mode "$MODE" --gating-result-output "/report/$REPORT.json"
+          --max-polling-attempts 50)
         case "$MODE" in
-          ephemeral)
-            # Ephemeral scans leave out vulnerabilities with no fix unless asked.
-            ARGS+=(ephemeral-image-scan "$IMAGE" --include-unfixed --result-output "/report/$REPORT.json")
-            ;;
-          release|pr)
-            if [ -z "$AIKIDO_IMAGE_NAME" ]; then
-              echo "::error::The $MODE mode needs aikido-image-name"
+          release) ;;
+          pr)
+            if [ -z "$BASE_COMMIT" ] || [ -z "$HEAD_COMMIT" ]; then
+              echo "::error::The pr mode needs base-commit and head-commit"
               exit 1
             fi
-            # Aikido processes the scan after the upload; the scanner polls for the result about
-            # every 12 seconds, 20 times by default.
-            ARGS+=(image-scan "$IMAGE" --image-name "$AIKIDO_IMAGE_NAME" --fail-on "$THRESHOLD"
-              --gating-mode "$MODE" --gating-result-output "/report/$REPORT.json"
-              --max-polling-attempts 50)
-            if [ "$MODE" = pr ]; then
-              if [ -z "$BASE_COMMIT" ] || [ -z "$HEAD_COMMIT" ]; then
-                echo "::error::The pr mode needs base-commit and head-commit"
-                exit 1
-              fi
-              ARGS+=(--base-commit-id "$BASE_COMMIT" --head-commit-id "$HEAD_COMMIT")
-            fi
+            ARGS+=(--base-commit-id "$BASE_COMMIT" --head-commit-id "$HEAD_COMMIT")
             ;;
           *)
-            echo "::error::Unknown mode '$MODE': use release, pr or ephemeral"
+            echo "::error::Unknown mode '$MODE': use release or pr"
             exit 1
             ;;
         esac
@@ -115,7 +102,7 @@ runs:
           | tee "$REPORT.txt" || status=$?
         # A gate that finds issues exits non-zero and writes them to the result file; any other
         # non-zero exit is a scanner error.
-        if [ "$status" -ne 0 ] && { [ "$MODE" = ephemeral ] || [ ! -s "$REPORT.json" ]; }; then
+        if [ "$status" -ne 0 ] && [ ! -s "$REPORT.json" ]; then
           echo "::error::The Aikido scanner failed with exit code $status"
           exit "$status"
         fi
@@ -130,11 +117,7 @@ runs:
         THRESHOLD: ${{ inputs.severity-threshold }}
       run: |
         set -euo pipefail
-        if [ "$MODE" = ephemeral ]; then
-          python3 "$GITHUB_ACTION_PATH/report.py" "$REPORT.json" "$IMAGE" "$THRESHOLD" "$REPORT.md" >> "$GITHUB_OUTPUT"
-        else
-          python3 "$GITHUB_ACTION_PATH/gate_report.py" "$MODE" "$REPORT.json" "$IMAGE" "$THRESHOLD" "$REPORT.md" >> "$GITHUB_OUTPUT"
-        fi
+        python3 "$GITHUB_ACTION_PATH/gate_report.py" "$MODE" "$REPORT.json" "$IMAGE" "$THRESHOLD" "$REPORT.md" >> "$GITHUB_OUTPUT"
         cat "$REPORT.md" >> "$GITHUB_STEP_SUMMARY"
 
     - name: Upload report

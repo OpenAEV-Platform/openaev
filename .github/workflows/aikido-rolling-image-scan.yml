@@ -1,8 +1,10 @@
 name: "🔍 Aikido Rolling Image Scan"
 
-# Daily Aikido scan of the rolling platform images published on Docker Hub.
-# Reports high and critical vulnerabilities in the job summary and as job
-# artifacts: findings do not fail the run, a scanner error does.
+# Daily Aikido scan of the rolling platform images published on Docker Hub,
+# with Aikido's release gate: the open high and critical issues of each image,
+# left out when ignored in Aikido, are reported in the job summary, as a
+# warning and as job artifacts. Issues do not fail the run, a scanner error
+# does.
 
 on:
   schedule:
@@ -40,9 +42,19 @@ jobs:
           IMAGE: openaev/platform:${{ matrix.tag }}
         run: docker pull "$IMAGE"
 
-      - uses: ./.github/actions/aikido-image-scan
+      - id: scan
+        uses: ./.github/actions/aikido-image-scan
         with:
           image: openaev/platform:${{ matrix.tag }}
           report-name: aikido-platform-${{ matrix.tag }}
           api-key: ${{ secrets.AIKIDO_TOKEN }}
-          mode: ephemeral
+          mode: release
+          aikido-image-name: openaev-platform-${{ matrix.tag }}
+
+      - name: Warn about open issues
+        if: ${{ steps.scan.outputs.issues != '0' }}
+        env:
+          IMAGE: openaev/platform:${{ matrix.tag }}
+          ISSUES: ${{ steps.scan.outputs.issues }}
+        run: |
+          echo "::warning::$IMAGE has $ISSUES open high or critical issue(s) in Aikido: see the job summary"
