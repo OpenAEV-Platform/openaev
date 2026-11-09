@@ -283,11 +283,15 @@ public class PlayerService {
   }
 
   /**
-   * Deletes a player from the tenant the request writes in: every link the player holds in that
-   * tenant goes (team memberships, simulation and scenario team users, tag links, organization),
-   * then its membership and the groups that membership granted. A player left with no membership is
-   * deleted, as on a single-tenant installation; one that still belongs to another tenant keeps its
-   * account and the links it holds there.
+   * Deletes a player from the tenant the request writes in. Removed: the team memberships ({@code
+   * users_teams}), the simulation and scenario team users ({@code exercises_teams_users}, {@code
+   * scenarios_teams_users}), the tag links ({@code users_tags}) and the organization ({@code
+   * users_organizations}) the player holds in that tenant, then its membership and the groups that
+   * membership granted. Kept: the history of the simulations, the communications the player
+   * received ({@code communications_users}) and the comchecks it is asked to answer ({@code
+   * comchecks_statuses}). A player left with no membership is deleted, as on a single-tenant
+   * installation, and its history goes with the account; one that still belongs to another tenant
+   * keeps its account, the links it holds there and its history.
    *
    * <p>A user event reaches the stream consumers of every tenant, so a removal is only published
    * for the account that is gone from every tenant.

@@ -57,6 +57,11 @@ import org.springframework.transaction.annotation.Transactional;
  * player from the tenant the request writes in, as the tenant user endpoint does, and answers 404
  * for a player who is not a member of that tenant. The memberships are read from the database, on
  * the prefixed route and on the route that names the tenant in {@code X-Tenant-Ids}.
+ *
+ * <p>What the delete removes in the tenant: the player's team memberships, its simulation and
+ * scenario team users, its tag links and its organization. What it keeps: the history of the
+ * simulations (the communications the player received, the comchecks it is asked to answer), which
+ * a deleted account takes with it only when no membership is left.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -190,8 +195,64 @@ public class PlayerDeleteWriteTenantTest extends IntegrationTest {
     return links;
   }
 
+  /** The history of a simulation about a player: who received a communication, who answered. */
+  private void historyOf(User player, LinksOf links) {
+    String inject = UUID.randomUUID().toString();
+    String communication = UUID.randomUUID().toString();
+    String comcheck = UUID.randomUUID().toString();
+    String tenantId = links.exercise().getTenant().getId();
+    execute(
+        "INSERT INTO injects (inject_id, inject_title, inject_all_teams, inject_enabled,"
+            + " inject_depends_duration, inject_created_at, inject_updated_at, tenant_id,"
+            + " inject_expectations_drift_dismissed, inject_exercise)"
+            + " VALUES (:inject, 'history', false, true, 0, now(), now(), :tenant, false,"
+            + " :exercise)",
+        player,
+        "inject",
+        inject,
+        "tenant",
+        tenantId,
+        "exercise",
+        links.exercise().getId());
+    execute(
+        "INSERT INTO communications (communication_id, communication_received_at,"
+            + " communication_sent_at, communication_message_id, communication_from,"
+            + " communication_to, communication_inject)"
+            + " VALUES (:communication, now(), now(), :communication, 'from', 'to', :inject)",
+        player,
+        "communication",
+        communication,
+        "inject",
+        inject);
+    execute(
+        "INSERT INTO communications_users (communication_id, user_id)"
+            + " VALUES (:communication, :user)",
+        player,
+        "communication",
+        communication);
+    execute(
+        "INSERT INTO comchecks (comcheck_id, comcheck_exercise, comcheck_start_date,"
+            + " comcheck_end_date) VALUES (:comcheck, :exercise, now(), now())",
+        player,
+        "comcheck",
+        comcheck,
+        "exercise",
+        links.exercise().getId());
+    execute(
+        "INSERT INTO comchecks_statuses (status_id, status_user, status_comcheck)"
+            + " VALUES (:status, :user, :comcheck)",
+        player,
+        "status",
+        UUID.randomUUID().toString(),
+        "comcheck",
+        comcheck);
+  }
+
   private void execute(String sql, User player, Object... namesAndValues) {
-    var query = entityManager.createNativeQuery(sql).setParameter("user", player.getId());
+    var query = entityManager.createNativeQuery(sql);
+    if (sql.contains(":user")) {
+      query.setParameter("user", player.getId());
+    }
     for (int i = 0; i < namesAndValues.length; i += 2) {
       query.setParameter((String) namesAndValues[i], namesAndValues[i + 1]);
     }
@@ -232,6 +293,29 @@ public class PlayerDeleteWriteTenantTest extends IntegrationTest {
     return rows;
   }
 
+  /** The history rows the player holds, by table, over every tenant. */
+  private Map<String, Integer> historyHeldBy(User player) {
+    entityManager.flush();
+    Map<String, Integer> rows = new LinkedHashMap<>();
+    rows.put(
+        "communications_users",
+        count("SELECT count(*) FROM communications_users WHERE user_id = :id", player));
+    rows.put(
+        "comchecks_statuses",
+        count("SELECT count(*) FROM comchecks_statuses WHERE status_user = :id", player));
+    return rows;
+  }
+
+  private int count(String sql, User player) {
+    return ((Number)
+            entityManager
+                .createNativeQuery(sql)
+                .setParameter("id", player.getId())
+                .getSingleResult())
+        .intValue();
+  }
+
+  /** What the delete leaves of the player's links in the tenant: the five link tables are empty. */
   private static final Map<String, Integer> NO_LINKS =
       Map.of(
           "users_teams", 0,
@@ -239,6 +323,12 @@ public class PlayerDeleteWriteTenantTest extends IntegrationTest {
           "scenarios_teams_users", 0,
           "users_tags", 0,
           "users_organizations", 0);
+
+  private static final Map<String, Integer> HISTORY_OF_TWO_TENANTS =
+      Map.of("communications_users", 2, "comchecks_statuses", 2);
+
+  private static final Map<String, Integer> NO_HISTORY =
+      Map.of("communications_users", 0, "comchecks_statuses", 0);
 
   private static final Map<String, Integer> ALL_LINKS =
       Map.of(
@@ -368,6 +458,7 @@ public class PlayerDeleteWriteTenantTest extends IntegrationTest {
       // Arrange
       User player = playerOf(tenantB);
       LinksOf linksOfB = linkTo(player, tenantB);
+      historyOf(player, linksOfB);
       assertThat(linksHeldBy(player, linksOfB)).isEqualTo(ALL_LINKS);
 
       // Act
@@ -375,7 +466,34 @@ public class PlayerDeleteWriteTenantTest extends IntegrationTest {
 
       // Assert
       assertThat(linksHeldBy(player, linksOfB)).isEqualTo(NO_LINKS);
+      assertThat(historyHeldBy(player))
+          .as("history goes with the deleted account")
+          .isEqualTo(NO_HISTORY);
       assertThat(exists(player)).isFalse();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given_memberOfAAndBWithHistoryOfBoth_should_keepTheHistoryOfTheSimulations")
+    void given_memberOfAAndBWithHistoryOfBoth_should_keepTheHistoryOfTheSimulations()
+        throws Exception {
+      // Arrange
+      User player = playerOf(tenantA, tenantB);
+      LinksOf linksOfA = linkTo(player, tenantA);
+      LinksOf linksOfB = linkTo(player, tenantB);
+      historyOf(player, linksOfA);
+      historyOf(player, linksOfB);
+      assertThat(historyHeldBy(player)).isEqualTo(HISTORY_OF_TWO_TENANTS);
+
+      // Act
+      mvc.perform(deleteOne(player, true)).andExpect(status().is2xxSuccessful());
+
+      // Assert
+      assertThat(linksHeldBy(player, linksOfB)).isEqualTo(NO_LINKS);
+      assertThat(historyHeldBy(player))
+          .as("who received a communication and who answered a comcheck stay")
+          .isEqualTo(HISTORY_OF_TWO_TENANTS);
+      assertThat(exists(player)).isTrue();
     }
 
     @Test
