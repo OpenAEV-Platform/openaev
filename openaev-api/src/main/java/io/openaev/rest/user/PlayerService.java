@@ -199,7 +199,7 @@ public class PlayerService {
   public User createPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    BaseEvent.attributeRequestEventsTo(tenantId);
+    BaseEvent.attributeRequestEventsTo(tenantId, User.class);
     var existingUser = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
@@ -220,7 +220,7 @@ public class PlayerService {
   public User upsertPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    BaseEvent.attributeRequestEventsTo(tenantId);
+    BaseEvent.attributeRequestEventsTo(tenantId, User.class);
     Optional<User> user = userRepository.findByEmailIgnoreCase(input.getEmail());
     if (user.isPresent()) {
       if (!requireUpdate(user.get(), input)) {
@@ -284,7 +284,7 @@ public class PlayerService {
    */
   public User updatePlayer(TxCtx ctx, User user, PlayerInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    BaseEvent.attributeRequestEventsTo(tenantId);
+    BaseEvent.attributeRequestEventsTo(tenantId, User.class);
     user.setFirstname(input.getFirstname());
     user.setLastname(input.getLastname());
     user.setPhone(input.getPhone());

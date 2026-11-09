@@ -67,7 +67,7 @@ public class TenantUserService implements DependenciesManager {
    */
   public UserOutput createOrAttach(TxCtx ctx, UserInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    BaseEvent.attributeRequestEventsTo(tenantId);
+    BaseEvent.attributeRequestEventsTo(tenantId, User.class);
     var existingUser = userRepository.findByEmailIgnoreCase(input.email());
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
@@ -152,7 +152,7 @@ public class TenantUserService implements DependenciesManager {
   public UserOutput update(TxCtx ctx, @NotBlank String userId, UserInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.email());
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    BaseEvent.attributeRequestEventsTo(tenantId);
+    BaseEvent.attributeRequestEventsTo(tenantId, User.class);
     Specification<User> spec = inTenant(tenantId).and(UserSpecification.byId(userId));
     User existing =
         userRepository
