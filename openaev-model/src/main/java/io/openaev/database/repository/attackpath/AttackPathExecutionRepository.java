@@ -91,7 +91,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
           + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
-          + "e.stepId, e.payloadId) "
+          + "e.stepId, e.payloadId, e.tenant.id) "
           + "FROM AttackPathExecution e WHERE e.simulationId = :simulationId")
   List<AttackPathExecutionRow> findGraphRows(@Param("simulationId") String simulationId);
 
@@ -106,7 +106,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
           + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
-          + "e.stepId, e.payloadId) "
+          + "e.stepId, e.payloadId, e.tenant.id) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.rowVersion > :since")
   List<AttackPathExecutionRow> findGraphRowsSince(
@@ -194,7 +194,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
           + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
-          + "e.stepId, e.payloadId) "
+          + "e.stepId, e.payloadId, e.tenant.id) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.id IN :ids")
   List<AttackPathExecutionRow> findGraphRowsByIds(
@@ -210,7 +210,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
           + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
-          + "e.stepId, e.payloadId) "
+          + "e.stepId, e.payloadId, e.tenant.id) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey")
   List<AttackPathExecutionRow> findByTarget(
@@ -232,7 +232,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
           + "e.sourceInjector, e.targetKind, e.targetAssetId, e.targetRawValue, e.targetKey, "
           + "e.targetHostname, e.targetIp, e.targetPlatform, e.payloadName, e.executedAt, "
           + "e.preventionStatus, e.detectionStatus, e.vulnerabilityStatus, e.stepTemplateId, e.contractExternalId, e.injectorType, e.sourceHostname, e.sourceIp, e.sourcePlatform, "
-          + "e.stepId, e.payloadId) "
+          + "e.stepId, e.payloadId, e.tenant.id) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.targetKey = :targetKey "
           + "ORDER BY e.executedAt, e.id")
@@ -253,14 +253,6 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
    */
   @Query("SELECT count(e) FROM AttackPathExecution e WHERE e.simulationId = :simulationId")
   long countExecutions(@Param("simulationId") String simulationId);
-
-  /**
-   * The tenant of a simulation's executions. A simulation belongs to one tenant, so this holds one
-   * value, or none when it has no execution.
-   */
-  @Query(
-      "SELECT DISTINCT e.tenant.id FROM AttackPathExecution e WHERE e.simulationId = :simulationId")
-  List<String> findTenantIdsBySimulationId(@Param("simulationId") String simulationId);
 
   /**
    * One summary row per simulation (id, distinct endpoints, executions) for the front's picker.
@@ -333,7 +325,7 @@ public interface AttackPathExecutionRepository extends CrudRepository<AttackPath
    */
   @Query(
       "SELECT DISTINCT new io.openaev.database.model.attackpath.projection.AttackPathInjectorMetaRow("
-          + "e.sourceInjector, e.contractExternalId, e.injectorType) "
+          + "e.sourceInjector, e.contractExternalId, e.injectorType, e.tenant.id) "
           + "FROM AttackPathExecution e "
           + "WHERE e.simulationId = :simulationId AND e.sourceKind = 'INJECTOR'")
   List<AttackPathInjectorMetaRow> findInjectorMetadata(@Param("simulationId") String simulationId);

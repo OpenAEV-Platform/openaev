@@ -191,15 +191,13 @@ public class AttackPathGraphService {
   }
 
   /**
-   * The tenant a simulation's graph is built in: its executions' own. A simulation belongs to one
-   * tenant, while the request scope can span several, and the contracts the graph names and tags
-   * its nodes from exist once per tenant. A simulation with no execution has no contract to read,
-   * so the empty tenant it then yields is never queried with.
+   * The tenant a graph's contracts are read in: the one its execution rows carry. A simulation
+   * belongs to one tenant, while the request scope can span several, and the contracts the graph
+   * names and tags its nodes from exist once per tenant. Null for no row, in which case no contract
+   * is named and none is read.
    */
-  private String simulationTenantId(String simulationId) {
-    return executionRepository.findTenantIdsBySimulationId(simulationId).stream()
-        .findFirst()
-        .orElse("");
+  private static String tenantOf(List<AttackPathExecutionRow> executions) {
+    return executions.isEmpty() ? null : executions.get(0).tenantId();
   }
 
   private boolean resolveCollapsed(String simulationId, String requestedMode) {
@@ -587,7 +585,7 @@ public class AttackPathGraphService {
   private AttackPathDTO fullGraph(String simulationId, long graphVersion) {
     List<AttackPathExecutionRow> executions = executionRepository.findGraphRows(simulationId);
     List<AttackPathFindingRow> findings = findingRepository.findGraphRows(simulationId);
-    return assemble(simulationId, executions, findings, graphVersion);
+    return assemble(executions, findings, graphVersion);
   }
 
   /**
@@ -657,7 +655,7 @@ public class AttackPathGraphService {
     for (AttackPathExecutionRow e : page) {
       feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
-    String tenantId = simulationTenantId(simulationId);
+    String tenantId = tenantOf(page);
     applyContractNames(page, feedByExecutionId, tenantId);
     applyExecutionStatuses(page, feedByExecutionId);
     applyPayloadIconMetadata(page, feedByExecutionId);
@@ -677,18 +675,16 @@ public class AttackPathGraphService {
    * aggregates a subset of rows cannot compute (endpoint colour, edge counts, counters) are the
    * delta service's job to recompute over the whole affected endpoints.
    *
-   * <p>{@code simulationId} names the simulation the rows belong to, whose tenant the contracts the
-   * graph names and tags its nodes from are read in.
+   * <p>The contracts the graph names and tags its nodes from are read in the tenant the rows carry.
    *
    * <p>{@code graphVersion} labels a snapshot; a delta passes 0, because it carries its own cursor
    * in {@code AttackPathDeltaDTO#newVersion} and never ships this record to a client.
    */
   AttackPathDTO assemble(
-      String simulationId,
       List<AttackPathExecutionRow> executions,
       List<AttackPathFindingRow> findings,
       long graphVersion) {
-    String tenantId = simulationTenantId(simulationId);
+    String tenantId = tenantOf(executions);
     Map<String, AttackPathNodeDTO> nodes = new LinkedHashMap<>();
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
     Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
@@ -859,7 +855,9 @@ public class AttackPathGraphService {
   private void enrichCollapsedInjectors(String simulationId, Map<String, AttackPathNodeDTO> nodes) {
     Map<String, Set<String>> contractsByInjectorNode = new LinkedHashMap<>();
     Set<String> externalIds = new HashSet<>();
+    String tenantId = null;
     for (AttackPathInjectorMetaRow meta : executionRepository.findInjectorMetadata(simulationId)) {
+      tenantId = meta.tenantId();
       String nodeId = AttackPathIds.injectorNode(meta.sourceInjector(), meta.contractExternalId());
       AttackPathNodeDTO injectorNode = nodes.get(nodeId);
       if (injectorNode == null) {
@@ -875,7 +873,6 @@ public class AttackPathGraphService {
         externalIds.add(meta.contractExternalId());
       }
     }
-    String tenantId = simulationTenantId(simulationId);
     applyInjectorNodeLabels(
         nodes, contractsByInjectorNode, resolveContractNames(externalIds, tenantId));
     resolveInjectorAttackPatterns(
@@ -921,6 +918,7 @@ public class AttackPathGraphService {
     if (externalIds.isEmpty()) {
       return patternsByContract;
     }
+    Objects.requireNonNull(tenantId, "a graph that names contracts has execution rows");
     injectorContractRepository
         .findInjectorAttackPatternsByExternalIdInAndTenant(externalIds, tenantId)
         .forEach(
@@ -1579,6 +1577,7 @@ public class AttackPathGraphService {
     if (externalIds.isEmpty()) {
       return Map.of();
     }
+    Objects.requireNonNull(tenantId, "a graph that names contracts has execution rows");
     List<InjectorContract> contracts =
         injectorContractRepository.findAllByIdOrExternalIdInAndTenant(externalIds, tenantId);
     Map<String, String> nameByExternalId = new HashMap<>();

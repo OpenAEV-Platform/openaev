@@ -258,6 +258,24 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("An empty simulation rebuilds to an empty collapsed graph without error")
+  void empty_simulation_collapsed_is_safe() {
+    AttackPathDTO dto = service.buildCollapsedGraph("SIM-WITH-NO-DATA");
+    assertThat(dto.attackPathNodes()).isEmpty();
+    assertThat(dto.attackPathEdges()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("An endpoint of an empty simulation has an empty feed without error")
+  void empty_simulation_endpoint_relations_is_safe() {
+    AttackPathEndpointRelationsDTO dto =
+        service.endpointRelations("SIM-WITH-NO-DATA", "dc-01", PageRequest.of(0, 50));
+    assertThat(dto.executions()).isEmpty();
+    assertThat(dto.edges()).isEmpty();
+    assertThat(dto.totalExecutions()).isZero();
+  }
+
+  @Test
   @DisplayName("An empty simulation rebuilds to an empty graph without error")
   void empty_simulation_is_safe() {
     AttackPathDTO dto = service.buildGraph("SIM-WITH-NO-DATA");
@@ -659,9 +677,9 @@ class AttackPathGraphServiceTest extends IntegrationTest {
     AttackPathEndpointRelationsDTO dto =
         service.endpointRelations(SIM, "dc-01", PageRequest.of(0, 50));
     // A bounded, constant number of statements whatever the endpoint's size: the edge set, the feed
-    // page and its total, and the simulation's tenant the feed's contracts are read in. Not one any
-    // more (#6647, spec 003: the feed is paged), but still not a function of the row count.
-    assertThat(stats.getPrepareStatementCount()).isEqualTo(4);
+    // page and its total. Not one any more (#6647, spec 003: the feed is paged), but still not a
+    // function of the row count.
+    assertThat(stats.getPrepareStatementCount()).isEqualTo(3);
 
     assertThat(dto.executions()).hasSize(2);
     assertThat(dto.totalExecutions()).isEqualTo(2);
