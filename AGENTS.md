@@ -179,6 +179,7 @@ Sections, verbatim and in this order: `### Proposed changes`, `### Testing Instr
 - Drop the template's HTML comments from the final body.
 - Title follows Conventional Commits and ends with the issue reference, unless the related issue is in a private repository.
 - Never expose a private issue reference in a public PR. Link the public PR from the private issue instead.
+- Agents use the private-issue exception (`* N/A`, no `(#issue)` in the title) only when the user explicitly says the related issue is in a private repository. Never assume it, and never use it because no issue is known: ask the user for the issue instead.
 
 Full rules: [copilot-instructions.md → PR description format](.github/copilot-instructions.md#pr-description-format).
 

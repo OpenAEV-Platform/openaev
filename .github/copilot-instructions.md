@@ -148,6 +148,7 @@ Rules:
 - **Never tick a checklist item.** Leave every box as `[ ]` — ticking them is the human author's responsibility, after their own review.
 - The PR title still follows Conventional Commits and ends with the issue reference: `type(scope?): description (#issue)`.
 - When the related issue is in a private repository, omit its reference from the PR title and description, use `* N/A` under `### Related issues`, and link the public PR from the private issue instead.
+- Agents use the private-issue exception (`* N/A`, no `(#issue)` in the title) only when the user explicitly says the related issue is in a private repository. Never assume it, and never use it because no issue is known: ask the user for the issue instead.
 
 ### Conventional Comments (for code reviews)
 
