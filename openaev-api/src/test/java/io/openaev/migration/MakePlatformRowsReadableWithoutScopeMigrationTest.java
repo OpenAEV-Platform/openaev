@@ -125,5 +125,26 @@ class MakePlatformRowsReadableWithoutScopeMigrationTest extends IntegrationTest 
       assertThat(sql("require_tenant_write(NULL, true)")).isTrue();
       assertThat(sql("require_tenant_write('tenant-a', true)")).isTrue();
     }
+
+    @Test
+    @DisplayName("given_aCheckThatAnswersFalse_should_raiseInsteadOfWritingAPlatformRow")
+    void given_aCheckThatAnswersFalse_should_raiseInsteadOfWritingAPlatformRow() {
+      // Arrange: the check function is replaced inside this rolled-back transaction by one that
+      // refuses without raising, the answer the real function never gives
+      scope("tenant-a");
+      entityManager
+          .createNativeQuery(
+              "CREATE OR REPLACE FUNCTION require_tenant_write(row_tenant_id text,"
+                  + " allow_platform_write boolean DEFAULT false) RETURNS boolean LANGUAGE sql AS"
+                  + " $$ SELECT false $$")
+          .setFlushMode(FlushModeType.COMMIT)
+          .executeUpdate();
+
+      // Act + Assert
+      assertThatThrownBy(() -> sql("tenant_write_value(NULL, true)"))
+          .hasStackTraceContaining("write refused");
+      assertThatThrownBy(() -> sql("tenant_write_value('tenant-a', true)"))
+          .hasStackTraceContaining("write refused");
+    }
   }
 }
