@@ -144,28 +144,34 @@ public class CalderaExecutorService implements Runnable {
    * that refuses it, is logged and never fails the run: the banner is written again by the next
    * run, a minute later.
    *
-   * <p>Every tenant's Caldera executor runs this each minute. Each one reports its own answer to
-   * {@link PlatformSettingsService#reportMessageSource}, and the row is written from all of them:
-   * the banner shows while at least one tenant's Caldera does not answer, and clears when every one
-   * does, so it does not flip with the tenant that ran last.
+   * <p>Every Caldera executor of every tenant runs this each minute. Each reports its own answer to
+   * {@link PlatformSettingsService#reportMessageSource}, which persists it and writes the banner
+   * from the reports of all of them, whichever node they run on: the banner shows while one
+   * executor reported that its Caldera does not answer within the last minutes, and clears when
+   * none did, so it does not flip with the executor that ran last nor with a node that restarted.
    */
   private void requestBanner(boolean available) {
-    platformSettingsService.reportMessageSource(
-        BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE, executor.getTenantId(), !available);
     try {
-      bannerExecutor.execute(this::writeBanner);
+      bannerExecutor.execute(() -> writeBanner(available));
     } catch (RuntimeException e) {
       log.warn("Could not schedule the Caldera unavailable banner write: {}", e.getMessage(), e);
     }
   }
 
-  private void writeBanner() {
+  /** The source under which an executor reports to the Caldera unavailable banner. */
+  public static String bannerSource(Executor executor) {
+    return executor.getTenantId() + "." + executor.getId();
+  }
+
+  private void writeBanner(boolean available) {
     try {
       tenantTx.executeAsPlatformWrite(
           TxCtx.forTenant(executor.getTenantId()),
           () ->
-              this.platformSettingsService.syncMessage(
-                  BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE));
+              this.platformSettingsService.reportMessageSource(
+                  BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE,
+                  bannerSource(executor),
+                  !available));
     } catch (Exception e) {
       log.warn("Failed to write the Caldera unavailable banner: {}", e.getMessage(), e);
     }

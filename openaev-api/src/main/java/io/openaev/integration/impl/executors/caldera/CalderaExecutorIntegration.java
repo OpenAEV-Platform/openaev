@@ -58,8 +58,11 @@ public class CalderaExecutorIntegration extends Integration {
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
-  /** The tenant of the executor, kept at start: the connector instance is gone when stop runs. */
-  private String tenantId;
+  /**
+   * The source under which the executor reports to the Caldera unavailable banner, kept at start:
+   * the connector instance is gone when stop runs.
+   */
+  private String bannerSource;
 
   public CalderaExecutorIntegration(
       ConnectorInstance connectorInstance,
@@ -98,7 +101,6 @@ public class CalderaExecutorIntegration extends Integration {
 
   @Override
   protected void innerStart() throws Exception {
-    tenantId = getTenantId();
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
             getConnectorInstance().getId(), ConnectorType.EXECUTOR.getIdKeyName());
@@ -128,6 +130,7 @@ public class CalderaExecutorIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.MacOS.name()
             });
 
+    bannerSource = CalderaExecutorService.bannerSource(executor);
     client = new CalderaExecutorClient(config, httpClientFactory);
     calderaExecutorContextService =
         new CalderaExecutorContextService(config, injectorService, client);
@@ -169,33 +172,31 @@ public class CalderaExecutorIntegration extends Integration {
     // connection: there the write is handed to the scheduler and opens its own transaction, so
     // stopping never waits for a second connection. A shutdown or a test stops it outside any
     // transaction, where the write runs at once. Either way a failed write never fails the stop.
-    // This tenant's executor no longer reports: the banner is rewritten from the other tenants.
-    if (tenantId != null) {
-      platformSettingsService.reportMessageSource(
-          BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE, tenantId, false);
-    }
-    Runnable clearBanner = this::clearBanner;
-    if (TransactionSynchronizationManager.isActualTransactionActive()) {
-      try {
-        taskScheduler.execute(clearBanner);
-      } catch (RuntimeException e) {
-        log.warn(
-            "Could not schedule the Caldera unavailable banner clearing: {}", e.getMessage(), e);
+    // This executor no longer reports: the banner is rewritten from the other executors' reports.
+    if (bannerSource != null) {
+      Runnable clearBanner = () -> clearBanner(bannerSource);
+      if (TransactionSynchronizationManager.isActualTransactionActive()) {
+        try {
+          taskScheduler.execute(clearBanner);
+        } catch (RuntimeException e) {
+          log.warn(
+              "Could not schedule the Caldera unavailable banner clearing: {}", e.getMessage(), e);
+        }
+      } else {
+        clearBanner.run();
       }
-    } else {
-      clearBanner.run();
     }
     timers.forEach(timer -> timer.cancel(true));
     timers.clear();
   }
 
-  private void clearBanner() {
+  private void clearBanner(String source) {
     try {
       tenantTx.executeAsPlatformWrite(
           TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
           () ->
-              this.platformSettingsService.syncMessage(
-                  BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE));
+              this.platformSettingsService.reportMessageSource(
+                  BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE, source, false));
     } catch (Exception e) {
       log.warn("Failed to clear the Caldera unavailable banner: {}", e.getMessage(), e);
     }

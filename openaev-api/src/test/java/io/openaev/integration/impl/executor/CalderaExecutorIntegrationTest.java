@@ -167,6 +167,9 @@ public class CalderaExecutorIntegrationTest {
     instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(instances.getFirst());
     Integration integration = integrationFactory.sync(new ArrayList<>(instances)).getFirst();
+    // The integration has started: it holds the source under which it reports to the banner
+    org.springframework.test.util.ReflectionTestUtils.setField(
+        integration, "bannerSource", "tenant.executor");
     connectorInstanceRepository.deleteById(instances.getFirst().getId());
 
     // Act + Assert: Integration.initialise() stops on a missing instance, in the transaction the
@@ -193,6 +196,9 @@ public class CalderaExecutorIntegrationTest {
     instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
     connectorInstanceService.save(instances.getFirst());
     Integration integration = integrationFactory.sync(new ArrayList<>(instances)).getFirst();
+    // The integration has started: it holds the source under which it reports to the banner
+    org.springframework.test.util.ReflectionTestUtils.setField(
+        integration, "bannerSource", "tenant.executor");
     connectorInstanceRepository.deleteById(instances.getFirst().getId());
 
     // Act: this test holds a transaction, as the monitoring job does

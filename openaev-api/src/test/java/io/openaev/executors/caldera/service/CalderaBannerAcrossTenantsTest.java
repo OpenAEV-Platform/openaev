@@ -14,6 +14,7 @@ import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.Executor;
+import io.openaev.database.model.Setting;
 import io.openaev.database.model.SettingKeys;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.SettingRepository;
@@ -41,9 +42,10 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * The Caldera-unavailable banner is one platform row written by the Caldera executor of every
- * tenant. It shows while one tenant's Caldera does not answer, whichever executor ran last, and two
- * writers of the first row do not collide.
+ * The Caldera-unavailable banner is one platform row derived from the reports of every Caldera
+ * executor of every tenant, which are persisted. It shows while one executor's Caldera does not
+ * answer, whichever executor ran last and whichever node restarted, and two writers of the first
+ * row do not collide.
  *
  * <p>Deliberately NOT {@code @Transactional}: each banner write commits in a transaction of its
  * own, on the thread that asked for it, as in production. The row is removed after each test.
@@ -73,14 +75,24 @@ class CalderaBannerAcrossTenantsTest extends IntegrationTest {
   private final CalderaExecutorClient reachable = mock(CalderaExecutorClient.class);
   private final CalderaExecutorClient unreachable = mock(CalderaExecutorClient.class);
 
+  private final Executor entityA = entityOf(Tenant.DEFAULT_TENANT_UUID, "caldera-a");
+  private final Executor entityB = entityOf(TENANT_B, "caldera-b");
+  private final Executor entitySecondOfB = entityOf(TENANT_B, "caldera-b-2");
+
   private CalderaExecutorService tenantA;
   private CalderaExecutorService tenantB;
+  private CalderaExecutorService secondOfTenantB;
 
-  private CalderaExecutorService executorOf(String tenantId, CalderaExecutorClient client) {
+  private Executor entityOf(String tenantId, String executorId) {
     Executor executor = new Executor();
+    executor.setId(executorId);
     executor.setName("Caldera");
     executor.setType("openaev_caldera_executor");
     executor.setTenantId(tenantId);
+    return executor;
+  }
+
+  private CalderaExecutorService executorOf(Executor executor, CalderaExecutorClient client) {
     return new CalderaExecutorService(
         executor,
         client,
@@ -102,9 +114,18 @@ class CalderaBannerAcrossTenantsTest extends IntegrationTest {
     bannerThread.submit(() -> {}).get(30, TimeUnit.SECONDS);
   }
 
+  private void stop(Executor executor) {
+    tenantScopedTransaction.executeAsPlatformWrite(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () ->
+            platformSettingsService.reportMessageSource(
+                BANNER, CalderaExecutorService.bannerSource(executor), false));
+  }
+
   private void clearBanner() {
-    platformSettingsService.reportMessageSource(BANNER, Tenant.DEFAULT_TENANT_UUID, false);
-    platformSettingsService.reportMessageSource(BANNER, TENANT_B, false);
+    stop(entityA);
+    stop(entityB);
+    stop(entitySecondOfB);
     tenantScopedTransaction.executeAsPlatformWrite(
         TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
         () -> platformSettingsService.cleanMessage(BANNER));
@@ -115,8 +136,9 @@ class CalderaBannerAcrossTenantsTest extends IntegrationTest {
     when(reachable.agents()).thenReturn(List.of());
     when(unreachable.agents()).thenThrow(new IllegalStateException("caldera is down"));
     clearBanner();
-    tenantA = executorOf(Tenant.DEFAULT_TENANT_UUID, reachable);
-    tenantB = executorOf(TENANT_B, unreachable);
+    tenantA = executorOf(entityA, reachable);
+    tenantB = executorOf(entityB, unreachable);
+    secondOfTenantB = executorOf(entitySecondOfB, reachable);
   }
 
   @AfterEach
@@ -180,13 +202,87 @@ class CalderaBannerAcrossTenantsTest extends IntegrationTest {
       assertTrue(bannerShown());
 
       // Act: the integration of that tenant stops, as CalderaExecutorIntegration#innerStop does
-      platformSettingsService.reportMessageSource(BANNER, TENANT_B, false);
-      tenantScopedTransaction.executeAsPlatformWrite(
-          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
-          () -> platformSettingsService.syncMessage(BANNER));
+      stop(entityB);
 
       // Assert
       assertFalse(bannerShown());
+    }
+  }
+
+  @Nested
+  @DisplayName("several nodes, several executors")
+  class SeveralNodes {
+
+    @Test
+    @DisplayName("given_aNodeRestartsWhileATenantIsDown_should_keepTheBanner")
+    void given_aNodeRestartsWhileATenantIsDown_should_keepTheBanner() throws Exception {
+      // Arrange: the tenant that is down raised the banner
+      tenantB.run();
+      awaitBannerWrites();
+      assertTrue(bannerShown());
+
+      // Act: a node that just started holds no report in memory, and its first executor to run
+      // is the one whose Caldera answers
+      tenantA.run();
+      awaitBannerWrites();
+
+      // Assert
+      assertTrue(bannerShown());
+    }
+
+    @Test
+    @DisplayName("given_oneExecutorOfATenantIsDown_should_keepTheBannerWhenAnotherOfItAnswers")
+    void given_oneExecutorOfATenantIsDown_should_keepTheBannerWhenAnotherOfItAnswers()
+        throws Exception {
+      // Arrange
+      tenantB.run();
+      awaitBannerWrites();
+
+      // Act: a second Caldera of the same tenant answers
+      secondOfTenantB.run();
+      awaitBannerWrites();
+
+      // Assert
+      assertTrue(bannerShown());
+    }
+
+    @Test
+    @DisplayName("given_oneExecutorOfATenantStops_should_keepTheBannerOfTheOthers")
+    void given_oneExecutorOfATenantStops_should_keepTheBannerOfTheOthers() throws Exception {
+      // Arrange
+      tenantB.run();
+      secondOfTenantB.run();
+      awaitBannerWrites();
+      assertTrue(bannerShown());
+
+      // Act: the healthy executor of the tenant stops
+      stop(entitySecondOfB);
+
+      // Assert
+      assertTrue(bannerShown());
+    }
+
+    @Test
+    @DisplayName("given_aReportIsNotRenewed_should_ignoreItAndDeleteIt")
+    void given_aReportIsNotRenewed_should_ignoreItAndDeleteIt() throws Exception {
+      // Arrange: a node died six minutes after it reported that its Caldera is down
+      String report = "platform_banner_source." + BANNER.key() + ".dead-node";
+      long sixMinutesAgo = System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(6);
+      tenantScopedTransaction.executeAsPlatformWrite(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> {
+            settingRepository.save(new Setting(report, String.valueOf(sixMinutesAgo)));
+            platformSettingsService.errorMessage(BANNER);
+          });
+      assertTrue(bannerShown());
+
+      // Act: a Caldera that answers reports
+      tenantA.run();
+      awaitBannerWrites();
+
+      // Assert
+      assertFalse(bannerShown());
+      assertTrue(settingRepository.findByKeyAndTenantIsNull(report).isEmpty());
     }
   }
 

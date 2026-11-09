@@ -224,12 +224,13 @@ public class CalderaExecutorServiceTest {
       Runnable write = requestedBannerWrite();
       verify(tenantTx, never()).executeNewAsPlatformWrite(any(), any(Runnable.class));
       verify(tenantTx, never()).executeAsPlatformWrite(any(), any(Runnable.class));
-      verify(platformSettingsService, never()).syncMessage(any());
+      verify(platformSettingsService, never()).reportMessageSource(any(), any(), anyBoolean());
       write.run();
       verify(platformSettingsService)
           .reportMessageSource(
-              BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE, calderaExecutor.getTenantId(), false);
-      verify(platformSettingsService).syncMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+              BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE,
+              CalderaExecutorService.bannerSource(calderaExecutor),
+              false);
     }
 
     @Test
@@ -246,8 +247,9 @@ public class CalderaExecutorServiceTest {
       // Assert
       verify(platformSettingsService)
           .reportMessageSource(
-              BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE, calderaExecutor.getTenantId(), true);
-      verify(platformSettingsService).syncMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+              BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE,
+              CalderaExecutorService.bannerSource(calderaExecutor),
+              true);
     }
 
     @Test
@@ -265,7 +267,7 @@ public class CalderaExecutorServiceTest {
 
       // Assert: the failure stays in the write, and is not read as "Caldera is down"
       assertDoesNotThrow(write::run);
-      verify(platformSettingsService, never()).syncMessage(any());
+      verify(platformSettingsService, never()).reportMessageSource(any(), any(), anyBoolean());
     }
 
     @Test
@@ -279,7 +281,7 @@ public class CalderaExecutorServiceTest {
 
       // Act + Assert
       assertDoesNotThrow(calderaExecutorService::run);
-      verify(platformSettingsService, never()).syncMessage(any());
+      verify(platformSettingsService, never()).reportMessageSource(any(), any(), anyBoolean());
     }
   }
 

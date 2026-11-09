@@ -42,9 +42,9 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -68,9 +68,11 @@ public class PlatformSettingsService {
 
   private final ApplicationContext context;
 
-  /** The sources that currently raise each banner, read by {@link #syncMessage}. */
-  private final Map<BannerMessage.BANNER_KEYS, Set<String>> messageSources =
-      new ConcurrentHashMap<>();
+  /** Prefix of the platform rows that hold the reports of the sources of a banner. */
+  private static final String BANNER_SOURCE_PREFIX = "platform_banner_source.";
+
+  /** A source reports every minute: a report older than this is a source that is gone. */
+  static final Duration BANNER_SOURCE_TTL = Duration.ofMinutes(5);
 
   private final Environment env;
   private final SettingRepository settingRepository;
@@ -682,30 +684,57 @@ public class PlatformSettingsService {
   }
 
   /**
-   * Records whether {@code source} (the tenant of an executor, for example) raises {@code banner}.
-   * Nothing is written: {@link #syncMessage} writes the banner from what every source reports.
+   * Records whether {@code source} (an executor of a tenant, for example) raises {@code banner},
+   * then writes the banner from the reports of every source. The reports are platform rows of
+   * {@code parameters}, one per source that raises the banner and renewed each time it reports, so
+   * any node computes the same banner from the same rows: it shows while at least one source
+   * reported within {@link #BANNER_SOURCE_TTL}, and clears otherwise. A report not renewed within
+   * that time (a node that died, an executor removed without stopping) is deleted here. Callers are
+   * serialised on the banner by a transaction-level lock. Runs in a platform-write transaction.
    */
   public void reportMessageSource(
       @NotBlank final BannerMessage.BANNER_KEYS banner, @NotBlank String source, boolean raised) {
-    Set<String> sources =
-        messageSources.computeIfAbsent(banner, key -> ConcurrentHashMap.newKeySet());
+    String bannerKey = PLATFORM_BANNER + "." + banner.key();
+    settingRepository.lockUntilEndOfTransaction(bannerKey);
+    String sourceKey = BANNER_SOURCE_PREFIX + banner.key() + "." + source;
     if (raised) {
-      sources.add(source);
+      Setting report =
+          settingRepository
+              .findByKeyAndTenantIsNull(sourceKey)
+              .orElseGet(() -> new Setting(sourceKey, ""));
+      report.setValue(String.valueOf(System.currentTimeMillis()));
+      settingRepository.save(report);
     } else {
-      sources.remove(source);
+      settingRepository.deleteByKeyIn(List.of(sourceKey));
+    }
+    syncMessage(banner);
+  }
+
+  private void syncMessage(final BannerMessage.BANNER_KEYS banner) {
+    long oldestLive = System.currentTimeMillis() - BANNER_SOURCE_TTL.toMillis();
+    List<Setting> reports =
+        settingRepository.findAllByKeyStartingWithAndTenantIsNull(
+            BANNER_SOURCE_PREFIX + banner.key() + ".");
+    List<String> expired =
+        reports.stream()
+            .filter(report -> !isLive(report, oldestLive))
+            .map(Setting::getKey)
+            .toList();
+    if (!expired.isEmpty()) {
+      settingRepository.deleteByKeyIn(expired);
+    }
+    if (reports.size() > expired.size()) {
+      errorMessage(banner);
+    } else {
+      cleanMessage(banner);
     }
   }
 
-  /**
-   * Writes {@code banner} as the union of its sources: shown while at least one source raises it,
-   * cleared when none does, so the banner does not follow whichever source wrote last. Runs in a
-   * platform-write transaction.
-   */
-  public void syncMessage(@NotBlank final BannerMessage.BANNER_KEYS banner) {
-    if (messageSources.getOrDefault(banner, Set.of()).isEmpty()) {
-      cleanMessage(banner);
-    } else {
-      errorMessage(banner);
+  private static boolean isLive(Setting report, long oldestLive) {
+    try {
+      return Long.parseLong(report.getValue()) >= oldestLive;
+    } catch (NumberFormatException e) {
+      return false;
     }
   }
 

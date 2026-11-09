@@ -30,6 +30,8 @@ public interface SettingRepository
 
   List<Setting> findAllByKeyInAndTenantIsNull(List<String> keys);
 
+  List<Setting> findAllByKeyStartingWithAndTenantIsNull(@NotNull String prefix);
+
   // -- Tenant-scoped --
 
   Optional<Setting> findByKeyAndTenantId(@NotNull String key, @NotNull String tenantId);
@@ -49,6 +51,11 @@ public interface SettingRepository
       nativeQuery = true)
   int insertPlatformSettingIfAbsent(
       @Param("id") String id, @Param("key") String key, @Param("value") String value);
+
+  // Native: a transaction-level advisory lock, which the ORM cannot express. It touches no row and
+  // no entity, so no session side effect is lost.
+  @Query(value = "SELECT CAST(pg_advisory_xact_lock(hashtext(:name)) AS text)", nativeQuery = true)
+  String lockUntilEndOfTransaction(@Param("name") String name);
 
   @Query(value = "SHOW server_version", nativeQuery = true)
   String getServerVersion();
