@@ -316,13 +316,13 @@ public class UserService {
   /**
    * Makes the tags of a saved user the given ones among the ones the transaction's scope sees. A
    * user is platform-level and its tags may belong to several tenants, so the links to the tags out
-   * of scope are left alone: the ones to drop are deleted one by one and the missing ones inserted,
-   * where replacing the collection would delete every row of the user as soon as it is empty. The
-   * row of the user is locked first and the links it holds are read once the lock is held, never
-   * from the collection loaded earlier in the request: two concurrent replacements would otherwise
-   * both compute their differences from the same set and leave the union of what they asked for.
-   * The changes the caller made to the user are kept, and the user is reloaded afterwards so that
-   * it answers with the links it now holds.
+   * of scope are left alone: the ones to drop are deleted and the missing ones inserted, each in
+   * one statement, where replacing the collection would delete every row of the user as soon as it
+   * is empty. The row of the user is locked first and the links it holds are read once the lock is
+   * held, never from the collection loaded earlier in the request: two concurrent replacements
+   * would otherwise both compute their differences from the same set and leave the union of what
+   * they asked for. The changes the caller made to the user are kept, and the user is reloaded
+   * afterwards so that it answers with the links it now holds.
    *
    * @param user the saved user
    * @param wanted the tags the user must hold among the ones in scope
@@ -344,7 +344,9 @@ public class UserService {
     if (!toRemove.isEmpty()) {
       userRepository.removeTags(user.getId(), toRemove);
     }
-    toAdd.forEach(tagId -> userRepository.addTag(user.getId(), tagId));
+    if (!toAdd.isEmpty()) {
+      userRepository.addTags(user.getId(), toAdd);
+    }
     entityManager.refresh(user);
   }
 

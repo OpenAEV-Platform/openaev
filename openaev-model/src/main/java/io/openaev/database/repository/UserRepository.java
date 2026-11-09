@@ -336,6 +336,18 @@ public interface UserRepository
       nativeQuery = true)
   void addTag(@Param("userId") String userId, @Param("tagId") String tagId);
 
+  // Native: one set-based insert with ON CONFLICT on a join table that is not indexed, audited nor
+  // streamed. The tags are read from the tags table, so only the ones in the scope of the
+  // transaction are linked, and a link that already exists is left as it is.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "INSERT INTO users_tags (user_id, tag_id)"
+              + " SELECT :userId, t.tag_id FROM tags t WHERE t.tag_id IN :tagIds"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addTags(@Param("userId") String userId, @Param("tagIds") Collection<String> tagIds);
+
   // JPQL, not the loaded collection: the collection may have been read before the row of the user
   // was locked, while this reads the links as committed once the lock is held. Rooted on Tag, since
   // selecting the id through the join table alone never reads the tags table: only the tags in the
