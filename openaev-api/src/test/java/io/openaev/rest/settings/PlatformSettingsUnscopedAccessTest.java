@@ -14,6 +14,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.settings.SettingService;
+import io.openaev.utilstest.PinsUnscopedPlatformRead;
 import io.openaev.utilstest.WithoutTenantScope;
 import java.util.List;
 import java.util.Optional;
@@ -96,6 +97,7 @@ class PlatformSettingsUnscopedAccessTest extends IntegrationTest {
 
     @Test
     @DisplayName("given_noScope_should_readAPersistedPlatformIntSetting")
+    @PinsUnscopedPlatformRead(table = "parameters")
     void given_noScope_should_readAPersistedPlatformIntSetting() {
       // Arrange: the session limit an admin saved
       putPlatformSetting(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key(), "3");
