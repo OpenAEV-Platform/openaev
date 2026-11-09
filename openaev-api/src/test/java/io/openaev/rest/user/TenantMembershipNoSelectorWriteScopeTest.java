@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -56,6 +57,10 @@ import org.springframework.transaction.annotation.Transactional;
  *       TENANT_SELECTOR_REQUIRED}, nothing written;
  *   <li>a caller with no membership is refused with {@code TENANT_WRITE_SCOPE}, nothing written.
  * </ul>
+ *
+ * <p>The player update ({@code PUT /api/players/{id}}) writes no membership row but resolves its
+ * write tenant the same way, to assign the organization: it is pinned for the two refused shapes
+ * only, with the profile of the player left as it was.
  *
  * <p>Dropping the annotation from one handler turns the first two shapes of that handler into a
  * different outcome (a single-tenant caller keeps working, a two-tenant one gets a 400), so each
@@ -166,6 +171,26 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
 
   private static List<String> sorted(String... tenantIds) {
     return List.of(tenantIds).stream().sorted().toList();
+  }
+
+  /** The player update the caller sends, renaming the player. */
+  private MockHttpServletRequestBuilder playerUpdate(User player) {
+    PlayerInput input = playerInput(player.getEmail());
+    input.setFirstname("Changed-" + UUID.randomUUID());
+    return put(PLAYER_URI + "/" + player.getId())
+        .content(asJsonString(input))
+        .contentType(MediaType.APPLICATION_JSON)
+        .accept(MediaType.APPLICATION_JSON)
+        .with(csrf());
+  }
+
+  private String firstnameOf(User player) {
+    entityManager.flush();
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT user_firstname FROM users WHERE user_id = :id")
+            .setParameter("id", player.getId())
+            .getSingleResult();
   }
 
   @Nested
@@ -299,6 +324,26 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
           .andExpect(jsonPath("$.message").value("TENANT_SELECTOR_REQUIRED"));
       assertEquals(sorted(tenantB, tenantC), membershipTenantsOf(member.getEmail()));
     }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player update is refused with TENANT_SELECTOR_REQUIRED and writes nothing")
+    void given_callerOfBAndC_should_refuseThePlayerUpdate() throws Exception {
+      // -- PREPARE --
+      String tenantB = tenantIsolationHelper.createTenantWithCurrentUser("noselector-b").getId();
+      String tenantC = tenantIsolationHelper.createTenantWithCurrentUser("noselector-c").getId();
+      User player = memberOf(tenantB, tenantC);
+      String firstname = firstnameOf(player);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(playerUpdate(player))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_SELECTOR_REQUIRED"));
+      assertEquals(firstname, firstnameOf(player));
+      assertEquals(sorted(tenantB, tenantC), membershipTenantsOf(player.getEmail()));
+    }
   }
 
   @Nested
@@ -339,6 +384,23 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.message").value("TENANT_WRITE_SCOPE"));
       assertEquals(List.of(DEFAULT_TENANT), membershipTenantsOf(member.getEmail()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player update is refused with TENANT_WRITE_SCOPE and writes nothing")
+    void given_callerWithoutMembership_should_refuseThePlayerUpdate() throws Exception {
+      // -- PREPARE --
+      User player = memberOf(DEFAULT_TENANT);
+      String firstname = firstnameOf(player);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(playerUpdate(player))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_WRITE_SCOPE"));
+      assertEquals(firstname, firstnameOf(player));
     }
   }
 }
