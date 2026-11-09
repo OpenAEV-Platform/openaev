@@ -6,30 +6,38 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.rest.document.DocumentService;
-import io.openaev.service.FileService;
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
+import io.openaev.service.hash.CanonicalContent;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.erdtman.jcs.JsonCanonicalizer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class PayloadContentHashServiceTest {
 
-  @Mock private FileService fileService;
   @Mock private DocumentService documentService;
-  @InjectMocks private PayloadContentHashService service;
+  @Mock private PayloadRepository payloadRepository;
+  @Mock private InjectorContractRepository injectorContractRepository;
+  private PayloadContentHashService service;
+
+  @BeforeEach
+  void setUp() {
+    service =
+        new PayloadContentHashService(
+            new CanonicalContent(documentService), payloadRepository, injectorContractRepository);
+  }
 
   private static Command command() {
     Command command = new Command();
@@ -160,9 +168,9 @@ class PayloadContentHashServiceTest {
     @Test
     void given_differentFileBytes_should_changeHash() {
       // Arrange
-      when(fileService.getFile(any(), any()))
-          .thenReturn(Optional.of(new ByteArrayInputStream("v1".getBytes(StandardCharsets.UTF_8))))
-          .thenReturn(Optional.of(new ByteArrayInputStream("v2".getBytes(StandardCharsets.UTF_8))));
+      when(documentService.contentHash(any()))
+          .thenReturn(Optional.of("v1-hash"))
+          .thenReturn(Optional.of("v2-hash"));
 
       // Act & Assert
       assertThat(service.hash(executable("a.exe"), List.of()))
@@ -172,10 +180,10 @@ class PayloadContentHashServiceTest {
     @Test
     void given_unreadableFile_should_giveNoHash() {
       // Arrange
-      when(fileService.getFile(any(), any())).thenReturn(Optional.empty());
+      when(documentService.contentHash(any())).thenReturn(Optional.empty());
 
       // Act & Assert
-      assertThat(service.hash(executable("missing.exe"), List.of())).isNull();
+      assertThat(service.hash(executable("missing.exe"), List.of())).isEmpty();
     }
 
     @Test
@@ -189,7 +197,7 @@ class PayloadContentHashServiceTest {
           .thenThrow(new io.openaev.rest.exception.ElementNotFoundException("Document not found"));
 
       // Act & Assert
-      assertThat(service.hash(command, List.of())).isNull();
+      assertThat(service.hash(command, List.of())).isEmpty();
     }
   }
 }

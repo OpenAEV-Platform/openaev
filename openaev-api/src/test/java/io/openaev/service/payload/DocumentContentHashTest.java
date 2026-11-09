@@ -7,14 +7,12 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Document;
-import io.openaev.database.model.Executable;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.document.form.DocumentCreateInput;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.UUID;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.jupiter.api.DisplayName;
@@ -26,18 +24,16 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("Document SHA-256")
-class DocumentSha256Test extends IntegrationTest {
+@DisplayName("Document content hash")
+class DocumentContentHashTest extends IntegrationTest {
 
   @Autowired private DocumentService documentService;
   @Autowired private DocumentRepository documentRepository;
-  @Autowired private PayloadContentHashService payloadContentHashService;
   @Autowired private TenantScopedTransaction tenantTx;
 
   @Test
-  @DisplayName(
-      "is set on upload, and filled then stored on the first hash of a document without it")
-  void given_uploadedDocument_should_carryItsSha256() throws Exception {
+  @DisplayName("is set on upload, and read once then stored when missing")
+  void given_uploadedDocument_should_carryItsContentHash() throws Exception {
     // Arrange
     tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(DEFAULT_TENANT_UUID));
     byte[] content = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
@@ -50,20 +46,18 @@ class DocumentSha256Test extends IntegrationTest {
             "application/octet-stream",
             new DocumentCreateInput(),
             DEFAULT_TENANT_UUID);
-    assertThat(uploaded.getSha256()).isEqualTo(expected);
-    uploaded.setSha256(null);
+    assertThat(uploaded.getContentHash()).isEqualTo(expected);
+    uploaded.setContentHash(null);
     documentRepository.save(uploaded);
-    Executable executable = new Executable();
-    executable.setName("Tool");
-    executable.setExecutableFile(uploaded);
 
     // Act
-    payloadContentHashService.hash(executable, List.of());
+    String hash = documentService.contentHash(uploaded).orElseThrow();
 
     // Assert
+    assertThat(hash).isEqualTo(expected);
     entityManager.flush();
     entityManager.clear();
-    assertThat(documentRepository.findById(uploaded.getId()).orElseThrow().getSha256())
+    assertThat(documentRepository.findById(uploaded.getId()).orElseThrow().getContentHash())
         .isEqualTo(expected);
   }
 }

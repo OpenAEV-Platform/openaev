@@ -5,19 +5,21 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.spy;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.PayloadRepository;
 import io.openaev.rest.document.DocumentService;
-import io.openaev.service.FileService;
+import io.openaev.service.hash.CanonicalContent;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.erdtman.jcs.JsonCanonicalizer;
@@ -57,8 +59,9 @@ class PayloadHashConformanceTest {
           "executable_file",
           "file_drop_file");
 
-  @Mock private FileService fileService;
   @Mock private DocumentService documentService;
+  @Mock private PayloadRepository payloadRepository;
+  @Mock private InjectorContractRepository injectorContractRepository;
 
   @TestFactory
   @DisplayName("Given a vector the repository hashes, our hash should be the repository's")
@@ -93,7 +96,7 @@ class PayloadHashConformanceTest {
                           new JsonCanonicalizer(
                                   service.canonicalTree(payload, attackPatterns).toString())
                               .getEncodedString();
-                      String hash = service.hash(payload, attackPatterns);
+                      String hash = service.hash(payload, attackPatterns).orElseThrow();
 
                       // Assert
                       assertThat(canonical).isEqualTo(vector.get("canonical").asText());
@@ -102,16 +105,18 @@ class PayloadHashConformanceTest {
   }
 
   private PayloadContentHashService serviceFor(JsonNode files) {
-    PayloadContentHashService service =
-        spy(new PayloadContentHashService(fileService, documentService));
     lenient()
-        .when(documentService.document(anyString()))
-        .thenAnswer(invocation -> document(invocation.getArgument(0)));
+        .doAnswer(invocation -> document(invocation.getArgument(0)))
+        .when(documentService)
+        .document(anyString());
     lenient()
-        .doAnswer(invocation -> files.path(((Document) invocation.getArgument(0)).getId()).asText())
-        .when(service)
-        .fileHash(any());
-    return service;
+        .doAnswer(
+            invocation ->
+                Optional.of(files.path(((Document) invocation.getArgument(0)).getId()).asText()))
+        .when(documentService)
+        .contentHash(any());
+    return new PayloadContentHashService(
+        new CanonicalContent(documentService), payloadRepository, injectorContractRepository);
   }
 
   private static Payload payload(JsonNode exported) {
