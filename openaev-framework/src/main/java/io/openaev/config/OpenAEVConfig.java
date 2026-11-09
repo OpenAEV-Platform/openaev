@@ -61,10 +61,6 @@ public class OpenAEVConfig {
   @Value("${openaev.commit:#{null}}")
   private String commit;
 
-  @JsonIgnore
-  @Value("${openaev.integrations-version:#{null}}")
-  private String integrationsVersion;
-
   @JsonProperty("map_tile_server_light")
   @Value("${openbas.map-tile-server-light:${openaev.map-tile-server-light:#{null}}}")
   private String mapTileServerLight;
