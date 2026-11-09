@@ -31,6 +31,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -71,6 +73,7 @@ class InjectorContractApiCopyRankingTenantScopeTest extends IntegrationTest {
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
   private final List<String> createdTenants = new ArrayList<>();
+  private final List<String[]> createdRows = new ArrayList<>();
   private String contractId;
   private String tagId;
 
@@ -83,6 +86,9 @@ class InjectorContractApiCopyRankingTenantScopeTest extends IntegrationTest {
     if (tagId != null) {
       jdbc.update("DELETE FROM tags WHERE tag_id = ?", tagId);
     }
+    createdRows.forEach(
+        row -> jdbc.update("DELETE FROM " + row[0] + " WHERE " + row[1] + " = ?", row[2]));
+    createdRows.clear();
     createdTenants.forEach(tenantHelper::deleteCommittedTenants);
     createdTenants.clear();
     contractId = null;
@@ -164,6 +170,104 @@ class InjectorContractApiCopyRankingTenantScopeTest extends IntegrationTest {
         tagId);
   }
 
+  /** The filters that reach a table or a column of the contract through the subquery operators. */
+  enum LinkedFilter {
+    ATTACK_PATTERN("injector_contract_attack_patterns"),
+    DOMAIN("injector_contract_domains"),
+    VULNERABILITY("injector_contract_vulnerabilities"),
+    PLATFORM("injector_contract_platforms");
+
+    final String key;
+
+    LinkedFilter(String key) {
+      this.key = key;
+    }
+  }
+
+  /**
+   * Gives the tenant's copy of the contract what {@code filter} selects on, and no other copy. The
+   * copy of every other tenant carries a value the filter does not select. Returns the value to
+   * filter on: the id of the linked row, which is what the equality operator of a link table
+   * compares.
+   */
+  private String linkOnlyTo(String tenantId, LinkedFilter filter) {
+    JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+    String suffix = UUID.randomUUID().toString();
+    switch (filter) {
+      case ATTACK_PATTERN -> {
+        String id = "ic-rank-ap-" + suffix;
+        String externalId = "T" + Math.abs(suffix.hashCode()) + ".9";
+        jdbc.update(
+            "INSERT INTO attack_patterns (attack_pattern_id, attack_pattern_stix_id,"
+                + " attack_pattern_name, attack_pattern_external_id, tenant_id)"
+                + " VALUES (?, ?, ?, ?, ?)",
+            id,
+            "attack-pattern--" + suffix,
+            id,
+            externalId,
+            tenantId);
+        createdRows.add(new String[] {"attack_patterns", "attack_pattern_id", id});
+        jdbc.update(
+            "INSERT INTO injectors_contracts_attack_patterns (injector_contract_id, tenant_id,"
+                + " attack_pattern_id) VALUES (?, ?, ?)",
+            contractId,
+            tenantId,
+            id);
+        return id;
+      }
+      case DOMAIN -> {
+        String id = "ic-rank-domain-" + suffix;
+        jdbc.update(
+            "INSERT INTO domains (domain_id, domain_name, domain_color, tenant_id)"
+                + " VALUES (?, ?, '#ffffff', ?)",
+            id,
+            id,
+            tenantId);
+        createdRows.add(new String[] {"domains", "domain_id", id});
+        jdbc.update(
+            "INSERT INTO injectors_contracts_domains (injector_contract_id, tenant_id, domain_id)"
+                + " VALUES (?, ?, ?)",
+            contractId,
+            tenantId,
+            id);
+        return id;
+      }
+      case VULNERABILITY -> {
+        String id = "ic-rank-vuln-" + suffix;
+        String externalId = "CVE-2099-" + Math.abs(suffix.hashCode());
+        jdbc.update(
+            "INSERT INTO vulnerabilities (vulnerability_id, vulnerability_external_id,"
+                + " vulnerability_source_identifier, tenant_id) VALUES (?, ?, ?, ?)",
+            id,
+            externalId,
+            "ic-rank",
+            tenantId);
+        createdRows.add(new String[] {"vulnerabilities", "vulnerability_id", id});
+        jdbc.update(
+            "INSERT INTO injectors_contracts_vulnerabilities (injector_contract_id, tenant_id,"
+                + " vulnerability_id) VALUES (?, ?, ?)",
+            contractId,
+            tenantId,
+            id);
+        return id;
+      }
+      case PLATFORM -> {
+        jdbc.update(
+            "UPDATE injectors_contracts SET injector_contract_platforms = '{Linux}'::text[]"
+                + " WHERE injector_contract_id = ? AND tenant_id = ?",
+            contractId,
+            tenantId);
+        jdbc.update(
+            "UPDATE injectors_contracts SET injector_contract_platforms = '{Windows}'::text[]"
+                + " WHERE injector_contract_id = ? AND tenant_id <> ?",
+            contractId,
+            tenantId);
+        return "Linux";
+      }
+    }
+    throw new IllegalStateException(filter.name());
+  }
+
   private InjectorContractSearchPaginationInput search(String textSearch) {
     InjectorContractSearchPaginationInput input = new InjectorContractSearchPaginationInput();
     input.setSize(1000);
@@ -241,6 +345,34 @@ class InjectorContractApiCopyRankingTenantScopeTest extends IntegrationTest {
       String body = postJson(INJECTOR_CONTRACT_URL + "/search", input);
 
       // Assert: the copy kept is the best-ranked one among those matching the filter
+      assertThat((List<String>) JsonPath.read(body, "$.content[*].injector_contract_labels.en"))
+          .containsExactly(labelOf(higher));
+      assertThat(((Number) JsonPath.read(body, "$.totalElements")).longValue()).isEqualTo(1);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(LinkedFilter.class)
+    @DisplayName("given_filterOnlyTheNonDefaultCopyMatches_should_listTheContractOnceThroughIt")
+    void given_filterOnlyTheNonDefaultCopyMatches_should_listTheContractOnceThroughIt(
+        LinkedFilter filter) throws Exception {
+      // Arrange: the other tenant sorts above the default one, and only its copy matches
+      String higher = tenantOnTheSideOfDefault(false);
+      callerOfDefaultAnd(higher);
+      contractId = "ic-rank-" + UUID.randomUUID();
+      cloneContractInto(higher);
+      cloneContractInto(Tenant.DEFAULT_TENANT_UUID);
+      String value = linkOnlyTo(higher, filter);
+      InjectorContractSearchPaginationInput input = search(LABEL_PREFIX);
+      input.setFilterGroup(
+          Filters.FilterGroup.builder()
+              .mode(Filters.FilterMode.and)
+              .filters(List.of(Filters.Filter.getNewDefaultEqualFilter(filter.key, List.of(value))))
+              .build());
+
+      // Act
+      String body = postJson(INJECTOR_CONTRACT_URL + "/search", input);
+
+      // Assert
       assertThat((List<String>) JsonPath.read(body, "$.content[*].injector_contract_labels.en"))
           .containsExactly(labelOf(higher));
       assertThat(((Number) JsonPath.read(body, "$.totalElements")).longValue()).isEqualTo(1);
