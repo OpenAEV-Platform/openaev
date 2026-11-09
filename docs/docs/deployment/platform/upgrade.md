@@ -20,7 +20,7 @@ This page explains how to upgrade OpenAEV. The steps depend on your [installatio
 
     XTM Composer registers itself with `POST /api/xtm-composer/register` and refreshes its connectivity with `PUT /api/xtm-composer/{id}/refresh-connectivity`. Both calls require the platform settings write right. A token user that holds only the catalog write right gets a 403, and the composer stays unregistered.
 
-    Run XTM Composer with an administrator token, or give its user the platform settings write right. A user that belongs to no tenant calls the platform route; the tenant route (`/api/tenants/{tenantId}/xtm-composer/...`) also requires membership of the tenant it names.
+    A deployment that passes the administrator token (`OPENAEV_ADMIN_TOKEN`) to XTM Composer as `OPENAEV__TOKEN`, as the Docker Compose file of the OpenAEV repository (`openaev-dev/docker-compose.yml`) does, keeps working: the administrator holds the right. A deployment that set a custom token for XTM Composer gives the user of that token the platform settings write right (`MANAGE_PLATFORM_SETTINGS`). A user that belongs to no tenant calls the platform route; the tenant route (`/api/tenants/{tenantId}/xtm-composer/...`) also requires membership of the tenant it names.
 
 !!! warning "Name the tenant when you read or save the autonomous run default agents"
 
