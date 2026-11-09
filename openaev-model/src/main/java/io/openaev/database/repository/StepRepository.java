@@ -324,16 +324,15 @@ public interface StepRepository extends JpaRepository<Step, String> {
    *
    * <p>Native because it reads {@code step_data} through jsonb operators JPQL cannot express; it is
    * read-only, so no indexed, audited or streamed row is skipped. {@code workflows} and {@code
-   * steps} are not tenant-active, so the statement returns the tenant of any workflow id whatever
-   * the caller's scope. That is safe only because of what the caller does next: it reads the
-   * contract in that tenant through {@code InjectorContractService#injectorContractInTenant}, an
-   * {@code injectors_contracts} read the statement inspector scopes to the request, so a workflow
-   * of a tenant outside the scope answers "not found" and its tenant id never leaves the service.
-   * Do not return this value to a client.
+   * steps} are not tenant-active, so the statement carries its own tenant predicate: it answers
+   * only for a workflow of one of {@code tenantIds}, the caller's scope, and reads only the steps
+   * of the workflow's own tenant. Do not return this value to a client.
    *
    * @param workflowId the ID of the workflow whose steps are inspected
    * @param injectorContractId the injector contract ID to look for
-   * @return the workflow's tenant id if it references the contract, empty otherwise
+   * @param tenantIds the tenants the caller reads in; a workflow of another tenant answers nothing
+   * @return the workflow's tenant id if it is one of {@code tenantIds} and references the contract,
+   *     empty otherwise
    */
   @Query(
       value =
@@ -341,10 +340,12 @@ public interface StepRepository extends JpaRepository<Step, String> {
         SELECT w.tenant_id
         FROM workflows w
         WHERE w.workflow_id = :workflowId
+          AND w.tenant_id IN (:tenantIds)
           AND EXISTS (
             SELECT 1
             FROM steps s
             WHERE s.step_workflow_id = w.workflow_id
+              AND s.tenant_id = w.tenant_id
               AND (
                 (jsonb_typeof(s.step_data -> 'inject_injector_contract') = 'object'
                   AND s.step_data -> 'inject_injector_contract' ->> 'injector_contract_id' = :injectorContractId)
@@ -357,7 +358,8 @@ public interface StepRepository extends JpaRepository<Step, String> {
       nativeQuery = true)
   Optional<String> findWorkflowTenantIdIfReferencesInjectorContract(
       @Param("workflowId") String workflowId,
-      @Param("injectorContractId") String injectorContractId);
+      @Param("injectorContractId") String injectorContractId,
+      @Param("tenantIds") Collection<String> tenantIds);
 
   /**
    * Returns the TEMPLATE steps (authored logic-map nodes) of the given tenant whose frozen {@code

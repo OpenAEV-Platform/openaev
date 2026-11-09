@@ -17,6 +17,7 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionWithContentOutput;
 import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.SessionHelper;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawContractTenant;
 import io.openaev.database.raw.RawInjectorsContracts;
@@ -54,6 +55,7 @@ import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TriVoid;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -193,18 +195,22 @@ public class InjectorContractService implements DependenciesManager {
    * both chaining contexts, and the caller's permission is checked on the workflow's parent
    * simulation or scenario.
    *
+   * @param ctx the request's scope: a workflow outside it is not found
    * @param injectorContractId the injector contract ID
    * @param workflowId the ID of the workflow the contract must be referenced by
    * @return the injector contract
    * @throws ElementNotFoundException if not found or not referenced by the workflow
    */
   public InjectorContract injectorContractForWorkflow(
-      @NotBlank final String injectorContractId, @NotBlank final String workflowId) {
+      @NotNull final TxCtx ctx,
+      @NotBlank final String injectorContractId,
+      @NotBlank final String workflowId) {
     // Resolved in the workflow's own tenant, not the request's ambient scope: a built-in contract
     // id repeats across tenants (#8485), and the caller's scope can legitimately span several.
     String tenantId =
         stepRepository
-            .findWorkflowTenantIdIfReferencesInjectorContract(workflowId, injectorContractId)
+            .findWorkflowTenantIdIfReferencesInjectorContract(
+                workflowId, injectorContractId, TxCtxScopeUtils.requestReadScope(ctx))
             .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
     return injectorContractInTenant(injectorContractId, tenantId);
   }
