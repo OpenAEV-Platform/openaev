@@ -203,7 +203,7 @@ public class AssetMarkingsService {
     User currentUser = userService.currentUser();
     assertCanAssignMarkings(
         markingClearanceCacheManager.findClearance(
-            currentUser.getId(), tenantId, currentUser.isAdminOrBypass()),
+            currentUser.getId(), tenantId),
         markings);
     assertMarkingAssignmentCapability(tenantId, currentUser);
 
