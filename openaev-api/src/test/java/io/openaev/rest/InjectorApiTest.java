@@ -501,8 +501,10 @@ public class InjectorApiTest extends IntegrationTest {
         "Should adopt an injector-less contract (starter-pack import) on injector registration")
     void shouldAdoptInjectorlessContractOnRegistration() throws Exception {
       // -- ARRANGE --
-      // Simulate a starter-pack import: the contract exists without any injector link
+      // Simulate a starter-pack import: the contract exists in the registering tenant without any
+      // injector link
       InjectorContract orphanContract = InjectorContractFixture.createDefaultInjectorContract();
+      orphanContract.setTenant(new Tenant(tenantId));
       orphanContract.clearInjectors();
       em.persist(orphanContract);
       injectorContractRepository.save(orphanContract);
@@ -532,9 +534,9 @@ public class InjectorApiTest extends IntegrationTest {
       assertThat(realInjector).isPresent();
       assertThat(realInjector.get().isExternal()).isTrue();
 
-      // The orphan contract was seeded in the ambient default tenant while registration adopts it
-      // into tenantId: a built-in-shaped id repeats across tenants (#8485), so the assertion stays
-      // in the tenant the registration actually wrote to, not a bare id lookup.
+      // The orphan was seeded in tenantId, the tenant the registration writes to: a built-in-shaped
+      // id repeats across tenants (#8485), so the assertion reads that tenant's row, not a bare id
+      // lookup.
       Optional<InjectorContract> adoptedContract =
           injectorContractRepository.findByContractIdAndTenant(orphanContractId, tenantId);
       assertThat(adoptedContract).isPresent();
