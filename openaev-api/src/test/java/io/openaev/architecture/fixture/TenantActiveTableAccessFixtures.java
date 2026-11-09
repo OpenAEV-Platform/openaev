@@ -4,6 +4,7 @@ import io.openaev.aop.PlatformWrite;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
@@ -632,6 +633,102 @@ public final class TenantActiveTableAccessFixtures {
 
     public void job(List<String> tenantIds) {
       tenantIds.stream().map(settingRepository::findAllByTenantId).toList();
+    }
+  }
+
+  /** Writes tenant rows only: the row it saves is looked up by tenant or built for one. */
+  public static class TenantRowWriterThatStaysTenantOnly {
+
+    private final SettingRepository settingRepository;
+
+    public TenantRowWriterThatStaysTenantOnly(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    public void write(Tenant tenant, String key, String value) {
+      Setting setting =
+          settingRepository
+              .findByKeyAndTenantId(key, tenant.getId())
+              .orElseGet(
+                  () -> {
+                    Setting created = new Setting(key, value);
+                    created.setTenant(tenant);
+                    return created;
+                  });
+      setting.setValue(value);
+      settingRepository.save(setting);
+    }
+  }
+
+  /** Builds a new row and never attributes it to a tenant: that row is a platform row. */
+  public static class TenantRowWriterBuildingARowWithoutATenant {
+
+    private final SettingRepository settingRepository;
+
+    public TenantRowWriterBuildingARowWithoutATenant(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    public void write(Tenant tenant, String key, String value) {
+      Setting setting =
+          settingRepository
+              .findByKeyAndTenantId(key, tenant.getId())
+              .orElseGet(() -> new Setting(key, value));
+      settingRepository.save(setting);
+    }
+  }
+
+  /** Looks the row up by the platform key before saving it. */
+  public static class TenantRowWriterLookingUpThePlatformRow {
+
+    private final SettingRepository settingRepository;
+
+    public TenantRowWriterLookingUpThePlatformRow(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    public void write(String key, String value) {
+      settingRepository
+          .findByKeyAndTenantIsNull(key)
+          .ifPresent(
+              setting -> {
+                setting.setValue(value);
+                settingRepository.save(setting);
+              });
+    }
+  }
+
+  /** Deletes by key alone, which removes the platform row and every tenant's row of that key. */
+  public static class TenantRowWriterDeletingByKeyOnly {
+
+    private final SettingRepository settingRepository;
+
+    public TenantRowWriterDeletingByKeyOnly(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    public void write(List<String> keys) {
+      settingRepository.deleteByKeyIn(keys);
+    }
+  }
+
+  /** Two overloads of one name: the three-argument one writes a tenant row, the other does not. */
+  public static class TenantRowWriterWithAPlatformOverload {
+
+    private final SettingRepository settingRepository;
+
+    public TenantRowWriterWithAPlatformOverload(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    public void upsert(Tenant tenant, String key, String value) {
+      Setting setting = new Setting(key, value);
+      setting.setTenant(tenant);
+      settingRepository.save(setting);
+    }
+
+    public void upsert(String key, String value) {
+      settingRepository.save(new Setting(key, value));
     }
   }
 }

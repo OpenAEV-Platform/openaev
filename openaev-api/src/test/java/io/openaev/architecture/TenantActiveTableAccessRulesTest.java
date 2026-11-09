@@ -6,6 +6,8 @@ import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.EvaluationResult;
 import io.openaev.architecture.fixture.TenantActiveTableAccessFixtures;
+import io.openaev.database.model.Tenant;
+import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -406,6 +408,95 @@ class TenantActiveTableAccessRulesTest {
       // Assert
       assertThat(result.getFailureReport().toString())
           .contains("UnmarkedCallerOfThePlatformSettingsService");
+    }
+  }
+
+  @Nested
+  @DisplayName("parameters platform row writers: exemptions of tenant-row-only writers")
+  class ParametersTenantRowWriterExemptions {
+
+    private final List<PlatformRowWriters.TenantRowWriter> threeArgumentUpsert =
+        List.of(
+            new PlatformRowWriters.TenantRowWriter(
+                TenantActiveTableAccessFixtures.TenantRowWriterWithAPlatformOverload.class,
+                "upsert",
+                List.of(Tenant.class, String.class, String.class),
+                "builds the row for the tenant it is given"));
+
+    private List<String> writersOf(Class<?> fixture, List<PlatformRowWriters.TenantRowWriter> ex) {
+      return new ClassFileImporter()
+          .importClasses(fixture).stream()
+              .flatMap(c -> c.getMethods().stream())
+              .filter(PlatformRowWriters.writeASetting(ex))
+              .map(m -> m.getName() + "/" + m.getRawParameterTypes().size())
+              .toList();
+    }
+
+    @Test
+    @DisplayName("given an exemption with a signature, should exempt that overload only")
+    void given_anExemptionWithASignature_should_exemptThatOverloadOnly() {
+      // Act
+      List<String> exempted =
+          writersOf(
+              TenantActiveTableAccessFixtures.TenantRowWriterWithAPlatformOverload.class,
+              threeArgumentUpsert);
+      List<String> unexempted =
+          writersOf(
+              TenantActiveTableAccessFixtures.TenantRowWriterWithAPlatformOverload.class,
+              List.of());
+
+      // Assert
+      assertThat(exempted).containsExactly("upsert/2");
+      assertThat(unexempted).containsExactlyInAnyOrder("upsert/2", "upsert/3");
+    }
+
+    @Test
+    @DisplayName("given an exemption, should match the method that has that signature")
+    void given_anExemption_should_matchTheMethodThatHasThatSignature() {
+      // Arrange
+      var classes =
+          new ClassFileImporter()
+              .importClasses(
+                  TenantActiveTableAccessFixtures.TenantRowWriterWithAPlatformOverload.class);
+
+      // Act
+      List<Integer> matched =
+          classes.stream()
+              .flatMap(c -> c.getMethods().stream())
+              .filter(m -> PlatformRowWriters.isTenantRowWriter(m, threeArgumentUpsert))
+              .map(m -> m.getRawParameterTypes().size())
+              .toList();
+
+      // Assert
+      assertThat(matched).containsExactly(3);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+      "TenantRowWriterThatStaysTenantOnly,0",
+      "TenantRowWriterBuildingARowWithoutATenant,1",
+      "TenantRowWriterLookingUpThePlatformRow,1",
+      "TenantRowWriterDeletingByKeyOnly,1"
+    })
+    @DisplayName("given an exempt writer, should report what takes it out of the tenant rows")
+    void given_anExemptWriter_should_reportWhatTakesItOutOfTheTenantRows(
+        String fixture, int violations) throws ClassNotFoundException {
+      // Arrange
+      Class<?> type =
+          Class.forName(TenantActiveTableAccessFixtures.class.getName() + "$" + fixture);
+      var write =
+          new ClassFileImporter()
+              .importClasses(type).stream()
+                  .flatMap(c -> c.getMethods().stream())
+                  .filter(m -> m.getName().equals("write"))
+                  .findFirst()
+                  .orElseThrow();
+
+      // Act
+      List<String> found = PlatformRowWriters.tenantRowOnlyViolations(write);
+
+      // Assert
+      assertThat(found).as(found.toString()).hasSize(violations);
     }
   }
 

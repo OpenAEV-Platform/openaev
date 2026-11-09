@@ -2382,28 +2382,38 @@ class TenantActiveTableAccessArchTest {
                   + " what the rule misses only when it goes through Hibernate");
 
   /**
-   * Each tenant-row-only exemption is still a method that modifies a {@code Setting}: an entry for
-   * a method that no longer writes would stay behind as an unexplained hole in the guard above.
+   * Each tenant-row-only exemption is still a method that modifies a {@code Setting}, and still
+   * touches tenant rows only ({@link PlatformRowWriters#tenantRowOnlyViolations}): an entry for a
+   * method that no longer writes, or that gained a path to a platform row, would stay behind as an
+   * unexplained hole in the guard above.
    */
   @ArchTest
   static void parameters_tenant_row_writer_exemptions_are_live(JavaClasses classes) {
     for (PlatformRowWriters.TenantRowWriter exemption : PlatformRowWriters.TENANT_ROW_WRITERS) {
-      boolean live =
+      java.util.List<com.tngtech.archunit.core.domain.JavaMethod> exempted =
           classes.stream()
               .filter(c -> c.isAssignableTo(exemption.owner()))
               .flatMap(c -> c.getMethods().stream())
-              .anyMatch(
-                  m ->
-                      PlatformRowWriters.isTenantRowWriter(m, java.util.List.of(exemption))
-                          && PlatformRowWriters.writesASetting(m));
+              .filter(m -> PlatformRowWriters.isTenantRowWriter(m, java.util.List.of(exemption)))
+              .toList();
       assertTrue(
-          live,
+          exempted.stream().anyMatch(PlatformRowWriters::writesASetting),
           () ->
               exemption.owner().getSimpleName()
                   + "#"
                   + exemption.method()
+                  + exemption.parameterTypes().stream().map(Class::getSimpleName).toList()
                   + " is exempted as a tenant-row-only writer but no longer modifies a Setting:"
                   + " remove the entry");
+      for (com.tngtech.archunit.core.domain.JavaMethod method : exempted) {
+        java.util.List<String> violations = PlatformRowWriters.tenantRowOnlyViolations(method);
+        assertTrue(
+            violations.isEmpty(),
+            () ->
+                "an exempted tenant-row-only writer reaches more than tenant rows: "
+                    + violations
+                    + ". Mark its callers with the platform-write marker and remove the entry");
+      }
     }
   }
 

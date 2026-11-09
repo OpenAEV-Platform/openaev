@@ -15,6 +15,8 @@ import io.openaev.aop.PlatformWrite;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
+import io.openaev.database.model.Tenant;
+import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
@@ -97,46 +99,57 @@ import org.springframework.data.jpa.repository.Query;
  */
 final class PlatformRowWriters {
 
-  /** A method that writes a tenant row of {@code parameters} only, with the reason. */
-  record TenantRowWriter(Class<?> owner, String method, String reason) {}
+  /**
+   * A method that writes a tenant row of {@code parameters} only, with the reason. The method is
+   * named with its parameter types: an overload of the same name is not exempted by it.
+   */
+  record TenantRowWriter(
+      Class<?> owner, String method, List<Class<?>> parameterTypes, String reason) {}
 
   /**
    * The writers that never touch a platform row: each one attributes the row to a tenant it names,
    * and the database checks that tenant against the transaction's scope. A write of a tenant row
-   * does not need the marker. Each entry must stay a live writer ({@code
-   * TenantActiveTableAccessArchTest}).
+   * does not need the marker. Each entry must stay a live writer that touches tenant rows only
+   * ({@link #tenantRowOnlyViolations}, checked by {@code TenantActiveTableAccessArchTest}).
    */
   static final List<TenantRowWriter> TENANT_ROW_WRITERS =
       List.of(
           new TenantRowWriter(
               io.openaev.service.settings.TenantSettingsService.class,
               "clearSettingIfMatch",
+              List.of(String.class, String.class, String.class),
               "clears a setting looked up by (key, tenantId): a tenant row"),
           new TenantRowWriter(
               io.openaev.service.settings.TenantSettingsService.class,
               "upsert",
+              List.of(Tenant.class, String.class, String.class),
               "creates or updates the tenant's own setting, the new row carries the tenant"),
           new TenantRowWriter(
               io.openaev.service.autonomous.AutonomousRunService.class,
               "updateDefaultAdditionalAgentIds",
+              List.of(TxCtx.class, List.class),
               "writes the tenant's default agents, the tenant is the one the scope pins"),
           new TenantRowWriter(
               io.openaev.service.autonomous.AutonomousRunService.class,
               "updateDefaultAdditionalAgentModes",
+              List.of(TxCtx.class, java.util.Map.class),
               "writes the tenant's default agent modes, the tenant is the one the scope pins"),
           new TenantRowWriter(
               io.openaev.service.autonomous.AutonomousRunService.class,
               "newTenantSetting",
+              List.of(String.class, String.class, String.class),
               "builds the tenant's own new row, attributed to the tenant it names; the write is"
                   + " the save of the default agents writers above"),
           new TenantRowWriter(
               io.openaev.service.settings.TenantSettingsService.class,
               "upsertThemeKey",
+              List.of(Tenant.class, String.class, Theme.THEME_KEYS.class, String.class),
               "deletes the setting looked up by (key, tenantId) through a method reference: a tenant"
                   + " row"),
           new TenantRowWriter(
               io.openaev.processor.datapack.V20260101_Starter_pack.class,
               "setDefaultDashboard",
+              List.of(Tenant.class, String.class, String.class),
               "sets the default dashboard of the tenant the starter pack is installed for"));
 
   /**
@@ -271,9 +284,54 @@ final class PlatformRowWriters {
 
   /** Whether {@code unit} is one of the listed tenant-row-only writers. */
   static boolean isTenantRowWriter(JavaCodeUnit unit, List<TenantRowWriter> tenantRowWriters) {
+    List<String> parameters = unit.getRawParameterTypes().stream().map(t -> t.getName()).toList();
     return tenantRowWriters.stream()
         .anyMatch(
-            e -> unit.getOwner().isAssignableTo(e.owner()) && e.method().equals(unit.getName()));
+            e ->
+                unit.getOwner().isAssignableTo(e.owner())
+                    && e.method().equals(unit.getName())
+                    && e.parameterTypes().stream().map(Class::getName).toList().equals(parameters));
+  }
+
+  /** The repository calls a writer of tenant rows may make: each one is keyed by a tenant. */
+  private static final Set<String> TENANT_ROW_REPOSITORY_CALLS =
+      Set.of("save", "delete", "findByKeyAndTenantId", "findAllByTenantId");
+
+  /**
+   * What takes an exempted writer out of the tenant rows. It may call the settings repository only
+   * through {@link #TENANT_ROW_REPOSITORY_CALLS}, which never reach the platform row (a lookup by
+   * tenant, a save or delete of the row it holds), and every {@code Setting} it builds must be
+   * given a tenant. Empty when the method stays a tenant-row writer. A {@code Setting} handed in as
+   * an argument is not checked here; the caller is, and the database refuses a platform row written
+   * outside a platform-write transaction.
+   */
+  static List<String> tenantRowOnlyViolations(JavaCodeUnit unit) {
+    List<String> violations = new ArrayList<>();
+    for (JavaCodeUnitAccess<?> call : callsAndReferences(unit)) {
+      if (onSettingRepository(unit, call)
+          && !TENANT_ROW_REPOSITORY_CALLS.contains(call.getName())) {
+        violations.add(
+            unit.getFullName()
+                + " calls SettingRepository."
+                + call.getName()
+                + ", which is not keyed by a tenant");
+      }
+    }
+    boolean buildsASetting =
+        unit.getConstructorCallsFromSelf().stream()
+            .anyMatch(c -> c.getTargetOwner().isAssignableTo(Setting.class));
+    boolean givesItATenant =
+        unit.getMethodCallsFromSelf().stream()
+            .anyMatch(
+                c ->
+                    c.getTargetOwner().isAssignableTo(Setting.class)
+                        && c.getName().equals("setTenant"));
+    if (buildsASetting && !givesItATenant) {
+      violations.add(
+          unit.getFullName()
+              + " builds a Setting and never calls setTenant: that is a platform row");
+    }
+    return violations;
   }
 
   private static boolean isReviewedRoot(JavaCodeUnit unit) {
