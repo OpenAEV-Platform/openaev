@@ -22,6 +22,7 @@ import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.rest.inject.service.InjectExportService;
+import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.constants.Constants;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -299,6 +300,63 @@ class V1_DataImporterContractTenantTest extends IntegrationTest {
 
       // Assert: the contract is looked up in B, so the step is not reported as a missing action.
       assertThat(skipped).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Payload created with no contract")
+  class PayloadWithoutContract {
+
+    @Test
+    @DisplayName("given_tenantWithoutPayloadInjector_should_notPersistAContractNorTheInject")
+    void given_tenantWithoutPayloadInjector_should_notPersistAContractNorTheInject()
+        throws Exception {
+      // Arrange: the bundle's payload is held by no contract of tenant B, and creating it yields
+      // the payload alone because B registers no payload-capable injector.
+      tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+      String tenantB = tenantHelper.createTenantWithCurrentUser("importer-no-contract-b").getId();
+      TenantContext.clearCurrentTenant();
+      Inject source = composeSourceInject("external-" + UUID.randomUUID());
+      byte[] zip = exportedZip(source);
+      String exerciseId = saveExercise(tenantB);
+      Payload createdPayload = PayloadFixture.createDefaultCommand();
+      createdPayload.setId(UUID.randomUUID().toString());
+      PayloadCreationService creation = Mockito.mock(PayloadCreationService.class);
+      Mockito.when(creation.createPayload(Mockito.any(), Mockito.anyString(), Mockito.any()))
+          .thenReturn(
+              new PayloadCreationService.PayloadInjectorContractCreationResult(
+                  createdPayload, null));
+      Object original = ReflectionTestUtils.getField(importer, "payloadCreationService");
+      ReflectionTestUtils.setField(importer, "payloadCreationService", creation);
+
+      try {
+        // Act
+        mvc.perform(
+                multipart(EXERCISE_URI + "/{simulationId}/injects/import", exerciseId)
+                    .file(new MockMultipartFile("file", zip))
+                    .with(csrf()))
+            .andReturn();
+      } finally {
+        ReflectionTestUtils.setField(importer, "payloadCreationService", original);
+      }
+
+      // Assert: the importer went through the creation, and neither the contract nor an inject
+      // referencing it was written
+      Mockito.verify(creation).createPayload(Mockito.any(), Mockito.anyString(), Mockito.any());
+      assertThat(
+              column(
+                  "SELECT injector_contract_id FROM injectors_contracts WHERE"
+                      + " injector_contract_payload = ? AND tenant_id = ?",
+                  createdPayload.getId(),
+                  tenantB))
+          .isEmpty();
+      assertThat(
+              column(
+                  "SELECT inject_injector_contract FROM injects WHERE inject_exercise = ? AND"
+                      + " tenant_id = ?",
+                  exerciseId,
+                  tenantB))
+          .containsOnlyNulls();
     }
   }
 

@@ -118,7 +118,7 @@ public class InjectExecutionStepTest extends IntegrationTest {
 
     doReturn(injectorContractSaved)
         .when(injectorContractService)
-        .injectorContractInTenant(any(), any());
+        .injectorContractInTenant(any(), eq(injectorContractSaved.getTenant().getId()));
     doReturn(new User()).when(userService).currentUser();
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
@@ -1329,7 +1329,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     injectorRepository.save(emailInjector);
     doReturn(emailContractSaved)
         .when(injectorContractService)
-        .injectorContractInTenant(eq(emailContractSaved.getId()), any());
+        .injectorContractInTenant(
+            eq(emailContractSaved.getId()), eq(emailContractSaved.getTenant().getId()));
 
     String teamsJson =
         drawerTeamIds.stream()

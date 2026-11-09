@@ -156,6 +156,23 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("Deleting a contract entity takes its tenant from the entity")
+  void given_contractEntityWithoutTenant_should_refuseTheDelete() {
+    // Arrange: the ambient tenant is the default one, and the contract names none
+    InjectorContract contractWithoutTenant = new InjectorContract();
+    contractWithoutTenant.setId(UUID.randomUUID().toString());
+
+    // Act
+    NullPointerException refusal =
+        Assertions.assertThrows(
+            NullPointerException.class,
+            () -> injectorContractService.deleteInjectorContract(contractWithoutTenant));
+
+    // Assert
+    Assertions.assertTrue(refusal.getMessage().contains("carries its tenant"));
+  }
+
+  @Test
   @DisplayName("Deleting the payload cascades through its contract to wipe the TEMPLATE step")
   void given_payloadDeleted_should_wipeTemplateStep() {
     Fixture fixture = persistContractAndScenarioSteps();

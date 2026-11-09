@@ -17,7 +17,6 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionWithContentOutput;
 import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.SessionHelper;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawContractTenant;
 import io.openaev.database.raw.RawInjectorsContracts;
@@ -603,9 +602,8 @@ public class InjectorContractService implements DependenciesManager {
     // dependencies - they would keep feeding every engine-backed statistic (dashboards, KPIs) after
     // the contract is gone.
     String tenantId =
-        injectorContract.getTenant() != null
-            ? injectorContract.getTenant().getId()
-            : TenantContext.getCurrentTenant();
+        Objects.requireNonNull(injectorContract.getTenant(), "a loaded contract carries its tenant")
+            .getId();
     List<String> cascadeDeletedInjectIds =
         injectIndexCleanupService.injectIdsByContractIds(
             List.of(injectorContract.getId()), tenantId);
