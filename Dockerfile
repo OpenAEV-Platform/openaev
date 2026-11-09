@@ -54,9 +54,6 @@ RUN set -eux; \
     if ls /etc/ssl/certs | grep -i emsign || grep -iE 'emsign|emudhra' /tmp/cacerts.txt; then exit 1; fi; \
     rm /tmp/cacerts.txt /tmp/emsign.txt
 
-# Temporary: a jar with a known critical vulnerability (Log4Shell), to see the Aikido PR gate fail.
-ADD https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-core/2.14.1/log4j-core-2.14.1.jar /opt/test-vuln/
-
 # Set by CI to the built commit, exposed in the platform settings
 ARG OPENAEV_COMMIT
 ENV OPENAEV_COMMIT=${OPENAEV_COMMIT}
