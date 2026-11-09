@@ -2118,6 +2118,9 @@ class TenantActiveTableAccessArchTest {
               // Delete guard, run by Hibernate inside the payload, contract and threat arsenal
               // deletes, all TxCtx-carrying:
               PayloadDeleteGuard.class,
+              // Hashes legacy payloads on import, inside the scoped import transaction and with an
+              // explicit tenantId:
+              io.openaev.service.payload.PayloadContentHashService.class,
               // Reads the payload behind an inject's detection remediations; scoped by
               // InjectApi#getPayloadDetectionRemediations, which carries TxCtx:
               InjectService.class,

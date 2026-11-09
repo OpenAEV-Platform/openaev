@@ -31,6 +31,10 @@ public interface PayloadRepository
 
   Optional<Payload> findByIdentityExternalId(@NotNull String externalId);
 
+  List<Payload> findAllByTenantIdAndContentHash(String tenantId, String contentHash);
+
+  List<Payload> findAllByTenantIdAndNameAndContentHashIsNull(String tenantId, String name);
+
   /** Scenario or simulation name per inject running this payload; null for an atomic testing. */
   @Query(
       "SELECT DISTINCT COALESCE(s.name, e.name) FROM Inject i"
@@ -95,72 +99,4 @@ public interface PayloadRepository
           + "AND NOT EXISTS (SELECT ic FROM InjectorContract ic WHERE ic.payload = p)")
   List<Payload> findOrphansByNameAndTenantId(
       @Param("name") String name, @Param("tenantId") String tenantId);
-
-  // -- Import de-duplication (chaining pipeline): find existing payloads equivalent to an imported
-  // one, matched by name + type-specific content, scoped to the current tenant. Return type is the
-  // base Payload so no subtype import is needed; the JPQL entity name selects the discriminator.
-  // These queries are a COARSE pre-filter only: the importer additionally compares the
-  // execution-relevant fields (platforms, arch, elevation, cleanup, arguments, prerequisites,
-  // expectations) in hasSameExecutionSemantics() before reusing a candidate.
-
-  @Query(
-      "SELECT p FROM Command p "
-          + "WHERE p.name = :name AND p.executor = :executor AND p.content = :content "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findCommandDuplicates(
-      @Param("name") String name,
-      @Param("executor") String executor,
-      @Param("content") String content,
-      @Param("tenantId") String tenantId);
-
-  /**
-   * Executable dedup candidates are matched on the attached document ID (the importer resolves the
-   * imported file to a TARGET document before deduplicating), never on {@code Document.name}:
-   * document names are explicitly non-unique, so a name match could reuse a payload wrapping a
-   * different binary.
-   */
-  @Query(
-      "SELECT p FROM Executable p "
-          + "WHERE p.name = :name AND p.executableFile.id = :documentId "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findExecutableDuplicates(
-      @Param("name") String name,
-      @Param("documentId") String documentId,
-      @Param("tenantId") String tenantId);
-
-  /**
-   * Same document-ID matching rationale as {@link #findExecutableDuplicates(String, String,
-   * String)}.
-   */
-  @Query(
-      "SELECT p FROM FileDrop p "
-          + "WHERE p.name = :name AND p.fileDropFile.id = :documentId "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findFileDropDuplicates(
-      @Param("name") String name,
-      @Param("documentId") String documentId,
-      @Param("tenantId") String tenantId);
-
-  @Query(
-      "SELECT p FROM DnsResolution p "
-          + "WHERE p.name = :name AND p.hostname = :hostname "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findDnsResolutionDuplicates(
-      @Param("name") String name,
-      @Param("hostname") String hostname,
-      @Param("tenantId") String tenantId);
-
-  @Query(
-      "SELECT p FROM NetworkTraffic p "
-          + "WHERE p.name = :name AND p.ipSrc = :ipSrc AND p.ipDst = :ipDst "
-          + "AND p.portSrc = :portSrc AND p.portDst = :portDst AND p.protocol = :protocol "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findNetworkTrafficDuplicates(
-      @Param("name") String name,
-      @Param("ipSrc") String ipSrc,
-      @Param("ipDst") String ipDst,
-      @Param("portSrc") Integer portSrc,
-      @Param("portDst") Integer portDst,
-      @Param("protocol") String protocol,
-      @Param("tenantId") String tenantId);
 }
