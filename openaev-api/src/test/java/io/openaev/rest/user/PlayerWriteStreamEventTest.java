@@ -160,6 +160,66 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
     return instances;
   }
 
+  private String organizationOfB() {
+    Organization organization = OrganizationFixture.createDefaultOrganisation();
+    organization.setTenant(new Tenant(tenantB));
+    return organizationRepository.save(organization).getId();
+  }
+
+  /** Sends the write, then streams its events to a consumer of each tenant and checks them. */
+  private void assertOrganizationOfBStreamedToTheConsumersOfBOnly(
+      MockHttpServletRequestBuilder write, String organizationId) throws Exception {
+    // The permission check runs in a transaction of its own in production, where each consumer
+    // gets its tenant scope; this test shares one transaction, so it is not what is under test.
+    PermissionService permissions = mock(PermissionService.class);
+    when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
+    StreamService stream =
+        new StreamService(permissions, userService, attackPathAccessControl, mapper);
+    FluxSink<Object> sinkOfDefault = consumerOf(stream, "default", Tenant.DEFAULT_TENANT_UUID);
+    FluxSink<Object> sinkOfB = consumerOf(stream, "b", tenantB);
+
+    long publishedBefore = applicationEvents.stream(BaseEvent.class).count();
+    String userId =
+        mapper
+            .readTree(
+                mvc.perform(
+                        write
+                            .header(TENANT_HEADER, tenantB)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .accept(MediaType.APPLICATION_JSON)
+                            .with(csrf()))
+                    .andExpect(status().is2xxSuccessful())
+                    .andReturn()
+                    .getResponse()
+                    .getContentAsString())
+            .path("user_id")
+            .asText();
+    List<BaseEvent> events =
+        applicationEvents.stream(BaseEvent.class)
+            .skip(publishedBefore)
+            .filter(
+                event -> event.getInstance() instanceof User user && userId.equals(user.getId()))
+            .toList();
+    assertFalse(events.isEmpty(), "The write must have published an event for the user");
+    events.forEach(stream::listenDatabaseUpdate);
+
+    List<JsonNode> receivedByB = receivedBy(sinkOfB);
+    assertFalse(receivedByB.isEmpty(), "The consumer of B must receive the user");
+    receivedByB.forEach(
+        instance ->
+            assertEquals(
+                organizationId,
+                instance.path("user_organization").asText(),
+                "The consumer of B must receive the organization of B"));
+    List<JsonNode> receivedByDefault = receivedBy(sinkOfDefault);
+    assertFalse(receivedByDefault.isEmpty(), "The consumer of the default tenant gets the user");
+    receivedByDefault.forEach(
+        instance ->
+            assertFalse(
+                instance.has("user_organization"),
+                "The consumer of the default tenant must keep the organization it holds"));
+  }
+
   @Nested
   @DisplayName("Player created in the tenant the header names")
   class CreatedInB {
@@ -331,6 +391,64 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Known player written in B, streamed to the consumers of both tenants")
+  class PlayerWriterFanOut {
+
+    private PlayerInput inputFor(User player, String organizationId) {
+      PlayerInput input = PlayerFixture.createPlayerInput();
+      input.setEmail(player.getEmail());
+      input.setFirstname("Changed-" + UUID.randomUUID());
+      input.setOrganizationId(organizationId);
+      input.setTagIds(List.of());
+      input.setTeamIds(List.of());
+      return input;
+    }
+
+    private User playerOf(String... tenantIds) {
+      User player = userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist().get();
+      entityManager.flush();
+      for (String tenantId : tenantIds) {
+        tenantIsolationHelper.attachUserToTenant(player.getId(), tenantId);
+      }
+      entityManager.flush();
+      entityManager.clear();
+      TenantContext.clearCurrentTenant();
+      return player;
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("An update names B: the organization of B reaches the consumers of B only")
+    void given_playerUpdateWithHeaderNamingB_should_streamTheOrganizationToTheConsumersOfB()
+        throws Exception {
+      // -- PREPARE --
+      String organizationId = organizationOfB();
+      User player = playerOf(Tenant.DEFAULT_TENANT_UUID, tenantB);
+
+      // -- EXECUTE AND ASSERT --
+      assertOrganizationOfBStreamedToTheConsumersOfBOnly(
+          put(PLAYER_URI + "/" + player.getId())
+              .content(asJsonString(inputFor(player, organizationId))),
+          organizationId);
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("An upsert names B: the organization of B reaches the consumers of B only")
+    void given_playerUpsertWithHeaderNamingB_should_streamTheOrganizationToTheConsumersOfB()
+        throws Exception {
+      // -- PREPARE --
+      String organizationId = organizationOfB();
+      User player = playerOf(Tenant.DEFAULT_TENANT_UUID);
+
+      // -- EXECUTE AND ASSERT --
+      assertOrganizationOfBStreamedToTheConsumersOfBOnly(
+          post(PLAYER_URI + "/upsert").content(asJsonString(inputFor(player, organizationId))),
+          organizationId);
+    }
+  }
+
+  @Nested
   @DisplayName("User written in B, streamed to the consumers of both tenants")
   class UserFanOut {
 
@@ -347,66 +465,6 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
           List.of(),
           false,
           List.of());
-    }
-
-    private String organizationOfB() {
-      Organization organization = OrganizationFixture.createDefaultOrganisation();
-      organization.setTenant(new Tenant(tenantB));
-      return organizationRepository.save(organization).getId();
-    }
-
-    /** Sends the write, then streams its events to a consumer of each tenant and checks them. */
-    private void assertOrganizationOfBStreamedToTheConsumersOfBOnly(
-        MockHttpServletRequestBuilder write, String organizationId) throws Exception {
-      // The permission check runs in a transaction of its own in production, where each consumer
-      // gets its tenant scope; this test shares one transaction, so it is not what is under test.
-      PermissionService permissions = mock(PermissionService.class);
-      when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
-      StreamService stream =
-          new StreamService(permissions, userService, attackPathAccessControl, mapper);
-      FluxSink<Object> sinkOfDefault = consumerOf(stream, "default", Tenant.DEFAULT_TENANT_UUID);
-      FluxSink<Object> sinkOfB = consumerOf(stream, "b", tenantB);
-
-      long publishedBefore = applicationEvents.stream(BaseEvent.class).count();
-      String userId =
-          mapper
-              .readTree(
-                  mvc.perform(
-                          write
-                              .header(TENANT_HEADER, tenantB)
-                              .contentType(MediaType.APPLICATION_JSON)
-                              .accept(MediaType.APPLICATION_JSON)
-                              .with(csrf()))
-                      .andExpect(status().is2xxSuccessful())
-                      .andReturn()
-                      .getResponse()
-                      .getContentAsString())
-              .path("user_id")
-              .asText();
-      List<BaseEvent> events =
-          applicationEvents.stream(BaseEvent.class)
-              .skip(publishedBefore)
-              .filter(
-                  event -> event.getInstance() instanceof User user && userId.equals(user.getId()))
-              .toList();
-      assertFalse(events.isEmpty(), "The write must have published an event for the user");
-      events.forEach(stream::listenDatabaseUpdate);
-
-      List<JsonNode> receivedByB = receivedBy(sinkOfB);
-      assertFalse(receivedByB.isEmpty(), "The consumer of B must receive the user");
-      receivedByB.forEach(
-          instance ->
-              assertEquals(
-                  organizationId,
-                  instance.path("user_organization").asText(),
-                  "The consumer of B must receive the organization of B"));
-      List<JsonNode> receivedByDefault = receivedBy(sinkOfDefault);
-      assertFalse(receivedByDefault.isEmpty(), "The consumer of the default tenant gets the user");
-      receivedByDefault.forEach(
-          instance ->
-              assertFalse(
-                  instance.has("user_organization"),
-                  "The consumer of the default tenant must keep the organization it holds"));
     }
 
     @Test
