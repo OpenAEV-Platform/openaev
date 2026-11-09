@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Turn the result of an Aikido release or PR gating scan into a Markdown report.
 
-The scanner writes the issues that fail the gate to a JSON file: in release mode the open issues
-of the image, written only when there are some; in PR mode the issues the pull request adds, and
-the ones it solves. Each issue only has a severity, a score and a summary such as
-"CVE-2026-1234 in curl". The report groups them as Aikido does (one row per package), links every
-CVE to its public osv.dev page, where anyone can read the affected and fixed versions, and links
-each group to Aikido, which needs access to the workspace.
+The scanner writes the issues that fail the gate to a JSON file. In release mode it holds the open
+issues of the image, written only when there are some, each with a severity, a score and a summary
+such as "CVE-2026-1234 in curl": the report groups them as Aikido does (one row per package) with
+a link to each group in Aikido, which needs access to the workspace. In PR mode it holds the
+findings of the image that the pull request adds, of every severity, with their package, installed
+and fixed versions and file, and a link to the comparison in Aikido. Every CVE links to its public
+osv.dev page, where anyone can read the affected and fixed versions.
 
 The report is written to the given file. The number of issues at or above the threshold is
 printed as `issues=<n>`, a line the caller can append to $GITHUB_OUTPUT to enforce it.
@@ -86,9 +87,24 @@ def table(issues: list[dict], links: dict[str, str], fallback_link: str) -> list
     return lines
 
 
+def finding_table(findings: list[dict]) -> list[str]:
+    lines = ["| Severity | ID | Package | Installed | Fixed in | File |", "|---|---|---|---|---|---|"]
+    for f in sorted(findings, key=lambda f: (-rank(f.get("severity")), str(f.get("package_name")))):
+        fixes = ", ".join(f.get("fix_versions") or []) or "no fix"
+        lines.append(
+            f"| {cell(f.get('severity', ''))} | {public_link(cell(f.get('cve_id', '')))}"
+            f" | {cell(f.get('package_name', ''))} | {cell(f.get('installed_version', ''))}"
+            f" | {cell(fixes)} | {cell(f.get('file', ''))} |"
+        )
+    return lines
+
+
 def report(mode: str, result: dict, image: str, threshold: str) -> tuple[list[str], int]:
+    # Release issues carry an Aikido severity, PR findings the scanner's one.
     issues = [
-        i for i in result.get("issue_details") or [] if rank(i.get("aikido_severity")) >= SEVERITY_RANK[threshold]
+        i
+        for i in result.get("issue_details") or []
+        if rank(i.get("aikido_severity") or i.get("severity")) >= SEVERITY_RANK[threshold]
     ]
     # A gate that failed with no readable issue still counts, so it is never reported as clean.
     if mode == "release":
@@ -107,8 +123,10 @@ def report(mode: str, result: dict, image: str, threshold: str) -> tuple[list[st
         lines.append(f"No {kind} issue at or above `{threshold}` in Aikido.")
     else:
         lines.append(f"{count} {kind} issue(s) at or above `{threshold}` in Aikido.")
-        if issues:
+        if issues and mode == "release":
             lines += [""] + table(issues, group_links(result), diff_url)
+        elif issues:
+            lines += [""] + finding_table(issues)
     if mode == "pr":
         solved = result.get("solved_issue_details") or []
         if solved:

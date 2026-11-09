@@ -39,8 +39,10 @@ The Docker images built by this pipeline are scanned with Aikido's local scanner
 FIX = """\
 ### How to fix it
 
-Each CVE links to its osv.dev page, which lists the affected and fixed versions. The Aikido link \
-shows the same with the file the package comes from, for members of the Aikido workspace.
+On a pull request the table gives the installed and fixed versions and the file of each package. \
+On `main` it gives one row per package: each CVE links to its osv.dev page, which lists the \
+affected and fixed versions, and the Aikido link shows them with the file, for members of the \
+Aikido workspace.
 
 - **Operating system package** (`curl`, `libssl3`…): the fix usually comes with a newer base \
 image. Bump the `app` stage image in `Dockerfile` or `Dockerfile_ubi9`, or upgrade the package in \

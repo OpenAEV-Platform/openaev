@@ -170,8 +170,9 @@ handled there by a member of the workspace.
 
 Like the backend coverage check, the job does not turn red on issues: it posts a separate
 **Aikido Image Scan (advisory)** check with the PR checks app. That check is red, with the count
-per image as its title, and lists the issues in its details: severity, package, each CVE linked to
-its public osv.dev page, and a link to the issue in Aikido. A clean run posts no check. For now
+per image as its title, and lists the issues in its details, each CVE linked to its public osv.dev
+page: on a pull request with the installed and fixed versions and the file, on `main` by package
+with a link to the issue in Aikido. A clean run posts no check. For now
 the gate treats the job as advisory, like any new check. Taking `aikido-image-scan` out of the
 gate's advisory list makes it blocking.
 
