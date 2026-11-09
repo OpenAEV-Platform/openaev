@@ -144,31 +144,28 @@ public class CalderaExecutorService implements Runnable {
    * that refuses it, is logged and never fails the run: the banner is written again by the next
    * run, a minute later.
    *
-   * <p>Every tenant's Caldera executor runs this each minute and writes the same row: one that
-   * reaches Caldera clears the banner, one that does not sets it, and the last write wins, so with
-   * several Caldera executors the banner follows whichever ran last.
+   * <p>Every tenant's Caldera executor runs this each minute. Each one reports its own answer to
+   * {@link PlatformSettingsService#reportMessageSource}, and the row is written from all of them:
+   * the banner shows while at least one tenant's Caldera does not answer, and clears when every one
+   * does, so it does not flip with the tenant that ran last.
    */
   private void requestBanner(boolean available) {
+    platformSettingsService.reportMessageSource(
+        BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE, executor.getTenantId(), !available);
     try {
-      bannerExecutor.execute(() -> writeBanner(available));
+      bannerExecutor.execute(this::writeBanner);
     } catch (RuntimeException e) {
       log.warn("Could not schedule the Caldera unavailable banner write: {}", e.getMessage(), e);
     }
   }
 
-  private void writeBanner(boolean available) {
+  private void writeBanner() {
     try {
       tenantTx.executeAsPlatformWrite(
           TxCtx.forTenant(executor.getTenantId()),
-          () -> {
-            if (available) {
-              this.platformSettingsService.cleanMessage(
-                  BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
-            } else {
-              this.platformSettingsService.errorMessage(
-                  BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
-            }
-          });
+          () ->
+              this.platformSettingsService.syncMessage(
+                  BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE));
     } catch (Exception e) {
       log.warn("Failed to write the Caldera unavailable banner: {}", e.getMessage(), e);
     }

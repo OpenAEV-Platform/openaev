@@ -6,8 +6,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,20 @@ public interface SettingRepository
   Optional<Setting> findByKeyAndTenantId(@NotNull String key, @NotNull String tenantId);
 
   List<Setting> findAllByTenantId(@NotNull String tenantId);
+
+  // Native: an atomic upsert (ON CONFLICT DO NOTHING on the unique index of the platform rows) that
+  // the ORM cannot express, so two writers of a first banner row never collide. No session side
+  // effect is lost: the banner is read through the computed platform_banner_by_level of the
+  // settings endpoints, not through an entity event, and Setting is neither indexed nor audited.
+  @Modifying
+  @Query(
+      value =
+          "INSERT INTO parameters (parameter_id, parameter_key, parameter_value, tenant_id)"
+              + " VALUES (:id, :key, :value, NULL)"
+              + " ON CONFLICT (parameter_key) WHERE tenant_id IS NULL DO NOTHING",
+      nativeQuery = true)
+  int insertPlatformSettingIfAbsent(
+      @Param("id") String id, @Param("key") String key, @Param("value") String value);
 
   @Query(value = "SHOW server_version", nativeQuery = true)
   String getServerVersion();

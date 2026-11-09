@@ -224,10 +224,12 @@ public class CalderaExecutorServiceTest {
       Runnable write = requestedBannerWrite();
       verify(tenantTx, never()).executeNewAsPlatformWrite(any(), any(Runnable.class));
       verify(tenantTx, never()).executeAsPlatformWrite(any(), any(Runnable.class));
-      verify(platformSettingsService, never()).cleanMessage(any());
+      verify(platformSettingsService, never()).syncMessage(any());
       write.run();
-      verify(platformSettingsService).cleanMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
-      verify(platformSettingsService, never()).errorMessage(any());
+      verify(platformSettingsService)
+          .reportMessageSource(
+              BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE, calderaExecutor.getTenantId(), false);
+      verify(platformSettingsService).syncMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
     }
 
     @Test
@@ -242,8 +244,10 @@ public class CalderaExecutorServiceTest {
       requestedBannerWrite().run();
 
       // Assert
-      verify(platformSettingsService).errorMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
-      verify(platformSettingsService, never()).cleanMessage(any());
+      verify(platformSettingsService)
+          .reportMessageSource(
+              BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE, calderaExecutor.getTenantId(), true);
+      verify(platformSettingsService).syncMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
     }
 
     @Test
@@ -261,7 +265,7 @@ public class CalderaExecutorServiceTest {
 
       // Assert: the failure stays in the write, and is not read as "Caldera is down"
       assertDoesNotThrow(write::run);
-      verify(platformSettingsService, never()).errorMessage(any());
+      verify(platformSettingsService, never()).syncMessage(any());
     }
 
     @Test
@@ -275,7 +279,7 @@ public class CalderaExecutorServiceTest {
 
       // Act + Assert
       assertDoesNotThrow(calderaExecutorService::run);
-      verify(platformSettingsService, never()).errorMessage(any());
+      verify(platformSettingsService, never()).syncMessage(any());
     }
   }
 

@@ -44,6 +44,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -66,6 +67,11 @@ public class PlatformSettingsService {
   public static final String THEME_TYPE_DARK = "dark";
 
   private final ApplicationContext context;
+
+  /** The sources that currently raise each banner, read by {@link #syncMessage}. */
+  private final Map<BannerMessage.BANNER_KEYS, Set<String>> messageSources =
+      new ConcurrentHashMap<>();
+
   private final Environment env;
   private final SettingRepository settingRepository;
   private final XtmHubConfig xtmHubConfig;
@@ -671,12 +677,35 @@ public class PlatformSettingsService {
   }
 
   public void errorMessage(@NotBlank final BannerMessage.BANNER_KEYS banner) {
-    Optional<Setting> bannerLevelOpt =
-        this.settingRepository.findByKeyAndTenantIsNull(PLATFORM_BANNER + "." + banner.key());
-    if (bannerLevelOpt.isEmpty()) {
-      Setting bannerLevel =
-          resolve(bannerLevelOpt, PLATFORM_BANNER + "." + banner.key(), banner.level().name());
-      settingRepository.save(bannerLevel);
+    settingRepository.insertPlatformSettingIfAbsent(
+        UUID.randomUUID().toString(), PLATFORM_BANNER + "." + banner.key(), banner.level().name());
+  }
+
+  /**
+   * Records whether {@code source} (the tenant of an executor, for example) raises {@code banner}.
+   * Nothing is written: {@link #syncMessage} writes the banner from what every source reports.
+   */
+  public void reportMessageSource(
+      @NotBlank final BannerMessage.BANNER_KEYS banner, @NotBlank String source, boolean raised) {
+    Set<String> sources =
+        messageSources.computeIfAbsent(banner, key -> ConcurrentHashMap.newKeySet());
+    if (raised) {
+      sources.add(source);
+    } else {
+      sources.remove(source);
+    }
+  }
+
+  /**
+   * Writes {@code banner} as the union of its sources: shown while at least one source raises it,
+   * cleared when none does, so the banner does not follow whichever source wrote last. Runs in a
+   * platform-write transaction.
+   */
+  public void syncMessage(@NotBlank final BannerMessage.BANNER_KEYS banner) {
+    if (messageSources.getOrDefault(banner, Set.of()).isEmpty()) {
+      cleanMessage(banner);
+    } else {
+      errorMessage(banner);
     }
   }
 

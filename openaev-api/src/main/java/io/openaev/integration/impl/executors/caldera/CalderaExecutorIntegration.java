@@ -58,6 +58,9 @@ public class CalderaExecutorIntegration extends Integration {
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
 
+  /** The tenant of the executor, kept at start: the connector instance is gone when stop runs. */
+  private String tenantId;
+
   public CalderaExecutorIntegration(
       ConnectorInstance connectorInstance,
       ConnectorInstanceService connectorInstanceService,
@@ -95,6 +98,7 @@ public class CalderaExecutorIntegration extends Integration {
 
   @Override
   protected void innerStart() throws Exception {
+    tenantId = getTenantId();
     String executorId =
         connectorInstanceService.getConnectorInstanceConfigurationsByIdAndKey(
             getConnectorInstance().getId(), ConnectorType.EXECUTOR.getIdKeyName());
@@ -165,6 +169,11 @@ public class CalderaExecutorIntegration extends Integration {
     // connection: there the write is handed to the scheduler and opens its own transaction, so
     // stopping never waits for a second connection. A shutdown or a test stops it outside any
     // transaction, where the write runs at once. Either way a failed write never fails the stop.
+    // This tenant's executor no longer reports: the banner is rewritten from the other tenants.
+    if (tenantId != null) {
+      platformSettingsService.reportMessageSource(
+          BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE, tenantId, false);
+    }
     Runnable clearBanner = this::clearBanner;
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
       try {
@@ -185,7 +194,7 @@ public class CalderaExecutorIntegration extends Integration {
       tenantTx.executeAsPlatformWrite(
           TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
           () ->
-              this.platformSettingsService.cleanMessage(
+              this.platformSettingsService.syncMessage(
                   BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE));
     } catch (Exception e) {
       log.warn("Failed to clear the Caldera unavailable banner: {}", e.getMessage(), e);
