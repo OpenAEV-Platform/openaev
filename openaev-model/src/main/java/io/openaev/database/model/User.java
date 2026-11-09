@@ -376,14 +376,13 @@ public class User implements Base {
    * several tenants, so the collection only holds the ones in the scope of the transaction. The
    * tags of an existing user are never written through it: a flush of this collection deletes every
    * row of the user as soon as it is empty, the links to the tags out of scope included. The links
-   * of an existing user are written by {@code UserService#replaceTags}; the setter is for a user
-   * that is not saved yet. {@link Immutable} makes a change of the loaded collection in place
-   * ({@code clear}, {@code add}, {@code remove}) fail at flush instead of deleting links. It does
-   * not stop the collection of a saved user from being replaced with the setter: that flush deletes
-   * every row of the user, the links to the tags out of scope included.
+   * of an existing user are written by {@code UserService#replaceTags}; {@link #setTags} is for a
+   * user that is not saved yet and refuses a saved one. {@link Immutable} makes a change of the
+   * loaded collection in place ({@code clear}, {@code add}, {@code remove}) fail at flush instead
+   * of deleting links; Hibernate does not check a collection that is replaced, which is why the
+   * setter does.
    */
   @ArraySchema(schema = @Schema(description = "Tag IDs of the user", implementation = String.class))
-  @Setter
   @Immutable
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
@@ -394,6 +393,20 @@ public class User implements Base {
   @JsonProperty("user_tags")
   @Queryable(dynamicValues = true, filterable = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
+
+  /**
+   * @throws IllegalStateException when the user is saved: replacing its collection deletes every
+   *     link of the user, the ones to the tags out of the scope of the transaction included
+   */
+  public void setTags(Set<Tag> tags) {
+    if (id != null) {
+      throw new IllegalStateException(
+          "The tags of the saved user "
+              + id
+              + " are changed with UserService#replaceTags, never by replacing the collection");
+    }
+    this.tags = tags;
+  }
 
   @ArraySchema(
       schema =

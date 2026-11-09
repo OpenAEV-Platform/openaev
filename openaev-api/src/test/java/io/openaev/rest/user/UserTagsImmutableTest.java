@@ -15,6 +15,7 @@ import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiConsumer;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -31,8 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
  * the tags of the scope of its transaction, and a flush that finds it changed deletes the rows of
  * the user it does not hold, the links to the tags out of scope included. {@code User.tags} is
  * {@code @Immutable}, so a change of the loaded collection in place is refused at flush and the
- * links stay as they are. Replacing the collection with {@code setTags} is not refused and deletes
- * the links of the user: that is why the setter is only for users that are not saved yet.
+ * links stay as they are. Replacing the collection is not refused by Hibernate and would delete the
+ * links of the user, so {@code setTags} refuses a saved user and is only for users that are not
+ * saved yet.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -101,20 +103,36 @@ class UserTagsImmutableTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("given_replacedCollectionOfASavedUser_should_deleteItsLinksAtFlush")
-  void given_replacedCollectionOfASavedUser_should_deleteItsLinksAtFlush() {
+  @DisplayName("given_setTagsOnASavedUser_should_refuseAndKeepTheLinks")
+  void given_setTagsOnASavedUser_should_refuseAndKeepTheLinks() {
     // -- PREPARE --
     Tag tag = tagRepository.save(getTagWithText("immutable-" + UUID.randomUUID()));
     User managed = managedUserHolding(tag);
 
     // -- EXECUTE --
-    managed.setTags(new HashSet<>());
+    assertThatThrownBy(() -> managed.setTags(new HashSet<>()))
+        // -- ASSERT --
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("replaceTags");
     entityManager.flush();
+    entityManager.clear();
+    assertThat(linksOf(managed)).containsExactly(tag.getId());
+  }
+
+  @Test
+  @DisplayName("given_setTagsOnANewUser_should_linkThemWhenSaved")
+  void given_setTagsOnANewUser_should_linkThemWhenSaved() {
+    // -- PREPARE --
+    Tag tag = tagRepository.save(getTagWithText("immutable-" + UUID.randomUUID()));
+    User user = UserFixture.getUserWithDefaultEmail();
+
+    // -- EXECUTE --
+    user.setTags(new HashSet<>(Set.of(tag)));
+    User saved = userRepository.save(user);
 
     // -- ASSERT --
-    // Not refused: Hibernate does not check the immutability of a collection that is replaced.
-    // Replacing it is what the setter must never do on a saved user, so this pins the hazard.
-    assertThat(linksOf(managed)).isEmpty();
+    entityManager.flush();
+    assertThat(linksOf(saved)).containsExactly(tag.getId());
   }
 
   @Test
