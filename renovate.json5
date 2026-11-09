@@ -175,6 +175,13 @@
             ],
             allowedVersions: '<1.0.1',
         },
+        {
+            description: '@uiw/react-md-editor 4.2.x marks esm/ as an ES module but keeps imports without .js, so Node and the front tests fail to load it',
+            matchDepNames: [
+                '@uiw/react-md-editor',
+            ],
+            allowedVersions: '<4.2.0',
+        },
         // docker.elastic.co publishes no release timestamp, and with minimumReleaseAge set Renovate holds
         // a release without one as pending for good (minimumReleaseAgeBehaviour: timestamp-required).
         // No elasticsearch or kibana image PR was opened from 2026-06-03, when minimumReleaseAge came in,
