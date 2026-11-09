@@ -286,9 +286,11 @@ public class XtmComposerApiTest extends IntegrationTest {
   @DisplayName("Instances management from xtmComposer endpoints")
   class XtmComposerInstance {
     /**
-     * These endpoints read the composer registration under the caller's own scope, which is empty
-     * for a user with no tenant membership: the caller is a member of the default tenant, as every
-     * user of a deployment is.
+     * Makes the caller a member of the default tenant, as every user of a deployment is, so the
+     * connector instances these tests create, which are tenant rows of the default tenant, are
+     * inside the caller's scope. The composer registration does not need it: it is a platform row,
+     * readable with no scope ({@code XtmComposerRegistrationNoMembershipTest}). This class does not
+     * arm any table, and the tests pass without the membership too.
      */
     @BeforeEach
     void attachCallerToTheDefaultTenant() {

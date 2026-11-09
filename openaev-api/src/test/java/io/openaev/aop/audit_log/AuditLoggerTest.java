@@ -329,7 +329,7 @@ class AuditLoggerTest extends IntegrationTest {
       // The banner is written when its state changes, and the service remembers the last state it
       // asked for (per instance, for the life of the context). Forget it, so each test starts from
       // "nothing requested yet" whatever ran before it, the startup event included. The write runs
-      // on the task logger executor, so each test waits for it.
+      // on the task logger executor, which is why the wait above comes first.
       Object target = AopTestUtils.getUltimateTargetObject(logService);
       ReflectionTestUtils.setField(target, "bannerRequested", new AtomicReference<Boolean>());
       ReflectionTestUtils.setField(target, "bannerWriting", new AtomicBoolean(false));

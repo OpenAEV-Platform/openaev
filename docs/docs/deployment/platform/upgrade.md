@@ -10,6 +10,8 @@ This page explains how to upgrade OpenAEV. The steps depend on your [installatio
 
     If you run several instances, update all of them at the same time for this release: the default agents of the autonomous run move from a platform setting to per-tenant settings, so an instance that still runs the previous version does not read or save the new values.
 
+    The existing values are copied to every tenant that exists when the upgrade runs. A tenant created afterwards starts with the built-in default until an administrator sets its own.
+
 ## Using Docker
 
 Update the image versions in your `docker-compose.yml` file first.
