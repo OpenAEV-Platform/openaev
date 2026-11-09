@@ -236,7 +236,12 @@ public class ScopeStatementInspector implements StatementInspector {
       return;
     }
     for (ScopeDimension dimension : dimensions) {
-      String column = dimension.covers(tableName) ? dimension.writeAttributionColumn() : null;
+      // Only a table whose written value is guarded is checked: a strict table's VALUES insert is
+      // left to the database, whatever its shape.
+      String column =
+          dimension.covers(tableName) && dimension.guardsWrittenValue(tableName)
+              ? dimension.writeAttributionColumn()
+              : null;
       if (column == null) {
         continue;
       }

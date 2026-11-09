@@ -97,7 +97,11 @@ public final class TenantDimension implements ScopeDimension {
    * returns it when the write is allowed and raises otherwise (a platform row needs the marker, a
    * tenant row needs its tenant in the scope).
    *
-   * <p>A strict table's write is not validated (see the interface javadoc for why).
+   * <p>A strict table's write is not validated: a plain {@code VALUES} insert or {@code UPDATE}
+   * cannot be told apart, at the SQL level, from one the ORM generated, whose tenant the entity
+   * listener stamps from the request scope, so its attribution stays with the application. Only a
+   * dual-scope table needs the check, because its {@code NULL} tenant is a valid platform row that
+   * nothing else refuses.
    */
   @Override
   public String guardedWrittenValue(String table, String valueExpression) {

@@ -9,14 +9,15 @@ import org.springframework.stereotype.Component;
  * The default additional agents of the autonomous run ({@code
  * platform_autonomous_additional_agents} and {@code platform_autonomous_additional_agent_modes})
  * are tenant configuration, read and written under the caller's own tenant. This migration copies
- * each platform row ({@code tenant_id IS NULL}) of those two keys to every tenant that has no row
- * for that key, then deletes the platform row, so an existing deployment keeps the value it had.
- * Re-running it finds no platform row and changes nothing.
+ * each platform row ({@code tenant_id IS NULL}) of those two keys to every live tenant (one with no
+ * {@code tenant_deleted_at}) that has no row for that key, then deletes the platform row, so an
+ * existing deployment keeps the value it had. Re-running it finds no platform row and changes
+ * nothing.
  *
- * <p>It copies to the tenants that exist when it runs. A tenant created afterwards gets no copy:
- * tenant creation ({@code TenantService#create} and the dependency managers it runs) writes none of
- * these keys, they have no platform fallback, and the platform row is gone, so such a tenant starts
- * with the built-in default until an administrator sets its own.
+ * <p>It copies to the live tenants that exist when it runs. A tenant created afterwards gets no
+ * copy: tenant creation ({@code TenantService#create} and the dependency managers it runs) writes
+ * none of these keys, they have no platform fallback, and the platform row is gone, so such a
+ * tenant starts with the built-in default until an administrator sets its own.
  */
 @Component
 public class V6_20261106110000000__Copy_autonomous_agent_defaults_to_tenants
@@ -36,6 +37,7 @@ public class V6_20261106110000000__Copy_autonomous_agent_defaults_to_tenants
           FROM parameters platform
           CROSS JOIN tenants t
           WHERE platform.tenant_id IS NULL
+            AND t.tenant_deleted_at IS NULL
             AND platform.parameter_key IN (%s)
             AND NOT EXISTS (
               SELECT 1 FROM parameters own

@@ -819,6 +819,20 @@ class TenantStatementInspectorTest {
   }
 
   @Test
+  @DisplayName("an INSERT ... VALUES into a strict table with a short row is left to the database")
+  void insertValuesIntoStrictTableWithAShortRowIsNotRefused() {
+    assertDoesNotThrow(() -> inspector.inspect("INSERT INTO documents (id, tenant_id) VALUES (1)"));
+  }
+
+  @Test
+  @DisplayName("an INSERT ... VALUES into a dual-scope table with a short row is refused")
+  void insertValuesIntoDualScopeTableWithAShortRowIsRefused() {
+    assertThrows(
+        TenantFilteringException.class,
+        () -> inspector.inspect("INSERT INTO groups (id, tenant_id) VALUES (1)"));
+  }
+
+  @Test
   @DisplayName("an INSERT ... SELECT into a dual-scope table raises on a refused written tenant_id")
   void insertSelectIntoDualScopeTableChecksPlatformWrite() {
     String out = inspect("INSERT INTO groups (id, tenant_id) SELECT u.id, u.tid FROM users u");

@@ -31,7 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Verifies, on the live schema, that the platform rows of the autonomous run's default additional
- * agent settings are copied to every tenant and then removed, so the tenant-scoped read finds them.
+ * agent settings are copied to every live tenant and then removed, so the tenant-scoped read finds
+ * them.
  *
  * <p>{@code @Transactional} so the rows seeded here roll back with the test transaction.
  */
@@ -107,6 +108,25 @@ class CopyAutonomousAgentDefaultsToTenantsMigrationTest extends IntegrationTest 
       assertThat(read(AGENTS_KEY, other.getId())).isEqualTo(TENANT_OWN_AGENTS);
       assertThat(read(AGENTS_KEY, DEFAULT_TENANT_UUID)).isEqualTo(PLATFORM_AGENTS);
       assertThat(platformRowCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("A deleted tenant gets no copy")
+    void given_aDeletedTenant_should_giveItNoCopy() throws Exception {
+      // Arrange
+      Tenant deleted = tenantHelper.createTenantWithCurrentUser("autonomous-defaults-deleted");
+      entityManager
+          .createNativeQuery("UPDATE tenants SET tenant_deleted_at = now() WHERE tenant_id = :id")
+          .setParameter("id", deleted.getId())
+          .executeUpdate();
+      seed(AGENTS_KEY, PLATFORM_AGENTS, null);
+
+      // Act
+      runMigration();
+
+      // Assert
+      assertThat(read(AGENTS_KEY, deleted.getId())).isNull();
+      assertThat(read(AGENTS_KEY, DEFAULT_TENANT_UUID)).isEqualTo(PLATFORM_AGENTS);
     }
 
     @Test

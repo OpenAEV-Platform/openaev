@@ -143,6 +143,10 @@ public class CalderaExecutorService implements Runnable {
    * connection, so a nested transaction would need a second one. A failed write, or an executor
    * that refuses it, is logged and never fails the run: the banner is written again by the next
    * run, a minute later.
+   *
+   * <p>Every tenant's Caldera executor runs this each minute and writes the same row: one that
+   * reaches Caldera clears the banner, one that does not sets it, and the last write wins, so with
+   * several Caldera executors the banner follows whichever ran last.
    */
   private void requestBanner(boolean available) {
     try {
