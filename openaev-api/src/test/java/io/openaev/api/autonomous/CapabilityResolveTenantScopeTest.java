@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.config.ProductionActiveTables;
@@ -16,6 +17,8 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
+import io.openaev.database.model.ContractOutputType;
+import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
@@ -131,6 +134,10 @@ class CapabilityResolveTenantScopeTest extends IntegrationTest {
   private JsonNode resolve(String technique) throws Exception {
     CapabilityQueryInput input = new CapabilityQueryInput();
     input.setTechniques(List.of(technique));
+    return resolve(input);
+  }
+
+  private JsonNode resolve(CapabilityQueryInput input) throws Exception {
     // Act: no header, so the scope is the caller's whole membership while the ambient tenant stays
     // the default one
     TenantContext.clearCurrentTenant();
@@ -160,6 +167,16 @@ class CapabilityResolveTenantScopeTest extends IntegrationTest {
     List<String> labels = new ArrayList<>();
     for (JsonNode contract : resolve(technique).get("resolutions").get(0).get("contracts")) {
       labels.add(contract.get("label").asText());
+    }
+    return labels;
+  }
+
+  private List<String> sharedContractLabelsIn(JsonNode resolution) {
+    List<String> labels = new ArrayList<>();
+    for (JsonNode contract : resolution.get("contracts")) {
+      if (sharedContractId.equals(contract.get("injector_contract_id").asText())) {
+        labels.add(contract.get("label").asText());
+      }
     }
     return labels;
   }
@@ -259,6 +276,50 @@ class CapabilityResolveTenantScopeTest extends IntegrationTest {
 
     // Assert
     assertThat(names).containsExactly(injectorNameOf(Tenant.DEFAULT_TENANT_UUID));
+  }
+
+  @Test
+  @DisplayName(
+      "given_copiesOnDifferentPlatformsAndAPlatformFilter_should_resolveFromTheCopyOnThatPlatform")
+  void given_copiesOnDifferentPlatformsAndAPlatformFilter_should_resolveFromTheCopyOnThatPlatform()
+      throws Exception {
+    // Arrange: the best-ranked copy runs on Windows only, the other copy on Linux only, and both
+    // carry the technique and the output type
+    String lower = lowerOfTheTwoTenants();
+    String higher = lower.equals(tenantAId) ? tenantBId : tenantAId;
+    setPlatformAndOutputOf(lower, Endpoint.PLATFORM_TYPE.Windows);
+    setPlatformAndOutputOf(higher, Endpoint.PLATFORM_TYPE.Linux);
+    CapabilityQueryInput input = new CapabilityQueryInput();
+    input.setTechniques(List.of(PATTERN_SHARED));
+    input.setOutputTypes(List.of(SHARED_OUTPUT_TYPE.getLabel()));
+    input.setPlatforms(List.of(Endpoint.PLATFORM_TYPE.Linux.name()));
+
+    // Act
+    JsonNode resolutions = resolve(input).get("resolutions");
+
+    // Assert
+    assertThat(sharedContractLabelsIn(resolutions.get(0))).containsExactly(labelOf(higher));
+    assertThat(sharedContractLabelsIn(resolutions.get(1))).containsExactly(labelOf(higher));
+  }
+
+  private static final ContractOutputType SHARED_OUTPUT_TYPE = ContractOutputType.PortsScan;
+
+  private void setPlatformAndOutputOf(String tenantId, Endpoint.PLATFORM_TYPE platform) {
+    tenantTx.execute(
+        TxCtx.forTenant(tenantId),
+        () -> {
+          InjectorContract contract =
+              injectorContractRepository
+                  .findById(new InjectorContractId(sharedContractId, tenantId))
+                  .orElseThrow();
+          contract.setPlatforms(new Endpoint.PLATFORM_TYPE[] {platform});
+          ObjectNode content = contract.getConvertedContent().deepCopy();
+          content.putArray("outputs").addObject().put("type", SHARED_OUTPUT_TYPE.getLabel());
+          contract.setContent(content.toString());
+          contract.setConvertedContent(content);
+          injectorContractRepository.save(contract);
+          entityManager.flush();
+        });
   }
 
   private void seedContract(String tenantId, String... patternExternalIds) {

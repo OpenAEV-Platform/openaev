@@ -119,20 +119,20 @@ public class CapabilityResolverService {
   @Transactional(readOnly = true)
   public CapabilityReport resolve(CapabilityQueryInput input) {
 
-    ContractIndex index = buildIndex();
     Set<Endpoint.PLATFORM_TYPE> platformFilter = parsePlatforms(input.getPlatforms());
+    ContractIndex index = buildIndex(platformFilter);
 
     List<CapabilityResolution> resolutions = new ArrayList<>();
     for (String technique : nonNull(input.getTechniques())) {
       String token = technique.trim();
       if (!token.isEmpty()) {
-        resolutions.add(resolveTechnique(token, index, platformFilter));
+        resolutions.add(resolveTechnique(token, index));
       }
     }
     for (String outputType : nonNull(input.getOutputTypes())) {
       String token = outputType.trim();
       if (!token.isEmpty()) {
-        resolutions.add(resolveOutputType(token, index, platformFilter));
+        resolutions.add(resolveOutputType(token, index));
       }
     }
 
@@ -230,20 +230,16 @@ public class CapabilityResolverService {
     return new ArrayList<>(index.getOrDefault(key, Map.of()).values());
   }
 
-  private CapabilityResolution resolveTechnique(
-      String externalId, ContractIndex index, Set<Endpoint.PLATFORM_TYPE> platformFilter) {
+  private CapabilityResolution resolveTechnique(String externalId, ContractIndex index) {
     String key = externalId.toUpperCase(Locale.ROOT);
-    List<ResolvedContract> matches =
-        applyPlatformFilter(candidates(index.byTechnique, key), platformFilter);
+    List<ResolvedContract> matches = candidates(index.byTechnique, key);
     String label = index.techniqueNames.getOrDefault(key, externalId);
     return finalize(CapabilityResolution.Kind.TECHNIQUE, externalId, label, matches);
   }
 
-  private CapabilityResolution resolveOutputType(
-      String label, ContractIndex index, Set<Endpoint.PLATFORM_TYPE> platformFilter) {
+  private CapabilityResolution resolveOutputType(String label, ContractIndex index) {
     String key = label.toLowerCase(Locale.ROOT);
-    List<ResolvedContract> matches =
-        applyPlatformFilter(candidates(index.byOutputType, key), platformFilter);
+    List<ResolvedContract> matches = candidates(index.byOutputType, key);
     return finalize(CapabilityResolution.Kind.OUTPUT_TYPE, key, key, matches);
   }
 
@@ -259,14 +255,15 @@ public class CapabilityResolverService {
   /**
    * A built-in contract id repeats in every tenant of the request's scope, so the index keeps one
    * candidate per contract id for each technique and output type: the best-ranked copy that carries
-   * the technique or the output type ({@link CopyRanking}).
+   * the technique or the output type and runs on a requested platform ({@link CopyRanking}).
    */
-  private ContractIndex buildIndex() {
+  private ContractIndex buildIndex(Set<Endpoint.PLATFORM_TYPE> platformFilter) {
     ContractIndex index = new ContractIndex();
     List<InjectorContract> ranked = fromIterable(injectorContractRepository.findAll());
     ranked.sort(Comparator.comparing(c -> c.getTenant().getId(), CopyRanking.BY_TENANT_ID));
     for (InjectorContract contract : ranked) {
       ResolvedContract resolved = toResolved(contract);
+      boolean onARequestedPlatform = runsOnARequestedPlatform(resolved, platformFilter);
       String id = contract.getId();
       for (AttackPattern pattern : contract.getAttackPatterns()) {
         String extId = pattern.getExternalId();
@@ -274,12 +271,17 @@ public class CapabilityResolverService {
           continue;
         }
         String key = extId.toUpperCase(Locale.ROOT);
-        index
-            .byTechnique
-            .computeIfAbsent(key, k -> new LinkedHashMap<>())
-            .putIfAbsent(id, resolved);
         index.techniqueNames.putIfAbsent(
             key, pattern.getName() != null ? pattern.getName() : extId);
+        if (onARequestedPlatform) {
+          index
+              .byTechnique
+              .computeIfAbsent(key, k -> new LinkedHashMap<>())
+              .putIfAbsent(id, resolved);
+        }
+      }
+      if (!onARequestedPlatform) {
+        continue;
       }
       for (ContractOutputType type : contract.getProviding()) {
         index
@@ -394,19 +396,12 @@ public class CapabilityResolverService {
     }
   }
 
-  private List<ResolvedContract> applyPlatformFilter(
-      List<ResolvedContract> contracts, Set<Endpoint.PLATFORM_TYPE> platformFilter) {
-    if (platformFilter.isEmpty()) {
-      return contracts;
+  private static boolean runsOnARequestedPlatform(
+      ResolvedContract contract, Set<Endpoint.PLATFORM_TYPE> platformFilter) {
+    if (platformFilter.isEmpty() || contract.getPlatforms().isEmpty()) {
+      return true;
     }
-    Set<String> wanted = platformFilter.stream().map(Enum::name).collect(Collectors.toSet());
-    return contracts.stream()
-        .filter(
-            c ->
-                c.getPlatforms() == null
-                    || c.getPlatforms().isEmpty()
-                    || c.getPlatforms().stream().anyMatch(wanted::contains))
-        .collect(Collectors.toList());
+    return platformFilter.stream().map(Enum::name).anyMatch(contract.getPlatforms()::contains);
   }
 
   private static <T> List<T> nonNull(List<T> list) {
