@@ -710,7 +710,7 @@ class TenantActiveTableAccessRulesTest {
           "find",
           "injectorContract",
           "the fixture's endpoint pins first",
-          TenantActiveTableAccessArchTest.Pin.requireSingleTenant(
+          TenantActiveTableAccessArchTest.Pin.requireOneTenantOfScope(
               fixture, "find", InjectorContractService.class, "injectorContract"));
     }
 

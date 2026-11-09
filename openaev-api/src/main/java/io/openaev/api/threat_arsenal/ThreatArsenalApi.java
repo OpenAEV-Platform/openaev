@@ -73,7 +73,7 @@ public class ThreatArsenalApi {
   // several of them makes that lookup match more than one row and throw instead of resolving one.
   public ThreatArsenalActionFullOutput threatArsenal(
       @RequireTenantSelector TxCtx ctx, @PathVariable String actionId) {
-    TxCtxScopeUtils.requireSingleTenant(ctx);
+    TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     return threatArsenalService.findById(actionId);
   }
 

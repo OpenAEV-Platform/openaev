@@ -67,9 +67,10 @@ public final class TxCtxScopeUtils {
    * with its own error code, so a read is not answered with a write-scope error. Use this one when
    * the caller only needs the check (a read, or a write that resolves its own tenant elsewhere),
    * and {@code TenantWriteScopeResolver#tenantForWrite} for a write that attributes a new row's
-   * tenant from its return value.
+   * tenant from its return value. {@link #requireSingleTenant} is the other check, for the default
+   * agents settings: it answers {@code TENANT_SELECTOR_REQUIRED}.
    */
-  public static String requireSingleTenant(TxCtx ctx) {
+  public static String requireOneTenantOfScope(TxCtx ctx) {
     Set<String> scoped = tenantIdsFromHTTPCtx(ctx);
     if (scoped.size() != 1) {
       throw new TenantSingleScopeRequiredException();

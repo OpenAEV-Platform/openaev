@@ -872,7 +872,7 @@ public final class TenantActiveTableAccessFixtures {
     }
 
     public InjectorContract find(TxCtx ctx, String id) {
-      TxCtxScopeUtils.requireSingleTenant(ctx);
+      TxCtxScopeUtils.requireOneTenantOfScope(ctx);
       return service.injectorContract(id);
     }
   }
@@ -887,7 +887,7 @@ public final class TenantActiveTableAccessFixtures {
 
     public InjectorContract find(TxCtx ctx, String id) {
       InjectorContract contract = service.injectorContract(id);
-      TxCtxScopeUtils.requireSingleTenant(ctx);
+      TxCtxScopeUtils.requireOneTenantOfScope(ctx);
       return contract;
     }
   }
@@ -914,7 +914,7 @@ public final class TenantActiveTableAccessFixtures {
     }
 
     public void pin(TxCtx ctx) {
-      TxCtxScopeUtils.requireSingleTenant(ctx);
+      TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     }
 
     public InjectorContract find(TxCtx ctx, String id) {
@@ -932,7 +932,7 @@ public final class TenantActiveTableAccessFixtures {
 
     public InjectorContract find(TxCtx ctx, String id) {
       if (ctx != null) {
-        TxCtxScopeUtils.requireSingleTenant(ctx);
+        TxCtxScopeUtils.requireOneTenantOfScope(ctx);
       }
       return service.injectorContract(id);
     }
@@ -948,7 +948,7 @@ public final class TenantActiveTableAccessFixtures {
 
     public InjectorContract find(TxCtx ctx, String id) {
       try {
-        TxCtxScopeUtils.requireSingleTenant(ctx);
+        TxCtxScopeUtils.requireOneTenantOfScope(ctx);
       } catch (RuntimeException ignored) {
         // the refusal is dropped and the lookup runs anyway
       }
@@ -965,7 +965,7 @@ public final class TenantActiveTableAccessFixtures {
     }
 
     public InjectorContract find(TxCtx ctx, String id) {
-      Runnable pin = () -> TxCtxScopeUtils.requireSingleTenant(ctx);
+      Runnable pin = () -> TxCtxScopeUtils.requireOneTenantOfScope(ctx);
       return service.injectorContract(id);
     }
   }
@@ -979,7 +979,7 @@ public final class TenantActiveTableAccessFixtures {
     }
 
     public InjectorContract find(TxCtx ctx, String id) {
-      TxCtxScopeUtils.requireSingleTenant(ctx);
+      TxCtxScopeUtils.requireOneTenantOfScope(ctx);
       if (id == null) {
         return null;
       }

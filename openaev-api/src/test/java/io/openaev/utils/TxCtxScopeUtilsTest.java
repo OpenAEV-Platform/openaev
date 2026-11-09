@@ -10,7 +10,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("TxCtxScopeUtils#requireSingleTenant")
+@DisplayName("TxCtxScopeUtils#requireOneTenantOfScope")
 class TxCtxScopeUtilsTest {
 
   @Nested
@@ -23,7 +23,7 @@ class TxCtxScopeUtilsTest {
       TxCtx ctx = TxCtx.forTenant("tenant-a");
 
       // Act
-      String resolved = TxCtxScopeUtils.requireSingleTenant(ctx);
+      String resolved = TxCtxScopeUtils.requireOneTenantOfScope(ctx);
 
       // Assert
       assertThat(resolved).isEqualTo("tenant-a");
@@ -40,7 +40,7 @@ class TxCtxScopeUtilsTest {
       TxCtx ctx = TxCtx.missing();
 
       // Act / Assert
-      assertThatThrownBy(() -> TxCtxScopeUtils.requireSingleTenant(ctx))
+      assertThatThrownBy(() -> TxCtxScopeUtils.requireOneTenantOfScope(ctx))
           .isInstanceOf(TenantSingleScopeRequiredException.class)
           .hasMessageNotContaining("create")
           .hasMessageContaining(TenantSingleScopeRequiredException.CODE);
@@ -52,7 +52,7 @@ class TxCtxScopeUtilsTest {
       TxCtx ctx = TxCtx.forTenants(Set.of("tenant-a", "tenant-b"));
 
       // Act / Assert
-      assertThatThrownBy(() -> TxCtxScopeUtils.requireSingleTenant(ctx))
+      assertThatThrownBy(() -> TxCtxScopeUtils.requireOneTenantOfScope(ctx))
           .isInstanceOf(TenantSingleScopeRequiredException.class)
           .hasMessageNotContaining("create")
           .hasMessageContaining(TenantSingleScopeRequiredException.CODE);

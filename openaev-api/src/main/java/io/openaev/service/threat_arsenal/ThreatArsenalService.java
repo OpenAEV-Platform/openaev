@@ -463,7 +463,7 @@ public class ThreatArsenalService {
       // every action looks "orphaned", bypassing the deletion guard). The body reads the tenant
       // of the copy to delete from it too.
       TxCtx ctx, String actionId) {
-    String tenantId = TxCtxScopeUtils.requireSingleTenant(ctx);
+    String tenantId = TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     if (!isEligibleForDeletion(injectorContract)) {
       throw new ElementNotFoundException("Only payload-based or orphaned actions can be deleted.");

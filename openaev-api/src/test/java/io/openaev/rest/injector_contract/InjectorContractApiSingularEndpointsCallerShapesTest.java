@@ -48,7 +48,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 /**
  * The five singular endpoints that resolve one contract by id (the contract GET, PUT, PUT mapping
  * and DELETE, and the threat arsenal GET) carry the same {@code @RequireTenantSelector} and {@code
- * requireSingleTenant}. This pins what each does for every shape of caller that sends no tenant
+ * requireOneTenantOfScope}. This pins what each does for every shape of caller that sends no tenant
  * header, plus a selector naming two tenants: the status, and which tenant's row is read or
  * written.
  *

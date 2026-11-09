@@ -257,7 +257,7 @@ public class AttackPathApi extends RestBehavior {
     if (!SessionHelper.currentUser().isAdmin()) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
     }
-    String tenantId = TxCtxScopeUtils.requireSingleTenant(ctx);
+    String tenantId = TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     String simulationId =
         switch (scenario) {
           case "realistic" -> causalSeedService.seedRealisticChain(tenantId);
@@ -292,7 +292,7 @@ public class AttackPathApi extends RestBehavior {
     if (!SessionHelper.currentUser().isAdmin()) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
     }
-    String tenantId = TxCtxScopeUtils.requireSingleTenant(ctx);
+    String tenantId = TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     return causalSeedService.replayRansomwareNextStage(simulationId, tenantId, footholds);
   }
 }

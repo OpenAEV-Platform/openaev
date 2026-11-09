@@ -2948,14 +2948,14 @@ class TenantActiveTableAccessArchTest {
 
   /** The calling methods allowed to make a tenant-less injector contract access. */
   private static final AllowedCall[] INJECTOR_CONTRACT_ALLOWED_CALLS = {
-    // The singular endpoints: requireSingleTenant refuses any scope that does not pin
+    // The singular endpoints: requireOneTenantOfScope refuses any scope that does not pin
     // exactly one tenant before the call reaches the lookup.
     allowPinned(
         InjectorContractApi.class,
         "injectorContract",
         "injectorContract",
-        "requireSingleTenant pins the scope to one tenant first",
-        Pin.requireSingleTenant(
+        "requireOneTenantOfScope pins the scope to one tenant first",
+        Pin.requireOneTenantOfScope(
             InjectorContractApi.class,
             "injectorContract",
             InjectorContractService.class,
@@ -2964,8 +2964,8 @@ class TenantActiveTableAccessArchTest {
         InjectorContractApi.class,
         "updateInjectorContract",
         "updateInjectorContract",
-        "requireSingleTenant pins the scope to one tenant first",
-        Pin.requireSingleTenant(
+        "requireOneTenantOfScope pins the scope to one tenant first",
+        Pin.requireOneTenantOfScope(
             InjectorContractApi.class,
             "updateInjectorContract",
             InjectorContractService.class,
@@ -2974,8 +2974,8 @@ class TenantActiveTableAccessArchTest {
         InjectorContractApi.class,
         "updateInjectorContractMapping",
         "updateInjectorContractTTPDomainsAndTags",
-        "requireSingleTenant pins the scope to one tenant first",
-        Pin.requireSingleTenant(
+        "requireOneTenantOfScope pins the scope to one tenant first",
+        Pin.requireOneTenantOfScope(
             InjectorContractApi.class,
             "updateInjectorContractMapping",
             InjectorContractService.class,
@@ -2984,8 +2984,8 @@ class TenantActiveTableAccessArchTest {
         InjectorContractApi.class,
         "deleteInjectorContract",
         "deleteInjectorContract",
-        "requireSingleTenant pins the scope to one tenant first",
-        Pin.requireSingleTenant(
+        "requireOneTenantOfScope pins the scope to one tenant first",
+        Pin.requireOneTenantOfScope(
             InjectorContractApi.class,
             "deleteInjectorContract",
             InjectorContractService.class,
@@ -3041,7 +3041,7 @@ class TenantActiveTableAccessArchTest {
         "the default method delegates to the two-argument query of the same interface"),
     // Threat arsenal: each of these service methods has one ThreatArsenalApi endpoint as its
     // only caller (injector_contract_callers_are_the_claimed_ones), and that endpoint pins one
-    // tenant: the plain GET through requireSingleTenant (injector_contract_pins_are_called_
+    // tenant: the plain GET through requireOneTenantOfScope (injector_contract_pins_are_called_
     // before_the_lookup), update and duplicate through writeScopeResolver.tenantForWrite
     // (same rule), delete and security-platforms by a route that exists only under the tenant
     // prefix (injector_contract_routes_are_tenant_prefixed_only), where the path pins the tenant.
@@ -3049,8 +3049,8 @@ class TenantActiveTableAccessArchTest {
         ThreatArsenalService.class,
         "findById",
         "injectorContract",
-        "ThreatArsenalApi#threatArsenal, its only caller, calls requireSingleTenant first",
-        Pin.requireSingleTenant(
+        "ThreatArsenalApi#threatArsenal, its only caller, calls requireOneTenantOfScope first",
+        Pin.requireOneTenantOfScope(
             ThreatArsenalApi.class, "threatArsenal", ThreatArsenalService.class, "findById")),
     allowPinned(
         ThreatArsenalService.class,
@@ -3072,9 +3072,9 @@ class TenantActiveTableAccessArchTest {
         ThreatArsenalService.class,
         "delete",
         "injectorContract",
-        "it calls requireSingleTenant first, and its only caller ThreatArsenalApi#deleteAction is"
+        "it calls requireOneTenantOfScope first, and its only caller ThreatArsenalApi#deleteAction is"
             + " mapped under the tenant prefix only",
-        Pin.requireSingleTenant(
+        Pin.requireOneTenantOfScope(
             ThreatArsenalService.class,
             "delete",
             InjectorContractService.class,
@@ -3671,10 +3671,15 @@ class TenantActiveTableAccessArchTest {
       Class<?> lookupOwner,
       String lookupName) {
 
-    static Pin requireSingleTenant(
+    static Pin requireOneTenantOfScope(
         Class<?> inClass, String inMethod, Class<?> lookupOwner, String lookupName) {
       return new Pin(
-          inClass, inMethod, TxCtxScopeUtils.class, "requireSingleTenant", lookupOwner, lookupName);
+          inClass,
+          inMethod,
+          TxCtxScopeUtils.class,
+          "requireOneTenantOfScope",
+          lookupOwner,
+          lookupName);
     }
 
     static Pin tenantForWrite(
