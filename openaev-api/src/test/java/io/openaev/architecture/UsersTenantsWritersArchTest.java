@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
+import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -27,8 +28,11 @@ import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.account.CatalogConnectorPrivilegeService;
 import io.openaev.service.tenants.TenantUserService;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.data.jpa.repository.NativeQuery;
 import org.springframework.data.jpa.repository.Query;
 
 /**
@@ -51,15 +55,17 @@ import org.springframework.data.jpa.repository.Query;
  * </ul>
  *
  * <p>Denominator: the main classes of {@code io.openaev}, a call counting when it names one of the
- * methods above, plus every repository method whose {@code @Query} writes {@code users_tenants}
- * (see {@code only_the_two_known_queries_write_users_tenants}: a third statement spelled out in a
- * repository fails). Not seen: a membership written through SQL that is not an {@code @Query}
- * annotation ({@code JdbcTemplate}, {@code EntityManager#createNativeQuery}, a string built at run
- * time), a mutation of the {@code tenants} collection through a reference that is not a {@code
- * getTenants} or {@code setTenants} call (reflection, a copy constructor), the foreign key cascade
- * that removes the rows of a deleted tenant or user, and Flyway migrations. A user saved after an
- * unrelated {@code getTenants} caller needs no rule: reading the collection does not dirty it, only
- * a caller that adds to it or sets it does, and those are the listed ones.
+ * methods above, plus every repository method whose merged {@code @Query} writes {@code
+ * users_tenants} (see {@code only_the_two_known_queries_write_users_tenants}: a third statement
+ * spelled out in a repository fails). The annotation is read merged, so {@code @NativeQuery} and
+ * any annotation meta-annotated with {@code @Query} count. Not seen: a membership written through
+ * SQL that no such annotation carries ({@code JdbcTemplate}, {@code
+ * EntityManager#createNativeQuery}, a named query declared on an entity or in {@code orm.xml}, a
+ * string built at run time), a mutation of the {@code tenants} collection through a reference that
+ * is not a {@code getTenants} or {@code setTenants} call (reflection, a copy constructor), the
+ * foreign key cascade that removes the rows of a deleted tenant or user, and Flyway migrations. A
+ * user saved after an unrelated {@code getTenants} caller needs no rule: reading the collection
+ * does not dirty it, only a caller that adds to it or sets it does, and those are the listed ones.
  *
  * <p>Each list is also checked the other way: an entry that no longer calls its method is stale and
  * fails, so the lists name the writers of the tree exactly.
@@ -163,25 +169,27 @@ class UsersTenantsWritersArchTest {
 
   @ArchTest
   static void only_the_two_known_queries_write_users_tenants(JavaClasses classes) {
-    List<String> writers =
-        classes.stream()
-            .flatMap(javaClass -> javaClass.getMethods().stream())
-            .filter(
-                method ->
-                    method
-                        .tryGetAnnotationOfType(Query.class)
-                        .map(Query::value)
-                        .filter(UsersTenantsWritersArchTest::writesUsersTenants)
-                        .isPresent())
-            .map(method -> method.getOwner().getSimpleName() + "#" + method.getName())
-            .sorted()
-            .toList();
-    assertThat(writers)
+    assertThat(queryWritersOf(classes))
         .as(
             "repository queries that write users_tenants: a new one is a new writer of a table the"
                 + " inspector does not gate, so name it here with where its tenant comes from")
         .containsExactly(
             "TenantRepository#addUserToTenant", "TenantRepository#removeUserFromTenant");
+  }
+
+  private static List<String> queryWritersOf(JavaClasses classes) {
+    return classes.stream()
+        .flatMap(javaClass -> javaClass.getMethods().stream())
+        .filter(
+            method ->
+                Optional.ofNullable(
+                        AnnotatedElementUtils.findMergedAnnotation(method.reflect(), Query.class))
+                    .map(Query::value)
+                    .filter(UsersTenantsWritersArchTest::writesUsersTenants)
+                    .isPresent())
+        .map(method -> method.getOwner().getSimpleName() + "#" + method.getName())
+        .sorted()
+        .toList();
   }
 
   private static boolean writesUsersTenants(String query) {
@@ -236,6 +244,31 @@ class UsersTenantsWritersArchTest {
     assertThat(READS_OF_USERS_TENANTS)
         .as("statements the detection must not report")
         .noneMatch(UsersTenantsWritersArchTest::writesUsersTenants);
+  }
+
+  /**
+   * Writes {@code users_tenants} through {@code @NativeQuery}, which Spring Data composes from
+   * {@code @Query}. {@code @Query} and {@code @Modifying} themselves cannot be written in this
+   * module (NoRepositoryRule).
+   */
+  private interface NativeQueryMover {
+    @NativeQuery("UPDATE users_tenants SET tenant_id = :tenantId WHERE user_id = :userId")
+    void move(String userId, String tenantId);
+  }
+
+  private interface NativeQueryReader {
+    @NativeQuery("SELECT tenant_id FROM users_tenants WHERE user_id = :userId")
+    List<String> tenantsOf(String userId);
+  }
+
+  @ArchTest
+  static void the_writer_detection_reads_composed_query_annotations(JavaClasses classes) {
+    JavaClasses fixtures =
+        new ClassFileImporter().importClasses(NativeQueryMover.class, NativeQueryReader.class);
+
+    assertThat(queryWritersOf(fixtures))
+        .as("a @NativeQuery write is reported, a @NativeQuery read is not")
+        .containsExactly("NativeQueryMover#move");
   }
 
   @ArchTest
