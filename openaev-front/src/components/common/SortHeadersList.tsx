@@ -46,7 +46,7 @@ const SortHeadersList: FunctionComponent<Props> = ({
   const [sortBy, setSortBy] = useState(initialSortBy);
   const [sortAsc, setSortAsc] = useState(true);
 
-  const sort = items => items.toSorted(sortAsc ? ascendBy(sortBy) : descendBy(sortBy));
+  const sort = (items: Props['datas']) => items.toSorted(sortAsc ? ascendBy(sortBy) : descendBy(sortBy));
 
   const reverseBy = (field: string) => {
     setSortBy(field);

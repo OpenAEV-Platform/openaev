@@ -29,7 +29,7 @@ interface Props {
 const SimulationMainInformation: FunctionComponent<Props> = ({ exercise, embedded = false }) => {
   const { t } = useFormatter();
 
-  const sortByOrder = items => items.toSorted(ascendBy('phase_order'));
+  const sortByOrder = (items: KillChainPhase[]) => items.toSorted(ascendBy('phase_order'));
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(exercise.exercise_scenario || '') }));
   const killChainPhases = sortByOrder(exercise.exercise_kill_chain_phases ?? []) as KillChainPhase[];
 
