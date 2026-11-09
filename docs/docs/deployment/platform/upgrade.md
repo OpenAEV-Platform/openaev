@@ -12,6 +12,18 @@ This page explains how to upgrade OpenAEV. The steps depend on your [installatio
 
     The existing values are copied to every tenant that exists when the upgrade runs. A tenant created afterwards starts with the built-in default until an administrator sets its own.
 
+!!! warning "XTM Composer needs the platform settings write right"
+
+    XTM Composer registers itself with `POST /api/xtm-composer/register` and refreshes its connectivity with `PUT /api/xtm-composer/{id}/refresh-connectivity`. Both calls require the platform settings write right, on the platform route and on the tenant route. A token user that holds only the catalog write right gets a 403, and the composer stays unregistered.
+
+    Run XTM Composer with an administrator token, or give its user the platform settings write right.
+
+!!! warning "Name the tenant when you read or save the autonomous run default agents"
+
+    `GET` and `PUT /api/autonomous-runs/default-agents` act on one tenant. A call that names no tenant answers 400 for a caller that belongs to several tenants without the default one, and for a caller that belongs to no tenant. A caller of one tenant, or of several tenants including the default one, gets that tenant without naming it.
+
+    Name the tenant in the path (`/api/tenants/{tenantId}/autonomous-runs/default-agents`) or in the `X-Tenant-Ids` header. The user interface already does.
+
 ## Using Docker
 
 Update the image versions in your `docker-compose.yml` file first.
