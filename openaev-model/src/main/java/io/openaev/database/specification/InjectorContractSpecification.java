@@ -1,8 +1,11 @@
 package io.openaev.database.specification;
 
 import io.openaev.database.model.*;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
@@ -26,24 +29,45 @@ public class InjectorContractSpecification {
   }
 
   /**
-   * Keeps one copy of each contract id: the copy in the lowest tenant id of the request's scope. A
-   * built-in contract id repeats in every tenant that registers its injector, so a scope of several
-   * tenants reads the same id once per tenant; with this specification a search, its total and its
-   * facet counts read it once. The other copies are looked up through the same scope, so a scope of
-   * one tenant keeps every row.
+   * Keeps one copy of each contract id: the best-ranked copy among those that match {@code
+   * matching}. A built-in contract id repeats in every tenant that registers its injector, so a
+   * scope of several tenants reads the same id once per tenant; with this specification a search,
+   * its total and its facet counts read it once.
+   *
+   * <p>The ranking is the one of the contract GET with no selector: the default tenant's copy when
+   * the scope holds it, else the copy of the lowest tenant id. The other copies are looked up
+   * through the same scope, so a scope of one tenant keeps every row. A copy that {@code matching}
+   * refuses never outranks one it accepts: the contract is listed through the best copy that
+   * satisfies the request's filter and text search.
+   *
+   * @param matching the filter and text search of the request, applied to the competing copies;
+   *     null when the request has none
    */
-  public static Specification<InjectorContract> onePerContractId() {
+  public static Specification<InjectorContract> onePerContractId(
+      @Nullable final Specification<InjectorContract> matching) {
     return (root, query, cb) -> {
-      Subquery<Integer> lowerCopy = query.subquery(Integer.class);
-      Root<InjectorContract> other = lowerCopy.from(InjectorContract.class);
-      lowerCopy
+      Subquery<Integer> betterCopy = query.subquery(Integer.class);
+      Root<InjectorContract> other = betterCopy.from(InjectorContract.class);
+      Path<String> otherTenant = other.get("compositeId").<String>get("tenantId");
+      Path<String> rootTenant = root.get("compositeId").<String>get("tenantId");
+      Predicate outranks =
+          cb.and(
+              cb.notEqual(otherTenant, rootTenant),
+              cb.or(
+                  cb.equal(otherTenant, Tenant.DEFAULT_TENANT_UUID),
+                  cb.and(
+                      cb.notEqual(rootTenant, Tenant.DEFAULT_TENANT_UUID),
+                      cb.lessThan(otherTenant, rootTenant))));
+      Predicate otherMatches = matching == null ? null : matching.toPredicate(other, query, cb);
+      Predicate sameId =
+          cb.equal(other.get("compositeId").get("id"), root.get("compositeId").get("id"));
+      betterCopy
           .select(cb.literal(1))
           .where(
-              cb.equal(other.get("compositeId").get("id"), root.get("compositeId").get("id")),
-              cb.lessThan(
-                  other.get("compositeId").<String>get("tenantId"),
-                  root.get("compositeId").<String>get("tenantId")));
-      return cb.not(cb.exists(lowerCopy));
+              otherMatches == null
+                  ? cb.and(sameId, outranks)
+                  : cb.and(sameId, outranks, otherMatches));
+      return cb.not(cb.exists(betterCopy));
     };
   }
 
