@@ -1,4 +1,4 @@
-package io.openaev.database.model;
+package io.openaev.database.model.hash;
 
 /** Content identified by the SHA-256 of its canonical form: same content, same hash. */
 public interface ContentHashed {
