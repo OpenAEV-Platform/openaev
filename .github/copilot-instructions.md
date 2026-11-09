@@ -68,6 +68,8 @@ CI runs on GitHub Actions (see `.github/workflows/`):
 - **nightly-ci.yml**: Nightly extended test suite
 - **deploy-feature-branch.yml**: Feature branch build for staging deploys (promoted from the release repository)
 - **codeql.yml**: Security scanning (weekly + main push)
+- **snyk-rolling-image-scan.yml**: Daily (03:30 UTC) and manual Snyk scan of the published `openaev/platform` images. High and critical findings are uploaded as job artifacts, kept for the repository's artifact retention (7 days). Findings do not fail the run, a scanner error does. Aikido scans the published images on its own, as a public image
+- **Aikido image scan** (`.github/actions/aikido-image-scan`): Core CI runs it with Aikido's gates on the images it builds, on `main` and on every pull request: a high or critical issue that Aikido counts (open on `main`, added by a pull request, not ignored in Aikido) posts a red "Aikido Image Scan (advisory)" check that explains it, which does not block for now (see `.github/ci-pipeline-schema.md`)
 - **openaev-validate-pr-title.yml**: Conventional Commits validation
 
 ## Project Structure
