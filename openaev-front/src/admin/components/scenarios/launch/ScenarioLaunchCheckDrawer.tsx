@@ -1,9 +1,8 @@
-import { Alert, Button, Spinner, Text } from '@filigran/design-system';
+import { Alert, Button, Drawer, DrawerBody, DrawerContent, DrawerFooter, DrawerHeader, Spinner, Text } from '@filigran/design-system';
 import { PlayArrowOutlined } from '@mui/icons-material';
 import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
-import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
@@ -89,139 +88,151 @@ const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, open, o
   };
 
   return (
-    <Drawer open={open} handleClose={onClose} title={`${t('Launch')} ${scenario.scenario_name}`}>
-      {blockers === null
-        ? <Spinner />
-        : (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 16,
-            }}
-            >
-              <Text variant="content-base-bold">{summary}</Text>
-              {blockers.revokedInjects.length > 0 && (
-                <Alert
-                  severity="warning"
-                  title={blockers.revokedInjects.length === 1
-                    ? t('1 inject runs a revoked payload')
-                    : t('{count} injects run a revoked payload', { count: String(blockers.revokedInjects.length) })}
-                  description={(
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 8,
-                    }}
-                    >
-                      <span>{`${names(blockers.revokedInjects.map(inject => inject.title))}. ${t('They are skipped and fail when the simulation runs.')} ${t('Move them to a payload version that is not revoked, or remove them.')}`}</span>
-                      {/* One version picker per revoked payload version, right in the check (F18). */}
-                      {canManage && revokedGroups.map(([contractId, injects]) => (
-                        <RevokedPayloadFix key={contractId} contractId={contractId} injects={injects} onMoved={check} />
-                      ))}
-                    </div>
-                  )}
-                  action={fix(
-                    <Button asChild size="sm" priority="secondary">
-                      <Link to={`/admin/scenarios/${scenario.scenario_id}/injects`}>{t('Open the injects')}</Link>
-                    </Button>,
-                  )}
-                />
-              )}
-              {blockers.untargetedInjects.length > 0 && (
-                <Alert
-                  severity="error"
-                  title={blockers.untargetedInjects.length === 1
-                    ? t('1 inject has no target')
-                    : t('{count} injects have no target', { count: String(blockers.untargetedInjects.length) })}
-                  description={`${names(blockers.untargetedInjects)}. ${t('Pick the assets, asset groups, teams or addresses they run against.')}`}
-                  action={fix(
-                    <Button size="sm" priority="secondary" onClick={() => setSettingTargets(true)}>{t('Set targets')}</Button>,
-                  )}
-                />
-              )}
-              {blockers.prerequisites.map(prerequisite => (
-                <Alert
-                  key={`${prerequisite.requirement_kind}:${prerequisite.requirement_key}`}
-                  severity="error"
-                  title={prerequisite.requirement_status === 'NOT_RUNNING'
-                    ? t('{name} is not running', { name: prerequisite.requirement_catalog_connector_title ?? prerequisite.requirement_label })
-                    : t('{name} is missing on this platform', { name: prerequisite.requirement_catalog_connector_title ?? prerequisite.requirement_label })}
-                  description={t('The injects that need it cannot run.')}
-                  action={prerequisite.requirement_kind === 'INJECTOR' && prerequisite.requirement_catalog_connector_id && canManageIntegrations
-                    ? (
-                        <Button asChild size="sm" priority="secondary">
-                          <Link to={`/admin/integrations/catalog/${prerequisite.requirement_catalog_connector_id}`} target="_blank">
-                            {t('Enable integration')}
-                          </Link>
-                        </Button>
-                      )
-                    : undefined}
-                />
-              ))}
-              {blockers.prerequisitesUnchecked && (
-                <Alert
-                  severity="warning"
-                  title={t('Integrations not checked')}
-                  description={t('Your role cannot see what this scenario needs from the platform. Injects whose integration is missing will fail.')}
-                />
-              )}
-              {blockers.healthchecks.map((healthcheck, index) => {
-                const link = healthcheckFixLink(healthcheck.type, { scenarioId: scenario.scenario_id });
-                const label = t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`);
-                let action: ReactNode;
-                if (link.to) {
-                  action = fix(
-                    <Button asChild size="sm" priority="secondary">
-                      <Link to={link.to}>{label}</Link>
-                    </Button>,
-                  );
-                } else if (link.href) {
-                  action = (
-                    <Button asChild size="sm" priority="secondary">
-                      <a href={link.href} target="_blank" rel="noopener noreferrer">{label}</a>
-                    </Button>
-                  );
-                }
-                return (
-                  <Alert
-                    key={`${healthcheck.type}-${healthcheck.detail}-${index}`}
-                    severity="warning"
-                    title={t(`healthcheck.type.${healthcheck.type}`)}
-                    description={t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}
-                    action={action}
-                  />
-                );
-              })}
-              {!canManage && (hard > 0 || revoked) && (
-                <Alert
-                  severity="info"
-                  title={t('Only someone who can edit this scenario can fix these')}
-                  description={t('Ask a scenario owner or your administrator, then check again.')}
-                />
-              )}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                gap: 8,
-              }}
-              >
-                {hard > 0 && <Text variant="content-caption" style={{ marginRight: 'auto' }}>{t('Launch stays disabled until these are fixed.')}</Text>}
-                <Button priority="secondary" disabled={checking} onClick={check}>
-                  {checking ? <Spinner size="sm" /> : t('Check again')}
-                </Button>
-                <Button priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
-                <Button
-                  onClick={launch}
-                  disabled={hard > 0 || launching || checking}
-                  startIcon={<PlayArrowOutlined fontSize="small" />}
-                  data-testid="scenario-launch-confirm"
+    // DS Drawer (Feedback alerts in the body, actions in the footer), as in the DS drawer pattern.
+    <Drawer open={open} onOpenChange={next => !next && onClose()}>
+      <DrawerContent size="md">
+        <DrawerHeader title={`${t('Launch')} ${scenario.scenario_name}`} />
+        <DrawerBody>
+          {blockers === null
+            ? <Spinner />
+            : (
+                // FDS-WORKAROUND: Alert title/description are <p> with browser margins — remove when the library resets them — see DS Alert
+                <div
+                  className="launch-check-alerts"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
                 >
-                  {launchLabel}
-                </Button>
-              </div>
-            </div>
+                  <style>{'.launch-check-alerts p { margin: 0; }'}</style>
+                  <Text variant="content-base-bold">{summary}</Text>
+                  {blockers.revokedInjects.length > 0 && (
+                    <Alert
+                      elevation={1}
+                      severity="warning"
+                      title={blockers.revokedInjects.length === 1
+                        ? t('1 inject runs a revoked payload')
+                        : t('{count} injects run a revoked payload', { count: String(blockers.revokedInjects.length) })}
+                      description={(
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                        >
+                          <span>{`${names(blockers.revokedInjects.map(inject => inject.title))}. ${t('They are skipped and fail when the simulation runs.')} ${t('Move them to a payload version that is not revoked, or remove them.')}`}</span>
+                          {/* One version picker per revoked payload version, right in the check (F18). */}
+                          {canManage && revokedGroups.map(([contractId, injects]) => (
+                            <RevokedPayloadFix key={contractId} contractId={contractId} injects={injects} onMoved={check} />
+                          ))}
+                        </div>
+                      )}
+                      action={fix(
+                        <Button asChild size="sm" priority="secondary">
+                          <Link to={`/admin/scenarios/${scenario.scenario_id}/injects`}>{t('Open the injects')}</Link>
+                        </Button>,
+                      )}
+                    />
+                  )}
+                  {blockers.untargetedInjects.length > 0 && (
+                    <Alert
+                      elevation={1}
+                      severity="error"
+                      title={blockers.untargetedInjects.length === 1
+                        ? t('1 inject has no target')
+                        : t('{count} injects have no target', { count: String(blockers.untargetedInjects.length) })}
+                      description={`${names(blockers.untargetedInjects)}. ${t('Pick the assets, asset groups, teams or addresses they run against.')}`}
+                      action={fix(
+                        <Button size="sm" priority="secondary" onClick={() => setSettingTargets(true)}>{t('Set targets')}</Button>,
+                      )}
+                    />
+                  )}
+                  {blockers.prerequisites.map(prerequisite => (
+                    <Alert
+                      elevation={1}
+                      key={`${prerequisite.requirement_kind}:${prerequisite.requirement_key}`}
+                      severity="error"
+                      title={prerequisite.requirement_status === 'NOT_RUNNING'
+                        ? t('{name} is not running', { name: prerequisite.requirement_catalog_connector_title ?? prerequisite.requirement_label })
+                        : t('{name} is missing on this platform', { name: prerequisite.requirement_catalog_connector_title ?? prerequisite.requirement_label })}
+                      description={t('The injects that need it cannot run.')}
+                      action={prerequisite.requirement_kind === 'INJECTOR' && prerequisite.requirement_catalog_connector_id && canManageIntegrations
+                        ? (
+                            <Button asChild size="sm" priority="secondary">
+                              <Link to={`/admin/integrations/catalog/${prerequisite.requirement_catalog_connector_id}`} target="_blank">
+                                {t('Enable integration')}
+                              </Link>
+                            </Button>
+                          )
+                        : undefined}
+                    />
+                  ))}
+                  {blockers.prerequisitesUnchecked && (
+                    <Alert
+                      elevation={1}
+                      severity="warning"
+                      title={t('Integrations not checked')}
+                      description={t('Your role cannot see what this scenario needs from the platform. Injects whose integration is missing will fail.')}
+                    />
+                  )}
+                  {blockers.healthchecks.map((healthcheck, index) => {
+                    const link = healthcheckFixLink(healthcheck.type, { scenarioId: scenario.scenario_id });
+                    const label = t(`healthcheck.button.${healthcheck.type}.${healthcheck.detail}`);
+                    let action: ReactNode;
+                    if (link.to) {
+                      action = fix(
+                        <Button asChild size="sm" priority="secondary">
+                          <Link to={link.to}>{label}</Link>
+                        </Button>,
+                      );
+                    } else if (link.href) {
+                      action = (
+                        <Button asChild size="sm" priority="secondary">
+                          <a href={link.href} target="_blank" rel="noopener noreferrer">{label}</a>
+                        </Button>
+                      );
+                    }
+                    return (
+                      <Alert
+                        elevation={1}
+                        key={`${healthcheck.type}-${healthcheck.detail}-${index}`}
+                        severity="warning"
+                        title={t(`healthcheck.type.${healthcheck.type}`)}
+                        description={t(`healthcheck.description.${healthcheck.type}.${healthcheck.detail}`)}
+                        action={action}
+                      />
+                    );
+                  })}
+                  {!canManage && (hard > 0 || revoked) && (
+                    <Alert
+                      elevation={1}
+                      severity="info"
+                      title={t('Only someone who can edit this scenario can fix these')}
+                      description={t('Ask a scenario owner or your administrator, then check again.')}
+                    />
+                  )}
+                </div>
+              )}
+          {blockers !== null && (
+            <DrawerFooter>
+              {hard > 0 && <Text variant="content-caption" className="text-default-secondary" style={{ marginRight: 'auto' }}>{t('Launch stays disabled until these are fixed.')}</Text>}
+              <Button priority="secondary" disabled={checking} onClick={check}>
+                {checking ? <Spinner size="sm" /> : t('Check again')}
+              </Button>
+              <Button priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
+              <Button
+                onClick={launch}
+                disabled={hard > 0 || launching || checking}
+                startIcon={<PlayArrowOutlined fontSize="small" />}
+                data-testid="scenario-launch-confirm"
+              >
+                {launchLabel}
+              </Button>
+            </DrawerFooter>
           )}
+        </DrawerBody>
+      </DrawerContent>
     </Drawer>
   );
 };

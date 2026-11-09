@@ -1,12 +1,11 @@
 import { Button, Switch } from '@filigran/design-system';
-import { GetAppOutlined, LibraryBooksOutlined, RouteOutlined, UpdateOutlined } from '@mui/icons-material';
+import { RouteOutlined } from '@mui/icons-material';
 import { type ReactNode, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { fetchCatalogSettings, updateCatalogSettings } from '../../../../actions/catalog/payload-catalog-actions';
 import {
   fetchCatalogScenarioFacets,
-  fetchCatalogScenarios,
   installAllCatalogScenarios,
   SCENARIO_AUTHOR_FILTER,
   SCENARIO_INSTALLATION_FILTER,
@@ -21,7 +20,6 @@ import EmptyPlaceholder from '../../../../components/common/EmptyPlaceholder';
 import MarketplaceBrowser from '../../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../../components/common/marketplace/MarketplaceFacetSidebar';
 import MarketplaceGrid from '../../../../components/common/marketplace/MarketplaceGrid';
-import MarketplaceHero from '../../../../components/common/marketplace/MarketplaceHero';
 import MarketplaceLoadMore from '../../../../components/common/marketplace/MarketplaceLoadMore';
 import MarketplaceSortSelect from '../../../../components/common/marketplace/MarketplaceSortSelect';
 import MarketplaceViewToggle from '../../../../components/common/marketplace/MarketplaceViewToggle';
@@ -35,6 +33,7 @@ import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { SCENARIO_TYPE_LABELS } from '../constants';
+import ScenariosHero from '../ScenariosHero';
 import useScenarioLaunch from '../useScenarioLaunch';
 import CatalogScenarioInstallDrawer from './CatalogScenarioInstallDrawer';
 import ScenarioCatalogCard from './ScenarioCatalogCard';
@@ -107,23 +106,6 @@ const ScenariosAvailable = ({ tabs }: Props) => {
       })
       .finally(() => setInstallingAll(false));
   };
-  // Header stats of the Available tab (F5): catalogue total, not installed, updates available.
-  const [catalogStats, setCatalogStats] = useState({
-    total: 0,
-    notInstalled: 0,
-    updates: 0,
-  });
-  useEffect(() => {
-    fetchCatalogScenarios().then((catalog) => {
-      const installedOnes = catalog.filter(item => (item.catalog_item_installed_scenarios ?? []).length > 0);
-      setCatalogStats({
-        total: catalog.length,
-        notInstalled: catalog.length - installedOnes.length,
-        updates: installedOnes.filter(item => !(item.catalog_item_installed_versions ?? []).includes(item.catalog_item_version)).length,
-      });
-    });
-  }, [items]);
-
   const facets: MarketplaceFacet[] = [
     {
       filterKey: SCENARIO_INSTALLATION_FILTER,
@@ -151,50 +133,7 @@ const ScenariosAvailable = ({ tabs }: Props) => {
   return (
     <MarketplaceBrowser
       tabs={tabs}
-      hero={(
-        <MarketplaceHero
-          title={t('Scenarios')}
-          subtitle={t('Browse, install and version ready-to-run scenarios.')}
-          rightSlot={(
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-            }}
-            >
-              {canChangeSettings && (
-                <Switch
-                  label={t('Install new scenarios automatically')}
-                  checked={autoInstall}
-                  onCheckedChange={(checked: boolean) => updateCatalogSettings({ scenario_auto_install: checked })
-                    .then(({ data }) => setAutoInstall(!!data.scenario_auto_install))}
-                />
-              )}
-              {canInstall && <Button onClick={installEverything} loading={installingAll}>{t('Install all')}</Button>}
-            </div>
-          )}
-          stats={[
-            {
-              id: 'catalog-total',
-              label: t('In the catalogue'),
-              value: catalogStats.total,
-              icon: LibraryBooksOutlined,
-            },
-            {
-              id: 'not-installed',
-              label: t('Not installed'),
-              value: catalogStats.notInstalled,
-              icon: GetAppOutlined,
-            },
-            {
-              id: 'updates',
-              label: t('Updates available'),
-              value: catalogStats.updates,
-              icon: UpdateOutlined,
-            },
-          ]}
-        />
-      )}
+      hero={<ScenariosHero />}
       sidebar={(
         <MarketplaceFacetSidebar
           facets={facets}
@@ -211,7 +150,26 @@ const ScenariosAvailable = ({ tabs }: Props) => {
           searchPaginationInput={searchPaginationInput}
           setContent={setItems}
           propertySchemas={scenarioCatalogFilterSchemas(facetCounts)}
-          topBarButtons={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
+          // The auto-install switch and Install all act on this catalogue: they sit with it, not in the Hero.
+          topBarButtons={(
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+            >
+              {canChangeSettings && (
+                <Switch
+                  label={t('Auto-install')}
+                  checked={autoInstall}
+                  onCheckedChange={(checked: boolean) => updateCatalogSettings({ scenario_auto_install: checked })
+                    .then(({ data }) => setAutoInstall(!!data.scenario_auto_install))}
+                />
+              )}
+              {canInstall && <Button priority="secondary" onClick={installEverything} loading={installingAll}>{t('Install all')}</Button>}
+              <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
+            </div>
+          )}
           queryableHelpers={queryableHelpers}
           filtersEndSlot={(
             <MarketplaceSortSelect

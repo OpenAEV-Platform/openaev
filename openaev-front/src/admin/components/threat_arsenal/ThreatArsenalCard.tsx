@@ -1,13 +1,15 @@
-import { Button, Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { Button, Chip, type ChipSeverity, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, useMemo } from 'react';
+import { type FunctionComponent, type ReactNode, useMemo } from 'react';
 
 import type { AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import MarketplaceCard from '../../../components/common/marketplace/MarketplaceCard';
+import MarketplaceCardBanner from '../../../components/common/marketplace/MarketplaceCardBanner';
 import usePlatformVersion from '../../../components/common/marketplace/usePlatformVersion';
 import { useFormatter } from '../../../components/i18n';
+import PlatformIcon from '../../../components/PlatformIcon';
 import { useHelper } from '../../../store';
 import { type AttackPattern, type Domain, type ThreatArsenalAction } from '../../../utils/api-types';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
@@ -17,7 +19,7 @@ import { isBuiltinConnector } from '../integrations/common/builtinConnectorDescr
 import { PAYLOAD_ORIGIN_LABELS, payloadOrigin } from './payloadOrigin';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { actionDomains } from './threatArsenalDomainSections';
-import { getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from './threatArsenalStatusUtils';
+import { getStatusHint, getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from './threatArsenalStatusUtils';
 
 interface Props {
   action: ThreatArsenalAction;
@@ -32,6 +34,29 @@ interface Props {
   disableJsonExport: boolean;
   disableDelete: boolean;
 }
+
+// A tag stays short: past its width it truncates, and the hover always says it in full.
+const HintChip: FunctionComponent<{
+  label: string;
+  hint: string;
+  severity?: ChipSeverity;
+  maxWidth: number;
+}> = ({ label, hint, severity, maxWidth }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <span
+        className="inline-flex"
+        style={{
+          maxWidth,
+          minWidth: 0,
+        }}
+      >
+        <Chip label={label} severity={severity} style={{ maxWidth: '100%' }} />
+      </span>
+    </TooltipTrigger>
+    <TooltipContent>{hint}</TooltipContent>
+  </Tooltip>
+);
 
 const ThreatArsenalCard: FunctionComponent<Props> = ({
   action,
@@ -68,12 +93,40 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   const accent = primaryDomain?.domain_color ?? theme.palette.primary.main;
   const status = action.action_payload?.payload_revoked ? 'REVOKED' : action.action_payload?.payload_status;
   const statusLabel = getStatusLabel(status);
+  const statusHint = getStatusHint(status);
   const name = tPick(action.action_labels);
   // Trust line (idea A): version and source together, as in the drawer.
   const origin = payloadOrigin(action.action_payload);
   const olderInUse = action.action_payload?.payload_older_versions_in_use ?? 0;
   // Running a test creates an atomic test: hidden without that right, as the PRD hides what a user cannot do.
   const canRunTest = useAbility().can(ACTIONS.MANAGE, SUBJECTS.ASSESSMENT);
+  // The one thing to act on, in the Figma CardBanner: revoked first, then injects left behind.
+  const versionsLink = `/admin/threat-arsenal?action=${encodeURIComponent(action.injector_contract_id)}&tab=versions`;
+  const migrateLink = `${versionsLink}&focus=migrate`;
+  let banner: ReactNode = null;
+  if (action.action_payload?.payload_revoked) {
+    banner = (
+      <MarketplaceCardBanner
+        tone="critical"
+        message={t('Injects using it are skipped')}
+        link={{
+          label: t('Versions'),
+          to: versionsLink,
+        }}
+      />
+    );
+  } else if (olderInUse > 0) {
+    banner = (
+      <MarketplaceCardBanner
+        tone="warning"
+        message={olderInUse === 1 ? t('1 inject runs an older version') : t('{count} injects run an older version', { count: String(olderInUse) })}
+        link={{
+          label: t('Migrate'),
+          to: migrateLink,
+        }}
+      />
+    );
+  }
 
   return (
     <MarketplaceCard
@@ -96,86 +149,101 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
       description={action.action_payload?.payload_description ?? undefined}
       selected={selected}
       onClick={onSelect}
-      topRight={(
-        <ThreatArsenalActionPopover
-          actionId={action.injector_contract_id}
-          payloadId={action.action_payload?.payload_id ?? ''}
-          name={name}
-          onUpdate={onUpdate}
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
-          disableUpdate={disableUpdate}
-          disableDuplicate={disableDuplicate}
-          disableJsonExport={disableJsonExport}
-          disableDelete={disableDelete}
-          revoked={action.action_payload?.payload_revoked}
-          managed={!!action.action_payload?.payload_managed}
-          variantIdentityId={action.action_payload?.payload_variant ? action.action_payload.payload_identity_id : undefined}
-          onRevocationChange={(revoked, status) => action.action_payload && onUpdate({
-            ...action,
-            action_payload: {
-              ...action.action_payload,
-              payload_revoked: revoked,
-              payload_status: status ?? action.action_payload.payload_status,
-            },
-          })}
-        />
-      )}
-      chips={(
-        <>
-          {olderInUse > 0 && (
-            <Chip
-              label={olderInUse === 1 ? t('1 older version still in use') : t('{count} older versions still in use', { count: String(olderInUse) })}
-              severity="medium"
-            />
-          )}
-          {techniques.length > 0 && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <Chip label={techniques.length > 1 ? `${techniques[0]} +${techniques.length - 1}` : techniques[0]} />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{techniques.join(', ')}</TooltipContent>
-            </Tooltip>
-          )}
-        </>
-      )}
-      // A team target says more than the Internal / Service platforms of these contracts.
-      platforms={action.action_targets_teams ? [] : action.action_platforms ?? []}
-      target={action.action_targets_teams && (
+      banner={banner}
+      // The grid sets the height (DS Card rule): cards of a row align, no fixed gap.
+      height="100%"
+      tags={techniques.length > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <GroupsOutlined sx={{
-              fontSize: 18,
-              color: 'text.secondary',
-            }}
-            />
+            <span className="inline-flex">
+              <Chip label={techniques.length > 1 ? `${techniques[0]} +${techniques.length - 1}` : techniques[0]} />
+            </span>
           </TooltipTrigger>
-          <TooltipContent>{t('Targets teams')}</TooltipContent>
+          <TooltipContent>{techniques.join(', ')}</TooltipContent>
         </Tooltip>
       )}
-      footerRight={(
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}
-        >
-          {statusLabel && <Chip label={t(statusLabel)} severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]} />}
-        </div>
+      // Always the same three columns, so Version, Source and Updated line up across the grid.
+      info={[
+        {
+          label: t('Version'),
+          value: (version && `v${version}`) || (builtIn && platformVersion ? `v${platformVersion}` : '–'),
+        },
+        {
+          label: t('Source'),
+          value: builtIn ? t('Built-in') : (origin && t(PAYLOAD_ORIGIN_LABELS[origin])) || '–',
+        },
+        {
+          label: t('Updated'),
+          value: nsd(action.injector_contract_updated_at),
+        },
+      ]}
+      chips={null}
+      platforms={action.action_targets_teams ? [] : action.action_platforms ?? []}
+      // Figma Card footer (DS "Threat arsenal" in situ): statuses and platforms bottom left, the action
+      // and the menu bottom right, on the full-bleed strip.
+      metaStart={(
+        <>
+          {statusLabel && (
+            <HintChip
+              label={t(statusLabel)}
+              hint={t(statusHint ?? statusLabel)}
+              severity={STATUS_CHIP_SEVERITY[status as PayloadStatus]}
+              maxWidth={96}
+            />
+          )}
+          {action.action_targets_teams
+            ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <GroupsOutlined sx={{
+                      fontSize: 18,
+                      color: 'text.secondary',
+                    }}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>{t('Targets teams')}</TooltipContent>
+                </Tooltip>
+              )
+            : (action.action_platforms ?? []).slice(0, 3).map(platform => <PlatformIcon key={platform} width={16} platform={platform} tooltip />)}
+        </>
       )}
-      action={canRunTest && !action.action_payload?.payload_revoked && (
-        <span onClick={event => event.stopPropagation()}>
-          <Button size="sm" onClick={onRunTest}>{t('Run a test')}</Button>
+      action={(
+        <span
+          onClick={event => event.stopPropagation()}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          {canRunTest && !action.action_payload?.payload_revoked && (
+            <Button size="sm" priority="secondary" onClick={onRunTest}>{t('Run a test')}</Button>
+          )}
+          <ThreatArsenalActionPopover
+            actionId={action.injector_contract_id}
+            payloadId={action.action_payload?.payload_id ?? ''}
+            name={name}
+            onUpdate={onUpdate}
+            onDuplicate={onDuplicate}
+            onDelete={onDelete}
+            disableUpdate={disableUpdate}
+            disableDuplicate={disableDuplicate}
+            disableJsonExport={disableJsonExport}
+            disableDelete={disableDelete}
+            revoked={action.action_payload?.payload_revoked}
+            managed={!!action.action_payload?.payload_managed}
+            variantIdentityId={action.action_payload?.payload_variant ? action.action_payload.payload_identity_id : undefined}
+            onRevocationChange={(revoked, status) => action.action_payload && onUpdate({
+              ...action,
+              action_payload: {
+                ...action.action_payload,
+                payload_revoked: revoked,
+                payload_status: status ?? action.action_payload.payload_status,
+              },
+            })}
+          />
         </span>
       )}
-      caption={[
-        version ? `v${version}` : null,
-        origin ? t(PAYLOAD_ORIGIN_LABELS[origin]) : null,
-        builtIn ? `${t('Built-in')}${platformVersion ? ` · v${platformVersion}` : ''}` : null,
-        `${t('Updated')} ${nsd(action.injector_contract_updated_at)}`,
-      ].filter(Boolean).join(' · ')}
     />
   );
 };

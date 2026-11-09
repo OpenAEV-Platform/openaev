@@ -1,6 +1,5 @@
 import { Text } from '@filigran/design-system';
 import { CheckCircleOutlined, RadioButtonUncheckedOutlined } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
 import { type ReactNode } from 'react';
 
 export type ConflictSide = 'theirs' | 'mine';
@@ -19,7 +18,6 @@ interface Props {
 
 // One conflict of an update: both versions side by side, a click keeps one.
 const ConflictChoice = ({ title, theirsLabel, mineLabel, theirs, mine, selected, onSelect, footer }: Props) => {
-  const theme = useTheme();
   const side = (value: ConflictSide, label: ReactNode, content: ReactNode) => {
     const active = selected === value;
     return (
@@ -37,7 +35,7 @@ const ConflictChoice = ({ title, theirsLabel, mineLabel, theirs, mine, selected,
           minWidth: 0,
           cursor: 'pointer',
           borderRadius: 4,
-          border: `1px solid ${active ? theme.palette.primary.main : theme.palette.divider}`,
+          border: `1px solid ${active ? 'var(--color-filigran-brand-primary)' : 'var(--border-elevation-subtle-soft)'}`,
         }}
       >
         <span style={{
@@ -47,8 +45,8 @@ const ConflictChoice = ({ title, theirsLabel, mineLabel, theirs, mine, selected,
         }}
         >
           {active
-            ? <CheckCircleOutlined fontSize="small" color="primary" />
-            : <RadioButtonUncheckedOutlined fontSize="small" color="disabled" />}
+            ? <CheckCircleOutlined fontSize="small" style={{ color: 'var(--color-filigran-brand-primary)' }} />
+            : <RadioButtonUncheckedOutlined fontSize="small" style={{ color: 'var(--text-default-secondary)' }} />}
           <Text variant="content-base">{label}</Text>
         </span>
         {content}

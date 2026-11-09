@@ -4,7 +4,6 @@ import { fetchCatalogScenarios } from '../../../actions/catalog/scenario-catalog
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
 import MarketplaceFacetSidebar, { type MarketplaceFacet } from '../../../components/common/marketplace/MarketplaceFacetSidebar';
-import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
 import MarketplaceLoadMore from '../../../components/common/marketplace/MarketplaceLoadMore';
 import MarketplaceSortSelect from '../../../components/common/marketplace/MarketplaceSortSelect';
 import MarketplaceViewToggle from '../../../components/common/marketplace/MarketplaceViewToggle';
@@ -22,6 +21,7 @@ import ScenarioCardGrid from './ScenarioCardGrid';
 import { domainIcon, facetDomains } from './scenarioDomains';
 import ScenariosActiveList from './ScenariosActiveList';
 import ScenariosHeaderActions from './ScenariosHeaderActions';
+import ScenariosHero from './ScenariosHero';
 import useActiveScenarios, { ACTIVE_SCENARIO_FILTER_NAMES } from './useActiveScenarios';
 
 const SORT_OPTIONS = [
@@ -88,19 +88,7 @@ const ScenariosActive = ({ tabs }: Props) => {
   return (
     <MarketplaceBrowser
       tabs={tabs}
-      hero={(
-        <MarketplaceHero
-          title={t('Scenarios')}
-          subtitle={t('Browse, install and version ready-to-run scenarios.')}
-          rightSlot={(
-            <ScenariosHeaderActions
-              totalElements={active.totalElements}
-              scenarios={active.scenarios}
-              onImported={active.reload}
-            />
-          )}
-        />
-      )}
+      hero={<ScenariosHero />}
       sidebar={(
         // No counts until a scenario facet aggregation endpoint exists.
         <MarketplaceFacetSidebar
@@ -115,7 +103,22 @@ const ScenariosActive = ({ tabs }: Props) => {
         <PaginationComponentV2
           resultsCount
           infiniteScroll
-          topBarButtons={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
+          // Export and import act on this list, so they sit with it, not in the Hero shared by both tabs.
+          topBarButtons={(
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+            >
+              <ScenariosHeaderActions
+                totalElements={active.totalElements}
+                scenarios={active.scenarios}
+                onImported={active.reload}
+              />
+              <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
+            </div>
+          )}
           fetch={active.search}
           reloadContentCount={active.reloadCount}
           searchPaginationInput={active.searchPaginationInput}

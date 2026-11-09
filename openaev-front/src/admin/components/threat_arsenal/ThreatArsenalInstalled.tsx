@@ -1,6 +1,6 @@
 import { Box } from '@mui/material';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useSearchParams } from 'react-router';
 
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import { fetchAttackPatterns } from '../../../actions/AttackPattern';
@@ -56,9 +56,24 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
     openPayloadId?: string;
   } | null;
   const toOpen = useRef(openState?.openName);
+  // A link to an action (?action=<id>, e.g. "See where it is used" or a card's Migrate): its drawer
+  // opens, on the Versions tab with tab=versions, ready to migrate with focus=migrate.
+  const [searchParams] = useSearchParams();
+  const linked = useRef({
+    actionId: searchParams.get('action'),
+    tab: searchParams.get('tab') === 'versions' ? 'versions' as const : undefined,
+    focusMigration: searchParams.get('focus') === 'migrate',
+  });
   useEffect(() => {
     if (toOpen.current) {
       installed.queryableHelpers.textSearchHelpers.handleTextSearch(toOpen.current);
+    } else if (linked.current.actionId) {
+      fetchThreatArsenalAction(linked.current.actionId)
+        .then((result: { data: ThreatArsenalActionFullOutput }) => {
+          toOpen.current = tPick(result.data.action_labels);
+          installed.queryableHelpers.textSearchHelpers.handleTextSearch(toOpen.current);
+        })
+        .catch(() => undefined);
     } else if (openState?.openPayloadId) {
       fetchThreatArsenalActionIdOfPayload(openState.openPayloadId)
         .then((result: { data: ThreatArsenalActionIdOutput }) => fetchThreatArsenalAction(result.data.action_id))
@@ -178,6 +193,8 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           open
           onClose={() => setOpenedAction(null)}
           threatArsenalAction={openedAction}
+          initialTab={openedAction.injector_contract_id === linked.current.actionId ? linked.current.tab : undefined}
+          focusMigration={openedAction.injector_contract_id === linked.current.actionId && linked.current.focusMigration}
           onRunTest={setRunTestAction}
         />
       )}

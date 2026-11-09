@@ -1,12 +1,14 @@
-import { Button, Text, Textarea } from '@filigran/design-system';
+import { Button, Checkbox, Spinner, Text, Textarea } from '@filigran/design-system';
+import { OpenInNewOutlined } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
-import { fetchThreatArsenalUsages, fetchThreatArsenalVersions } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
+import { changeThreatArsenalVersion, fetchThreatArsenalUsages, fetchThreatArsenalVersions } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
 import Transition from '../../../components/common/Transition';
 import { useFormatter } from '../../../components/i18n';
 import { type PayloadUsageOutput, type PayloadVersionOutput } from '../../../utils/api-types';
+import { MESSAGING$ } from '../../../utils/Environment';
 import payloadRevocationChoices from './payloadRevocationChoices';
 import PayloadVersionSelect from './PayloadVersionSelect';
 
@@ -28,6 +30,11 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
   const [reason, setReason] = useState('');
   const [versions, setVersions] = useState<PayloadVersionOutput[] | null>(null);
   const [selected, setSelected] = useState(payloadId ?? '');
+  // Every version, to offer a replacement for the injects of the revoked one.
+  const [allVersions, setAllVersions] = useState<PayloadVersionOutput[]>([]);
+  const [replace, setReplace] = useState(true);
+  const [replacement, setReplacement] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -37,6 +44,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
     fetchThreatArsenalVersions(actionId)
       .then((response: { data: PayloadVersionOutput[] }) => {
         const shown = payloadRevocationChoices(response.data, lift, customized);
+        setAllVersions(response.data);
         setVersions(shown);
         setSelected(shown.some(v => v.payload_id === payloadId) ? payloadId ?? '' : shown[0]?.payload_id ?? '');
       })
@@ -45,7 +53,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
 
   const version = versions?.find(v => v.payload_id === selected);
 
-  // Name what the revocation stops, not only a count: the scenarios using the chosen version.
+  // What the revocation stops: the injects, atomic tests and chained steps on the chosen version.
   const [usages, setUsages] = useState<PayloadUsageOutput[] | null>(null);
   useEffect(() => {
     setUsages(null);
@@ -55,16 +63,56 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
         .catch(() => setUsages([]));
     }
   }, [open, version?.payload_action_id]);
-  const scenarios = Array.from(new Map((usages ?? [])
-    .filter(usage => usage.usage_scenario_id)
-    .map(usage => [usage.usage_scenario_id as string, usage.usage_scenario_name ?? ''])).entries());
+  // At scale (hundreds of injects) a list does not fit here: numbers, and the full list one click away.
+  const scenarioCount = new Set((usages ?? []).map(usage => usage.usage_scenario_id).filter(Boolean)).size;
+  const countOf = (type: string) => (usages ?? []).filter(usage => usage.usage_type === type).length;
   const injectCount = version?.payload_usage_count ?? 0;
+  const impact = [
+    scenarioCount > 0 ? t('{count, plural, one {# scenario} other {# scenarios}}', { count: scenarioCount }) : null,
+    countOf('inject') > 0 ? t('{count, plural, one {# scenario inject} other {# scenario injects}}', { count: countOf('inject') }) : null,
+    countOf('atomic_testing') > 0 ? t('{count, plural, one {# atomic test} other {# atomic tests}}', { count: countOf('atomic_testing') }) : null,
+    countOf('step') > 0 ? t('{count, plural, one {# chained step} other {# chained steps}}', { count: countOf('step') }) : null,
+  ].filter(Boolean).join(' · ');
+  // Where the injects can go instead: another installed version that is not revoked.
+  const replacements = allVersions.filter(v => v.payload_installed
+    && v.payload_id !== selected
+    && !v.payload_revoked);
+  const defaultReplacement = (replacements.find(v => v.payload_is_latest) ?? replacements[0])?.payload_version ?? '';
+  useEffect(() => setReplacement(defaultReplacement), [defaultReplacement]);
+  const canReplace = !lift && injectCount > 0 && replacements.length > 0;
+  // The impact is always stated, also when it is none: what runs elsewhere keeps running.
+  const otherUsage = (versions ?? []).filter(v => v.payload_id !== version?.payload_id)
+    .reduce((sum, v) => sum + (v.payload_usage_count ?? 0), 0);
   const inherited = lift && customized && !!version && !version.payload_revoked_in_tenant;
   const needsReason = !lift || inherited;
 
   const close = () => {
     setReason('');
     onClose();
+  };
+
+  // The injects move first, so none of them fails between the revocation and the move.
+  const submit = async () => {
+    const target = replacements.find(v => v.payload_version === replacement);
+    if (canReplace && replace && target?.payload_id && version?.payload_action_id && usages) {
+      setSubmitting(true);
+      try {
+        const response = await changeThreatArsenalVersion(version.payload_action_id, {
+          target_payload_id: target.payload_id,
+          inject_ids: usages.filter(u => u.usage_type !== 'step').map(u => u.usage_id),
+          step_ids: usages.filter(u => u.usage_type === 'step').map(u => u.usage_id),
+        });
+        const moved = response.data?.moved_ids?.length ?? 0;
+        MESSAGING$.notifySuccess(t('{count} usages moved to v{version}', {
+          count: String(moved),
+          version: target.payload_version ?? '',
+        }));
+      } finally {
+        setSubmitting(false);
+      }
+    }
+    onSubmit(selected, reason.trim(), inherited);
+    setReason('');
   };
 
   return (
@@ -111,20 +159,78 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
             )}
           </div>
         )}
-        {scenarios.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <Text variant="content-base-bold">{lift ? t('Injects in these scenarios run again:') : t('Injects in these scenarios will fail until it is lifted:')}</Text>
-            <ul style={{
-              margin: '4px 0 0',
-              paddingLeft: 20,
+        {version && injectCount === 0 && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            marginBottom: 16,
+          }}
+          >
+            <Text variant="content-base-bold">{lift ? t('Runs again in:') : t('Will fail until it is lifted:')}</Text>
+            <Text variant="content-base">
+              {t('Nothing: no scenario inject, atomic test or chained step uses v{version}.', { version: version.payload_version ?? '' })}
+              {otherUsage > 0 && ` ${t('{count, plural, one {# inject keeps} other {# injects keep}} running on other versions.', { count: String(otherUsage) })}`}
+            </Text>
+          </div>
+        )}
+        {version && injectCount > 0 && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+            marginBottom: 16,
+          }}
+          >
+            <Text variant="content-base-bold">{lift ? t('Runs again in:') : t('Will fail until it is lifted:')}</Text>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              flexWrap: 'wrap',
             }}
             >
-              {scenarios.map(([scenarioId, scenarioName]) => (
-                <li key={scenarioId}>
-                  <Link to={`/admin/scenarios/${scenarioId}`} target="_blank">{scenarioName || scenarioId}</Link>
-                </li>
-              ))}
-            </ul>
+              {usages === null ? <Spinner size="sm" /> : <Text variant="content-base">{impact}</Text>}
+              {version.payload_action_id && (
+                <Link
+                  to={`/admin/threat-arsenal?action=${encodeURIComponent(version.payload_action_id)}&tab=versions`}
+                  target="_blank"
+                  rel="noopener"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  {t('See where it is used')}
+                  <OpenInNewOutlined fontSize="inherit" />
+                </Link>
+              )}
+            </div>
+            {canReplace && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                flexWrap: 'wrap',
+              }}
+              >
+                <Checkbox
+                  checked={replace}
+                  onCheckedChange={checked => setReplace(checked === true)}
+                  label={t('Replace it in these injects with')}
+                />
+                <PayloadVersionSelect
+                  value={replacement}
+                  options={replacements.map(v => ({
+                    version: v.payload_version ?? '',
+                    latest: v.payload_is_latest,
+                    installed: true,
+                  }))}
+                  onChange={setReplacement}
+                />
+              </div>
+            )}
           </div>
         )}
         {needsReason && versions?.length !== 0 && (
@@ -142,13 +248,10 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
         <Button
           type="button"
           variant={lift ? 'default' : 'destructive'}
-          disabled={(needsReason && reason.trim() === '') || !version}
-          onClick={() => {
-            onSubmit(selected, reason.trim(), inherited);
-            setReason('');
-          }}
+          disabled={(needsReason && reason.trim() === '') || !version || submitting}
+          onClick={submit}
         >
-          {t(lift ? 'Lift revocation' : 'Revoke')}
+          {submitting ? <Spinner size="sm" /> : t(lift ? 'Lift revocation' : 'Revoke')}
         </Button>
       </DialogActions>
     </Dialog>

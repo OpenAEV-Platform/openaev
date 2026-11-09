@@ -52,11 +52,17 @@ const toPayload = (action: ThreatArsenalActionFullOutput): Payload => {
   } as Payload;
 };
 
+type DrawerTab = 'overview' | 'versions' | 'history';
+
 interface Props {
   open: boolean;
   onClose: () => void;
   threatArsenalAction: ThreatArsenalAction | null;
   onRunTest: (action: ThreatArsenalAction) => void;
+  /** The tab shown first, e.g. Versions when opened from a "See where it is used" link. */
+  initialTab?: DrawerTab;
+  /** Versions tab ready to migrate the usages left on older versions (a card's Migrate link). */
+  focusMigration?: boolean;
 }
 
 const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
@@ -64,6 +70,8 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
   onClose,
   threatArsenalAction,
   onRunTest,
+  initialTab,
+  focusMigration,
 }) => {
   const { t } = useFormatter();
   const canInstall = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
@@ -71,7 +79,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
 
   const [loading, setLoading] = useState(false);
   const [fullOutput, setFullOutput] = useState<ThreatArsenalActionFullOutput | null>(null);
-  const [tab, setTab] = useState<'overview' | 'versions' | 'history'>('overview');
+  const [tab, setTab] = useState<DrawerTab>(initialTab ?? 'overview');
   // Every version of the payload, installed or only in the catalogue, and the one shown.
   const [versions, setVersions] = useState<PayloadVersionOutput[]>([]);
   const [catalogVersions, setCatalogVersions] = useState<CatalogItemOutput[]>([]);
@@ -107,7 +115,7 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
       setShownVersion(null);
       return;
     }
-    setTab('overview');
+    setTab(initialTab ?? 'overview');
     setCatalogVersions([]);
     setShownVersion(payload?.payload_version ?? null);
     loadVersions();
@@ -247,7 +255,13 @@ const ThreatArsenalInformationDrawer: FunctionComponent<Props> = ({
             </Tabs>
           )}
           <div style={{ marginTop: payload ? 16 : 0 }}>
-            {tab === 'versions' && payload && <PayloadVersionsTab actionId={threatArsenalAction.injector_contract_id} onChanged={loadVersions} />}
+            {tab === 'versions' && payload && (
+              <PayloadVersionsTab
+                actionId={threatArsenalAction.injector_contract_id}
+                onChanged={loadVersions}
+                focusMigration={focusMigration}
+              />
+            )}
             {tab === 'history' && payload && <PayloadHistoryTab actionId={threatArsenalAction.injector_contract_id} />}
             {(tab === 'overview' || !payload) && renderOverview()}
           </div>

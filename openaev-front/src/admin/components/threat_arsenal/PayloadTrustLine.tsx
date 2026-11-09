@@ -33,10 +33,7 @@ const PayloadTrustLine: FunctionComponent<Props> = ({ payload, updatedAt }) => {
       <PayloadOriginChip origin={payloadOrigin(payload)} />
       {payload.payload_revoked && <Chip label={t('Revoked: does not run')} severity="critical" />}
       {olderInUse > 0 && (
-        <Chip
-          label={olderInUse === 1 ? t('1 older version still in use') : t('{count} older versions still in use', { count: String(olderInUse) })}
-          severity="medium"
-        />
+        <Chip label={t('{count} to migrate', { count: String(olderInUse) })} severity="medium" />
       )}
       {payload.payload_newer_base_version && (
         <Chip label={t('New base v{version}', { version: payload.payload_newer_base_version })} severity="info" />
