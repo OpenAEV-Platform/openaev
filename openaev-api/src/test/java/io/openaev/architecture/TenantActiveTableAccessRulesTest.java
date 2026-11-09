@@ -306,6 +306,57 @@ class TenantActiveTableAccessRulesTest {
       assertThat(PlatformRowWriters.isWriteOnTheTable(statement)).isEqualTo(write);
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("methodReferenceShapes")
+    @DisplayName("given a write through a method reference reached from no marker, should violate")
+    void given_aWriteThroughAMethodReference_should_violate(Class<?> fixture) {
+      // Act
+      EvaluationResult result = writers(fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains(fixture.getSimpleName() + ".entry");
+    }
+
+    static Stream<Class<?>> methodReferenceShapes() {
+      return Stream.of(
+          TenantActiveTableAccessFixtures.PlatformRowMethodReferenceDeleter.class,
+          TenantActiveTableAccessFixtures.PlatformRowMethodReferenceSaver.class,
+          TenantActiveTableAccessFixtures.PlatformRowSetterMethodReference.class);
+    }
+
+    @Test
+    @DisplayName(
+        "given method references created in the platform-write callback, should not violate")
+    void given_methodReferencesInThePlatformWriteCallback_should_notViolate() {
+      // Act
+      EvaluationResult result =
+          writers(
+              TenantActiveTableAccessFixtures.PlatformRowMethodReferencesUnderThePrimitive.class);
+
+      // Assert
+      assertThat(result.hasViolation()).as(result.getFailureReport().toString()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a constructor reference of a setting, should not be a writer")
+    void given_aConstructorReferenceOfASetting_should_notBeAWriter() {
+      // Arrange
+      var classes =
+          new ClassFileImporter()
+              .importClasses(TenantActiveTableAccessFixtures.SettingConstructorReference.class);
+
+      // Act
+      var writers =
+          classes.stream()
+              .flatMap(c -> c.getMethods().stream())
+              .filter(PlatformRowWriters.writeASetting(java.util.List.of()))
+              .toList();
+
+      // Assert
+      assertThat(writers).isEmpty();
+    }
+
     @Test
     @DisplayName("given statements and reads that do not write the table, should not be writers")
     void given_statementsAndReadsThatDoNotWriteTheTable_should_notBeWriters() {
@@ -402,6 +453,19 @@ class TenantActiveTableAccessRulesTest {
       return evaluate(
           TenantActiveTableAccessArchTest.parameters_tenant_row_readers_off_the_request_thread,
           fixtures);
+    }
+
+    @Test
+    @DisplayName("given a read through a method reference from an unscoped root, should violate")
+    void given_aReadThroughAMethodReference_should_violate() {
+      // Act
+      EvaluationResult result =
+          readers(TenantActiveTableAccessFixtures.TenantRowReaderByMethodReference.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("TenantRowReaderByMethodReference.job");
     }
 
     @Test

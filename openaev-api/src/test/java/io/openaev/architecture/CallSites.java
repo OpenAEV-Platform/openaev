@@ -12,6 +12,7 @@ import org.springframework.asm.ClassVisitor;
 import org.springframework.asm.Handle;
 import org.springframework.asm.MethodVisitor;
 import org.springframework.asm.Opcodes;
+import org.springframework.asm.Type;
 
 /**
  * Where a call is made: in the body of a method, or in the body of a lambda it creates. ArchUnit
@@ -25,10 +26,15 @@ final class CallSites {
   /** A call target: the declaring class (dotted name as written at the call site) and the name. */
   record Target(String owner, String name) {}
 
-  /** Targets called directly in a method body, and targets called only from its lambdas. */
-  record Sites(Set<Target> direct, Set<Target> inLambdas) {
+  /**
+   * Targets called directly in a method body, targets called only from its lambdas, and for a
+   * method reference the type of the object it is taken on: the handle of {@code repo::delete}
+   * names the declaring type ({@code CrudRepository}), never {@code repo}'s own type.
+   */
+  record Sites(
+      Set<Target> direct, Set<Target> inLambdas, Map<Target, Set<String>> referenceReceivers) {
     Sites() {
-      this(new HashSet<>(), new HashSet<>());
+      this(new HashSet<>(), new HashSet<>(), new HashMap<>());
     }
   }
 
@@ -62,6 +68,16 @@ final class CallSites {
     return sites.inLambdas().contains(target) && !sites.direct().contains(target);
   }
 
+  /**
+   * The types the method reference to {@code target} is taken on in {@code methodName}, lambdas
+   * included: the type of the bound object ({@code settingRepository::delete}) or of the first
+   * parameter of the functional interface ({@code SettingRepository::delete}). Empty for a static
+   * reference.
+   */
+  static Set<String> receiversOf(JavaClass owner, String methodName, Target target) {
+    return of(owner, methodName).referenceReceivers().getOrDefault(target, Set.of());
+  }
+
   static boolean directlyCalls(JavaClass owner, String methodName, Target target) {
     return of(owner, methodName).direct().contains(target);
   }
@@ -71,6 +87,7 @@ final class CallSites {
     Map<String, Set<Target>> bodies = new HashMap<>();
     Map<String, String> creatorOfLambda = new HashMap<>();
     Map<String, Set<Target>> referencedBy = new HashMap<>();
+    Map<String, Map<Target, Set<String>>> receiversBy = new HashMap<>();
     try (InputStream in = owner.reflect().getClassLoader().getResourceAsStream(resource)) {
       if (in == null) {
         return Map.of();
@@ -102,11 +119,16 @@ final class CallSites {
                         } else if (!handle.getName().startsWith("<")) {
                           // A method reference (this::initInstanceId) runs later, like a lambda
                           // body: it is a call made by the creator, but not a direct one.
-                          referencedBy
-                              .computeIfAbsent(name, n -> new HashSet<>())
-                              .add(
-                                  new Target(
-                                      handle.getOwner().replace('/', '.'), handle.getName()));
+                          Target reference =
+                              new Target(handle.getOwner().replace('/', '.'), handle.getName());
+                          referencedBy.computeIfAbsent(name, n -> new HashSet<>()).add(reference);
+                          String receiver = receiverOf(handle, desc, bsmArgs);
+                          if (receiver != null) {
+                            receiversBy
+                                .computeIfAbsent(name, n -> new HashMap<>())
+                                .computeIfAbsent(reference, t -> new HashSet<>())
+                                .add(receiver);
+                          }
                         }
                       }
                     }
@@ -135,7 +157,42 @@ final class CallSites {
                 .computeIfAbsent(topCreator(creator, creatorOfLambda), n -> new Sites())
                 .inLambdas()
                 .addAll(refs));
+    receiversBy.forEach(
+        (creator, receivers) ->
+            receivers.forEach(
+                (reference, types) ->
+                    sites
+                        .computeIfAbsent(topCreator(creator, creatorOfLambda), n -> new Sites())
+                        .referenceReceivers()
+                        .computeIfAbsent(reference, t -> new HashSet<>())
+                        .addAll(types)));
     return sites;
+  }
+
+  /**
+   * The class a method reference is taken on. A bound reference ({@code repo::delete}) captures the
+   * object, so the first argument of the call-site descriptor is its static type; an unbound one
+   * ({@code Repo::delete}) takes it as the first parameter of the instantiated method type.
+   */
+  private static String receiverOf(Handle handle, String descriptor, Object[] bsmArgs) {
+    boolean onAnObject =
+        handle.getTag() == Opcodes.H_INVOKEVIRTUAL
+            || handle.getTag() == Opcodes.H_INVOKEINTERFACE
+            || handle.getTag() == Opcodes.H_INVOKESPECIAL;
+    if (!onAnObject) {
+      return null;
+    }
+    Type[] captured = Type.getArgumentTypes(descriptor);
+    if (captured.length > 0) {
+      return captured[0].getSort() == Type.OBJECT ? captured[0].getClassName() : null;
+    }
+    if (bsmArgs.length > 2 && bsmArgs[2] instanceof Type instantiated) {
+      Type[] parameters = instantiated.getArgumentTypes();
+      if (parameters.length > 0 && parameters[0].getSort() == Type.OBJECT) {
+        return parameters[0].getClassName();
+      }
+    }
+    return null;
   }
 
   private static Map<String, Set<String>> readStrings(JavaClass owner) {

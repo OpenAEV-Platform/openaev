@@ -3,8 +3,10 @@ package io.openaev.architecture;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaAccess;
 import com.tngtech.archunit.core.domain.JavaCodeUnit;
+import com.tngtech.archunit.core.domain.JavaCodeUnitAccess;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
+import com.tngtech.archunit.core.domain.JavaMethodReference;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
@@ -15,6 +17,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
 import io.openaev.database.repository.SettingRepository;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -29,10 +32,11 @@ import org.springframework.data.jpa.repository.Query;
  * read with no scope comes back empty. So the guards follow the WRITES of a {@code Setting} and the
  * READS of one: every path that reaches one must cross a marker.
  *
- * <p>A writer is a method that makes one of these calls, and a path is followed from there to its
- * callers, services included ({@code SettingService}, {@code PlatformSettingsService}, {@code
- * TenantSettingsService} are writers because they make such a call, so what reaches them is
- * checked):
+ * <p>A writer is a method that makes one of these calls or refers to one as a method reference
+ * ({@code .ifPresent(settingRepository::delete)}, {@code forEach(settingRepository::save)}), and a
+ * path is followed from there to its callers, services included ({@code SettingService}, {@code
+ * PlatformSettingsService}, {@code TenantSettingsService} are writers because they make such a
+ * call, so what reaches them is checked):
  *
  * <ul>
  *   <li>a modifying method of {@link SettingRepository}: a {@code @Modifying} query, or a name
@@ -54,15 +58,16 @@ import org.springframework.data.jpa.repository.Query;
  * </ul>
  *
  * <p>A reader is any repository {@code find*}/{@code exists*}/{@code count*} not named for the
- * platform row.
+ * platform row, called or referred to as a method reference.
  *
  * <p>What the rule does not cover: Flyway migrations ({@code io.openaev.migration}), which write
  * {@code parameters} by raw SQL at boot, before any request, and are reviewed as their own class.
  *
  * <p>What the rule cannot see: a statement assembled at run time (the table name arrives in a
  * variable), a {@code Setting} passed as {@code Object} or a generic to a method that does not name
- * the type, a write through reflection or a bean copier, and a write made by code outside the
- * imported classes (a migration, manual SQL). For what goes through Hibernate the database refuses
+ * the type, a write through reflection or a bean copier, a write made by code outside the imported
+ * classes (a migration, manual SQL), and a write reached only through an interface call or a Spring
+ * event dispatch (see the denominator below). For what goes through Hibernate the database refuses
  * it at run time: the platform write refusal ({@code require_tenant_write}) raises on an HQL, a
  * native statement and a dirty-checked row outside a platform-write transaction ({@code
  * PlatformSettingsUnscopedAccessTest}). It is part of the statement rewrite done for Hibernate, so
@@ -87,8 +92,8 @@ import org.springframework.data.jpa.repository.Query;
  * <p>Denominator and limits: the callers ArchUnit resolves in the imported classes. A call through
  * an interface, a reflective call and a Spring event dispatch are not followed, so a method reached
  * only that way has no caller and is reported unless it is itself marked (fails closed). A lambda
- * is tied to the primitive by its creator, not by the argument the primitive receives: a method
- * that creates two lambdas and hands only one to the primitive marks both.
+ * or a method reference is tied to the primitive by its creator, not by the argument the primitive
+ * receives: a method that creates two of them and hands only one to the primitive marks both.
  */
 final class PlatformRowWriters {
 
@@ -124,6 +129,11 @@ final class PlatformRowWriters {
               "newTenantSetting",
               "builds the tenant's own new row, attributed to the tenant it names; the write is"
                   + " the save of the default agents writers above"),
+          new TenantRowWriter(
+              io.openaev.service.settings.TenantSettingsService.class,
+              "upsertThemeKey",
+              "deletes the setting looked up by (key, tenantId) through a method reference: a tenant"
+                  + " row"),
           new TenantRowWriter(
               io.openaev.processor.datapack.V20260101_Starter_pack.class,
               "setDefaultDashboard",
@@ -277,18 +287,34 @@ final class PlatformRowWriters {
     return !writesOf(method).isEmpty();
   }
 
-  private static List<JavaMethodCall> writesOf(JavaCodeUnit unit) {
+  /**
+   * What a unit calls or refers to. ArchUnit keeps a method reference ({@code repo::delete}) apart
+   * from a call, and the idiom {@code .ifPresent(settingRepository::delete)} is a write that no
+   * call lists, so a reference is followed exactly like a call. A constructor reference is read
+   * too: none of the shapes below writes through one, so it never makes a writer.
+   */
+  private static List<JavaCodeUnitAccess<?>> callsAndReferences(JavaCodeUnit unit) {
+    List<JavaCodeUnitAccess<?>> accesses = new ArrayList<>(unit.getMethodCallsFromSelf());
+    accesses.addAll(unit.getMethodReferencesFromSelf());
+    accesses.addAll(unit.getConstructorReferencesFromSelf());
+    return accesses;
+  }
+
+  private static List<JavaCodeUnitAccess<?>> writesOf(JavaCodeUnit unit) {
     boolean mentionsSetting = mentionsSetting(unit);
     boolean namesTheTable = namesTheTableInAWriteStatement(unit);
-    return unit.getMethodCallsFromSelf().stream()
+    return callsAndReferences(unit).stream()
         .filter(call -> writes(unit, call, mentionsSetting, namesTheTable))
         .toList();
   }
 
   private static boolean writes(
-      JavaCodeUnit unit, JavaMethodCall call, boolean mentionsSetting, boolean namesTheTable) {
+      JavaCodeUnit unit,
+      JavaCodeUnitAccess<?> call,
+      boolean mentionsSetting,
+      boolean namesTheTable) {
     var target = call.getTargetOwner();
-    if (target.isAssignableTo(SettingRepository.class) && modifies(call)) {
+    if (onSettingRepository(unit, call) && modifies(call)) {
       return true;
     }
     if (modifiesTheTableByQuery(call)) {
@@ -323,8 +349,26 @@ final class PlatformRowWriters {
     return executesSql && JDBC_WRITES.contains(call.getName()) && namesTheTable;
   }
 
+  /**
+   * Whether the call, or the method reference, is on a {@link SettingRepository}. A reference
+   * carries the type that declares the method ({@code CrudRepository} for {@code
+   * settingRepository::delete}), which is no more a {@code SettingRepository} than any other
+   * repository, so the type it is taken on is read from the class file.
+   */
+  private static boolean onSettingRepository(JavaCodeUnit unit, JavaCodeUnitAccess<?> access) {
+    if (access.getTargetOwner().isAssignableTo(SettingRepository.class)) {
+      return true;
+    }
+    return access instanceof JavaMethodReference
+        && CallSites.receiversOf(
+                unit.getOwner(),
+                unit.getName(),
+                new CallSites.Target(access.getTargetOwner().getName(), access.getName()))
+            .contains(SettingRepository.class.getName());
+  }
+
   /** A {@code @Modifying} method of another repository whose query writes the table. */
-  private static boolean modifiesTheTableByQuery(JavaMethodCall call) {
+  private static boolean modifiesTheTableByQuery(JavaCodeUnitAccess<?> call) {
     return call.getTarget().resolveMember().stream()
         .filter(member -> member.isAnnotatedWith(Modifying.class))
         .flatMap(member -> member.tryGetAnnotationOfType(Query.class).stream())
@@ -341,12 +385,9 @@ final class PlatformRowWriters {
         .anyMatch(PlatformRowWriters::isWriteOnTheTable);
   }
 
-  private static List<JavaMethodCall> readsOf(JavaCodeUnit unit) {
-    return unit.getMethodCallsFromSelf().stream()
-        .filter(
-            call ->
-                call.getTargetOwner().isAssignableTo(SettingRepository.class)
-                    && isTenantRowRead(call.getName()))
+  private static List<JavaCodeUnitAccess<?>> readsOf(JavaCodeUnit unit) {
+    return callsAndReferences(unit).stream()
+        .filter(call -> onSettingRepository(unit, call) && isTenantRowRead(call.getName()))
         .toList();
   }
 
@@ -356,7 +397,7 @@ final class PlatformRowWriters {
     return read && !name.contains("TenantIsNull");
   }
 
-  private static boolean modifies(JavaMethodCall call) {
+  private static boolean modifies(JavaCodeUnitAccess<?> call) {
     return WRITE_PREFIXES.stream().anyMatch(call.getName()::startsWith)
         || call.getTarget().resolveMember().stream()
             .anyMatch(member -> member.isAnnotatedWith(Modifying.class));
@@ -381,13 +422,13 @@ final class PlatformRowWriters {
   }
 
   private static ArchCondition<JavaMethod> beReachedOnlyUnder(
-      Marker marker, Function<JavaCodeUnit, List<JavaMethodCall>> calls, String what) {
+      Marker marker, Function<JavaCodeUnit, List<JavaCodeUnitAccess<?>>> calls, String what) {
     return new ArchCondition<>("be reached only under the " + marker.description()) {
       @Override
       public void check(JavaMethod method, ConditionEvents events) {
         Set<JavaCodeUnit> unmarkedRoots = new HashSet<>();
         Set<String> visited = new HashSet<>();
-        for (JavaMethodCall call : calls.apply(method)) {
+        for (JavaCodeUnitAccess<?> call : calls.apply(method)) {
           Edge edge =
               new Edge(
                   new CallSites.Target(call.getTargetOwner().getName(), call.getName()),

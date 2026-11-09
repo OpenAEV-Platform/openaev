@@ -2352,12 +2352,14 @@ class TenantActiveTableAccessArchTest {
    * only, each with its reason. A tenant row read with no scope still comes back empty; the readers
    * of tenant rows are covered by {@link #parameters_tenant_row_readers_off_the_request_thread}.
    *
-   * <p>Covered: the settings repository writes (saveAll included), a setter of a {@code Setting}
-   * (dirty checking), an {@code EntityManager} / {@code Session} write of a {@code Setting}, a
-   * query {@code executeUpdate} and a JDBC statement whose text names the table, a
-   * {@code @Modifying} query of another repository naming it. Not covered: Flyway migrations, a
-   * statement assembled at run time, a {@code Setting} handled as {@code Object}, reflection. For
-   * what goes through Hibernate the platform write refusal in the database ({@code
+   * <p>Covered, as a call or as a method reference: the settings repository writes (saveAll
+   * included), a setter of a {@code Setting} (dirty checking), an {@code EntityManager} / {@code
+   * Session} write of a {@code Setting}, a query {@code executeUpdate} and a JDBC statement whose
+   * text names the table, a {@code @Modifying} query of another repository naming it. Not covered:
+   * Flyway migrations, a statement assembled at run time, a {@code Setting} handled as {@code
+   * Object}, reflection, a write reached only through an interface call or an event dispatch, and
+   * which lambda or method reference is the one handed to the primitive (its creator method
+   * decides). For what goes through Hibernate the platform write refusal in the database ({@code
    * require_tenant_write}) catches those at run time; raw JDBC is not refused there, so for JDBC
    * this rule is the only guard (both pinned by {@code PlatformSettingsUnscopedAccessTest}). The
    * full list is in {@link PlatformRowWriters}.
@@ -2371,10 +2373,13 @@ class TenantActiveTableAccessArchTest {
               "parameters is dual-scope: a write of a platform row outside a platform-write"
                   + " transaction is refused with an error. Every writer the rule can see (settings"
                   + " repository writes, Setting setters, EntityManager/Session writes, statements"
-                  + " naming the table) must sit under @PlatformWrite or"
-                  + " executeAsPlatformWrite/executeNewAsPlatformWrite; migrations, run-time-built"
-                  + " statements and reflection are not seen here, and the database refusal covers"
-                  + " them only when they go through Hibernate");
+                  + " naming the table, as a call or a method reference) must sit under"
+                  + " @PlatformWrite or executeAsPlatformWrite/executeNewAsPlatformWrite. Not seen"
+                  + " here: migrations, run-time-built statements, a Setting handled as Object,"
+                  + " reflection, a write reached only through an interface call or an event"
+                  + " dispatch, and which lambda or method reference is the one handed to the"
+                  + " primitive (the creator method is what counts). The database refusal covers"
+                  + " what the rule misses only when it goes through Hibernate");
 
   /**
    * Each tenant-row-only exemption is still a method that modifies a {@code Setting}: an entry for

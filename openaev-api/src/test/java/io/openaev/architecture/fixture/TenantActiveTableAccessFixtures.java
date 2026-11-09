@@ -8,6 +8,9 @@ import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import jakarta.persistence.EntityManager;
+import java.util.List;
+import java.util.function.BiFunction;
+import java.util.stream.Stream;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Accessors of a tenant-active table's repository that no access rule allowlists. */
@@ -549,6 +552,86 @@ public final class TenantActiveTableAccessFixtures {
       settingRepository.save(setting);
       tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
       settingRepository.save(setting);
+    }
+  }
+
+  /** Deletes a platform row through a method reference, reached from no marker. */
+  public static class PlatformRowMethodReferenceDeleter {
+
+    private final SettingRepository settingRepository;
+
+    public PlatformRowMethodReferenceDeleter(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    public void entry(String key) {
+      settingRepository.findByKeyAndTenantIsNull(key).ifPresent(settingRepository::delete);
+    }
+  }
+
+  /** Saves settings through a method reference, reached from no marker. */
+  public static class PlatformRowMethodReferenceSaver {
+
+    private final SettingRepository settingRepository;
+
+    public PlatformRowMethodReferenceSaver(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    public void entry(List<Setting> settings) {
+      settings.forEach(settingRepository::save);
+    }
+  }
+
+  /** Changes a managed setting through a setter reference, reached from no marker. */
+  public static class PlatformRowSetterMethodReference {
+
+    public void entry(Setting managed) {
+      Stream.of("changed").forEach(managed::setValue);
+    }
+  }
+
+  /** The method references are created in the callback handed to the platform-write primitive. */
+  public static class PlatformRowMethodReferencesUnderThePrimitive {
+
+    private final SettingRepository settingRepository;
+    private final TenantScopedTransaction tenantScopedTransaction;
+
+    public PlatformRowMethodReferencesUnderThePrimitive(
+        SettingRepository settingRepository, TenantScopedTransaction tenantScopedTransaction) {
+      this.settingRepository = settingRepository;
+      this.tenantScopedTransaction = tenantScopedTransaction;
+    }
+
+    public void entry(TxCtx ctx, String key, List<Setting> settings) {
+      tenantScopedTransaction.executeAsPlatformWrite(
+          ctx,
+          () -> {
+            settingRepository.findByKeyAndTenantIsNull(key).ifPresent(settingRepository::delete);
+            settings.forEach(settingRepository::save);
+          });
+    }
+  }
+
+  /** Builds a setting through a constructor reference: not a write. */
+  public static class SettingConstructorReference {
+
+    public BiFunction<String, String, Setting> factory() {
+      return Setting::new;
+    }
+  }
+
+  /** Reads tenant rows through a method reference, from a root that sets no scope. */
+  public static class TenantRowReaderByMethodReference {
+
+    private final SettingRepository settingRepository;
+
+    public TenantRowReaderByMethodReference(SettingRepository settingRepository) {
+      this.settingRepository = settingRepository;
+    }
+
+    public void job(List<String> tenantIds) {
+      tenantIds.stream().map(settingRepository::findAllByTenantId).toList();
     }
   }
 }
