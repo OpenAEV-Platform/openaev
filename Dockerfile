@@ -119,6 +119,10 @@ RUN set -eu; \
 ARG OPENAEV_COMMIT
 ENV OPENAEV_COMMIT=${OPENAEV_COMMIT}
 
+# Set by CI on a release: the image tag of the integrations the platform deploys
+ARG OPENAEV_INTEGRATIONS_VERSION
+ENV OPENAEV_INTEGRATIONS_VERSION=${OPENAEV_INTEGRATIONS_VERSION}
+
 ENTRYPOINT ["/usr/bin/tini", "--"]
 # -XX:-UseBASE64Intrinsics mitigates CVE-2026-114938 until the base image ships a fixed JDK
 # (21.0.13.1 or later); remove it with that bump. Not -XX:UseAVX=2: the JVM fails on arm64 with it.
