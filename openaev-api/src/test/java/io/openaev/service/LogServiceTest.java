@@ -155,6 +155,26 @@ class LogServiceTest {
     }
 
     @Test
+    @DisplayName("given_theBannerWriteFailsOnce_should_writeTheBannerAgainOnTheNextCall")
+    void given_theBannerWriteFailsOnce_should_writeTheBannerAgainOnTheNextCall() {
+      // -- PREPARE -- the first write fails, the second succeeds
+      when(enterpriseEditionService.isLicenseActive(any())).thenReturn(false);
+      doThrow(new IllegalStateException("no connection available"))
+          .doNothing()
+          .when(tenantScopedTransaction)
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+
+      // -- EXECUTE --
+      logService.isEnabled();
+      logService.isEnabled();
+      logService.isEnabled();
+
+      // -- VERIFY -- the failed write is retried at once, the successful one is not repeated
+      verify(tenantScopedTransaction, times(2))
+          .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+    }
+
+    @Test
     @DisplayName("given_theBannerWriteFails_should_leaveTheAuditStateAsTheLicenseDecides")
     void given_theBannerWriteFails_should_leaveTheAuditStateAsTheLicenseDecides() {
       // -- PREPARE -- a pool that cannot give a connection to the banner write

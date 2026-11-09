@@ -80,10 +80,10 @@ public class LogService {
   private static final long BANNER_RECHECK_MILLIS = Duration.ofMinutes(5).toMillis();
 
   /**
-   * The state the audit banner was last asked to be in ({@code true}: cleared) and when. A flip
+   * The state of the last committed audit banner write ({@code true}: cleared) and its time. A flip
    * writes it at once; an unchanged state writes it again once {@link #BANNER_RECHECK_MILLIS} has
-   * passed, so a row another node or an operator removed comes back. Empty until the first request:
-   * each instance writes its own first state, and the write is idempotent.
+   * passed, so a row another node or an operator removed comes back. Empty until the first write
+   * commits: each instance writes its own first state, and the write is idempotent.
    */
   private final AtomicReference<Boolean> bannerRequested = new AtomicReference<>();
 
@@ -147,7 +147,8 @@ public class LogService {
    * and runs in its own platform-write transaction there, so the caller, a request thread holding a
    * connection included, neither waits for a second connection nor sees a failure of the write: the
    * banner is a status, and audit stays on or off as the licence decides. It is requested when the
-   * state flips and again once {@link #BANNER_RECHECK_MILLIS} has passed.
+   * state flips and again once {@link #BANNER_RECHECK_MILLIS} has passed. The state is remembered
+   * once the write has committed, so a write that fails is attempted again at the next call.
    *
    * @param shouldClean {@code true} → clear the banner; {@code false} → show the banner.
    */
@@ -160,17 +161,15 @@ public class LogService {
     if (!bannerWriting.compareAndSet(false, true)) {
       return;
     }
-    bannerRequested.set(shouldClean);
-    bannerRequestedAt.set(now);
     try {
-      taskLoggerExecutor.execute(() -> writeBanner(shouldClean));
+      taskLoggerExecutor.execute(() -> writeBanner(shouldClean, now));
     } catch (RuntimeException e) {
       bannerWriting.set(false);
       log.warn("[AUDIT] Could not schedule the audit banner write: {}", e.getMessage(), e);
     }
   }
 
-  private void writeBanner(boolean shouldClean) {
+  private void writeBanner(boolean shouldClean, long requestedAt) {
     try {
       Runnable write =
           shouldClean
@@ -182,8 +181,10 @@ public class LogService {
                       BannerMessage.BANNER_KEYS.AUDIT_LOG_NO_ENTERPRISE_LICENSE);
       tenantScopedTransaction.executeAsPlatformWrite(
           TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), write);
+      bannerRequested.set(shouldClean);
+      bannerRequestedAt.set(requestedAt);
     } catch (Exception e) {
-      // Asked for again at the next flip or re-check.
+      // Nothing is remembered: the next call writes the banner again.
       log.warn("[AUDIT] Failed to write the audit banner: {}", e.getMessage(), e);
     } finally {
       bannerWriting.set(false);
