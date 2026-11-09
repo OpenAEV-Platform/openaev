@@ -371,6 +371,33 @@ public class InjectService {
   }
 
   /**
+   * Tenant gate of the implant endpoints, run before {@link #checkAgentTargetsInject} and {@link
+   * #checkAgentMayReportOnInject}: the inject must belong to a tenant of the request's scope. Reads
+   * the inject's tenant column only, by primary key and outside the v1 tenant filter, then compares
+   * it with the scope in Java, the test {@link #findInScope} applies, without loading the inject:
+   * it runs on every implant callback, under the per-inject lock.
+   *
+   * <p>An unknown inject and an inject of another tenant are refused alike (403, the message of the
+   * agent checks), so the implant endpoints do not reveal whether an inject id exists.
+   *
+   * @param ctx the request's tenant scope
+   * @param injectId the inject the implant is acting on
+   * @throws ForbiddenException if the inject does not exist or is not in the request's scope
+   */
+  @Transactional(readOnly = true)
+  public void requireInScopeForAgent(@NotNull final TxCtx ctx, final String injectId) {
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
+    boolean inScope =
+        injectId != null
+            && injectRepository.findTenantIdsByInjectIds(List.of(injectId)).stream()
+                .anyMatch(row -> scope.contains((String) row[1]));
+    if (!inScope) {
+      log.warn("Agent access to inject denied: inject {} is not in the request's scope", injectId);
+      throw new ForbiddenException(AGENT_ACCESS_DENIED);
+    }
+  }
+
+  /**
    * Object-level authorization gate shared by the implant endpoints (executable payload retrieval
    * and execution callback). The service-account bearer token carrying AGENT_RUNTIME_ACCESS is
    * shared across every agent, so the {@code @AccessControl} capability check alone does not prove
