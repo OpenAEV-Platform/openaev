@@ -286,7 +286,12 @@ public class ScopeStatementInspector implements StatementInspector {
       return;
     }
     for (ScopeDimension dimension : dimensions) {
-      String column = dimension.covers(tableName) ? dimension.writeAttributionColumn() : null;
+      // A dimension that guards nothing written to this table leaves the assignment as it is, the
+      // shape of a tuple included.
+      String column =
+          dimension.covers(tableName) && dimension.guardsWrittenValue(tableName)
+              ? dimension.writeAttributionColumn()
+              : null;
       if (column == null) {
         continue;
       }

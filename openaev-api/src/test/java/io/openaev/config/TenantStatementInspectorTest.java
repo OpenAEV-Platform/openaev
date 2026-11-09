@@ -727,6 +727,26 @@ class TenantStatementInspectorTest {
     assertTrue(refusal.getMessage().contains("does not line up"), refusal.getMessage());
   }
 
+  @ParameterizedTest(name = "{0}")
+  @ValueSource(
+      strings = {
+        "UPDATE documents SET (document_name, tenant_id) = (SELECT 'renamed', 'tenant-a')"
+            + " WHERE id = ?",
+        "UPDATE documents SET (tenant_id, document_name) = (SELECT 'tenant-a', 'renamed')"
+            + " WHERE id = ?",
+        "INSERT INTO documents (id, tenant_id) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET"
+            + " (document_name, tenant_id) = (SELECT 'renamed', 'tenant-a')"
+      })
+  @DisplayName("an assignment of the tenant of a strict table is not validated, not guarded")
+  void assignmentOfTheTenantOfAStrictTableIsLeftAlone(String sql) {
+    String out = inspect(sql);
+    assertFalse(out.contains("tenant_write_value"), out);
+    assertTrue(
+        out.contains("SELECT 'renamed', 'tenant-a'")
+            || out.contains("SELECT 'tenant-a', 'renamed'"),
+        out);
+  }
+
   @Test
   @DisplayName("a multi-column UPDATE assigning the tenant from a list guards the tenant")
   void multiColumnUpdateOfDualScopeTableGuardsTheAssignedTenant() {
