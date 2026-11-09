@@ -133,6 +133,15 @@ public class StreamService {
                       TxCtx.forTenant(checkTenantId), user, resourceId, resourceType, Action.READ)
                   : permissionService.hasPermission(
                       user, Optional.empty(), resourceId, resourceType, Action.READ));
+    } catch (IllegalArgumentException e) {
+      // PermissionService refuses a resource it cannot resolve in a scope: an inject with no tenant
+      // to resolve it in. Fails closed like any other failed check, but a refusal is not routine.
+      log.warn(
+          "Stream permission check refused for {} {}, treated as denied: {}",
+          resourceType,
+          resourceId,
+          e.getMessage());
+      return false;
     } catch (Exception e) {
       log.debug(
           "Stream permission check failed for {} {}, treated as denied",
@@ -226,6 +235,8 @@ public class StreamService {
         ServerSentEvent.builder(event).event(EVENT_TYPE_MESSAGE).build();
     flux.next(message);
   }
+
+  private static final String USER_ORGANIZATION_FIELD = "user_organization";
 
   private static final EnumSet<ResourceType> RESOURCES_STREAM_EXCLUSION =
       EnumSet.of(
@@ -328,6 +339,16 @@ public class StreamService {
           && !permissionService.hasCapabilityPermission(user, ResourceType.NOTIFIER, Action.READ)) {
         ObjectNode instanceData = mapper.valueToTree(event.getInstance());
         instanceData.putNull("notifier_configuration");
+        sendStreamEvent(fluxSink, event.clone(), instanceData);
+      } else if (event.getInstance() instanceof User
+          && event.getInstanceData() instanceof ObjectNode serializedUser
+          && !Objects.equals(event.getTenantId(), consumer.tenantId())) {
+        // A user is platform-level, so its events reach every tenant, but user_organization is the
+        // one of the tenant the change was made in: the user is only loaded with the organizations
+        // of that scope, so it would serialize as null here and overwrite the one the consumer
+        // holds. The field is left out, the consumer keeps its cached value.
+        ObjectNode instanceData = mapper.valueToTree(event.getInstance());
+        instanceData.remove(USER_ORGANIZATION_FIELD);
         sendStreamEvent(fluxSink, event.clone(), instanceData);
       } else {
         sendStreamEvent(fluxSink, event);

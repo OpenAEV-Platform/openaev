@@ -149,7 +149,11 @@ class SharedTenantKeySchemaCrossCheckTest extends IntegrationTest {
           "injectors_contracts_vulnerabilities_pkey",
           "injectors_injector_contracts_pkey",
           "kill_chain_phases_shortname_tenant_unique",
-          "kill_chain_phases_tenant_unique");
+          "kill_chain_phases_tenant_unique",
+          // Catalogue keys of several columns plus the tenant: (type, external id, version) and
+          // (repository, release name).
+          "catalog_items_item_version_tenant_unique",
+          "catalog_releases_name_tenant_unique");
 
   /**
    * The columns the derivation drops by the globally-unique rule alone: a single-column foreign key

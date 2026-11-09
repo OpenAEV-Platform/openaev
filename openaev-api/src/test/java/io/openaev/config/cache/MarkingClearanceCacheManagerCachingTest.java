@@ -13,6 +13,7 @@ import io.openaev.config.CachingConfig;
 import io.openaev.config.MarkingScopeResolver;
 import io.openaev.config.MarkingScopeResolver.MarkingRef;
 import io.openaev.context.MarkingCtx;
+import io.openaev.database.model.User;
 import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -100,8 +101,8 @@ class MarkingClearanceCacheManagerCachingTest {
       givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of("tlp-green"));
 
       // -- ACT --
-      MarkingCtx first = clearanceCache.findClearance(USER, TENANT_A, false);
-      MarkingCtx second = clearanceCache.findClearance(USER, TENANT_A, false);
+      MarkingCtx first = clearanceCache.findClearance(USER, TENANT_A);
+      MarkingCtx second = clearanceCache.findClearance(USER, TENANT_A);
 
       // -- ASSERT --
       assertThat(first.toGuc()).isEqualTo("tlp-green");
@@ -118,8 +119,8 @@ class MarkingClearanceCacheManagerCachingTest {
       givenGrants(TENANT_B, List.of(TLP_GREEN, TLP_RED), List.of());
 
       // -- ACT --
-      MarkingCtx inA = clearanceCache.findClearance(USER, TENANT_A, false);
-      MarkingCtx inB = clearanceCache.findClearance(USER, TENANT_B, false);
+      MarkingCtx inA = clearanceCache.findClearance(USER, TENANT_A);
+      MarkingCtx inB = clearanceCache.findClearance(USER, TENANT_B);
 
       // -- ASSERT --
       // A tenant-blind cache key would carry tenant A's clearance into tenant B: a cross-tenant
@@ -129,19 +130,18 @@ class MarkingClearanceCacheManagerCachingTest {
     }
 
     @Test
-    @DisplayName("given the same user with and without bypass, should not share one clearance")
-    void given_bypassDifference_should_keyTheCacheSeparately() {
+    @DisplayName("given the first admin, should hold every marking without any grant")
+    void given_firstAdmin_should_holdEveryMarking() {
       // -- ARRANGE --
       givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of());
 
       // -- ACT --
-      MarkingCtx asUser = clearanceCache.findClearance(USER, TENANT_A, false);
-      MarkingCtx asBypass = clearanceCache.findClearance(USER, TENANT_A, true);
+      MarkingCtx asUser = clearanceCache.findClearance(USER, TENANT_A);
+      MarkingCtx asFirstAdmin = clearanceCache.findClearance(User.ADMIN_UUID, TENANT_A);
 
       // -- ASSERT --
-      // Losing BYPASS must not leave the wider clearance behind under the same key.
       assertThat(asUser).isEqualTo(MarkingCtx.none());
-      assertThat(asBypass.toGuc()).isEqualTo("tlp-green,tlp-red");
+      assertThat(asFirstAdmin.toGuc()).isEqualTo("tlp-green,tlp-red");
     }
   }
 
@@ -155,13 +155,13 @@ class MarkingClearanceCacheManagerCachingTest {
       // -- ARRANGE --
       // The user holds RED, and reads it once so the entry is warm.
       givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of("tlp-red"));
-      assertThat(clearanceCache.findClearance(USER, TENANT_A, false).toGuc())
+      assertThat(clearanceCache.findClearance(USER, TENANT_A).toGuc())
           .isEqualTo("tlp-green,tlp-red");
 
       // -- ACT --
       // RED is now unassigned from their group: the database says GREEN.
       givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of("tlp-green"));
-      MarkingCtx stale = clearanceCache.findClearance(USER, TENANT_A, false);
+      MarkingCtx stale = clearanceCache.findClearance(USER, TENANT_A);
 
       // -- ASSERT --
       // This is the fail-open window, asserted deliberately: the cached clearance still contains
@@ -173,8 +173,7 @@ class MarkingClearanceCacheManagerCachingTest {
       clearanceCache.evict(USER, TENANT_A);
 
       // -- ASSERT --
-      assertThat(clearanceCache.findClearance(USER, TENANT_A, false).toGuc())
-          .isEqualTo("tlp-green");
+      assertThat(clearanceCache.findClearance(USER, TENANT_A).toGuc()).isEqualTo("tlp-green");
     }
 
     @Test
@@ -183,37 +182,17 @@ class MarkingClearanceCacheManagerCachingTest {
       // -- ARRANGE --
       givenGrants(TENANT_A, List.of(TLP_GREEN), List.of("tlp-green"));
       givenGrants(TENANT_B, List.of(TLP_GREEN), List.of("tlp-green"));
-      clearanceCache.findClearance(USER, TENANT_A, false);
-      clearanceCache.findClearance(USER, TENANT_B, false);
+      clearanceCache.findClearance(USER, TENANT_A);
+      clearanceCache.findClearance(USER, TENANT_B);
 
       // -- ACT --
       clearanceCache.evict(USER, TENANT_A);
-      clearanceCache.findClearance(USER, TENANT_A, false);
-      clearanceCache.findClearance(USER, TENANT_B, false);
+      clearanceCache.findClearance(USER, TENANT_A);
+      clearanceCache.findClearance(USER, TENANT_B);
 
       // -- ASSERT --
       verify(jdbcTemplate, times(2)).query(anyString(), any(RowMapper.class), eq(TENANT_A));
       verify(jdbcTemplate, times(1)).query(anyString(), any(RowMapper.class), eq(TENANT_B));
-    }
-
-    @Test
-    @DisplayName("given evict, should drop the bypass variant too, not just the one named")
-    void given_evict_should_dropBothBypassVariants() {
-      // -- ARRANGE --
-      // Both variants warm. If evict dropped only one, the surviving entry would be the WIDER of
-      // the two (bypass), which is precisely the fail-open case eviction exists to prevent.
-      givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of("tlp-green"));
-      clearanceCache.findClearance(USER, TENANT_A, false);
-      clearanceCache.findClearance(USER, TENANT_A, true);
-
-      // -- ACT --
-      clearanceCache.evict(USER, TENANT_A);
-      clearanceCache.findClearance(USER, TENANT_A, false);
-      clearanceCache.findClearance(USER, TENANT_A, true);
-
-      // -- ASSERT --
-      // Two reads before, two after: neither variant survived.
-      verify(jdbcTemplate, times(4)).query(anyString(), any(RowMapper.class), eq(TENANT_A));
     }
 
     @Test
@@ -227,35 +206,17 @@ class MarkingClearanceCacheManagerCachingTest {
       givenGrants(TENANT_B, List.of(TLP_RED), List.of("tlp-red"));
       when(tenantMembershipCacheManager.findTenantIdsByUserId(USER))
           .thenReturn(List.of(TENANT_A, TENANT_B));
-      clearanceCache.findClearance(USER, TENANT_A, false);
-      clearanceCache.findClearance(USER, TENANT_B, false);
+      clearanceCache.findClearance(USER, TENANT_A);
+      clearanceCache.findClearance(USER, TENANT_B);
 
       // -- ACT --
       clearanceCache.evictForUser(USER);
-      clearanceCache.findClearance(USER, TENANT_A, false);
-      clearanceCache.findClearance(USER, TENANT_B, false);
+      clearanceCache.findClearance(USER, TENANT_A);
+      clearanceCache.findClearance(USER, TENANT_B);
 
       // -- ASSERT --
       verify(jdbcTemplate, times(2)).query(anyString(), any(RowMapper.class), eq(TENANT_A));
       verify(jdbcTemplate, times(2)).query(anyString(), any(RowMapper.class), eq(TENANT_B));
-    }
-
-    @Test
-    @DisplayName("given a membership change, should drop the bypass variant in every tenant too")
-    void given_evictForUser_should_dropBothVariantsPerTenant() {
-      // -- ARRANGE --
-      givenGrants(TENANT_A, List.of(TLP_GREEN), List.of("tlp-green"));
-      when(tenantMembershipCacheManager.findTenantIdsByUserId(USER)).thenReturn(List.of(TENANT_A));
-      clearanceCache.findClearance(USER, TENANT_A, false);
-      clearanceCache.findClearance(USER, TENANT_A, true);
-
-      // -- ACT --
-      clearanceCache.evictForUser(USER);
-      clearanceCache.findClearance(USER, TENANT_A, false);
-      clearanceCache.findClearance(USER, TENANT_A, true);
-
-      // -- ASSERT --
-      verify(jdbcTemplate, times(4)).query(anyString(), any(RowMapper.class), eq(TENANT_A));
     }
 
     @Test
@@ -294,13 +255,13 @@ class MarkingClearanceCacheManagerCachingTest {
       // a marking unassigned from a group, a group deleted, a definition archived.
       givenGrants(TENANT_A, List.of(TLP_GREEN), List.of("tlp-green"));
       givenGrants(TENANT_B, List.of(TLP_GREEN), List.of("tlp-green"));
-      clearanceCache.findClearance(USER, TENANT_A, false);
-      clearanceCache.findClearance(USER, TENANT_B, false);
+      clearanceCache.findClearance(USER, TENANT_A);
+      clearanceCache.findClearance(USER, TENANT_B);
 
       // -- ACT --
       clearanceCache.evictAll();
-      clearanceCache.findClearance(USER, TENANT_A, false);
-      clearanceCache.findClearance(USER, TENANT_B, false);
+      clearanceCache.findClearance(USER, TENANT_A);
+      clearanceCache.findClearance(USER, TENANT_B);
 
       // -- ASSERT --
       verify(jdbcTemplate, times(2)).query(anyString(), any(RowMapper.class), eq(TENANT_A));
@@ -313,43 +274,45 @@ class MarkingClearanceCacheManagerCachingTest {
   class SystemClearance {
 
     @Test
-    @DisplayName("given every marking of the tenant, should match the bypass clearance")
-    void given_tenantScale_should_matchTheBypassClearance() {
+    @DisplayName("given every marking of the tenant, should match the first admin clearance")
+    void given_tenantScale_should_matchTheFirstAdminClearance() {
       // -- ARRANGE --
       givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of());
       givenSystemScale(List.of(TENANT_A), List.of(TLP_GREEN, TLP_RED));
 
       // -- ACT --
       MarkingCtx system = clearanceCache.findSystemClearance(List.of(TENANT_A));
-      MarkingCtx bypass = clearanceCache.findClearance(USER, TENANT_A, true);
+      MarkingCtx firstAdmin = clearanceCache.findClearance(User.ADMIN_UUID, TENANT_A);
 
       // -- ASSERT --
-      // One resolution of "every marking of a tenant", for a job and for a bypassing caller.
+      // One resolution of "every marking of a tenant", for a job and for the first admin.
       assertThat(system.toGuc()).isEqualTo("tlp-green,tlp-red");
-      assertThat(system).isEqualTo(bypass);
+      assertThat(system).isEqualTo(firstAdmin);
     }
 
     @Test
     @DisplayName("given a definition created without eviction, should include it at once")
     void given_newDefinitionNotEvicted_should_readItFresh() {
       // -- ARRANGE --
-      // Warm the bypass entry of the same tenant, then add RED to the database, evicting nothing.
+      // Warm the first admin entry of the same tenant, then add RED to the database, evicting
+      // nothing.
       givenGrants(TENANT_A, List.of(TLP_GREEN), List.of());
       givenSystemScale(List.of(TENANT_A), List.of(TLP_GREEN));
-      clearanceCache.findClearance(USER, TENANT_A, true);
+      clearanceCache.findClearance(User.ADMIN_UUID, TENANT_A);
       clearanceCache.findSystemClearance(List.of(TENANT_A));
       givenGrants(TENANT_A, List.of(TLP_GREEN, TLP_RED), List.of());
       givenSystemScale(List.of(TENANT_A), List.of(TLP_GREEN, TLP_RED));
 
       // -- ACT --
       MarkingCtx system = clearanceCache.findSystemClearance(List.of(TENANT_A));
-      MarkingCtx cachedBypass = clearanceCache.findClearance(USER, TENANT_A, true);
+      MarkingCtx cachedFirstAdmin = clearanceCache.findClearance(User.ADMIN_UUID, TENANT_A);
 
       // -- ASSERT --
       // A cached system clearance would hide the rows marked RED from every job of the tenant.
       assertThat(system.toGuc()).isEqualTo("tlp-green,tlp-red");
-      // The bypass entry is still the cached one: the system read neither used nor refreshed it.
-      assertThat(cachedBypass.toGuc()).isEqualTo("tlp-green");
+      // The first admin entry is still the cached one: the system read neither used nor refreshed
+      // it.
+      assertThat(cachedFirstAdmin.toGuc()).isEqualTo("tlp-green");
       verifySystemReads(2);
     }
 

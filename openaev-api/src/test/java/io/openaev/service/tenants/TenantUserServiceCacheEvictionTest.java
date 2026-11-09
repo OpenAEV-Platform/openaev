@@ -4,8 +4,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
@@ -38,6 +40,7 @@ class TenantUserServiceCacheEvictionTest {
         userRepository,
         tenantRepository,
         tenantMembershipCacheManager,
+        new TenantWriteScopeResolver(),
         organizationService);
   }
 
@@ -68,7 +71,7 @@ class TenantUserServiceCacheEvictionTest {
 
     try {
       // -- ACT --
-      tenantUserService.detach("user-1");
+      tenantUserService.detach(TxCtx.forTenant("tenant-1"), "user-1");
 
       // -- ASSERT --
       verify(tenantRepository).removeUserFromTenant("user-1", "tenant-1");

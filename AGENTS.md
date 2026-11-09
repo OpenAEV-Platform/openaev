@@ -47,6 +47,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | **ORM** (write correctness, native-query justification, test methodology) | [orm.instructions.md](.github/instructions/orm.instructions.md) | Java in `openaev-api`, `openaev-model`, `openaev-api` `*Test.java` |
 | **Multi-Tenancy** (isolation, filters, context) | [multi-tenancy.instructions.md](.github/instructions/multi-tenancy.instructions.md) | Java in `openaev-api`, `openaev-model`, `**/migration/**` |
 | **Testing** (unit, integration, coverage) | [testing.instructions.md](.github/instructions/testing.instructions.md) | `*Test*.java`, `**/test/**`, `*.test.*`, `*.spec.*`, `tests_e2e/**` |
+| **CI** (workflows, composite actions, template injection) | [ci.instructions.md](.github/instructions/ci.instructions.md) | `.github/workflows/**`, `.github/actions/**` |
 | **Code Review** (review checklist) | [code-review.instructions.md](.github/instructions/code-review.instructions.md) | All files |
 | **Chaining Engine** (steps, conditions, queues, state, workflows) | [chaining-engine.instructions.md](.github/instructions/chaining-engine.instructions.md) | `**/chaining/**`, `QueueChainingJob`, `WorkflowTimeoutJob`, workflow entities and repositories |
 
@@ -158,6 +159,8 @@ hand:
   moved since its last CI run: a green check from before another ADR merged does not see that ADR.
 - **Before opening or updating a pull request** that touches `adr/` or references an ADR, run
   `adr/scripts/validate-adrs.sh` and fix every ❌.
+- **Keep an ADR short**: the decision and its "because", each option with its pros and cons. Checks,
+  thresholds and field lists go in the RFC or the code, not in the ADR.
 - The scripts run in bash on macOS, Linux and Windows (Git Bash or WSL; from PowerShell, prefix them with
   `bash`).
 
@@ -197,6 +200,7 @@ The mapping is:
 | `migration.instructions.md` | `migration-reviewer.agent.md` |
 | `testing.instructions.md` | `test-specialist.agent.md` |
 | `code-review.instructions.md` | `code-reviewer.agent.md` |
+| `ci.instructions.md` | `code-reviewer.agent.md` |
 
 If no agent exists yet for a new instruction file → create one following the pattern in `migration-reviewer.agent.md`.
 

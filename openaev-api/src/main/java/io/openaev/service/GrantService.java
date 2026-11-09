@@ -53,38 +53,43 @@ public class GrantService {
       @NotBlank final String resourceId,
       @NotNull final User user,
       @NotNull final GRANT_TYPE grantType) {
-    return this.grantRepository.existsByUserIdAndResourceIdAndNameIn(
-        user.getId(), resourceId, grantType.andHigher());
+    return this.grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
+        user.getId(), user.scopedTenantId(), resourceId, grantType.andHigher());
   }
 
   /**
-   * Validates that the resource ID is not blank and exists in one of the grantable resource
-   * repositories.
+   * Validates that the resource ID is not blank and names an existing resource of the declared
+   * grant resource type, so a grant can never point at a resource of another type (a scenario id
+   * declared as a simulation grant, for instance) or at a type that is not granted through a group.
    *
    * @param resourceId the resource ID to validate
-   * @throws IllegalArgumentException if the resource ID is blank or does not exist
+   * @param resourceType the declared grant resource type
+   * @throws IllegalArgumentException if the resource ID is blank, the type is not grantable through
+   *     a group, or no resource of that type has this ID
    */
-  public void validateResourceIdForGrant(String resourceId) {
+  public void validateResourceIdForGrant(String resourceId, GRANT_RESOURCE_TYPE resourceType) {
     if (StringUtils.isBlank(resourceId)) {
       throw new IllegalArgumentException("A valid resource ID should be present");
     }
+    if (resourceType == null) {
+      throw new IllegalArgumentException("A valid resource type should be present");
+    }
 
     boolean exists =
-        exerciseRepository.existsById(resourceId)
-            || scenarioRepository.existsById(resourceId)
-            // Atomic testings:
-            || injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(resourceId)
-            // Threat arsenal (grant on injector contract ID):
-            || injectorContractRepository.existsByContractId(resourceId);
+        switch (resourceType) {
+          case SCENARIO -> scenarioRepository.existsById(resourceId);
+          case SIMULATION -> exerciseRepository.existsById(resourceId);
+          case ATOMIC_TESTING ->
+              injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(resourceId);
+          // Threat arsenal: the grant is held on the injector contract ID.
+          case THREAT_ARSENAL -> injectorContractRepository.existsByContractId(resourceId);
+          default -> false;
+        };
 
     if (!exists) {
-      throw new IllegalArgumentException("A valid resource ID should be present");
+      throw new IllegalArgumentException(
+          "A valid resource ID of type " + resourceType + " should be present");
     }
-  }
-
-  public void updateGrantsForNewResource(
-      @NotBlank String currentId, @NotBlank String newId, @NotBlank GRANT_RESOURCE_TYPE grantType) {
-    grantRepository.updateGrantResourceIdAndType(currentId, newId, grantType);
   }
 
   // -- CRUD --

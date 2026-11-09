@@ -120,6 +120,8 @@ To use them, copy the `*.run.xml` files to your `.idea/runConfigurations/` folde
 | `otlp-config.yaml` | OpenTelemetry Collector configuration (for telemetry) |
 | `Project.xml` | IntelliJ code style settings |
 | `../openaev-api/src/main/resources/application-dev.properties.example` | Example Spring dev profile (copy to `application-dev.properties`) |
+| `../openaev-api/src/main/resources/application-keycloak.properties.example` | Local Keycloak SSO settings (copy to `application-keycloak.properties`, profile `keycloak`) |
+| `keycloak/openaev-dev-realm.json` | Keycloak realm with the SSO test accounts |
 
 ## Setup Scripts
 
@@ -195,12 +197,30 @@ In most cases, you only need to run one search engine at a time. Point `engine.u
 
 `openaev-dev-keycloak` is an OpenID Connect provider with ready-made test accounts, to test SSO login and group mapping.
 
-```bash
-podman compose up -d openaev-dev-keycloak
-```
+1. Start Keycloak:
 
-Then uncomment the Keycloak block of `application-dev.properties.example` in your `application-dev.properties`, set
-`openaev.auth-openid-enable=true` and restart the backend. Log in with **Login with Keycloak** on http://localhost:3001.
+   ```bash
+   podman compose up -d openaev-dev-keycloak
+   ```
+
+2. Copy the Keycloak settings next to your `application-dev.properties`:
+
+   ```bash
+   cp ../openaev-api/src/main/resources/application-keycloak.properties.example \
+      ../openaev-api/src/main/resources/application-keycloak.properties
+   ```
+
+3. Start the backend with the `dev,keycloak` profiles instead of `dev`:
+
+   ```bash
+   mvn -pl openaev-api spring-boot:run -Dspring-boot.run.profiles=dev,keycloak
+   ```
+
+   In IntelliJ, set **Active profiles** to `dev,keycloak` in the run configuration.
+
+4. Open http://localhost:3001, click **Login with Keycloak** and log in with one of the accounts below.
+
+Without the `keycloak` profile, the backend starts as usual and Keycloak is not used.
 
 | Account (password = account name) | Groups in the token | OpenAEV group |
 |-----------------------------------|---------------------|---------------|

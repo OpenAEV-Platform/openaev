@@ -47,15 +47,15 @@ ignore unless your changes touch these.
 
 ### Testing
 
-**Backend**: `mvn test` (requires services running), minimum 50% line/30% branch coverage
+**Backend**: `mvn test` (requires services running), at least 80% of the backend lines a PR changes covered
 **Frontend**: `yarn test` (Vitest), `yarn test:e2e` (Playwright, requires app running)
-**Coverage check**: `mvn jacoco:check` or `mvn verify`
+**Coverage check**: after `mvn test`, `python3 .github/scripts/check-patch-coverage.py --report openaev-api/target/site/jacoco/jacoco.xml --base origin/main --fail-under 80` (same counting as CI and Codecov: a line where only some branches ran is not covered)
 
 ## Continuous Integration
 
 CI runs on GitHub Actions (see `.github/workflows/`):
 
-1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, `mvn jacoco:check`
+1. **API Tests**: `mvn spotless:check`, `mvn clean install -DskipTests`, tests, then the backend coverage rules on the changed lines and on the whole backend (advisory for now)
 2. **Frontend Tests**: `yarn install/build/check-ts/lint/test:eslint-rules/depcruise/knip/i18n-checker/test`
 3. **E2E Tests**: Full app test with Playwright
 4. **Type Check**: `yarn generate-types-from-api` verification
@@ -108,6 +108,7 @@ Conventions are defined in dedicated instruction files that activate automatical
 | Security (RBAC/@AccessControl)       | [security.instructions.md](.github/instructions/security.instructions.md)                 |
 | Performance (N+1/pagination/fetch)   | [performance.instructions.md](.github/instructions/performance.instructions.md)           |
 | ORM (write correctness/native/tests) | [orm.instructions.md](.github/instructions/orm.instructions.md)                           |
+| CI (workflows/composite actions)     | [ci.instructions.md](.github/instructions/ci.instructions.md)                             |
 | Code Review                          | [code-review.instructions.md](.github/instructions/code-review.instructions.md)           |
 
 ### Available Agents
@@ -172,7 +173,7 @@ Examples:
 6. **Java 21 is mandatory**: The project will not compile with earlier versions.
 7. **Node.js version**: Check `openaev-front/package.json` engines field for the minimum required version.
 8. **API types**: After API changes, run `yarn generate-types-from-api` in frontend to update TypeScript types.
-9. **Coverage enforcement**: Backend tests must maintain 50% line coverage, 30% branch coverage.
+9. **Coverage enforcement**: a PR must cover at least 80% of the backend lines it changes and must not drop backend line coverage by more than 0.1 point (`coverage-backend-gate` job in CI, advisory for now).
 10. **Scope confirmation**: For multi-file or cross-layer changes (entity + migration + service + controller + frontend), state which files you plan to modify and why, then wait for confirmation before writing code.
 
 

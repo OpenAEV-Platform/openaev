@@ -112,8 +112,11 @@ class GroupPopoverComponent extends Component {
     });
   }
 
-  submitUpdateMarkings(markingIds) {
-    this.props.updateGroupMarkings(this.props.group.group_id, { group_markings: markingIds }).then(this.fetchAndUpdateGroup.bind(this));
+  submitUpdateMarkings(markingIds, autoNewMarking) {
+    this.props.updateGroupMarkings(this.props.group.group_id, {
+      group_markings: markingIds,
+      group_auto_new_marking: autoNewMarking,
+    }).then(this.fetchAndUpdateGroup.bind(this));
     this.handleCloseMarkings();
   }
 
@@ -258,6 +261,7 @@ class GroupPopoverComponent extends Component {
         {this.props.markingEnabled && (
           <GroupManageMarkings
             initialState={this.state.markingIds}
+            initialAutoNewMarking={!!group.group_auto_new_marking}
             groupName={group.group_name}
             open={this.state.openMarkings}
             onClose={this.handleCloseMarkings.bind(this)}

@@ -41,8 +41,8 @@ public interface InjectExpectationTraceRepository
   @Modifying
   @Query(
       value =
-          "INSERT INTO injects_expectations_traces (inject_expectation_trace_id, inject_expectation_trace_expectation, inject_expectation_trace_source_id, inject_expectation_trace_alert_link, inject_expectation_trace_alert_name, inject_expectation_trace_date, inject_expectation_trace_created_at, inject_expectation_trace_updated_at) "
-              + "VALUES (:id, :expectationId, :securityPlatformId, :alertLink, :alertName, :alertDate, :createdAtDate, :updatedAtDate) "
+          "INSERT INTO injects_expectations_traces (inject_expectation_trace_id, inject_expectation_trace_expectation, inject_expectation_trace_source_id, inject_expectation_trace_alert_link, inject_expectation_trace_alert_name, inject_expectation_trace_date, inject_expectation_trace_match_type, inject_expectation_trace_created_at, inject_expectation_trace_updated_at) "
+              + "VALUES (:id, :expectationId, :securityPlatformId, :alertLink, :alertName, :alertDate, :matchType, :createdAtDate, :updatedAtDate) "
               + "ON CONFLICT (inject_expectation_trace_expectation, inject_expectation_trace_source_id, inject_expectation_trace_alert_name, inject_expectation_trace_alert_link) DO NOTHING",
       nativeQuery = true)
   void insertIfNotExists(
@@ -52,6 +52,7 @@ public interface InjectExpectationTraceRepository
       @Param("alertLink") String alertLink,
       @Param("alertName") String alertName,
       @Param("alertDate") Instant alertDate,
+      @Param("matchType") String matchType,
       @Param("createdAtDate") Instant createdAtDate,
       @Param("updatedAtDate") Instant updatedAtDate);
 }

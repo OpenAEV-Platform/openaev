@@ -532,6 +532,15 @@ public class RestBehavior {
     return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.BAD_REQUEST);
   }
 
+  // A credential resolution refused with one of the error codes,
+  // so the injector can report it in the inject execution trace.
+  @ExceptionHandler(CredentialResolutionException.class)
+  public ResponseEntity<ErrorMessage> handleCredentialResolutionException(
+      CredentialResolutionException ex) {
+    return new ResponseEntity<>(
+        new ErrorMessage(ex.getErrorCode().name()), ex.getErrorCode().getStatus());
+  }
+
   // A chaining lifecycle operation refused by product decision (e.g. pausing a chained
   // simulation): a client error, not a platform failure, so it must carry its business message
   // with a 400 instead of the 500 the checked ChainingException produced. ChainingException itself
@@ -629,6 +638,13 @@ public class RestBehavior {
         requestMethod(),
         requestUri());
     return new ResponseEntity<>(new ErrorMessage("TENANT_ACCESS_DENIED"), HttpStatus.FORBIDDEN);
+  }
+
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  @ExceptionHandler(TenantScopeForbiddenException.class)
+  public ResponseEntity<ErrorMessage> handleTenantScopeForbiddenException(
+      TenantScopeForbiddenException ex) {
+    return new ResponseEntity<>(new ErrorMessage(ex.getReason()), HttpStatus.FORBIDDEN);
   }
 
   // -- 500 INTERNAL_SERVER_ERROR --
@@ -873,13 +889,16 @@ public class RestBehavior {
   }
 
   /**
-   * Hydrates, inside the scoped transaction, the lazy {@code user_teams} collection every endpoint
-   * returning a raw {@link User} serializes. The collection is loaded after the controller returns,
-   * through open-in-view, where the tenant scope is already gone: a lazy load at that point runs
-   * unscoped and fails closed, so the array comes back empty although the memberships exist.
+   * Hydrates, inside the scoped transaction, the lazy {@code user_teams}, {@code user_tags} and
+   * {@code user_organization} associations every endpoint returning a raw {@link User} serializes.
+   * They are loaded after the controller returns, through open-in-view, where the tenant scope is
+   * already gone: a lazy load at that point runs unscoped and fails closed, so the array comes back
+   * empty although the memberships exist.
    */
   protected static User hydrateUserForResponse(User user) {
     Hibernate.initialize(user.getTeams());
+    Hibernate.initialize(user.getTags());
+    user.loadOrganizations();
     return user;
   }
 }

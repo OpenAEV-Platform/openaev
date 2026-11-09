@@ -231,7 +231,8 @@ public class CollectorApi extends RestBehavior {
           input.getPeriod(),
           input.getSecurityPlatform(),
           iconStream,
-          input.getAuthor());
+          input.getAuthor(),
+          input.getSupportedExpectationTypes());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

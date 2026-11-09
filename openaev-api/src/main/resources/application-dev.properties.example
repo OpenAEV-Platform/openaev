@@ -85,20 +85,6 @@ openaev.provider.auth0.roles_path=https://xtm-hub-development/groups
 # spring.security.oauth2.client.registration.{registrationId}.client-id=
 # spring.security.oauth2.client.registration.{registrationId}.client-secret=
 
-### Local Keycloak (podman compose --profile keycloak up -d openaev-dev-keycloak), see openaev-dev/README.md
-# Set openaev.auth-openid-enable=true above, then uncomment.
-# The tenant rules use the default tenant: replace its ID to test another tenant.
-#spring.security.oauth2.client.provider.keycloak.issuer-uri=http://localhost:8180/realms/openaev-dev
-#spring.security.oauth2.client.registration.keycloak.client-name=Login with Keycloak
-#spring.security.oauth2.client.registration.keycloak.client-id=openaev
-#spring.security.oauth2.client.registration.keycloak.client-secret=openaev-dev-secret
-#spring.security.oauth2.client.registration.keycloak.redirect-uri=http://localhost:3001/login/oauth2/code/{registrationId}
-#spring.security.oauth2.client.registration.keycloak.scope=openid,profile,email
-#openaev.provider.keycloak.groups_path=groups
-#openaev.provider.keycloak.roles_path=roles
-#openaev.provider.keycloak.roles_admin=admin
-#openaev.provider.keycloak.groups_management=[{"idpGroup":"platform-observers","userGroup":"SSO Platform Observers","autoCreate":true},{"idpGroup":"platform-managers","userGroup":"SSO Platform Managers","autoCreate":true},{"idpGroup":"platform-admins","userGroup":"SSO Platform Admins","autoCreate":true},{"tenantId":"2cffad3a-0001-4078-b0e2-ef74274022c3","idpGroup":"tenant-observers","userGroup":"SSO Tenant Observers","autoCreate":true},{"tenantId":"2cffad3a-0001-4078-b0e2-ef74274022c3","idpGroup":"tenant-managers","userGroup":"SSO Tenant Managers","autoCreate":true},{"tenantId":"2cffad3a-0001-4078-b0e2-ef74274022c3","idpGroup":"tenant-admins","userGroup":"SSO Tenant Admins","autoCreate":true}]
-
 ## Saml2
 openaev.auth-saml2-enable=true
 

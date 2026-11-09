@@ -90,7 +90,7 @@ public class WriteAttrDetectorContextCustomizerFactory implements ContextCustomi
 
     private void installTrigger(DataSource dataSource) throws Exception {
       try (Connection connection = dataSource.getConnection()) {
-        WriteAttrDetectorTrigger.install(connection, TenantTables.selfIsolatedTables());
+        WriteAttrDetectorTrigger.install(connection);
         if (!connection.getAutoCommit()) {
           connection.commit();
         }

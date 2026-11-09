@@ -1,13 +1,15 @@
 package io.openaev.rest.user;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.helper.DatabaseHelper.updateRelation;
+import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.SessionManager;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
@@ -43,7 +45,7 @@ import org.springframework.web.bind.annotation.*;
 public class PlayerApi extends RestBehavior {
 
   public static final String PLAYER_URI = "/api/players";
-  private static final String TENANT_PLAYER_URI = TENANT_PREFIX + "/players";
+  public static final String TENANT_PLAYER_URI = TENANT_PREFIX + "/players";
 
   @Resource private SessionManager sessionManager;
 
@@ -94,21 +96,23 @@ public class PlayerApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String userId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return injectSearchService.getPageOfInjectResultsForPlayer(userId, searchPaginationInput);
+    return injectSearchService.getPageOfInjectResultsForPlayer(ctx, userId, searchPaginationInput);
   }
 
   @PostMapping({PLAYER_URI, TENANT_PLAYER_URI})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
-  public User createPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
-    return hydrateUserForResponse(playerService.createPlayer(input));
+  public User createPlayer(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PlayerInput input) {
+    return hydrateUserForResponse(playerService.createPlayer(ctx, input));
   }
 
   @PostMapping({PLAYER_URI + "/upsert", TENANT_PLAYER_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PLAYER)
   @Transactional(rollbackFor = Exception.class)
-  public User upsertPlayer(TxCtx ctx, @Valid @RequestBody PlayerInput input) {
-    return hydrateUserForResponse(playerService.upsertPlayer(input));
+  public User upsertPlayer(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PlayerInput input) {
+    return hydrateUserForResponse(playerService.upsertPlayer(ctx, input));
   }
 
   @PutMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})
@@ -137,8 +141,11 @@ public class PlayerApi extends RestBehavior {
     user.setPgpKey(input.getPgpKey());
     user.setCountry(input.getCountry());
     user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    user.setOrganization(
-        updateRelation(input.getOrganizationId(), user.getOrganization(), organizationRepository));
+    String tenantId = TenantContext.getCurrentTenant();
+    userRepository.assignOrganization(
+        user,
+        tenantId,
+        resolveTenantOrganization(input.getOrganizationId(), tenantId, organizationRepository));
   }
 
   @DeleteMapping({PLAYER_URI + "/{userId}", TENANT_PLAYER_URI + "/{userId}"})

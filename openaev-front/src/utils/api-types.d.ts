@@ -248,8 +248,6 @@ export interface AiAttack {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -2135,8 +2133,6 @@ interface BasePayload {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -2534,6 +2530,33 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface CatalogPayloadOutput {
+  /** @minLength 1 */
+  catalog_payload_external_id: string;
+  catalog_payload_name?: string;
+  /** @minLength 1 */
+  catalog_payload_version: string;
+}
+
+export interface CatalogScenarioOutput {
+  /** @minLength 1 */
+  catalog_scenario_external_id: string;
+  catalog_scenario_name?: string;
+  /** @minLength 1 */
+  catalog_scenario_version: string;
+}
+
+export interface CatalogSyncOutput {
+  /** @format int32 */
+  added?: number;
+  applied?: boolean;
+  refused?: Refusal[];
+  release?: string;
+  release_approver?: string;
+  /** @format int32 */
+  unchanged?: number;
+}
+
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -2714,6 +2737,15 @@ export interface Collector {
   collector_period?: number;
   collector_security_platform?: SecurityPlatform;
   collector_state?: object;
+  collector_supported_expectation_types?: (
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "LOGGING"
+    | "VULNERABILITY"
+  )[];
   /** @minLength 1 */
   collector_type: string;
   /** @format date-time */
@@ -2730,6 +2762,7 @@ export interface CollectorCreateInput {
   /** @format int32 */
   collector_period?: number;
   collector_security_platform?: string;
+  collector_supported_expectation_types?: string[];
   /** @minLength 1 */
   collector_type: string;
 }
@@ -2809,8 +2842,6 @@ export interface Command {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -3892,8 +3923,6 @@ export interface DnsResolution {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -5507,8 +5536,6 @@ export interface Executable {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -5966,8 +5993,6 @@ export interface FileDrop {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -6332,6 +6357,7 @@ export interface Grant {
 }
 
 export interface Group {
+  group_auto_new_marking?: boolean;
   group_default_user_assign?: boolean;
   group_description?: string;
   group_grants?: Grant[];
@@ -6359,6 +6385,7 @@ export interface GroupGrantInput {
 }
 
 export interface GroupUpdateMarkingsInput {
+  group_auto_new_marking?: boolean;
   group_markings: string[];
 }
 
@@ -6889,6 +6916,7 @@ export interface InjectExpectationTrace {
   inject_expectation_trace_expectation?: string;
   /** @minLength 1 */
   inject_expectation_trace_id: string;
+  inject_expectation_trace_match_type?: "MARKER" | "SOURCE_IP" | "TARGET_IP";
   inject_expectation_trace_source_id?: string;
   /** @format date-time */
   inject_expectation_trace_updated_at: string;
@@ -6908,6 +6936,7 @@ export interface InjectExpectationTraceInput {
   inject_expectation_trace_date: string;
   /** @minLength 1 */
   inject_expectation_trace_expectation: string;
+  inject_expectation_trace_match_type?: "marker" | "source_ip" | "target_ip";
   /** @minLength 1 */
   inject_expectation_trace_source_id: string;
 }
@@ -7258,6 +7287,7 @@ export type InjectTarget = BaseInjectTarget &
     | BaseInjectTargetTargetTypeMapping<"PLAYERS", PlayerTarget>
     | BaseInjectTargetTargetTypeMapping<"AGENT", AgentTarget>
     | BaseInjectTargetTargetTypeMapping<"AI_TARGETS", AiTargetTarget>
+    | BaseInjectTargetTargetTypeMapping<"MANUAL", ManualTarget>
   );
 
 export interface InjectTeamsInput {
@@ -7341,7 +7371,6 @@ export interface InjectorContract {
   injector_contract_payload?: Payload;
   injector_contract_payload_author?: string;
   injector_contract_payload_author_organization?: Organization;
-  injector_contract_payload_author_team?: Team;
   injector_contract_payload_author_user?: User;
   injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
@@ -8100,6 +8129,47 @@ export interface LoginUserInput {
   tenantId?: string;
 }
 
+export interface ManualTarget {
+  target_category?: string;
+  target_detection_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_execution_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_human_response_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @minLength 1 */
+  target_id: string;
+  target_name?: string;
+  target_prevention_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_subtype?: string;
+  /** @uniqueItems true */
+  target_tags?: string[];
+  target_type?: string;
+  target_vulnerability_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+}
+
 export interface MapperConditionOutput {
   condition_key?: string;
   condition_key_types?: (
@@ -8239,8 +8309,6 @@ export interface NetworkTraffic {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -8380,6 +8448,7 @@ export interface NotificationTriggerInput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8450,6 +8519,7 @@ export interface NotificationTriggerInput {
     | "OBJECTIVE"
     | "EVALUATION"
     | "CATALOG"
+    | "CATALOG_SYNC"
     | "CONNECTOR_INSTANCE_LOG"
     | "SECRET_PROVIDER"
     | "TENANT"
@@ -8492,6 +8562,7 @@ export interface NotificationTriggerOutput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8563,6 +8634,7 @@ export interface NotificationTriggerOutput {
     | "OBJECTIVE"
     | "EVALUATION"
     | "CATALOG"
+    | "CATALOG_SYNC"
     | "CONNECTOR_INSTANCE_LOG"
     | "SECRET_PROVIDER"
     | "TENANT"
@@ -10195,6 +10267,7 @@ export interface PlatformSettings {
     | "BULK_SNAPSHOT_EXPORT"
     | "XTM_HUB_NEWS_FEED"
     | "LOGGING_EXPECTATION"
+    | "CATALOG"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -10589,6 +10662,7 @@ export interface PublicPlatformSettings {
     | "BULK_SNAPSHOT_EXPORT"
     | "XTM_HUB_NEWS_FEED"
     | "LOGGING_EXPECTATION"
+    | "CATALOG"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -10700,6 +10774,13 @@ export interface RawUser {
   user_phone?: string;
   user_tags?: string[];
   user_teams?: string[];
+}
+
+export interface Refusal {
+  external_id?: string;
+  /** @minLength 1 */
+  reason: string;
+  version?: string;
 }
 
 export interface RegexGroup {
@@ -11086,6 +11167,7 @@ export interface RoleInput {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -11172,6 +11254,7 @@ export interface RoleOutput {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -12731,6 +12814,7 @@ export interface TenantGroupCreateInput {
 }
 
 export interface TenantGroupMarkingsOutput {
+  group_auto_new_marking?: boolean;
   /**
    * Group Id
    * @minLength 1
@@ -13460,6 +13544,7 @@ export interface User {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"

@@ -130,6 +130,10 @@ class ScenarioLaunchKeepsRequestScopeTest extends IntegrationTest {
       String defaultTenant = Tenant.DEFAULT_TENANT_UUID;
       tenantHelper.grantCapabilitiesInTenant(defaultTenant, LAUNCH);
       String tenantB = tenantHelper.createTenantWithCurrentUser("launch-scope-b").getId();
+      // A request authorized in every tenant of its scope needs the launch right in B as well,
+      // although the scenario is the default tenant's. The subject here is the scope the launch
+      // leaves behind, not the authorization.
+      tenantHelper.grantCapabilitiesInTenant(tenantB, LAUNCH);
       seedMarking(defaultTenant);
       String scenarioId = seedScenario(defaultTenant);
       TenantContext.clearCurrentTenant();
