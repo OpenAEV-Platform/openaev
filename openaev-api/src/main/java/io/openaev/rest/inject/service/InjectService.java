@@ -375,7 +375,7 @@ public class InjectService {
    * #checkAgentMayReportOnInject}: the inject must belong to a tenant of the request's scope. Reads
    * the inject's tenant column only, by primary key and outside the v1 tenant filter, then compares
    * it with the scope in Java, the test {@link #findInScope} applies, without loading the inject:
-   * it runs on every implant callback, under the per-inject lock.
+   * it runs on every implant callback, before the per-inject lock is taken.
    *
    * <p>An unknown inject and an inject of another tenant are refused alike (403, the message of the
    * agent checks), so the implant endpoints do not reveal whether an inject id exists.

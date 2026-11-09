@@ -3,7 +3,10 @@ package io.openaev.rest.inject.service;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.aop.lock.Lock;
+import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.OpenAEVConfig;
+import io.openaev.context.TxCtx;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.helper.queue.executor.BatchExecutionTraceExecutor;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
@@ -22,6 +25,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Entry point of the execution callbacks sent by implants and injectors: checks the implant's
@@ -57,6 +61,23 @@ public class InjectExecutionCallbackService {
       // Share the queue with the batching service so it can requeue delayed callbacks
       batchingInjectStatusService.setInjectTraceQueueService(injectTraceQueueService);
     }
+  }
+
+  /**
+   * The callback of an implant, under the lock of its inject and in one transaction: the callbacks
+   * of an inject are serialised from the check of the agent to the commit. The lock is taken here
+   * and not on the endpoint so that it is only taken by a caller the endpoint let in.
+   *
+   * <p>{@code ctx} scopes the transaction, so that the ingestion run inside the request (legacy
+   * path) reaches the security coverages its vulnerability verdict propagates to.
+   *
+   * @see #injectExecutionCallback
+   */
+  @Lock(type = LockResourceType.INJECT, key = "#injectId")
+  @Transactional
+  public void agentExecutionCallback(
+      TxCtx ctx, String agentId, String injectId, InjectExecutionInput input) throws IOException {
+    injectExecutionCallback(agentId, injectId, input);
   }
 
   /**

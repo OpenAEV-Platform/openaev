@@ -10,6 +10,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.aop.lock.Lock;
+import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -46,6 +48,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
@@ -53,11 +60,15 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -81,6 +92,7 @@ import org.springframework.transaction.annotation.Transactional;
  * and read back with plain SQL, the way production sees them.
  */
 @KeepRabbit
+@Import(InjectImplantTenantScopeTest.LockHolderConfig.class)
 @DisplayName("Implant inject endpoints load the inject in the request's tenant scope")
 class InjectImplantTenantScopeTest extends IntegrationTest {
 
@@ -121,6 +133,7 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
   }
 
   @Autowired private MockMvc mvc;
+  @Autowired private LockHolder lockHolder;
   @Autowired private DataSource dataSource;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private TenantScopedTransaction tenantTx;
@@ -537,6 +550,117 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
       // Assert
       assertAgentAccessDenied(result);
       assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+  }
+
+  /**
+   * The callback holds the per-inject lock only once the caller has been let in: a refused call
+   * never takes it, and a served one still does, so the callbacks of one inject stay serialised.
+   */
+  @Nested
+  @WithMockUser
+  @DisplayName("The per-inject lock of the agent callback")
+  class PerInjectLock {
+
+    private String memberTenant;
+    private String otherTenant;
+
+    @BeforeEach
+    void createTenants() throws Exception {
+      memberTenant =
+          tenantHelper
+              .createTenantWithCapabilities("implant-lock", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      otherTenant =
+          tenantRepository
+              .save(TenantFixture.getTenant("implant-other-" + UUID.randomUUID()))
+              .getId();
+    }
+
+    @AfterEach
+    void deleteTenants() {
+      tenantHelper.deleteCommittedTenants(memberTenant, otherTenant);
+    }
+
+    @Test
+    @DisplayName("is not taken by a refused callback")
+    void given_injectOutsideTheScope_should_refuseWhileTheLockIsHeldElsewhere() throws Exception {
+      // Arrange: another thread holds the lock of the inject for the whole request
+      Seeded seeded = inTenant(otherTenant, InjectImplantTenantScopeTest.this::seed);
+      moveAgentAndAssetTo(seeded, memberTenant);
+
+      // Act: a request that waited for the lock would only return once the holder had left it
+      boolean heldWhenAnswered = holdingTheLockWhileAnswering(seeded, memberTenant);
+
+      // Assert
+      assertThat(heldWhenAnswered).as("the refusal came back while the lock was held").isTrue();
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+
+    @Test
+    @DisplayName("is taken by a served callback")
+    void given_injectInTheScope_should_waitForTheLockOfTheInject() throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(memberTenant, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      boolean heldWhenAnswered = holdingTheLockWhileAnswering(seeded, memberTenant);
+
+      // Assert: the callback only ran after the holder had left the lock
+      assertThat(heldWhenAnswered).as("the served callback waited for the lock").isFalse();
+      assertThat(executionTraceCount(seeded.injectId())).isPositive();
+    }
+
+    /**
+     * Whether the lock of the inject was still held by the other thread when the callback of the
+     * agent was answered. The holder gives the lock up after a few seconds, so a call that needs it
+     * is delayed, never blocked for good.
+     */
+    private boolean holdingTheLockWhileAnswering(Seeded seeded, String callerTenant)
+        throws Exception {
+      CountDownLatch held = new CountDownLatch(1);
+      AtomicBoolean stillHolding = new AtomicBoolean();
+      ExecutorService holder = Executors.newSingleThreadExecutor();
+      try {
+        holder.submit(
+            () -> {
+              lockHolder.hold(seeded.injectId(), held, stillHolding);
+              return null;
+            });
+        assertThat(held.await(30, TimeUnit.SECONDS)).isTrue();
+
+        perform(Endpoint.CALLBACK, Route.PREFIXED, callerTenant, seeded);
+
+        return stillHolding.get();
+      } finally {
+        holder.shutdown();
+        assertThat(holder.awaitTermination(30, TimeUnit.SECONDS)).isTrue();
+      }
+    }
+  }
+
+  /** A bean that holds the per-inject lock of the callback, the way the endpoint takes it. */
+  static class LockHolder {
+    private static final long HOLD_SECONDS = 3;
+
+    @Lock(type = LockResourceType.INJECT, key = "#injectId")
+    public void hold(String injectId, CountDownLatch held, AtomicBoolean stillHolding)
+        throws InterruptedException {
+      stillHolding.set(true);
+      held.countDown();
+      try {
+        Thread.sleep(TimeUnit.SECONDS.toMillis(HOLD_SECONDS));
+      } finally {
+        stillHolding.set(false);
+      }
+    }
+  }
+
+  @TestConfiguration
+  static class LockHolderConfig {
+    @Bean
+    LockHolder lockHolder() {
+      return new LockHolder();
     }
   }
 
