@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -113,5 +115,62 @@ class CanAccessTenantFunctionTest {
     setScope("t1");
     assertTrue(canAccess("t1", true));
     assertFalse(canAccess("t2", true));
+  }
+
+  @Test
+  @DisplayName("every answer but the platform-row read with no scope is that of the first version")
+  void everyAnswerButThePlatformRowReadWithNoScopeIsUnchanged() {
+    // Arrange: the body the function had when it was added (V5_27), under another name in this
+    // rolled-back transaction, to compare it with the live one on every input
+    entityManager
+        .createNativeQuery(
+            """
+            CREATE FUNCTION pg_temp.first_can_access_tenant(
+                row_tenant_id text, allow_platform boolean DEFAULT false)
+            RETURNS boolean LANGUAGE sql STABLE AS $$
+              SELECT CASE
+                WHEN current_setting('app.current_tenants', true) IS NULL
+                  OR current_setting('app.current_tenants', true) = '' THEN false
+                ELSE COALESCE(
+                       (allow_platform AND row_tenant_id IS NULL)
+                         OR row_tenant_id = ANY (
+                              string_to_array(current_setting('app.current_tenants', true), ',')),
+                       false)
+              END
+            $$
+            """)
+        .executeUpdate();
+    List<String> differing = new ArrayList<>();
+
+    // Act
+    for (String scope : new String[] {"unset", "", "t1", "t1,t2"}) {
+      if (!"unset".equals(scope)) {
+        setScope(scope);
+      }
+      for (String row : new String[] {null, "t1", "t2", "t3"}) {
+        for (boolean allowPlatform : new boolean[] {false, true}) {
+          boolean live = answer("can_access_tenant", row, allowPlatform);
+          boolean first = answer("pg_temp.first_can_access_tenant", row, allowPlatform);
+          if (live != first) {
+            differing.add("scope=" + scope + " row=" + row + " allowPlatform=" + allowPlatform);
+          }
+        }
+      }
+    }
+
+    // Assert: only a platform row read with allow_platform and no scope changed, the empty scope
+    // (set_config leaves '' behind once used) and the never-set one both answer true now
+    assertEquals(
+        List.of("scope= row=null allowPlatform=true", "scope=unset row=null allowPlatform=true"),
+        differing.stream().sorted().toList());
+  }
+
+  private boolean answer(String function, String tenantId, boolean allowPlatform) {
+    String row = tenantId == null ? "NULL::text" : "'" + tenantId + "'";
+    return (Boolean)
+        entityManager
+            .createNativeQuery("SELECT " + function + "(" + row + ", :ap)")
+            .setParameter("ap", allowPlatform)
+            .getSingleResult();
   }
 }
