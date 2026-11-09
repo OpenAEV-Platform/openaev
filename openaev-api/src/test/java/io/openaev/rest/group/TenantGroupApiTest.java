@@ -936,7 +936,7 @@ public class TenantGroupApiTest extends IntegrationTest {
       // -------- Arrange --------
       String defaultTenantId = TenantContext.getCurrentTenant();
       tenantIsolationHelper.grantCapabilitiesInTenant(
-          defaultTenantId, Set.of(Capability.ASSIGN_MARKING));
+          defaultTenantId, Set.of(Capability.MANAGE_MARKING_ASSIGNMENT));
       String otherTenantId =
           tenantIsolationHelper
               .createTenantWithCapabilities(
@@ -966,7 +966,7 @@ public class TenantGroupApiTest extends IntegrationTest {
     @WithMockUser(
         withCapabilities = {
           Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
-          Capability.ASSIGN_MARKING
+          Capability.MANAGE_ASSESSMENT
         })
     @DisplayName("Given ASSIGN_MARKING but not every marking, should forbid turning it on")
     void given_notEveryMarkingHeld_should_forbidTurningItOn() throws Exception {
