@@ -29,7 +29,8 @@ import org.springframework.test.context.DynamicPropertySource;
 /**
  * Callers that read {@code parameters} with no scope: the licence cache refreshed outside any
  * transaction, the session limit read at login, the scheduled collectors. A platform row of a
- * dual-scope table is readable with no scope; a tenant row and any write are not.
+ * dual-scope table is readable with no scope; a tenant row and any write of a platform row outside
+ * a platform-write transaction are not, whether the write goes through Hibernate or raw JDBC.
  *
  * <p>Deliberately NOT {@code @Transactional}: every call below runs the way the background caller
  * runs, with no ambient transaction and therefore no {@code app.current_tenants} setting. Rows are
@@ -293,17 +294,106 @@ class PlatformSettingsUnscopedAccessTest extends IntegrationTest {
       assertEquals(5, settingService.getInt(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT));
     }
 
+    /**
+     * A statement sent straight to JDBC from a transaction scoped to the default tenant that is not
+     * platform-write: the table refuses it for the row, whatever SQL text a caller assembles.
+     */
+    private Throwable jdbcWriteFromATenantTransaction(String sql, Object... args) {
+      return assertThrows(
+          Exception.class,
+          () ->
+              tenantScopedTransaction.execute(
+                  TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+                  () -> jdbcTemplate.update(sql, args)));
+    }
+
     @Test
-    @DisplayName("given_aJdbcUpdate_should_notBeSeenByThePlatformWriteRefusal")
-    void given_aJdbcUpdate_should_notBeSeenByThePlatformWriteRefusal() {
+    @DisplayName("given_aJdbcUpdateOfAPlatformRow_should_beRefusedLikeAnyOtherWrite")
+    void given_aJdbcUpdateOfAPlatformRow_should_beRefusedLikeAnyOtherWrite() {
       // Arrange
       putPlatformSetting(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key(), "5");
 
-      // Act: the refusal is part of the statement rewrite done for Hibernate, so a statement sent
-      // straight to JDBC is not refused. The architecture rule is the only guard of that shape
-      // (PlatformRowWriters follows JdbcTemplate and Statement calls naming the table); if this
-      // test turns red the database closed the gap and the rule's Javadoc must say so.
+      // Act
+      Throwable thrown =
+          jdbcWriteFromATenantTransaction(
+              "UPDATE parameters SET parameter_value = ? WHERE parameter_key = ?",
+              "9",
+              SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key());
+
+      // Assert
+      assertTrue(rootMessage(thrown).contains("platform-write"), rootMessage(thrown));
+      assertEquals(5, settingService.getInt(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT));
+    }
+
+    @Test
+    @DisplayName("given_aJdbcInsertOfAPlatformRow_should_beRefusedLikeAnyOtherWrite")
+    void given_aJdbcInsertOfAPlatformRow_should_beRefusedLikeAnyOtherWrite() {
+      // Act
+      Throwable thrown =
+          jdbcWriteFromATenantTransaction(
+              "INSERT INTO parameters (parameter_id, parameter_key, parameter_value, tenant_id)"
+                  + " VALUES (?, ?, ?, NULL)",
+              "jdbc-platform-row",
+              "jdbc-platform-row",
+              "x");
+
+      // Assert
+      assertTrue(rootMessage(thrown).contains("platform-write"), rootMessage(thrown));
+      assertTrue(settingRepository.findByKeyAndTenantIsNull("jdbc-platform-row").isEmpty());
+    }
+
+    @Test
+    @DisplayName("given_aJdbcDeleteOfAPlatformRow_should_beRefusedLikeAnyOtherWrite")
+    void given_aJdbcDeleteOfAPlatformRow_should_beRefusedLikeAnyOtherWrite() {
+      // Arrange
+      putPlatformSetting(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key(), "5");
+
+      // Act
+      Throwable thrown =
+          jdbcWriteFromATenantTransaction(
+              "DELETE FROM parameters WHERE parameter_key = ?",
+              SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key());
+
+      // Assert
+      assertTrue(rootMessage(thrown).contains("platform-write"), rootMessage(thrown));
+      assertEquals(5, settingService.getInt(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT));
+    }
+
+    @Test
+    @DisplayName("given_aJdbcUpdateTurningATenantRowIntoAPlatformRow_should_beRefused")
+    void given_aJdbcUpdateTurningATenantRowIntoAPlatformRow_should_beRefused() {
+      // Arrange
       tenantScopedTransaction.execute(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> {
+            Setting tenantRow = new Setting(TENANT_ONLY_KEY, "tenant-value");
+            tenantRow.setTenant(
+                tenantRepository.findById(Tenant.DEFAULT_TENANT_UUID).orElseThrow());
+            settingRepository.save(tenantRow);
+          });
+
+      // Act
+      Throwable thrown =
+          jdbcWriteFromATenantTransaction(
+              "UPDATE parameters SET tenant_id = NULL WHERE parameter_key = ?", TENANT_ONLY_KEY);
+
+      // Assert
+      assertTrue(rootMessage(thrown).contains("platform-write"), rootMessage(thrown));
+      assertTrue(
+          settingRepository
+              .findByKeyAndTenantId(TENANT_ONLY_KEY, Tenant.DEFAULT_TENANT_UUID)
+              .isEmpty(),
+          "the unscoped read cannot see a tenant row, which proves it is still a tenant row");
+    }
+
+    @Test
+    @DisplayName("given_aPlatformWriteTransaction_should_applyAJdbcUpdateOfAPlatformRow")
+    void given_aPlatformWriteTransaction_should_applyAJdbcUpdateOfAPlatformRow() {
+      // Arrange
+      putPlatformSetting(SettingKeys.PLATFORM_SESSION_MAX_CONCURRENT.key(), "5");
+
+      // Act
+      tenantScopedTransaction.executeAsPlatformWrite(
           TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
           () ->
               jdbcTemplate.update(

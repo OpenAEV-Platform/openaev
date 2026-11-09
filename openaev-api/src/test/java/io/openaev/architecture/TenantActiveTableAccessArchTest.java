@@ -2359,10 +2359,10 @@ class TenantActiveTableAccessArchTest {
    * Flyway migrations, a statement assembled at run time, a {@code Setting} handled as {@code
    * Object}, reflection, a write reached only through an interface call or an event dispatch, and
    * which lambda or method reference is the one handed to the primitive (its creator method
-   * decides). For what goes through Hibernate the platform write refusal in the database ({@code
-   * require_tenant_write}) catches those at run time; raw JDBC is not refused there, so for JDBC
-   * this rule is the only guard (both pinned by {@code PlatformSettingsUnscopedAccessTest}). The
-   * full list is in {@link PlatformRowWriters}.
+   * decides). At run time the database refuses a platform row written outside a platform-write
+   * transaction: {@code require_tenant_write} for what goes through Hibernate and a row trigger on
+   * {@code parameters} for raw JDBC (both pinned by {@code PlatformSettingsUnscopedAccessTest}).
+   * The full list is in {@link PlatformRowWriters}.
    */
   @ArchTest
   static final ArchRule parameters_platform_row_writers_run_under_platform_write =

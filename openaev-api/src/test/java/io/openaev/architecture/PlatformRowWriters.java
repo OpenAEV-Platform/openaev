@@ -69,12 +69,12 @@ import org.springframework.data.jpa.repository.Query;
  * variable), a {@code Setting} passed as {@code Object} or a generic to a method that does not name
  * the type, a write through reflection or a bean copier, a write made by code outside the imported
  * classes (a migration, manual SQL), and a write reached only through an interface call or a Spring
- * event dispatch (see the denominator below). For what goes through Hibernate the database refuses
- * it at run time: the platform write refusal ({@code require_tenant_write}) raises on an HQL, a
- * native statement and a dirty-checked row outside a platform-write transaction ({@code
- * PlatformSettingsUnscopedAccessTest}). It is part of the statement rewrite done for Hibernate, so
- * a statement sent straight to JDBC is NOT refused (same test): for that shape this rule is the
- * only guard, which is why it follows {@code JdbcTemplate} and {@code Statement} calls.
+ * event dispatch (see the denominator below). The database refuses the write at run time, outside a
+ * platform-write transaction: the platform write refusal ({@code require_tenant_write}) raises on
+ * an HQL, a native statement and a dirty-checked row, and a row trigger on {@code parameters}
+ * applies it to a {@code JdbcTemplate} or JDBC statement of the same transaction, whatever SQL text
+ * it assembles ({@code PlatformSettingsUnscopedAccessTest}). The trigger covers platform rows only,
+ * so this rule also follows {@code JdbcTemplate} and {@code Statement} calls.
  *
  * <p>A call is under a marker when the transaction it runs in is marked at that point:
  *

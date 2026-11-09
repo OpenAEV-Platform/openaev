@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
@@ -87,6 +88,16 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
   @MockitoBean private CatalogConnectorPrivilegeService catalogConnectorPrivilegeService;
 
   @Autowired private PlatformSettingsService platformSettingsService;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
+
+  /**
+   * The composer registration is a platform row, which only a platform-write transaction writes.
+   */
+  private void saveComposerSettings(Map<String, String> composerSettings) {
+    tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
+    platformSettingsService.saveSettings(composerSettings);
+  }
+
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
   @MockitoBean private XtmComposerEncryptionService xtmComposerEncryptionService;
 
@@ -198,7 +209,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       composerSettings.put(
           XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(),
           Instant.now().minus(3, ChronoUnit.HOURS).toString());
-      platformSettingsService.saveSettings(composerSettings);
+      saveComposerSettings(composerSettings);
       mvc.perform(
               post(tenantUri(TENANT_CONNECTOR_INSTANCE_URI))
                   .content(asJsonString(input))
@@ -235,7 +246,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
       composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
       composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
-      platformSettingsService.saveSettings(composerSettings);
+      saveComposerSettings(composerSettings);
 
       // -- Create first instance --
       CreateConnectorInstanceInput input1 = new CreateConnectorInstanceInput();
@@ -321,7 +332,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
       composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
       composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
-      platformSettingsService.saveSettings(composerSettings);
+      saveComposerSettings(composerSettings);
 
       CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
       input.setCatalogConnectorId(catalogConnector.getId());
@@ -390,7 +401,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
       composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
       composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
-      platformSettingsService.saveSettings(composerSettings);
+      saveComposerSettings(composerSettings);
 
       String fakeCollectorId = "non-existent-collector-id";
       CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
@@ -462,7 +473,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
       composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
       composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
-      platformSettingsService.saveSettings(composerSettings);
+      saveComposerSettings(composerSettings);
 
       CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
       input.setCatalogConnectorId(catalogConnector.getId());
@@ -970,7 +981,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       composerSettings.put(
           XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(),
           Instant.now().minus(3, ChronoUnit.HOURS).toString());
-      platformSettingsService.saveSettings(composerSettings);
+      saveComposerSettings(composerSettings);
       mvc.perform(
               put(CONNECTOR_INSTANCE_URI + "/" + instance.getId() + "/configurations")
                   .content(asJsonString(input))
@@ -1019,7 +1030,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
       composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
       composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
-      platformSettingsService.saveSettings(composerSettings);
+      saveComposerSettings(composerSettings);
 
       CreateConnectorInstanceInput input = new CreateConnectorInstanceInput();
       input.setCatalogConnectorId(connectorInstance.getCatalogConnector().getId());
@@ -1156,7 +1167,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       composerSettings.put(
           XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(),
           Instant.now().minus(3, ChronoUnit.HOURS).toString());
-      platformSettingsService.saveSettings(composerSettings);
+      saveComposerSettings(composerSettings);
 
       mvc.perform(
               put(CONNECTOR_INSTANCE_URI + "/" + connectorInstance.getId() + "/requested-status")
@@ -1187,7 +1198,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
       composerSettings.put(XTM_COMPOSER_ID.key(), "composer-id-test");
       composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
       composerSettings.put(XTM_COMPOSER_LAST_CONNECTIVITY_CHECK.key(), Instant.now().toString());
-      platformSettingsService.saveSettings(composerSettings);
+      saveComposerSettings(composerSettings);
 
       String response =
           mvc.perform(
