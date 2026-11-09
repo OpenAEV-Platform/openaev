@@ -45,3 +45,4 @@ jobs:
           image: openaev/platform:${{ matrix.tag }}
           report-name: aikido-platform-${{ matrix.tag }}
           api-key: ${{ secrets.AIKIDO_TOKEN }}
+          mode: ephemeral

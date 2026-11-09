@@ -6,7 +6,7 @@ severity threshold in a table (severity, ID, package, installed and fixed versio
 followed by their descriptions, so it can be read from the job summary without opening the JSON.
 
 The report is written to the given file. The number of reported findings that have a fix is
-printed as `fixable=<n>`, a line the caller can append to $GITHUB_OUTPUT to enforce it.
+printed as `issues=<n>`, a line the caller can append to $GITHUB_OUTPUT to enforce it.
 
 Usage: report.py <findings.json> <image> <severity-threshold> <report.md>
 """
@@ -71,7 +71,7 @@ def main() -> None:
     lines, fixable = report(result, sys.argv[2], sys.argv[3])
     with open(sys.argv[4], "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
-    print(f"fixable={fixable}")
+    print(f"issues={fixable}")
 
 
 if __name__ == "__main__":

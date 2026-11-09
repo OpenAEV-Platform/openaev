@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Post a check run that explains the fixable vulnerabilities found in the CI images.
+"""Post a check run that explains the vulnerabilities Aikido found in the CI images.
 
-The aikido-image-scan job scans the images the pipeline builds and stays green on findings. When a
-finding at or above the threshold has a fix, this check run says so: a short title with the count
-per image for the PR checks list, and in its details the findings of each image (package,
-installed and fixed versions, file, description), how to fix them, and why it does not block. It
-is posted with the PR checks app, like the PR title check, so it shows as its own check on the
-pull request or the commit.
+The aikido-image-scan job scans the images the pipeline builds with Aikido's release gate on
+`main` and other pushes, and its PR gate on pull requests, and stays green on findings. When an
+image has issues at or above the threshold (open issues of the image, or the ones a pull request
+adds), this check run says so: a short title with the count per image for the PR checks list, and
+in its details the issues of each image, how to fix them, and why it does not block. It is posted
+with the PR checks app, like the PR title check, so it shows as its own check on the pull request
+or the commit.
 
 Needs `gh`, GH_TOKEN with checks:write, and GITHUB_REPOSITORY.
 """
@@ -23,26 +24,34 @@ NAME = "Aikido Image Scan (advisory)"
 MAX_REPORT = 25000
 
 
-def intro(threshold: str) -> str:
+def intro(mode: str, threshold: str) -> str:
+    which = (
+        "the open issues of each image"
+        if mode == "release"
+        else "the issues this pull request adds to each image, compared with its base branch"
+    )
     return f"""\
-The Docker images built by this pipeline are scanned with Aikido's local scanner. A vulnerability \
-rated `{threshold}` or above that already has a fixed version should be fixed before it ships. \
-Vulnerabilities with no fix are listed too, but never fail this check.
+The Docker images built by this pipeline are scanned with Aikido's local scanner. This check lists \
+{which}, rated `{threshold}` or above. Issues ignored in Aikido are left out.
 """
 
 
 FIX = """\
 ### How to fix it
 
-- **Operating system package** (file under `/var/lib/dpkg` or `/var/lib/rpm`): the fix usually \
-comes with a newer base image. Bump the `app` stage image in `Dockerfile` or `Dockerfile_ubi9`, \
-or upgrade the package in that stage.
-- **Java library** (file in a `.jar`): bump the dependency, or the BOM that brings it, in the \
-`pom.xml` to a fixed version.
+Each CVE links to its osv.dev page, which lists the affected and fixed versions. The Aikido link \
+shows the same with the file the package comes from, for members of the Aikido workspace.
 
-The "Fixed in" column lists the fixed versions Aikido knows for every distribution, not only the \
-one of the image: check that one of them applies before bumping. The JSON findings and the \
-scanner output are in the `aikido-image-scan-*` artifacts of the run.
+- **Operating system package** (`curl`, `libssl3`…): the fix usually comes with a newer base \
+image. Bump the `app` stage image in `Dockerfile` or `Dockerfile_ubi9`, or upgrade the package in \
+that stage.
+- **Java library** (`spring-core`, `FasterXML jackson-databind`…): bump the dependency, or the BOM \
+that brings it, in the `pom.xml` to a fixed version.
+- **End of life**: move to a supported version of the framework.
+- **False positive** (the image does not ship the vulnerable code): ask a member of the Aikido \
+workspace to ignore it there, with the reason. It is left out from the next run.
+
+The JSON result and the scanner output are in the `aikido-image-scan-*` artifacts of the run.
 """
 
 
@@ -60,25 +69,27 @@ def read(path: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--sha", required=True, help="commit the check is posted on")
+    parser.add_argument("--mode", required=True, choices=("release", "pr"), help="gating mode of the scans")
     parser.add_argument("--threshold", required=True, help="lowest severity reported")
     parser.add_argument(
         "--image",
         nargs=3,
         action="append",
         required=True,
-        metavar=("LABEL", "FIXABLE", "REPORT"),
-        help="an image label, its number of fixable findings, and its Markdown report",
+        metavar=("LABEL", "ISSUES", "REPORT"),
+        help="an image label, its number of issues, and its Markdown report",
     )
     args = parser.parse_args()
 
-    images = [(label, int(fixable or 0), report) for label, fixable, report in args.image]
+    images = [(label, int(issues or 0), report) for label, issues, report in args.image]
+    kind = "open" if args.mode == "release" else "new"
     # The PR checks list shows about 100 characters of "name — title": the counts come first.
     title = " · ".join(
-        f"{'❌' if fixable else '✅'} {label} {fixable} fixable" for label, fixable, _ in images
+        f"❌ {label} {issues} {kind}" if issues else f"✅ {label}" for label, issues, _ in images
     ) + f" ({args.threshold}+)"
     summary = "\n".join(
         [
-            intro(args.threshold),
+            intro(args.mode, args.threshold),
             "## Result\n",
             *(read(report) + "\n" for _, _, report in images),
             FIX,
@@ -89,7 +100,7 @@ def main() -> int:
         "name": NAME,
         "head_sha": args.sha,
         "status": "completed",
-        "conclusion": "failure" if any(fixable for _, fixable, _ in images) else "success",
+        "conclusion": "failure" if any(issues for _, issues, _ in images) else "success",
         "output": {"title": title, "summary": summary},
     }
     subprocess.run(

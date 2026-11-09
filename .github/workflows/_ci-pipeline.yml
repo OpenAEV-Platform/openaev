@@ -652,18 +652,20 @@ jobs:
             Docker Build (${{ matrix.variant }} amd64)
             Docker Build (${{ matrix.variant }} arm64)
 
-  # Aikido scan of both amd64 images, on main and on every pull request. When a high or critical
-  # finding has a fix, an "Aikido Image Scan (advisory)" check explains it, posted with the PR
-  # checks app like the coverage check, and the job stays green: that check carries the result.
-  # When it cannot be posted, the job fails itself, so fixable findings are never silent; the gate
-  # treats the job as advisory for now. Without the token (pull requests from forks) the scan is
-  # skipped with a notice, but not on main: there the action fails, so a missing secret cannot
+  # Aikido scan of both amd64 images, on main and on every pull request, with Aikido's gates:
+  # on pull requests the PR gate counts the high or critical issues the pull request adds; on
+  # pushes the release gate counts the open ones of the image. Issues ignored in Aikido do not
+  # count. When an image has some, an "Aikido Image Scan (advisory)" check explains them, posted
+  # with the PR checks app like the coverage check, and the job stays green: that check carries
+  # the result. When it cannot be posted, the job fails itself, so issues are never silent; the
+  # gate treats the job as advisory for now. Without the token (pull requests from forks) the scan
+  # is skipped with a notice, but not on main: there the action fails, so a missing secret cannot
   # silently pass for a clean scan.
   aikido-image-scan:
     name: "🔍 Aikido Image Scan"
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 25
     env:
       GH_TOKEN: ${{ github.token }}
       RUN_SCAN: ${{ secrets.AIKIDO_TOKEN != '' || github.ref == 'refs/heads/main' }}
@@ -707,6 +709,36 @@ jobs:
           load openaev-image-amd64 openaev:ci
           load openaev-ubi9-image-amd64 openaev-ubi9:ci
 
+      # Each scan is kept in Aikido under a fixed image name, so the release gate of main always
+      # reads the state of main. Other branches and tags get their own names, to leave it alone.
+      - name: Choose the Aikido gate
+        id: gate
+        if: ${{ env.RUN_SCAN == 'true' }}
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            mode=pr
+            prefix=openaev-ci
+          elif [ "$REF" = refs/heads/main ]; then
+            mode=release
+            prefix=openaev-ci
+          elif [ "$REF_TYPE" = tag ]; then
+            mode=release
+            prefix=openaev-ci-release
+          else
+            mode=release
+            prefix="openaev-ci-$(printf '%s' "$REF_NAME" | tr -c 'a-zA-Z0-9.-' '-')"
+          fi
+          {
+            echo "mode=$mode"
+            echo "standard=$prefix-standard"
+            echo "ubi9=$prefix-ubi9"
+          } >> "$GITHUB_OUTPUT"
+
       - id: standard
         if: ${{ env.RUN_SCAN == 'true' }}
         uses: ./.github/actions/aikido-image-scan
@@ -714,6 +746,10 @@ jobs:
           image: openaev:ci
           report-name: aikido-image-scan-standard
           api-key: ${{ secrets.AIKIDO_TOKEN }}
+          mode: ${{ steps.gate.outputs.mode }}
+          aikido-image-name: ${{ steps.gate.outputs.standard }}
+          base-commit: ${{ github.event.pull_request.base.sha }}
+          head-commit: ${{ github.event.pull_request.head.sha }}
 
       - id: ubi9
         if: ${{ !cancelled() && env.RUN_SCAN == 'true' }}
@@ -722,70 +758,57 @@ jobs:
           image: openaev-ubi9:ci
           report-name: aikido-image-scan-ubi9
           api-key: ${{ secrets.AIKIDO_TOKEN }}
+          mode: ${{ steps.gate.outputs.mode }}
+          aikido-image-name: ${{ steps.gate.outputs.ubi9 }}
+          base-commit: ${{ github.event.pull_request.base.sha }}
+          head-commit: ${{ github.event.pull_request.head.sha }}
 
-      # Temporary: compare the gating modes with the ephemeral scan.
-      - name: Probe the gating modes
-        if: ${{ !cancelled() && env.RUN_SCAN == 'true' }}
-        continue-on-error: true
-        env:
-          AIKIDO_API_KEY: ${{ secrets.AIKIDO_TOKEN }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: bash .github/scripts/aikido-gating-probe.sh
-
-      - name: Upload the gating probe
-        if: ${{ !cancelled() && env.RUN_SCAN == 'true' }}
-        continue-on-error: true
-        uses: actions/upload-artifact@v7
-        with:
-          name: aikido-gating-probe
-          path: aikido-gating-probe
-          if-no-files-found: ignore
-
-      # Only when both scans finished and one found a fixable vulnerability: a clean run gets no
-      # extra check, and a scan that failed already fails the job.
-      - name: Count fixable findings
-        id: fixable
+      # Only when both scans finished and one found issues: a clean run gets no extra check, and a
+      # scan that failed already fails the job.
+      - name: Count issues
+        id: issues
         if: ${{ steps.standard.outcome == 'success' && steps.ubi9.outcome == 'success' }}
         env:
-          STANDARD: ${{ steps.standard.outputs.fixable }}
-          UBI9: ${{ steps.ubi9.outputs.fixable }}
+          STANDARD: ${{ steps.standard.outputs.issues }}
+          UBI9: ${{ steps.ubi9.outputs.issues }}
         run: echo "total=$((STANDARD + UBI9))" >> "$GITHUB_OUTPUT"
 
       - name: Generate a token
         id: generate-token
-        if: ${{ steps.fixable.outputs.total != '' && steps.fixable.outputs.total != '0' }}
+        if: ${{ steps.issues.outputs.total != '' && steps.issues.outputs.total != '0' }}
         continue-on-error: true
         uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
           private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
 
-      - name: Explain the fixable findings in a check
+      - name: Explain the issues in a check
         id: explain
         if: ${{ steps.generate-token.outputs.token != '' }}
         continue-on-error: true
         env:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          STANDARD_FIXABLE: ${{ steps.standard.outputs.fixable }}
+          MODE: ${{ steps.gate.outputs.mode }}
+          STANDARD_ISSUES: ${{ steps.standard.outputs.issues }}
           STANDARD_REPORT: ${{ steps.standard.outputs.report }}
-          UBI9_FIXABLE: ${{ steps.ubi9.outputs.fixable }}
+          UBI9_ISSUES: ${{ steps.ubi9.outputs.issues }}
           UBI9_REPORT: ${{ steps.ubi9.outputs.report }}
         run: |
           python3 .github/scripts/post-aikido-check.py \
             --sha "$HEAD_SHA" \
+            --mode "$MODE" \
             --threshold high \
-            --image standard "$STANDARD_FIXABLE" "$STANDARD_REPORT" \
-            --image ubi9 "$UBI9_FIXABLE" "$UBI9_REPORT"
+            --image standard "$STANDARD_ISSUES" "$STANDARD_REPORT" \
+            --image ubi9 "$UBI9_ISSUES" "$UBI9_REPORT"
 
-      # The explanation check reports the fixable findings when it was posted; otherwise this step does.
-      - name: Fail on fixable findings nobody was told about
-        if: ${{ steps.fixable.outputs.total != '' && steps.fixable.outputs.total != '0' && steps.explain.outcome != 'success' }}
+      # The explanation check reports the issues when it was posted; otherwise this step does.
+      - name: Fail on issues nobody was told about
+        if: ${{ steps.issues.outputs.total != '' && steps.issues.outputs.total != '0' && steps.explain.outcome != 'success' }}
         env:
-          TOTAL: ${{ steps.fixable.outputs.total }}
+          TOTAL: ${{ steps.issues.outputs.total }}
         run: |
-          echo "::error::$TOTAL high or critical finding(s) with a fix: see the job summary"
+          echo "::error::$TOTAL high or critical issue(s) in Aikido: see the job summary"
           echo "The explanation check was not posted (no PR checks app token, or the post failed)."
           exit 1
 

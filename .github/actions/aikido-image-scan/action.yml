@@ -1,13 +1,16 @@
 name: Aikido Image Scan
 description: >
-  Scan a container image of the local Docker daemon with Aikido's local scanner,
-  in ephemeral mode: findings are written to a file and nothing is kept in
-  Aikido. The findings at or above the severity threshold, with or without a
-  fix, are listed with their details in the job summary and uploaded with the
-  JSON findings and the scanner output as an artifact. Findings never fail the
-  action: it outputs how many of them have a fix, for the caller to act on. A
-  scanner error or a missing token fails it. The calling job must run
-  actions/checkout first.
+  Scan a container image of the local Docker daemon with Aikido's local scanner.
+  In release or pr mode the scan is kept in Aikido under the given image name,
+  and Aikido decides which issues count: the open issues of the image at or
+  above the severity threshold (release), or the ones the pull request adds
+  (pr). Issues ignored in the Aikido dashboard do not count. In ephemeral mode
+  nothing is kept in Aikido and every finding at or above the threshold, with
+  or without a fix, is listed with its versions and description. The issues are
+  reported in the job summary and uploaded with the JSON result and the scanner
+  output as an artifact. Issues never fail the action: it outputs how many
+  count, for the caller to act on. A scanner error or a missing token fails it.
+  The calling job must run actions/checkout first.
 
 inputs:
   image:
@@ -19,15 +22,33 @@ inputs:
   api-key:
     description: "Aikido local scanner token"
     required: true
+  mode:
+    description: "release, pr or ephemeral (see the description)"
+    required: false
+    default: "release"
+  aikido-image-name:
+    description: "Name of the image in Aikido (release and pr modes)"
+    required: false
+    default: ""
+  base-commit:
+    description: "Base commit of the pull request (pr mode)"
+    required: false
+    default: ""
+  head-commit:
+    description: "Head commit of the pull request (pr mode)"
+    required: false
+    default: ""
   severity-threshold:
-    description: "Lowest severity reported: low, medium, high or critical"
+    description: "Lowest severity that counts: low, medium, high or critical"
     required: false
     default: "high"
 
 outputs:
-  fixable:
-    description: "Number of findings at or above the threshold that have a fix"
-    value: ${{ steps.report.outputs.fixable }}
+  issues:
+    description: >
+      Number of issues that count: open issues (release), new issues (pr), or
+      findings with a fix (ephemeral), at or above the threshold
+    value: ${{ steps.report.outputs.issues }}
   report:
     description: "Path of the Markdown report, relative to the working directory"
     value: ${{ inputs.report-name }}.md
@@ -35,8 +56,6 @@ outputs:
 runs:
   using: composite
   steps:
-    # Ephemeral scans leave out vulnerabilities with no fix unless asked: they
-    # are reported too, and the fixable ones are counted apart.
     # The key goes through the environment, not the command line, to keep it
     # out of the process list and of the uploaded scanner output.
     - name: Scan ${{ inputs.image }}
@@ -46,32 +65,76 @@ runs:
         SCANNER: aikidosecurity/local-scanner:v1.0.163@sha256:c96405a39c65070db69d2bc22fee697415448b8e1ef9650022b92991a825d4bc
         IMAGE: ${{ inputs.image }}
         REPORT: ${{ inputs.report-name }}
+        MODE: ${{ inputs.mode }}
+        AIKIDO_IMAGE_NAME: ${{ inputs.aikido-image-name }}
+        BASE_COMMIT: ${{ inputs.base-commit }}
+        HEAD_COMMIT: ${{ inputs.head-commit }}
+        THRESHOLD: ${{ inputs.severity-threshold }}
       run: |
         set -euo pipefail
         if [ -z "$AIKIDO_API_KEY" ]; then
           echo "::error::No Aikido token: set the AIKIDO_TOKEN secret"
           exit 1
         fi
+        ARGS=()
+        case "$MODE" in
+          ephemeral)
+            # Ephemeral scans leave out vulnerabilities with no fix unless asked.
+            ARGS+=(ephemeral-image-scan "$IMAGE" --include-unfixed --result-output "/report/$REPORT.json")
+            ;;
+          release|pr)
+            if [ -z "$AIKIDO_IMAGE_NAME" ]; then
+              echo "::error::The $MODE mode needs aikido-image-name"
+              exit 1
+            fi
+            # Aikido processes the scan after the upload; the scanner polls for the result about
+            # every 12 seconds, 20 times by default.
+            ARGS+=(image-scan "$IMAGE" --image-name "$AIKIDO_IMAGE_NAME" --fail-on "$THRESHOLD"
+              --gating-mode "$MODE" --gating-result-output "/report/$REPORT.json"
+              --max-polling-attempts 50)
+            if [ "$MODE" = pr ]; then
+              if [ -z "$BASE_COMMIT" ] || [ -z "$HEAD_COMMIT" ]; then
+                echo "::error::The pr mode needs base-commit and head-commit"
+                exit 1
+              fi
+              ARGS+=(--base-commit-id "$BASE_COMMIT" --head-commit-id "$HEAD_COMMIT")
+            fi
+            ;;
+          *)
+            echo "::error::Unknown mode '$MODE': use release, pr or ephemeral"
+            exit 1
+            ;;
+        esac
+        status=0
         docker run --rm \
           -e AIKIDO_API_KEY \
           -v /var/run/docker.sock:/var/run/docker.sock \
           -v "$PWD:/report" \
           "$SCANNER" \
-          ephemeral-image-scan "$IMAGE" \
-          --include-unfixed \
-          --result-output "/report/$REPORT.json" \
-          | tee "$REPORT.txt"
+          "${ARGS[@]}" \
+          | tee "$REPORT.txt" || status=$?
+        # A gate that finds issues exits non-zero and writes them to the result file; any other
+        # non-zero exit is a scanner error.
+        if [ "$status" -ne 0 ] && { [ "$MODE" = ephemeral ] || [ ! -s "$REPORT.json" ]; }; then
+          echo "::error::The Aikido scanner failed with exit code $status"
+          exit "$status"
+        fi
 
-    - name: Report findings
+    - name: Report issues
       id: report
       shell: bash
       env:
         IMAGE: ${{ inputs.image }}
         REPORT: ${{ inputs.report-name }}
+        MODE: ${{ inputs.mode }}
         THRESHOLD: ${{ inputs.severity-threshold }}
       run: |
         set -euo pipefail
-        python3 "$GITHUB_ACTION_PATH/report.py" "$REPORT.json" "$IMAGE" "$THRESHOLD" "$REPORT.md" >> "$GITHUB_OUTPUT"
+        if [ "$MODE" = ephemeral ]; then
+          python3 "$GITHUB_ACTION_PATH/report.py" "$REPORT.json" "$IMAGE" "$THRESHOLD" "$REPORT.md" >> "$GITHUB_OUTPUT"
+        else
+          python3 "$GITHUB_ACTION_PATH/gate_report.py" "$MODE" "$REPORT.json" "$IMAGE" "$THRESHOLD" "$REPORT.md" >> "$GITHUB_OUTPUT"
+        fi
         cat "$REPORT.md" >> "$GITHUB_STEP_SUMMARY"
 
     - name: Upload report

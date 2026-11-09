@@ -1,8 +1,8 @@
 name: "[Core] CI"
 
 # Continuous Integration pipeline.
-# A high or critical finding with a fix in the built images posts a red
-# "Aikido Image Scan (advisory)" check that explains it.
+# A high or critical vulnerability that Aikido counts in the built images posts
+# a red "Aikido Image Scan (advisory)" check that explains it.
 # ⚠️ Branch-protection status check: "pipeline / ✅ Pipeline Gate"
 
 on:

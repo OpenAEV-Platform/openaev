@@ -111,7 +111,7 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + dependency-cruiser + knip + Vitest + coverage |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
 | 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
-| 🔍 **Aikido Image Scan** | 25 min | Aikido scan of both amd64 images, threshold `high`, findings in the job summary. A fixable finding posts a red **Aikido Image Scan (advisory)** check. Skipped with a notice without the `AIKIDO_TOKEN` secret, except on `main` |
+| 🔍 **Aikido Image Scan** | 25 min | Aikido gate on both amd64 images, threshold `high`: issues added by a pull request, or open on `main`, post a red **Aikido Image Scan (advisory)** check. Skipped with a notice without the `AIKIDO_TOKEN` secret, except on `main` |
 | 🧪 **API Tests** | 30 min | Spring Boot integration tests vs PostgreSQL + search engine. `fail-fast: false` |
 | 🔎 **API Types Check** | 20 min | Generated TS types must match the live API schema |
 | 🧪 **E2E Tests** | 45 min | Playwright against the built container. `fail-fast: false` |
@@ -161,16 +161,30 @@ job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocu
 
 ### Aikido image scan enforcement policy
 
-The same policy applies on `main`, on every pull request and in Nightly CI. Like the backend
-coverage check, the job does not turn red on findings: when a high or critical finding has a
-fix, it posts a separate **Aikido Image Scan (advisory)** check with the PR checks app. That
-check is red, with the count per image as its title and the findings, their fixed versions and
-how to fix them in its details. A clean run posts no check. For now the gate treats the job as
-advisory, like any new check. Taking `aikido-image-scan` out of the gate's advisory list makes
-it blocking.
+The job scans both images with Aikido's gates, which keep each scan in Aikido. On a pull
+request the PR gate counts the high or critical issues the pull request adds, compared with its
+base branch. On `main`, and in Nightly CI, the release gate counts the open high or critical
+issues of the images `openaev-ci-standard` and `openaev-ci-ubi9`; other branches and tags get
+their own image names in Aikido. Issues ignored in Aikido do not count, so a false positive is
+handled there by a member of the workspace.
+
+Like the backend coverage check, the job does not turn red on issues: it posts a separate
+**Aikido Image Scan (advisory)** check with the PR checks app. That check is red, with the count
+per image as its title, and lists the issues in its details: severity, package, each CVE linked to
+its public osv.dev page, and a link to the issue in Aikido. A clean run posts no check. For now
+the gate treats the job as advisory, like any new check. Taking `aikido-image-scan` out of the
+gate's advisory list makes it blocking.
 
 | Case | Job | Aikido Image Scan (advisory) check | Gate |
 |------|-----|------------------------------------|------|
+| High/critical issue counted by Aikido | ✅ | ❌ with the details | ✅ |
+| Same, but the check cannot be posted | ❌ fails | none | ⚠️ advisory |
+| Issue already on the base branch (pull requests), or ignored in Aikido | ✅ | none | ✅ |
+| Scanner error | ❌ fails | none | ⚠️ advisory |
+| No `AIKIDO_TOKEN` secret on `main` | ❌ fails | none | ⚠️ advisory |
+| No `AIKIDO_TOKEN` secret elsewhere (pull requests from forks) | ✅, scan skipped with a notice | none | ✅ |
+
+------|-----|------------------------------------|------|
 | High/critical finding with a fix | ✅ | ❌ with the details | ✅ |
 | Same, but the check cannot be posted | ❌ fails | none | ⚠️ advisory |
 | High/critical finding with no fix | ✅, reported in the job summary and artifacts | none | ✅ |
