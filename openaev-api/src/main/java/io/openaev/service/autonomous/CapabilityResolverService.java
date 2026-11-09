@@ -212,11 +212,16 @@ public class CapabilityResolverService {
 
   // endregion
 
+  private static List<ResolvedContract> candidates(
+      Map<String, Map<String, ResolvedContract>> index, String key) {
+    return new ArrayList<>(index.getOrDefault(key, Map.of()).values());
+  }
+
   private CapabilityResolution resolveTechnique(
       String externalId, ContractIndex index, Set<Endpoint.PLATFORM_TYPE> platformFilter) {
     String key = externalId.toUpperCase(Locale.ROOT);
     List<ResolvedContract> matches =
-        applyPlatformFilter(index.byTechnique.getOrDefault(key, List.of()), platformFilter);
+        applyPlatformFilter(candidates(index.byTechnique, key), platformFilter);
     String label = index.techniqueNames.getOrDefault(key, externalId);
     return finalize(CapabilityResolution.Kind.TECHNIQUE, externalId, label, matches);
   }
@@ -225,7 +230,7 @@ public class CapabilityResolverService {
       String label, ContractIndex index, Set<Endpoint.PLATFORM_TYPE> platformFilter) {
     String key = label.toLowerCase(Locale.ROOT);
     List<ResolvedContract> matches =
-        applyPlatformFilter(index.byOutputType.getOrDefault(key, List.of()), platformFilter);
+        applyPlatformFilter(candidates(index.byOutputType, key), platformFilter);
     return finalize(CapabilityResolution.Kind.OUTPUT_TYPE, key, key, matches);
   }
 
@@ -238,25 +243,33 @@ public class CapabilityResolverService {
 
   // region indexing
 
+  /**
+   * A built-in contract id repeats in every tenant of the request's scope, so the index keeps one
+   * candidate per contract id for each technique and output type.
+   */
   private ContractIndex buildIndex() {
     ContractIndex index = new ContractIndex();
     for (InjectorContract contract : injectorContractRepository.findAll()) {
       ResolvedContract resolved = toResolved(contract);
+      String id = contract.getId();
       for (AttackPattern pattern : contract.getAttackPatterns()) {
         String extId = pattern.getExternalId();
         if (extId == null || extId.isBlank()) {
           continue;
         }
         String key = extId.toUpperCase(Locale.ROOT);
-        index.byTechnique.computeIfAbsent(key, k -> new ArrayList<>()).add(resolved);
+        index
+            .byTechnique
+            .computeIfAbsent(key, k -> new LinkedHashMap<>())
+            .putIfAbsent(id, resolved);
         index.techniqueNames.putIfAbsent(
             key, pattern.getName() != null ? pattern.getName() : extId);
       }
       for (ContractOutputType type : contract.getProviding()) {
         index
             .byOutputType
-            .computeIfAbsent(type.getLabel().toLowerCase(Locale.ROOT), k -> new ArrayList<>())
-            .add(resolved);
+            .computeIfAbsent(type.getLabel().toLowerCase(Locale.ROOT), k -> new LinkedHashMap<>())
+            .putIfAbsent(id, resolved);
       }
     }
     return index;
@@ -386,8 +399,8 @@ public class CapabilityResolverService {
 
   /** In-memory indexes over the tenant's installed contracts, built once per resolve call. */
   private static final class ContractIndex {
-    private final Map<String, List<ResolvedContract>> byTechnique = new LinkedHashMap<>();
-    private final Map<String, List<ResolvedContract>> byOutputType = new LinkedHashMap<>();
+    private final Map<String, Map<String, ResolvedContract>> byTechnique = new LinkedHashMap<>();
+    private final Map<String, Map<String, ResolvedContract>> byOutputType = new LinkedHashMap<>();
     private final Map<String, String> techniqueNames = new LinkedHashMap<>();
   }
 

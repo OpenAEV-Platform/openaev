@@ -3044,7 +3044,8 @@ class TenantActiveTableAccessArchTest {
         io.openaev.service.autonomous.CapabilityResolverService.class,
         "buildIndex",
         "findAll",
-        "findAll() returns every contract of the scope, and the index is built over all of them"),
+        "findAll() returns every contract of the scope, and the index keeps one candidate per"
+            + " contract id for each technique and output type"),
     // The platforms of one simulation's injects, a distinct set: the query joins Inject to its
     // contract on the contract id and tenant_id (Inject#injectorContract, a JoinFormula on
     // tenant_id), so an inject reads the contract of its own tenant.
