@@ -377,8 +377,10 @@ public class User implements Base {
    * tags of an existing user are never written through it: a flush of this collection deletes every
    * row of the user as soon as it is empty, the links to the tags out of scope included. The links
    * of an existing user are written by {@code UserService#replaceTags}; the setter is for a user
-   * that is not saved yet, and {@link Immutable} makes any later change of the loaded collection
-   * fail at flush instead of deleting links.
+   * that is not saved yet. {@link Immutable} makes a change of the loaded collection in place
+   * ({@code clear}, {@code add}, {@code remove}) fail at flush instead of deleting links. It does
+   * not stop the collection of a saved user from being replaced with the setter: that flush deletes
+   * every row of the user, the links to the tags out of scope included.
    */
   @ArraySchema(schema = @Schema(description = "Tag IDs of the user", implementation = String.class))
   @Setter
