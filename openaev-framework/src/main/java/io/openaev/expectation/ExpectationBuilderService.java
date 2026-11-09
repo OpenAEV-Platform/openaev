@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
  * <p>Supported expectation types:
  *
  * <ul>
- *   <li><b>Technical:</b> Prevention, Detection, Vulnerability
+ *   <li><b>Technical:</b> Prevention, Detection, Logging, Vulnerability
  *   <li><b>Human:</b> Challenge, Article, Manual, Document, Text
  * </ul>
  *
@@ -41,6 +41,9 @@ public class ExpectationBuilderService {
 
   /** Default name for detection expectations. */
   public static final String DETECTION_NAME = "Detection";
+
+  /** Default name for logging expectations. */
+  public static final String LOGGING_NAME = "Logging";
 
   /** Default name for vulnerability expectations. */
   public static final String VULNERABILITY_NAME = "Vulnerability";
@@ -83,6 +86,20 @@ public class ExpectationBuilderService {
         DETECTION,
         DETECTION_NAME,
         expectationPropertiesConfig.getDetectionExpirationTime(),
+        false,
+        false);
+  }
+
+  /**
+   * Builds a logging expectation with default configuration.
+   *
+   * @return a configured logging expectation
+   */
+  public Expectation buildLoggingExpectation() {
+    return buildExpectation(
+        LOGGING,
+        LOGGING_NAME,
+        expectationPropertiesConfig.getLoggingExpirationTime(),
         false,
         false);
   }

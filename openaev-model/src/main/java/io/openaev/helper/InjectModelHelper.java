@@ -233,6 +233,14 @@ public class InjectModelHelper {
    * @return {@code true} if the inject has DETECTION or PREVENTION expectations
    */
   public static boolean isDetectionOrPrevention(final ObjectNode content) {
+    return hasExpectationOfType(
+        content,
+        BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+        BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION);
+  }
+
+  public static boolean hasExpectationOfType(
+      final ObjectNode content, final BaseInjectExpectation.EXPECTATION_TYPE... types) {
     if (content == null
         || content.get("expectations") == null
         || content.get("expectations").isNull()) {
@@ -242,14 +250,14 @@ public class InjectModelHelper {
     JsonNode valueNode = content.get("expectations");
 
     if (valueNode.isArray()) {
+      List<BaseInjectExpectation.EXPECTATION_TYPE> expectedTypes = List.of(types);
       for (JsonNode node : valueNode) {
         if (!node.isNull()
             && node.get("expectation_type") != null
             && !node.get("expectation_type").isNull()) {
           BaseInjectExpectation.EXPECTATION_TYPE type =
               BaseInjectExpectation.EXPECTATION_TYPE.valueOf(node.get("expectation_type").asText());
-          if (BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.equals(type)
-              || BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(type)) {
+          if (expectedTypes.contains(type)) {
             return true;
           }
         }

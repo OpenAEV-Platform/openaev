@@ -1,6 +1,7 @@
 package io.openaev.healthcheck.utils;
 
 import static io.openaev.database.model.InjectorContract.*;
+import static io.openaev.service.InjectExpectationUtils.filterCollectorsSupportingType;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.StreamSupport.stream;
@@ -126,8 +127,17 @@ public class HealthCheckUtils {
     List<HealthCheck> result = new ArrayList<>();
     boolean isDetectionOrPrenvention =
         InjectModelHelper.isDetectionOrPrevention(inject.getContent());
+    // Only collectors declaring LOGGING are awaited on a logging expectation (see
+    // AbstractTechnicalBehavior), so any other collector cannot answer it.
+    boolean isLoggingWithoutCollector =
+        previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION)
+            && InjectModelHelper.hasExpectationOfType(
+                inject.getContent(), BaseInjectExpectation.EXPECTATION_TYPE.LOGGING)
+            && filterCollectorsSupportingType(
+                    collectors, BaseInjectExpectation.EXPECTATION_TYPE.LOGGING)
+                .isEmpty();
 
-    if (isDetectionOrPrenvention && collectors.isEmpty()) {
+    if ((isDetectionOrPrenvention && collectors.isEmpty()) || isLoggingWithoutCollector) {
       result.add(
           new HealthCheck(
               HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,

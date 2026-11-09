@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CollectorRepository;
@@ -31,6 +32,7 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.rest.payload.form.*;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.CollectorFixture;
@@ -47,7 +49,11 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Resource;
 import java.util.*;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -79,6 +85,8 @@ class PayloadApiTest extends IntegrationTest {
   @Autowired private jakarta.persistence.EntityManager entityManager;
   @Autowired private ManagerFactory managerFactory;
   @Autowired private io.openaev.context.TenantScopedTransaction tenantScopedTransaction;
+  @Autowired private OpenAEVConfig openAEVConfig;
+  @Autowired private CacheManager cacheManager;
 
   @Resource private ObjectMapper objectMapper;
 
@@ -615,6 +623,79 @@ class PayloadApiTest extends IntegrationTest {
       assertEquals("text", scanField.get("type").asText());
       assertEquals("srv-01", scanField.get("defaultValue").asText());
       assertEquals("host", scanField.get("argumentType").asText());
+    }
+  }
+
+  @Nested
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @DisplayName("Logging expectation in the payload contract")
+  class LoggingExpectationInContract {
+
+    private String originalDevFeatures;
+
+    @BeforeEach
+    void saveDevFeatures() {
+      originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
+    }
+
+    @AfterEach
+    void restoreDevFeatures() {
+      // The config bean is shared by the Spring context: restore the flags of the test profile
+      openAEVConfig.setEnabledDevFeatures(originalDevFeatures);
+      Optional.ofNullable(cacheManager.getCache("global")).ifPresent(Cache::clear);
+    }
+
+    @ParameterizedTest(name = "flag enabled: {0}")
+    @ValueSource(booleans = {true, false})
+    @DisplayName("given a payload expecting logging should offer it only while the flag is on")
+    void given_payload_expecting_logging_should_offer_it_only_while_flag_is_on(boolean flagOn)
+        throws Exception {
+      // Arrange
+      openAEVConfig.setEnabledDevFeatures(
+          flagOn ? PreviewFeature.LOGGING_EXPECTATION.getValue() : "");
+      Optional.ofNullable(cacheManager.getCache("global")).ifPresent(Cache::clear);
+      Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+      PayloadCreateInput input =
+          PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(
+              List.of(domain.getId()));
+      input.setExpectations(
+          new BaseInjectExpectation.EXPECTATION_TYPE[] {
+            BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+            BaseInjectExpectation.EXPECTATION_TYPE.LOGGING
+          });
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(PAYLOAD_URI)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(input)))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      InjectorContract injectorContract =
+          findInjectorContractByPayloadId(JsonPath.read(response, "$.payload_id"));
+      assertNotNull(injectorContract);
+      JsonNode expectationsField = null;
+      for (JsonNode field : injectorContract.getConvertedContent().get("fields")) {
+        if ("expectations".equals(field.path("key").asText())) {
+          expectationsField = field;
+        }
+      }
+      assertNotNull(expectationsField, "Contract must contain the expectations field");
+      Optional<JsonNode> logging = Optional.empty();
+      for (JsonNode expectation : expectationsField.get("availableExpectations")) {
+        if ("LOGGING".equals(expectation.path("expectation_type").asText())) {
+          logging = Optional.of(expectation);
+        }
+      }
+      assertEquals(flagOn, logging.isPresent());
+      logging.ifPresent(
+          expectation -> assertTrue(expectation.path("expectation_is_predefined").asBoolean()));
     }
   }
 
