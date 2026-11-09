@@ -152,6 +152,25 @@ public class ZipJsonService<T extends Base> {
       String suffix,
       String writeTenantId)
       throws IOException {
+    return handleImport(
+        fileBytes, nameAttributeKey, includeOptions, sanityCheck, suffix, writeTenantId, null);
+  }
+
+  /**
+   * Same as {@link #handleImport(byte[], String, IncludeOptions, Function, String, String)},
+   * restricted to the given JSON:API resource types (see {@link
+   * GenericJsonApiImporter#handleImportEntity(JsonApiDocument, IncludeOptions, Function, String,
+   * Set)}); {@code null} means no restriction.
+   */
+  public ImportOutput<T> handleImport(
+      byte[] fileBytes,
+      String nameAttributeKey,
+      IncludeOptions includeOptions,
+      Function<T, T> sanityCheck,
+      String suffix,
+      String writeTenantId,
+      Set<String> allowedTypes)
+      throws IOException {
     ParsedZip parsed = this.readZip(fileBytes);
     JsonApiDocument<ResourceObject> doc = parsed.getDocument();
 
@@ -162,10 +181,20 @@ public class ZipJsonService<T extends Base> {
       }
     }
 
-    importer.handleImportDocument(doc, parsed.extras, writeTenantId);
-    T persisted = importer.handleImportEntity(doc, includeOptions, sanityCheck, writeTenantId);
+    importer.handleImportDocument(doc, parsed.extras, writeTenantId, allowedTypes);
+    T persisted =
+        importer.handleImportEntity(doc, includeOptions, sanityCheck, writeTenantId, allowedTypes);
 
     return new ImportOutput<>(exporter.handleExport(persisted, includeOptions), persisted, doc);
+  }
+
+  /**
+   * Returns the {@code data.type} of the JSON:API document of the archive, read by the same routine
+   * as {@link #handleImport}, or {@code null} when the document has no data or no type.
+   */
+  public String readRootType(byte[] fileBytes) throws IOException {
+    JsonApiDocument<ResourceObject> doc = this.readZip(fileBytes).getDocument();
+    return doc.data() != null ? doc.data().type() : null;
   }
 
   private void addDocumentToExtras(Document doc, Map<String, byte[]> out, String owningTenantId) {
