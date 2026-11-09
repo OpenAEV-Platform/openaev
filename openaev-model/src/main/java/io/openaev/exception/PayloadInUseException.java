@@ -3,7 +3,7 @@ package io.openaev.exception;
 import java.util.List;
 
 /** Deleting this payload would also delete the injects that run it. */
-public class PayloadInUseException extends RuntimeException {
+public class PayloadInUseException extends ActionRefusedException {
 
   public static final int MAX_LISTED = 3;
 

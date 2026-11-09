@@ -1,7 +1,7 @@
 package io.openaev.exception;
 
 /** A payload version released by the catalogue is never changed nor deleted on the platform. */
-public class CatalogPayloadReadOnlyException extends RuntimeException {
+public class CatalogPayloadReadOnlyException extends ActionRefusedException {
 
   private CatalogPayloadReadOnlyException(String message) {
     super(message);
