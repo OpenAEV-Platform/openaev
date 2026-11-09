@@ -298,11 +298,21 @@ public interface UserRepository
   // Native: JPA only exposes FOR UPDATE (PESSIMISTIC_WRITE), which would block the inserts of rows
   // referencing the user (tags, tokens...); FOR NO KEY UPDATE does not. Unlike a no-op UPDATE it
   // writes no tuple and fires no UPDATE trigger. No entity is read or changed, so no listener,
-  // index or audit side effect is lost.
+  // index or audit side effect is lost. Enough for the writers that only replace rows of their own
+  // join table and never delete the account: nothing they decide on can be overtaken by an insert.
   @Query(
       value = "SELECT us.user_id FROM users us WHERE us.user_id = :userId FOR NO KEY UPDATE",
       nativeQuery = true)
   List<String> lockRow(@Param("userId") String userId);
+
+  // Native: JPA only exposes FOR UPDATE through a lock mode on a loaded entity, and no entity is
+  // read or changed here, so no listener, index or audit side effect is lost. Unlike lockRow, this
+  // lock conflicts with the FOR KEY SHARE that an insert into users_tenants takes. The delete of a
+  // player holds it, so a membership cannot be added after the check that decides the deletion.
+  @Query(
+      value = "SELECT us.user_id FROM users us WHERE us.user_id = :userId FOR UPDATE",
+      nativeQuery = true)
+  List<String> lockRowAgainstNewLinks(@Param("userId") String userId);
 
   // Native: a set-based delete scoped by tenant through a sub-query. It touches a join table that
   // is not indexed, audited nor streamed, so no session side effect is lost.

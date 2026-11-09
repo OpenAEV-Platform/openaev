@@ -300,8 +300,9 @@ public class PlayerService {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     BaseEvent.attributeRequestEventsTo(tenantId, User.class);
     // The deletes of one player from its tenants queue on its row, so the check on the memberships
-    // below reads what the previous one committed.
-    userRepository.lockRow(userId);
+    // below reads what the previous one committed. The lock also stops a membership from being
+    // added to the player until this transaction ends, so the account is not deleted under it.
+    userRepository.lockRowAgainstNewLinks(userId);
     userRepository.removeTeamsOfTenant(userId, tenantId);
     userRepository.removeSimulationTeamUsersOfTenant(userId, tenantId);
     userRepository.removeScenarioTeamUsersOfTenant(userId, tenantId);

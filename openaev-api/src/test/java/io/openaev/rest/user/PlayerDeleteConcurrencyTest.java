@@ -2,6 +2,7 @@ package io.openaev.rest.user;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -14,12 +15,15 @@ import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantUserService;
 import io.openaev.utils.fixtures.UserFixture;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -34,6 +38,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.PayloadApplicationEvent;
 import org.springframework.context.event.ApplicationEventMulticaster;
 import org.springframework.context.event.SmartApplicationListener;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -44,7 +49,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  * The rows are committed (each transaction has its own connection), in tenants seeded for the test
  * and removed after it. The player is deleted when no membership is left, so the check that decides
  * it must read the memberships once the other delete has finished: two deletes that each see the
- * other's membership would leave an account that belongs to no tenant.
+ * other's membership would leave an account that belongs to no tenant. The same holds against an
+ * attach of the player to another tenant: the account must not be deleted under a membership that
+ * was added after the check.
  */
 @DisplayName("Delete of one player from two tenants by concurrent transactions")
 class PlayerDeleteConcurrencyTest extends IntegrationTest {
@@ -64,6 +71,7 @@ class PlayerDeleteConcurrencyTest extends IntegrationTest {
   @Autowired private DataSource dataSource;
   @Autowired private ApplicationEventMulticaster eventMulticaster;
   @MockitoSpyBean private TenantUserService tenantUserService;
+  @MockitoSpyBean private UserService userService;
 
   private JdbcTemplate jdbc;
   private String tenantA;
@@ -195,6 +203,65 @@ class PlayerDeleteConcurrencyTest extends IntegrationTest {
       assertThat(memberships()).as("memberships left").isZero();
       assertThat(accounts()).as("accounts left").isZero();
       assertThat(deletionsOfThePlayer()).as("deletions published").isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("A player deleted from its last tenant while it is attached to another one")
+  class AttachedWhileDeleted {
+
+    /**
+     * Holds the delete once it has decided to delete the account (no membership left), until the
+     * attach has finished. When the attach cannot finish (it is held on the row of the player), the
+     * wait ends after {@link #MEETING_SECONDS} and the delete goes on.
+     */
+    private void holdTheAccountDeleteUntil(CountDownLatch attachFinished, CountDownLatch checked) {
+      doAnswer(
+              call -> {
+                checked.countDown();
+                attachFinished.await(MEETING_SECONDS, SECONDS);
+                return call.callRealMethod();
+              })
+          .when(userService)
+          .delete(anyString());
+    }
+
+    @Test
+    @DisplayName("given_attachAfterTheCheck_should_failCleanlyAndNotLoseAMembership")
+    void given_attachAfterTheCheck_should_failCleanlyAndNotLoseAMembership() throws Exception {
+      // Arrange: the player belongs to A only, and is attached to B while A deletes it
+      jdbc.update("DELETE FROM users_tenants WHERE user_id = ? AND tenant_id = ?", userId, tenantB);
+      CountDownLatch checked = new CountDownLatch(1);
+      CountDownLatch attachFinished = new CountDownLatch(1);
+      holdTheAccountDeleteUntil(attachFinished, checked);
+      ExecutorService pool = Executors.newFixedThreadPool(2);
+      try {
+        // Act
+        Future<?> delete = pool.submit(() -> deleteFrom(tenantA));
+        Future<?> attach =
+            pool.submit(
+                () -> {
+                  try {
+                    checked.await(60, SECONDS);
+                    tenantUserService.attachToTenant(userId, tenantB);
+                    return Boolean.TRUE;
+                  } finally {
+                    attachFinished.countDown();
+                  }
+                });
+        delete.get(60, SECONDS);
+
+        // Assert
+        assertThatThrownBy(() -> attach.get(60, SECONDS))
+            .as("the attach, held until the account is gone")
+            .isInstanceOf(ExecutionException.class)
+            .hasRootCauseInstanceOf(java.sql.SQLException.class)
+            .hasCauseInstanceOf(DataIntegrityViolationException.class);
+      } finally {
+        pool.shutdownNow();
+      }
+      assertThat(accounts()).as("accounts left").isZero();
+      assertThat(memberships()).as("memberships left").isZero();
     }
   }
 }
