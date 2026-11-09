@@ -886,8 +886,10 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
   }
 
   /**
-   * The callback holds the per-inject lock only once the caller has been let in: a refused call
-   * never takes it, and a served one still does, so the callbacks of one inject stay serialised.
+   * The order of the aspects of the agent callback is the lock of the inject, then the transaction,
+   * then the audit event, then the access check, then the tenant gate. A call waits for the lock of
+   * its inject before anything else, and the callbacks of one inject are serialised from the access
+   * check to the commit.
    */
   @Nested
   @WithMockUser
@@ -919,20 +921,19 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("is not taken by a refused callback")
-    void given_injectOutsideTheScope_should_refuseWhileTheLockIsHeldElsewhere() throws Exception {
+    @DisplayName("is waited for by a refused callback, which is then answered 403")
+    void given_injectOutsideTheScope_should_refuseOnceTheLockIsReleased() throws Exception {
       // Arrange: another thread holds the lock of the inject until the test releases it
       Seeded seeded = inTenant(otherTenant, InjectImplantTenantScopeTest.this::seed);
       moveAgentAndAssetTo(seeded, memberTenant);
 
-      // Act + Assert: the refusal comes back while the holder still holds
+      // Act + Assert: the gate runs under the lock, so the refusal comes once it is released
       withTheLockHeld(
           seeded,
           (request, holder) -> {
-            ResultActions result = request.get(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            holder.letGo();
 
-            assertThat(holder.isDone()).as("the holder still holds the lock").isFalse();
-            assertAgentAccessDenied(result);
+            assertAgentAccessDenied(request.get(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS));
           });
       assertThat(executionTraceCount(seeded.injectId())).isZero();
     }
@@ -971,11 +972,7 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
     }
 
     /** The thread holding the lock: it holds until released, or until the safety timeout. */
-    private record Holder(Future<?> done, CountDownLatch release) {
-      boolean isDone() {
-        return done.isDone();
-      }
-
+    private record Holder(CountDownLatch release) {
       void letGo() {
         release.countDown();
       }
@@ -991,14 +988,11 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
       CountDownLatch release = new CountDownLatch(1);
       ExecutorService threads = Executors.newFixedThreadPool(2);
       try {
-        Holder holder =
-            new Holder(
-                threads.submit(
-                    () -> {
-                      lockHolder.hold(seeded.injectId(), held, release);
-                      return null;
-                    }),
-                release);
+        threads.submit(
+            () -> {
+              lockHolder.hold(seeded.injectId(), held, release);
+              return null;
+            });
         assertThat(held.await(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
         Future<ResultActions> request =
             threads.submit(
@@ -1009,7 +1003,7 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
                   SecurityContextHolder.setContext(context);
                   return perform(Endpoint.CALLBACK, Route.PREFIXED, memberTenant, seeded);
                 });
-        scenario.run(request, holder);
+        scenario.run(request, new Holder(release));
       } finally {
         release.countDown();
         threads.shutdown();
