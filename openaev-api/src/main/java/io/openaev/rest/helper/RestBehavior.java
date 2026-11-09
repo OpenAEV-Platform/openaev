@@ -15,7 +15,7 @@ import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionException;
-import io.openaev.exception.PayloadInUseException;
+import io.openaev.exception.ActionRefusedException;
 import io.openaev.exception.UnknownEngineFieldException;
 import io.openaev.ratelimit.aop.RateLimitAspect;
 import io.openaev.ratelimit.exception.RateLimitedException;
@@ -526,8 +526,8 @@ public class RestBehavior {
 
   // Spring also matches this handler when the exception arrives wrapped in another one.
   @ResponseStatus(HttpStatus.BAD_REQUEST)
-  @ExceptionHandler(PayloadInUseException.class)
-  public ResponseEntity<ErrorMessage> handlePayloadInUseException(PayloadInUseException ex) {
+  @ExceptionHandler(ActionRefusedException.class)
+  public ResponseEntity<ErrorMessage> handleActionRefusedException(ActionRefusedException ex) {
     return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.BAD_REQUEST);
   }
 
