@@ -54,6 +54,26 @@ public class PayloadIdentity implements TenantBase, Auditable {
   @JoinColumn(name = "payload_collector_type")
   private CollectorType collectorType;
 
+  // -- CATALOGUE --
+
+  /** The catalogue repository that releases its versions; null for a local payload. */
+  @Column(name = "payload_identity_repository", updatable = false)
+  private String repository;
+
+  /** The catalogue version shown; null once uninstalled, when the catalogue offers it again. */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "payload_identity_latest_version")
+  @JsonIgnore
+  private Payload latestVersion;
+
+  public boolean isManaged() {
+    return repository != null;
+  }
+
+  public boolean isUninstalled() {
+    return isManaged() && latestVersion == null;
+  }
+
   // -- AUDIT --
 
   @Column(name = "payload_identity_created_at", updatable = false)
