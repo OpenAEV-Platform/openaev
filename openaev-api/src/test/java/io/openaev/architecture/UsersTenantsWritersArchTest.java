@@ -191,12 +191,14 @@ class UsersTenantsWritersArchTest {
 
   /**
    * A write statement, also one inside a CTE; a column named {@code user_updated_at} is not. The
-   * table of an UPDATE may carry an alias, with or without {@code AS}; the tables of an INSERT and
-   * of a DELETE are not read, so their aliases change nothing.
+   * table of an UPDATE may carry an alias, with or without {@code AS}; the tables of an INSERT, a
+   * DELETE and a MERGE are not read, so their aliases change nothing. A TRUNCATE is a write
+   * whatever tables it lists, since the caller already requires the statement to name {@code
+   * users_tenants}.
    */
   private static final Pattern WRITE_STATEMENT =
       Pattern.compile(
-          "\\binsert\\s+into\\b|\\bdelete\\s+from\\b"
+          "\\binsert\\s+into\\b|\\bdelete\\s+from\\b|\\bmerge\\s+into\\b|\\btruncate\\b"
               + "|\\bupdate\\s+\\S+(?:\\s+(?:as\\s+)?\\w+)?\\s+set\\b");
 
   private static final List<String> WRITES_OF_USERS_TENANTS =
@@ -209,13 +211,22 @@ class UsersTenantsWritersArchTest {
           "DELETE FROM users_tenants AS ut WHERE ut.user_id = :userId",
           "INSERT INTO users_tenants AS ut (user_id, tenant_id) VALUES (:userId, :tenantId)",
           "WITH moved AS (UPDATE users_tenants ut SET tenant_id = :t RETURNING user_id)"
-              + " SELECT * FROM moved");
+              + " SELECT * FROM moved",
+          "MERGE INTO users_tenants ut USING (SELECT :userId AS user_id) src"
+              + " ON ut.user_id = src.user_id WHEN NOT MATCHED THEN"
+              + " INSERT (user_id, tenant_id) VALUES (:userId, :tenantId)",
+          "merge into users_tenants as ut using users u on ut.user_id = u.user_id"
+              + " when matched then delete",
+          "TRUNCATE users_tenants",
+          "TRUNCATE TABLE ONLY users_tenants RESTART IDENTITY CASCADE",
+          "truncate table users, users_tenants");
 
   private static final List<String> READS_OF_USERS_TENANTS =
       List.of(
           "SELECT ut.tenant_id FROM users_tenants ut WHERE ut.user_id = :userId",
           "SELECT u.user_updated_at FROM users u JOIN users_tenants ut ON ut.user_id = u.user_id",
-          "SELECT * FROM users_tenants ut ORDER BY ut.user_id");
+          "SELECT * FROM users_tenants ut ORDER BY ut.user_id",
+          "SELECT ut.tenant_id, ut.truncated_at, ut.merge_into_id FROM users_tenants ut");
 
   @ArchTest
   static void the_writer_detection_reads_aliased_statements(JavaClasses classes) {
