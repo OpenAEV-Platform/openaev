@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
  * primary-key collision on roles holding both.
  */
 @Component
-public class V6_20261103154607067__Merge_marking_assignment_capabilities extends BaseJavaMigration {
+public class V6_20261109150217441__Merge_marking_assignment_capabilities extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {

@@ -58,35 +58,20 @@ public class AssetMarkingsService {
   private final BulkDeleteExecutor bulkDeleteExecutor;
 
   /**
-   * Replaces an asset's marking set.
+   * Replaces an asset's marking set, behind three guards: existence/tenant (a marking from another
+   * tenant never comes back, so a mismatch is a 404, not a silent partial write), escalation
+   * ({@link io.openaev.service.marking.MarkingEscalationValidator} refuses assigning a marking you
+   * don't hold, so "can write assets" never implies "can read every marked row"), and capability
+   * ({@code MANAGE_MARKING_ASSIGNMENT}, required unconditionally - the same upfront shape as {@link
+   * #bulkReplaceAssetMarkings} and {@code AssetService.bulkDeleteAssets}).
    *
-   * <p>Three guards, in this order:
+   * <p>No cache eviction here: the marking-set predicate re-reads the row on every query, only the
+   * clearance itself is cached, so evicting on a write would be a no-op that looks like protection.
+   * Eviction only matters when a clearance shrinks.
    *
-   * <ol>
-   *   <li><b>Existence and tenant.</b> {@code marking_definitions} is a tenant-active table, so the
-   *       statement inspector already restricts this read to the request scope: a marking from
-   *       another tenant simply does not come back, and the size check turns that into a 404 rather
-   *       than a silent partial assignment.
-   *   <li><b>Escalation.</b> {@link io.openaev.service.marking.MarkingEscalationValidator} — you
-   *       may not assign what you do not hold. Without it, "may write assets" would quietly mean
-   *       "may read every marked row".
-   *   <li><b>Capability, unconditionally.</b> {@code MANAGE_MARKING_ASSIGNMENT}, additive to the
-   *       asset's own {@code WRITE} control — same upfront shape as {@link
-   *       #bulkReplaceAssetMarkings} (and {@code AssetService.bulkDeleteAssets}), so the two paths
-   *       cannot drift apart.
-   * </ol>
-   *
-   * <p>🔴 <b>No cache eviction here, deliberately.</b> The rewritten predicate is {@code
-   * is_marking_set_allowed(marking_ids)} — the row's array is a function <i>argument</i>, re-read
-   * on every query; only the <i>clearance</i> lives in the cached GUC. Evicting on an asset write
-   * would be a no-op that <i>looks</i> like protection, which is worse than none: the next reader
-   * would assume a coverage that was never there. Eviction belongs only where a clearance shrinks
-   * (group membership, grant removal, definition delete, order lowered).
-   *
-   * <p><b>Self-lockout is impossible by construction</b>, which is why there is no separate check
-   * for it. The validator enforces {@code requested ⊆ your clearance}, and a row is visible iff
-   * {@code row_markings ⊆ clearance}; so the asset you just marked is still readable by you. The
-   * same guard that stops escalation stops the lockout.
+   * <p>Self-lockout is impossible by construction, not by a separate check: since {@code requested
+   * ⊆ clearance} and visibility is {@code row_markings ⊆ clearance}, the asset you just marked
+   * stays readable by you.
    *
    * @param tenantId the tenant whose clearance and capabilities the caller is checked against
    */
@@ -202,9 +187,7 @@ public class AssetMarkingsService {
 
     User currentUser = userService.currentUser();
     assertCanAssignMarkings(
-        markingClearanceCacheManager.findClearance(
-            currentUser.getId(), tenantId),
-        markings);
+        markingClearanceCacheManager.findClearance(currentUser.getId(), tenantId), markings);
     assertMarkingAssignmentCapability(tenantId, currentUser);
 
     List<String> assetIds = assetService.resolveBulkAssetIds(ctx, input);
