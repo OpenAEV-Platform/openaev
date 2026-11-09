@@ -1,8 +1,11 @@
 package io.openaev.service.chaining;
 
 import io.openaev.database.model.Step;
+import io.openaev.database.model.StepActionClass;
+import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.database.repository.StepRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +19,11 @@ import org.springframework.stereotype.Service;
  * to the workflow's simulation have been launched (i.e. have a tracking sent date) within a sliding
  * time window and compares against the configured maximum attempts. If the limit is reached,
  * further inject execution is denied until older launches fall outside the window.
+ *
+ * <p>An inject step readied but not yet run has no inject with a tracking sent date yet, so it is
+ * counted from the READY inject-execution steps of the run: otherwise a step readied in one
+ * evaluation cycle and still queued at the next one was invisible to the limit, and the engine
+ * could admit more than the configured maximum.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -23,6 +31,7 @@ import org.springframework.stereotype.Service;
 public class SimulationRateLimitService {
 
   private final InjectStatusRepository injectStatusRepository;
+  private final StepRepository stepRepository;
   private final StepDelayQueueService stepDelayQueueService;
 
   /**
@@ -30,8 +39,8 @@ public class SimulationRateLimitService {
    * rate limit configuration.
    *
    * @param workflowRun the workflow run to evaluate
-   * @param pendingCount number of steps already scheduled in the current evaluation cycle but not
-   *     yet reflected in the database (e.g. READY steps just created in the same loop)
+   * @param pendingCount number of batches accepted in the current call but not yet saved as READY
+   *     steps (a saved READY step is counted from the database)
    * @return {@code true} if execution is allowed, {@code false} if the rate limit has been reached
    */
   public boolean isExecutionAllowed(Workflow workflowRun, int pendingCount) {
@@ -50,16 +59,23 @@ public class SimulationRateLimitService {
         Instant.now().minus(workflowRun.getMaxTemporalRateSeconds(), ChronoUnit.SECONDS);
     String simulationId = workflowRun.getSimulation().getId();
 
+    long readiedNotRun =
+        stepRepository.countByWorkflowRunAndStatusAndAction(
+            workflowRun.getId(), StepStatus.READY, StepActionClass.INJECT_EXECUTION);
     long count =
-        injectStatusRepository.countLaunchedInjectsSince(simulationId, since) + pendingCount;
+        injectStatusRepository.countLaunchedInjectsSince(simulationId, since)
+            + readiedNotRun
+            + pendingCount;
 
     if (count >= workflowRun.getMaxAttempts()) {
       log.info(
-          "[Chaining] Rate limit reached for workflow {} ({}/{} in {}s window, including {} pending)",
+          "[Chaining] Rate limit reached for workflow {} ({}/{} in {}s window, including {} readied"
+              + " not run and {} pending)",
           workflowRun.getId(),
           count,
           workflowRun.getMaxAttempts(),
           workflowRun.getMaxTemporalRateSeconds(),
+          readiedNotRun,
           pendingCount);
       return false;
     }
