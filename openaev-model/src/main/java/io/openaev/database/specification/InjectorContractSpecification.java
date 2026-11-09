@@ -3,6 +3,7 @@ package io.openaev.database.specification;
 import io.openaev.database.model.*;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -21,6 +22,28 @@ public class InjectorContractSpecification {
     return (root, query, cb) -> {
       Join<Object, Object> payload = root.join("payload", JoinType.LEFT);
       return cb.equal(payload.get("id"), payloadId);
+    };
+  }
+
+  /**
+   * Keeps one copy of each contract id: the copy in the lowest tenant id of the request's scope. A
+   * built-in contract id repeats in every tenant that registers its injector, so a scope of several
+   * tenants reads the same id once per tenant; with this specification a search, its total and its
+   * facet counts read it once. The other copies are looked up through the same scope, so a scope of
+   * one tenant keeps every row.
+   */
+  public static Specification<InjectorContract> onePerContractId() {
+    return (root, query, cb) -> {
+      Subquery<Integer> lowerCopy = query.subquery(Integer.class);
+      Root<InjectorContract> other = lowerCopy.from(InjectorContract.class);
+      lowerCopy
+          .select(cb.literal(1))
+          .where(
+              cb.equal(other.get("compositeId").get("id"), root.get("compositeId").get("id")),
+              cb.lessThan(
+                  other.get("compositeId").<String>get("tenantId"),
+                  root.get("compositeId").<String>get("tenantId")));
+      return cb.not(cb.exists(lowerCopy));
     };
   }
 

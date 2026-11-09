@@ -230,9 +230,10 @@ public class InjectorContractService implements DependenciesManager {
     Root<InjectorContract> injectorContractRoot = cq.from(InjectorContract.class);
     selector.apply(cb, cq, injectorContractRoot);
 
-    // Always apply access spec
+    // Always apply access spec, and read a contract id repeated across the scope's tenants once
     Specification<InjectorContract> accessSpec =
-        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser())
+            .and(InjectorContractSpecification.onePerContractId());
 
     Specification<InjectorContract> combinedSpec =
         (specification == null ? accessSpec : specification.and(accessSpec));
@@ -1159,7 +1160,8 @@ public class InjectorContractService implements DependenciesManager {
     Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
     Specification<InjectorContract> accessSpec =
-        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser())
+            .and(InjectorContractSpecification.onePerContractId());
     return Specification.<InjectorContract>unrestricted()
         .and(filterSpec)
         .and(searchSpec)
