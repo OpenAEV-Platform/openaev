@@ -16,10 +16,13 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.PlayerFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
@@ -59,8 +62,9 @@ import org.springframework.transaction.annotation.Transactional;
  * </ul>
  *
  * <p>The player update ({@code PUT /api/players/{id}}) writes no membership row but resolves its
- * write tenant the same way, to assign the organization: it is pinned for the two refused shapes
- * only, with the profile of the player left as it was.
+ * write tenant the same way, to assign the organization, and is pinned for all four shapes: the
+ * organization link it writes is the one of the tenant of the first two, and a refused update
+ * leaves the profile of the player as it was.
  *
  * <p>Dropping the annotation from one handler turns the first two shapes of that handler into a
  * different outcome (a single-tenant caller keeps working, a two-tenant one gets a 400), so each
@@ -83,6 +87,7 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private UserComposer userComposer;
+  @Autowired private OrganizationRepository organizationRepository;
 
   /** The three handlers that create a membership, each with its own request body. */
   private enum Creator {
@@ -173,10 +178,34 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
     return List.of(tenantIds).stream().sorted().toList();
   }
 
+  private Organization organizationIn(String tenantId) {
+    Organization organization = OrganizationFixture.createDefaultOrganisation();
+    organization.setTenant(new Tenant(tenantId));
+    return organizationRepository.save(organization);
+  }
+
+  /** The ids of the organizations the user is linked to, whatever their tenant. */
+  @SuppressWarnings("unchecked")
+  private List<String> organizationsOf(User player) {
+    entityManager.flush();
+    return entityManager
+        .createNativeQuery(
+            "SELECT organization_id FROM users_organizations WHERE user_id = :id"
+                + " ORDER BY organization_id")
+        .setParameter("id", player.getId())
+        .getResultList();
+  }
+
   /** The player update the caller sends, renaming the player. */
   private MockHttpServletRequestBuilder playerUpdate(User player) {
+    return playerUpdate(player, null);
+  }
+
+  /** The same update, assigning the organization of the given id. */
+  private MockHttpServletRequestBuilder playerUpdate(User player, String organizationId) {
     PlayerInput input = playerInput(player.getEmail());
     input.setFirstname("Changed-" + UUID.randomUUID());
+    input.setOrganizationId(organizationId);
     return put(PLAYER_URI + "/" + player.getId())
         .content(asJsonString(input))
         .contentType(MediaType.APPLICATION_JSON)
@@ -212,6 +241,23 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
 
       // -- ASSERT --
       assertEquals(List.of(tenant), membershipTenantsOf(email));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player update assigns the organization of the caller's own tenant")
+    void given_singleTenantCaller_should_updateThePlayerInItsOwnTenant() throws Exception {
+      // -- PREPARE --
+      String tenant = tenantIsolationHelper.createTenantWithCurrentUser("noselector-solo").getId();
+      Organization organizationOfTenant = organizationIn(tenant);
+      User player = memberOf(tenant);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(playerUpdate(player, organizationOfTenant.getId()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(List.of(organizationOfTenant.getId()), organizationsOf(player));
     }
 
     @Test
@@ -256,6 +302,25 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
 
       // -- ASSERT --
       assertEquals(List.of(DEFAULT_TENANT), membershipTenantsOf(email));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player update assigns the organization of the default tenant")
+    void given_callerOfDefaultAndB_should_updateThePlayerInTheDefaultTenant() throws Exception {
+      // -- PREPARE --
+      tenantIsolationHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String tenantB =
+          tenantIsolationHelper.createTenantWithCurrentUser("noselector-default-and-b").getId();
+      Organization organizationOfDefault = organizationIn(DEFAULT_TENANT);
+      User player = memberOf(DEFAULT_TENANT, tenantB);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(playerUpdate(player, organizationOfDefault.getId()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(List.of(organizationOfDefault.getId()), organizationsOf(player));
     }
 
     @Test
