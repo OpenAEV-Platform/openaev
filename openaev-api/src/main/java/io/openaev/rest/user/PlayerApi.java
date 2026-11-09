@@ -12,7 +12,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.raw.RawPlayer;
 import io.openaev.database.repository.*;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.user.form.player.PlayerBulkProcessingInput;
@@ -135,8 +134,8 @@ public class PlayerApi extends RestBehavior {
       resourceId = "#userId",
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.PLAYER)
-  public void deletePlayer(TxCtx ctx, @PathVariable String userId) {
-    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+  public void deletePlayer(@RequireTenantSelector TxCtx ctx, @PathVariable String userId) {
+    User user = playerService.findPlayerOfWriteTenant(ctx, userId);
     // Mirror the bulk deletion guards: platform administrator accounts and the
     // current user can never be removed through the players API.
     if (user.isAdmin()) {
@@ -146,7 +145,7 @@ public class PlayerApi extends RestBehavior {
     if (user.getId().equals(userService.currentUser().getId())) {
       throw new ForbiddenException("You cannot delete your own account");
     }
-    userService.delete(userId);
+    playerService.detachPlayer(ctx, userId);
   }
 
   @ApiResponses(
@@ -162,7 +161,7 @@ public class PlayerApi extends RestBehavior {
   @Transactional(propagation = Propagation.SUPPORTS)
   @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.PLAYER)
   public List<String> bulkDeletePlayers(
-      TxCtx ctx, @RequestBody @Valid final PlayerBulkProcessingInput input) {
+      @RequireTenantSelector TxCtx ctx, @RequestBody @Valid final PlayerBulkProcessingInput input) {
     return playerService.bulkDeletePlayers(ctx, input);
   }
 

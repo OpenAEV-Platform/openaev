@@ -409,6 +409,27 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
       assertEquals(firstname, firstnameOf(player));
       assertEquals(sorted(tenantB, tenantC), membershipTenantsOf(player.getEmail()));
     }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player delete is refused with TENANT_SELECTOR_REQUIRED and removes nothing")
+    void given_callerOfBAndC_should_refuseThePlayerDelete() throws Exception {
+      // -- PREPARE --
+      String tenantB = tenantIsolationHelper.createTenantWithCurrentUser("noselector-b").getId();
+      String tenantC = tenantIsolationHelper.createTenantWithCurrentUser("noselector-c").getId();
+      User player = memberOf(tenantB, tenantC);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(
+              delete(PLAYER_URI + "/" + player.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_SELECTOR_REQUIRED"));
+      assertEquals(sorted(tenantB, tenantC), membershipTenantsOf(player.getEmail()));
+    }
   }
 
   @Nested

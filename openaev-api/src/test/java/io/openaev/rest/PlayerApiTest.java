@@ -981,15 +981,17 @@ class PlayerApiTest extends IntegrationTest {
         .andExpect(status().isForbidden());
   }
 
-  @DisplayName("Given valid player ID, should delete player successfully")
+  @DisplayName("Given a player of the tenant, should remove it from that tenant")
   @Test
-  @WithMockUser(isAdmin = true)
-  void given_validPlayerId_should_deletePlayerSuccessfully() throws Exception {
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void given_playerOfTheTenant_should_removeItFromTheTenant() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
     User user = new User();
     user.setUpdateAttributes(playerInput);
     user = userRepository.save(user);
+    // A player is deleted in the tenant of the request, which it must belong to.
+    tenantRepository.addUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
 
     // -- EXECUTE --
     mvc.perform(
@@ -997,18 +999,16 @@ class PlayerApiTest extends IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
-        .andExpect(status().is2xxSuccessful())
-        .andReturn()
-        .getResponse()
-        .getContentAsString();
+        .andExpect(status().is2xxSuccessful());
 
     // -- ASSERT --
-    assertTrue(this.userRepository.findById(user.getId()).isEmpty());
+    assertTrue(this.userRepository.findById(user.getId()).isPresent());
+    assertTrue(this.userRepository.findTenantIdsByUserId(user.getId()).isEmpty());
   }
 
   @DisplayName("Given non-existing player ID, when deleting, then return 400")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void givenNonExistingPlayerId_whenDelete_thenReturnNoContent() throws Exception {
     // -- PREPARE --
     String nonExistingPlayerId = "nonexistent-id";

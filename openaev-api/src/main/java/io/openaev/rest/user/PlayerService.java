@@ -93,6 +93,7 @@ public class PlayerService {
           "Either user_ids_to_process or search_pagination_input must be provided, and not both at the same time");
     }
     String currentUserId = userService.currentUser().getId();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     List<String> userIdsToDelete =
         bulkDeleteExecutor.resolveInTransaction(
             ctx,
@@ -108,12 +109,10 @@ public class PlayerService {
               } else {
                 specification = SpecificationUtils.hasIdIn(input.getUserIdsToProcess());
               }
-              // Users are a platform-level (dual-scope) entity: scope explicitly to the current
-              // tenant, like the players list search does.
+              // Users are a platform-level (dual-scope) entity: scope explicitly to the tenant the
+              // request writes in, the one the players are removed from.
               specification =
-                  specification
-                      .and(inTenant(TenantContext.getCurrentTenant()))
-                      .and(organizationsInTenant(TenantContext.getCurrentTenant()));
+                  specification.and(inTenant(tenantId)).and(organizationsInTenant(tenantId));
               if (!CollectionUtils.isEmpty(input.getUserIdsToIgnore())) {
                 List<String> idsToIgnore = input.getUserIdsToIgnore();
                 specification =
@@ -130,7 +129,7 @@ public class PlayerService {
                   .toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
-        ctx, "players", userIdsToDelete, chunk -> chunk.forEach(userService::delete));
+        ctx, "players", userIdsToDelete, chunk -> chunk.forEach(id -> detachPlayer(ctx, id)));
   }
 
   public Page<PlayerOutput> playerPagination(@NotNull SearchPaginationInput searchPaginationInput) {
@@ -263,8 +262,8 @@ public class PlayerService {
   }
 
   /**
-   * The player to update: a member of the tenant the request writes in, so that a player of other
-   * tenants only is not found.
+   * The player a write addresses: a member of the tenant the request writes in, so that a player of
+   * other tenants only is not found.
    *
    * @throws ElementNotFoundException when the player does not exist or is not in that tenant
    */
@@ -273,6 +272,15 @@ public class PlayerService {
     return userRepository
         .findOne(inTenant(tenantId).and(byId(userId)))
         .orElseThrow(ElementNotFoundException::new);
+  }
+
+  /**
+   * Removes a player from the tenant the request writes in, as the tenant user endpoint does: its
+   * membership of that tenant and the groups that membership granted go, the user and its
+   * memberships of other tenants stay.
+   */
+  public void detachPlayer(TxCtx ctx, String userId) {
+    tenantUserService.detach(ctx, userId);
   }
 
   /**
