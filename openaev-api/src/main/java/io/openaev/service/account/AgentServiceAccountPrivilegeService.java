@@ -92,7 +92,7 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
 
   @Transactional(readOnly = true)
   public String getTokenUserServiceAccountByTenant(String tenantId) {
-    return findTokenUserServiceAccountByTenant(tenantId)
+    return findToken(tenantId)
         .orElseThrow(() -> new UnsupportedOperationException("Token not found"));
   }
 
@@ -106,6 +106,10 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
    */
   @Transactional(readOnly = true)
   public Optional<String> findTokenUserServiceAccountByTenant(String tenantId) {
+    return findToken(tenantId);
+  }
+
+  private Optional<String> findToken(String tenantId) {
     return getUserServiceAccountByTenant(tenantId)
         .map(User::getTokens)
         .filter(tokens -> !tokens.isEmpty())
