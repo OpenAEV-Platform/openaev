@@ -4,10 +4,17 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.integration.impl.executors.caldera.CalderaExecutorIntegration.CALDERA_EXECUTOR_NAME;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.ee.EnterpriseEditionService;
@@ -68,6 +75,10 @@ public class CalderaExecutorIntegrationTest {
   @Autowired private CatalogConnectorService catalogConnectorService;
   @Autowired private CatalogConnectorRepository catalogConnectorRepository;
   @Autowired private ConnectorInstanceService connectorInstanceService;
+
+  @Autowired
+  private io.openaev.database.repository.ConnectorInstanceRepository connectorInstanceRepository;
+
   @Autowired private CalderaExecutorConfig calderaExecutorConfig;
   @Autowired private EncryptionFactory encryptionFactory;
   @Autowired private BaseIntegrationConfigurationBuilder baseIntegrationConfigurationBuilder;
@@ -81,6 +92,10 @@ public class CalderaExecutorIntegrationTest {
   @Autowired private TenantScopedTransaction tenantTx;
 
   private CalderaExecutorIntegrationFactory getFactory() {
+    return getFactory(tenantTx);
+  }
+
+  private CalderaExecutorIntegrationFactory getFactory(TenantScopedTransaction transactions) {
     return new CalderaExecutorIntegrationFactory(
         connectorInstanceService,
         catalogConnectorService,
@@ -95,7 +110,7 @@ public class CalderaExecutorIntegrationTest {
         fileService,
         baseIntegrationConfigurationBuilder,
         httpClientFactory,
-        tenantTx);
+        transactions);
   }
 
   @Test
@@ -136,6 +151,65 @@ public class CalderaExecutorIntegrationTest {
             integration ->
                 assertThat(integration.getCurrentStatus())
                     .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped));
+  }
+
+  @Test
+  @DisplayName(
+      "When the instance has disappeared, stopping the integration clears the banner inside the"
+          + " caller's transaction")
+  public void given_instanceGone_should_stopWithoutRefusingThePlatformWrite() throws Exception {
+    // Arrange: a synced integration whose instance is then deleted
+    IntegrationFactory integrationFactory = getFactory();
+    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    List<ConnectorInstancePersisted> instances =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
+    instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instances.getFirst());
+    Integration integration = integrationFactory.sync(new ArrayList<>(instances)).getFirst();
+    // The integration has started: it holds the source under which it reports to the banner
+    org.springframework.test.util.ReflectionTestUtils.setField(
+        integration, "bannerSource", "tenant.executor");
+    connectorInstanceRepository.deleteById(instances.getFirst().getId());
+
+    // Act + Assert: Integration.initialise() stops on a missing instance, in the transaction the
+    // monitoring job already opened; the banner write opens its own platform-write transaction
+    // there instead of refusing to nest
+    org.junit.jupiter.api.Assertions.assertDoesNotThrow(integration::initialise);
+  }
+
+  @Test
+  @DisplayName(
+      "When the instance has disappeared and the banner write fails, stopping the integration"
+          + " still succeeds, and the write is not made on the caller's connection")
+  public void given_bannerWriteFails_should_stillStopTheIntegration() throws Exception {
+    // Arrange: the same integration, with a transaction primitive that refuses every write
+    TenantScopedTransaction refusing = mock(TenantScopedTransaction.class);
+    doThrow(new IllegalStateException("write refused"))
+        .when(refusing)
+        .executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+    IntegrationFactory integrationFactory = getFactory(refusing);
+    integrationFactory.initialise(Tenant.DEFAULT_TENANT_UUID);
+    List<CatalogConnector> connectors = fromIterable(catalogConnectorRepository.findAll());
+    List<ConnectorInstancePersisted> instances =
+        connectorInstanceService.findAllByCatalogConnector(connectors.getFirst());
+    instances.getFirst().setRequestedStatus(ConnectorInstance.REQUESTED_STATUS_TYPE.stopping);
+    connectorInstanceService.save(instances.getFirst());
+    Integration integration = integrationFactory.sync(new ArrayList<>(instances)).getFirst();
+    // The integration has started: it holds the source under which it reports to the banner
+    org.springframework.test.util.ReflectionTestUtils.setField(
+        integration, "bannerSource", "tenant.executor");
+    connectorInstanceRepository.deleteById(instances.getFirst().getId());
+
+    // Act: this test holds a transaction, as the monitoring job does
+    org.junit.jupiter.api.Assertions.assertDoesNotThrow(integration::initialise);
+
+    // Assert: the write is attempted on the scheduler, in a transaction of its own, never nested
+    // in the caller's
+    verify(refusing, timeout(10_000)).executeAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+    verify(refusing, never()).executeNewAsPlatformWrite(any(TxCtx.class), any(Runnable.class));
+    assertThat(integration.getCurrentStatus())
+        .isEqualTo(ConnectorInstance.CURRENT_STATUS_TYPE.stopped);
   }
 
   @Test
