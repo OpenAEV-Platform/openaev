@@ -4,6 +4,7 @@ import static io.openaev.rest.inject.InjectApi.INJECT_URI;
 import static io.openaev.rest.inject.InjectApi.TENANT_INJECT_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -51,8 +52,9 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
@@ -71,6 +73,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -565,8 +570,12 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
     private String memberTenant;
     private String otherTenant;
 
+    /** Taken before any request: a request clears the security context of the test thread. */
+    private Authentication callerAuthentication;
+
     @BeforeEach
     void createTenants() throws Exception {
+      callerAuthentication = SecurityContextHolder.getContext().getAuthentication();
       memberTenant =
           tenantHelper
               .createTenantWithCapabilities("implant-lock", Set.of(Capability.AGENT_RUNTIME_ACCESS))
@@ -585,15 +594,19 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
     @Test
     @DisplayName("is not taken by a refused callback")
     void given_injectOutsideTheScope_should_refuseWhileTheLockIsHeldElsewhere() throws Exception {
-      // Arrange: another thread holds the lock of the inject for the whole request
+      // Arrange: another thread holds the lock of the inject until the test releases it
       Seeded seeded = inTenant(otherTenant, InjectImplantTenantScopeTest.this::seed);
       moveAgentAndAssetTo(seeded, memberTenant);
 
-      // Act: a request that waited for the lock would only return once the holder had left it
-      boolean heldWhenAnswered = holdingTheLockWhileAnswering(seeded, memberTenant);
+      // Act + Assert: the refusal comes back while the holder still holds
+      withTheLockHeld(
+          seeded,
+          (request, holder) -> {
+            ResultActions result = request.get(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-      // Assert
-      assertThat(heldWhenAnswered).as("the refusal came back while the lock was held").isTrue();
+            assertThat(holder.isDone()).as("the holder still holds the lock").isFalse();
+            assertAgentAccessDenied(result);
+          });
       assertThat(executionTraceCount(seeded.injectId())).isZero();
     }
 
@@ -602,57 +615,94 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
     void given_injectInTheScope_should_waitForTheLockOfTheInject() throws Exception {
       // Arrange
       Seeded seeded = inTenant(memberTenant, InjectImplantTenantScopeTest.this::seed);
+      // A first callback, on another inject, loads the classes and caches the held one will use,
+      // so that only the lock can keep the next one from completing within the short wait
+      Seeded warmUp = inTenant(memberTenant, InjectImplantTenantScopeTest.this::seed);
+      perform(Endpoint.CALLBACK, Route.PREFIXED, memberTenant, warmUp).andExpect(status().isOk());
 
-      // Act
-      boolean heldWhenAnswered = holdingTheLockWhileAnswering(seeded, memberTenant);
+      // Act + Assert: the callback does not complete while the lock is held, then does once
+      // it is released. A short wait can only miss a late completion, never invent one.
+      withTheLockHeld(
+          seeded,
+          (request, holder) -> {
+            assertThatThrownBy(() -> request.get(SHORT_WAIT_MILLIS, TimeUnit.MILLISECONDS))
+                .as("the served callback waits for the lock")
+                .isInstanceOf(TimeoutException.class);
+            assertThat(executionTraceCount(seeded.injectId())).isZero();
 
-      // Assert: the callback only ran after the holder had left the lock
-      assertThat(heldWhenAnswered).as("the served callback waited for the lock").isFalse();
+            holder.letGo();
+
+            request.get(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS).andExpect(status().isOk());
+          });
       assertThat(executionTraceCount(seeded.injectId())).isPositive();
     }
 
+    /** The test body, given the callback request in flight and the holder of the lock. */
+    @FunctionalInterface
+    private interface LockedScenario {
+      void run(Future<ResultActions> request, Holder holder) throws Exception;
+    }
+
+    /** The thread holding the lock: it holds until released, or until the safety timeout. */
+    private record Holder(Future<?> done, CountDownLatch release) {
+      boolean isDone() {
+        return done.isDone();
+      }
+
+      void letGo() {
+        release.countDown();
+      }
+    }
+
     /**
-     * Whether the lock of the inject was still held by the other thread when the callback of the
-     * agent was answered. The holder gives the lock up after a few seconds, so a call that needs it
-     * is delayed, never blocked for good.
+     * Holds the lock of the inject on another thread, sends the agent callback on a third one, and
+     * runs the scenario. The lock is released at the end whatever happens; the safety timeout of
+     * the holder only turns a broken lock order into a failure rather than a hang.
      */
-    private boolean holdingTheLockWhileAnswering(Seeded seeded, String callerTenant)
-        throws Exception {
+    private void withTheLockHeld(Seeded seeded, LockedScenario scenario) throws Exception {
       CountDownLatch held = new CountDownLatch(1);
-      AtomicBoolean stillHolding = new AtomicBoolean();
-      ExecutorService holder = Executors.newSingleThreadExecutor();
+      CountDownLatch release = new CountDownLatch(1);
+      ExecutorService threads = Executors.newFixedThreadPool(2);
       try {
-        holder.submit(
-            () -> {
-              lockHolder.hold(seeded.injectId(), held, stillHolding);
-              return null;
-            });
-        assertThat(held.await(30, TimeUnit.SECONDS)).isTrue();
-
-        perform(Endpoint.CALLBACK, Route.PREFIXED, callerTenant, seeded);
-
-        return stillHolding.get();
+        Holder holder =
+            new Holder(
+                threads.submit(
+                    () -> {
+                      lockHolder.hold(seeded.injectId(), held, release);
+                      return null;
+                    }),
+                release);
+        assertThat(held.await(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
+        Future<ResultActions> request =
+            threads.submit(
+                () -> {
+                  // The security context of the test user is thread-bound
+                  SecurityContext context = SecurityContextHolder.createEmptyContext();
+                  context.setAuthentication(callerAuthentication);
+                  SecurityContextHolder.setContext(context);
+                  return perform(Endpoint.CALLBACK, Route.PREFIXED, memberTenant, seeded);
+                });
+        scenario.run(request, holder);
       } finally {
-        holder.shutdown();
-        assertThat(holder.awaitTermination(30, TimeUnit.SECONDS)).isTrue();
+        release.countDown();
+        threads.shutdown();
+        assertThat(threads.awaitTermination(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
       }
     }
   }
 
-  /** A bean that holds the per-inject lock of the callback, the way the endpoint takes it. */
+  private static final long CALL_TIMEOUT_SECONDS = 30;
+  private static final long SHORT_WAIT_MILLIS = 5000;
+
+  /** A bean that holds the per-inject lock of the callback, the way the service takes it. */
   static class LockHolder {
-    private static final long HOLD_SECONDS = 3;
+    private static final long SAFETY_TIMEOUT_SECONDS = 60;
 
     @Lock(type = LockResourceType.INJECT, key = "#injectId")
-    public void hold(String injectId, CountDownLatch held, AtomicBoolean stillHolding)
+    public void hold(String injectId, CountDownLatch held, CountDownLatch release)
         throws InterruptedException {
-      stillHolding.set(true);
       held.countDown();
-      try {
-        Thread.sleep(TimeUnit.SECONDS.toMillis(HOLD_SECONDS));
-      } finally {
-        stillHolding.set(false);
-      }
+      release.await(SAFETY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
   }
 
