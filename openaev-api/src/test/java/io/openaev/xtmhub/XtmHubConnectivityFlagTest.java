@@ -106,7 +106,10 @@ class XtmHubConnectivityFlagTest extends IntegrationTest {
     registration.setTenant(tenant);
     registrationRepository.save(registration);
     when(xtmHubClient.refreshRegistrationStatusAllTenants(any(), any(), any(), any()))
-        .thenReturn(Map.of(tenant.getId(), XtmHubConnectivityStatus.ACTIVE));
+        .thenReturn(
+            Map.of(
+                tenant.getId(),
+                new XtmHubConnectivityResult(XtmHubConnectivityStatus.ACTIVE, null)));
 
     // Act: the scheduled run, with no request and no transaction around it
     xtmHubService.refreshConnectivityAllTenants();
