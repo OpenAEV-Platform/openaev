@@ -7,7 +7,6 @@ import jakarta.persistence.PreRemove;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Component;
 
 /**
@@ -18,8 +17,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PayloadDeleteGuard {
 
-  private static final String ATOMIC_TESTING = "atomic testing";
-
   // Provider: the repository needs the entity manager factory, which builds this listener.
   private final ObjectProvider<PayloadRepository> payloadRepository;
 
@@ -28,11 +25,7 @@ public class PayloadDeleteGuard {
     List<String> usages =
         payloadRepository
             .getObject()
-            .findUsageNamesByPayloadId(
-                payload.getId(), Limit.of(PayloadInUseException.MAX_LISTED + 1))
-            .stream()
-            .map(name -> name != null ? name : ATOMIC_TESTING)
-            .toList();
+            .findUsageNamesByPayloadId(payload.getId(), PayloadInUseException.READ);
     if (!usages.isEmpty()) {
       throw new PayloadInUseException(usages);
     }
