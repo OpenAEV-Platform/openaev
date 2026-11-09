@@ -1,4 +1,4 @@
-package io.openaev.rest.user;
+package io.openaev.api.users.dto;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -67,7 +67,7 @@ class UserResponseViewTest {
       }
 
       // -- EXECUTE --
-      User view = user.responseViewFor(TENANT_ID);
+      User view = UserMapper.toResponseView(user, TENANT_ID);
 
       // -- ASSERT --
       assertNotSame(user, view);
@@ -94,7 +94,7 @@ class UserResponseViewTest {
       tenantField.setAccessible(true);
 
       // -- EXECUTE --
-      User view = user.responseViewFor(TENANT_ID);
+      User view = UserMapper.toResponseView(user, TENANT_ID);
 
       // -- ASSERT --
       assertNull(tenantField.get(user));

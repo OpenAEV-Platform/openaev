@@ -15,6 +15,7 @@ import static io.openaev.utils.pagination.SortUtilsCriteriaBuilder.toSortCriteri
 import static java.time.Instant.now;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.users.dto.UserMapper;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -345,7 +346,7 @@ public class PlayerService {
    * for the consumers of every tenant.
    */
   private User forTenant(User user, String tenantId) {
-    return user.responseViewFor(tenantId);
+    return UserMapper.toResponseView(user, tenantId);
   }
 
   /**
