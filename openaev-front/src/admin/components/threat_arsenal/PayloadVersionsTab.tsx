@@ -1,7 +1,7 @@
 import { Button, Checkbox, Chip, Spinner, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-// fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX — no Pagination / TablePagination either (DS 1.4.0)
-import { Alert, Box, Collapse, Pagination, Skeleton, Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
+// fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
+import { Alert, Box, Collapse, Skeleton, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { type FunctionComponent, type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { installCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
@@ -12,6 +12,7 @@ import {
 } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
 import { SkeletonRows } from '../../../components/common/content_versions/ContentVersionsTable';
 import { FDS_GROUP_ROW_STYLE, FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../../../components/common/fdsTableSpec';
+import { FdsPaginationRow } from '../../../components/common/pagination/FdsPagination';
 import { useFormatter } from '../../../components/i18n';
 import {
   type PayloadUsageOutput,
@@ -217,17 +218,13 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
           </Table>
         )}
         {usages.length > USAGES_PER_PAGE_OPTIONS[0] && (
-          <TablePagination
-            component="div"
+          <FdsPaginationRow
             count={usages.length}
             page={page}
-            onPageChange={(_, newPage) => setPage(newPage)}
+            onPageChange={setPage}
             rowsPerPage={rowsPerPage}
             rowsPerPageOptions={USAGES_PER_PAGE_OPTIONS}
-            onRowsPerPageChange={(event) => {
-              setRowsPerPage(parseInt(event.target.value, 10));
-              setPage(0);
-            }}
+            onRowsPerPageChange={setRowsPerPage}
           />
         )}
         {canMigrate && usages.length > 0 && (
@@ -393,15 +390,12 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
         </div>
       )}
       {pageCount > 1 && (
-        <Pagination
-          count={pageCount}
-          page={page}
-          onChange={(_, newPage) => setPage(newPage)}
-          size="small"
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-          }}
+        // Versions are counted per page of VERSIONS_PER_PAGE; this list's page is one-based.
+        <FdsPaginationRow
+          count={listed.length}
+          page={page - 1}
+          onPageChange={next => setPage(next + 1)}
+          rowsPerPage={VERSIONS_PER_PAGE}
         />
       )}
     </div>
