@@ -360,7 +360,7 @@ const Injects: FunctionComponent<Props> = ({
           firstIndex++;
         }
         const forcedRemove = Object.values(selectedElements).filter(
-          (n: Inject) => !entities.map(o => o.inject_id).includes(n.inject_id),
+          (n: InjectOutputType) => !entities.map(o => o.inject_id).includes(n.inject_id),
         );
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-expect-error
@@ -373,7 +373,7 @@ const Injects: FunctionComponent<Props> = ({
         firstIndex--;
       }
       const forcedRemove = Object.values(selectedElements).filter(
-        (n: Inject) => !entities.map(o => o.inject_id).includes(n.inject_id),
+        (n: InjectOutputType) => !entities.map(o => o.inject_id).includes(n.inject_id),
       );
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-expect-error
