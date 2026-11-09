@@ -88,6 +88,18 @@ public class InjectMapper {
         .recurrence(inject.getRecurrence())
         .recurrenceStart(inject.getRecurrenceStart())
         .recurrenceEnd(inject.getRecurrenceEnd())
+        .launchedBy(toUserSimple(inject.getLaunchedBy()))
+        .build();
+  }
+
+  private UserSimple toUserSimple(User user) {
+    if (user == null) {
+      return null;
+    }
+    return UserSimple.builder()
+        .id(user.getId())
+        .name(user.getNameOrEmail())
+        .email(user.getEmail())
         .build();
   }
 
