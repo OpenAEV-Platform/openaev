@@ -3,14 +3,17 @@ package io.openaev.database.repository;
 import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.FileDrop;
 import io.openaev.database.model.Payload;
+import jakarta.persistence.QueryHint;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.hibernate.jpa.HibernateHints;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -32,6 +35,8 @@ public interface PayloadRepository
   Optional<Payload> findByIdentityExternalId(@NotNull String externalId);
 
   /** Scenario or simulation name per inject running this payload; null for an atomic testing. */
+  // No flush first: it runs while the payload's contract is being removed, read by injects.
+  @QueryHints(@QueryHint(name = HibernateHints.HINT_FLUSH_MODE, value = "COMMIT"))
   @Query(
       "SELECT DISTINCT COALESCE(s.name, e.name) FROM Inject i"
           + " LEFT JOIN i.scenario s LEFT JOIN i.exercise e"
