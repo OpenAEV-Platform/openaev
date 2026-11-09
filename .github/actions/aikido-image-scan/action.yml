@@ -187,6 +187,7 @@ runs:
       with:
         app-id: ${{ inputs.app-id }}
         private-key: ${{ inputs.private-key }}
+        permission-checks: write
 
     - name: Explain the issues in a check
       id: explain
