@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.payload.service.PayloadService;
@@ -12,6 +13,7 @@ import io.openaev.service.exception.ConnectorStatusException;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import jakarta.persistence.EntityManager;
+import java.util.UUID;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,6 +50,7 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
   @Autowired private InjectorContractComposer injectorContractComposer;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private DomainComposer domainComposer;
+  @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private InjectorContractService injectorContractService;
   @Autowired private PayloadService payloadService;
   @Autowired private InjectorService injectorService;
@@ -115,7 +118,8 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
     Assertions.assertTrue(stepRepository.findById(fixture.runStepId()).isPresent());
 
     // WHEN: the contract is removed from the threat arsenal.
-    injectorContractService.deleteInjectorContractById(fixture.contractId());
+    injectorContractService.deleteInjectorContractById(
+        fixture.contractId(), Tenant.DEFAULT_TENANT_UUID);
     entityManager.flush();
     entityManager.clear();
 
@@ -126,6 +130,29 @@ class ChainingStepCascadeCleanupIntegrationTest extends IntegrationTest {
     Assertions.assertTrue(
         stepRepository.findById(fixture.runStepId()).isPresent(),
         "RUN step carries immutable execution history and must survive");
+  }
+
+  @Test
+  @DisplayName("Deleting by id takes the tenant from its argument, not from the ambient tenant")
+  void given_contractDeletedByIdForAnotherTenant_should_leaveTheAmbientTenantCopyAndItsSteps() {
+    // Arrange: the fixture lives in the default tenant, which is also the ambient one
+    Fixture fixture = persistContractAndScenarioSteps();
+    String otherTenantId = "other-tenant-" + UUID.randomUUID();
+
+    // Act: the request names another tenant
+    injectorContractService.deleteInjectorContractById(fixture.contractId(), otherTenantId);
+    entityManager.flush();
+    entityManager.clear();
+
+    // Assert
+    Assertions.assertTrue(
+        injectorContractRepository
+            .findById(new InjectorContractId(fixture.contractId(), Tenant.DEFAULT_TENANT_UUID))
+            .isPresent(),
+        "the contract of the ambient tenant is not the one the request names");
+    Assertions.assertTrue(
+        stepRepository.findById(fixture.templateStepId()).isPresent(),
+        "the sweep of the step templates follows the tenant of the request too");
   }
 
   @Test

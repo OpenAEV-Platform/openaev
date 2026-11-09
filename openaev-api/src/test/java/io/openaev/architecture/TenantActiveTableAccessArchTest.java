@@ -2994,11 +2994,17 @@ class TenantActiveTableAccessArchTest {
             + " refuses a scope of several tenants",
         Pin.tenantForWrite(
             ThreatArsenalApi.class, "duplicateAction", ThreatArsenalService.class, "duplicate")),
-    allow(
+    allowPinned(
         ThreatArsenalService.class,
         "delete",
         "injectorContract",
-        "its only caller ThreatArsenalApi#deleteAction is mapped under the tenant prefix only"),
+        "it calls requireSingleTenant first, and its only caller ThreatArsenalApi#deleteAction is"
+            + " mapped under the tenant prefix only",
+        Pin.requireSingleTenant(
+            ThreatArsenalService.class,
+            "delete",
+            InjectorContractService.class,
+            "injectorContract")),
     allow(
         ThreatArsenalService.class,
         "getSecurityPlatformsForActionRemediation",

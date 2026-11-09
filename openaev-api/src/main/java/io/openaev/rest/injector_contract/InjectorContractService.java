@@ -652,11 +652,13 @@ public class InjectorContractService implements DependenciesManager {
    * reference it are swept in that contract's own tenant.
    *
    * @param injectorContractId the contract ID to delete
+   * @param tenantId the tenant of the contract copy to delete: a built-in id exists in every
+   *     tenant, so the id alone does not name the row, and the ambient tenant is not read
    */
   @Transactional(rollbackFor = Exception.class)
-  public void deleteInjectorContractById(String injectorContractId) {
+  public void deleteInjectorContractById(String injectorContractId, String tenantId) {
     this.injectorContractRepository
-        .findById(new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant()))
+        .findById(new InjectorContractId(injectorContractId, tenantId))
         .ifPresent(this::deleteInjectorContract);
   }
 
