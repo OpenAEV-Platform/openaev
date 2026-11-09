@@ -29,8 +29,6 @@ public interface PayloadRepository
   Optional<Payload> findByIdAndTenantId(
       @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
-  Optional<Payload> findByIdentityExternalId(@NotNull String externalId);
-
   List<Payload> findAllByTenantIdAndContentHash(String tenantId, String contentHash);
 
   List<Payload> findAllByTenantIdAndNameAndContentHashIsNull(String tenantId, String name);
@@ -113,4 +111,10 @@ public interface PayloadRepository
           + "AND NOT EXISTS (SELECT ic FROM InjectorContract ic WHERE ic.payload = p)")
   List<Payload> findOrphansByNameAndTenantId(
       @Param("name") String name, @Param("tenantId") String tenantId);
+
+  // -- IDENTITY --
+
+  Optional<Payload> findByIdentityExternalId(@NotNull String externalId);
+
+  List<Payload> findAllByIdentityId(String identityId);
 }
