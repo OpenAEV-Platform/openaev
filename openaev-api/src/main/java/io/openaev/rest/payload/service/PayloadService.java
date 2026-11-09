@@ -49,6 +49,7 @@ import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
 import io.openaev.rest.tag.TagService;
+import io.openaev.service.AuthorService;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
@@ -87,6 +88,7 @@ public class PayloadService {
   private final InjectorContractRepository injectorContractRepository;
   private final ExpectationBuilderService expectationBuilderService;
   private final UserService userService;
+  private final AuthorService authorService;
   // PermissionService reaches the inject services, which reach this service through the threat
   // arsenal services: @Lazy setter injection breaks the cycle, as in TenantGroupService.
   private PermissionService permissionService;
@@ -383,15 +385,9 @@ public class PayloadService {
         injectorContractRepository.findInjectorContractByPayload(origin);
 
     Payload duplicatedPayload = generateDuplicatedPayload(origin);
-    // A duplicate is a new manual payload: it is authored by the user performing the
-    // duplication. System flows without an authenticated user keep the author copied
-    // from the origin.
-    User duplicatingUser = userService.currentUserOrNull();
-    if (duplicatingUser != null) {
-      duplicatedPayload.setAuthorUser(duplicatingUser);
-      duplicatedPayload.setAuthorTeam(null);
-      duplicatedPayload.setAuthorOrganization(null);
-    }
+    // A duplicate is a new manual payload, authored by the user duplicating it; without a user it
+    // keeps the author copied from the origin.
+    authorService.authorByCurrentUser(duplicatedPayload);
     Payload duplicated = payloadRepository.save(duplicatedPayload);
     InjectorContract injectorContract =
         this.synchroniseInjectorContractBasedOnPayload(

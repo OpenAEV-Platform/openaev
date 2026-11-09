@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import io.openaev.config.SessionManager;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Token;
@@ -34,6 +35,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
   @Mock private UserService userService;
   @Mock private TenantUserService tenantUserService;
   @Mock private SessionManager sessionManager;
+  @Mock private MarkingClearanceCacheManager markingClearanceCacheManager;
 
   @InjectMocks private AgentServiceAccountPrivilegeService privilegeService;
 
@@ -86,6 +88,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
         .createInternalUser(eq(SERVICE_EMAIL), eq("service"), isNull(), eq(false), anyString());
     verify(tenantUserService).attachToTenant(any(), eq(TENANT_ID));
     verify(userService).saveUser(mockUser);
+    verify(tenantGroupService).receiveEveryMarking(TENANT_ID, mockGroup);
   }
 
   @Test
@@ -114,6 +117,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
     verify(userService).createUserToken(eq(mockUser));
     verify(tenantUserService).attachToTenant(any(), eq(TENANT_ID));
     verify(userService).saveUser(mockUser);
+    verify(markingClearanceCacheManager).evictForUser(mockUser.getId());
   }
 
   @Test
@@ -170,7 +174,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
 
     // assert
     verify(tenantGroupService)
-        .createInternalGroupWithRole(anyString(), any(), any(), eq(TENANT_ID));
+        .createInternalGroupWithRole(eq(TENANT_ID), anyString(), any(), any());
     verify(tenantGroupService, never()).updateInternalGroupWithRoles(any(), any(), any());
   }
 

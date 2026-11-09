@@ -83,7 +83,7 @@ public class PlatformGroupService {
   @Transactional(readOnly = true)
   public Group findById(@NotBlank final String id) {
     return groupRepository
-        .findById(id)
+        .findByIdAndTenantIsNull(id)
         .orElseThrow(() -> new EntityNotFoundException("Platform group not found: " + id));
   }
 

@@ -2,7 +2,7 @@
 
 Both **Core CI** (`core-ci.yml`) and **Nightly CI** (`nightly-ci.yml`) are thin callers.
 All the work lives in one reusable workflow, `_ci-pipeline.yml`, and the callers differ
-only in three inputs: `api-matrix`, `e2e-matrix` and `vulnerability-scan-fail-on-error`.
+only in two inputs: `api-matrix` and `e2e-matrix`.
 
 ![OpenAEV CI pipeline — Core and Nightly](ci-pipeline-schema.svg)
 
@@ -39,8 +39,8 @@ itself, so their colour and dash pattern cannot drift from what they describe.
 
 ## The one thing to understand
 
-Almost nothing in this pipeline waits. Of the 20 job definitions in `_ci-pipeline.yml`,
-**14 launch at t = 0 with no `needs:` at all**; only 6 declare a dependency.
+Almost nothing in this pipeline waits. Of the 19 job definitions in `_ci-pipeline.yml`,
+**13 launch at t = 0 with no `needs:` at all**; only 6 declare a dependency.
 
 `needs:` waits for the *entire* upstream job to finish — including the artifact
 gzip / validate / upload tail, roughly 2.5 min the consumer never actually reads. So
@@ -52,16 +52,17 @@ The Docker handoff checks producer conclusions every 15 seconds and aborts on an
 terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 `skipped`, so consumers stop promptly instead of waiting for artifacts that cannot arrive.
 
-### The six real `needs:` edges
+### The seven real `needs:` edges
 
 | Job | `needs:` | Why a hard dependency is correct |
 |-----|----------|----------------------------------|
 | **Backend Package (glibc)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Needs all three outputs on disk before packaging |
 | **Backend Package (musl)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Same, inside an Alpine Maven container |
-| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec; runs on success or failure |
+| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec, uploads `jacoco-api` and the Codecov flag; green API tests only |
+| **Backend Coverage Check** | API Tests | Builds the same report itself, next to the upload; pull requests with green API tests only |
 | **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
 | **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
-| **Pipeline Gate** | 16 jobs (see below) | Aggregates results; runs `if: always()` |
+| **Pipeline Gate** | 19 jobs (see below) | Aggregates results; runs `if: always()` |
 
 ### The five polling waits
 
@@ -74,7 +75,6 @@ gives up and fails the job — not how long the wait normally lasts.
 | **API Types Check** | artifact `openaev-api-jar` | 15 min | Backend Package (glibc) reaches any terminal non-success result |
 | **E2E Tests** | registry marker or image artifact for its architecture | 15 min | the arch-matched Docker Build cell reaches any terminal non-success result |
 | **Docker Merge** | markers or artifacts for both architectures of its variant | 15 min | either variant-matched Docker Build cell reaches any terminal non-success result |
-| **Container Vulnerability Scan** | markers or artifacts for both amd64 variants | 15 min | either required amd64 Docker Build cell reaches any terminal non-success result |
 
 Each Docker build uploads an attempt-scoped marker only after its optional GHCR push
 succeeds. Consumers poll artifact metadata every 15 seconds, prefer a current-attempt
@@ -110,7 +110,6 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 | 🧪 **Frontend Quality & Unit Tests** | 20 min | ESLint + dependency-cruiser + knip + Vitest + coverage |
 | 🐳 **Docker Build** ×4 | 25 min | `standard`/`ubi9` × `amd64`/`arm64`, native runners, no QEMU. `fail-fast: false` |
 | 🐳 **Merge Platforms** ×2 | 45 min | Multi-arch OCI index per variant, with artifact fallback when the registry is unavailable |
-| 🔒 **Container Vulnerability Scan** | 25 min | CVE scan of both amd64 images, threshold `high` |
 | 🧪 **API Tests** | 30 min | Spring Boot integration tests vs PostgreSQL + search engine. `fail-fast: false` |
 | 🔎 **API Types Check** | 20 min | Generated TS types must match the live API schema |
 | 🧪 **E2E Tests** | 45 min | Playwright against the built container. `fail-fast: false` |
@@ -121,7 +120,8 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 |-----|-------------------|---------|
 | 📦 **Backend Package (glibc)** | 15 min | Fat JAR for standard Linux → `openaev-api-jar` |
 | 📦 **Backend Package (musl)** | 15 min | Fat JAR for Alpine, built in `maven:3.9-eclipse-temurin-21-alpine` |
-| 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → Codecov flag `backend` |
+| 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → artifact `jacoco-api` + Codecov flag `backend` |
+| 🔎 **Backend Coverage Check** | 15 min | ≥ 80% of changed lines covered, line coverage drop ≤ 0.1 point, both counted like Codecov, against the latest report of `main`; on a failure, posts a `Backend Coverage (advisory)` check that explains it and stays green; when that check cannot be posted (fork PRs), the job fails itself. Steps in `.github/actions/backend-coverage-check` |
 | 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
 | 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
 | 🔐 **Tenant shadow verdict** | 10 min | Nightly only. Collects the shadow shards' pass or fail into one table |
@@ -134,14 +134,20 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 ⚠️ **Required status check for branch protection.** Full name: `pipeline / ✅ Pipeline Gate`.
 If the caller's job key changes, the branch-protection rule must be updated.
 
-It `needs:` these 16 jobs:
+It `needs:` these 19 jobs:
 
-`ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`, `prepare-bundled-assets`,
-`spotless-check`, `bom-override-guard`, `frontend-quality`, `api-tests`, `e2e-tests`, `api-types-check`,
-`backend-package`, `backend-package-musl`, `docker-build`, `docker-merge`, `container-vulnerability-scan`
+`adr-numbering`, `ocsf-parser-generation-stability`, `migrations-guard`, `backend-compile`, `frontend-build`,
+`prepare-bundled-assets`, `spotless-check`, `bom-override-guard`, `frontend-quality`, `fds-conformity`,
+`fds-mui-regression`, `api-tests`, `coverage-backend-gate`, `e2e-tests`, `api-types-check`, `backend-package`,
+`backend-package-musl`, `docker-build`, `docker-merge`
 
-**Coverage is deliberately excluded.** Coverage upload is best-effort reporting and must
-never hold a merge.
+**Advisory jobs.** `bom-override-guard` and `coverage-backend-gate` show ⚠️ in the gate when they fail,
+and never fail it. A new check starts there so a false positive cannot block a merge; taking it out of
+the advisory list in the gate makes it blocking.
+
+**Coverage upload is deliberately excluded.** It is best-effort reporting and must never hold a
+merge. Codecov reports in its PR comment, and all its statuses are informational. The backend
+coverage rules that pass or fail run in our own `coverage-backend-gate` job.
 
 **The tenant shadow verdict is deliberately excluded too.** It only exists when the caller's
 `api-matrix` carries shadow entries, which today means Nightly, and it is red whenever a shadow
@@ -151,13 +157,6 @@ stays out of the run conclusion and does not page the on-call.
 The gate evaluates `needs` results itself in a shell loop rather than relying on
 job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocumented.
 
-### Container vulnerability enforcement policy
-
-| | Core CI | Nightly CI |
-|-|---------|------------|
-| `vulnerability-scan-fail-on-error` | `false` | `true` |
-| Findings and scanner errors | Reported in logs and artifacts, marked ⚠️ advisory, never fail the gate | High/critical findings and scanner execution errors ❌ fail the gate |
-
 ---
 
 ## Core CI vs Nightly CI
@@ -166,7 +165,7 @@ job-level `continue-on-error`, whose mapping onto `needs.<job>.result` is undocu
 
 | | Core CI | Nightly CI |
 |-|---------|------------|
-| Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → `main` | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
+| Triggers | `push` to `main` / `testing-xtm-one`, `push` of a `N.N.N` tag, `pull_request` → any branch | `schedule: cron "0 3 * * *"` (daily 03:00 UTC), `workflow_dispatch` |
 | Total expanded jobs | ≈ 36 | ≈ 59 |
 
 ### API Tests matrix

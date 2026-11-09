@@ -38,6 +38,8 @@ import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.CatalogItemRepository;
+import io.openaev.database.repository.CatalogReleaseRepository;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.CollectorRepository;
@@ -235,6 +237,8 @@ import io.openaev.service.autonomous.AutonomousRunReconciliationWriter;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.AutonomousTimeoutService;
 import io.openaev.service.autonomous.CapabilityResolverService;
+import io.openaev.service.catalog.CatalogListService;
+import io.openaev.service.catalog.CatalogService;
 import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -253,6 +257,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
 import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.PlatformAdoptionMetricCollector;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
@@ -355,7 +360,9 @@ class TenantActiveTableAccessArchTest {
           "teams",
           "attack_patterns",
           "agents",
-          "autonomous_objective_templates");
+          "autonomous_objective_templates",
+          "catalog_items",
+          "catalog_releases");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -1237,6 +1244,11 @@ class TenantActiveTableAccessArchTest {
               // (setScopeOnCurrentTransaction(forTenant(...))) before reading getInjector(), so the
               // lazy load resolves under a real scope instead of fail-closing to null:
               ScenarioToExerciseService.class,
+              // Reads the injector type of an inject a user just created, updated or duplicated.
+              // Every caller runs under its HTTP entrypoint's TxCtx-scoped transaction (inject,
+              // atomic testing, simulation, scenario and autonomous run APIs), so the lazy load
+              // resolves; a miss would only export "unknown":
+              CredentialMetricCollector.class,
               // --- PRE_EXISTING_UNVERIFIED_CALLERS (tracked follow-up, see comment above) ---
               InjectExecutionStep.class,
               AttackPathExecution.class,
@@ -2178,6 +2190,34 @@ class TenantActiveTableAccessArchTest {
           .because(
               "reportings is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule catalog_items_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Called by the catalogue API and sync, inside their scoped transactions:
+              CatalogService.class, CatalogListService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(CatalogItemRepository.class)
+          .because(
+              "catalog_items is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule catalog_releases_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Same, for the releases received:
+              CatalogService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(CatalogReleaseRepository.class)
+          .because(
+              "catalog_releases is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule reporting_generations_repository_access_is_reviewed =

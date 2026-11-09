@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.aop.WorkflowUpdateEventAspect;
 import io.openaev.aop.audit_log.AuditEvent;
 import io.openaev.aop.audit_log.AuditEventOrigin;
 import io.openaev.aop.audit_log.AuditEventScope;
@@ -29,6 +30,7 @@ import io.openaev.rest.inject.form.InjectExpectationUpdateFromCollectorInput;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.chaining.WorkflowUpdateEventPublisher;
 import io.openaev.service.expectation.ExpectationBehavior;
 import io.openaev.service.expectation.ExpectationBehaviorResolver;
 import io.openaev.utils.fixtures.*;
@@ -47,6 +49,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -1272,6 +1275,95 @@ class InjectExpectationServiceTest {
       List<? extends BaseInjectExpectation> merged = merge();
 
       assertEquals(List.of(groupExpectation), merged);
+    }
+  }
+
+  @Nested
+  @DisplayName("Vulnerability verdicts notify the chaining engine")
+  class VulnerabilityVerdictWorkflowUpdateEvent {
+
+    @Mock private WorkflowUpdateEventPublisher workflowUpdateEventPublisher;
+
+    private InjectExpectationService proxiedService;
+
+    @BeforeEach
+    void setUpProxy() {
+      // The Spring bean is a proxy carrying the WorkflowUpdateEventAspect: rebuild that proxy
+      // around the service under test so the aspect runs as it does at runtime
+      AspectJProxyFactory factory = new AspectJProxyFactory(injectExpectationService);
+      factory.setProxyTargetClass(true);
+      factory.addAspect(new WorkflowUpdateEventAspect(workflowUpdateEventPublisher));
+      proxiedService = factory.getProxy();
+
+      inject.setId("vulnerability-inject-id");
+    }
+
+    @Test
+    @DisplayName(
+        "given a vulnerability verdict from an implant output, should notify the step running the"
+            + " inject")
+    void given_vulnerabilityVerdictFromImplantOutput_should_notifyStepRunningInject() {
+      // Arrange
+      BaseInjectExpectation expectation = createVulnerabilityInjectExpectation(inject, agent);
+      expectation.setId("vulnerability-expectation-id");
+      inject.setExpectations(List.of(expectation));
+      mockExpectation(expectation);
+
+      // Act
+      proxiedService.matchesVulnerabilityExpectations(
+          createContext(buildDefaultInput(null)), mapper.createArrayNode());
+
+      // Assert
+      verify(injectExpectationService)
+          .updateInjectExpectationFromCollector(
+              eq(expectation.getId()), any(InjectExpectationUpdateFromCollectorInput.class));
+      verify(workflowUpdateEventPublisher).publishForInject(inject.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "given a vulnerability verdict from an injector output, should notify the step running the"
+            + " inject")
+    void given_vulnerabilityVerdictFromInjectorOutput_should_notifyStepRunningInject() {
+      // Arrange: an assessment injector (Nuclei) scanning one asset, its verdict attributed to the
+      // injector's security platform
+      Injector injector = new Injector();
+      injector.setType("openaev_nuclei");
+      inject.setInjector(injector);
+      SecurityPlatform securityPlatform =
+          SecurityPlatformFixture.createDefault("Nuclei", "VULNERABILITY_SCANNER");
+      securityPlatform.setId("nuclei-platform");
+      when(securityPlatformRepository.findByExternalReference("openaev_nuclei"))
+          .thenReturn(Optional.of(securityPlatform));
+
+      Asset asset = AssetFixture.createDefaultAsset("vulnerable-asset");
+      asset.setId("asset-1");
+      VulnerabilityInjectExpectation expectation =
+          createVulnerabilityInjectExpectation(inject, null);
+      expectation.setId("exp-asset-1");
+      expectation.setAsset(asset);
+      inject.setExpectations(List.of(expectation));
+      doReturn(expectation)
+          .when(injectExpectationService)
+          .updateInjectExpectationFromSecurityPlatform(
+              any(), anyBoolean(), any(SecurityPlatform.class));
+
+      ArrayNode structuredOutput = mapper.createArrayNode();
+      ObjectNode cve = structuredOutput.addObject();
+      cve.put("id", "CVE-2021-41773").put("host", "https://vulnerable-host").put("severity", "7.5");
+      cve.putArray("asset_id").add("asset-1");
+
+      // Act
+      proxiedService.matchesVulnerabilityExpectations(
+          new ExecutionProcessingContext(
+              inject, null, buildDefaultInput(structuredOutput), Map.of()),
+          structuredOutput);
+
+      // Assert
+      verify(injectExpectationService)
+          .updateInjectExpectationFromSecurityPlatform(
+              eq("exp-asset-1"), eq(false), eq(securityPlatform));
+      verify(workflowUpdateEventPublisher).publishForInject(inject.getId());
     }
   }
 }

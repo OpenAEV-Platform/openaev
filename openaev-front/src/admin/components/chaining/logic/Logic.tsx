@@ -12,6 +12,7 @@ import type {
   ScopeTeamOutput,
   StepOutput,
 } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import useLivePolling from '../../../../utils/hooks/useLivePolling';
 import useRemainingViewportHeight from '../../../../utils/hooks/useRemainingViewportHeight';
 import { type LogicContext } from './AddComponentButton';
@@ -116,6 +117,8 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
     const isFirstRead = shapeSignatureRef.current === null;
     if (force || (!isFirstRead && signature !== shapeSignatureRef.current)) {
       setRefreshKey(k => k + 1);
+      // The scope healthchecks depend on the steps: the scenario/simulation header must re-run them.
+      MESSAGING$.refreshHealthchecks.next();
     }
     shapeSignatureRef.current = signature;
   }, [workflowId]);
@@ -141,6 +144,12 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
   const handleEventCreated = useCallback(() => {
     setHasExistingData(true);
     setEventCount(c => c + 1);
+    void syncShape({ force: true });
+  }, [syncShape]);
+
+  // Deleting or (un)linking nodes in the graph changes the workflow shape: re-sync right away so the
+  // header healthchecks refresh without waiting for the next poll (which stops with the tab).
+  const handleGraphMutated = useCallback(() => {
     void syncShape({ force: true });
   }, [syncShape]);
 
@@ -233,6 +242,7 @@ const Logic = ({ workflowId, context, scenarioId, exerciseId, readOnly = false, 
                   onEditEvent={handleEditEvent}
                   onAddActionToEvent={handleAddActionToEvent}
                   onEventMetasChange={setEventMetas}
+                  onGraphMutated={handleGraphMutated}
                   readOnly={readOnly}
                 />
                 {!readOnly && (

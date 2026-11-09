@@ -47,6 +47,7 @@ import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutpu
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.AuthorService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
@@ -106,6 +107,7 @@ public class InjectorContractService implements DependenciesManager {
   private final DomainService domainService;
   private final InjectorRepository injectorRepository;
   private final UserService userService;
+  private final AuthorService authorService;
   private final AttackPatternRepository attackPatternRepository;
   private final TagRepository tagRepository;
   private final InjectorService injectorService;
@@ -454,9 +456,7 @@ public class InjectorContractService implements DependenciesManager {
 
   /** Attributes an interactively created contract to the authenticated human creating it. */
   private void attributeToCreatingUser(InjectorContract contract) {
-    if (!(SessionHelper.currentUser() instanceof OpenAEVAnonymous)) {
-      contract.setAuthorUser(userService.currentUser());
-    }
+    authorService.authorByCurrentUser(contract);
   }
 
   /**
@@ -471,11 +471,11 @@ public class InjectorContractService implements DependenciesManager {
    *       created contracts never carry one).
    * </ul>
    *
-   * <p>Payload-based contracts and contracts with a deliberate team/organization author are never
+   * <p>Payload-based contracts and contracts with a deliberate organization author are never
    * touched.
    */
   private void reconcileExternalInjectorAuthorship(InjectorContract contract) {
-    if (contract.getPayload() != null || contract.getAuthorTeam() != null) {
+    if (contract.getPayload() != null) {
       return;
     }
     boolean authorless =
@@ -950,45 +950,37 @@ public class InjectorContractService implements DependenciesManager {
       @NotNull final Root<InjectorContract> injectorContractRoot) {
     InjectorContractQueryContext ctx = buildCommonInjectorContractContext(cb, injectorContractRoot);
 
-    // The author is polymorphic (user / team / organization) and stored both on
+    // The author is polymorphic (user / organization) and stored both on
     // the contract (built-in => Filigran, custom => creator) and, for payload
     // contracts, on the payload. Resolve the id, a display label and a type by
     // coalescing contract-level author first, then payload-level author, so the
     // Threat Arsenal shows and filters by author in a single field.
-    Join<InjectorContract, User> cAuthorUserJoin =
-        injectorContractRoot.join("authorUser", JoinType.LEFT);
-    Join<InjectorContract, Team> cAuthorTeamJoin =
-        injectorContractRoot.join("authorTeam", JoinType.LEFT);
-    Join<InjectorContract, Organization> cAuthorOrgJoin =
-        injectorContractRoot.join("authorOrganization", JoinType.LEFT);
-    Join<Payload, User> authorUserJoin = ctx.payloadJoin().join("authorUser", JoinType.LEFT);
-    Join<Payload, Team> authorTeamJoin = ctx.payloadJoin().join("authorTeam", JoinType.LEFT);
-    Join<Payload, Organization> authorOrgJoin =
-        ctx.payloadJoin().join("authorOrganization", JoinType.LEFT);
+    Join<?, User> cAuthorUserJoin =
+        injectorContractRoot.join("author", JoinType.LEFT).join("user", JoinType.LEFT);
+    Join<?, Organization> cAuthorOrgJoin =
+        injectorContractRoot.join("author", JoinType.LEFT).join("organization", JoinType.LEFT);
+    Join<?, User> authorUserJoin =
+        ctx.payloadJoin().join("author", JoinType.LEFT).join("user", JoinType.LEFT);
+    Join<?, Organization> authorOrgJoin =
+        ctx.payloadJoin().join("author", JoinType.LEFT).join("organization", JoinType.LEFT);
 
     Expression<String> authorId =
         cb.<String>coalesce()
             .value(cAuthorUserJoin.get("id"))
-            .value(cAuthorTeamJoin.get("id"))
             .value(cAuthorOrgJoin.get("id"))
             .value(authorUserJoin.get("id"))
-            .value(authorTeamJoin.get("id"))
             .value(authorOrgJoin.get("id"));
     Expression<String> authorName =
         cb.<String>coalesce()
             .value(userAuthorDisplayName(cb, cAuthorUserJoin))
-            .value(cAuthorTeamJoin.get("name"))
             .value(cAuthorOrgJoin.get("name"))
             .value(userAuthorDisplayName(cb, authorUserJoin))
-            .value(authorTeamJoin.get("name"))
             .value(authorOrgJoin.get("name"));
     Expression<String> authorType =
         cb.<String>selectCase()
             .when(cb.isNotNull(cAuthorUserJoin.get("id")), cb.literal("user"))
-            .when(cb.isNotNull(cAuthorTeamJoin.get("id")), cb.literal("team"))
             .when(cb.isNotNull(cAuthorOrgJoin.get("id")), cb.literal("organization"))
             .when(cb.isNotNull(authorUserJoin.get("id")), cb.literal("user"))
-            .when(cb.isNotNull(authorTeamJoin.get("id")), cb.literal("team"))
             .when(cb.isNotNull(authorOrgJoin.get("id")), cb.literal("organization"))
             .otherwise(cb.nullLiteral(String.class));
 
@@ -1015,16 +1007,12 @@ public class InjectorContractService implements DependenciesManager {
     groupBy.add(cAuthorUserJoin.get("email"));
     groupBy.add(cAuthorUserJoin.get("firstname"));
     groupBy.add(cAuthorUserJoin.get("lastname"));
-    groupBy.add(cAuthorTeamJoin.get("id"));
-    groupBy.add(cAuthorTeamJoin.get("name"));
     groupBy.add(cAuthorOrgJoin.get("id"));
     groupBy.add(cAuthorOrgJoin.get("name"));
     groupBy.add(authorUserJoin.get("id"));
     groupBy.add(authorUserJoin.get("email"));
     groupBy.add(authorUserJoin.get("firstname"));
     groupBy.add(authorUserJoin.get("lastname"));
-    groupBy.add(authorTeamJoin.get("id"));
-    groupBy.add(authorTeamJoin.get("name"));
     groupBy.add(authorOrgJoin.get("id"));
     groupBy.add(authorOrgJoin.get("name"));
     cq.groupBy(groupBy);
@@ -1201,39 +1189,32 @@ public class InjectorContractService implements DependenciesManager {
     CriteriaQuery<InjectorContractAuthorCountOutput> q =
         cb.createQuery(InjectorContractAuthorCountOutput.class);
     Root<InjectorContract> root = q.from(InjectorContract.class);
-    Join<InjectorContract, User> cAuthorUserJoin = root.join("authorUser", JoinType.LEFT);
-    Join<InjectorContract, Team> cAuthorTeamJoin = root.join("authorTeam", JoinType.LEFT);
-    Join<InjectorContract, Organization> cAuthorOrgJoin =
-        root.join("authorOrganization", JoinType.LEFT);
+    Join<?, User> cAuthorUserJoin = root.join("author", JoinType.LEFT).join("user", JoinType.LEFT);
+    Join<?, Organization> cAuthorOrgJoin =
+        root.join("author", JoinType.LEFT).join("organization", JoinType.LEFT);
     Join<InjectorContract, Payload> payloadJoin = root.join("payload", JoinType.LEFT);
-    Join<Payload, User> pAuthorUserJoin = payloadJoin.join("authorUser", JoinType.LEFT);
-    Join<Payload, Team> pAuthorTeamJoin = payloadJoin.join("authorTeam", JoinType.LEFT);
-    Join<Payload, Organization> pAuthorOrgJoin =
-        payloadJoin.join("authorOrganization", JoinType.LEFT);
+    Join<?, User> pAuthorUserJoin =
+        payloadJoin.join("author", JoinType.LEFT).join("user", JoinType.LEFT);
+    Join<?, Organization> pAuthorOrgJoin =
+        payloadJoin.join("author", JoinType.LEFT).join("organization", JoinType.LEFT);
 
     Expression<String> authorId =
         cb.<String>coalesce()
             .value(cAuthorUserJoin.get("id"))
-            .value(cAuthorTeamJoin.get("id"))
             .value(cAuthorOrgJoin.get("id"))
             .value(pAuthorUserJoin.get("id"))
-            .value(pAuthorTeamJoin.get("id"))
             .value(pAuthorOrgJoin.get("id"));
     Expression<String> authorName =
         cb.<String>coalesce()
             .value(userAuthorDisplayName(cb, cAuthorUserJoin))
-            .value(cAuthorTeamJoin.get("name"))
             .value(cAuthorOrgJoin.get("name"))
             .value(userAuthorDisplayName(cb, pAuthorUserJoin))
-            .value(pAuthorTeamJoin.get("name"))
             .value(pAuthorOrgJoin.get("name"));
     Expression<String> authorType =
         cb.<String>selectCase()
             .when(cb.isNotNull(cAuthorUserJoin.get("id")), cb.literal("user"))
-            .when(cb.isNotNull(cAuthorTeamJoin.get("id")), cb.literal("team"))
             .when(cb.isNotNull(cAuthorOrgJoin.get("id")), cb.literal("organization"))
             .when(cb.isNotNull(pAuthorUserJoin.get("id")), cb.literal("user"))
-            .when(cb.isNotNull(pAuthorTeamJoin.get("id")), cb.literal("team"))
             .when(cb.isNotNull(pAuthorOrgJoin.get("id")), cb.literal("organization"))
             .otherwise(cb.nullLiteral(String.class));
 

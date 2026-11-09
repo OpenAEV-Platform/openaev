@@ -20,8 +20,8 @@ import java.util.Set;
  * granting it discloses nothing they could not have disclosed by other means. Checking raw grants
  * instead would forbid that and be merely annoying, not safer.
  *
- * <p>A bypassing caller resolves to the whole tenant scale (see {@code MarkingScopeResolver}), so
- * they pass this check without needing a special case here.
+ * <p>The first admin resolves to the whole tenant scale (see {@code MarkingScopeResolver}), so they
+ * pass this check without needing a special case here.
  *
  * <p>Mirrors {@code PrivilegeEscalationValidator}, which does the same job for capabilities.
  */

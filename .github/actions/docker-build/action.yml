@@ -106,12 +106,15 @@ runs:
   steps:
     - name: Compute artifact names
       id: names
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        ARTIFACT_NAME: ${{ inputs.artifact-name }}
+        CACHE_SCOPE: ${{ inputs.cache-scope }}
       run: |
-        PLATFORM="${{ inputs.platform }}"
         ARCH="${PLATFORM#*/}"
         echo "arch=${ARCH}" >> "$GITHUB_OUTPUT"
-        echo "artifact_name=${{ inputs.artifact-name }}-${ARCH}" >> "$GITHUB_OUTPUT"
-        echo "cache_scope=${{ inputs.cache-scope }}-${ARCH}" >> "$GITHUB_OUTPUT"
+        echo "artifact_name=${ARTIFACT_NAME}-${ARCH}" >> "$GITHUB_OUTPUT"
+        echo "cache_scope=${CACHE_SCOPE}-${ARCH}" >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Prepare release assets (agents, implants, catalog)
@@ -246,30 +249,37 @@ runs:
         compression-level: 0
 
     - name: Print build timing summary
+      env:
+        START: ${{ steps.build-timer.outputs.start }}
+        PLATFORM: ${{ inputs.platform }}
       run: |
         END=$(date +%s)
-        START=${{ steps.build-timer.outputs.start }}
         TOTAL=$((END - START))
         MINS=$((TOTAL / 60))
         SECS=$((TOTAL % 60))
         echo "══════════════════════════════════════════"
-        echo "  ⏱️  Docker Build (${{ inputs.platform }}): ${MINS}m ${SECS}s"
+        echo "  ⏱️  Docker Build (${PLATFORM}): ${MINS}m ${SECS}s"
         echo "══════════════════════════════════════════"
       shell: bash
 
     - name: Compress OCI archive
+      env:
+        ARTIFACT: ${{ steps.names.outputs.artifact_name }}
+        PLATFORM: ${{ inputs.platform }}
       run: |
-        gzip ${{ steps.names.outputs.artifact_name }}.tar
-        TAR_SIZE=$(stat --format=%s ${{ steps.names.outputs.artifact_name }}.tar.gz 2>/dev/null || stat -f%z ${{ steps.names.outputs.artifact_name }}.tar.gz 2>/dev/null)
+        gzip "${ARTIFACT}.tar"
+        TAR_SIZE=$(stat --format=%s "${ARTIFACT}.tar.gz" 2>/dev/null || stat -f%z "${ARTIFACT}.tar.gz" 2>/dev/null)
         TAR_SIZE_MB=$(awk "BEGIN {printf \"%.1f\", $TAR_SIZE / 1048576}")
-        echo "${{ inputs.platform }} OCI archive (${TAR_SIZE_MB} MB compressed)"
+        echo "${PLATFORM} OCI archive (${TAR_SIZE_MB} MB compressed)"
       shell: bash
 
     - name: Validate Docker image
       id: docker-validate
+      env:
+        ARTIFACT: ${{ steps.names.outputs.artifact_name }}
+        JAR_PATH: ${{ inputs.jar-path }}
+        PLATFORM: ${{ inputs.platform }}
       run: |
-        ARTIFACT="${{ steps.names.outputs.artifact_name }}"
-        JAR_PATH="${{ inputs.jar-path }}"
         VALIDATION_FAILED=0
 
         # Load the single-platform image into the local daemon for validation
@@ -280,7 +290,7 @@ runs:
         rm -f "${ARTIFACT}.tar"
         IMAGE="${ARTIFACT}-validate:latest"
 
-        echo "── Validating ${{ inputs.platform }} image ──"
+        echo "── Validating ${PLATFORM} image ──"
 
         # Check image size
         IMAGE_SIZE=$(docker image inspect "$IMAGE" --format='{{.Size}}')

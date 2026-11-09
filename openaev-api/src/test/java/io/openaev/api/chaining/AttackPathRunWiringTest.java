@@ -61,7 +61,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -88,11 +87,11 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 // @WithMockUser provides the user the fixture setup needs (creating the tenant + persisting the
 // endpoint/contract). The run then executes under that tenant scope, as the worker does.
-// Quartz off: InjectsFinalizationJob fires at second 30 of every minute and calls the spied
+// Relies on Quartz being off in the test configuration: InjectsFinalizationJob would fire at
+// second 30 of every minute and call the spied
 // InjectService from a scheduler thread; a tick landing while setUp stubs the spy takes the
 // pending stubbing (WrongTypeOfReturnValue), createInject stays real and W4 finds no row. The
 // class drives InjectExecutionStep and StepEventService directly and needs no scheduled job.
-@TestPropertySource(properties = "spring.quartz.auto-startup=false")
 @io.openaev.utils.mockUser.WithMockUser(isAdmin = true)
 @DisplayName("attack path: a chaining run drives the ingestion (run-level wiring)")
 class AttackPathRunWiringTest extends IntegrationTest {

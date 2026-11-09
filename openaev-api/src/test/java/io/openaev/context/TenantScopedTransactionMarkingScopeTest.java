@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.database.model.User;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -110,12 +111,14 @@ class TenantScopedTransactionMarkingScopeTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given a definition created after a bypass clearance was cached, should carry it")
-    void given_definitionCreatedAfterCachedBypass_should_carryIt() {
+    @DisplayName(
+        "given a definition created after a first admin clearance was cached, should carry it")
+    void given_definitionCreatedAfterCachedFirstAdmin_should_carryIt() {
       // -- ARRANGE --
-      // Warm the cached bypass entry of tenant A, then create a definition without evicting it,
+      // Warm the cached first admin entry of tenant A, then create a definition without evicting
+      // it,
       // the way a write seen before its eviction would leave the cache.
-      clearanceCache.findClearance(UUID.randomUUID().toString(), tenantA, true);
+      clearanceCache.findClearance(User.ADMIN_UUID, tenantA);
       tenantTx.execute(TxCtx.forTenant(tenantA), () -> currentMarkingScope());
       String amber = seedMarking(tenantA, "TLP", "TLP:AMBER", 30);
 

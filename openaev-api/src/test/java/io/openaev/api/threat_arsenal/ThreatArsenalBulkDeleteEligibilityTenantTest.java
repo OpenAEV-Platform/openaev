@@ -40,7 +40,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -64,7 +63,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>The production active tables are armed, so the class follows what production enforces. The
  * rows are committed, as a real request sees them, and removed after each test.
  */
-@TestPropertySource(properties = "spring.quartz.auto-startup=false")
 @TestInstance(PER_CLASS)
 @DisplayName("Threat arsenal bulk delete acts in the request's write tenant")
 class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {

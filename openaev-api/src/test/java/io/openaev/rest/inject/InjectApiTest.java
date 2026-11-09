@@ -14,6 +14,7 @@ import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_T
 import static io.openaev.utils.ExpectationSignatureUtils.EXPECTATION_SIGNATURE_TYPE_START_DATE;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.InjectFixture.getInjectForEmailContract;
+import static io.opentelemetry.api.common.AttributeKey.stringKey;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -50,12 +51,14 @@ import io.openaev.secrets.provider.SecretsProviderResolver;
 import io.openaev.service.inject.BatchingInjectStatusService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utils.helpers.InjectTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.KeepRabbit;
+import io.opentelemetry.api.common.Attributes;
 import jakarta.annotation.Resource;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
@@ -149,6 +152,7 @@ class InjectApiTest extends IntegrationTest {
   @MockitoBean private SecretsProviderResolver secretsProviderResolver;
 
   @Autowired private InjectTestHelper injectTestHelper;
+  @Autowired private CredentialMetricCollector credentialMetricCollector;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
@@ -389,17 +393,19 @@ class InjectApiTest extends IntegrationTest {
         throws Exception {
       input.setAuthorisation("wrong-code");
 
-      mvc.perform(
-              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
-                  .content(asJsonString(input))
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .accept(MediaType.APPLICATION_JSON)
-                  .with(csrf()))
-          .andExpect(status().isForbidden())
-          .andExpect(
-              result ->
-                  assertEquals(
-                      "CREDENTIAL_ACCESS_DENIED", result.getResolvedException().getMessage()));
+      String response =
+          mvc.perform(
+                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isForbidden())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("message").isEqualTo("CREDENTIAL_ACCESS_DENIED");
     }
 
     @Test
@@ -479,16 +485,42 @@ class InjectApiTest extends IntegrationTest {
     void given_attachmentNotOnInject_should_returnNotFound() throws Exception {
       input.setAttachmentId("missing-attachment");
 
+      String response =
+          mvc.perform(
+                  post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                      .content(asJsonString(input))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .with(csrf()))
+              .andExpect(status().isNotFound())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      assertThatJson(response).node("message").isEqualTo("CREDENTIAL_NOT_FOUND");
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A refused resolution should be counted under its error code in the telemetry")
+    void given_refusedResolution_should_countErrorCodeInTelemetry() throws Exception {
+      credentialReference.setStatus(SecretReference.SECRET_STATUS.NETWORK_ERROR);
+      secretReferenceRepository.save(credentialReference);
+      credentialMetricCollector.collectResolutionFailures();
+      credentialMetricCollector.collectResolutionSuccesses();
+
       mvc.perform(
               post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
                   .content(asJsonString(input))
                   .contentType(MediaType.APPLICATION_JSON)
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
-          .andExpect(status().isNotFound())
-          .andExpect(
-              result ->
-                  assertEquals("CREDENTIAL_NOT_FOUND", result.getResolvedException().getMessage()));
+          .andExpect(status().isBadRequest());
+
+      assertThat(credentialMetricCollector.collectResolutionFailures())
+          .containsExactlyEntriesOf(
+              Map.of(Attributes.of(stringKey("error_code"), "CREDENTIAL_INACTIVE"), 1L));
+      assertThat(credentialMetricCollector.collectResolutionSuccesses()).isZero();
     }
 
     @Test
@@ -504,6 +536,31 @@ class InjectApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A successful resolution should be counted as a success in the telemetry")
+    void given_successfulResolution_should_countSuccessInTelemetry() throws Exception {
+      SecretsProvider provider = mock(SecretsProvider.class);
+      when(provider.getResolvedSecret(any()))
+          .thenReturn(SecretResolvedValue.forUsernamePassword("alice", "secret123"));
+      when(secretsProviderResolver.resolveByConnectorInstanceId(
+              Tenant.DEFAULT_TENANT_UUID, "connector-instance-id"))
+          .thenReturn(provider);
+      credentialMetricCollector.collectResolutionSuccesses();
+      credentialMetricCollector.collectResolutionFailures();
+
+      mvc.perform(
+              post(INJECT_URI + "/" + inject.getId() + "/attachment/secret")
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      assertThat(credentialMetricCollector.collectResolutionSuccesses()).isEqualTo(1L);
+      assertThat(credentialMetricCollector.collectResolutionFailures()).isEmpty();
     }
   }
 
@@ -728,6 +785,7 @@ class InjectApiTest extends IntegrationTest {
     injectInput.setDependsDuration(0L);
     InjectorContract emailContract = injectorContractFixture.getWellKnownSingleEmailContract();
     Inject inject = injectInput.toInject(emailContract, emailContract.getFirstInjector());
+    inject.setExercise(EXERCISE);
     Inject savedInject = injectRepository.save(inject);
 
     Inject injectToUpdate = injectRepository.findById(savedInject.getId()).orElseThrow();
