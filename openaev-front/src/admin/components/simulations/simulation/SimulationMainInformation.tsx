@@ -1,6 +1,5 @@
 import { Paper } from '@filigran/design-system';
 import { Box } from '@mui/material';
-import * as R from 'ramda';
 import { type FunctionComponent } from 'react';
 
 import { type ScenariosHelper } from '../../../../actions/scenarios/scenario-helper';
@@ -16,6 +15,7 @@ import ItemTypeAffinity from '../../../../components/ItemTypeAffinity';
 import PlatformIconGroup from '../../../../components/PlatformIconGroup';
 import { useHelper } from '../../../../store';
 import { type Exercise, type KillChainPhase } from '../../../../utils/api-types';
+import { ascendBy } from '../../../../utils/Sorting';
 
 interface Props {
   exercise: Exercise;
@@ -29,7 +29,7 @@ interface Props {
 const SimulationMainInformation: FunctionComponent<Props> = ({ exercise, embedded = false }) => {
   const { t } = useFormatter();
 
-  const sortByOrder = R.sortWith([R.ascend(R.prop('phase_order'))]);
+  const sortByOrder = items => items.toSorted(ascendBy('phase_order'));
   const { scenario } = useHelper((helper: ScenariosHelper) => ({ scenario: helper.getScenario(exercise.exercise_scenario || '') }));
   const killChainPhases = sortByOrder(exercise.exercise_kill_chain_phases ?? []) as KillChainPhase[];
 

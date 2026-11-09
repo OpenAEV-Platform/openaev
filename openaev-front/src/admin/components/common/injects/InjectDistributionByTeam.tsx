@@ -12,6 +12,7 @@ import { horizontalBarsChartOptions } from '../../../../utils/Charts';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { sampleHorizontalBarHeight, sampleHorizontalBarSeries } from '../../../../utils/SampleCharts';
+import { descendBy } from '../../../../utils/Sorting';
 import { getTeamsColors } from '../../teams/utils';
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 
@@ -31,9 +32,7 @@ const InjectDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
 
   const teamsColors = getTeamsColors(teams);
   const sortedTeamsByExpectedScore = R.pipe(
-    R.sortWith([
-      R.descend(R.prop('team_injects_expectations_total_expected_score')),
-    ]),
+    items => items.toSorted(descendBy('team_injects_expectations_total_expected_score')),
     R.take(10),
   )(teams || []);
   const expectedScoreByTeamData = [

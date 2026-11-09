@@ -13,6 +13,7 @@ import { type Communication, type Exercise, type User } from '../../../../../uti
 import { horizontalBarsChartOptions } from '../../../../../utils/Charts';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
+import { descendBy } from '../../../../../utils/Sorting';
 import { resolveUserName } from '../../../../../utils/String';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { sampleMailsByPlayer } from './mailsSampleData';
@@ -51,7 +52,7 @@ const MailDistributionByPlayer: FunctionComponent<Props> = ({ exerciseId }) => {
         communications,
       ).length,
     })),
-    R.sortWith([R.descend(R.prop('user_communications_number'))]),
+    items => items.toSorted(descendBy('user_communications_number')),
     R.take(10),
   )(communicationsUsers);
   const totalMailsByUserData = [
