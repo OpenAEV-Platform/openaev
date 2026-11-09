@@ -5,6 +5,13 @@ import static io.openaev.rest.inject.InjectApi.TENANT_INJECT_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -15,13 +22,17 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import io.openaev.IntegrationTest;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.config.ShutdownService;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.EventType;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
@@ -29,6 +40,7 @@ import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.rest.inject.service.InjectExecutionCallbackService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.LogService;
 import io.openaev.service.queue.BatchQueueService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -84,6 +96,8 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -805,6 +819,68 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
       // Assert
       assertAgentAccessDenied(result);
       assertThat(gateLog.refusals()).hasSize(1);
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+  }
+
+  /**
+   * The audit event of the agent callback is emitted inside the transaction that commits the
+   * callback's writes, so that with {@code halt-on-failure} a failing audit transport rolls them
+   * back. No test transaction surrounds the request: the commit is the one of the endpoint.
+   */
+  @Nested
+  @WithMockUser
+  @TestPropertySource(
+      properties = {
+        "openaev.audit-logs.transports=console",
+        "openaev.audit-logs.halt-on-failure=true"
+      })
+  @DisplayName("The audit event of the agent callback, with halt-on-failure")
+  class AuditInsideTheTransaction {
+
+    @MockitoSpyBean private AuditLogger auditLogger;
+    @MockitoSpyBean private LogService logService;
+    @MockitoSpyBean private ShutdownService shutdownService;
+
+    private String memberTenant;
+
+    @BeforeEach
+    void failTheAuditTransport() throws Exception {
+      reset(auditLogger, logService, shutdownService);
+      doReturn(true).when(auditLogger).isAuditLoggingEnabled();
+      // Only the event of the endpoint (a MUTATION) fails: the ingestion emits EXECUTION events of
+      // its own inside the service transaction, and those must not be what rolls it back
+      doAnswer(
+              invocation ->
+                  ((AuditEvent) invocation.getArgument(0)).getEventType() != EventType.MUTATION)
+          .when(logService)
+          .logGenericEvent(any(), any(), any());
+      // initiateShutdown() ends in System.exit(): the failing transport must not stop the JVM
+      doNothing().when(shutdownService).initiateShutdown();
+      memberTenant =
+          tenantHelper
+              .createTenantWithCapabilities(
+                  "implant-audit", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+    }
+
+    @AfterEach
+    void deleteTenant() {
+      tenantHelper.deleteCommittedTenants(memberTenant);
+    }
+
+    @Test
+    @DisplayName("is emitted before the commit: a failing transport leaves nothing of the callback")
+    void given_failingAuditTransport_should_commitNothingOfTheCallback() throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(memberTenant, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result = perform(Endpoint.CALLBACK, Route.PREFIXED, memberTenant, seeded);
+
+      // Assert: the audit transport was asked, the request failed, nothing was committed
+      verify(logService, atLeastOnce()).logGenericEvent(any(), any(), any());
+      result.andExpect(status().isInternalServerError());
       assertThat(executionTraceCount(seeded.injectId())).isZero();
     }
   }

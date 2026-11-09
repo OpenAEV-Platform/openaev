@@ -6,6 +6,8 @@ import static io.openaev.helper.StreamHelper.fromIterable;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
+import io.openaev.aop.lock.Lock;
+import io.openaev.aop.lock.LockResourceType;
 import io.openaev.comparator.InjectExecutionComparator;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -65,7 +67,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpHeaders;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
@@ -417,11 +418,12 @@ public class InjectApi extends RestBehavior {
     INJECT_URI + "/execution/{agentId}/callback/{injectId}",
     TENANT_INJECT_URI + "/execution/{agentId}/callback/{injectId}"
   })
-  @Transactional(propagation = Propagation.SUPPORTS)
+  @Transactional
   @AccessControl(
       resourceId = "#injectId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.JOB)
+  @Lock(type = LockResourceType.INJECT, key = "#injectId")
   @Operation(
       summary = "Inject execution callback for implants",
       description =
@@ -441,8 +443,9 @@ public class InjectApi extends RestBehavior {
             description =
                 "The inject to update was not in a valid state in regards to the requested action. Retry in a few seconds."),
       })
-  // SUPPORTS opens no transaction: the service takes the per-inject lock and then opens it, so the
-  // lock wraps the transaction, and only a call the checks of this endpoint let in waits for it.
+  // TxCtx scopes the transaction so the legacy (non-queued) path can reach security_coverages
+  // (v2-activated), read via InjectExpectationService's vulnerability verdict propagation into
+  // SecurityCoverageSendJobService#shouldCreateCoverageSendJob (exercise.getSecurityCoverage()).
   public void injectExecutionCallback(
       TxCtx ctx,
       @PathVariable
@@ -451,7 +454,7 @@ public class InjectApi extends RestBehavior {
       @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
     injectService.requireInScopeForAgent(ctx, injectId);
-    injectExecutionCallbackService.agentExecutionCallback(ctx, agentId, injectId, input);
+    injectExecutionCallbackService.injectExecutionCallback(agentId, injectId, input);
   }
 
   @GetMapping({
