@@ -183,7 +183,9 @@ public class BaseEvent implements Cloneable {
   /**
    * Declares the tenant the writes of the current request go to, for the events they publish. The
    * ambient tenant is the default one when the request names another in {@code X-Tenant-Ids}, so it
-   * would attribute those events to the wrong tenant. Does nothing outside a request.
+   * would attribute those events to the wrong tenant. Does nothing outside a request. The
+   * attribution covers every event the request publishes after it, those of entities of other
+   * tenants included.
    *
    * @param tenantId the tenant the request writes in
    */
