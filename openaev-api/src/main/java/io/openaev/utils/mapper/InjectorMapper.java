@@ -30,6 +30,7 @@ public class InjectorMapper {
         .catalog(catalogConnectorMapper.toCatalogSimpleOutput(catalogConnector))
         .verified(connectorInstance != null)
         .updatedAt(injector.getUpdatedAt())
+        .commit(injector.getCommit())
         .existing(existingInjector)
         .connectorInstance(
             connectorInstance != null

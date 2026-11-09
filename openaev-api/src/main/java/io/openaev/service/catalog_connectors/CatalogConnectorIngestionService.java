@@ -1,6 +1,7 @@
 package io.openaev.service.catalog_connectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.openaev.config.OpenAEVConfig;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
@@ -14,6 +15,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
@@ -33,6 +35,7 @@ public class CatalogConnectorIngestionService {
   private final ConnectorInstanceService connectorInstanceService;
   private final ConnectorInstanceConfigurationRepository connectorInstanceConfigurationRepository;
   private final TenantScopedTransaction tenantScopedTransaction;
+  private final OpenAEVConfig openAEVConfig;
 
   public List<CatalogConnector> extractCatalog(JsonNode rootNode) {
     JsonNode contracts = rootNode.get("contracts");
@@ -112,7 +115,7 @@ public class CatalogConnectorIngestionService {
     connector.setSubscriptionLink(contract.path("subscription_link").asText());
     connector.setSourceCode(contract.path("source_code").asText());
     connector.setManagerSupported(contract.path("manager_supported").asBoolean());
-    connector.setContainerVersion(contract.path("container_version").asText());
+    connector.setContainerVersion(containerVersion(contract));
     connector.setContainerImage(contract.path("container_image").asText());
     String containerType = contract.path("container_type").asText(null);
     if (containerType != null && !containerType.isBlank()) {
@@ -130,6 +133,14 @@ public class CatalogConnectorIngestionService {
     connector.getCatalogConnectorConfigurations().addAll(conf);
 
     return connector;
+  }
+
+  // A release deploys the integration images of the same release
+  private String containerVersion(JsonNode contract) {
+    String integrationsVersion = openAEVConfig.getIntegrationsVersion();
+    return StringUtils.hasText(integrationsVersion)
+        ? integrationsVersion
+        : contract.path("container_version").asText();
   }
 
   private void cleanupInstanceConfigurations(CatalogConnector connector) {
