@@ -24,6 +24,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -167,6 +168,62 @@ class UserTagReplacementConcurrencyTest extends IntegrationTest {
 
       // Assert
       assertThat(linksOfTheUser()).isEqualTo(wanted);
+    }
+  }
+
+  /**
+   * Like {@link #replaceTags}, but answers with the tags the user holds once the call returns, as
+   * the response of a request shows them.
+   */
+  private Set<String> tagsOfTheUserAfterReplacement(Set<String> wantedIds, Runnable afterLoad) {
+    return tenantTx.execute(
+        TxCtx.forTenant(tenantId),
+        () -> {
+          User user = userRepository.findById(userId).orElseThrow();
+          assertThat(user.getTags()).extracting(Tag::getId).as("loaded links").isNotEmpty();
+          afterLoad.run();
+          userService.replaceTags(user, iterableToSet(tagRepository.findAllById(wantedIds)));
+          return user.getTags().stream().map(Tag::getId).collect(Collectors.toSet());
+        });
+  }
+
+  @Nested
+  @DisplayName("A replacement asking for the set another transaction committed")
+  class AlreadySatisfiedSet {
+
+    @Test
+    @DisplayName("given_requestedSetCommittedAfterTheLoad_should_answerWithTheRequestedTags")
+    void given_requestedSetCommittedAfterTheLoad_should_answerWithTheRequestedTags()
+        throws Exception {
+      // Arrange
+      CountDownLatch loaded = new CountDownLatch(1);
+      CountDownLatch otherCommitted = new CountDownLatch(1);
+      ExecutorService pool = Executors.newSingleThreadExecutor();
+      Set<String> answered;
+      try {
+        // Act: the first transaction loads {A}, a second one replaces A with B and commits, then
+        // the first one asks for {B}, which the database already holds.
+        Future<Set<String>> first =
+            pool.submit(
+                () ->
+                    tagsOfTheUserAfterReplacement(
+                        Set.of(tagB),
+                        () -> {
+                          loaded.countDown();
+                          await(otherCommitted);
+                        }));
+        assertThat(loaded.await(30, SECONDS)).as("the first transaction loaded the user").isTrue();
+        replaceTags(Set.of(tagB), () -> {});
+        otherCommitted.countDown();
+        answered = first.get(30, SECONDS);
+      } finally {
+        otherCommitted.countDown();
+        pool.shutdownNow();
+      }
+
+      // Assert
+      assertThat(answered).isEqualTo(Set.of(tagB));
+      assertThat(linksOfTheUser()).isEqualTo(Set.of(tagB));
     }
   }
 

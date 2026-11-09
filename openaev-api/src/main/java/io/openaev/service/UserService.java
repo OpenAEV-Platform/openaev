@@ -318,11 +318,14 @@ public class UserService {
    * user is platform-level and its tags may belong to several tenants, so the links to the tags out
    * of scope are left alone: the ones to drop are deleted and the missing ones inserted, each in
    * one statement, where replacing the collection would delete every row of the user as soon as it
-   * is empty. The row of the user is locked first and the links it holds are read once the lock is
-   * held, never from the collection loaded earlier in the request: two concurrent replacements
-   * would otherwise both compute their differences from the same set and leave the union of what
-   * they asked for. The changes the caller made to the user are kept, and the user is reloaded
-   * afterwards so that it answers with the links it now holds.
+   * is empty. A caller whose scope does not cover every tenant therefore keeps the links to the
+   * tags of the tenants it does not see, on the platform route too. The row of the user is locked
+   * first and the links it holds are read once the lock is held, never from the collection loaded
+   * earlier in the request: two concurrent replacements would otherwise both compute their
+   * differences from the same set and leave the union of what they asked for. The changes the
+   * caller made to the user are written, and the user is reloaded in every case, the one where the
+   * links already are the wanted ones included, so that it answers with the links the database
+   * holds after the lock.
    *
    * @param user the saved user
    * @param wanted the tags the user must hold among the ones in scope
@@ -335,18 +338,19 @@ public class UserService {
     toRemove.removeAll(wantedIds);
     Set<String> toAdd = new HashSet<>(wantedIds);
     toAdd.removeAll(heldIds);
-    if (toRemove.isEmpty() && toAdd.isEmpty()) {
-      return;
+    if (!toRemove.isEmpty() || !toAdd.isEmpty()) {
+      // The join table is written in SQL, so the user row would stay untouched and no update event
+      // would reach the connected clients: marking the user updated makes Hibernate publish it.
+      user.setUpdatedAt(Instant.now());
+      if (!toRemove.isEmpty()) {
+        userRepository.removeTags(user.getId(), toRemove);
+      }
+      if (!toAdd.isEmpty()) {
+        userRepository.addTags(user.getId(), toAdd);
+      }
     }
-    // The join table is written in SQL, so the user row would stay untouched and no update event
-    // would reach the connected clients: marking the user updated makes Hibernate publish it.
-    user.setUpdatedAt(Instant.now());
-    if (!toRemove.isEmpty()) {
-      userRepository.removeTags(user.getId(), toRemove);
-    }
-    if (!toAdd.isEmpty()) {
-      userRepository.addTags(user.getId(), toAdd);
-    }
+    // Written before the reload: a refresh drops what the user holds in memory and unflushed.
+    entityManager.flush();
     entityManager.refresh(user);
   }
 
