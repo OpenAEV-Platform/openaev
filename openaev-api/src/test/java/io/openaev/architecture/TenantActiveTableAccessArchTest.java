@@ -321,6 +321,7 @@ import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -3233,14 +3234,14 @@ class TenantActiveTableAccessArchTest {
         ThreatArsenalService.class,
         "getSecurityPlatformsForActionRemediation",
         at(ThreatArsenalApi.class, "securityPlatformsFromAction")),
-    // Matched by name: the String overload is called by resolveEligibleIds, the contract overload
-    // by delete and by the String overload.
+    // Every overload of the name: the String overload is called by resolveEligibleIds, the contract
+    // overload by delete and by the String overload.
     claim(
         ThreatArsenalService.class,
         "isEligibleForDeletion",
         at(ThreatArsenalService.class, "delete"),
         at(ThreatArsenalService.class, "resolveEligibleIds"),
-        at(ThreatArsenalService.class, "isEligibleForDeletion")),
+        overload(ThreatArsenalService.class, "isEligibleForDeletion", String.class)),
     claim(
         ThreatArsenalService.class,
         "resolveEligibleIds",
@@ -3260,11 +3261,30 @@ class TenantActiveTableAccessArchTest {
     claim(
         io.openaev.service.MailingService.class,
         "sendEmail",
-        at(io.openaev.service.MailingService.class, "sendEmail"),
+        overload(
+            io.openaev.service.MailingService.class,
+            "sendEmail",
+            String.class,
+            String.class,
+            List.class),
+        overload(
+            io.openaev.service.MailingService.class,
+            "sendEmail",
+            String.class,
+            String.class,
+            List.class,
+            String.class),
+        overload(
+            io.openaev.service.MailingService.class,
+            "sendEmail",
+            String.class,
+            String.class,
+            List.class,
+            Optional.class),
         at(
             io.openaev.rest.lessons.ExerciseLessonsApi.class,
             "sendExerciseLessons",
-            Scope.TX_CTX_PARAMETER),
+            Scope.TX_CTX_ENTRY_POINT),
         at(
             io.openaev.notification.engine.NotificationDispatchService.class,
             "handleEmailNotification"),
@@ -3300,7 +3320,10 @@ class TenantActiveTableAccessArchTest {
             io.openaev.notification.engine.NotificationEngineService.class,
             "handleEventWithMessage",
             Scope.OPENED_AROUND_LAMBDA),
-        at(io.openaev.service.notification.NotifierService.class, "test", Scope.TX_CTX_PARAMETER)),
+        at(
+            io.openaev.service.notification.NotifierService.class,
+            "test",
+            Scope.TX_CTX_ENTRY_POINT)),
     // The scenario of the STIX bundle import: the method that reads the documents takes the
     // TxCtx the import runs under.
     claim(
@@ -3309,7 +3332,7 @@ class TenantActiveTableAccessArchTest {
         at(
             io.openaev.service.stix.SecurityCoverageInjectService.class,
             "createInjectsByArtifacts",
-            Scope.TX_CTX_PARAMETER)),
+            Scope.TX_CTX_ENTRY_POINT)),
     // The payload delete is the only caller, and its endpoint takes a TxCtx.
     claim(
         io.openaev.rest.inject.service.InjectIndexCleanupService.class,
@@ -3318,7 +3341,7 @@ class TenantActiveTableAccessArchTest {
     claim(
         io.openaev.rest.payload.service.PayloadService.class,
         "delete",
-        at(io.openaev.rest.payload.PayloadApi.class, "deletePayload", Scope.TX_CTX_PARAMETER))
+        at(io.openaev.rest.payload.PayloadApi.class, "deletePayload", Scope.TX_CTX_ENTRY_POINT))
   };
 
   private static CallersClaim claim(Class<?> owner, String method, At... callers) {
@@ -3331,6 +3354,10 @@ class TenantActiveTableAccessArchTest {
 
   private static At at(Class<?> in, String method, Scope scope) {
     return new At(in, method, scope);
+  }
+
+  private static At overload(Class<?> in, String method, Class<?>... parameterTypes) {
+    return new At(in, method, null, List.of(parameterTypes));
   }
 
   private static Reaching reaching(Class<?> in, String... methods) {
@@ -3501,16 +3528,15 @@ class TenantActiveTableAccessArchTest {
   }
 
   /**
-   * The methods of a class that reach a table, and the methods of the class that lead to them, take
-   * a {@link TxCtx} whenever they are not private: the class is then reached only through an entry
-   * point that carries the scope, since a private method has no caller outside the class. The
-   * methods that lead to a listed method are found through the calls made inside the class, a
-   * lambda counting as its method. A class with no such entry point is a violation, so the claim
-   * cannot be true of nothing.
+   * Every method of a class that reaches a table, each overload of a listed name, is entered only
+   * through a method that opens a TxCtx scope ({@link #firstUnscopedWayIn}): a public
+   * {@code @Transactional} method that takes a TxCtx, called through the proxy. A helper called
+   * from its own class is scoped by the method that calls it, never by its own annotation. A listed
+   * name the class does not declare is a violation, so the claim cannot be true of nothing.
    */
   static ArchRule methodsReachingTheTableTakeATxCtx(Reaching... claims) {
-    ArchCondition<JavaClass> entryPointsTakeATxCtx =
-        new ArchCondition<>("take a TxCtx in every non-private method that reaches the table") {
+    ArchCondition<JavaClass> enteredThroughATxCtxScope =
+        new ArchCondition<>("be entered only through a method that opens a TxCtx scope") {
           @Override
           public void check(JavaClass javaClass, ConditionEvents events) {
             Optional<Reaching> claim =
@@ -3520,36 +3546,26 @@ class TenantActiveTableAccessArchTest {
             if (claim.isEmpty()) {
               return;
             }
-            Set<String> leadsToTable = new HashSet<>(claim.get().methods());
-            boolean grown = true;
-            while (grown) {
-              grown = false;
-              for (JavaAccess<?> access : javaClass.getAccessesFromSelf()) {
-                if (access.getTargetOwner().getName().equals(javaClass.getName())
-                    && leadsToTable.contains(access.getTarget().getName())
-                    && leadsToTable.add(AllowedCall.enclosingMethodName(access.getOrigin()))) {
-                  grown = true;
-                }
-              }
-            }
-            List<JavaMethod> entryPoints =
-                javaClass.getMethods().stream()
-                    .filter(method -> leadsToTable.contains(method.getName()))
-                    .filter(method -> !method.getModifiers().contains(JavaModifier.PRIVATE))
-                    .toList();
-            if (entryPoints.isEmpty()) {
-              events.add(
-                  SimpleConditionEvent.violated(
-                      javaClass,
-                      javaClass.getSimpleName()
-                          + " has no non-private method that reaches the table"));
-            }
-            for (JavaMethod method : entryPoints) {
-              if (method.getRawParameterTypes().stream()
-                  .noneMatch(type -> type.isEquivalentTo(TxCtx.class))) {
+            for (String name : claim.get().methods()) {
+              List<JavaMethod> reaching =
+                  javaClass.getMethods().stream()
+                      .filter(method -> method.getName().equals(name))
+                      .toList();
+              if (reaching.isEmpty()) {
                 events.add(
                     SimpleConditionEvent.violated(
-                        method, method.getFullName() + " reaches the table and takes no TxCtx"));
+                        javaClass, javaClass.getSimpleName() + " declares no method " + name));
+              }
+              for (JavaMethod method : reaching) {
+                firstUnscopedWayIn(method)
+                    .ifPresent(
+                        unscoped ->
+                            events.add(
+                                SimpleConditionEvent.violated(
+                                    method,
+                                    method.getFullName()
+                                        + " reaches the table and runs under no TxCtx scope: "
+                                        + unscoped)));
               }
             }
           }
@@ -3558,10 +3574,11 @@ class TenantActiveTableAccessArchTest {
           public void finish(ConditionEvents events) {}
         };
     return classes()
-        .should(entryPointsTakeATxCtx)
+        .should(enteredThroughATxCtxScope)
         .because(
-            "a class that reaches a tenant-active table through private methods is scoped by the"
-                + " TxCtx of the non-private methods that lead to them");
+            "TenantScopeTransactionAspect scopes a transaction only at a public @Transactional"
+                + " method that takes a TxCtx and is called through the Spring proxy; a method"
+                + " that reaches a tenant-active table from anywhere else reads with no scope");
   }
 
   /**
@@ -3760,22 +3777,51 @@ class TenantActiveTableAccessArchTest {
   }
 
   /**
-   * A method, as the enclosing method of a call: a lambda counts as the method that holds it. A
+   * A method, as the enclosing method of a call: a lambda counts as the method that holds it. The
+   * method is named by its name when the class has one method of that name, and by its name and
+   * parameter types when the name is overloaded, so an overload is never taken for another. A
    * caller that carries a {@link Scope} is also checked to run under it.
    */
-  record At(Class<?> in, String method, Scope scope) {
+  record At(Class<?> in, String method, Scope scope, List<Class<?>> parameterTypes) {
 
     At(Class<?> in, String method) {
-      this(in, method, null);
+      this(in, method, null, null);
+    }
+
+    At(Class<?> in, String method, Scope scope) {
+      this(in, method, scope, null);
     }
 
     boolean isOrigin(JavaCodeUnit origin) {
-      return origin.getOwner().getName().equals(in.getName())
-          && AllowedCall.enclosingMethodName(origin).equals(method);
+      if (!origin.getOwner().getName().equals(in.getName())
+          || !AllowedCall.enclosingMethodName(origin).equals(method)) {
+        return false;
+      }
+      if (parameterTypes == null) {
+        return isTheOnlyMethodNamed(origin.getOwner(), method);
+      }
+      List<String> declared = parameterTypes.stream().map(Class::getName).toList();
+      return origin.getRawParameterTypes().stream()
+          .map(JavaClass::getName)
+          .toList()
+          .equals(declared);
     }
 
     String describe() {
-      return in.getSimpleName() + "#" + method;
+      if (parameterTypes == null) {
+        return in.getSimpleName() + "#" + method;
+      }
+      return in.getSimpleName()
+          + "#"
+          + method
+          + parameterTypes.stream()
+              .map(Class::getSimpleName)
+              .collect(Collectors.joining(", ", "(", ")"));
+    }
+
+    private static boolean isTheOnlyMethodNamed(JavaClass owner, String name) {
+      return owner.getMethods().stream().filter(method -> method.getName().equals(name)).count()
+          == 1;
     }
   }
 
@@ -3784,40 +3830,52 @@ class TenantActiveTableAccessArchTest {
    * class.
    */
   enum Scope {
-    /** Every method of that name takes a {@link TxCtx}, which the transaction aspect scopes on. */
-    TX_CTX_PARAMETER("takes a TxCtx parameter") {
+    /**
+     * The caller is entered only through a method that opens a TxCtx scope: see {@link
+     * #firstUnscopedWayIn}.
+     */
+    TX_CTX_ENTRY_POINT(
+        "is entered only through a public @Transactional method that takes a TxCtx") {
       @Override
       boolean holds(JavaAccess<?> access) {
-        List<JavaMethod> methods = enclosingMethods(access.getOrigin());
-        return !methods.isEmpty()
-            && methods.stream()
-                .allMatch(
-                    method ->
-                        method.getRawParameterTypes().stream()
-                            .anyMatch(type -> type.isEquivalentTo(TxCtx.class)));
+        return firstUnscopedWayIn(access.getOrigin()).isEmpty();
       }
     },
     /**
-     * The call is made in a lambda of a method that opens a {@link TenantScopedTransaction} scope
-     * with {@code execute} or {@code executeNew}, the lambda being the work the scope runs. Read
-     * from the bytecode: a call beside the lambda is not under the scope.
+     * Every call of the target the caller makes, directly or in one of its lambdas, is made in the
+     * body of a lambda passed as the work argument of {@link TenantScopedTransaction}'s {@code
+     * execute} or {@code executeNew}. Read from the bytecode of that exact method (name and
+     * descriptor), which ties each lambda to the call it is passed to: ArchUnit attributes a
+     * lambda's calls to the enclosing method, so its model cannot tell a call in the work lambda
+     * from one beside it or in another lambda.
      */
-    OPENED_AROUND_LAMBDA("makes the call in a lambda of a method that opens a tenant scope") {
+    OPENED_AROUND_LAMBDA(
+        "makes every call in the lambda it passes as the work of a tenant scope it opens") {
       @Override
       boolean holds(JavaAccess<?> access) {
-        Class<?> owner = access.getOrigin().getOwner().reflect();
-        String method = AllowedCall.enclosingMethodName(access.getOrigin());
-        String targetOwner = access.getTarget().getOwner().getName();
-        String target = access.getTarget().getName();
-        String scopeOwner = TenantScopedTransaction.class.getName();
+        if (!(access.getTarget() instanceof AccessTarget.CodeUnitAccessTarget target)) {
+          return false;
+        }
+        JavaCodeUnit origin = access.getOrigin();
+        String targetOwner = target.getOwner().getName();
+        String targetDescriptor = descriptorOf(target);
         try {
-          boolean inLambda =
-              MethodCallOrder.callsInLambdasOf(owner, method).stream()
-                  .anyMatch(call -> call.owner().equals(targetOwner) && call.name().equals(target));
-          List<MethodCallOrder.Call> calls = MethodCallOrder.callsInOrder(owner, method);
-          return inLambda
-              && (MethodCallOrder.firstIndexOf(calls, scopeOwner, "execute").isPresent()
-                  || MethodCallOrder.firstIndexOf(calls, scopeOwner, "executeNew").isPresent());
+          List<MethodCallOrder.ScopedCall> callsOfTarget =
+              MethodCallOrder.callsWithScopeOf(
+                      origin.getOwner().reflect(),
+                      origin.getName(),
+                      origin.getDescriptor(),
+                      TenantScopedTransaction.class.getName(),
+                      Set.of("execute", "executeNew"))
+                  .stream()
+                  .filter(
+                      call ->
+                          call.owner().equals(targetOwner)
+                              && call.name().equals(target.getName())
+                              && call.descriptor().equals(targetDescriptor))
+                  .toList();
+          return !callsOfTarget.isEmpty()
+              && callsOfTarget.stream().allMatch(MethodCallOrder.ScopedCall::inScopeWork);
         } catch (IllegalStateException e) {
           return false;
         }
@@ -3831,13 +3889,68 @@ class TenantActiveTableAccessArchTest {
     }
 
     abstract boolean holds(JavaAccess<?> access);
+  }
 
-    private static List<JavaMethod> enclosingMethods(JavaCodeUnit origin) {
-      String name = AllowedCall.enclosingMethodName(origin);
-      return origin.getOwner().getMethods().stream()
-          .filter(method -> method.getName().equals(name))
-          .toList();
+  /** The JVM descriptor of the method or constructor an access targets. */
+  static String descriptorOf(AccessTarget.CodeUnitAccessTarget target) {
+    return org.springframework.asm.Type.getMethodDescriptor(
+        org.springframework.asm.Type.getType(target.getRawReturnType().reflect()),
+        target.getRawParameterTypes().stream()
+            .map(type -> org.springframework.asm.Type.getType(type.reflect()))
+            .toArray(org.springframework.asm.Type[]::new));
+  }
+
+  /**
+   * The first way into {@code method} that runs under no TxCtx scope, or empty when there is none.
+   * The scope is opened only by {@code TenantScopeTransactionAspect}, which acts on a method
+   * annotated {@code @Transactional} itself (its pointcut is {@code @annotation}, so a class-level
+   * annotation does not count) that takes a {@link TxCtx}, when the call goes through the Spring
+   * proxy: the method is public and called from another class. A call from the same class bypasses
+   * the proxy, so it is scoped only if its caller is. A method no analysed class calls is entered
+   * by the framework (an endpoint, a listener), so it must open the scope itself. Overloads are
+   * distinct methods: the check follows the exact callers of {@code method}.
+   */
+  static Optional<String> firstUnscopedWayIn(JavaCodeUnit method) {
+    return firstUnscopedWayIn(method, new HashSet<>());
+  }
+
+  private static Optional<String> firstUnscopedWayIn(JavaCodeUnit method, Set<String> visiting) {
+    if (!visiting.add(method.getFullName())) {
+      // A cycle adds no way in: the ways into the cycle are checked where it is entered.
+      return Optional.empty();
     }
+    boolean opensTheScope = opensATxCtxScope(method);
+    Set<JavaCodeUnit> callers =
+        method.getAccessesToSelf().stream()
+            .map(JavaAccess::getOrigin)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+    if (callers.isEmpty()) {
+      return opensTheScope
+          ? Optional.empty()
+          : Optional.of(
+              method.getFullName()
+                  + " has no caller and is not a public @Transactional method that takes a TxCtx");
+    }
+    for (JavaCodeUnit caller : callers) {
+      boolean throughTheProxy = !caller.getOwner().getName().equals(method.getOwner().getName());
+      if (throughTheProxy && opensTheScope) {
+        continue;
+      }
+      Optional<String> unscoped = firstUnscopedWayIn(caller, visiting);
+      if (unscoped.isPresent()) {
+        return unscoped;
+      }
+    }
+    return Optional.empty();
+  }
+
+  private static boolean opensATxCtxScope(JavaCodeUnit method) {
+    return method instanceof JavaMethod
+        && method.getModifiers().contains(JavaModifier.PUBLIC)
+        && (method.isAnnotatedWith(org.springframework.transaction.annotation.Transactional.class)
+            || method.isAnnotatedWith(jakarta.transaction.Transactional.class))
+        && method.getRawParameterTypes().stream()
+            .anyMatch(type -> type.isEquivalentTo(TxCtx.class));
   }
 
   /**
@@ -3940,7 +4053,8 @@ class TenantActiveTableAccessArchTest {
                           caller.describe()
                               + " is claimed to call "
                               + claim.describe()
-                              + " but no such call was found"));
+                              + " but no such call was found (an overloaded caller is named"
+                              + " with its parameter types)"));
                 }
               }
             }

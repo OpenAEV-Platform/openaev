@@ -1045,6 +1045,7 @@ public final class TenantActiveTableAccessFixtures {
 
     public void target() {}
 
+    @Transactional
     public void withTxCtx(TxCtx ctx) {
       target();
     }
@@ -1077,6 +1078,56 @@ public final class TenantActiveTableAccessFixtures {
       Runnable work = () -> target();
       work.run();
     }
+
+    public void executeBesideAnUnrelatedLambda() {
+      tenantTx.execute(TxCtx.forTenant("tenant"), () -> {});
+      Runnable send = () -> target();
+      send.run();
+    }
+
+    public void txCtxWithoutTransactional(TxCtx ctx) {
+      target();
+    }
+  }
+
+  /**
+   * A public {@code @Transactional} method that takes a TxCtx, called only from its own class: the
+   * call does not go through the proxy, so the aspect never scopes it.
+   */
+  public static class SelfCalledTxCtxHelper {
+    private final InjectorContractRepository repository;
+
+    public SelfCalledTxCtxHelper(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public void target() {}
+
+    public long entry(TxCtx ctx) {
+      target();
+      return helper(ctx);
+    }
+
+    @Transactional
+    public long helper(TxCtx ctx) {
+      target();
+      return repository.count();
+    }
+  }
+
+  /** Two overloads of one caller name, only one of which runs under a scope. */
+  public static class OverloadedCallers {
+
+    public void target() {}
+
+    @Transactional
+    public void caller(TxCtx ctx) {
+      target();
+    }
+
+    public void caller() {
+      target();
+    }
   }
 
   /** One method reaches the contract repository and is listed, another is not. */
@@ -1101,6 +1152,24 @@ public final class TenantActiveTableAccessFixtures {
     private final InjectorContractRepository repository;
 
     public TxCtxEntryPoint(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    @Transactional
+    public long entry(TxCtx ctx) {
+      return helper();
+    }
+
+    private long helper() {
+      return repository.count();
+    }
+  }
+
+  /** A public method takes a TxCtx but is not {@code @Transactional}, so nothing scopes it. */
+  public static class TxCtxEntryPointWithoutTransactional {
+    private final InjectorContractRepository repository;
+
+    public TxCtxEntryPointWithoutTransactional(InjectorContractRepository repository) {
       this.repository = repository;
     }
 
