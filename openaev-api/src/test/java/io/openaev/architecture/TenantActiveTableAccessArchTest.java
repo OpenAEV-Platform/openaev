@@ -3039,7 +3039,9 @@ class TenantActiveTableAccessArchTest {
         io.openaev.service.MapperService.class,
         "getInjectorContractsToExport",
         "findAll",
-        "findAll(specification) returns every contract of the scope the search selects"),
+        "findAll(specification) lists the contracts of the scope that the request selects, one"
+            + " per contract id: InjectorContractSpecification#onePerContractId keeps the"
+            + " best-ranked copy that matches the request, as the search does"),
     allow(
         io.openaev.service.autonomous.CapabilityResolverService.class,
         "buildIndex",

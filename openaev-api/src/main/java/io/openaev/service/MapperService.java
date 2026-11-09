@@ -29,6 +29,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.ImportMapperRepository;
 import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.specification.InjectorContractSpecification;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.asset.endpoint.form.EndpointExportImport;
 import io.openaev.rest.exception.BadRequestException;
@@ -458,8 +459,12 @@ public class MapperService {
     Specification<InjectorContract> filterSpecifications =
         computeFilterGroupJpa(translated.getFilterGroup());
     filterSpecifications = filterSpecifications.and(computeSearchJpa(translated.getTextSearch()));
+    // One row per contract id, from the same ranked copy the search lists
+    Specification<InjectorContract> onePerId =
+        filterSpecifications.and(
+            InjectorContractSpecification.onePerContractId(filterSpecifications));
 
-    return injectorContractRepository.findAll(filterSpecifications).stream()
+    return injectorContractRepository.findAll(onePerId).stream()
         .map(this::toInjectorContractExport)
         .toList();
   }

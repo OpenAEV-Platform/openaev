@@ -17,6 +17,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.utils.CsvType;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -243,6 +244,64 @@ class InjectorContractApiCopyRankingTenantScopeTest extends IntegrationTest {
       assertThat((List<String>) JsonPath.read(body, "$.content[*].injector_contract_labels.en"))
           .containsExactly(labelOf(higher));
       assertThat(((Number) JsonPath.read(body, "$.totalElements")).longValue()).isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("Threat arsenal CSV export with no selector")
+  class ExportWithNoSelector {
+
+    private List<String> dataRows(String csv) {
+      List<String> lines = csv.lines().filter(line -> !line.isBlank()).toList();
+      return lines.subList(1, lines.size());
+    }
+
+    private String exportCsv(String textSearch) throws Exception {
+      MvcResult result =
+          mvc.perform(
+                  post("/api/mappers/export/csv?csvType=" + CsvType.INJECTOR_CONTRACTS)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(search(textSearch)))
+                      .with(csrf()))
+              .andReturn();
+      assertThat(result.getResponse().getStatus()).isEqualTo(200);
+      return result.getResponse().getContentAsString();
+    }
+
+    @Test
+    @DisplayName("given_builtinContractInTwoTenants_should_exportOneRowCountedLikeTheSearch")
+    void given_builtinContractInTwoTenants_should_exportOneRowCountedLikeTheSearch()
+        throws Exception {
+      // Arrange
+      String other = tenantOnTheSideOfDefault(true);
+      callerOfDefaultAnd(other);
+
+      // Act
+      String csv = exportCsv("Manual");
+      String searched = postJson(THREAT_ARSENAL_URL + "/search", search("Manual"));
+
+      // Assert
+      long total = ((Number) JsonPath.read(searched, "$.totalElements")).longValue();
+      assertThat(total).isEqualTo(1);
+      assertThat(dataRows(csv)).hasSize((int) total);
+    }
+
+    @Test
+    @DisplayName("given_copiesLabelledDifferently_should_exportTheDefaultTenantsCopy")
+    void given_copiesLabelledDifferently_should_exportTheDefaultTenantsCopy() throws Exception {
+      // Arrange
+      String other = tenantOnTheSideOfDefault(true);
+      callerOfDefaultAnd(other);
+      contractId = "ic-rank-" + UUID.randomUUID();
+      cloneContractInto(other);
+      cloneContractInto(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      List<String> rows = dataRows(exportCsv(LABEL_PREFIX));
+
+      // Assert
+      assertThat(rows).hasSize(1);
+      assertThat(rows.getFirst()).contains(labelOf(Tenant.DEFAULT_TENANT_UUID));
     }
   }
 }
