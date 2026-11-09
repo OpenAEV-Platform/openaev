@@ -848,16 +848,34 @@ public class AttackPathGraphService {
   }
 
   /**
+   * The one tenant the metadata rows of a simulation carry, null for no row. A simulation belongs
+   * to one tenant, so rows of two tenants are an inconsistent store: the contracts of the graph are
+   * read in a single tenant, and the read refuses to pick one.
+   */
+  private static String singleTenantOf(String simulationId, List<AttackPathInjectorMetaRow> rows) {
+    Set<String> tenantIds = new LinkedHashSet<>();
+    for (AttackPathInjectorMetaRow meta : rows) {
+      tenantIds.add(meta.tenantId());
+    }
+    if (tenantIds.size() > 1) {
+      throw new IllegalStateException(
+          "The injector executions of simulation " + simulationId + " span more than one tenant");
+    }
+    return tenantIds.isEmpty() ? null : tenantIds.iterator().next();
+  }
+
+  /**
    * The collapsed injector nodes get the same type and techniques as the full graph, but their
    * source rows are never materialized (the edges are grouped), so a small distinct read supplies
    * the per-injector metadata before the shared technique resolution runs.
    */
-  private void enrichCollapsedInjectors(String simulationId, Map<String, AttackPathNodeDTO> nodes) {
+  void enrichCollapsedInjectors(String simulationId, Map<String, AttackPathNodeDTO> nodes) {
     Map<String, Set<String>> contractsByInjectorNode = new LinkedHashMap<>();
     Set<String> externalIds = new HashSet<>();
-    String tenantId = null;
-    for (AttackPathInjectorMetaRow meta : executionRepository.findInjectorMetadata(simulationId)) {
-      tenantId = meta.tenantId();
+    List<AttackPathInjectorMetaRow> metaRows =
+        executionRepository.findInjectorMetadata(simulationId);
+    String tenantId = singleTenantOf(simulationId, metaRows);
+    for (AttackPathInjectorMetaRow meta : metaRows) {
       String nodeId = AttackPathIds.injectorNode(meta.sourceInjector(), meta.contractExternalId());
       AttackPathNodeDTO injectorNode = nodes.get(nodeId);
       if (injectorNode == null) {
