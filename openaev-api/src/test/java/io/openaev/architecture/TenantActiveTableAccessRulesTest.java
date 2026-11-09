@@ -773,4 +773,161 @@ class TenantActiveTableAccessRulesTest {
       assertThat(result.getFailureReport().toString()).contains("was not analysed");
     }
   }
+
+  @Nested
+  @DisplayName("injectors_contracts: the callers and routes an allowlist reason relies on")
+  class InjectorContractCallersAndRoutes {
+
+    private final Class<?> shapes = TenantActiveTableAccessFixtures.CallerShapes.class;
+
+    private TenantActiveTableAccessArchTest.CallersClaim claimOf(String... callers) {
+      return new TenantActiveTableAccessArchTest.CallersClaim(
+          shapes,
+          "claimed",
+          Stream.of(callers)
+              .map(caller -> new TenantActiveTableAccessArchTest.At(shapes, caller))
+              .toList());
+    }
+
+    @Test
+    @DisplayName("given a call from a method the claim does not list, should violate on it only")
+    void given_aCallFromAnUnlistedMethod_should_violateOnItOnly() {
+      // Act
+      EvaluationResult result =
+          evaluate(TenantActiveTableAccessArchTest.callersAreOnly(claimOf("listed")), shapes);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("unlisted")
+          .doesNotContain("CallerShapes.listed()");
+    }
+
+    @Test
+    @DisplayName("given every caller listed, should not violate")
+    void given_everyCallerListed_should_notViolate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.callersAreOnly(claimOf("listed", "unlisted")),
+              shapes);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a listed caller that no longer makes the call, should violate")
+    void given_aListedCallerThatNoLongerCalls_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.callersAreOnly(
+                  claimOf("listed", "unlisted", "renamed")),
+              shapes);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("renamed");
+    }
+
+    @Test
+    @DisplayName("given a claim of no caller whose class is not analysed, should violate")
+    void given_aClaimOfNoCallerWhoseClassIsNotAnalysed_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.callersAreOnly(claimOf()),
+              TenantActiveTableAccessFixtures.MethodRoutes.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("was not analysed");
+    }
+
+    @Test
+    @DisplayName("given an endpoint mapped on the tenant route only, should not violate")
+    void given_anEndpointMappedOnTheTenantRouteOnly_should_notViolate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.mappedOnTheTenantRouteOnly(
+                  new TenantActiveTableAccessArchTest.RouteClaim(
+                      TenantActiveTableAccessFixtures.MethodRoutes.class, "tenantOnly")),
+              TenantActiveTableAccessFixtures.MethodRoutes.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given an endpoint also mapped on the short route, should violate")
+    void given_anEndpointAlsoMappedOnTheShortRoute_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.mappedOnTheTenantRouteOnly(
+                  new TenantActiveTableAccessArchTest.RouteClaim(
+                      TenantActiveTableAccessFixtures.MethodRoutes.class, "bothRoutes")),
+              TenantActiveTableAccessFixtures.MethodRoutes.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("/api/things");
+    }
+
+    @Test
+    @DisplayName("given a method with no mapping, should violate")
+    void given_aMethodWithNoMapping_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.mappedOnTheTenantRouteOnly(
+                  new TenantActiveTableAccessArchTest.RouteClaim(
+                      TenantActiveTableAccessFixtures.MethodRoutes.class, "unmapped")),
+              TenantActiveTableAccessFixtures.MethodRoutes.class);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("no mapping");
+    }
+
+    @Test
+    @DisplayName("given a route that comes from the class mapping, should follow its prefix")
+    void given_aRouteFromTheClassMapping_should_followItsPrefix() {
+      // Act
+      EvaluationResult tenant =
+          evaluate(
+              TenantActiveTableAccessArchTest.mappedOnTheTenantRouteOnly(
+                  new TenantActiveTableAccessArchTest.RouteClaim(
+                      TenantActiveTableAccessFixtures.TenantPrefixedClassRoute.class, "export")),
+              TenantActiveTableAccessFixtures.TenantPrefixedClassRoute.class);
+      EvaluationResult shortRoute =
+          evaluate(
+              TenantActiveTableAccessArchTest.mappedOnTheTenantRouteOnly(
+                  new TenantActiveTableAccessArchTest.RouteClaim(
+                      TenantActiveTableAccessFixtures.ShortClassRoute.class, "export")),
+              TenantActiveTableAccessFixtures.ShortClassRoute.class);
+
+      // Assert
+      assertThat(tenant.hasViolation()).isFalse();
+      assertThat(shortRoute.hasViolation()).isTrue();
+    }
+
+    @Test
+    @DisplayName("given a route claim whose class is not analysed, should violate")
+    void given_aRouteClaimWhoseClassIsNotAnalysed_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluate(
+              TenantActiveTableAccessArchTest.mappedOnTheTenantRouteOnly(
+                  new TenantActiveTableAccessArchTest.RouteClaim(
+                      TenantActiveTableAccessFixtures.MethodRoutes.class, "tenantOnly")),
+              shapes);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("was not analysed");
+    }
+  }
 }

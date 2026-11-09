@@ -1,6 +1,7 @@
 package io.openaev.architecture.fixture;
 
 import io.openaev.aop.PlatformWrite;
+import io.openaev.config.TenantUriUtils;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.InjectorContract;
@@ -22,6 +23,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 /** Accessors of a tenant-active table's repository that no access rule allowlists. */
 public final class TenantActiveTableAccessFixtures {
@@ -982,5 +985,49 @@ public final class TenantActiveTableAccessFixtures {
       }
       return service.injectorContract(id);
     }
+  }
+
+  // -- injectors_contracts: the callers and routes an allowlist reason relies on --
+
+  /** A method and two callers of it, to tell a listed caller from an unlisted one. */
+  public static class CallerShapes {
+    public void claimed() {}
+
+    public void listed() {
+      claimed();
+    }
+
+    public void unlisted() {
+      claimed();
+    }
+  }
+
+  /** Endpoints mapped on the tenant route only, on both routes, and not mapped at all. */
+  public static class MethodRoutes {
+    @Transactional
+    @GetMapping(TenantUriUtils.TENANT_PREFIX + "/things")
+    public void tenantOnly(TxCtx ctx) {}
+
+    @Transactional
+    @GetMapping({"/api/things", TenantUriUtils.TENANT_PREFIX + "/things"})
+    public void bothRoutes(TxCtx ctx) {}
+
+    public void unmapped() {}
+  }
+
+  /** The route comes from the class mapping: tenant-prefixed. */
+  @RequestMapping(TenantUriUtils.TENANT_PREFIX + "/things")
+  public static class TenantPrefixedClassRoute {
+    @Transactional
+    @GetMapping("/{id}/export")
+    public void export(TxCtx ctx) {}
+  }
+
+  /** The route comes from the class mapping: the short route, with no tenant in the path. */
+  @RequestMapping("/api/things")
+  public static class ShortClassRoute {
+    @Transactional
+    @GetMapping("/{id}/export")
+    public void export(TxCtx ctx) {}
   }
 }
