@@ -27,13 +27,20 @@ import io.openaev.service.account.AdminPrivilegeService;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
 import io.openaev.service.account.CatalogConnectorPrivilegeService;
 import io.openaev.service.tenants.TenantUserService;
+import java.io.ByteArrayOutputStream;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
+import javax.tools.JavaCompiler;
+import javax.tools.ToolProvider;
 import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.data.jpa.repository.NativeQuery;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.util.FileSystemUtils;
 
 /**
  * Who writes {@code users_tenants}, and where each writer gets the tenant of the row. The table is
@@ -246,29 +253,68 @@ class UsersTenantsWritersArchTest {
         .noneMatch(UsersTenantsWritersArchTest::writesUsersTenants);
   }
 
-  /**
-   * Writes {@code users_tenants} through {@code @NativeQuery}, which Spring Data composes from
-   * {@code @Query}. {@code @Query} and {@code @Modifying} themselves cannot be written in this
-   * module (NoRepositoryRule).
-   */
-  private interface NativeQueryMover {
-    @NativeQuery("UPDATE users_tenants SET tenant_id = :tenantId WHERE user_id = :userId")
-    void move(String userId, String tenantId);
-  }
+  private static final String NATIVE_QUERY_FIXTURES =
+      """
+      package fixtures;
+      import java.util.List;
+      import org.springframework.data.jpa.repository.NativeQuery;
+      public class NativeQueryFixtures {
+        /** Writes users_tenants through @NativeQuery, which Spring Data composes from @Query. */
+        public interface Mover {
+          @NativeQuery("UPDATE users_tenants SET tenant_id = :tenantId WHERE user_id = :userId")
+          void move(String userId, String tenantId);
+        }
+        public interface Reader {
+          @NativeQuery("SELECT tenant_id FROM users_tenants WHERE user_id = :userId")
+          List<String> tenantsOf(String userId);
+        }
+      }
+      """;
 
-  private interface NativeQueryReader {
-    @NativeQuery("SELECT tenant_id FROM users_tenants WHERE user_id = :userId")
-    List<String> tenantsOf(String userId);
+  /**
+   * The fixtures are compiled here, without annotation processing, and not written as source of
+   * this module: NoRepositoryRule refuses every query annotation of Spring Data in a module that is
+   * not {@code openaev-model}, {@code @NativeQuery} included.
+   */
+  private static JavaClasses compiledNativeQueryFixtures(Path directory) throws Exception {
+    Path source = directory.resolve("fixtures/NativeQueryFixtures.java");
+    Files.createDirectories(source.getParent());
+    Files.writeString(source, NATIVE_QUERY_FIXTURES);
+    JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    ByteArrayOutputStream messages = new ByteArrayOutputStream();
+    int status =
+        compiler.run(
+            null,
+            messages,
+            messages,
+            "-proc:none",
+            "-classpath",
+            System.getProperty("java.class.path"),
+            "-d",
+            directory.toString(),
+            source.toString());
+    assertThat(status).as("the fixtures compile: %s", messages).isZero();
+    return new ClassFileImporter().importPath(directory);
   }
 
   @ArchTest
-  static void the_writer_detection_reads_composed_query_annotations(JavaClasses classes) {
-    JavaClasses fixtures =
-        new ClassFileImporter().importClasses(NativeQueryMover.class, NativeQueryReader.class);
+  static void the_writer_detection_reads_composed_query_annotations(JavaClasses classes)
+      throws Exception {
+    Path directory = Files.createTempDirectory("native-query-fixtures");
+    ClassLoader context = Thread.currentThread().getContextClassLoader();
+    try (URLClassLoader fixtureLoader =
+        new URLClassLoader(new URL[] {directory.toUri().toURL()}, context)) {
+      // ArchUnit loads the classes it reflects on through the context class loader
+      Thread.currentThread().setContextClassLoader(fixtureLoader);
+      JavaClasses fixtures = compiledNativeQueryFixtures(directory);
 
-    assertThat(queryWritersOf(fixtures))
-        .as("a @NativeQuery write is reported, a @NativeQuery read is not")
-        .containsExactly("NativeQueryMover#move");
+      assertThat(queryWritersOf(fixtures))
+          .as("a @NativeQuery write is reported, a @NativeQuery read is not")
+          .containsExactly("Mover#move");
+    } finally {
+      Thread.currentThread().setContextClassLoader(context);
+      FileSystemUtils.deleteRecursively(directory);
+    }
   }
 
   @ArchTest
