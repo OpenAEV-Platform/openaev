@@ -30,10 +30,15 @@ public final class TxCtxScopeUtils {
   }
 
   /**
-   * The tenants a request reads simulations and scenarios from by id: its resolved scope, or the v1
-   * ambient tenant when the request resolves none (an anonymous or membership-less caller on the
-   * non-prefixed route). The fallback goes with the v1 filter when the two tables become
-   * tenant-isolated, where an empty scope reads nothing.
+   * The tenants a request reads a row by id from: its resolved scope, or the v1 ambient tenant when
+   * the request resolves none (an anonymous or membership-less caller on the non-prefixed route).
+   *
+   * <p>Used for simulations and scenarios by id, for injects by id (the lookup of an inject and the
+   * tenant gate of the implant endpoints), for the custom dashboard of a resource, for the parent
+   * an {@code @AccessControl} check loads and for the tenant a user is read in.
+   *
+   * <p>The fallback goes once exercises, scenarios and injects are tenant-isolated: an empty scope
+   * then reads nothing on its own and no caller needs the ambient tenant to stand in for it.
    */
   public static Set<String> requestReadScope(TxCtx ctx) {
     Set<String> tenantIds = tenantIdsFromHTTPCtx(ctx);
