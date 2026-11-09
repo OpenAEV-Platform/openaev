@@ -1,6 +1,6 @@
 import { Chip, IconButton } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-// fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
+// fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX — no TablePagination either (DS 1.4.0)
 import { Skeleton, Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
 import { Fragment, type FunctionComponent, type ReactNode, useState } from 'react';
 import { Link } from 'react-router';

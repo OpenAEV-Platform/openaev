@@ -7,11 +7,10 @@ import {
   DialogContent,
   DialogFooter,
   DialogTitle,
-  IconButton,
   Spinner,
   Text,
 } from '@filigran/design-system';
-import { ArrowForwardOutlined, ExpandLess, ExpandMore } from '@mui/icons-material';
+import { ArrowForwardOutlined } from '@mui/icons-material';
 // fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -46,6 +45,12 @@ interface Props {
 // of it in one tick), its injects on demand, and the Versions tab for a finer choice.
 const LARGE_LIST = 10;
 
+// One width and inset for every checkbox cell (header, version rows, inject rows): the ticks line up.
+const CHECKBOX_CELL_SX = {
+  width: 48,
+  padding: '0 8px 0 16px !important',
+};
+
 interface Source {
   version: PayloadVersionOutput;
   usages: PayloadUsageOutput[];
@@ -62,15 +67,6 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
   const [sources, setSources] = useState<Source[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moving, setMoving] = useState(false);
-  // Large list: how many injects of each older version are shown (0 = folded).
-  // A few: every version open, each foldable from its group row.
-  const [foldedSmall, setFoldedSmall] = useState<Set<string>>(new Set());
-  const toggleFoldedSmall = (id: string) => setFoldedSmall((previous) => {
-    const next = new Set(previous);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    return next;
-  });
 
   useEffect(() => {
     fetchThreatArsenalVersions(previousActionId).then(async (response: { data: PayloadVersionOutput[] }) => {
@@ -107,6 +103,13 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
     return next;
   });
 
+  // A version's tick: on when all its injects are, mixed when some are.
+  const groupState = (usages: PayloadUsageOutput[]) => {
+    const chosen = usages.filter(usage => selected.has(usage.usage_id)).length;
+    if (chosen === usages.length) return true;
+    return chosen > 0 ? 'indeterminate' as const : false;
+  };
+
   const setGroup = (ids: string[], on: boolean) => setSelected((previous) => {
     const next = new Set(previous);
     ids.forEach(id => (on ? next.add(id) : next.delete(id)));
@@ -122,7 +125,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
       sx={{ cursor: canMigrate ? 'pointer' : 'default' }}
     >
       {canMigrate && (
-        <TableCell padding="checkbox" onClick={event => event.stopPropagation()}>
+        <TableCell padding="checkbox" sx={CHECKBOX_CELL_SX} onClick={event => event.stopPropagation()}>
           <Checkbox
             aria-label={usage.usage_name ?? usage.usage_id}
             checked={selected.has(usage.usage_id)}
@@ -183,7 +186,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
         <TableHead>
           <TableRow>
             {canMigrate && (
-              <TableCell padding="checkbox">
+              <TableCell padding="checkbox" sx={CHECKBOX_CELL_SX}>
                 <Checkbox
                   aria-label={t('Select all')}
                   checked={allSelected || (selected.size > 0 ? 'indeterminate' : false)}
@@ -199,28 +202,33 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
         <TableBody>
           {(sources ?? []).map(source => (
             <Fragment key={source.version.payload_id}>
-              <TableRow>
-                <TableCell colSpan={canMigrate ? 4 : 3} sx={{ padding: '0 !important' }}>
-                  <div style={FDS_GROUP_ROW_STYLE}>
-                    <IconButton
-                      size="sm"
-                      priority="tertiary"
-                      aria-expanded={!foldedSmall.has(source.version.payload_id ?? '')}
-                      aria-label={foldedSmall.has(source.version.payload_id ?? '')
-                        ? t('Show the injects on v{version}', { version: source.version.payload_version ?? '' })
-                        : t('Hide the injects on v{version}', { version: source.version.payload_version ?? '' })}
-                      icon={foldedSmall.has(source.version.payload_id ?? '') ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
-                      onClick={() => toggleFoldedSmall(source.version.payload_id ?? '')}
+              {/* Group row: the version, its count, and one tick for all its injects (nothing to fold: they are listed below). */}
+              <TableRow sx={{ height: 44 }}>
+                {canMigrate && (
+                  <TableCell padding="checkbox" sx={CHECKBOX_CELL_SX}>
+                    <Checkbox
+                      aria-label={t('Every inject on v{version}', { version: source.version.payload_version ?? '' })}
+                      checked={groupState(source.usages)}
+                      onCheckedChange={() => setGroup(source.usages.map(usage => usage.usage_id), groupState(source.usages) !== true)}
                     />
-                    <Text variant="content-base-bold">{`v${source.version.payload_version}`}</Text>
+                  </TableCell>
+                )}
+                <TableCell colSpan={3}>
+                  <span style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                  >
+                    <Text as="span" variant="content-base-bold">{`v${source.version.payload_version}`}</Text>
                     {source.version.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
-                    <Text variant="content-base" className="text-default-secondary">
-                      {`(${t('{count} injects', { count: String(source.usages.length) })})`}
+                    <Text as="span" variant="content-base" className="text-default-secondary">
+                      {`(${t('{count, plural, one {# inject} other {# injects}}', { count: source.usages.length })})`}
                     </Text>
-                  </div>
+                  </span>
                 </TableCell>
               </TableRow>
-              {!foldedSmall.has(source.version.payload_id ?? '') && usageRows(source.usages)}
+              {usageRows(source.usages)}
             </Fragment>
           ))}
         </TableBody>

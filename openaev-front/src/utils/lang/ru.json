@@ -19,6 +19,7 @@
   "{count, plural, one {# atomic test} other {# atomic tests}}": "{count, plural, one {# атомарный тест} few {# атомарных теста} many {# атомарных тестов} other {# атомарного теста}}",
   "{count, plural, one {# chained step} other {# chained steps}}": "{count, plural, one {# связанный шаг} few {# связанных шага} many {# связанных шагов} other {# связанного шага}}",
   "{count, plural, one {# inject keeps} other {# injects keep}} running on other versions.": "{count, plural, one {# инжект продолжает} few {# инжекта продолжают} many {# инжектов продолжают} other {# инжекта продолжают}} работать на других версиях.",
+  "{count, plural, one {# inject} other {# injects}}": "{count, plural, one {# инжект} few {# инжекта} many {# инжектов} other {# инжекта}}",
   "{count, plural, one {# inject} other {# injects}} in {scenarios, plural, one {# scenario} other {# scenarios}}": "{count, plural, one {# инжект} few {# инжекта} many {# инжектов} other {# инжекта}} в {scenarios, plural, one {# сценарии} other {# сценариях}}",
   "{count, plural, one {# scenario inject} other {# scenario injects}}": "{count, plural, one {# инжект сценария} few {# инжекта сценариев} many {# инжектов сценариев} other {# инжекта сценариев}}",
   "{count, plural, one {# scenario} other {# scenarios}}": "{count, plural, one {# сценарий} few {# сценария} many {# сценариев} other {# сценария}}",

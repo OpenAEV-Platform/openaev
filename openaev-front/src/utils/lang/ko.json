@@ -19,6 +19,7 @@
   "{count, plural, one {# atomic test} other {# atomic tests}}": "{count, plural, other {원자 테스트 #개}}",
   "{count, plural, one {# chained step} other {# chained steps}}": "{count, plural, other {연결 단계 #개}}",
   "{count, plural, one {# inject keeps} other {# injects keep}} running on other versions.": "{count, plural, other {#개 인젝트}}는 다른 버전에서 계속 실행됩니다.",
+  "{count, plural, one {# inject} other {# injects}}": "{count, plural, other {인젝트 #개}}",
   "{count, plural, one {# inject} other {# injects}} in {scenarios, plural, one {# scenario} other {# scenarios}}": "{scenarios, plural, other {#개 시나리오}}의 {count, plural, other {#개 인젝트}}",
   "{count, plural, one {# scenario inject} other {# scenario injects}}": "{count, plural, other {시나리오 인젝트 #개}}",
   "{count, plural, one {# scenario} other {# scenarios}}": "{count, plural, other {시나리오 #개}}",

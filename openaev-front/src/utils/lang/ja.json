@@ -19,6 +19,7 @@
   "{count, plural, one {# atomic test} other {# atomic tests}}": "{count, plural, other {# 件のアトミックテスト}}",
   "{count, plural, one {# chained step} other {# chained steps}}": "{count, plural, other {# 件のチェーンステップ}}",
   "{count, plural, one {# inject keeps} other {# injects keep}} running on other versions.": "{count, plural, other {# 件のインジェクト}}は他のバージョンで引き続き実行されます。",
+  "{count, plural, one {# inject} other {# injects}}": "{count, plural, other {# 件のインジェクト}}",
   "{count, plural, one {# inject} other {# injects}} in {scenarios, plural, one {# scenario} other {# scenarios}}": "{scenarios, plural, other {# 件のシナリオ}}内の{count, plural, other {# 件のインジェクト}}",
   "{count, plural, one {# scenario inject} other {# scenario injects}}": "{count, plural, other {# 件のシナリオインジェクト}}",
   "{count, plural, one {# scenario} other {# scenarios}}": "{count, plural, other {# 件のシナリオ}}",

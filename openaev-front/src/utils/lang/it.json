@@ -19,6 +19,7 @@
   "{count, plural, one {# atomic test} other {# atomic tests}}": "{count, plural, one {# test atomico} other {# test atomici}}",
   "{count, plural, one {# chained step} other {# chained steps}}": "{count, plural, one {# passaggio concatenato} other {# passaggi concatenati}}",
   "{count, plural, one {# inject keeps} other {# injects keep}} running on other versions.": "{count, plural, one {# inject continua} other {# inject continuano}} a girare su altre versioni.",
+  "{count, plural, one {# inject} other {# injects}}": "{count, plural, one {# inject} other {# inject}}",
   "{count, plural, one {# inject} other {# injects}} in {scenarios, plural, one {# scenario} other {# scenarios}}": "{count, plural, one {# inject} other {# inject}} in {scenarios, plural, one {# scenario} other {# scenari}}",
   "{count, plural, one {# scenario inject} other {# scenario injects}}": "{count, plural, one {# inject di scenario} other {# inject di scenario}}",
   "{count, plural, one {# scenario} other {# scenarios}}": "{count, plural, one {# scenario} other {# scenari}}",

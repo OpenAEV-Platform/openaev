@@ -19,6 +19,7 @@
   "{count, plural, one {# atomic test} other {# atomic tests}}": "{count, plural, other {# 个原子测试}}",
   "{count, plural, one {# chained step} other {# chained steps}}": "{count, plural, other {# 个链式步骤}}",
   "{count, plural, one {# inject keeps} other {# injects keep}} running on other versions.": "{count, plural, other {# 个注入}}继续在其他版本上运行。",
+  "{count, plural, one {# inject} other {# injects}}": "{count, plural, other {# 个注入}}",
   "{count, plural, one {# inject} other {# injects}} in {scenarios, plural, one {# scenario} other {# scenarios}}": "{scenarios, plural, other {# 个场景}}中的{count, plural, other {# 个注入}}",
   "{count, plural, one {# scenario inject} other {# scenario injects}}": "{count, plural, other {# 个场景注入}}",
   "{count, plural, one {# scenario} other {# scenarios}}": "{count, plural, other {# 个场景}}",
