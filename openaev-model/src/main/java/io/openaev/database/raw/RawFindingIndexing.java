@@ -37,11 +37,11 @@ public interface RawFindingIndexing extends RawTenant {
   String getFinding_value_display();
 
   /**
-   * Returns the field name that categorizes this finding.
+   * Returns the field names under which the finding's occurrences were reported.
    *
-   * @return the field name
+   * @return the field names
    */
-  String getFinding_field();
+  Set<String> getFinding_fields();
 
   /**
    * Returns the creation timestamp of the finding.
@@ -65,25 +65,25 @@ public interface RawFindingIndexing extends RawTenant {
   String getFinding_type();
 
   /**
-   * Returns the ID of the inject that produced this finding.
+   * Returns the IDs of the injects where this finding occurred.
    *
-   * @return the inject ID
+   * @return the inject IDs
    */
-  String getFinding_inject_id();
+  Set<String> getInject_ids();
 
   /**
-   * Returns the ID of the exercise this finding belongs to.
+   * Returns the IDs of the simulations where this finding occurred.
    *
-   * @return the exercise ID, or {@code null} if from a scenario
+   * @return the simulation IDs
    */
-  String getInject_exercise();
+  Set<String> getSimulation_ids();
 
   /**
-   * Returns the ID of the scenario this finding belongs to.
+   * Returns the IDs of the scenarios where this finding occurred.
    *
-   * @return the scenario ID, or {@code null} if from an exercise
+   * @return the scenario IDs
    */
-  String getScenario_id();
+  Set<String> getScenario_ids();
 
   /**
    * Returns the IDs of the assets where this finding was discovered.

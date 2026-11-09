@@ -43,7 +43,10 @@ public class FindingOccurrenceService {
     for (Finding finding : findings) {
       if (!findingIdsWithOccurrence.contains(finding.getId())) {
         findingIdsWithOccurrence.add(finding.getId());
-        occurrences.add(newOccurrence(finding, inject, date));
+        FindingOccurrence occurrence = newOccurrence(finding, inject, date);
+        // Kept in sync so readers in the same session see it without a reload
+        finding.getOccurrences().add(occurrence);
+        occurrences.add(occurrence);
       }
     }
     findingOccurrenceRepository.saveAll(occurrences);

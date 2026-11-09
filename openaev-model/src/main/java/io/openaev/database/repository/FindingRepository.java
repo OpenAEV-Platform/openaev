@@ -68,7 +68,8 @@ public interface FindingRepository
       @Param("tenantId") String tenantId);
 
   @Query(
-      "SELECT COUNT(DISTINCT ag.id) FROM Finding f JOIN f.inject i JOIN i.assetGroups ag"
+      "SELECT COUNT(DISTINCT ag.id) FROM FindingOccurrence o JOIN o.finding f JOIN o.inject i"
+          + " JOIN i.assetGroups ag"
           + " WHERE f.type = :type AND f.valueDisplay = :displayValue AND f.tenant.id = :tenantId")
   long countDistinctAssetGroups(
       @Param("type") ContractOutputType type,
@@ -85,7 +86,10 @@ public interface FindingRepository
   }
 
   // For testing purposes only
-  List<Finding> findAllByInjectId(@NotNull final String injectId);
+  @Query(
+      "SELECT f FROM Finding f WHERE EXISTS"
+          + " (SELECT 1 FROM FindingOccurrence o WHERE o.finding = f AND o.inject.id = :injectId)")
+  List<Finding> findAllByInjectId(@NotNull @Param("injectId") final String injectId);
 
   /**
    * An inject's findings, scoped explicitly to a tenant, with their assets fetch-joined. Used off
@@ -97,7 +101,8 @@ public interface FindingRepository
    */
   @Query(
       "SELECT DISTINCT f FROM Finding f LEFT JOIN FETCH f.assets"
-          + " WHERE f.inject.id = :injectId AND f.tenant.id = :tenantId")
+          + " WHERE f.tenant.id = :tenantId"
+          + " AND EXISTS (SELECT 1 FROM FindingOccurrence o WHERE o.finding = f AND o.inject.id = :injectId)")
   List<Finding> findAllByInjectIdAndTenantId(
       @NotBlank @Param("injectId") String injectId, @NotBlank @Param("tenantId") String tenantId);
 
@@ -109,7 +114,8 @@ public interface FindingRepository
    */
   @Query(
       "SELECT DISTINCT f FROM Finding f LEFT JOIN FETCH f.assets"
-          + " WHERE f.id = :findingId AND f.inject.id = :injectId AND f.tenant.id = :tenantId")
+          + " WHERE f.id = :findingId AND f.tenant.id = :tenantId"
+          + " AND EXISTS (SELECT 1 FROM FindingOccurrence o WHERE o.finding = f AND o.inject.id = :injectId)")
   Optional<Finding> findByIdAndInjectIdAndTenantId(
       @NotBlank @Param("findingId") String findingId,
       @NotBlank @Param("injectId") String injectId,
@@ -118,7 +124,9 @@ public interface FindingRepository
   // For testing purposes only
   @Query(
       value =
-          "SELECT f FROM Finding f WHERE f.inject.id = :injectId AND f.value = :value AND f.type = :type AND f.field = :key")
+          "SELECT f FROM Finding f WHERE f.value = :value AND f.type = :type"
+              + " AND EXISTS (SELECT 1 FROM FindingOccurrence o WHERE o.finding = f"
+              + " AND o.inject.id = :injectId AND o.field = :key)")
   Optional<Finding> findByInjectIdAndValueAndTypeAndKey(
       @NotBlank @Param("injectId") String injectId,
       @NotBlank @Param("value") String value,
@@ -166,18 +174,27 @@ public interface FindingRepository
 
   // -- INDEXING --
 
-  // One row PER FINDING: assets are aggregated. The previous per-(finding, asset) rows shared the
-  // same base_id, so multi-asset findings kept only one arbitrary asset in the search index (each
-  // bulk upsert overwrote the previous row) and the LIMIT applied to joined rows, not findings.
+  // One row PER FINDING: assets, and the injects, simulations, scenarios and fields of its
+  // occurrences, are aggregated. The previous per-(finding, asset) rows shared the same base_id, so
+  // multi-asset findings kept only one arbitrary asset in the search index (each bulk upsert
+  // overwrote the previous row) and the LIMIT applied to joined rows, not findings.
+  // Native: array_agg over the occurrences and assets. Read only, no side effect.
   @Query(
       value =
           "SELECT f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
-              + " f.finding_field,"
-              + " f.finding_inject_id, i.inject_exercise, MAX(se.scenario_id) AS scenario_id,"
+              + " array_agg(DISTINCT fo.finding_occurrence_field)"
+              + " FILTER ( WHERE fo.finding_occurrence_field IS NOT NULL ) AS finding_fields,"
+              + " array_agg(DISTINCT fo.finding_occurrence_inject_id)"
+              + " FILTER ( WHERE fo.finding_occurrence_inject_id IS NOT NULL ) AS inject_ids,"
+              + " array_agg(DISTINCT i.inject_exercise)"
+              + " FILTER ( WHERE i.inject_exercise IS NOT NULL ) AS simulation_ids,"
+              + " array_agg(DISTINCT se.scenario_id)"
+              + " FILTER ( WHERE se.scenario_id IS NOT NULL ) AS scenario_ids,"
               + " array_agg(DISTINCT fa.asset_id) FILTER ( WHERE fa.asset_id IS NOT NULL ) AS asset_ids,"
               + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "FROM findings f "
-              + "LEFT JOIN injects i ON i.inject_id = f.finding_inject_id "
+              + "LEFT JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = f.finding_id "
+              + "LEFT JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id "
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
               + "LEFT JOIN findings_assets fa ON f.finding_id = fa.finding_id "
               // Keyset resume on (updated_at, id): a batch whose LIMIT falls inside a group of
@@ -191,11 +208,9 @@ public interface FindingRepository
               // BASE TABLES. Once findings is v2-active the tenant statement inspector rewrites
               // "FROM findings f" into a derived table, the dependency can no longer be inferred,
               // and this query stops being valid SQL: search indexing then fails outright instead
-              // of degrading. MAX(...) and array_agg(...) stay out, being aggregates.
+              // of degrading. The array_agg(...) stay out, being aggregates.
               + "GROUP BY f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
-              + " f.finding_field,"
-              + " f.finding_inject_id, i.inject_exercise, f.finding_created_at,"
-              + " f.finding_updated_at, f.tenant_id "
+              + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "ORDER BY f.finding_updated_at, f.finding_id LIMIT :limit;",
       nativeQuery = true)
   List<RawFindingIndexing> findForIndexing(

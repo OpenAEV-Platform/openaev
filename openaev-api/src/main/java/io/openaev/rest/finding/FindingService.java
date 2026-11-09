@@ -106,7 +106,7 @@ public class FindingService {
   }
 
   public Finding updateFinding(@NotNull final Finding finding, @NotNull final String injectId) {
-    if (!finding.getInject().getId().equals(injectId)) {
+    if (findingOccurrenceService.occurrence(finding.getId(), injectId).isEmpty()) {
       throw new IllegalArgumentException("Inject id cannot be changed: " + injectId);
     }
     return this.findingRepository.save(finding);
