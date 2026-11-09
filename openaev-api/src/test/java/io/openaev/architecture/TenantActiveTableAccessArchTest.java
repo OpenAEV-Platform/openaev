@@ -4529,10 +4529,9 @@ class TenantActiveTableAccessArchTest {
               ExerciseMapper.class,
               InjectExpectationMapper.class,
               // The ATOMIC_TESTING grant check reads the ambient (v1) tenant via
-              // User#scopedTenantId(), not this read's own TxCtx: a documented, accepted
-              // header-route gap (D29) until the injects activation adds the find-in-scope
-              // boundary check that ATOMIC_TESTING still lacks. Not a cross-tenant leak today:
-              // every by-id read behind it is refused independently once that check lands.
+              // User#scopedTenantId(), not this read's own TxCtx. Not a cross-tenant leak: every
+              // by-id read of an inject behind it is refused in the request's tenant scope
+              // independently of the grant.
               GrantService.class,
               // Background jobs on the tenant-scoped primitive: candidates read under
               // TxCtx.allTenants(), each tenant's rows under TxCtx.forTenant:
