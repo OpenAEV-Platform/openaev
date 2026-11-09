@@ -3829,13 +3829,14 @@
                         "default": ".alerts-security.alerts-*"
                     },
                     "ELASTIC_QUERY_TEMPLATE": {
-                        "description": "Lucene query_string template used to correlate alerts with an expectation. Placeholders: {alerts_index} (configured index), {source_ips} (source IP values), {target_ips} (target IP values), {implant_urls} (implant callback URL paths), {implant_names} (implant process names), {start_date} (inject start date), {end_date} (inject end date), {time_window} (time window). Each list placeholder is rendered as an OR-joined set of quoted values, so write e.g. 'host.ip:({source_ips})'. The time range is always applied separately as an @timestamp filter. Leave empty to use the collector's built-in query.",
-                        "type": "string"
+                        "description": "Lucene query_string template used to correlate alerts with an expectation. Placeholders: {alerts_index} (configured index), {source_ips} (source IP values), {target_ips} (target IP values), {implant_urls} (implant callback URL paths), {implant_names} (implant process names), {start_date} (inject start date), {end_date} (inject end date), {time_window} (time window). Each list placeholder is rendered as an OR-joined set of quoted values, so write e.g. 'host.ip:({source_ips})'. The time range is always applied separately as an @timestamp filter. Prefilled with the collector's built-in query; leave empty to use the collector's built-in query.",
+                        "type": "string",
+                        "default": "(source.ip:({source_ips}) OR host.ip:({source_ips}) OR client.ip:({source_ips})) OR (destination.ip:({target_ips}) OR server.ip:({target_ips}) OR host.ip:({target_ips})) OR (url.path:({implant_urls}) OR url.original:({implant_urls})) OR (process.name:({implant_names}) OR process.parent.name:({implant_names}) OR process.command_line:({implant_names}))"
                     },
                     "ELASTIC_EVENTS_INDEX": {
-                        "description": "Index pattern of raw endpoint/process events used to drill down from a detection alert to its source process and recover the OpenAEV implant marker. This enables deterministic per-inject correlation. Leave empty to disable the drilldown and fall back to host/IP + time correlation only.",
+                        "description": "Index pattern of raw endpoint/process events used to drill down from a detection alert to its source process and recover the OpenAEV implant marker. This enables deterministic per-inject correlation. The default covers Sysmon, Elastic Defend and the Windows Security channel (process creation auditing, event 4688); a host with no process-creation event in this index is correlated on host/IP + time. Leave empty to disable the drilldown and fall back to host/IP + time correlation only.",
                         "type": "string",
-                        "default": "logs-windows.sysmon_operational-*,logs-endpoint.events.process-*"
+                        "default": "logs-windows.sysmon_operational-*,logs-endpoint.events.process-*,logs-system.security-*"
                     },
                     "ELASTIC_KIBANA_URL": {
                         "description": "Kibana base URL used to build trace links. When unset, it is derived from the base URL.",
