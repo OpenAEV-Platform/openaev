@@ -356,4 +356,53 @@ class DualScopeWrittenValueExecutionTest extends IntegrationTest {
           1, count("scratch_id = 'c1' AND tenant_id = '" + Tenant.DEFAULT_TENANT_UUID + "'"));
     }
   }
+
+  @Nested
+  @DisplayName("INSERT ... SELECT")
+  class InsertSelect {
+
+    /** A tenant that depends on how many times the expression is evaluated: odd, then even. */
+    private int insertWithAnExpressionThatChangesBetweenEvaluations(String id, long firstValue) {
+      run("CREATE TEMP SEQUENCE IF NOT EXISTS scratch_seq", false, statement -> {});
+      run(
+          "DO $$ BEGIN PERFORM setval('scratch_seq', " + firstValue + ", false); END $$",
+          false,
+          statement -> {});
+      return run(
+          "INSERT INTO scratch_dual (scratch_id, tenant_id) SELECT '"
+              + id
+              + "', CASE WHEN nextval('scratch_seq') % 2 = 1 THEN '"
+              + Tenant.DEFAULT_TENANT_UUID
+              + "' ELSE NULL END",
+          true,
+          statement -> {});
+    }
+
+    @Test
+    @DisplayName("given_aTenantThatChangesBetweenEvaluations_should_writeTheValueItChecked")
+    void given_aTenantThatChangesBetweenEvaluations_should_writeTheValueItChecked() {
+      // Act
+      int inserted = insertWithAnExpressionThatChangesBetweenEvaluations("s1", 1);
+
+      // Assert
+      assertEquals(1, inserted);
+      assertEquals(0, count("scratch_id = 's1' AND tenant_id IS NULL"));
+      assertEquals(
+          1, count("scratch_id = 's1' AND tenant_id = '" + Tenant.DEFAULT_TENANT_UUID + "'"));
+    }
+
+    @Test
+    @DisplayName("given_aPlatformTenantWithoutTheMarker_should_refuseTheRow")
+    void given_aPlatformTenantWithoutTheMarker_should_refuseTheRow() {
+      // Act
+      RuntimeException refused =
+          assertThrows(
+              RuntimeException.class,
+              () -> insertWithAnExpressionThatChangesBetweenEvaluations("s2", 2));
+
+      // Assert
+      assertEquals(REFUSED, refusal(refused));
+      assertEquals(0, count("scratch_id = 's2'"));
+    }
+  }
 }

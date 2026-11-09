@@ -822,7 +822,25 @@ class TenantStatementInspectorTest {
   @DisplayName("an INSERT ... SELECT into a dual-scope table raises on a refused written tenant_id")
   void insertSelectIntoDualScopeTableChecksPlatformWrite() {
     String out = inspect("INSERT INTO groups (id, tenant_id) SELECT u.id, u.tid FROM users u");
-    assertTrue(out.contains("require_tenant_write(u.tid, true)"), out);
+    assertTrue(out.contains("tenant_write_value(u.tid, true)"), out);
+  }
+
+  @Test
+  @DisplayName(
+      "an INSERT ... SELECT into a dual-scope table guards the projected value once, in place, and"
+          + " adds no second copy of it to the WHERE")
+  void insertSelectIntoDualScopeTableGuardsTheProjectionOnly() {
+    String out =
+        inspect("INSERT INTO groups (id, tenant_id) SELECT u.id, u.tid FROM users u WHERE u.x = 1");
+    assertFalse(out.contains("require_tenant_write(u.tid"), out);
+    assertEquals(1, out.split("u\\.tid", -1).length - 1, out);
+  }
+
+  @Test
+  @DisplayName("an INSERT ... SELECT into a dual-scope table accepts a bind-parameter tenant_id")
+  void insertSelectIntoDualScopeTableAcceptsABindParameter() {
+    String out = inspect("INSERT INTO groups (id, tenant_id) SELECT u.id, ? FROM users u");
+    assertTrue(out.contains("tenant_write_value(?, true)"), out);
   }
 
   @Test

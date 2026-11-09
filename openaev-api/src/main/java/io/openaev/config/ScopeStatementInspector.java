@@ -352,7 +352,13 @@ public class ScopeStatementInspector implements StatementInspector {
    * are inserted (a write, so no permissive flag). Anything that cannot be mapped to a single
    * projected expression (no column list, no scope column, a {@code SELECT *}, or a non-plain
    * source) is refused, which also refuses an omitted scope column (a platform-row write).
+   *
+   * <p>A dimension that guards the table's written value ({@link
+   * ScopeDimension#guardsWrittenValue}) wraps the projected expression itself, so the value that is
+   * checked is the value that is written even when the expression gives another result each time it
+   * is evaluated, and a bind parameter keeps its place.
    */
+  @SuppressWarnings("unchecked")
   private void validateInsertSelectScope(Insert insert, Select select, ScopeDimension dimension) {
     String scopeColumn = dimension.writeAttributionColumn();
     ExpressionList<Column> columns = insert.getColumns();
@@ -385,7 +391,13 @@ public class ScopeStatementInspector implements StatementInspector {
                 + scopeColumn);
       }
     }
-    Expression scopeExpr = items.get(scopeIdx).getExpression();
+    SelectItem<?> scopeItem = items.get(scopeIdx);
+    Expression scopeExpr = scopeItem.getExpression();
+    Expression guarded = guardedValue(dimension, insert.getTable().getName(), scopeExpr);
+    if (guarded != null) {
+      ((SelectItem<Expression>) scopeItem).setExpression(guarded);
+      return;
+    }
     // The expression is referenced a second time in the WHERE. A bind parameter cannot be: the
     // inspector must not change the placeholder count, or positional binding breaks. Refuse it.
     if (scopeExpr.toString().contains("?")) {

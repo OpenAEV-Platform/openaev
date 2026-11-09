@@ -80,23 +80,24 @@ public final class TenantDimension implements ScopeDimension {
   }
 
   /**
-   * Used for an {@code INSERT ... SELECT}. A dual-scope table's written tenant is checked through
-   * {@code require_tenant_write}, which raises when the write is refused: a row the policy refuses
-   * is an error the caller sees, never a row silently left out.
+   * Used for an {@code INSERT ... SELECT} into a strict table. A dual-scope table never reaches it:
+   * its projected tenant is passed through {@link #guardedWrittenValue}, which raises when the
+   * write is refused, so a row the policy refuses is an error the caller sees, never a row silently
+   * left out.
    */
   @Override
   public String writeAttributionPredicate(String table, String valueExpression) {
-    return tables.family(table) == TenantTables.Family.DUAL
-        ? "require_tenant_write(" + valueExpression + ", true)"
-        : "can_access_tenant(" + valueExpression + ")";
+    return "can_access_tenant(" + valueExpression + ")";
   }
 
   /**
-   * Used for a plain {@code INSERT ... VALUES}, an {@code UPDATE ... SET} and an {@code ON CONFLICT
-   * DO UPDATE SET}. Only dual-scope tables are guarded here: the written tenant is passed through
-   * {@code tenant_write_value}, which returns it when the write is allowed and raises otherwise (a
-   * platform row needs the marker, a tenant row needs its tenant in the scope). A strict table's
-   * write is not validated (see the interface javadoc for why).
+   * Used for a plain {@code INSERT ... VALUES}, the projected tenant of an {@code INSERT ...
+   * SELECT}, an {@code UPDATE ... SET} and an {@code ON CONFLICT DO UPDATE SET}. Only dual-scope
+   * tables are guarded here: the written tenant is passed through {@code tenant_write_value}, which
+   * returns it when the write is allowed and raises otherwise (a platform row needs the marker, a
+   * tenant row needs its tenant in the scope).
+   *
+   * <p>A strict table's write is not validated (see the interface javadoc for why).
    */
   @Override
   public String guardedWrittenValue(String table, String valueExpression) {
