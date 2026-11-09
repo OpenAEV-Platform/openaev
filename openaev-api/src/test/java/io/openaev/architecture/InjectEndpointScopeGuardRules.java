@@ -31,16 +31,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
  * The by-id scope guard rule: an endpoint whose {@link AccessControl} names an inject (or an atomic
- * testing, which is an inject) as its resource must load <em>that inject</em> inside the request's
- * tenant scope, before it writes anything. {@code PermissionService#checkPermission} lets an admin
- * or a BYPASS caller through without resolving the resource's parent, and a primary-key load is not
- * narrowed by the v1 tenant filter, so the guard is the only tenant check those callers meet.
+ * testing, which is an inject) as its resource, or an implant's JOB endpoint that takes an inject
+ * id, must load <em>that inject</em> inside the request's tenant scope, before it writes anything.
+ * {@code PermissionService#checkPermission} lets an admin or a BYPASS caller through without
+ * resolving the resource's parent, and a primary-key load is not narrowed by the v1 tenant filter,
+ * so the guard is the only tenant check those callers meet.
  *
- * <p>A guard is one of the three scoped lookups of {@code InjectService}: {@code inject(TxCtx,
- * String)}, {@code findInScope} and {@code existsInScope}. Every other guard of the controllers
- * ({@code requireInjectInScope}, {@code requireAtomicTestingInScope}, {@code
- * requireInjectInScenario}, {@code requireInjectInSimulation}, {@code
- * AtomicTestingService#existsInScope}) ends in one of them.
+ * <p>A guard is one of the scoped lookups of {@code InjectService}: {@code inject(TxCtx, String)},
+ * {@code findInScope}, {@code existsInScope} and, for the implant endpoints, {@code
+ * requireInScopeForAgent}. Every other guard of the controllers ({@code requireInjectInScope},
+ * {@code requireAtomicTestingInScope}, {@code requireInjectInScenario}, {@code
+ * requireInjectInSimulation}, {@code AtomicTestingService#existsInScope}) ends in one of them.
  *
  * <p>The rule reads the bytecode of the endpoint, and of the methods it hands the resource id to,
  * and asks two things:
@@ -56,9 +57,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
  * </ul>
  *
  * <p>Denominator: an endpoint is a method with an HTTP mapping and an {@code @AccessControl} whose
- * {@code resourceType} is INJECT, ATOMIC_TESTING or INJECT_SECRET and whose {@code resourceId} is
- * set. An endpoint typed with another resource that loads an inject by id (a scenario's inject, an
- * implant's JOB callback) is not seen.
+ * {@code resourceType} is INJECT, ATOMIC_TESTING, INJECT_SECRET or JOB and whose {@code resourceId}
+ * is set. A JOB endpoint with no {@code resourceId} (the agent's own job list) takes no inject id
+ * and is not seen. An endpoint typed with another resource that loads an inject by id (a scenario's
+ * inject) is not seen either.
  *
  * <p>What the analysis does not see: an argument that is not a plain parameter, a field or a
  * constant (an expression, an array, a copy of the id into another local variable) is followed only
@@ -69,11 +71,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 final class InjectEndpointScopeGuardRules {
 
   private static final Set<ResourceType> INJECT_TYPES =
-      Set.of(ResourceType.INJECT, ResourceType.ATOMIC_TESTING, ResourceType.INJECT_SECRET);
+      Set.of(
+          ResourceType.INJECT,
+          ResourceType.ATOMIC_TESTING,
+          ResourceType.INJECT_SECRET,
+          ResourceType.JOB);
 
   private static final String INJECT_SERVICE = "io/openaev/rest/inject/service/InjectService";
 
-  private static final Set<String> GUARD_NAMES = Set.of("inject", "findInScope", "existsInScope");
+  private static final Set<String> GUARD_NAMES =
+      Set.of("inject", "findInScope", "existsInScope", "requireInScopeForAgent");
 
   private static final String GUARD_PARAMETERS = "(Lio/openaev/context/TxCtx;Ljava/lang/String;)";
 
@@ -99,7 +106,7 @@ final class InjectEndpointScopeGuardRules {
 
   static DescribedPredicate<JavaMethod> byIdInjectEndpoints() {
     return new DescribedPredicate<>(
-        "are by-id endpoints typed INJECT, ATOMIC_TESTING or INJECT_SECRET") {
+        "are by-id endpoints typed INJECT, ATOMIC_TESTING, INJECT_SECRET or JOB") {
       @Override
       public boolean test(JavaMethod method) {
         if (!isHttpEndpoint(method) || !method.isAnnotatedWith(AccessControl.class)) {
@@ -114,8 +121,8 @@ final class InjectEndpointScopeGuardRules {
 
   static ArchCondition<JavaMethod> guardTheResourceIdBeforeAnyWrite() {
     return new ArchCondition<>(
-        "pass their resource id to InjectService#inject(TxCtx, String), #findInScope or"
-            + " #existsInScope, before any write") {
+        "pass their resource id to InjectService#inject(TxCtx, String), #findInScope,"
+            + " #existsInScope or #requireInScopeForAgent, before any write") {
       @Override
       public void check(JavaMethod endpoint, ConditionEvents events) {
         Outcome outcome = outcomeOf(endpoint);
