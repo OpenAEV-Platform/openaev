@@ -2039,15 +2039,12 @@
                         "type": "boolean"
                     },
                     "SPLUNKES_LOGGING_INDEXES": {
-                        "description": "Comma-separated raw-event indexes searched for LOGGING expectations (e.g. sysmon,wineventlog). Required when SPLUNKES_LOGGING_ENABLED is true.",
+                        "description": "Comma-separated raw-event indexes or patterns searched for LOGGING expectations (e.g. sysmon,wineventlog). Required when SPLUNKES_LOGGING_ENABLED is true.",
                         "type": "string"
                     },
-                    "SPLUNKES_LOGGING_MAX_ROWS": {
-                        "default": 50,
-                        "description": "Maximum number of raw events read per LOGGING search (1 to 1000).",
-                        "maximum": 1000,
-                        "minimum": 1,
-                        "type": "integer"
+                    "SPLUNKES_LOGGING_QUERY_TEMPLATE": {
+                        "description": "SPL template of the Logging search, to adapt it to your data (sourcetypes, data models, field names). Placeholders: {indexes}, {earliest}, {latest}, {terms}, {source_ips}, {target_ips}. Must include '| table _time, index, _raw'. Leave empty to use the built-in search.",
+                        "type": "string"
                     },
                     "SPLUNKES_LOGGING_MAX_INTERVAL": {
                         "default": "PT15M",
