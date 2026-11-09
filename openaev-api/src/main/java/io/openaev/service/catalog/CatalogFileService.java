@@ -6,10 +6,12 @@ import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.database.model.catalog.CatalogItemStatus;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.FileService;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -107,6 +109,23 @@ public class CatalogFileService {
       payloadFiles.put(key, readVersionFile(file));
     }
     return new CheckedRelease(manifest, refusals, payloadFiles);
+  }
+
+  /** A file stored at sync, read again only if its bytes still have the hash it is stored by. */
+  public byte[] storedFile(String sha256) {
+    byte[] file;
+    try (InputStream stored =
+        fileService
+            .getInPlatform(packagePath(sha256))
+            .orElseThrow(() -> new ElementNotFoundException("Catalogue file not found"))) {
+      file = stored.readAllBytes();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+    if (!CatalogArchiveChecks.sha256(file).equalsIgnoreCase(sha256)) {
+      throw new IllegalStateException("A stored catalogue file has changed: " + sha256);
+    }
+    return file;
   }
 
   // A storage failure stops the whole release, so the next send retries it.
