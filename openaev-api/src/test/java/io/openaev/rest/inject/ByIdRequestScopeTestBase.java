@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -121,10 +122,15 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
         });
   }
 
-  /** Seeds an inject that belongs to the given exercise (not a bare atomic testing). */
+  /**
+   * Seeds an inject that belongs to the given exercise (not a bare atomic testing). The scope holds
+   * the inject's tenant and the exercise's tenant: the insert reads the exercise back, and {@code
+   * exercises} is an active table, so a scope without its tenant finds no row.
+   */
   String seedInjectForExercise(String tenantId, String exerciseId) {
-    return inTenantScope(
+    return inScopeOfBothTenants(
         tenantId,
+        parentTenant("exercises", "exercise_id", exerciseId),
         () -> {
           Inject inject = InjectFixture.getDefaultInject();
           inject.setTenant(new Tenant(tenantId));
@@ -144,10 +150,11 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
         });
   }
 
-  /** Seeds an inject that belongs to the given scenario. */
+  /** Seeds an inject that belongs to the given scenario, in a scope that also holds its tenant. */
   String seedInjectForScenario(String tenantId, String scenarioId) {
-    return inTenantScope(
+    return inScopeOfBothTenants(
         tenantId,
+        parentTenant("scenarios", "scenario_id", scenarioId),
         () -> {
           Inject inject = InjectFixture.getDefaultInject();
           inject.setTenant(new Tenant(tenantId));
@@ -176,6 +183,26 @@ abstract class ByIdRequestScopeTestBase extends IntegrationTest {
     new TransactionTemplate(transactionManager)
         .executeWithoutResult(
             status -> tenantRepository.removeUserFromTenant(userId, memberTenant));
+  }
+
+  private String parentTenant(String table, String idColumn, String id) {
+    return new JdbcTemplate(dataSource)
+        .queryForObject(
+            "SELECT tenant_id FROM " + table + " WHERE " + idColumn + " = ?", String.class, id);
+  }
+
+  /**
+   * Runs the work with the write tenant as the ambient tenant and a scope naming it and the
+   * parent's tenant, which differ when the seeded row is deliberately linked across tenants.
+   */
+  private <T> T inScopeOfBothTenants(String tenantId, String parentTenantId, Supplier<T> work) {
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      return tenantTx.execute(
+          TxCtx.forTenants(Stream.of(tenantId, parentTenantId).distinct().toList()), work);
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
   }
 
   <T> T inTenantScope(String tenantId, Supplier<T> work) {
