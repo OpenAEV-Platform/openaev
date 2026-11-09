@@ -74,7 +74,7 @@ public class ConnectorInstanceApi extends RestBehavior {
     // only instance managed by XTM Composer can be created through this API
     return connectorInstanceMapper.toCreatedConnectorInstanceResponse(
         orchestrationService.createConnectorInstance(
-            catalogConnectorWithConfigMap, safeInput, tenantId));
+            ctx, catalogConnectorWithConfigMap, safeInput, tenantId));
   }
 
   @GetMapping(
