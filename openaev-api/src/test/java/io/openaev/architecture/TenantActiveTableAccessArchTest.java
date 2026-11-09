@@ -3048,14 +3048,17 @@ class TenantActiveTableAccessArchTest {
             + " contract id for each technique and output type"),
     // The platforms of one simulation's injects, a distinct set: the query joins Inject to its
     // contract on the contract id and tenant_id (Inject#injectorContract, a JoinFormula on
-    // tenant_id), so an inject reads the contract of its own tenant.
+    // tenant_id), so an inject reads the contract of its own tenant. Pinned with two tenants
+    // holding the same contract id by InjectorContractIdJoinTenantTest.SimulationPlatforms.
     allow(
         io.openaev.rest.exercise.ExerciseApi.class,
         "exercise",
         "findDistinctPlatformsByExerciseId",
         "the query is keyed by the simulation and joins each inject to the contract of its own"
             + " tenant"),
-    // Keyed by one injector entity: the contracts linked to it.
+    // Keyed by one injector entity: the contracts linked to it. The entity's key is (id, tenant_id)
+    // and the link joins it on both columns, read from the mapping by
+    // InjectorContractQueryShapeTest.InjectorKey.
     allow(
         io.openaev.rest.injector.InjectorApi.class,
         "injectorInjectTypes",
@@ -3069,7 +3072,8 @@ class TenantActiveTableAccessArchTest {
         "keyed by the injector entity being deleted"),
     // Payload-keyed: the key is a Payload entity, whose primary key is the single column
     // payload_id (Payload#id), so it names one tenant's row; the lookup is not widened by the
-    // scope.
+    // scope. The single-column key and the derived lookup are read from the mapping by
+    // InjectorContractQueryShapeTest.PayloadKey.
     allow(
         io.openaev.rest.payload.service.PayloadService.class,
         "duplicate",

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.helper.InjectorContractRepositoryHelper;
+import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawScenario;
@@ -14,6 +15,7 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -313,6 +315,71 @@ class InjectorContractIdJoinTenantTest extends IntegrationTest {
     private RawScenario scenarioDetail() {
       entityManager.flush();
       return scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
+    }
+  }
+
+  @Nested
+  @DisplayName("Given the platforms of a simulation's injects")
+  class SimulationPlatforms {
+
+    private String simulationId;
+
+    // The injects table still carries the v1 tenant filter, which fixes the tenant of the test
+    // transaction when it starts: switch it to the simulation's tenant, so that only the join to
+    // the contract decides which copy of the contract id is read.
+    private void readAsTenantA() {
+      entityManager.flush();
+      tenantHelper.switchToTenantNoFlush(tenantA.getId());
+    }
+
+    @BeforeEach
+    void seedSimulation() {
+      simulationId = UUID.randomUUID().toString();
+      insertContract(tenantA, null, "Linux");
+      execute(
+          "INSERT INTO exercises (exercise_id, exercise_name, tenant_id)"
+              + " VALUES (?1, 'Contract id join simulation', ?2)",
+          simulationId,
+          tenantA.getId());
+      execute(
+          "INSERT INTO injects (inject_id, inject_title, inject_all_teams, inject_enabled,"
+              + " inject_depends_duration, inject_exercise, inject_injector_contract, tenant_id)"
+              + " VALUES (?1, 'Contract id join inject', false, true, 0, ?2, ?3, ?4)",
+          UUID.randomUUID().toString(),
+          simulationId,
+          contractId,
+          tenantA.getId());
+    }
+
+    @Test
+    @DisplayName("the platforms of the other tenant's contract with the same id are not read")
+    void given_sameContractIdWithOtherPlatformsInOtherTenant_should_readOwnPlatformsOnly() {
+      // Arrange
+      insertContract(tenantB, null, "Container");
+      readAsTenantA();
+
+      // Act
+      List<Endpoint.PLATFORM_TYPE[]> platforms =
+          injectorContractRepository.findDistinctPlatformsByExerciseId(simulationId);
+
+      // Assert
+      assertThat(platforms.stream().flatMap(Arrays::stream))
+          .containsExactly(Endpoint.PLATFORM_TYPE.Linux);
+    }
+
+    @Test
+    @DisplayName("the platforms of the simulation's own contract are read")
+    void given_contractOnlyInOwnTenant_should_readItsPlatforms() {
+      // Arrange
+      readAsTenantA();
+
+      // Act
+      List<Endpoint.PLATFORM_TYPE[]> platforms =
+          injectorContractRepository.findDistinctPlatformsByExerciseId(simulationId);
+
+      // Assert
+      assertThat(platforms.stream().flatMap(Arrays::stream))
+          .containsExactly(Endpoint.PLATFORM_TYPE.Linux);
     }
   }
 
