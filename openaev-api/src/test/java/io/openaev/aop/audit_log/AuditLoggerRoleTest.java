@@ -87,6 +87,7 @@ class AuditLoggerRoleTest extends IntegrationTest {
 
     @Test
     @WithMockUser(
+        autoJoinDefaultTenant = true,
         withCapabilities = {
           Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
           Capability.MANAGE_ASSESSMENT,
@@ -189,7 +190,9 @@ class AuditLoggerRoleTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @WithMockUser(
+        autoJoinDefaultTenant = true,
+        withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
     @DisplayName("Granting a tenant users, groups and roles capability is audited under its name")
     void given_tenantUsersGroupsAndRolesGrant_should_logTheCapabilityName() throws Exception {
       // The audit hook reads the capability set generically, so a newly introduced capability
@@ -215,6 +218,7 @@ class AuditLoggerRoleTest extends IntegrationTest {
 
     @Test
     @WithMockUser(
+        autoJoinDefaultTenant = true,
         withCapabilities = {
           Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
           Capability.ACCESS_ASSESSMENT,
