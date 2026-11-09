@@ -1,2 +1,0 @@
-merge queue test, pull request a, commit 1
-merge queue test, pull request a, commit 2
