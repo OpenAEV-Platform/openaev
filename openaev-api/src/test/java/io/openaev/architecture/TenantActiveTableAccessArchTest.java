@@ -14,6 +14,7 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaCodeUnit;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
+import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
@@ -40,6 +41,7 @@ import io.openaev.api.xtmhub.XtmHubApi;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.AmbientTenantBridge;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.AttackPattern;
@@ -325,9 +327,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -2590,6 +2594,58 @@ class TenantActiveTableAccessArchTest {
               "the aspect sets app.platform_write only for a @Transactional method with a TxCtx"
                   + " parameter");
 
+  private static final Reaching SCENARIO_SERVICE_READS =
+      reaching(
+          io.openaev.service.scenario.ScenarioService.class, "getScenarioById", "getScenarioTeams");
+
+  private static final Reaching V1_DATA_IMPORTER_READS =
+      reaching(
+          io.openaev.importer.V1_DataImporter.class,
+          "buildStepTtpFromInjectorContract",
+          "evaluateChainingStepResolvability",
+          "findContractByPayloadExternalId",
+          "handleInjectContent",
+          "importInjectorContractFromStarterPack",
+          "importInjects",
+          "readableContractForPayload",
+          "resolveStepData",
+          "rewriteInjectInjector",
+          "shouldResolveContractFromStepData");
+
+  /**
+   * The classes that reach {@code injectors_contracts} through a few methods only, each named here.
+   * The scope those methods run under is checked in the bytecode, not described: {@link
+   * #INJECTOR_CONTRACT_SCOPED_METHODS} fixes the methods, {@link #INJECTOR_CONTRACT_CALLER_CLAIMS}
+   * lists and checks the callers of those that take no {@link TxCtx}, and {@code
+   * injectors_contracts_scoped_methods_take_a_tx_ctx} checks the rest.
+   */
+  private static final Reaching[] INJECTOR_CONTRACT_SCOPED_METHODS = {
+    // sendEmail reads the email contract of the tenant it is given, in the scope its caller
+    // opened: the callers are listed in INJECTOR_CONTRACT_CALLER_CLAIMS.
+    reaching(io.openaev.service.MailingService.class, "sendEmail"),
+    // The scenario detail and the lessons teams take the TxCtx of their endpoint.
+    SCENARIO_SERVICE_READS,
+    // The import entry point takes the TxCtx, and every method below is private to the class and
+    // reached from it.
+    V1_DATA_IMPORTER_READS,
+    // Callers listed in INJECTOR_CONTRACT_CALLER_CLAIMS.
+    reaching(
+        io.openaev.rest.document.DocumentService.class, "findAllDistinctOnInjectsByScenarioId"),
+    reaching(io.openaev.rest.inject.service.InjectIndexCleanupService.class, "injectIdsByPayloadId")
+  };
+
+  /**
+   * The classes allowlisted above and the classes of {@link #INJECTOR_CONTRACT_SCOPED_METHODS}. The
+   * two rules that take them are class-level (a dependency, a call), so the scoped classes are left
+   * out of them and checked by the method-level rules instead.
+   */
+  private static Class<?>[] withScopedClasses(Class<?>... listed) {
+    return Stream.concat(
+            Arrays.stream(listed),
+            Arrays.stream(INJECTOR_CONTRACT_SCOPED_METHODS).map(Reaching::in))
+        .toArray(Class<?>[]::new);
+  }
+
   @ArchTest
   static final ArchRule payload_identities_repository_access_is_reviewed =
       noClasses()
@@ -2742,52 +2798,52 @@ class TenantActiveTableAccessArchTest {
       noClasses()
           .that()
           .doNotBelongToAnyOf(
-              // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
-              io.openaev.rest.attack_pattern.AttackPatternApi.class,
-              io.openaev.rest.exercise.ExerciseApi.class,
-              io.openaev.rest.inject.SimulationInjectApi.class,
-              io.openaev.rest.injector.InjectorApi.class,
-              // Services reached only from TxCtx-carrying entrypoints, reading in the scope the
-              // entrypoint opened (contract, threat arsenal, workflow, payload, atomic testing,
-              // mapper export, attack path graph, autonomous capability and grant APIs):
-              io.openaev.rest.injector_contract.InjectorContractService.class,
-              io.openaev.rest.payload.service.PayloadService.class,
-              io.openaev.rest.payload.service.PayloadUpsertService.class,
-              io.openaev.service.AtomicTestingService.class,
-              io.openaev.service.MapperService.class,
-              io.openaev.service.attackpath.AttackPathGraphService.class,
-              io.openaev.service.autonomous.CapabilityResolverService.class,
-              io.openaev.service.GrantService.class,
-              // Scenario inject generation and the STIX bundle import. The STIX path throws unless
-              // the scope pins one tenant
-              // (SecurityCoverageService#handleSecurityCoverageProcessing,
-              // before any contract is read), and its placeholder contract is read in the
-              // scenario's own tenant (SecurityCoverageInjectService#createdInjectsForScenario
-              // AndSecurityCoverage, findByContractIdAndTenant):
-              io.openaev.rest.inject.service.InjectAssistantService.class,
-              io.openaev.service.stix.SecurityCoverageInjectService.class,
-              // Exports, behind the scenario and simulation export endpoints:
-              io.openaev.export.WorkflowExportInitializer.class,
-              // Import: every read runs under the TxCtx importData receives, from the import
-              // endpoints or from the starter pack under the migration processor's tenant scope:
-              io.openaev.importer.V1_DataImporter.class,
-              // Injector registration and teardown: the injector endpoints, or the builtin
-              // registration under ManagerCreator's setScopeOnCurrentTransaction(forTenant):
-              io.openaev.service.InjectorService.class,
-              io.openaev.injectors.phishing.service.PhishingLandingPageService.class,
-              // Runtime migration, under the migration processor's forTenant scope:
-              io.openaev.processor.core.V20260725_Fix_starter_pack_payload_contracts.class,
-              // Sets setScopeOnCurrentTransaction(forTenant(simulation tenant)) per comcheck before
-              // the contract read:
-              io.openaev.scheduler.jobs.ComchecksExecutionJob.class,
-              // Every caller opens a forTenant scope (users, XTM Hub, notification dispatch) or
-              // carries a TxCtx (lessons, notifier test):
-              io.openaev.service.MailingService.class,
-              // Chaining: authoring runs under the step endpoints' TxCtx (StepApi#createStep and
-              // siblings all declare one), execution under the ready-step worker's forTenant scope
-              // (StepEventService). The contract reads of this class are the authoring lookups in
-              // the step's parent tenant and the findById of the allowlisted run path.
-              io.openaev.api.chaining.InjectExecutionStep.class)
+              withScopedClasses(
+                  // TxCtx-carrying entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest:
+                  io.openaev.rest.attack_pattern.AttackPatternApi.class,
+                  io.openaev.rest.exercise.ExerciseApi.class,
+                  io.openaev.rest.inject.SimulationInjectApi.class,
+                  io.openaev.rest.injector.InjectorApi.class,
+                  // Services reached only from TxCtx-carrying entrypoints, reading in the scope the
+                  // entrypoint opened (contract, threat arsenal, workflow, payload, atomic testing,
+                  // mapper export, attack path graph, autonomous capability and grant APIs):
+                  io.openaev.rest.injector_contract.InjectorContractService.class,
+                  io.openaev.rest.payload.service.PayloadService.class,
+                  io.openaev.rest.payload.service.PayloadUpsertService.class,
+                  io.openaev.service.AtomicTestingService.class,
+                  io.openaev.service.MapperService.class,
+                  io.openaev.service.attackpath.AttackPathGraphService.class,
+                  io.openaev.service.autonomous.CapabilityResolverService.class,
+                  io.openaev.service.GrantService.class,
+                  // Scenario inject generation and the STIX bundle import. The STIX path throws
+                  // unless
+                  // the scope pins one tenant
+                  // (SecurityCoverageService#handleSecurityCoverageProcessing,
+                  // before any contract is read), and its placeholder contract is read in the
+                  // scenario's own tenant (SecurityCoverageInjectService#createdInjectsForScenario
+                  // AndSecurityCoverage, findByContractIdAndTenant):
+                  io.openaev.rest.inject.service.InjectAssistantService.class,
+                  io.openaev.service.stix.SecurityCoverageInjectService.class,
+                  // Exports, behind the scenario and simulation export endpoints:
+                  io.openaev.export.WorkflowExportInitializer.class,
+                  // Injector registration and teardown: the injector endpoints, or the builtin
+                  // registration under ManagerCreator's setScopeOnCurrentTransaction(forTenant):
+                  io.openaev.service.InjectorService.class,
+                  io.openaev.injectors.phishing.service.PhishingLandingPageService.class,
+                  // Runtime migration, under the migration processor's forTenant scope:
+                  io.openaev.processor.core.V20260725_Fix_starter_pack_payload_contracts.class,
+                  // Sets setScopeOnCurrentTransaction(forTenant(simulation tenant)) per comcheck
+                  // before
+                  // the contract read:
+                  io.openaev.scheduler.jobs.ComchecksExecutionJob.class,
+                  // Chaining: authoring runs under the step endpoints' TxCtx (StepApi#createStep
+                  // and
+                  // siblings all declare one), execution under the ready-step worker's forTenant
+                  // scope
+                  // (StepEventService). The contract reads of this class are the authoring lookups
+                  // in
+                  // the step's parent tenant and the findById of the allowlisted run path.
+                  io.openaev.api.chaining.InjectExecutionStep.class))
           .should()
           .dependOnClassesThat()
           .areAssignableTo(io.openaev.database.repository.InjectorContractRepository.class)
@@ -2802,24 +2858,41 @@ class TenantActiveTableAccessArchTest {
   static final ArchRule injectors_contracts_native_query_access_is_reviewed =
       queryNamingTableIsCalledOnlyBy(
           "injectors_contracts",
-          // The repository's own default methods delegate to its queries:
-          io.openaev.database.repository.InjectorContractRepository.class,
-          // Search indexing fetches, under the engine sync job's allTenants() scope:
-          io.openaev.engine.model.inject.InjectHandler.class,
-          io.openaev.engine.model.injectexpectation.InjectExpectationHandler.class,
-          io.openaev.engine.model.scenario.ScenarioHandler.class,
-          io.openaev.engine.model.simulation.SimulationHandler.class,
-          // Reached only from TxCtx-carrying entrypoints (scenario detail and teams, the contract,
-          // threat arsenal and payload endpoints, the injector endpoints or the builtin
-          // registration scope, scenario inject generation, the STIX bundle import):
-          io.openaev.service.scenario.ScenarioService.class,
-          io.openaev.rest.injector_contract.InjectorContractService.class,
-          io.openaev.rest.payload.service.PayloadService.class,
-          io.openaev.service.InjectorService.class,
-          io.openaev.rest.inject.service.InjectIndexCleanupService.class,
-          io.openaev.rest.inject.service.InjectAssistantService.class,
-          io.openaev.service.stix.SecurityCoverageInjectService.class,
-          io.openaev.rest.document.DocumentService.class);
+          withScopedClasses(
+              // The repository's own default methods delegate to its queries:
+              io.openaev.database.repository.InjectorContractRepository.class,
+              // Search indexing fetches, under the engine sync job's allTenants() scope:
+              io.openaev.engine.model.inject.InjectHandler.class,
+              io.openaev.engine.model.injectexpectation.InjectExpectationHandler.class,
+              io.openaev.engine.model.scenario.ScenarioHandler.class,
+              io.openaev.engine.model.simulation.SimulationHandler.class,
+              // Reached only from TxCtx-carrying entrypoints (the contract, threat arsenal and
+              // payload endpoints, the injector endpoints or the builtin registration scope,
+              // scenario
+              // inject generation, the STIX bundle import):
+              io.openaev.rest.injector_contract.InjectorContractService.class,
+              io.openaev.rest.payload.service.PayloadService.class,
+              io.openaev.service.InjectorService.class,
+              io.openaev.rest.inject.service.InjectAssistantService.class,
+              io.openaev.service.stix.SecurityCoverageInjectService.class));
+
+  @ArchTest
+  static final ArchRule
+      injectors_contracts_scoped_classes_reach_the_table_only_through_their_methods =
+          tableIsReachedOnlyThrough(
+              "injectors_contracts",
+              access ->
+                  access.getTargetOwner().isAssignableTo(InjectorContractRepository.class)
+                      || access
+                          .getTargetOwner()
+                          .isAssignableTo(
+                              io.openaev.database.helper.InjectorContractRepositoryHelper.class)
+                      || isQueryNaming(access, "injectors_contracts"),
+              INJECTOR_CONTRACT_SCOPED_METHODS);
+
+  @ArchTest
+  static final ArchRule injectors_contracts_scoped_methods_take_a_tx_ctx =
+      methodsReachingTheTableTakeATxCtx(SCENARIO_SERVICE_READS, V1_DATA_IMPORTER_READS);
 
   @ArchTest
   static final ArchRule injector_contract_tags_native_query_access_is_reviewed =
@@ -3181,7 +3254,71 @@ class TenantActiveTableAccessArchTest {
     claim(InjectExecutionStep.class, "getInjectFromDataStep", at(InjectExecutionStep.class, "run")),
     claim(ActionStep.class, "run", at(StepEventService.class, "run")),
     claim(StepEventService.class, "run", at(StepEventService.class, "handleReadyStepEvent")),
-    claim(Processable.class, "process", at(MigrationProcessor.class, "init"))
+    claim(Processable.class, "process", at(MigrationProcessor.class, "init")),
+    // sendEmail is called by its own overloads, by the lessons endpoint (TxCtx), by the
+    // notification dispatch (below) and by the services that open a forTenant scope around it.
+    claim(
+        io.openaev.service.MailingService.class,
+        "sendEmail",
+        at(io.openaev.service.MailingService.class, "sendEmail"),
+        at(
+            io.openaev.rest.lessons.ExerciseLessonsApi.class,
+            "sendExerciseLessons",
+            Scope.TX_CTX_PARAMETER),
+        at(
+            io.openaev.notification.engine.NotificationDispatchService.class,
+            "handleEmailNotification"),
+        at(
+            io.openaev.service.UserService.class,
+            "sendPasswordResetEmail",
+            Scope.OPENED_AROUND_LAMBDA),
+        at(io.openaev.service.UserService.class, "requestEmailChange", Scope.OPENED_AROUND_LAMBDA),
+        at(
+            io.openaev.service.UserService.class,
+            "sendEmailChangeConfirmationEmail",
+            Scope.OPENED_AROUND_LAMBDA),
+        at(
+            io.openaev.xtmhub.XtmHubEmailService.class,
+            "sendLostConnectivityEmail",
+            Scope.OPENED_AROUND_LAMBDA),
+        at(
+            io.openaev.xtmhub.XtmHubEmailService.class,
+            "sendTenantLostConnectivityEmail",
+            Scope.OPENED_AROUND_LAMBDA)),
+    claim(
+        io.openaev.notification.engine.NotificationDispatchService.class,
+        "handleEmailNotification",
+        at(io.openaev.notification.engine.NotificationDispatchService.class, "dispatch")),
+    claim(
+        io.openaev.notification.engine.NotificationDispatchService.class,
+        "dispatch",
+        at(
+            io.openaev.notification.engine.NotificationDigestService.class,
+            "processDigest",
+            Scope.OPENED_AROUND_LAMBDA),
+        at(
+            io.openaev.notification.engine.NotificationEngineService.class,
+            "handleEventWithMessage",
+            Scope.OPENED_AROUND_LAMBDA),
+        at(io.openaev.service.notification.NotifierService.class, "test", Scope.TX_CTX_PARAMETER)),
+    // The scenario of the STIX bundle import: the method that reads the documents takes the
+    // TxCtx the import runs under.
+    claim(
+        io.openaev.rest.document.DocumentService.class,
+        "findAllDistinctOnInjectsByScenarioId",
+        at(
+            io.openaev.service.stix.SecurityCoverageInjectService.class,
+            "createInjectsByArtifacts",
+            Scope.TX_CTX_PARAMETER)),
+    // The payload delete is the only caller, and its endpoint takes a TxCtx.
+    claim(
+        io.openaev.rest.inject.service.InjectIndexCleanupService.class,
+        "injectIdsByPayloadId",
+        at(io.openaev.rest.payload.service.PayloadService.class, "delete")),
+    claim(
+        io.openaev.rest.payload.service.PayloadService.class,
+        "delete",
+        at(io.openaev.rest.payload.PayloadApi.class, "deletePayload", Scope.TX_CTX_PARAMETER))
   };
 
   private static CallersClaim claim(Class<?> owner, String method, At... callers) {
@@ -3190,6 +3327,14 @@ class TenantActiveTableAccessArchTest {
 
   private static At at(Class<?> in, String method) {
     return new At(in, method);
+  }
+
+  private static At at(Class<?> in, String method, Scope scope) {
+    return new At(in, method, scope);
+  }
+
+  private static Reaching reaching(Class<?> in, String... methods) {
+    return new Reaching(in, List.of(methods));
   }
 
   @ArchTest
@@ -3267,6 +3412,156 @@ class TenantActiveTableAccessArchTest {
             table
                 + " is tenant-active: a query naming it without a tenant scope silently reads zero"
                 + " rows. New callers must carry a scope and be allowlisted here");
+  }
+
+  /** A repository {@code @Query} method that names {@code table}, called or referenced. */
+  static boolean isQueryNaming(JavaAccess<?> access, String table) {
+    if (!(access.getTarget() instanceof AccessTarget.CodeUnitAccessTarget codeUnit)) {
+      return false;
+    }
+    Pattern named = Pattern.compile("\\b" + table + "\\b", Pattern.CASE_INSENSITIVE);
+    return codeUnit
+        .resolveMember()
+        .flatMap(method -> method.tryGetAnnotationOfType(Query.class))
+        .map(query -> named.matcher(query.value()).find())
+        .orElse(false);
+  }
+
+  /** The methods of one class that may reach a table, the class not being allowlisted whole. */
+  record Reaching(Class<?> in, List<String> methods) {}
+
+  /**
+   * Narrows a class allowlist to methods: in each class of {@code allowed}, an access that reaches
+   * the table must be made by one of the class's listed methods (a lambda counts as its method),
+   * and each listed method must make one, so the list stays exact. A class that was not analysed is
+   * a violation, so a rename cannot turn the rule into a no-op.
+   */
+  static ArchRule tableIsReachedOnlyThrough(
+      String table, Predicate<JavaAccess<?>> reachesTable, Reaching... allowed) {
+    ArchCondition<JavaClass> onlyListedMethods =
+        new ArchCondition<>("reach " + table + " only through the methods its allowlist names") {
+          private final Set<String> observed = new HashSet<>();
+          private final Set<String> analysed = new HashSet<>();
+
+          @Override
+          public void check(JavaClass javaClass, ConditionEvents events) {
+            Optional<Reaching> entry =
+                Arrays.stream(allowed)
+                    .filter(reaching -> reaching.in().getName().equals(javaClass.getName()))
+                    .findFirst();
+            if (entry.isEmpty()) {
+              return;
+            }
+            analysed.add(javaClass.getName());
+            for (JavaAccess<?> access : javaClass.getAccessesFromSelf()) {
+              if (!reachesTable.test(access)) {
+                continue;
+              }
+              String method = AllowedCall.enclosingMethodName(access.getOrigin());
+              if (entry.get().methods().contains(method)) {
+                observed.add(javaClass.getName() + "#" + method);
+              } else {
+                events.add(
+                    SimpleConditionEvent.violated(
+                        access,
+                        access.getDescription() + " is not made by a method listed for the class"));
+              }
+            }
+          }
+
+          @Override
+          public void finish(ConditionEvents events) {
+            for (Reaching reaching : allowed) {
+              String name = reaching.in().getSimpleName();
+              if (!analysed.contains(reaching.in().getName())) {
+                events.add(
+                    new SimpleConditionEvent(
+                        reaching, false, name + " was not analysed: its methods are not checked"));
+                continue;
+              }
+              for (String method : reaching.methods()) {
+                if (!observed.contains(reaching.in().getName() + "#" + method)) {
+                  events.add(
+                      new SimpleConditionEvent(
+                          reaching,
+                          false,
+                          name + "#" + method + " is listed but does not reach " + table));
+                }
+              }
+            }
+          }
+        };
+    return classes()
+        .should(onlyListedMethods)
+        .because(
+            "a class allowlisted for its methods reaches "
+                + table
+                + " only through them: a new method that reaches it is not covered by the scope the"
+                + " listed ones run under");
+  }
+
+  /**
+   * The methods of a class that reach a table, and the methods of the class that lead to them, take
+   * a {@link TxCtx} whenever they are not private: the class is then reached only through an entry
+   * point that carries the scope, since a private method has no caller outside the class. The
+   * methods that lead to a listed method are found through the calls made inside the class, a
+   * lambda counting as its method. A class with no such entry point is a violation, so the claim
+   * cannot be true of nothing.
+   */
+  static ArchRule methodsReachingTheTableTakeATxCtx(Reaching... claims) {
+    ArchCondition<JavaClass> entryPointsTakeATxCtx =
+        new ArchCondition<>("take a TxCtx in every non-private method that reaches the table") {
+          @Override
+          public void check(JavaClass javaClass, ConditionEvents events) {
+            Optional<Reaching> claim =
+                Arrays.stream(claims)
+                    .filter(reaching -> reaching.in().getName().equals(javaClass.getName()))
+                    .findFirst();
+            if (claim.isEmpty()) {
+              return;
+            }
+            Set<String> leadsToTable = new HashSet<>(claim.get().methods());
+            boolean grown = true;
+            while (grown) {
+              grown = false;
+              for (JavaAccess<?> access : javaClass.getAccessesFromSelf()) {
+                if (access.getTargetOwner().getName().equals(javaClass.getName())
+                    && leadsToTable.contains(access.getTarget().getName())
+                    && leadsToTable.add(AllowedCall.enclosingMethodName(access.getOrigin()))) {
+                  grown = true;
+                }
+              }
+            }
+            List<JavaMethod> entryPoints =
+                javaClass.getMethods().stream()
+                    .filter(method -> leadsToTable.contains(method.getName()))
+                    .filter(method -> !method.getModifiers().contains(JavaModifier.PRIVATE))
+                    .toList();
+            if (entryPoints.isEmpty()) {
+              events.add(
+                  SimpleConditionEvent.violated(
+                      javaClass,
+                      javaClass.getSimpleName()
+                          + " has no non-private method that reaches the table"));
+            }
+            for (JavaMethod method : entryPoints) {
+              if (method.getRawParameterTypes().stream()
+                  .noneMatch(type -> type.isEquivalentTo(TxCtx.class))) {
+                events.add(
+                    SimpleConditionEvent.violated(
+                        method, method.getFullName() + " reaches the table and takes no TxCtx"));
+              }
+            }
+          }
+
+          @Override
+          public void finish(ConditionEvents events) {}
+        };
+    return classes()
+        .should(entryPointsTakeATxCtx)
+        .because(
+            "a class that reaches a tenant-active table through private methods is scoped by the"
+                + " TxCtx of the non-private methods that lead to them");
   }
 
   /**
@@ -3464,8 +3759,15 @@ class TenantActiveTableAccessArchTest {
                 + " tenants of the scope makes the lookup match several rows");
   }
 
-  /** A method, as the enclosing method of a call: a lambda counts as the method that holds it. */
-  record At(Class<?> in, String method) {
+  /**
+   * A method, as the enclosing method of a call: a lambda counts as the method that holds it. A
+   * caller that carries a {@link Scope} is also checked to run under it.
+   */
+  record At(Class<?> in, String method, Scope scope) {
+
+    At(Class<?> in, String method) {
+      this(in, method, null);
+    }
 
     boolean isOrigin(JavaCodeUnit origin) {
       return origin.getOwner().getName().equals(in.getName())
@@ -3474,6 +3776,67 @@ class TenantActiveTableAccessArchTest {
 
     String describe() {
       return in.getSimpleName() + "#" + method;
+    }
+  }
+
+  /**
+   * The tenant scope a claimed caller runs the call under, read from the bytecode of the caller
+   * class.
+   */
+  enum Scope {
+    /** Every method of that name takes a {@link TxCtx}, which the transaction aspect scopes on. */
+    TX_CTX_PARAMETER("takes a TxCtx parameter") {
+      @Override
+      boolean holds(JavaAccess<?> access) {
+        List<JavaMethod> methods = enclosingMethods(access.getOrigin());
+        return !methods.isEmpty()
+            && methods.stream()
+                .allMatch(
+                    method ->
+                        method.getRawParameterTypes().stream()
+                            .anyMatch(type -> type.isEquivalentTo(TxCtx.class)));
+      }
+    },
+    /**
+     * The call is made in a lambda of a method that opens a {@link TenantScopedTransaction} scope
+     * with {@code execute} or {@code executeNew}, the lambda being the work the scope runs. Read
+     * from the bytecode: a call beside the lambda is not under the scope.
+     */
+    OPENED_AROUND_LAMBDA("makes the call in a lambda of a method that opens a tenant scope") {
+      @Override
+      boolean holds(JavaAccess<?> access) {
+        Class<?> owner = access.getOrigin().getOwner().reflect();
+        String method = AllowedCall.enclosingMethodName(access.getOrigin());
+        String targetOwner = access.getTarget().getOwner().getName();
+        String target = access.getTarget().getName();
+        String scopeOwner = TenantScopedTransaction.class.getName();
+        try {
+          boolean inLambda =
+              MethodCallOrder.callsInLambdasOf(owner, method).stream()
+                  .anyMatch(call -> call.owner().equals(targetOwner) && call.name().equals(target));
+          List<MethodCallOrder.Call> calls = MethodCallOrder.callsInOrder(owner, method);
+          return inLambda
+              && (MethodCallOrder.firstIndexOf(calls, scopeOwner, "execute").isPresent()
+                  || MethodCallOrder.firstIndexOf(calls, scopeOwner, "executeNew").isPresent());
+        } catch (IllegalStateException e) {
+          return false;
+        }
+      }
+    };
+
+    final String description;
+
+    Scope(String description) {
+      this.description = description;
+    }
+
+    abstract boolean holds(JavaAccess<?> access);
+
+    private static List<JavaMethod> enclosingMethods(JavaCodeUnit origin) {
+      String name = AllowedCall.enclosingMethodName(origin);
+      return origin.getOwner().getMethods().stream()
+          .filter(method -> method.getName().equals(name))
+          .toList();
     }
   }
 
@@ -3526,7 +3889,22 @@ class TenantActiveTableAccessArchTest {
                     claim.callers().stream()
                         .filter(at -> at.isOrigin(access.getOrigin()))
                         .findFirst();
-                if (caller.isPresent()) {
+                if (caller.isPresent() && caller.get().scope() != null) {
+                  Scope scope = caller.get().scope();
+                  if (scope.holds(access)) {
+                    observed.add(claim.describe() + " <- " + caller.get().describe());
+                  } else {
+                    events.add(
+                        SimpleConditionEvent.violated(
+                            access,
+                            access.getDescription()
+                                + " is claimed to run under a tenant scope, but "
+                                + caller.get().describe()
+                                + " does not ("
+                                + scope.description
+                                + ")"));
+                  }
+                } else if (caller.isPresent()) {
                   observed.add(claim.describe() + " <- " + caller.get().describe());
                 } else {
                   events.add(

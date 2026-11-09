@@ -153,6 +153,18 @@ class ArchRuleRegistrationTest {
                   + " claims to build its rule"),
           new Helper(
               TenantActiveTableAccessArchTest.class,
+              "tableIsReachedOnlyThrough",
+              TenantActiveTableAccessArchTest.class,
+              "a parameterised rule factory; its one @ArchTest field calls it with the methods"
+                  + " of the scoped classes to build its rule"),
+          new Helper(
+              TenantActiveTableAccessArchTest.class,
+              "methodsReachingTheTableTakeATxCtx",
+              TenantActiveTableAccessArchTest.class,
+              "a parameterised rule factory; its one @ArchTest field calls it with the scoped"
+                  + " classes that take a TxCtx to build its rule"),
+          new Helper(
+              TenantActiveTableAccessArchTest.class,
               "mappedOnTheTenantRouteOnly",
               TenantActiveTableAccessArchTest.class,
               "a parameterised rule factory; its one @ArchTest field calls it with the route"

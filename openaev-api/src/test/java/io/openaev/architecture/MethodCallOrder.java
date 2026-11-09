@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.springframework.asm.ClassReader;
 import org.springframework.asm.ClassVisitor;
 import org.springframework.asm.Label;
@@ -100,6 +101,41 @@ final class MethodCallOrder {
           type.getName() + " has " + bodies.size() + " methods called " + methodName);
     }
     return bodies.get(0);
+  }
+
+  /**
+   * The calls made in the lambdas of the one method of {@code type} called {@code methodName}: the
+   * bodies of its {@code lambda$methodName$N} methods, which {@link #callsInOrder} does not follow.
+   * ArchUnit attributes those calls to the enclosing method, so only the bytecode tells a call made
+   * in a lambda from one made beside it.
+   */
+  static List<Call> callsInLambdasOf(Class<?> type, String methodName) {
+    Pattern lambda = Pattern.compile("lambda\\$" + Pattern.quote(methodName) + "\\$\\d+");
+    List<Call> calls = new ArrayList<>();
+    try {
+      new ClassReader(type.getName())
+          .accept(
+              new ClassVisitor(Opcodes.ASM9) {
+                @Override
+                public MethodVisitor visitMethod(
+                    int access, String name, String descriptor, String signature, String[] e) {
+                  if (!lambda.matcher(name).matches()) {
+                    return null;
+                  }
+                  return new MethodVisitor(Opcodes.ASM9) {
+                    @Override
+                    public void visitMethodInsn(
+                        int opcode, String owner, String called, String d, boolean itf) {
+                      calls.add(new Call(owner.replace('/', '.'), called, false));
+                    }
+                  };
+                }
+              },
+              ClassReader.SKIP_FRAMES);
+    } catch (IOException e) {
+      throw new IllegalStateException("Cannot read the bytecode of " + type.getName(), e);
+    }
+    return calls;
   }
 
   /** The first call of {@code owner#name} in {@code calls}, or empty when there is none. */

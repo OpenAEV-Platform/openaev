@@ -7,6 +7,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.EvaluationResult;
 import io.openaev.architecture.fixture.TenantActiveTableAccessFixtures;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.rest.injector_contract.InjectorContractService;
 import java.util.List;
 import java.util.stream.Stream;
@@ -928,6 +929,237 @@ class TenantActiveTableAccessRulesTest {
       // Assert
       assertThat(result.hasViolation()).isTrue();
       assertThat(result.getFailureReport().toString()).contains("was not analysed");
+    }
+  }
+
+  @Nested
+  @DisplayName("injectors_contracts: the scope of the methods a class is allowlisted for")
+  class InjectorContractScopedMethods {
+
+    private final Class<?> scoped = TenantActiveTableAccessFixtures.ScopedCallers.class;
+    private final Class<?> unscoped = TenantActiveTableAccessFixtures.UnscopedCallers.class;
+
+    private static TenantActiveTableAccessArchTest.CallersClaim claim(
+        Class<?> owner, TenantActiveTableAccessArchTest.At... callers) {
+      return new TenantActiveTableAccessArchTest.CallersClaim(owner, "target", List.of(callers));
+    }
+
+    private static TenantActiveTableAccessArchTest.At at(
+        Class<?> in, String method, TenantActiveTableAccessArchTest.Scope scope) {
+      return new TenantActiveTableAccessArchTest.At(in, method, scope);
+    }
+
+    @Test
+    @DisplayName(
+        "given callers that take a TxCtx or open a scope around the call, should not violate")
+    void given_callersThatRunUnderAScope_should_notViolate() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  scoped,
+                  at(scoped, "withTxCtx", TenantActiveTableAccessArchTest.Scope.TX_CTX_PARAMETER),
+                  at(
+                      scoped,
+                      "openedAroundLambda",
+                      TenantActiveTableAccessArchTest.Scope.OPENED_AROUND_LAMBDA)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, scoped);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a caller that takes no TxCtx, should violate")
+    void given_aCallerWithoutATxCtx_should_violate() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  unscoped,
+                  at(
+                      unscoped,
+                      "withoutTxCtx",
+                      TenantActiveTableAccessArchTest.Scope.TX_CTX_PARAMETER)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, unscoped);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("withoutTxCtx")
+          .contains("takes a TxCtx parameter");
+    }
+
+    @Test
+    @DisplayName("given a call made outside the lambda that opens the scope, should violate")
+    void given_aCallOutsideTheLambdaThatOpensTheScope_should_violate() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  unscoped,
+                  at(
+                      unscoped,
+                      "outsideTheLambda",
+                      TenantActiveTableAccessArchTest.Scope.OPENED_AROUND_LAMBDA)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, unscoped);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("outsideTheLambda");
+    }
+
+    @Test
+    @DisplayName("given a lambda in a method that opens no scope, should violate")
+    void given_aLambdaInAMethodThatOpensNoScope_should_violate() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  unscoped,
+                  at(
+                      unscoped,
+                      "lambdaWithNoScope",
+                      TenantActiveTableAccessArchTest.Scope.OPENED_AROUND_LAMBDA)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, unscoped);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("lambdaWithNoScope");
+    }
+
+    @Test
+    @DisplayName("given an unlisted caller of a scoped method, should violate on it only")
+    void given_anUnlistedCallerOfAScopedMethod_should_violateOnItOnly() {
+      // Arrange
+      ArchRule rule =
+          TenantActiveTableAccessArchTest.callersAreOnly(
+              claim(
+                  scoped,
+                  at(scoped, "withTxCtx", TenantActiveTableAccessArchTest.Scope.TX_CTX_PARAMETER)));
+
+      // Act
+      EvaluationResult result = evaluate(rule, scoped);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("openedAroundLambda")
+          .doesNotContain("ScopedCallers.withTxCtx()");
+    }
+
+    @Test
+    @DisplayName(
+        "given a method outside the listed ones that reaches the table, should violate on it only")
+    void given_aMethodOutsideTheListedOnes_should_violateOnItOnly() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.ListedAndUnlistedReach.class;
+
+      // Act
+      EvaluationResult result = evaluateReach(fixture, fixture, "listed");
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString())
+          .contains("unlisted")
+          .doesNotContain("ListedAndUnlistedReach.listed()");
+    }
+
+    @Test
+    @DisplayName("given a listed method that does not reach the table, should violate")
+    void given_aListedMethodThatDoesNotReachTheTable_should_violate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.ListedAndUnlistedReach.class;
+
+      // Act
+      EvaluationResult result = evaluateReach(fixture, fixture, "listed", "unlisted", "renamed");
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("renamed");
+    }
+
+    @Test
+    @DisplayName("given a listed class that is not analysed, should violate")
+    void given_aListedClassThatIsNotAnalysed_should_violate() {
+      // Act
+      EvaluationResult result =
+          evaluateReach(
+              TenantActiveTableAccessFixtures.ListedAndUnlistedReach.class,
+              TenantActiveTableAccessFixtures.TxCtxEntryPoint.class,
+              "listed",
+              "unlisted");
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("was not analysed");
+    }
+
+    private static EvaluationResult evaluateReach(
+        Class<?> listed, Class<?> analysed, String... methods) {
+      return evaluate(
+          TenantActiveTableAccessArchTest.tableIsReachedOnlyThrough(
+              "the contract repository",
+              access -> access.getTargetOwner().isAssignableTo(InjectorContractRepository.class),
+              new TenantActiveTableAccessArchTest.Reaching(listed, List.of(methods))),
+          analysed);
+    }
+
+    private static EvaluationResult evaluateEntryPoints(Class<?> in, String... methods) {
+      return evaluate(
+          TenantActiveTableAccessArchTest.methodsReachingTheTableTakeATxCtx(
+              new TenantActiveTableAccessArchTest.Reaching(in, List.of(methods))),
+          in);
+    }
+
+    @Test
+    @DisplayName(
+        "given a non-private method with a TxCtx that leads to the table, should not violate")
+    void given_aTxCtxEntryPointThatLeadsToTheTable_should_notViolate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.TxCtxEntryPoint.class;
+
+      // Act
+      EvaluationResult result = evaluateEntryPoints(fixture, "helper");
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("given a non-private method with no TxCtx that leads to the table, should violate")
+    void given_anEntryPointWithoutATxCtx_should_violate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.UnscopedEntryPoint.class;
+
+      // Act
+      EvaluationResult result = evaluateEntryPoints(fixture, "helper");
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("entry").contains("no TxCtx");
+    }
+
+    @Test
+    @DisplayName("given a table reached by a method no non-private method leads to, should violate")
+    void given_noEntryPointToTheTable_should_violate() {
+      // Arrange
+      Class<?> fixture = TenantActiveTableAccessFixtures.NoEntryPoint.class;
+
+      // Act
+      EvaluationResult result = evaluateEntryPoints(fixture, "helper");
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().toString()).contains("no non-private method");
     }
   }
 }

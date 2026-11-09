@@ -1030,4 +1030,116 @@ public final class TenantActiveTableAccessFixtures {
     @GetMapping("/{id}/export")
     public void export(TxCtx ctx) {}
   }
+
+  // -- injectors_contracts: classes allowlisted for their methods, and the scope those run under --
+
+  /**
+   * Callers of a method that run under a scope: a TxCtx parameter, and a scope opened around it.
+   */
+  public static class ScopedCallers {
+    private final TenantScopedTransaction tenantTx;
+
+    public ScopedCallers(TenantScopedTransaction tenantTx) {
+      this.tenantTx = tenantTx;
+    }
+
+    public void target() {}
+
+    public void withTxCtx(TxCtx ctx) {
+      target();
+    }
+
+    public void openedAroundLambda() {
+      tenantTx.execute(TxCtx.forTenant("tenant"), () -> target());
+    }
+  }
+
+  /** Callers of a method that run under no scope, each in its own way. */
+  public static class UnscopedCallers {
+    private final TenantScopedTransaction tenantTx;
+
+    public UnscopedCallers(TenantScopedTransaction tenantTx) {
+      this.tenantTx = tenantTx;
+    }
+
+    public void target() {}
+
+    public void withoutTxCtx() {
+      target();
+    }
+
+    public void outsideTheLambda() {
+      target();
+      tenantTx.execute(TxCtx.forTenant("tenant"), () -> {});
+    }
+
+    public void lambdaWithNoScope() {
+      Runnable work = () -> target();
+      work.run();
+    }
+  }
+
+  /** One method reaches the contract repository and is listed, another is not. */
+  public static class ListedAndUnlistedReach {
+    private final InjectorContractRepository repository;
+
+    public ListedAndUnlistedReach(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public long listed() {
+      return repository.count();
+    }
+
+    public long unlisted() {
+      return repository.count();
+    }
+  }
+
+  /** A public method takes a TxCtx and reaches the repository through a private one. */
+  public static class TxCtxEntryPoint {
+    private final InjectorContractRepository repository;
+
+    public TxCtxEntryPoint(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public long entry(TxCtx ctx) {
+      return helper();
+    }
+
+    private long helper() {
+      return repository.count();
+    }
+  }
+
+  /** A public method with no TxCtx reaches the repository through a private one. */
+  public static class UnscopedEntryPoint {
+    private final InjectorContractRepository repository;
+
+    public UnscopedEntryPoint(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public long entry() {
+      return helper();
+    }
+
+    private long helper() {
+      return repository.count();
+    }
+  }
+
+  /** The repository is reached by a method that nothing non-private leads to. */
+  public static class NoEntryPoint {
+    private final InjectorContractRepository repository;
+
+    public NoEntryPoint(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    private long helper() {
+      return repository.count();
+    }
+  }
 }
