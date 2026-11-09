@@ -160,9 +160,9 @@ class InjectorContractApiSingularEndpointsTenantScopeTest extends IntegrationTes
             "an explicit multi-tenant selector is refused as a bad request rather than reaching"
                 + " the ambiguous lookup")
         .isEqualTo(400);
-    assertThat(result.getResponse().getContentAsString())
+    assertThat(JsonPath.<String>read(result.getResponse().getContentAsString(), "$.message"))
         .as("the refusal says a single tenant is needed, not that a write was refused")
-        .contains(TenantSingleScopeRequiredException.CODE);
+        .isEqualTo(TenantSingleScopeRequiredException.CODE);
   }
 
   @Test

@@ -226,7 +226,8 @@ class InjectorContractApiSingularEndpointsCallerShapesTest extends IntegrationTe
     assertThat(result.getResponse().getStatus()).isEqualTo(shape.status);
     Set<String> changed = changedTenants(tenants.values());
     if (shape.errorCode != null) {
-      assertThat(result.getResponse().getContentAsString()).contains(shape.errorCode);
+      assertThat(JsonPath.<String>read(result.getResponse().getContentAsString(), "$.message"))
+          .isEqualTo(shape.errorCode);
       assertThat(changed).as("a refused call must not touch any row").isEmpty();
       return;
     }

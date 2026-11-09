@@ -5,7 +5,6 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -107,11 +106,7 @@ class AttackPathCausalSeedApiTest extends IntegrationTest {
     // Act + Assert
     mvc.perform(post(ATTACK_PATH_URI + "/seed/causal").with(csrf()))
         .andExpect(status().isBadRequest())
-        .andExpect(
-            content()
-                .string(
-                    org.hamcrest.Matchers.containsString(
-                        TenantSingleScopeRequiredException.MESSAGE)));
+        .andExpect(jsonPath("$.message").value(TenantSingleScopeRequiredException.CODE));
   }
 
   @Test
@@ -121,9 +116,6 @@ class AttackPathCausalSeedApiTest extends IntegrationTest {
     // Act + Assert
     mvc.perform(post(ATTACK_PATH_URI + "/simulations/any-simulation/replay").with(csrf()))
         .andExpect(status().isBadRequest())
-        .andExpect(
-            content()
-                .string(
-                    org.hamcrest.Matchers.containsString(TenantSingleScopeRequiredException.CODE)));
+        .andExpect(jsonPath("$.message").value(TenantSingleScopeRequiredException.CODE));
   }
 }
