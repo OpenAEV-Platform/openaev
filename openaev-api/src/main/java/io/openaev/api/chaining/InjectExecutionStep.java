@@ -738,7 +738,7 @@ public class InjectExecutionStep implements ActionStep {
     // EXERCISE
     if (simulation != null) {
       tags = simulation.getTags();
-      inject.setExercise(simulation);
+      InjectUtils.attachToExercise(inject, simulation);
       // Linked documents directly to the simulation
       inject
           .getDocuments()

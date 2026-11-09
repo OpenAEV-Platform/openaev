@@ -1,5 +1,6 @@
 package io.openaev.architecture;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -362,7 +363,8 @@ class TenantActiveTableAccessArchTest {
           "agents",
           "autonomous_objective_templates",
           "catalog_items",
-          "catalog_releases");
+          "catalog_releases",
+          "parameters");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -2337,4 +2339,114 @@ class TenantActiveTableAccessArchTest {
               "autonomous_objective_templates is tenant-active: an accessor without a tenant scope"
                   + " silently reads zero rows, and the seed it drives would attribute its rows to"
                   + " the wrong tenant. New accessors must carry a scope and be allowlisted here");
+
+  /**
+   * {@code parameters} (entity {@code Setting}) is dual-scope, not strict: a platform row ({@code
+   * tenant_id IS NULL}) is readable under any scope, the empty one included, so reads need no
+   * review here. What a tenant must never do is WRITE it: only a platform-write transaction ({@code
+   * io.openaev.aop.PlatformWrite}, {@code TenantScopedTransaction#executeAsPlatformWrite}/{@code
+   * executeNewAsPlatformWrite}) may, and a refused write raises. So the guard follows the writers:
+   * every method that modifies a {@code Setting} (see {@link PlatformRowWriters}), directly or
+   * through {@code SettingService} and {@code PlatformSettingsService}, is reached only through
+   * such a marker. The methods of {@link PlatformRowWriters#TENANT_ROW_WRITERS} write tenant rows
+   * only, each with its reason. A tenant row read with no scope still comes back empty; the readers
+   * of tenant rows are covered by {@link #parameters_tenant_row_readers_off_the_request_thread}.
+   *
+   * <p>Covered, as a call or as a method reference: the settings repository writes (saveAll
+   * included), a setter of a {@code Setting} (dirty checking), an {@code EntityManager} / {@code
+   * Session} write of a {@code Setting}, a query {@code executeUpdate} and a JDBC statement whose
+   * text names the table, a {@code @Modifying} query of another repository naming it. Not covered:
+   * Flyway migrations, a statement assembled at run time, a {@code Setting} handled as {@code
+   * Object}, reflection, a write reached only through an interface call or an event dispatch, and
+   * which lambda or method reference is the one handed to the primitive (its creator method
+   * decides). At run time the database refuses a platform row written outside a platform-write
+   * transaction: {@code require_tenant_write} for what goes through Hibernate and a row trigger on
+   * {@code parameters} for raw JDBC (both pinned by {@code PlatformSettingsUnscopedAccessTest}).
+   * The full list is in {@link PlatformRowWriters}.
+   */
+  @ArchTest
+  static final ArchRule parameters_platform_row_writers_run_under_platform_write =
+      methods()
+          .that(PlatformRowWriters.writeASetting(PlatformRowWriters.TENANT_ROW_WRITERS))
+          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite())
+          .because(
+              "parameters is dual-scope: a write of a platform row outside a platform-write"
+                  + " transaction is refused with an error. Every writer the rule can see (settings"
+                  + " repository writes, Setting setters, EntityManager/Session writes, statements"
+                  + " naming the table, as a call or a method reference) must sit under"
+                  + " @PlatformWrite or executeAsPlatformWrite/executeNewAsPlatformWrite. Not seen"
+                  + " here: migrations, run-time-built statements, a Setting handled as Object,"
+                  + " reflection, a write reached only through an interface call or an event"
+                  + " dispatch, and which lambda or method reference is the one handed to the"
+                  + " primitive (the creator method is what counts). The database refusal covers"
+                  + " what the rule misses only when it goes through Hibernate");
+
+  /**
+   * Each tenant-row-only exemption is still a method that modifies a {@code Setting}, and still
+   * touches tenant rows only ({@link PlatformRowWriters#tenantRowOnlyViolations}): an entry for a
+   * method that no longer writes, or that gained a path to a platform row, would stay behind as an
+   * unexplained hole in the guard above.
+   */
+  @ArchTest
+  static void parameters_tenant_row_writer_exemptions_are_live(JavaClasses classes) {
+    for (PlatformRowWriters.TenantRowWriter exemption : PlatformRowWriters.TENANT_ROW_WRITERS) {
+      java.util.List<com.tngtech.archunit.core.domain.JavaMethod> exempted =
+          classes.stream()
+              .filter(c -> c.isAssignableTo(exemption.owner()))
+              .flatMap(c -> c.getMethods().stream())
+              .filter(m -> PlatformRowWriters.isTenantRowWriter(m, java.util.List.of(exemption)))
+              .toList();
+      assertTrue(
+          exempted.stream().anyMatch(PlatformRowWriters::writesASetting),
+          () ->
+              exemption.owner().getSimpleName()
+                  + "#"
+                  + exemption.method()
+                  + exemption.parameterTypes().stream().map(Class::getSimpleName).toList()
+                  + " is exempted as a tenant-row-only writer but no longer modifies a Setting:"
+                  + " remove the entry");
+      for (com.tngtech.archunit.core.domain.JavaMethod method : exempted) {
+        java.util.List<String> violations = PlatformRowWriters.tenantRowOnlyViolations(method);
+        assertTrue(
+            violations.isEmpty(),
+            () ->
+                "an exempted tenant-row-only writer reaches more than tenant rows: "
+                    + violations
+                    + ". Mark its callers with the platform-write marker and remove the entry");
+      }
+    }
+  }
+
+  /**
+   * A tenant row of {@code parameters} read with no tenant scope comes back empty, silently: the
+   * platform rows are readable under any scope, the tenant rows are not. Every method that reads
+   * one (any repository read not named for the platform row) must be reached on every path through
+   * a tenant scope: a {@code @Transactional} method with a {@code TxCtx} parameter (HTTP and
+   * request-bound services), a {@code TenantScopedTransaction} primitive around the work (jobs,
+   * startup, consumers) or {@code setScopeOnCurrentTransaction} before the read. A reader reached
+   * from a root that sets none is a defect, not a baseline entry.
+   */
+  @ArchTest
+  static final ArchRule parameters_tenant_row_readers_off_the_request_thread =
+      methods()
+          .that(PlatformRowWriters.readATenantRowOfSettings())
+          .should(PlatformRowWriters.beReachedOnlyUnderATenantScope())
+          .because(
+              "a tenant row of the dual-scope parameters table read with no scope comes back empty"
+                  + " instead of failing");
+
+  /**
+   * {@code @PlatformWrite} is read by {@code TenantScopeTransactionAspect} only on a method
+   * annotated {@code @Transactional} that takes a {@code TxCtx}; anywhere else it marks nothing
+   * while looking like it does.
+   */
+  @ArchTest
+  static final ArchRule platform_write_is_honoured_only_on_a_transactional_method_with_a_tx_ctx =
+      methods()
+          .that()
+          .areAnnotatedWith(io.openaev.aop.PlatformWrite.class)
+          .should(PlatformRowWriters.beHonouredByTheAspect())
+          .because(
+              "the aspect sets app.platform_write only for a @Transactional method with a TxCtx"
+                  + " parameter");
 }

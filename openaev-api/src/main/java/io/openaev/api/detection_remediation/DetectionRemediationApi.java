@@ -160,7 +160,7 @@ public class DetectionRemediationApi {
           @PathVariable @NotBlank String securityPlatformId,
           @RequestParam(value = "agent_slug", required = false) String agentSlug) {
 
-    Inject inject = injectService.inject(injectId);
+    Inject inject = injectService.inject(ctx, injectId);
     Optional<Payload> payloadOptional = inject.getPayload();
 
     if (payloadOptional.isEmpty())

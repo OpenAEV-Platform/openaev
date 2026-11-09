@@ -60,9 +60,7 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
   @BeforeEach
   void setUp() throws Exception {
     tenantB = tenantHelper.createTenantWithCurrentUser("wattr-merge-b").getId();
-    entityManager
-        .unwrap(Session.class)
-        .doWork(c -> WriteAttrDetectorTrigger.install(c, TenantTables.selfIsolatedTables()));
+    entityManager.unwrap(Session.class).doWork(c -> WriteAttrDetectorTrigger.install(c));
   }
 
   @AfterEach

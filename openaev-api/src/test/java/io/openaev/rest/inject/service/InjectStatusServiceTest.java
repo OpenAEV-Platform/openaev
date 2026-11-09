@@ -235,6 +235,29 @@ class InjectStatusServiceTest {
       assertThat(executionTime).isAfterOrEqualTo(before);
     }
 
+    @Test
+    @DisplayName(
+        "given job retrieval then implant START traces should add the duration to the implant start")
+    void given_jobRetrievalThenImplantStartTraces_should_addDurationToImplantStart() {
+      // -- ARRANGE --
+      InjectStatus status = new InjectStatus();
+      Agent agent = new Agent();
+      agent.setId("agent-1");
+      // The agent retrieves the job, and the implant starts 20 seconds later
+      status.getTraces().add(startTrace(status, agent, START_TIME));
+      Instant implantStart = START_TIME.plus(20, ChronoUnit.SECONDS);
+      status.getTraces().add(startTrace(status, agent, implantStart));
+
+      // -- ACT --
+      Instant executionTime =
+          injectStatusService.getExecutionTimeFromStartTraceTimeAndDurationByAgentId(
+              status, "agent-1", 3000);
+
+      // -- ASSERT --
+      // The end date stays after the expectation start date, which is the implant start
+      assertThat(executionTime).isEqualTo(implantStart.plusMillis(3000));
+    }
+
     @Nested
     class InjectStatusServiceAuditTest {
 

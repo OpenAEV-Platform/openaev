@@ -17,10 +17,12 @@ public class UserMapper {
    * Maps a User entity to output without tenant information (tenant-scoped APIs).
    *
    * @param user the user to map
+   * @param tenantId the tenant of the request, whose organization of the user is exposed
    * @param visibleOrganizations the organizations the caller may see, keyed by id
    */
-  public static UserOutput toOutput(User user, Map<String, Organization> visibleOrganizations) {
-    return toOutput(user, visibleOrganizations, false);
+  public static UserOutput toOutput(
+      User user, String tenantId, Map<String, Organization> visibleOrganizations) {
+    return toOutput(user, tenantId, visibleOrganizations, false);
   }
 
   /**
@@ -32,7 +34,7 @@ public class UserMapper {
    * @param user the user to map
    */
   public static UserOutput toPlatformOutput(User user) {
-    return toOutput(user, Map.of(), true);
+    return toOutput(user, null, Map.of(), true);
   }
 
   /**
@@ -54,12 +56,16 @@ public class UserMapper {
   }
 
   private static UserOutput toOutput(
-      User user, Map<String, Organization> visibleOrganizations, boolean includeTenants) {
-    // A user is platform-level but holds one organization per tenant: only the current tenant's
+      User user,
+      String tenantId,
+      Map<String, Organization> visibleOrganizations,
+      boolean includeTenants) {
+    // A user is platform-level but holds one organization per tenant: only the request's tenant's
     // one is exposed, and only when the caller may see it. The platform output exposes none.
     Organization org = null;
-    if (!includeTenants && user.getOrganization() != null) {
-      org = visibleOrganizations.get(user.getOrganization().getId());
+    Organization ofTenant = includeTenants ? null : user.organizationOfTenant(tenantId);
+    if (ofTenant != null) {
+      org = visibleOrganizations.get(ofTenant.getId());
     }
     Set<String> tagIds =
         user.getTags() != null

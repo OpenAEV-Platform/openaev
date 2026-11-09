@@ -25,18 +25,6 @@ public class SettingService {
         .orElseGet(() -> Boolean.parseBoolean(key.defaultValue()));
   }
 
-  /** Creates or updates a boolean setting value in the settings repository */
-  public void setBoolean(SettingKeys key, boolean value) {
-    Objects.requireNonNull(key, "key must not be null");
-    Setting setting =
-        settingRepository
-            .findByKeyAndTenantIsNull(key.key())
-            .orElseGet(() -> new Setting(key.key(), String.valueOf(value)));
-
-    setting.setValue(String.valueOf(value));
-    settingRepository.save(setting);
-  }
-
   /** Retrieves an integer setting value from the settings repository */
   public int getInt(SettingKeys key) {
     Objects.requireNonNull(key, "key must not be null");

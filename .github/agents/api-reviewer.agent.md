@@ -128,7 +128,7 @@ In addition to **Shared Exceptions** in `AGENTS.md`:
 
 - Legacy controllers in `io.openaev.rest` that are NOT modified in this PR → migration is incremental
 - Output DTOs including `id` field → standard, required for client-side referencing
-- `@Transactional` on controller methods that coordinate multiple service calls → acceptable pattern
+- `@Transactional` on controller methods → acceptable pattern (mapping to the Output reads lazy associations); a new or modified endpoint still calls one service method (see `backend.instructions.md` → Layering)
 - Swagger annotations on `private` or `package-private` methods → not exposed in API docs
 
 ## Output Format

@@ -49,6 +49,24 @@ public class SimulationInjectService {
                     "Inject not found with id: " + injectId + " in simulation: " + simulationId));
   }
 
+  /**
+   * Resolves the inject inside the request's tenant scope and checks that it belongs to the given
+   * simulation, or answers not found. Loads by primary key, as {@link InjectService#inject(TxCtx,
+   * String)} does, rather than through {@code findByIdAndExerciseId}, which runs under Inject's
+   * still-active v1 filter keyed on the ambient tenant.
+   */
+  @Transactional(readOnly = true)
+  public void requireInjectInSimulation(
+      @NotNull final TxCtx ctx,
+      @NotBlank final String simulationId,
+      @NotBlank final String injectId) {
+    Inject inject = injectService.inject(ctx, injectId);
+    if (inject.getExercise() == null || !simulationId.equals(inject.getExercise().getId())) {
+      throw new ElementNotFoundException(
+          "Inject not found with id: " + injectId + " in simulation: " + simulationId);
+    }
+  }
+
   /** Returns the teams assigned to an inject that belongs to the given simulation. */
   @Transactional(readOnly = true)
   public List<Team> findInjectTeamsForSimulation(

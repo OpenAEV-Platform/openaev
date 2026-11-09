@@ -10,7 +10,7 @@
 
     <groupId>io.openaev</groupId>
     <artifactId>openaev-platform</artifactId>
-    <version>3.261104.0</version>
+    <version>3.261109.1</version>
     <packaging>pom</packaging>
 
     <name>OpenAEV platform</name>
@@ -33,7 +33,7 @@
         <bouncycastle.version>1.86.2</bouncycastle.version>
         <jackson-bom.version>3.2.4</jackson-bom.version>
         <jackson-2-bom.version>2.22.4</jackson-2-bom.version>
-        <netty.version>4.2.19.Final</netty.version>
+        <netty.version>4.2.20.Final</netty.version>
         <commons-lang3.version>3.21.0</commons-lang3.version>
         <tomcat.version>11.0.27</tomcat.version>
         <!-- Override Spring Boot BOM: httpcore5-h2 HTTP/2 HPACK DoS CVE-2026-54428 -->
@@ -223,7 +223,7 @@
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
-                <version>3.10.4</version>
+                <version>3.11.0</version>
                 <configuration>
                     <java>
                         <includes>

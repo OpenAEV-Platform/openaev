@@ -65,15 +65,13 @@ public class InjectDuplicateService {
 
   private Inject getDuplicatedInjectWithScenario(Scenario scenario, Inject inject) {
     Inject duplicatedInject = InjectUtils.duplicateInject(inject);
-    duplicatedInject.setScenario(scenario);
-    duplicatedInject.setExercise(null);
+    InjectUtils.attachToScenario(duplicatedInject, scenario);
     return duplicatedInject;
   }
 
   private Inject getDuplicatedInjectWithExercise(Exercise exercise, Inject inject) {
     Inject duplicatedInject = InjectUtils.duplicateInject(inject);
-    duplicatedInject.setExercise(exercise);
-    duplicatedInject.setScenario(null);
+    InjectUtils.attachToExercise(duplicatedInject, exercise);
     return duplicatedInject;
   }
 
