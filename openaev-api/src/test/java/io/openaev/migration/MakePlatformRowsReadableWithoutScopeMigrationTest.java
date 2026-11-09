@@ -10,6 +10,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -126,9 +128,9 @@ class MakePlatformRowsReadableWithoutScopeMigrationTest extends IntegrationTest 
       assertThat(sql("require_tenant_write('tenant-a', true)")).isTrue();
     }
 
-    @Test
-    @DisplayName("given_aCheckThatAnswersFalse_should_raiseInsteadOfWritingAPlatformRow")
-    void given_aCheckThatAnswersFalse_should_raiseInsteadOfWritingAPlatformRow() {
+    @ParameterizedTest(name = "given_aCheckThatAnswersFalse_should_raise for the row of {0}")
+    @ValueSource(strings = {"NULL", "'tenant-a'"})
+    void given_aCheckThatAnswersFalse_should_raiseInsteadOfWritingAPlatformRow(String rowTenant) {
       // Arrange: the check function is replaced inside this rolled-back transaction by one that
       // refuses without raising, the answer the real function never gives
       scope("tenant-a");
@@ -140,10 +142,9 @@ class MakePlatformRowsReadableWithoutScopeMigrationTest extends IntegrationTest 
           .setFlushMode(FlushModeType.COMMIT)
           .executeUpdate();
 
-      // Act + Assert
-      assertThatThrownBy(() -> sql("tenant_write_value(NULL, true)"))
-          .hasStackTraceContaining("write refused");
-      assertThatThrownBy(() -> sql("tenant_write_value('tenant-a', true)"))
+      // Act + Assert: each row tenant runs in a transaction of its own, so the refusal under test
+      // is the first statement to fail in it
+      assertThatThrownBy(() -> sql("tenant_write_value(" + rowTenant + ", true)"))
           .hasStackTraceContaining("write refused");
     }
   }
