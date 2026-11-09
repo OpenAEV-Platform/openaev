@@ -30,13 +30,13 @@
         <!-- Server-side report rendering (headless Chromium). Apache-2.0. -->
         <playwright.version>1.64.0</playwright.version>
         <!-- Azure credential status validation. Aligned with openaev-model's azure-core-management. MIT. -->
-        <azure-identity.version>1.18.7</azure-identity.version>
+        <azure-identity.version>1.19.0</azure-identity.version>
         <!-- GCP credential status validation: signs the service account RS256 JWT and exchanges
              the OAuth2 refresh token. Same trade-off as Azure — SDK for the token, plain
              HttpClient for the resource probe. BSD-3-Clause. -->
-        <google-auth-library.version>1.55.0</google-auth-library.version>
+        <google-auth-library.version>1.56.0</google-auth-library.version>
         <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
-        <aws-sts.version>2.57.7</aws-sts.version>
+        <aws-sts.version>2.57.9</aws-sts.version>
     </properties>
 
     <profiles>
@@ -265,7 +265,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.7.2-jre</version>
+            <version>33.8.0-jre</version>
         </dependency>
         <!-- Playwright drives an in-container headless Chromium to render reports (PDF/HTML).
              On dev machines the browser bundle is downloaded automatically on first use; the
