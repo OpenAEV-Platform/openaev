@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -96,7 +97,7 @@ class CatalogFileServiceTest {
       // Assert
       assertThat(checked.refusals()).isEmpty();
       assertThat(checked.payloadFile(manifest.payloadVersions().getFirst())).isNotNull();
-      verify(fileService, times(2)).uploadCatalogPackage(anyString(), any(InputStream.class));
+      verify(fileService, times(2)).uploadInPlatform(anyString(), any(InputStream.class));
     }
 
     @Test
@@ -104,7 +105,7 @@ class CatalogFileServiceTest {
     void given_storedFile_should_notUploadIt() throws Exception {
       // Arrange
       byte[] archive = archive("{}");
-      when(fileService.catalogPackageExists(anyString())).thenReturn(true);
+      when(fileService.existsInPlatform(anyString())).thenReturn(true);
 
       // Act
       service.verifyAndStore(
@@ -112,7 +113,7 @@ class CatalogFileServiceTest {
           Map.of(scenarioFileName(VERSION), archive));
 
       // Assert
-      verify(fileService, never()).uploadCatalogPackage(anyString(), any(InputStream.class));
+      verify(fileService, never()).uploadInPlatform(anyString(), any(InputStream.class));
     }
 
     @Test
@@ -122,8 +123,9 @@ class CatalogFileServiceTest {
       byte[] archive = archive("{}");
       CatalogManifest manifest =
           manifestOf(List.of(scenarioItem(VERSION, "VERIFIED", archive)), List.of());
-      when(fileService.uploadCatalogPackage(anyString(), any(InputStream.class)))
-          .thenThrow(new IllegalStateException("storage down"));
+      doThrow(new IllegalStateException("storage down"))
+          .when(fileService)
+          .uploadInPlatform(anyString(), any(InputStream.class));
 
       // Act & Assert
       assertThatThrownBy(

@@ -33,8 +33,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class FileService {
 
-  public static final String CATALOG_PACKAGES_PATH = "/catalog/packages/";
-
   /** Base path for injector images. */
   public static final String INJECTORS_IMAGES_BASE_PATH = "/injectors/images/";
 
@@ -135,17 +133,6 @@ public class FileService {
     String file = path.endsWith("/") ? path + name : path + "/" + name;
     minioService.uploadStreamInPlatformPath(file, name, data);
     return file;
-  }
-
-  /** Stores a catalogue package once for every tenant, named by its SHA-256. */
-  public String uploadCatalogPackage(String sha256, InputStream data) throws Exception {
-    String file = CATALOG_PACKAGES_PATH + sha256 + ".zip";
-    minioService.uploadStreamInPlatformPath(file, sha256 + ".zip", data);
-    return file;
-  }
-
-  public boolean catalogPackageExists(String sha256) {
-    return minioService.existsInPlatform(CATALOG_PACKAGES_PATH + sha256 + ".zip");
   }
 
   /**
@@ -340,5 +327,19 @@ public class FileService {
    */
   public Optional<FileContainer> getFileContainer(String fileTarget) {
     return minioService.getFileContainerInTenant(fileTarget);
+  }
+
+  // -- PLATFORM FILES: shared by every tenant --
+
+  public void uploadInPlatform(String path, InputStream data) throws Exception {
+    minioService.uploadStreamInPlatformPath(path, path.substring(path.lastIndexOf('/') + 1), data);
+  }
+
+  public Optional<InputStream> getInPlatform(String path) {
+    return minioService.getFilePathInPlatform(path);
+  }
+
+  public boolean existsInPlatform(String path) {
+    return minioService.existsInPlatform(path);
   }
 }
