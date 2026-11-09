@@ -2,6 +2,7 @@ package io.openaev.injector_contract;
 
 import static io.openaev.database.model.Filters.FilterOperator.contains;
 import static io.openaev.database.model.Filters.FilterOperator.eq;
+import static io.openaev.rest.injector_contract.InjectorContractApi.INJECTOR_CONTRACT_URL;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -11,16 +12,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Domain;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.channel.ChannelInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
+import io.openaev.utils.fixtures.DomainFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.composers.DomainComposer;
+import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -37,9 +48,13 @@ class InjectorContratApiTest extends IntegrationTest {
   @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
   @Autowired private ChannelInjectorIntegrationFactory channelInjectorIntegrationFactory;
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private DomainComposer domainComposer;
 
   @BeforeEach
   public void before() throws Exception {
+    injectorContractComposer.reset();
+    domainComposer.reset();
     builtinConnectorRegistration.register(
         emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     builtinConnectorRegistration.register(
@@ -249,6 +264,76 @@ class InjectorContratApiTest extends IntegrationTest {
             .andExpect(
                 jsonPath("$.content.[1].injector_contract_labels.en")
                     .value("Send multi-recipients mail"));
+      }
+    }
+
+    @Nested
+    @DisplayName("Hiding contracts no injector of the tenant can run")
+    class HidingContractsWithoutRegisteredInjector {
+
+      private InjectorContractComposer.Composer contractWithDomain(Domain domain, boolean linked)
+          throws Exception {
+        InjectorContractComposer.Composer contract =
+            injectorContractComposer
+                .forInjectorContract(
+                    InjectorContractFixture.createInjectorContract(
+                        Map.of("en", UUID.randomUUID().toString())))
+                .withDomain(domainComposer.forDomain(domain));
+        if (linked) {
+          contract.withInjector(InjectorFixture.createDefaultPayloadInjector());
+        }
+        return contract.persist();
+      }
+
+      @Test
+      @DisplayName("Search only returns the contract linked to an injector")
+      void given_contracts_with_and_without_injector_should_only_return_the_linked_one()
+          throws Exception {
+        // Arrange
+        String sharedLabel = UUID.randomUUID().toString();
+        InjectorContract orphan =
+            InjectorContractFixture.createInjectorContract(Map.of("en", sharedLabel + " orphan"));
+        injectorContractComposer.forInjectorContract(orphan).persist();
+        InjectorContract linked =
+            InjectorContractFixture.createInjectorContract(Map.of("en", sharedLabel + " linked"));
+        injectorContractComposer
+            .forInjectorContract(linked)
+            .withInjector(InjectorFixture.createDefaultPayloadInjector())
+            .persist();
+        SearchPaginationInput input =
+            PaginationFixture.getDefault().textSearch(sharedLabel).build();
+
+        // Act + Assert
+        mvc.perform(
+                post(INJECTOR_CONTRACT_URL + "/search")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(input))
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.content.[0].injector_contract_id").value(linked.getId()));
+      }
+
+      @Test
+      @DisplayName("Domain counts skip the contract without an injector")
+      void given_contract_without_injector_should_not_count_it_in_domain_counts() throws Exception {
+        // Arrange
+        Domain orphanDomain = DomainFixture.getRandomDomain();
+        Domain linkedDomain = DomainFixture.getRandomDomain();
+        contractWithDomain(orphanDomain, false);
+        contractWithDomain(linkedDomain, true);
+
+        // Act + Assert
+        mvc.perform(
+                post(INJECTOR_CONTRACT_URL + "/domain-counts")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(PaginationFixture.getDefault().build()))
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$[?(@.domain == '%s')]", orphanDomain.getId()).isEmpty())
+            .andExpect(
+                jsonPath("$[?(@.domain == '%s')].count", linkedDomain.getId())
+                    .value(Matchers.contains(1)));
       }
     }
   }
