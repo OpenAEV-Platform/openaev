@@ -316,9 +316,8 @@ public interface UserRepository
       @Param("userId") String userId, @Param("tenantId") String tenantId);
 
   // Native: set-based deletes of the links a user holds in one tenant, each scoped by tenant
-  // through
-  // a sub-query. They touch join tables that are not indexed, audited nor streamed, and a link
-  // table row cannot be removed through the loaded collections without reading every team,
+  // through a sub-query. They touch join tables that are not indexed, audited nor streamed, and a
+  // link table row cannot be removed through the loaded collections without reading every team,
   // simulation and scenario of the tenant.
   @Modifying(flushAutomatically = true)
   @Query(
