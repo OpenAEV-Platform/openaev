@@ -34,11 +34,11 @@ public class InjectorContractSpecification {
    * scope of several tenants reads the same id once per tenant; with this specification a search,
    * its total and its facet counts read it once.
    *
-   * <p>The ranking is the one of the contract GET with no selector: the default tenant's copy when
-   * the scope holds it, else the copy of the lowest tenant id. The other copies are looked up
-   * through the same scope, so a scope of one tenant keeps every row. A copy that {@code matching}
-   * refuses never outranks one it accepts: the contract is listed through the best copy that
-   * satisfies the request's filter and text search.
+   * <p>The ranking is the one of the contract GET with no selector, {@link CopyRanking}: the
+   * default tenant's copy when the scope holds it, else the copy of the lowest tenant id. The other
+   * copies are looked up through the same scope, so a scope of one tenant keeps every row. A copy
+   * that {@code matching} refuses never outranks one it accepts: the contract is listed through the
+   * best copy that satisfies the request's filter and text search.
    *
    * @param matching the filter and text search of the request, applied to the competing copies;
    *     null when the request has none

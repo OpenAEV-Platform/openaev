@@ -33,6 +33,7 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,6 +81,8 @@ class CapabilityResolveTenantScopeTest extends IntegrationTest {
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
   private final String sharedContractId = UUID.randomUUID().toString();
+  private final String sharedInjectorId = UUID.randomUUID().toString();
+  private final String sharedInjectorType = "cap-rank-" + UUID.randomUUID();
   private final List<String> injectorIds = new ArrayList<>();
   private final List<String> patternIds = new ArrayList<>();
   private String tenantAId;
@@ -87,21 +90,45 @@ class CapabilityResolveTenantScopeTest extends IntegrationTest {
 
   @BeforeEach
   void seedTheSameContractIdInTwoTenants() throws Exception {
-    tenantAId = tenantHelper.createTenantWithCurrentUser("cap-resolve-a").getId();
+    tenantAId = tenantBelowTheDefaultTenant();
     tenantBId = tenantHelper.createTenantWithCurrentUser("cap-resolve-b").getId();
-    seedContract(tenantAId, PATTERN_A, PATTERN_SHARED);
-    seedContract(tenantBId, PATTERN_B, PATTERN_SHARED);
+    // The copy of the higher tenant id is written first, so the order the rows come back in is not
+    // the ranking order
+    if (tenantAId.compareTo(tenantBId) > 0) {
+      seedContract(tenantAId, PATTERN_A, PATTERN_SHARED);
+      seedContract(tenantBId, PATTERN_B, PATTERN_SHARED);
+    } else {
+      seedContract(tenantBId, PATTERN_B, PATTERN_SHARED);
+      seedContract(tenantAId, PATTERN_A, PATTERN_SHARED);
+    }
+  }
+
+  /**
+   * The default tenant id is neither the lowest nor the highest of the ids: a tenant below it makes
+   * "the default tenant's copy" and "the lowest tenant's copy" two different copies.
+   */
+  private String tenantBelowTheDefaultTenant() throws Exception {
+    for (int attempt = 0; attempt < 80; attempt++) {
+      String tenantId = tenantHelper.createTenantWithCurrentUser("cap-resolve-a").getId();
+      if (tenantId.compareTo(Tenant.DEFAULT_TENANT_UUID) < 0) {
+        return tenantId;
+      }
+      tenantHelper.deleteCommittedTenants(tenantId);
+    }
+    throw new IllegalStateException("no tenant id below the default tenant id");
   }
 
   @AfterEach
   void cleanup() {
     cleanupTenant(tenantAId);
     cleanupTenant(tenantBId);
+    cleanupTenant(Tenant.DEFAULT_TENANT_UUID);
+    tenantHelper.detachCurrentUserFromTenant(Tenant.DEFAULT_TENANT_UUID);
     tenantHelper.deleteCommittedTenants(tenantAId, tenantBId);
     TenantContext.clearCurrentTenant();
   }
 
-  private List<String> candidatesOf(String technique) throws Exception {
+  private JsonNode resolve(String technique) throws Exception {
     CapabilityQueryInput input = new CapabilityQueryInput();
     input.setTechniques(List.of(technique));
     // Act: no header, so the scope is the caller's whole membership while the ambient tenant stays
@@ -118,11 +145,45 @@ class CapabilityResolveTenantScopeTest extends IntegrationTest {
             .andReturn()
             .getResponse()
             .getContentAsString();
+    return mapper.readTree(body);
+  }
+
+  private List<String> candidatesOf(String technique) throws Exception {
     List<String> ids = new ArrayList<>();
-    for (JsonNode contract : mapper.readTree(body).get("resolutions").get(0).get("contracts")) {
+    for (JsonNode contract : resolve(technique).get("resolutions").get(0).get("contracts")) {
       ids.add(contract.get("injector_contract_id").asText());
     }
     return ids;
+  }
+
+  private List<String> candidateLabelsOf(String technique) throws Exception {
+    List<String> labels = new ArrayList<>();
+    for (JsonNode contract : resolve(technique).get("resolutions").get(0).get("contracts")) {
+      labels.add(contract.get("label").asText());
+    }
+    return labels;
+  }
+
+  private List<String> installedNamesOfSharedInjector() throws Exception {
+    List<String> names = new ArrayList<>();
+    for (JsonNode injector : resolve(PATTERN_SHARED).get("arsenal").get("installed_injectors")) {
+      if (sharedInjectorType.equals(injector.get("injector_type").asText())) {
+        names.add(injector.get("name").asText());
+      }
+    }
+    return names;
+  }
+
+  private static String labelOf(String tenantId) {
+    return "copy-of-" + tenantId;
+  }
+
+  private static String injectorNameOf(String tenantId) {
+    return "injector-of-" + tenantId;
+  }
+
+  private String lowerOfTheTwoTenants() {
+    return tenantAId.compareTo(tenantBId) < 0 ? tenantAId : tenantBId;
   }
 
   @Test
@@ -149,11 +210,65 @@ class CapabilityResolveTenantScopeTest extends IntegrationTest {
     assertThat(candidatesOfB).containsExactly(sharedContractId);
   }
 
+  @Test
+  @DisplayName("given_copiesOfTwoTenants_should_resolveTheContractFromTheLowestTenantsCopy")
+  void given_copiesOfTwoTenants_should_resolveTheContractFromTheLowestTenantsCopy()
+      throws Exception {
+    // Act
+    List<String> labels = candidateLabelsOf(PATTERN_SHARED);
+
+    // Assert
+    assertThat(labels).containsExactly(labelOf(lowerOfTheTwoTenants()));
+  }
+
+  @Test
+  @DisplayName("given_copyInTheDefaultTenant_should_resolveTheContractFromTheDefaultTenantsCopy")
+  void given_copyInTheDefaultTenant_should_resolveTheContractFromTheDefaultTenantsCopy()
+      throws Exception {
+    // Arrange: the default tenant joins the caller's scope, its copy is written last
+    tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+    seedContract(Tenant.DEFAULT_TENANT_UUID, PATTERN_SHARED);
+
+    // Act
+    List<String> labels = candidateLabelsOf(PATTERN_SHARED);
+
+    // Assert
+    assertThat(labels).containsExactly(labelOf(Tenant.DEFAULT_TENANT_UUID));
+  }
+
+  @Test
+  @DisplayName("given_injectorOfTwoTenants_should_listItOnceFromTheLowestTenantsCopy")
+  void given_injectorOfTwoTenants_should_listItOnceFromTheLowestTenantsCopy() throws Exception {
+    // Act
+    List<String> names = installedNamesOfSharedInjector();
+
+    // Assert
+    assertThat(names).containsExactly(injectorNameOf(lowerOfTheTwoTenants()));
+  }
+
+  @Test
+  @DisplayName("given_injectorInTheDefaultTenant_should_listItOnceFromTheDefaultTenantsCopy")
+  void given_injectorInTheDefaultTenant_should_listItOnceFromTheDefaultTenantsCopy()
+      throws Exception {
+    // Arrange
+    tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+    seedContract(Tenant.DEFAULT_TENANT_UUID, PATTERN_SHARED);
+
+    // Act
+    List<String> names = installedNamesOfSharedInjector();
+
+    // Assert
+    assertThat(names).containsExactly(injectorNameOf(Tenant.DEFAULT_TENANT_UUID));
+  }
+
   private void seedContract(String tenantId, String... patternExternalIds) {
     tenantTx.execute(
         TxCtx.forTenant(tenantId),
         () -> {
           Injector injector = InjectorFixture.createDefaultPayloadInjector();
+          injector.setId(sharedInjectorId);
+          injector.setType(sharedInjectorType);
+          injector.setName(injectorNameOf(tenantId));
           injector.setTenantId(tenantId);
           injector.setCreatedAt(Instant.now());
           injector.setUpdatedAt(Instant.now());
@@ -171,6 +286,7 @@ class CapabilityResolveTenantScopeTest extends IntegrationTest {
 
           InjectorContract contract = InjectorContractFixture.createDefaultInjectorContract();
           contract.setId(sharedContractId);
+          contract.setLabels(Map.of("en", labelOf(tenantId)));
           contract.setTenant(new Tenant(tenantId));
           contract.clearInjectors();
           contract.addInjector(injector);

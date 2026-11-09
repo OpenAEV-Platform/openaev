@@ -1,5 +1,7 @@
 package io.openaev.service.autonomous;
 
+import static io.openaev.helper.StreamHelper.fromIterable;
+
 import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.api.autonomous.dto.CapabilityReport;
 import io.openaev.api.autonomous.dto.CapabilityReport.ArsenalInventory;
@@ -18,9 +20,11 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.specification.CopyRanking;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -152,7 +156,7 @@ public class CapabilityResolverService {
     long now = Instant.now().toEpochMilli();
     List<InstalledInjector> installed = new ArrayList<>();
     boolean httpDelivery = false;
-    for (Injector injector : injectorRepository.findAll()) {
+    for (Injector injector : onePerId(fromIterable(injectorRepository.findAll()))) {
       boolean active = isInjectorActive(injector, now);
       installed.add(
           new InstalledInjector(
@@ -171,6 +175,15 @@ public class CapabilityResolverService {
         commandDelivery,
         activeAgents,
         buildDeliveryAdvice(httpDelivery, commandDelivery, activeAgents));
+  }
+
+  /** An injector id repeats in every tenant of the scope: the best-ranked copy stands for it. */
+  private static List<Injector> onePerId(List<Injector> injectors) {
+    Map<String, Injector> ranked = new LinkedHashMap<>();
+    injectors.stream()
+        .sorted(Comparator.comparing(Injector::getTenantId, CopyRanking.BY_TENANT_ID))
+        .forEach(injector -> ranked.putIfAbsent(injector.getId(), injector));
+    return new ArrayList<>(ranked.values());
   }
 
   private boolean isInjectorActive(Injector injector, long now) {
@@ -245,11 +258,14 @@ public class CapabilityResolverService {
 
   /**
    * A built-in contract id repeats in every tenant of the request's scope, so the index keeps one
-   * candidate per contract id for each technique and output type.
+   * candidate per contract id for each technique and output type: the best-ranked copy that carries
+   * the technique or the output type ({@link CopyRanking}).
    */
   private ContractIndex buildIndex() {
     ContractIndex index = new ContractIndex();
-    for (InjectorContract contract : injectorContractRepository.findAll()) {
+    List<InjectorContract> ranked = fromIterable(injectorContractRepository.findAll());
+    ranked.sort(Comparator.comparing(c -> c.getTenant().getId(), CopyRanking.BY_TENANT_ID));
+    for (InjectorContract contract : ranked) {
       ResolvedContract resolved = toResolved(contract);
       String id = contract.getId();
       for (AttackPattern pattern : contract.getAttackPatterns()) {
