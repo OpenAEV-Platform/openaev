@@ -12,6 +12,10 @@ This page explains how to upgrade OpenAEV. The steps depend on your [installatio
 
     The existing values are copied to every tenant that exists when the upgrade runs. A tenant created afterwards starts with the built-in default until an administrator sets its own.
 
+!!! warning "Rolling back removes the default agents"
+
+    The upgrade copies the autonomous run default agents and discovery modes to every tenant and deletes the platform settings that held them. The previous version reads only those platform settings, so after a rollback it finds none and uses the built-in default. To keep your values, restore the database backup taken before the upgrade when you roll back, or set the default agents again in the previous version once it runs.
+
 !!! warning "XTM Composer needs the platform settings write right"
 
     XTM Composer registers itself with `POST /api/xtm-composer/register` and refreshes its connectivity with `PUT /api/xtm-composer/{id}/refresh-connectivity`. Both calls require the platform settings write right. A token user that holds only the catalog write right gets a 403, and the composer stays unregistered.
