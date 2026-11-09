@@ -47,7 +47,8 @@ public class StepAutoLinkService {
    * @param workflow the step's workflow, whose owning simulation or scenario names the tenant to
    *     resolve the contract in, not the ambient scope: a built-in contract id repeats across
    *     tenants (#8485)
-   * @return the auto-link conditions, empty when the contract exposes no argument type
+   * @return the auto-link conditions, empty when the contract exposes no argument type or the
+   *     workflow has neither a simulation nor a scenario
    */
   public List<ConditionCreateInput> buildAutoLinkConditions(
       DataInputStep dataStep, Workflow workflow) {
@@ -56,10 +57,12 @@ public class StepAutoLinkService {
       return List.of();
     }
 
-    String tenantId =
-        workflow.getScenario() != null
-            ? workflow.getScenario().getTenant().getId()
-            : workflow.getSimulation().getTenant().getId();
+    Optional<String> parentTenantId = parentTenantId(workflow);
+    if (parentTenantId.isEmpty()) {
+      // A workflow with no parent is refused by the step creation itself (ChainingException).
+      return List.of();
+    }
+    String tenantId = parentTenantId.get();
     List<ConditionCreateInput> conditions = new ArrayList<>();
     for (JsonNode field : contractFields(injectInput.getInjectorContract(), tenantId)) {
       Optional<PrimitiveType> keyType = resolveAutoLinkType(field);
@@ -77,6 +80,16 @@ public class StepAutoLinkService {
               .build());
     }
     return conditions;
+  }
+
+  private static Optional<String> parentTenantId(Workflow workflow) {
+    if (workflow.getScenario() != null) {
+      return Optional.of(workflow.getScenario().getTenant().getId());
+    }
+    if (workflow.getSimulation() != null) {
+      return Optional.of(workflow.getSimulation().getTenant().getId());
+    }
+    return Optional.empty();
   }
 
   private Iterable<JsonNode> contractFields(String injectorContractId, String tenantId) {
