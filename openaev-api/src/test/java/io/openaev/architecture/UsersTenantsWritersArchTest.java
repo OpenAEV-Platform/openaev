@@ -135,6 +135,18 @@ class UsersTenantsWritersArchTest {
           new Writer(NotificationEngineListener.class, "reads the tenant ids only"),
           new Writer(io.openaev.api.users.dto.UserMapper.class, "reads the tenants only"));
 
+  /**
+   * Callers of {@code User#setTags}, which refuses a saved user. Each one builds a user that is not
+   * saved yet; the tags of a saved user are written by {@code UserService#replaceTags}. Not seen: a
+   * reflective copy ({@code BeanUtils.copyProperties}, {@code CopyObjectListUtils}) that reaches
+   * the setter, which the runtime check of the setter answers.
+   */
+  private static final List<Writer> USER_TAG_SETTERS =
+      List.of(
+          new Writer(UserService.class, "createUser sets the tags of the user it builds"),
+          new Writer(PlayerService.class, "the player it creates, never an existing player"),
+          new Writer(V1_DataImporter.class, "createUser sets the tags of the user it builds"));
+
   private static Class<?>[] types(List<Writer> writers) {
     return writers.stream().map(Writer::type).toArray(Class<?>[]::new);
   }
@@ -173,6 +185,17 @@ class UsersTenantsWritersArchTest {
           .because(
               "saving a user writes the rows of its tenants collection to users_tenants: add the"
                   + " caller to ENTITY_COLLECTION_USERS with where its tenant comes from");
+
+  @ArchTest
+  static final ArchRule only_listed_classes_set_the_tags_of_a_user =
+      noClasses()
+          .that(not(belongToAnyOf(types(USER_TAG_SETTERS))))
+          .should()
+          .callMethod(User.class, "setTags", Set.class)
+          .because(
+              "replacing the tags of a saved user is refused at run time and its links are written"
+                  + " by UserService#replaceTags: add the caller to USER_TAG_SETTERS with the user"
+                  + " it builds");
 
   @ArchTest
   static void only_the_two_known_queries_write_users_tenants(JavaClasses classes) {
@@ -323,8 +346,10 @@ class UsersTenantsWritersArchTest {
         classes, NATIVE_WRITERS, TenantRepository.class, "addUserToTenant", "removeUserFromTenant");
     assertStillCalls(classes, ATTACH_CALLERS, TenantUserService.class, "attachToTenant");
     assertStillCalls(classes, ENTITY_COLLECTION_USERS, User.class, "setTenants", "getTenants");
+    assertStillCalls(classes, USER_TAG_SETTERS, User.class, "setTags");
     assertThat(
-            java.util.stream.Stream.of(NATIVE_WRITERS, ATTACH_CALLERS, ENTITY_COLLECTION_USERS)
+            java.util.stream.Stream.of(
+                    NATIVE_WRITERS, ATTACH_CALLERS, ENTITY_COLLECTION_USERS, USER_TAG_SETTERS)
                 .flatMap(List::stream)
                 .filter(writer -> writer.tenantSource().isBlank()))
         .as("every writer says where its tenant comes from")
