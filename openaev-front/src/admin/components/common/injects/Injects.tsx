@@ -349,7 +349,7 @@ const Injects: FunctionComponent<Props> = ({
     if (selectedElements && !R.isEmpty(selectedElements)) {
       // Find the indexes of the first and last selected entities
       let firstIndex = R.findIndex(
-        (n: Inject) => n.inject_id === R.head(R.values(selectedElements)).inject_id,
+        (n: Inject) => n.inject_id === R.head(Object.values(selectedElements)).inject_id,
         injects,
       );
       if (currentIndex > firstIndex) {
@@ -359,7 +359,7 @@ const Injects: FunctionComponent<Props> = ({
 
           firstIndex++;
         }
-        const forcedRemove = R.values(selectedElements).filter(
+        const forcedRemove = Object.values(selectedElements).filter(
           (n: Inject) => !entities.map(o => o.inject_id).includes(n.inject_id),
         );
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -372,7 +372,7 @@ const Injects: FunctionComponent<Props> = ({
 
         firstIndex--;
       }
-      const forcedRemove = R.values(selectedElements).filter(
+      const forcedRemove = Object.values(selectedElements).filter(
         (n: Inject) => !entities.map(o => o.inject_id).includes(n.inject_id),
       );
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
