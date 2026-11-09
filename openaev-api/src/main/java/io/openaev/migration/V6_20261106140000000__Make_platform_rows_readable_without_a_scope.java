@@ -14,6 +14,12 @@ import org.springframework.stereotype.Component;
  * tenant in the scope, and a null row_tenant_id of a strict table (no {@code allow_platform}) is
  * still refused.
  *
+ * <p>The function is shared by every dual-scope table, so this applies to each of them the day it
+ * is armed: a platform row of {@code groups} or {@code roles} will also be returned to a read that
+ * runs with no scope, where before it returned nothing. {@code parameters} wants that. For another
+ * table it is decided when the table is armed, with a test that reads it with no scope, and the
+ * table is then added to the list that {@code DualScopeUnscopedPlatformReadGuardTest} checks.
+ *
  * <p>Adds {@code require_tenant_write(row_tenant_id, allow_platform_write)}, the raising form of
  * {@code can_write_tenant}: it returns true when the write is allowed and raises when it is not, so
  * an {@code INSERT} the policy refuses ends in an error the caller sees instead of inserting no

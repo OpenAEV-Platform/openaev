@@ -8,13 +8,17 @@ import java.util.Set;
  * {@code app.current_tenants} scope, through the {@code can_access_tenant} SQL function.
  *
  * <p>A read on a dual-scope table also lets platform rows through ({@code allow_platform}), with or
- * without a scope: a platform row belongs to no tenant. A write to a dual-scope table's platform
- * row ({@code tenant_id IS NULL}) is allowed only inside a transaction the server has marked
- * platform-write ({@code can_write_tenant}'s {@code allow_platform_write} branch, backed by the
- * {@code app.platform_write} setting); a write to its tenant row needs its tenant in the scope. A
- * write of a platform row the policy refuses raises ({@code require_tenant_write}), whether it is
- * an {@code INSERT}, an {@code UPDATE} or a {@code DELETE}. A strict table's write predicate is
- * unchanged by any of this.
+ * without a scope: a platform row belongs to no tenant. That holds for every dual-scope table, not
+ * for {@code parameters} alone: the SQL function has one answer for all of them, so a table armed
+ * later (a platform {@code groups} or {@code roles} row) is also returned to a read with no scope,
+ * which hides the missing scope that would otherwise read nothing. Each such table pins that read
+ * with a test of its own when it is armed ({@code DualScopeUnscopedPlatformReadGuardTest}). A write
+ * to a dual-scope table's platform row ({@code tenant_id IS NULL}) is allowed only inside a
+ * transaction the server has marked platform-write ({@code can_write_tenant}'s {@code
+ * allow_platform_write} branch, backed by the {@code app.platform_write} setting); a write to its
+ * tenant row needs its tenant in the scope. A write of a platform row the policy refuses raises
+ * ({@code require_tenant_write}), whether it is an {@code INSERT}, an {@code UPDATE} or a {@code
+ * DELETE}. A strict table's write predicate is unchanged by any of this.
  */
 public final class TenantDimension implements ScopeDimension {
 
