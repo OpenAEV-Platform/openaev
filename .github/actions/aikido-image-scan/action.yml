@@ -123,7 +123,8 @@ runs:
         HEAD_COMMIT: ${{ github.event.pull_request.head.sha }}
         THRESHOLD: ${{ inputs.severity-threshold }}
       run: |
-        set -uo pipefail
+        # No -e: a gate that finds issues exits non-zero, and the loop reads each exit code itself.
+        set +e -uo pipefail
         out=aikido-image-scan
         mkdir -p "$out"
         : > "$out/results.tsv"
