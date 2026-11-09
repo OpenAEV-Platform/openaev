@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Post a check run that explains the vulnerabilities Aikido found in the CI images.
 
-The aikido-image-scan job scans the images the pipeline builds with Aikido's release gate on
+The aikido-image-scan action scans the images the pipeline builds with Aikido's release gate on
 `main` and other pushes, and its PR gate on pull requests, and stays green on findings. When an
 image has issues at or above the threshold (open issues of the image, or the ones a pull request
 adds), this check run says so: a short title with the count per image for the PR checks list, and
 in its details the issues of each image, how to fix them, and why it does not block. It is posted
 with the PR checks app, like the PR title check, so it shows as its own check on the pull request
 or the commit.
+
+The results file has one line per image: its label, its number of issues and its Markdown report,
+separated by tabs.
 
 Needs `gh`, GH_TOKEN with checks:write, and GITHUB_REPOSITORY.
 """
@@ -53,7 +56,7 @@ that brings it, in the `pom.xml` to a fixed version.
 - **False positive** (the image does not ship the vulnerable code): ask a member of the Aikido \
 workspace to ignore it there, with the reason. It is left out from the next run.
 
-The JSON result and the scanner output are in the `aikido-image-scan-*` artifacts of the run.
+The JSON results and the scanner output are in the `aikido-image-scan` artifact of the run.
 """
 
 
@@ -73,17 +76,12 @@ def main() -> int:
     parser.add_argument("--sha", required=True, help="commit the check is posted on")
     parser.add_argument("--mode", required=True, choices=("release", "pr"), help="gating mode of the scans")
     parser.add_argument("--threshold", required=True, help="lowest severity reported")
-    parser.add_argument(
-        "--image",
-        nargs=3,
-        action="append",
-        required=True,
-        metavar=("LABEL", "ISSUES", "REPORT"),
-        help="an image label, its number of issues, and its Markdown report",
-    )
+    parser.add_argument("--results", required=True, help="results file written by the scan step")
     args = parser.parse_args()
 
-    images = [(label, int(issues or 0), report) for label, issues, report in args.image]
+    with open(args.results, encoding="utf-8") as results:
+        rows = [line.rstrip("\n").split("\t") for line in results if line.strip()]
+    images = [(label, int(issues or 0), report) for label, issues, report in rows]
     kind = "open" if args.mode == "release" else "new"
     # The PR checks list shows about 100 characters of "name — title": the counts come first.
     title = " · ".join(

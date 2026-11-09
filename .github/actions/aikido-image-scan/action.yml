@@ -1,38 +1,29 @@
 name: Aikido Image Scan
 description: >
-  Scan a container image of the local Docker daemon with Aikido's local scanner
-  and one of its gates. The scan is kept in Aikido under the given image name,
-  and Aikido decides which issues count: the open issues of the image at or
-  above the severity threshold (release), or the ones a pull request adds (pr).
-  Issues ignored in the Aikido dashboard do not count. The issues are reported
-  in the job summary and uploaded with the JSON result and the scanner output
-  as an artifact. Issues never fail the action: it outputs how many count, for
-  the caller to act on. A scanner error or a missing token fails it. The
-  calling job must run actions/checkout first.
+  Scan the amd64 images built by the pipeline (openaev:ci and openaev-ubi9:ci) with Aikido's
+  local scanner and one of its gates. On a pull request the PR gate counts the issues the pull
+  request adds, compared with its base branch; on a push the release gate counts the open issues
+  of the image. Each scan is kept in Aikido under a fixed image name, and issues ignored in Aikido
+  do not count. The issues at or above the threshold are listed in the job summary and uploaded
+  with the JSON results and the scanner output as the aikido-image-scan artifact. When an image
+  has some, an "Aikido Image Scan (advisory)" check explains them, posted with the PR checks app
+  like the PR title check, and the action stays green: that check carries the result. When it
+  cannot be posted, the action fails, so issues are never silent. A scanner error fails it too.
+  Without the scanner token (pull requests from forks) the scan is skipped with a notice, except
+  on main, where it fails, so a missing secret cannot pass for a clean scan. Requires a checkout,
+  and the job to set GH_TOKEN for the image handoff.
 
 inputs:
-  image:
-    description: "Image to scan; it must already be in the local Docker daemon"
-    required: true
-  report-name:
-    description: "Name of the uploaded artifact and prefix of the report files"
-    required: true
   api-key:
-    description: "Aikido local scanner token"
-    required: true
-  mode:
-    description: "Gating mode: release or pr (see the description)"
-    required: false
-    default: "release"
-  aikido-image-name:
-    description: "Name of the image in Aikido"
-    required: true
-  base-commit:
-    description: "Base commit of the pull request (pr mode)"
+    description: "Aikido local scanner token; empty on pull requests from forks"
     required: false
     default: ""
-  head-commit:
-    description: "Head commit of the pull request (pr mode)"
+  app-id:
+    description: "PR checks app id; empty on pull requests from forks"
+    required: false
+    default: ""
+  private-key:
+    description: "PR checks app private key"
     required: false
     default: ""
   severity-threshold:
@@ -40,90 +31,188 @@ inputs:
     required: false
     default: "high"
 
-outputs:
-  issues:
-    description: >
-      Number of issues that count: open issues (release) or new issues (pr) at
-      or above the threshold
-    value: ${{ steps.report.outputs.issues }}
-  report:
-    description: "Path of the Markdown report, relative to the working directory"
-    value: ${{ inputs.report-name }}.md
-
 runs:
   using: composite
   steps:
-    # The key goes through the environment, not the command line, to keep it
-    # out of the process list and of the uploaded scanner output.
-    - name: Scan ${{ inputs.image }}
+    # The release gate of main always reads the state of main from its fixed image names: other
+    # branches and tags get their own, to leave it alone.
+    - name: Choose the Aikido gate
+      id: gate
+      shell: bash
+      env:
+        AIKIDO_API_KEY: ${{ inputs.api-key }}
+        EVENT: ${{ github.event_name }}
+        REF: ${{ github.ref }}
+        REF_TYPE: ${{ github.ref_type }}
+        REF_NAME: ${{ github.ref_name }}
+      run: |
+        if [ -z "$AIKIDO_API_KEY" ]; then
+          if [ "$REF" = refs/heads/main ]; then
+            echo "::error::No Aikido token: set the AIKIDO_TOKEN secret"
+            exit 1
+          fi
+          echo "::notice::Aikido image scan skipped: the AIKIDO_TOKEN secret is not available to this run"
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        if [ "$EVENT" = pull_request ]; then
+          mode=pr
+          prefix=openaev-ci
+        elif [ "$REF" = refs/heads/main ]; then
+          mode=release
+          prefix=openaev-ci
+        elif [ "$REF_TYPE" = tag ]; then
+          mode=release
+          prefix=openaev-ci-release
+        else
+          mode=release
+          prefix="openaev-ci-$(printf '%s' "$REF_NAME" | tr -c 'a-zA-Z0-9.-' '-')"
+        fi
+        {
+          echo "run=true"
+          echo "mode=$mode"
+          echo "prefix=$prefix"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Obtain container images
+      id: image-source
+      if: ${{ steps.gate.outputs.run == 'true' }}
+      uses: ./.github/actions/ci-image-handoff
+      with:
+        artifact-names: |
+          openaev-image-amd64
+          openaev-ubi9-image-amd64
+        artifact-pattern: "{openaev-image-amd64,openaev-ubi9-image-amd64}"
+        artifact-path: /tmp/docker-images
+        merge-artifacts: "true"
+        registry-mode: pull
+        local-tags: |
+          openaev:ci
+          openaev-ubi9:ci
+        build-job-names: |
+          Docker Build (standard amd64)
+          Docker Build (ubi9 amd64)
+
+    - name: Load container images
+      if: ${{ steps.gate.outputs.run == 'true' && steps.image-source.outputs.source == 'artifact' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd /tmp/docker-images
+        load() {
+          gunzip "$1.tar.gz"
+          skopeo copy "oci-archive:$1.tar" "docker-daemon:$2"
+          rm -f "$1.tar"
+        }
+        load openaev-image-amd64 openaev:ci
+        load openaev-ubi9-image-amd64 openaev-ubi9:ci
+
+    # Both images are scanned even when the first scan fails. The key goes through the
+    # environment, not the command line, to keep it out of the process list and of the uploaded
+    # scanner output.
+    - name: Scan the images
+      id: scan
+      if: ${{ steps.gate.outputs.run == 'true' }}
       shell: bash
       env:
         AIKIDO_API_KEY: ${{ inputs.api-key }}
         SCANNER: aikidosecurity/local-scanner:v1.0.163@sha256:c96405a39c65070db69d2bc22fee697415448b8e1ef9650022b92991a825d4bc
-        IMAGE: ${{ inputs.image }}
-        REPORT: ${{ inputs.report-name }}
-        MODE: ${{ inputs.mode }}
-        AIKIDO_IMAGE_NAME: ${{ inputs.aikido-image-name }}
-        BASE_COMMIT: ${{ inputs.base-commit }}
-        HEAD_COMMIT: ${{ inputs.head-commit }}
+        MODE: ${{ steps.gate.outputs.mode }}
+        PREFIX: ${{ steps.gate.outputs.prefix }}
+        BASE_COMMIT: ${{ github.event.pull_request.base.sha }}
+        HEAD_COMMIT: ${{ github.event.pull_request.head.sha }}
         THRESHOLD: ${{ inputs.severity-threshold }}
       run: |
-        set -euo pipefail
-        if [ -z "$AIKIDO_API_KEY" ]; then
-          echo "::error::No Aikido token: set the AIKIDO_TOKEN secret"
-          exit 1
-        fi
-        # Aikido processes the scan after the upload; the scanner polls for the result about
-        # every 12 seconds, 20 times by default.
-        ARGS=(image-scan "$IMAGE" --image-name "$AIKIDO_IMAGE_NAME" --fail-on "$THRESHOLD"
-          --gating-mode "$MODE" --gating-result-output "/report/$REPORT.json"
-          --max-polling-attempts 50)
-        case "$MODE" in
-          release) ;;
-          pr)
-            if [ -z "$BASE_COMMIT" ] || [ -z "$HEAD_COMMIT" ]; then
-              echo "::error::The pr mode needs base-commit and head-commit"
-              exit 1
-            fi
-            ARGS+=(--base-commit-id "$BASE_COMMIT" --head-commit-id "$HEAD_COMMIT")
-            ;;
-          *)
-            echo "::error::Unknown mode '$MODE': use release or pr"
-            exit 1
-            ;;
-        esac
-        status=0
-        docker run --rm \
-          -e AIKIDO_API_KEY \
-          -v /var/run/docker.sock:/var/run/docker.sock \
-          -v "$PWD:/report" \
-          "$SCANNER" \
-          "${ARGS[@]}" \
-          | tee "$REPORT.txt" || status=$?
-        # A gate that finds issues exits non-zero and writes them to the result file; any other
-        # non-zero exit is a scanner error.
-        if [ "$status" -ne 0 ] && [ ! -s "$REPORT.json" ]; then
-          echo "::error::The Aikido scanner failed with exit code $status"
-          exit "$status"
-        fi
+        set -uo pipefail
+        out=aikido-image-scan
+        mkdir -p "$out"
+        : > "$out/results.tsv"
+        failed=0
+        total=0
+        for entry in "standard openaev:ci" "ubi9 openaev-ubi9:ci"; do
+          read -r label image <<< "$entry"
+          echo "::group::$image"
+          # Aikido processes the scan after the upload; the scanner polls for the result about
+          # every 12 seconds, 20 times by default.
+          args=(image-scan "$image" --image-name "$PREFIX-$label" --fail-on "$THRESHOLD"
+            --gating-mode "$MODE" --gating-result-output "/report/$label.json"
+            --max-polling-attempts 50)
+          if [ "$MODE" = pr ]; then
+            args+=(--base-commit-id "$BASE_COMMIT" --head-commit-id "$HEAD_COMMIT")
+          fi
+          docker run --rm \
+            -e AIKIDO_API_KEY \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/$out:/report" \
+            "$SCANNER" \
+            "${args[@]}" \
+            | tee "$out/$label.txt"
+          status=${PIPESTATUS[0]}
+          echo "::endgroup::"
+          # A gate that finds issues exits non-zero and writes them to the result file; any other
+          # non-zero exit is a scanner error.
+          if [ "$status" -ne 0 ] && [ ! -s "$out/$label.json" ]; then
+            echo "::error::The Aikido scan of $image failed with exit code $status"
+            failed=1
+            continue
+          fi
+          if ! issues=$(python3 "$GITHUB_ACTION_PATH/gate_report.py" "$MODE" "$out/$label.json" \
+            "$image" "$THRESHOLD" "$out/$label.md"); then
+            failed=1
+            continue
+          fi
+          issues=${issues#issues=}
+          total=$((total + issues))
+          printf '%s\t%s\t%s\n' "$label" "$issues" "$out/$label.md" >> "$out/results.tsv"
+          cat "$out/$label.md" >> "$GITHUB_STEP_SUMMARY"
+        done
+        echo "total=$total" >> "$GITHUB_OUTPUT"
+        exit "$failed"
 
-    - name: Report issues
-      id: report
-      shell: bash
-      env:
-        IMAGE: ${{ inputs.image }}
-        REPORT: ${{ inputs.report-name }}
-        MODE: ${{ inputs.mode }}
-        THRESHOLD: ${{ inputs.severity-threshold }}
-      run: |
-        set -euo pipefail
-        python3 "$GITHUB_ACTION_PATH/gate_report.py" "$MODE" "$REPORT.json" "$IMAGE" "$THRESHOLD" "$REPORT.md" >> "$GITHUB_OUTPUT"
-        cat "$REPORT.md" >> "$GITHUB_STEP_SUMMARY"
-
-    - name: Upload report
-      if: ${{ !cancelled() }}
+    - name: Upload the scan results
+      if: ${{ !cancelled() && steps.gate.outputs.run == 'true' }}
       uses: actions/upload-artifact@v7
       with:
-        name: ${{ inputs.report-name }}
-        path: ${{ inputs.report-name }}.*
+        name: aikido-image-scan
+        path: aikido-image-scan
         if-no-files-found: ignore
+
+    # Only when both scans finished and one found issues: a clean run gets no extra check, and a
+    # scan that failed already fails the action.
+    - name: Generate a token
+      id: generate-token
+      if: ${{ steps.scan.outcome == 'success' && steps.scan.outputs.total != '0' && inputs.app-id != '' }}
+      continue-on-error: true
+      uses: actions/create-github-app-token@v3
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}
+
+    - name: Explain the issues in a check
+      id: explain
+      if: ${{ steps.generate-token.outputs.token != '' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        MODE: ${{ steps.gate.outputs.mode }}
+        THRESHOLD: ${{ inputs.severity-threshold }}
+      run: |
+        python3 "$GITHUB_ACTION_PATH/post_check.py" \
+          --sha "$HEAD_SHA" \
+          --mode "$MODE" \
+          --threshold "$THRESHOLD" \
+          --results aikido-image-scan/results.tsv
+
+    # The explanation check reports the issues when it was posted; otherwise this step does.
+    - name: Fail on issues nobody was told about
+      if: ${{ steps.scan.outcome == 'success' && steps.scan.outputs.total != '0' && steps.explain.outcome != 'success' }}
+      shell: bash
+      env:
+        TOTAL: ${{ steps.scan.outputs.total }}
+        THRESHOLD: ${{ inputs.severity-threshold }}
+      run: |
+        echo "::error::$TOTAL issue(s) rated $THRESHOLD or above in Aikido: see the job summary"
+        echo "The explanation check was not posted (no PR checks app token, or the post failed)."
+        exit 1
