@@ -121,7 +121,7 @@ public class PlayerApi extends RestBehavior {
       @PathVariable String userId,
       @Valid @RequestBody PlayerInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.getEmail());
-    User user = userRepository.findById(userId).orElseThrow(ElementNotFoundException::new);
+    User user = playerService.findPlayerOfWriteTenant(ctx, userId);
     ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
     if (user.isAdmin() && !userService.currentUser().isAdmin()) {
       throw new ForbiddenException("Only an administrator can update a platform administrator");

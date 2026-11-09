@@ -19,6 +19,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
@@ -937,6 +938,8 @@ class PlayerApiTest extends IntegrationTest {
     User user = new User();
     user.setUpdateAttributes(playerInput);
     userRepository.save(user);
+    // A player is updated in the tenant of the request, which it must belong to.
+    tenantRepository.addUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
     String originalEmail = user.getEmail();
     String newFirstname = "updatedFirstname";
     playerInput.setFirstname(newFirstname);

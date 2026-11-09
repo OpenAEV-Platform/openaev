@@ -1,6 +1,7 @@
 package io.openaev.rest.user;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
+import static io.openaev.database.specification.UserSpecification.byId;
 import static io.openaev.database.specification.UserSpecification.inTenant;
 import static io.openaev.database.specification.UserSpecification.organizationsInTenant;
 import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
@@ -23,6 +24,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.SpecificationUtils;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.user.form.player.PlayerBulkProcessingInput;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.rest.user.form.player.PlayerOutput;
@@ -258,6 +260,19 @@ public class PlayerService {
       tenantUserService.attachToTenant(savedUser.getId(), tenantId);
       return forTenant(savedUser, tenantId);
     }
+  }
+
+  /**
+   * The player to update: a member of the tenant the request writes in, so that a player of other
+   * tenants only is not found.
+   *
+   * @throws ElementNotFoundException when the player does not exist or is not in that tenant
+   */
+  public User findPlayerOfWriteTenant(TxCtx ctx, String userId) {
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    return userRepository
+        .findOne(inTenant(tenantId).and(byId(userId)))
+        .orElseThrow(ElementNotFoundException::new);
   }
 
   /**
