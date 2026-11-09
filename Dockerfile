@@ -58,9 +58,5 @@ RUN set -eux; \
 ARG OPENAEV_COMMIT
 ENV OPENAEV_COMMIT=${OPENAEV_COMMIT}
 
-# Set by CI on a release: the image tag of the integrations the platform deploys
-ARG OPENAEV_INTEGRATIONS_VERSION
-ENV OPENAEV_INTEGRATIONS_VERSION=${OPENAEV_INTEGRATIONS_VERSION}
-
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["java", "-jar", "openaev-api.jar"]

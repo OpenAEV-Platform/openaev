@@ -204,7 +204,6 @@ runs:
         # BUILDKIT_SYNTAX overrides the Dockerfile's `# syntax=` directive
         build-args: |
           OPENAEV_COMMIT=${{ steps.commit.outputs.sha }}
-          OPENAEV_INTEGRATIONS_VERSION=${{ github.ref_type == 'tag' && github.ref_name || '' }}
           ${{ inputs.untrusted-context == 'true' && 'BUILDKIT_SYNTAX=docker/dockerfile:1' || '' }}
         cache-from: ${{ steps.cache.outputs.cache_from }}
         cache-to: ${{ steps.cache.outputs.cache_to }}
