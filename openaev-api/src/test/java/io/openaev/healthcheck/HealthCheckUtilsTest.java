@@ -32,13 +32,14 @@ import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.fixtures.CollectorFixture;
+import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -1170,18 +1171,35 @@ public class HealthCheckUtilsTest {
   @Nested
   class CollectorChecks {
 
-    @ParameterizedTest(name = "collector declares logging: {0}")
-    @ValueSource(booleans = {true, false})
-    void given_logging_expectation_should_require_a_collector_declaring_logging(
-        boolean declaresLogging) {
+    @ParameterizedTest(
+        name = "declares logging: {0}, on {1}, expected platform: {2} -> collector found: {3}")
+    @CsvSource({
+      "true, SIEM, , true",
+      "false, SIEM, , false",
+      "true, SIEM, SIEM, true",
+      "true, EDR, SIEM, false"
+    })
+    void given_logging_expectation_should_require_a_collector_able_to_answer_it(
+        boolean declaresLogging,
+        String collectorPlatformType,
+        String expectedPlatformType,
+        boolean collectorFound) {
       // -- ARRANGE --
       when(previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION))
           .thenReturn(true);
       Inject inject = new Inject();
       ObjectNode content = mapper.createObjectNode();
-      content.putArray("expectations").addObject().put("expectation_type", "LOGGING");
+      ObjectNode expectation =
+          content.putArray("expectations").addObject().put("expectation_type", "LOGGING");
+      if (expectedPlatformType != null) {
+        expectation
+            .putArray("expectation_expected_security_platform_types")
+            .add(expectedPlatformType);
+      }
       inject.setContent(content);
-      Collector collector = CollectorFixture.createDefaultCollector("SIEM");
+      Collector collector = CollectorFixture.createDefaultCollector("collector");
+      collector.setSecurityPlatform(
+          SecurityPlatformFixture.createDefault("platform", collectorPlatformType));
       if (declaresLogging) {
         collector.setSupportedExpectationTypes(
             new BaseInjectExpectation.EXPECTATION_TYPE[] {
@@ -1194,7 +1212,7 @@ public class HealthCheckUtilsTest {
           healthCheckUtils.runCollectorChecks(inject, List.of(collector));
 
       // -- ASSERT --
-      assertEquals(declaresLogging, healthChecks.isEmpty());
+      assertEquals(collectorFound, healthChecks.isEmpty());
     }
   }
 }

@@ -2,6 +2,7 @@ package io.openaev.healthcheck.utils;
 
 import static io.openaev.database.model.InjectorContract.*;
 import static io.openaev.service.InjectExpectationUtils.filterCollectorsSupportingType;
+import static io.openaev.service.InjectExpectationUtils.isOnExpectedPlatform;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.StreamSupport.stream;
@@ -127,17 +128,9 @@ public class HealthCheckUtils {
     List<HealthCheck> result = new ArrayList<>();
     boolean isDetectionOrPrenvention =
         InjectModelHelper.isDetectionOrPrevention(inject.getContent());
-    // Only collectors declaring LOGGING are awaited on a logging expectation (see
-    // AbstractTechnicalBehavior), so any other collector cannot answer it.
-    boolean isLoggingWithoutCollector =
-        previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION)
-            && InjectModelHelper.hasExpectationOfType(
-                inject.getContent(), BaseInjectExpectation.EXPECTATION_TYPE.LOGGING)
-            && filterCollectorsSupportingType(
-                    collectors, BaseInjectExpectation.EXPECTATION_TYPE.LOGGING)
-                .isEmpty();
 
-    if ((isDetectionOrPrenvention && collectors.isEmpty()) || isLoggingWithoutCollector) {
+    if ((isDetectionOrPrenvention && collectors.isEmpty())
+        || isLoggingWithoutCollector(inject.getContent(), collectors)) {
       result.add(
           new HealthCheck(
               HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,
@@ -147,6 +140,39 @@ public class HealthCheckUtils {
     }
 
     return result;
+  }
+
+  /**
+   * Mirrors the collector resolution of a logging expectation at execution (see
+   * AbstractTechnicalBehavior): only collectors declaring LOGGING, on one of the expected security
+   * platform types when the expectation sets some, are awaited. A logging expectation without any
+   * of them fails as soon as the inject runs.
+   */
+  private boolean isLoggingWithoutCollector(ObjectNode content, List<Collector> collectors) {
+    if (content == null
+        || !previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION)) {
+      return false;
+    }
+    List<Collector> loggingCollectors =
+        filterCollectorsSupportingType(collectors, BaseInjectExpectation.EXPECTATION_TYPE.LOGGING);
+    for (JsonNode expectation : content.path("expectations")) {
+      if (BaseInjectExpectation.EXPECTATION_TYPE
+          .LOGGING
+          .name()
+          .equals(expectation.path("expectation_type").asText())) {
+        List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedTypes = new ArrayList<>();
+        expectation
+            .path("expectation_expected_security_platform_types")
+            .forEach(
+                type ->
+                    expectedTypes.add(
+                        SecurityPlatform.SECURITY_PLATFORM_TYPE.valueOf(type.asText())));
+        if (loggingCollectors.stream().noneMatch(c -> isOnExpectedPlatform(c, expectedTypes))) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /**
