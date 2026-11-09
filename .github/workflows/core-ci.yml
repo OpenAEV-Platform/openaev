@@ -9,6 +9,9 @@ on:
     tags:
       - "[0-9]*.[0-9]*.[0-9]*"
   pull_request:
+  # The merge queue tests each queued pull request on top of main and of the pull requests ahead
+  # of it, and merges only when the Pipeline Gate passes on that combination.
+  merge_group:
 
 permissions:
   contents: read
