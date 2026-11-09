@@ -739,13 +739,6 @@ jobs:
             echo "ubi9=$prefix-ubi9"
           } >> "$GITHUB_OUTPUT"
 
-      # Temporary: scan an old release as the standard image, to see the gate fail.
-      - name: Swap in an old release
-        if: ${{ env.RUN_SCAN == 'true' }}
-        run: |
-          docker pull -q openaev/platform:2.260525.0
-          docker tag openaev/platform:2.260525.0 openaev:ci
-
       - id: standard
         if: ${{ env.RUN_SCAN == 'true' }}
         uses: ./.github/actions/aikido-image-scan
