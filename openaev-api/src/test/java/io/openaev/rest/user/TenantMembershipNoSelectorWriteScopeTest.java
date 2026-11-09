@@ -433,6 +433,53 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Header naming several tenants")
+  class HeaderNamingTwoTenants {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player update is refused with TENANT_WRITE_SCOPE and writes nothing")
+    void given_headerNamingTwoTenants_should_refuseThePlayerUpdate() throws Exception {
+      // -- PREPARE --
+      tenantIsolationHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String tenantB = tenantIsolationHelper.createTenantWithCurrentUser("header-two-b").getId();
+      User player = memberOf(DEFAULT_TENANT, tenantB);
+      String firstname = firstnameOf(player);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(playerUpdate(player).header("X-Tenant-Ids", DEFAULT_TENANT + "," + tenantB))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_WRITE_SCOPE"));
+      assertEquals(firstname, firstnameOf(player));
+      assertEquals(sorted(DEFAULT_TENANT, tenantB), membershipTenantsOf(player.getEmail()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player delete is refused with TENANT_WRITE_SCOPE and removes nothing")
+    void given_headerNamingTwoTenants_should_refuseThePlayerDelete() throws Exception {
+      // -- PREPARE --
+      tenantIsolationHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String tenantB = tenantIsolationHelper.createTenantWithCurrentUser("header-two-b").getId();
+      User player = memberOf(DEFAULT_TENANT, tenantB);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(
+              delete(PLAYER_URI + "/" + player.getId())
+                  .header("X-Tenant-Ids", DEFAULT_TENANT + "," + tenantB)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_WRITE_SCOPE"));
+      assertEquals(sorted(DEFAULT_TENANT, tenantB), membershipTenantsOf(player.getEmail()));
+    }
+  }
+
+  @Nested
   @DisplayName("Caller with no tenant membership")
   class NoMembership {
 
@@ -470,6 +517,25 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.message").value("TENANT_WRITE_SCOPE"));
       assertEquals(List.of(DEFAULT_TENANT), membershipTenantsOf(member.getEmail()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player delete is refused with TENANT_WRITE_SCOPE and removes nothing")
+    void given_callerWithoutMembership_should_refuseThePlayerDelete() throws Exception {
+      // -- PREPARE --
+      User player = memberOf(DEFAULT_TENANT);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(
+              delete(PLAYER_URI + "/" + player.getId())
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_WRITE_SCOPE"));
+      assertEquals(List.of(DEFAULT_TENANT), membershipTenantsOf(player.getEmail()));
     }
 
     @Test

@@ -599,8 +599,9 @@ public class PlayerUpsertKeepsOtherTenantLinksTest extends IntegrationTest {
           .andExpect(status().isOk());
     }
 
-    // The platform request is not narrowed to a tenant: it sees the tags of every tenant, so it
-    // replaces the whole set, as it always did.
+    // This caller's scope covers every tenant, so the tags it asks for and the ones it drops are
+    // all in scope and the whole set is replaced. A platform caller whose scope covers fewer
+    // tenants keeps the links to the tags of the tenants it does not see.
     @Test
     @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
     @DisplayName("Clearing the tags removes the links to the tags of every tenant")
