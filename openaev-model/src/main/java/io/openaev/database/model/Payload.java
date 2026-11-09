@@ -208,7 +208,9 @@ public class Payload implements GrantableBase, TenantBase, Authored, HasPayloadI
   @JsonIgnore
   private String version = FIRST_VERSION;
 
+  // The filter schema reads the JSON name on the same method as @Queryable.
   @Override
+  @JsonProperty("payload_source")
   @Queryable(filterable = true, path = "identity.source")
   public PAYLOAD_SOURCE getSource() {
     return HasPayloadIdentity.super.getSource();
