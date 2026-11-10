@@ -233,4 +233,17 @@ public interface RawScenario {
    * @return {@code true} if the scenario is autonomous
    */
   boolean getScenario_autonomous();
+
+  /**
+   * ID of the user who last configured this scenario's recurrence (see {@code
+   * Scenario.scheduledBy}), or {@code null} if never stamped; the sibling getters below project
+   * that same user's name/email.
+   */
+  String getScenario_scheduled_by();
+
+  String getScenario_scheduled_by_firstname();
+
+  String getScenario_scheduled_by_lastname();
+
+  String getScenario_scheduled_by_email();
 }

@@ -2,6 +2,7 @@ package io.openaev.utils.mapper;
 
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawScenario;
+import io.openaev.rest.atomic_testing.form.UserSimple;
 import io.openaev.rest.document.form.RelatedEntityOutput;
 import io.openaev.rest.kill_chain_phase.response.KillChainPhaseOutput;
 import io.openaev.rest.scenario.form.ScenarioSimple;
@@ -110,6 +111,12 @@ public class ScenarioMapper {
                 : 0)
         .workflowId(rawScenario.getScenario_workflow_id())
         .autonomous(rawScenario.getScenario_autonomous())
+        .scheduledBy(
+            UserSimple.of(
+                rawScenario.getScenario_scheduled_by(),
+                rawScenario.getScenario_scheduled_by_firstname(),
+                rawScenario.getScenario_scheduled_by_lastname(),
+                rawScenario.getScenario_scheduled_by_email()))
         .build();
   }
 
