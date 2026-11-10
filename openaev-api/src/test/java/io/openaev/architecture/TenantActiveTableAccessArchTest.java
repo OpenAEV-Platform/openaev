@@ -277,6 +277,7 @@ import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.AutonomousTimeoutService;
 import io.openaev.service.autonomous.CapabilityResolverService;
 import io.openaev.service.catalog.CatalogListService;
+import io.openaev.service.catalog.CatalogPayloadService;
 import io.openaev.service.catalog.CatalogService;
 import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.chaining.StepEventService;
@@ -434,7 +435,8 @@ class TenantActiveTableAccessArchTest {
           "injectors_contracts_attack_patterns",
           "injectors_contracts_domains",
           "injectors_contracts_vulnerabilities",
-          "injectors_injector_contracts");
+          "injectors_injector_contracts",
+          "catalog_history");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -2264,6 +2266,10 @@ class TenantActiveTableAccessArchTest {
               // Delete guard, run by Hibernate inside the payload, contract and threat arsenal
               // deletes, all TxCtx-carrying:
               PayloadDeleteGuard.class,
+              // Payloads injects run, before an uninstall; called by TxCtx-carrying services:
+              io.openaev.service.payload.PayloadUsageService.class,
+              // Catalogue installs and uninstalls, each in a TxCtx-scoped transaction:
+              CatalogPayloadService.class,
               // Hashes legacy payloads on import, inside the scoped import transaction and with an
               // explicit tenantId:
               io.openaev.service.payload.PayloadContentHashService.class,
@@ -2356,7 +2362,7 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Called by the catalogue API and sync, inside their scoped transactions:
-              CatalogService.class, CatalogListService.class)
+              CatalogService.class, CatalogListService.class, CatalogPayloadService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(CatalogItemRepository.class)
@@ -2663,8 +2669,15 @@ class TenantActiveTableAccessArchTest {
       noClasses()
           .that()
           .doNotBelongToAnyOf(
-              // No repository: an identity is only read and written through its payload.
-              Payload.class, HasPayloadIdentity.class, InjectorContract.class)
+              // Read and written through its payload, or by the catalogue in its scoped
+              // transactions:
+              Payload.class,
+              HasPayloadIdentity.class,
+              InjectorContract.class,
+              io.openaev.database.repository.PayloadIdentityRepository.class,
+              CatalogPayloadService.class,
+              // Reads the identity it is handed by the catalogue, to describe the change:
+              io.openaev.service.catalog.event.CatalogChangePublisher.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(PayloadIdentity.class)
@@ -4282,4 +4295,16 @@ class TenantActiveTableAccessArchTest {
     }
     return false;
   }
+  static final ArchRule catalog_history_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Written by the catalogue events, inside the scoped transaction that raises them:
+              io.openaev.service.catalog.event.CatalogHistoryListener.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.CatalogHistoryRepository.class)
+          .because(
+              "catalog_history is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 }
