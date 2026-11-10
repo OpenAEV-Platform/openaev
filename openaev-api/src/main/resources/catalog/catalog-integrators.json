@@ -3103,7 +3103,7 @@
                         "type": "integer"
                     },
                     "NUCLEI_EXCLUDE_TYPE": {
-                        "default": "",
+                        "default": "headless",
                         "description": "Templates to exclude based on protocol type (comma-separated). Nuclei Flags: -ept, -exclude-type",
                         "type": "string"
                     },
