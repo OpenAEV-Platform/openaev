@@ -284,7 +284,40 @@ export const HeroStats = ({ children, spread }: {
 /** The hero's icon square (Figma 7910:12881). */
 const HERO_ICON_SIZE = 54;
 
-export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, subtitle, chips, chipsInline, action, stats, bodyAction, footer }: {
+/**
+ * A meta item of the Hero (DESIGN DEMO, proposed to the DS as a shared part with the Card): an icon
+ * and a short text in the secondary ink, the full detail on hover and in the accessible name.
+ */
+export const HeroMetaItem = ({ icon, label, hint }: {
+  icon?: ReactNode;
+  label: ReactNode;
+  /** Full text for the tooltip and screen readers (e.g. exact start and end). */
+  hint?: string;
+}) => {
+  const item = (
+    <span
+      aria-label={hint}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        minWidth: 0,
+      }}
+    >
+      {icon && <span aria-hidden="true" className="text-default-secondary" style={{ display: 'inline-flex' }}>{icon}</span>}
+      <Text variant="content-compact" className="text-default-secondary" style={{ whiteSpace: 'nowrap' }}>{label}</Text>
+    </span>
+  );
+  if (!hint) return item;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{item}</TooltipTrigger>
+      <TooltipContent>{hint}</TooltipContent>
+    </Tooltip>
+  );
+};
+
+export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, subtitle, chips, chipsInline, meta, action, stats, bodyAction, footer }: {
   icon?: ComponentType<{
     color?: 'primary';
     sx?: object;
@@ -301,6 +334,11 @@ export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, s
   chips?: ReactNode;
   /** Chips share the title's line instead of taking a row of their own. */
   chipsInline?: boolean;
+  /**
+   * One row of meta items (HeroMetaItem) under the title: facts about this entity (when, where),
+   * kept with its name in the header; the body keeps the results. DESIGN DEMO, proposed to the DS.
+   */
+  meta?: ReactNode;
   action?: ReactNode;
   /** Tiny headline stats rendered as a second hero row (wrap in HeroStat). */
   stats?: ReactNode;
@@ -450,6 +488,20 @@ export const DetailHero = ({ icon: Icon, iconNode, iconFills, overline, title, s
             <Text variant="content-base" className="block text-default-secondary">
               {subtitle}
             </Text>
+          )}
+          {meta && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              columnGap: 16,
+              rowGap: 4,
+              marginTop: 8,
+              minWidth: 0,
+            }}
+            >
+              {meta}
+            </div>
           )}
         </Box>
       </HeroHeader>

@@ -2,6 +2,8 @@ import { type LaunchBlockerOutput, type PayloadSimple } from '../../../utils/api
 
 type ApprovalStatus = PayloadSimple['payload_approval_status'];
 
+// One wording everywhere (list, drawer, inject lists, atomic testing header): the chip says
+// "Pending approval" or "Rejected", like the Threat Arsenal; the tooltip explains what it means here.
 export interface PayloadApprovalDisplay {
   /** Display-only status key (colour in statusUtils), never stored on the inject. */
   status: 'PAYLOAD_PENDING_APPROVAL' | 'PAYLOAD_REJECTED';
@@ -15,8 +17,8 @@ export interface PayloadApprovalDisplay {
 const DISPLAYS: Record<'PENDING' | 'REJECTED' | 'SUPERSEDED', PayloadApprovalDisplay> = {
   PENDING: {
     status: 'PAYLOAD_PENDING_APPROVAL',
-    shortLabel: 'Pending',
-    label: 'Payload pending approval',
+    shortLabel: 'Pending approval',
+    label: 'Pending approval',
     tooltip: 'The payload version of this inject is not approved: launching it is blocked until a user with "Approve content" approves it.',
   },
   SUPERSEDED: {
@@ -28,7 +30,7 @@ const DISPLAYS: Record<'PENDING' | 'REJECTED' | 'SUPERSEDED', PayloadApprovalDis
   REJECTED: {
     status: 'PAYLOAD_REJECTED',
     shortLabel: 'Rejected',
-    label: 'Payload rejected',
+    label: 'Rejected',
     tooltip: 'This payload was rejected: launching this inject is blocked.',
   },
 };

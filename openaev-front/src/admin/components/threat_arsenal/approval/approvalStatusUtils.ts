@@ -42,6 +42,16 @@ export const approvalStatusSeverity = (status: ApprovalStatus): ChipSeverity => 
 
 export const approvalStatusLabel = (status: ApprovalStatus): string => STATUS_LABELS[status] ?? status;
 
+/**
+ * Label of the chip that stands for a whole action (card, list row, overview): a pending status
+ * says what waits, a new action (cannot be used yet) or a new version (the approved one keeps
+ * running), so nobody has to open the action to know.
+ */
+export const actionApprovalLabel = (status: ApprovalStatus, pendingVersion: boolean): string => {
+  if (status !== 'PENDING') return approvalStatusLabel(status);
+  return pendingVersion ? 'New version, pending approval' : 'New action, pending approval';
+};
+
 export const approvalOriginLabel = (origin: ApprovalOrigin): string => ORIGIN_LABELS[origin] ?? origin;
 
 export const APPROVAL_COMMENT_MAX_LENGTH = 2000;
@@ -49,3 +59,7 @@ export const APPROVAL_COMMENT_MAX_LENGTH = 2000;
 /** Whether a payload is used by at least one atomic testing, scenario or simulation still to run. */
 export const isPayloadUsed = (usage?: ThreatArsenalActionUsageOutput) => !!usage
   && (usage.usage_atomic_testings_count ?? 0) + (usage.usage_scenarios_count ?? 0) + (usage.usage_simulations_count ?? 0) > 0;
+
+/** What "New action" and "New version" mean, said the same way wherever they appear (chips, filters). */
+export const NEW_ACTION_HINT = 'New action: created for the first time. Nothing can use it until it is approved.';
+export const NEW_VERSION_HINT = 'New version: a change to an action already in use. The approved version keeps running until someone decides on the change.';

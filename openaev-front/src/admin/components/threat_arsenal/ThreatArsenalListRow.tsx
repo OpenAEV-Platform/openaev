@@ -10,6 +10,7 @@ import ItemTags from '../../../components/ItemTags';
 import PlatformIcon from '../../../components/PlatformIcon';
 import { type ThreatArsenalAction } from '../../../utils/api-types';
 import InjectIcon from '../common/injects/InjectIcon';
+import { useApprovedEarlierVersion } from './approval/approvedEarlierVersion';
 import PayloadVerificationTag from './PayloadVerificationTag';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { THREAT_ARSENAL_LIST_INLINE_STYLES } from './threatArsenalListConfig';
@@ -47,6 +48,11 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
   const { classes } = useStyles();
   const { tPick, nsdt } = useFormatter();
   const bodyItemsStyles = useBodyItemsStyles();
+  const isNewVersion = useApprovedEarlierVersion(
+    action.injector_contract_id,
+    ['PENDING', 'REJECTED', 'SUPERSEDED'].includes(action.action_payload?.payload_approval_status ?? ''),
+    (action.action_payload?.payload_installed_versions ?? 0) > 1,
+  );
   const name = tPick(action.action_labels);
 
   return (
@@ -174,6 +180,7 @@ const ThreatArsenalListRow: FunctionComponent<Props> = ({
                 <ThreatArsenalStatusChip
                   revoked={action.action_payload?.payload_revoked}
                   approvalStatus={action.action_payload?.payload_approval_status}
+                  pendingVersion={isNewVersion}
                 />
               </div>
               <Typography

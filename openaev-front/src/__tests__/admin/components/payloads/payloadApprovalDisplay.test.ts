@@ -4,14 +4,16 @@ import { isLaunchBlocked, launchBlockedLabel, payloadApprovalDisplay } from '../
 import { type LaunchBlockerOutput } from '../../../../utils/api-types';
 
 describe('payloadApprovalDisplay', () => {
-  it('names a pending or rejected payload with a display-only status', () => {
+  it('names a pending or rejected payload with the same wording as the Threat Arsenal', () => {
     expect(payloadApprovalDisplay('PENDING')).toMatchObject({
       status: 'PAYLOAD_PENDING_APPROVAL',
-      label: 'Payload pending approval',
+      shortLabel: 'Pending approval',
+      label: 'Pending approval',
     });
     expect(payloadApprovalDisplay('REJECTED')).toMatchObject({
       status: 'PAYLOAD_REJECTED',
-      label: 'Payload rejected',
+      shortLabel: 'Rejected',
+      label: 'Rejected',
     });
   });
 

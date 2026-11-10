@@ -1,12 +1,16 @@
-import { Chip, IconButton } from '@filigran/design-system';
+import { Chip, IconButton, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { Skeleton, Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
+// fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
+import { Skeleton, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { Fragment, type FunctionComponent, type ReactNode, useState } from 'react';
 import { Link } from 'react-router';
 
 import { type ContentHistoryOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
-import TextDiff from '../update/TextDiff';
+import { FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../fdsTableSpec';
+import FdsPagination from '../pagination/FdsPagination';
+import BeforeAfter from '../update/BeforeAfter';
+import DiffLegend from '../update/DiffLegend';
 
 // Shape of content_history_details, a free JSON object on the API side.
 export interface HistoryChange {
@@ -70,7 +74,7 @@ interface VersionsProps {
 export const ContentVersionsTable: FunctionComponent<VersionsProps> = ({ rows, usageLabel, loading = false }) => {
   const { t, nsdt } = useFormatter();
   return (
-    <Table size="small" aria-label={t('Versions')}>
+    <Table size="small" aria-label={t('Versions')} sx={FDS_TABLE_SX}>
       <TableHead>
         <TableRow>
           <TableCell>{t('Version')}</TableCell>
@@ -145,6 +149,9 @@ const FIELD_LABELS: Record<string, string> = {
   payload_cleanup_command: 'Cleanup command',
 };
 
+// What the payload runs, compared line by line like code (same block as the Versions tab).
+const CODE_FIELDS = new Set(['command_content', 'payload_cleanup_command', 'payload_arguments', 'payload_prerequisites']);
+
 const CHOICE_LABELS: Record<string, string> = {
   KEEP_MINE: 'kept mine',
   TAKE_CATALOG: 'took Filigran\'s',
@@ -156,50 +163,48 @@ const BLOCK_LABELS: Record<string, string> = {
   PLATFORMS: 'Platforms',
 };
 
+// Empty stays empty, so the Before / After block shows "(empty)".
 const valueText = (value: unknown) => {
   if (value === null || value === undefined || value === '') {
-    return '-';
+    return '';
   }
   return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
 };
 
-// Field, before, after: words that changed between two texts are highlighted.
-export const ChangesTable: FunctionComponent<{ changes: HistoryChange[] }> = ({ changes }) => {
+// What changed, field by field, in the same Before / After block as the Versions tab: labelled rows,
+// removed words struck through on grey, changed words on a brand tint.
+export const ChangesTable: FunctionComponent<{
+  changes: HistoryChange[];
+  beforeLabel?: string;
+  afterLabel?: string;
+}> = ({ changes, beforeLabel, afterLabel }) => {
   const { t } = useFormatter();
-  const cell = {
-    whiteSpace: 'pre-wrap' as const,
-    overflowWrap: 'anywhere' as const,
-    fontFamily: 'monospace',
-    fontSize: 12,
-    verticalAlign: 'top',
-  };
+  const before = beforeLabel ?? String(t('Before'));
+  const after = afterLabel ?? String(t('After'));
   return (
-    <Table size="small" aria-label={t('Changes')} sx={{ tableLayout: 'fixed' }}>
-      <TableHead>
-        <TableRow>
-          <TableCell sx={{ width: '20%' }}>{t('Field')}</TableCell>
-          <TableCell sx={{ width: '40%' }}>{t('Before')}</TableCell>
-          <TableCell sx={{ width: '40%' }}>{t('After')}</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {changes.map(change => (
-          <TableRow key={change.field}>
-            <TableCell sx={{ verticalAlign: 'top' }}>{t(FIELD_LABELS[change.field] ?? change.field)}</TableCell>
-            <TableCell sx={cell}>
-              {typeof change.before === 'string' && typeof change.after === 'string'
-                ? <TextDiff text={change.before} other={change.after} />
-                : valueText(change.before)}
-            </TableCell>
-            <TableCell sx={cell}>
-              {typeof change.before === 'string' && typeof change.after === 'string'
-                ? <TextDiff text={change.after} other={change.before} />
-                : valueText(change.after)}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <div
+      aria-label={t('Changes')}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }}
+    >
+      {/* One key for the whole change, then one block per field (no key repeated on each). */}
+      <DiffLegend beforeLabel={before} afterLabel={after} />
+      {changes.map(change => (
+        <BeforeAfter
+          key={change.field}
+          label={t(FIELD_LABELS[change.field] ?? change.field)}
+          before={valueText(change.before)}
+          after={valueText(change.after)}
+          beforeLabel={before}
+          afterLabel={after}
+          code={CODE_FIELDS.has(change.field)}
+          legend={false}
+        />
+      ))}
+    </div>
   );
 };
 
@@ -209,23 +214,34 @@ interface HistoryProps {
 }
 
 export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, loading = false }) => {
-  const { t, nsdt } = useFormatter();
+  const { t, fsd, ft } = useFormatter();
   const [opened, setOpened] = useState<string | null>(null);
   const [page, setPage] = useState(0);
-  const label = (entry: ContentHistoryOutput) => {
-    const action = t(HISTORY_ACTION_LABELS[entry.content_history_action ?? ''] ?? entry.content_history_action ?? '-');
-    if (entry.content_history_action === 'VERSION_CHANGE' && entry.content_history_count != null) {
-      return t('{count} injects moved from v{from} to v{to}', {
-        count: String(entry.content_history_count),
-        from: entry.content_history_from_version ?? '-',
-        to: entry.content_history_version ?? '-',
-      });
-    }
+  // The row reads version first (what the reader scans for), then what happened under it.
+  const versionLine = (entry: ContentHistoryOutput) => {
     if (entry.content_history_from_version) {
-      return `${action} (v${entry.content_history_from_version} → v${entry.content_history_version})`;
+      return `v${entry.content_history_from_version} → v${entry.content_history_version ?? '-'}`;
     }
-    return entry.content_history_version ? `${action} v${entry.content_history_version}` : action;
+    return entry.content_history_version ? `v${entry.content_history_version}` : null;
   };
+  const actionLine = (entry: ContentHistoryOutput) => {
+    if (entry.content_history_action === 'VERSION_CHANGE' && entry.content_history_count != null) {
+      return t('{count, plural, one {# inject moved} other {# injects moved}}', { count: String(entry.content_history_count) });
+    }
+    return t(HISTORY_ACTION_LABELS[entry.content_history_action ?? ''] ?? entry.content_history_action ?? '-');
+  };
+  const twoLines = (first: ReactNode, second: ReactNode) => (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 2,
+    }}
+    >
+      <Text variant="content-compact-bold">{first}</Text>
+      <Text variant="content-compact" className="text-default-secondary">{second}</Text>
+    </div>
+  );
+
   // One line on what the entry changed; the field by field detail opens below it.
   const summary = (entry: ContentHistoryOutput) => {
     const details = historyDetails(entry);
@@ -266,73 +282,105 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
   return (
     <>
       {/* Fixed layout: opening a long before/after value must not resize the columns. */}
-      <Table
-        size="small"
-        aria-label={t('History')}
-        sx={{
-          'tableLayout': 'fixed',
-          '& tr:last-child > td': { borderBottom: 0 },
-        }}
-      >
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ width: '24%' }}>{t('History')}</TableCell>
-            <TableCell>{t('Changes')}</TableCell>
-            <TableCell sx={{ width: '14%' }}>{t('User')}</TableCell>
-            <TableCell sx={{ width: '16%' }}>{t('Date')}</TableCell>
-            <TableCell sx={{ width: 48 }} />
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {loading && history.length === 0 && <SkeletonRows rows={3} columns={5} />}
-          {!loading && history.length === 0 && (
+      <div style={FDS_TABLE_FRAME_STYLE}>
+        <Table
+          size="small"
+          aria-label={t('History')}
+
+          sx={{
+            ...FDS_TABLE_SX,
+            'tableLayout': 'fixed',
+            '& tr:last-child > td': { borderBottom: 0 },
+          }}
+        >
+          <TableHead>
             <TableRow>
-              <TableCell colSpan={5}>{t('No history yet')}</TableCell>
+              <TableCell sx={{ width: '24%' }}>{t('History')}</TableCell>
+              <TableCell>{t('Changes')}</TableCell>
+              <TableCell sx={{ width: '14%' }}>{t('User')}</TableCell>
+              <TableCell sx={{ width: '16%' }}>{t('Date')}</TableCell>
+              <TableCell sx={{ width: 48 }} />
             </TableRow>
-          )}
-          {history.slice(page * HISTORY_PER_PAGE, (page + 1) * HISTORY_PER_PAGE).map((entry) => {
-            const changes = historyDetails(entry)?.changes ?? [];
-            const open = opened === entry.content_history_id;
-            return (
-              <Fragment key={entry.content_history_id}>
-                <TableRow>
-                  <TableCell>{label(entry)}</TableCell>
-                  <TableCell sx={{ overflowWrap: 'anywhere' }}>{summary(entry)}</TableCell>
-                  <TableCell>{entry.content_history_user ?? (entry.content_history_automatic ? t('Platform') : '-')}</TableCell>
-                  <TableCell>{entry.content_history_created_at ? nsdt(entry.content_history_created_at) : '-'}</TableCell>
-                  <TableCell align="right">
-                    {changes.length > 0 && (
-                      <IconButton
-                        priority="tertiary"
-                        size="sm"
-                        icon={open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
-                        aria-label={open ? t('Hide the changes') : t('Show the changes')}
-                        onClick={() => setOpened(open ? null : entry.content_history_id)}
-                      />
-                    )}
-                  </TableCell>
-                </TableRow>
-                {open && (
-                  <TableRow>
-                    <TableCell colSpan={5}>
-                      <ChangesTable changes={changes} />
+          </TableHead>
+          <TableBody>
+            {loading && history.length === 0 && <SkeletonRows rows={3} columns={5} />}
+            {!loading && history.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5}>{t('No history yet')}</TableCell>
+              </TableRow>
+            )}
+            {history.slice(page * HISTORY_PER_PAGE, (page + 1) * HISTORY_PER_PAGE).map((entry) => {
+              const changes = historyDetails(entry)?.changes ?? [];
+              const open = opened === entry.content_history_id;
+              return (
+                <Fragment key={entry.content_history_id}>
+                  {/* Every cell starts on the same baseline (version, changes, user, date); the expand button stays centred. */}
+                  <TableRow sx={{
+                    '& > td': { verticalAlign: 'baseline' },
+                    '& > td:last-of-type': { verticalAlign: 'middle' },
+                  }}
+                  >
+                    <TableCell>
+                      {versionLine(entry)
+                        ? twoLines(versionLine(entry), actionLine(entry))
+                        : <Text variant="content-compact-bold">{actionLine(entry)}</Text>}
+                    </TableCell>
+                    <TableCell sx={{ overflowWrap: 'anywhere' }}>{summary(entry)}</TableCell>
+                    <TableCell>{entry.content_history_user ?? (entry.content_history_automatic ? t('Platform') : '-')}</TableCell>
+                    <TableCell>
+                      {entry.content_history_created_at
+                        ? (
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 2,
+                            }}
+                            >
+                              <Text variant="content-compact">{fsd(entry.content_history_created_at)}</Text>
+                              <Text variant="content-compact" className="text-default-secondary">{ft(entry.content_history_created_at)}</Text>
+                            </div>
+                          )
+                        : '-'}
+                    </TableCell>
+                    <TableCell align="right">
+                      {changes.length > 0 && (
+                        <IconButton
+                          priority="tertiary"
+                          size="sm"
+                          icon={open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                          aria-label={open ? t('Hide the changes') : t('Show the changes')}
+                          onClick={() => setOpened(open ? null : entry.content_history_id)}
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
-                )}
-              </Fragment>
-            );
-          })}
-        </TableBody>
-      </Table>
+                  {open && (
+                  // The field by field change, on the page itself: same as the Versions tab (DS borders only).
+                    <TableRow>
+                      <TableCell colSpan={5} sx={{ padding: '16px !important' }}>
+                        <ChangesTable
+                          changes={changes}
+                          beforeLabel={entry.content_history_from_version ? String(t('Before · v{version}', { version: entry.content_history_from_version })) : undefined}
+                          afterLabel={entry.content_history_version ? String(t('After · v{version}', { version: entry.content_history_version })) : undefined}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
       {history.length > HISTORY_PER_PAGE && (
-        <TablePagination
-          component="div"
-          count={history.length}
-          page={page}
-          onPageChange={(_, newPage) => setPage(newPage)}
-          rowsPerPage={HISTORY_PER_PAGE}
-          rowsPerPageOptions={[HISTORY_PER_PAGE]}
-        />
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          paddingTop: 12,
+        }}
+        >
+          <FdsPagination count={history.length} page={page} onPageChange={setPage} rowsPerPage={HISTORY_PER_PAGE} />
+        </div>
       )}
     </>
   );

@@ -17,8 +17,9 @@ const COLUMNS = {
       sm: 'flex',
     },
   },
+  // Shares the room left with the name, so the columns never push the buttons out of the row.
   description: {
-    width: '30%',
+    flex: '1 1 0',
     display: {
       xs: 'none',
       lg: 'flex',
@@ -32,10 +33,13 @@ const COLUMNS = {
       md: 'flex',
     },
   },
+  // Room for a status chip and two buttons, the same on every row so the columns line up; a long
+  // chip truncates inside it (its tooltip keeps the full text) instead of spilling over the details.
   action: {
-    width: 240,
+    width: 320,
     display: 'flex',
     justifyContent: 'flex-end',
+    overflow: 'hidden',
   },
 } as const;
 
@@ -80,6 +84,7 @@ export const MarketplaceListHeader: FunctionComponent<{ overlineLabel: string }>
         sx={{
           ...headerSx,
           flex: 1,
+          minWidth: 0,
         }}
       >
         {t('Name')}

@@ -9,6 +9,11 @@ export interface NavMenuItem {
   path: string;
   icon: () => ReactElement;
   label: string;
+  /** A count of work waiting there (e.g. actions to review), shown after the label. */
+  badge?: {
+    count: number;
+    label: string;
+  };
   /** Stable key identifying a group row; its presence marks the item as a group. */
   href?: string;
   subItems?: NavMenuSubItem[];

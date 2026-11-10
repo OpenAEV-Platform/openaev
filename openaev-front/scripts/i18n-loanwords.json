@@ -191,7 +191,9 @@
     "Video",
     "Vision",
     "Website",
-    "Workstation"
+    "Workstation",
+    "Version {number}",
+    "Integration"
   ],
   "es": [
     "Variable {key}",
@@ -374,7 +376,9 @@
     "Version",
     "Vision",
     "~{count} injects",
-    "{count, plural, one {# simulation} other {# simulations}}"
+    "{count, plural, one {# simulation} other {# simulations}}",
+    "Version {number}",
+    "Pagination"
   ],
   "it": [
     "Audio",

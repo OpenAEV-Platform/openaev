@@ -1,3 +1,4 @@
+import { Chip } from '@filigran/design-system';
 import { type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 
 /**
@@ -20,12 +21,17 @@ const iconSpanStyle = { display: 'inline-flex' } as const;
 interface RowProps {
   icon?: ReactElement;
   label: ReactNode;
+  /** Count of work waiting behind the row, with its accessible label (e.g. "2 to review"). */
+  badge?: {
+    count: number;
+    label: string;
+  };
   /** Ancestor `Navbar` collapse state — not derivable here, the library
    *  computes it internally and does not expose it to `asChild` children. */
   collapsed: boolean;
 }
 
-export const NavbarItemContent: FunctionComponent<RowProps> = ({ icon, label, collapsed }) => (
+export const NavbarItemContent: FunctionComponent<RowProps> = ({ icon, label, collapsed, badge }) => (
   <>
     {icon && (
       <span
@@ -37,6 +43,27 @@ export const NavbarItemContent: FunctionComponent<RowProps> = ({ icon, label, co
       </span>
     )}
     <span className={`flex-1 truncate text-left ${collapsed ? 'sr-only' : ''}`}>{label}</span>
+    {badge && badge.count > 0 && (
+      collapsed
+        ? (
+            <>
+              {/* Collapsed rail: a dot on the row says "something waits here"; the count is announced. */}
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--color-feedback-warning-primary)',
+                  alignSelf: 'flex-start',
+                  marginLeft: -4,
+                }}
+              />
+              <span className="sr-only">{badge.label}</span>
+            </>
+          )
+        : <Chip size="sm" severity="medium" label={String(badge.count)} aria-label={badge.label} />
+    )}
   </>
 );
 
