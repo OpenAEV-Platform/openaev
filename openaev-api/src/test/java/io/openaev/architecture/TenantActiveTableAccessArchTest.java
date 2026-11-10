@@ -38,6 +38,7 @@ import io.openaev.database.model.Vulnerability;
 import io.openaev.database.model.Widget;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.model.payload.HasPayloadIdentity;
+import io.openaev.database.model.payload.PayloadDeleteGuard;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.AssetAgentJobRepository;
@@ -2114,6 +2115,9 @@ class TenantActiveTableAccessArchTest {
               PayloadService.class,
               PayloadUpdateService.class,
               PayloadUpsertService.class,
+              // Delete guard, run by Hibernate inside the payload, contract and threat arsenal
+              // deletes, all TxCtx-carrying:
+              PayloadDeleteGuard.class,
               // Reads the payload behind an inject's detection remediations; scoped by
               // InjectApi#getPayloadDetectionRemediations, which carries TxCtx:
               InjectService.class,

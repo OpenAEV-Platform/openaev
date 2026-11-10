@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -29,6 +30,13 @@ public interface PayloadRepository
       @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
   Optional<Payload> findByIdentityExternalId(@NotNull String externalId);
+
+  /** Scenario or simulation name per inject running this payload; null for an atomic testing. */
+  @Query(
+      "SELECT DISTINCT COALESCE(s.name, e.name) FROM Inject i"
+          + " LEFT JOIN i.scenario s LEFT JOIN i.exercise e"
+          + " WHERE i.injectorContract.payload.id = :payloadId")
+  List<String> findUsageNamesByPayloadId(@Param("payloadId") String payloadId, Limit limit);
 
   /**
    * Icon metadata for a batch of payloads in one read: {@code [id, payloadType,
