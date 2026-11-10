@@ -154,6 +154,8 @@ public class AttackPatternService {
   private static final String COVERAGE_PREVENTION_FAILED = "PREVENTION_FAILED";
   private static final String COVERAGE_DETECTION_SUCCESS = "DETECTION_SUCCESS";
   private static final String COVERAGE_DETECTION_FAILED = "DETECTION_FAILED";
+  static final String COVERAGE_LOGGING_SUCCESS = "LOGGING_SUCCESS";
+  static final String COVERAGE_LOGGING_FAILED = "LOGGING_FAILED";
 
   /** High terms-bucket cap so every attack pattern is returned (the default cap is only 100). */
   private static final int COVERAGE_BUCKET_CAP = 10_000;
@@ -170,15 +172,15 @@ public class AttackPatternService {
    *
    * <p>Uses the very same Elasticsearch aggregation as the home {@code security-coverage} matrix: a
    * structural histogram on {@code base_attack_patterns_side} over the {@code expectation-inject}
-   * documents, with one series per (PREVENTION|DETECTION) x (SUCCESS|FAILED) combination, evaluated
-   * through {@link EngineService#multiTermHistogram}. The query is tenant- and ACL-scoped
+   * documents, with one series per (PREVENTION|DETECTION|LOGGING) x (SUCCESS|FAILED) combination,
+   * evaluated through {@link EngineService#multiTermHistogram}. The query is tenant- and ACL-scoped
    * automatically and, by default, spans every simulation - so the numbers match the home matrix.
    *
    * @param latest when non-null and positive, restrict the aggregation to the latest N finished
    *     simulations by end date (capped at {@value #COVERAGE_LATEST_MAX}); when null, aggregate
    *     across all simulations like the home matrix
    * @return the coverage entries sorted by attack pattern external id (patterns without any
-   *     prevention or detection result are excluded)
+   *     prevention, detection or logging result are excluded)
    */
   @Transactional(readOnly = true)
   public List<AttackPatternCoverageOutput> getGlobalCoverage(TxCtx ctx, Integer latest) {
@@ -217,13 +219,24 @@ public class AttackPatternService {
                 COVERAGE_DETECTION_FAILED,
                 BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
                 BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
+                simulationIds),
+            coverageSeries(
+                COVERAGE_LOGGING_SUCCESS,
+                BaseInjectExpectation.EXPECTATION_TYPE.LOGGING,
+                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
+                simulationIds),
+            coverageSeries(
+                COVERAGE_LOGGING_FAILED,
+                BaseInjectExpectation.EXPECTATION_TYPE.LOGGING,
+                BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
                 simulationIds)));
 
     List<EsSeries> series =
         engineService.multiTermHistogram(
             ctx, user, new StructuralHistogramRuntime(widget, Map.of(), Map.of()));
 
-    // attackPatternId -> [preventionSuccess, preventionFailed, detectionSuccess, detectionFailed]
+    // attackPatternId -> [preventionSuccess, preventionFailed, detectionSuccess, detectionFailed,
+    // loggingSuccess, loggingFailed]
     Map<String, long[]> countsByAttackPattern = new HashMap<>();
     for (EsSeries serie : series) {
       int index = seriesIndex(serie.getLabel());
@@ -231,7 +244,7 @@ public class AttackPatternService {
         continue;
       }
       for (EsSeriesData data : serie.getData()) {
-        countsByAttackPattern.computeIfAbsent(data.getKey(), k -> new long[4])[index] +=
+        countsByAttackPattern.computeIfAbsent(data.getKey(), k -> new long[6])[index] +=
             data.getValue();
       }
     }
@@ -258,7 +271,9 @@ public class AttackPatternService {
           long preventionTotal = counts[0] + counts[1];
           long detectionSuccess = counts[2];
           long detectionTotal = counts[2] + counts[3];
-          if (preventionTotal == 0 && detectionTotal == 0) {
+          long loggingSuccess = counts[4];
+          long loggingTotal = counts[4] + counts[5];
+          if (preventionTotal == 0 && detectionTotal == 0 && loggingTotal == 0) {
             return;
           }
           coverage.add(
@@ -278,7 +293,9 @@ public class AttackPatternService {
                   preventionSuccess,
                   preventionTotal,
                   detectionSuccess,
-                  detectionTotal));
+                  detectionTotal,
+                  loggingSuccess,
+                  loggingTotal));
         });
 
     coverage.sort(
@@ -348,6 +365,8 @@ public class AttackPatternService {
       case COVERAGE_PREVENTION_FAILED -> 1;
       case COVERAGE_DETECTION_SUCCESS -> 2;
       case COVERAGE_DETECTION_FAILED -> 3;
+      case COVERAGE_LOGGING_SUCCESS -> 4;
+      case COVERAGE_LOGGING_FAILED -> 5;
       default -> -1;
     };
   }

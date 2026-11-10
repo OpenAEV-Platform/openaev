@@ -1,5 +1,6 @@
 package io.openaev.notification.handler;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -12,15 +13,19 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_STATUS;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
+import io.openaev.expectation.ExpectationType;
 import io.openaev.notification.engine.NotificationEngineService;
 import io.openaev.notification.engine.NotificationResourceCatalog;
 import io.openaev.notification.model.NotificationEvent;
 import io.openaev.notification.model.NotificationEventType;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
+import io.openaev.utils.InjectExpectationResultUtils.ResultDistribution;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +35,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -149,6 +156,43 @@ class ScenarioNotificationEventHandlerTest {
       // -- ASSERT --
       verify(tenantTx, never()).executeNew(any(TxCtx.class), any(Runnable.class));
       verify(tenantTx, never()).executeNew(any(TxCtx.class), any(Supplier.class));
+    }
+
+    @ParameterizedTest(name = "simulations with logging results: {0}")
+    @ValueSource(booleans = {true, false})
+    @DisplayName("given a degradation, should report logging only for simulations that have it")
+    void given_degradation_should_reportLoggingOnlyWhenPresent(boolean withLogging) {
+      // -- ARRANGE --
+      givenTwoFinishedSimulations(scenarioWithTenant(TENANT_ID));
+      if (withLogging) {
+        when(exerciseService.getGlobalResults("sim-previous"))
+            .thenReturn(List.of(loggingResults(1, 0)));
+        when(exerciseService.getGlobalResults("sim-last"))
+            .thenReturn(List.of(loggingResults(0, 1)));
+      }
+      when(exerciseService.isThereAScoreDegradation(anyMap(), anyMap())).thenReturn(true);
+
+      // -- ACT --
+      handler.handle(simulationCompleted());
+
+      // -- ASSERT --
+      ArgumentCaptor<String> message = ArgumentCaptor.forClass(String.class);
+      verify(notificationEngineService)
+          .handleEventWithMessage(any(), anyString(), anyString(), any(), message.capture());
+      assertThat(message.getValue())
+          .contains(
+              withLogging
+                  ? "detection 0% -> 0%, logging 100% -> 0% (previous simulation"
+                  : "detection 0% -> 0% (previous simulation");
+    }
+
+    private ExpectationResultsByType loggingResults(int logged, int notLogged) {
+      return new ExpectationResultsByType(
+          ExpectationType.LOGGING,
+          logged > 0 ? EXPECTATION_STATUS.SUCCESS : EXPECTATION_STATUS.FAILED,
+          List.of(
+              new ResultDistribution(ExpectationType.SUCCESS_ID, "Logged", logged),
+              new ResultDistribution(ExpectationType.FAILED_ID, "Not Logged", notLogged)));
     }
 
     @Test

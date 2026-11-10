@@ -120,16 +120,29 @@ public class ScenarioNotificationEventHandler implements NotificationEventHandle
         getRoundedPercentageSafe(secondLastSimulationResultsMap.get(ExpectationType.PREVENTION));
     float previousDetection =
         getRoundedPercentageSafe(secondLastSimulationResultsMap.get(ExpectationType.DETECTION));
+    // Logging is only reported by the simulations that have logging expectations, so the message
+    // of the other scenarios stays unchanged.
+    String logging =
+        lastSimulationResultsMap.containsKey(ExpectationType.LOGGING)
+                || secondLastSimulationResultsMap.containsKey(ExpectationType.LOGGING)
+            ? String.format(
+                Locale.ROOT,
+                ", logging %.0f%% -> %.0f%%",
+                getRoundedPercentageSafe(
+                    secondLastSimulationResultsMap.get(ExpectationType.LOGGING)),
+                getRoundedPercentageSafe(lastSimulationResultsMap.get(ExpectationType.LOGGING)))
+            : "";
 
     return String.format(
         Locale.ROOT,
         "[scenario] %s: score degradation detected - prevention %.0f%% -> %.0f%%, detection"
-            + " %.0f%% -> %.0f%% (previous simulation %s, new simulation %s)",
+            + " %.0f%% -> %.0f%%%s (previous simulation %s, new simulation %s)",
         scenario.getName(),
         previousPrevention,
         lastPrevention,
         previousDetection,
         lastDetection,
+        logging,
         secondLastSimulation.getEnd().map(formatter::format).orElse("NA"),
         lastSimulation.getEnd().map(formatter::format).orElse("NA"));
   }
