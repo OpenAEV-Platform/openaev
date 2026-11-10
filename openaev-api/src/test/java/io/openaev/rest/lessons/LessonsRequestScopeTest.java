@@ -766,12 +766,12 @@ class LessonsRequestScopeTest extends IntegrationTest {
 
   private boolean carriesARowOfA(String body) {
     // The ids of A's rows, none of which belongs in the body of a refusal.
-    return body.contains("\"lessons_category_id\"")
+    return body.contains("\"lessonscategory_id\"")
         || body.contains("\"lessonsquestion_id\"")
         || body.contains("\"objective_id\"")
         || body.contains("\"variable_id\"")
         || body.contains("\"evaluation_id\"")
-        || body.contains("\"lessons_answer_id\"");
+        || body.contains("\"lessonsanswer_id\"");
   }
 
   private long membershipsOfCaller(String tenantId) {
