@@ -3105,46 +3105,19 @@
                         "type": "integer"
                     },
                     "NUCLEI_EXCLUDE_TYPE": {
+                        "default": "",
                         "description": "Templates to exclude based on protocol type (comma-separated). Nuclei Flags: -ept, -exclude-type",
-                        "items": {
-                            "enum": [
-                                "dns",
-                                "file",
-                                "http",
-                                "headless",
-                                "tcp",
-                                "workflow",
-                                "ssl",
-                                "websocket",
-                                "whois",
-                                "code",
-                                "javascript"
-                            ],
-                            "type": "string"
-                        },
-                        "type": "array"
+                        "type": "string"
                     },
                     "NUCLEI_EXCLUDE_SEVERITY": {
+                        "default": "",
                         "description": "Templates to exclude based on severity (comma-separated). Nuclei Flags: -es, -exclude-severity",
-                        "items": {
-                            "enum": [
-                                "info",
-                                "low",
-                                "medium",
-                                "high",
-                                "critical",
-                                "unknown"
-                            ],
-                            "type": "string"
-                        },
-                        "type": "array"
+                        "type": "string"
                     },
                     "NUCLEI_TEMPLATE_URL_ALLOWED_DOMAINS": {
+                        "default": "",
                         "description": "Allowlist of domains a `template_url` inject field may be fetched from (comma-separated). A template URL whose host is not in this list is rejected before any download. The deployed Nuclei binary does not load remote templates itself (no -tu/-rtd); the injector downloads the template to a temporary local file and runs it with -templates <path>. Not a Nuclei flag.",
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
+                        "type": "string"
                     },
                     "NUCLEI_TEMPLATE_URL_MAX_BYTES": {
                         "default": 2000000,
