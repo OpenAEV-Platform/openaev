@@ -29,7 +29,7 @@ const InjectDistributionByTeam: FunctionComponent<Props> = ({ exerciseId }) => {
     dispatch(fetchExerciseTeams(exerciseId));
   });
 
-  const teamsColors = getTeamsColors(teams);
+  const teamsColors = getTeamsColors(teams, theme.palette.mode);
   const sortedTeamsByExpectedScore = R.pipe(
     R.sortWith([
       R.descend(R.prop('team_injects_expectations_total_expected_score')),

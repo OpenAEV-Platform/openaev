@@ -20,7 +20,7 @@ import TagsFilter from '../../../common/filters/TagsFilter';
 import InjectIcon from '../../../common/injects/InjectIcon';
 import ExecutionMenu from '../ExecutionMenu';
 import CreateQuickInject from '../injects/CreateQuickInject';
-import teamContextForExercise from '../teams/teamContextForExercise';
+import useTeamContextForExercise from '../teams/useTeamContextForExercise';
 import MailDistributionByInject from './MailDistributionByInject';
 import MailDistributionByPlayer from './MailDistributionByPlayer';
 import MailDistributionByTeam from './MailDistributionByTeam';
@@ -150,7 +150,7 @@ const Mails = () => {
     .filterAndSort(injects)
     .filter(i => i.inject_communications_number > 0);
 
-  const teamContext = teamContextForExercise(exerciseId);
+  const teamContext = useTeamContextForExercise(exerciseId);
 
   // Rendering
   return (

@@ -1,10 +1,11 @@
 import NotFound from '../../../../components/NotFound';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../../utils/utils';
 import NewsFeedList from './NewsFeedList';
 
 /** Route guard: the page only exists when the news feed feature is enabled. */
 const NewsFeed = () => {
-  if (!isFeatureEnabled('XTM_HUB_NEWS_FEED')) {
+  const enabled = useIsFeatureEnabled('XTM_HUB_NEWS_FEED');
+  if (!enabled) {
     return <NotFound />;
   }
   return <NewsFeedList />;

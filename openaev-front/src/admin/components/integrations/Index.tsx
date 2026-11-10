@@ -5,7 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 import { errorWrapper } from '../../../components/Error';
 import Loader from '../../../components/Loader';
 import NotFound from '../../../components/NotFound';
-import { isFeatureEnabled } from '../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../utils/utils';
 import ConnectorDetails from './common/ConnectorDetails';
 import InjectorPage from './injectors/InjectorPage';
 
@@ -21,7 +21,7 @@ const ConnectorPage = lazy(() => import('./common/ConnectorPage'));
 const useStyles = makeStyles()(() => ({ root: { flexGrow: 1 } }));
 
 const Index = () => {
-  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  const isCredentialAssetEnabled = useIsFeatureEnabled('CREDENTIAL_ASSET');
   const { classes } = useStyles();
   return (
     <div className={classes.root}>

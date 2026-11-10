@@ -17,7 +17,7 @@ import { type ComponentType, useMemo } from 'react';
 import { useFormatter } from '../../../../components/i18n';
 import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
 import useAuth from '../../../../utils/hooks/useAuth';
-import { isFeatureEnabled } from '../../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../../utils/utils';
 import {
   type CatalogFacetFilters,
   type ConnectorItem,
@@ -31,7 +31,7 @@ import {
   STATUS_COMMUNITY,
   STATUS_FILIGRAN,
 } from './catalog-facets';
-import useCaseIcon from './use-case-icons';
+import getUseCaseIcon from './use-case-icons';
 
 interface FacetRow {
   value: string;
@@ -156,7 +156,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
   const { t } = useFormatter();
   const { settings } = useAuth();
   const anyActive = hasActiveFacetFilters(filters);
-  const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  const isCredentialAssetEnabled = useIsFeatureEnabled('CREDENTIAL_ASSET');
 
   // The page scrolls the document, so `position: sticky` resolves against the
   // viewport. Clear the fixed app bar (68px) plus any active top banner, then
@@ -217,7 +217,7 @@ const CatalogSidebar = ({ connectors, filters, keyword, onToggleFacet, onClearAl
           value: useCase,
           label: prettifyUseCase(useCase),
           capitalize: true,
-          icon: useCaseIcon(useCase),
+          icon: getUseCaseIcon(useCase),
           count: countByPredicate(useCasesBase, c => c.useCases.includes(useCase)),
         })),
       },

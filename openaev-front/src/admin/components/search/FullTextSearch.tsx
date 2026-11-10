@@ -15,8 +15,8 @@ import Empty from '../../../components/Empty';
 import { useFormatter } from '../../../components/i18n';
 import ItemTags from '../../../components/ItemTags';
 import { type FullTextSearchCountResult, type FullTextSearchResult, type SearchPaginationInput } from '../../../utils/api-types';
-import useEntityIcon from '../../../utils/hooks/useEntityIcon';
-import useEntityLink from './useEntityLink';
+import getEntityIcon from '../../../utils/entityIcon';
+import getEntityLink from './entityLink';
 
 // "All" pseudo-category id: mixes results across every entity type.
 const ALL = 'all';
@@ -139,7 +139,7 @@ const CategoryRail: FunctionComponent<CategoryRailProps> = ({ categories, total,
       }}
     >
       {renderRow(ALL, 'All', total, <AppsOutlined />)}
-      {categories.map(category => renderRow(category.key, category.clazz, category.count, useEntityIcon(category.clazz)))}
+      {categories.map(category => renderRow(category.key, category.clazz, category.count, getEntityIcon(category.clazz)))}
     </Box>
   );
 };
@@ -319,7 +319,7 @@ const FullTextSearch = () => {
                     />
                   </ListItem>
                   {elements.map((element) => {
-                    const to = useEntityLink(element.clazz, element.id);
+                    const to = getEntityLink(element.clazz, element.id);
                     return (
                       <ListItem
                         key={element.id}
@@ -343,7 +343,7 @@ const FullTextSearch = () => {
                               }}
                         >
                           <ListItemIcon>
-                            {useEntityIcon(element.clazz)}
+                            {getEntityIcon(element.clazz)}
                           </ListItemIcon>
                           <ListItemText
                             primary={(

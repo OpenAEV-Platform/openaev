@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 
 import type { LoggedHelper } from '../../actions/helper';
 import { DialogConnectivityLostStatus } from '../../admin/components/xtm_hub/dialog/connectivity-lost/DialogConnectivityLost.types';
@@ -24,6 +24,8 @@ const useXtmHubDownloadDocument = ({ serviceInstanceId, fileId, onSuccess, onErr
   const { userPlatformToken } = useXtmHubUserPlatformToken(settings?.xtm_hub_url);
   const registration = useHelper((helper: LoggedHelper) => helper.getXtmHubRegistration());
   const [dialogConnectivityLostStatus, setDialogConnectivityLostStatus] = useState<DialogConnectivityLostStatus>(DialogConnectivityLostStatus.unknown);
+  // The document is handed over once per mount: the caller imports it on success.
+  const deliveredRef = useRef(false);
 
   useEffect(() => {
     const isTryingToDownloadDocument = !!fileId && !!serviceInstanceId;
@@ -34,13 +36,16 @@ const useXtmHubDownloadDocument = ({ serviceInstanceId, fileId, onSuccess, onErr
       } else {
         setDialogConnectivityLostStatus(DialogConnectivityLostStatus.unauthorized);
       }
-      return;
+      return undefined;
     }
 
-    if (!settings || !userPlatformToken || !serviceInstanceId || !fileId) {
-      return;
+    if (deliveredRef.current || !settings || !userPlatformToken || !serviceInstanceId || !fileId) {
+      return undefined;
     }
 
+    // A re-run (StrictMode remount, or a dependency changing mid-download) supersedes
+    // the running download, so only the latest one hands the document over.
+    let cancelled = false;
     const fetchData = async () => {
       try {
         const file = await XtmHubClient.fetchDocument({
@@ -50,13 +55,22 @@ const useXtmHubDownloadDocument = ({ serviceInstanceId, fileId, onSuccess, onErr
           userPlatformToken,
         });
 
-        onSuccess(file);
+        if (!cancelled) {
+          deliveredRef.current = true;
+          onSuccess(file);
+        }
       } catch (e) {
-        onError(e);
+        if (!cancelled) {
+          deliveredRef.current = true;
+          onError(e);
+        }
       }
     };
 
     fetchData();
+    return () => {
+      cancelled = true;
+    };
   }, [settings, registration, serviceInstanceId, fileId, userPlatformToken]);
 
   return { dialogConnectivityLostStatus };

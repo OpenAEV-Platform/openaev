@@ -33,10 +33,10 @@ const USE_CASE_ICONS: Record<string, ComponentType<{ sx?: object }>> = {
   'vulnerability scanning': BugReportOutlined,
 };
 
-const useCaseIcon = (useCase: string): ComponentType<{ sx?: object }> => {
+const getUseCaseIcon = (useCase: string): ComponentType<{ sx?: object }> => {
   // prettifyUseCase now returns a sentence-cased label ("Ai security"), while the
   // icon keys are lowercase - normalize before lookup so icons keep matching.
   return USE_CASE_ICONS[prettifyUseCase(useCase).toLowerCase()] ?? LabelOutlined;
 };
 
-export default useCaseIcon;
+export default getUseCaseIcon;

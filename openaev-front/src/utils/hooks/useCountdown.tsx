@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const countdown = (timePeriod: number, interval: number, minusTime: number) => {
+const useCountdown = (timePeriod: number, interval: number, minusTime: number) => {
   const [remainingTimePeriod, setRemainingTimePeriod] = useState(timePeriod);
 
   useEffect(() => {
@@ -14,4 +14,4 @@ const countdown = (timePeriod: number, interval: number, minusTime: number) => {
   return remainingTimePeriod;
 };
 
-export default countdown;
+export default useCountdown;

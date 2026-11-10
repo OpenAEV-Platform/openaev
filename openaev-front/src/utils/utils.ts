@@ -129,7 +129,7 @@ type DevFeature = NonNullable<
   PlatformSettings['enabled_dev_features']
 >[number];
 
-export const isFeatureEnabled = (feature: DevFeature) => {
+export const useIsFeatureEnabled = (feature: DevFeature) => {
   const { settings } = useHelper((helper: LoggedHelper) => {
     return { settings: helper.getPlatformSettings() };
   });

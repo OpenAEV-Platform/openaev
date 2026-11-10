@@ -18,7 +18,7 @@ import { useFormatter } from '../../../../../components/i18n';
 import { useHelper } from '../../../../../store';
 import { type Exercise } from '../../../../../utils/api-types';
 import { EndpointContext } from '../../../../../utils/context/endpoint/EndpointContext';
-import endpointContextForExercise from '../../../../../utils/context/endpoint/EndpointContextForExercise';
+import useEndpointContextForExercise from '../../../../../utils/context/endpoint/useEndpointContextForExercise';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import {
@@ -35,12 +35,12 @@ import InjectDistributionByType from '../../../common/injects/InjectDistribution
 import Injects from '../../../common/injects/Injects';
 import InjectsListButtons from '../../../common/injects/InjectsListButtons';
 import { buildSimulationVariablesConfigurationUrl } from '../../SimulationConfigurationTab';
-import articleContextForExercise from '../articles/articleContextForExercise';
+import useArticleContextForExercise from '../articles/useArticleContextForExercise';
 import ExerciseDistributionScoreByTeamInPercentage from '../overview/ExerciseDistributionScoreByTeamInPercentage';
 import ExerciseDistributionScoreOverTimeByInjectorContract from '../overview/ExerciseDistributionScoreOverTimeByInjectorContract';
 import ExerciseDistributionScoreOverTimeByTeam from '../overview/ExerciseDistributionScoreOverTimeByTeam';
 import ExerciseDistributionScoreOverTimeByTeamInPercentage from '../overview/ExerciseDistributionScoreOverTimeByTeamInPercentage';
-import teamContextForExercise from '../teams/teamContextForExercise';
+import useTeamContextForExercise from '../teams/useTeamContextForExercise';
 
 const ExerciseInjects: FunctionComponent = () => {
   // Standard hooks
@@ -83,9 +83,9 @@ const ExerciseInjects: FunctionComponent = () => {
     }
   }, [viewMode]);
 
-  const articleContext = articleContextForExercise(exerciseId);
-  const teamContext = teamContextForExercise(exerciseId);
-  const endpointContext = endpointContextForExercise(exerciseId);
+  const articleContext = useArticleContextForExercise(exerciseId);
+  const teamContext = useTeamContextForExercise(exerciseId);
+  const endpointContext = useEndpointContextForExercise(exerciseId);
   // Stable context identities so the whole injects list does not re-render on each update
   const challengeContext = useMemo(() => ({ fetchChallenges: () => dispatch(fetchExerciseChallenges(exerciseId)) }), [dispatch, exerciseId]);
 

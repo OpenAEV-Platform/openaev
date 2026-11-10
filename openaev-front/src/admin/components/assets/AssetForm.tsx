@@ -26,7 +26,7 @@ import { useFormatter } from '../../../components/i18n';
 import { type EndpointInput } from '../../../utils/api-types';
 import markingIdSetsEqual from '../../../utils/markings';
 import { formatMacAddress } from '../../../utils/String';
-import { isFeatureEnabled } from '../../../utils/utils';
+import { useIsFeatureEnabled } from '../../../utils/utils';
 import {
   ARCH_OPTIONS,
   type AssetCategory,
@@ -228,7 +228,8 @@ const AssetForm: FunctionComponent<Props> = ({
   // Assigning markings requires an asset id, so the picker only makes sense once the asset exists
   // - gated on `editing` the same way the field itself is only reported through `onMarkingsChange`,
   // and on the flag the rest of the marking UI (Endpoints list, GroupManageMarkings) is gated on.
-  const showMarkings = editing && isFeatureEnabled('MARKING');
+  const isMarkingEnabled = useIsFeatureEnabled('MARKING');
+  const showMarkings = editing && isMarkingEnabled;
 
   // Markings are split out of the submitted payload and reported through `onMarkingsChange`
   // instead: they don't belong to EndpointInput and are persisted through their own endpoint (see
