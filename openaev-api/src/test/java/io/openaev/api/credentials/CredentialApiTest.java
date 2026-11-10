@@ -1,5 +1,21 @@
 package io.openaev.api.credentials;
 
+import static io.openaev.api.credentials.CredentialApi.*;
+import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY;
+import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
+import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.credentials.form.CredentialBulkProcessingInput;
@@ -20,6 +36,9 @@ import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -33,26 +52,6 @@ import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.stream.Stream;
-
-import static io.openaev.api.credentials.CredentialApi.*;
-import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY;
-import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
-import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
-import static io.openaev.utils.JsonTestUtils.asJsonString;
-import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
-import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestInstance(PER_CLASS)
 @Transactional
@@ -1036,14 +1035,14 @@ class CredentialApiTest extends IntegrationTest {
     void given_uriLongerThanItsColumn_should_failCreation() throws Exception {
       // Arrange: the override columns are VARCHAR(255), a longer value must not reach the insert
       Tenant tenant =
-              tenantIsolationTestHelper.createTenantWithCurrentUser("credential-uri-too-long");
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-uri-too-long");
       CredentialInput input =
-              CredentialInputFixture.azureServicePrincipalInputWithAuthorityHost(
-                      "azure-uri-too-long", "https://" + "a".repeat(256) + ".example.com");
+          CredentialInputFixture.azureServicePrincipalInputWithAuthorityHost(
+              "azure-uri-too-long", "https://" + "a".repeat(256) + ".example.com");
 
       // Act & Assert
       mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
-              .andExpect(status().isBadRequest());
+          .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -1052,35 +1051,35 @@ class CredentialApiTest extends IntegrationTest {
       // Arrange
       Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-certificate");
       CredentialInput input =
-              CredentialInputFixture.azureServicePrincipalInputWithAuthorityHost(
-                      "azure-certificate", AZURE_AUTHORITY_HOST_URI);
+          CredentialInputFixture.azureServicePrincipalInputWithAuthorityHost(
+              "azure-certificate", AZURE_AUTHORITY_HOST_URI);
 
       // Act
       String response =
-              mvc.perform(
-                              multipartCreateWithCertificate(
-                                      tenantCredentialsUri(tenant.getId()),
-                                      input,
-                                      azureRequestsCertificateBytes())
-                                      .accept(MediaType.APPLICATION_JSON))
-                      .andExpect(status().is2xxSuccessful())
-                      .andReturn()
-                      .getResponse()
-                      .getContentAsString();
+          mvc.perform(
+                  multipartCreateWithCertificate(
+                          tenantCredentialsUri(tenant.getId()),
+                          input,
+                          azureRequestsCertificateBytes())
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
       // Assert
       CredentialSecretReference credential =
-              credentialSecretReferenceRepository
-                      .findById(JsonPath.read(response, "$.credential_id"))
-                      .orElseThrow();
+          credentialSecretReferenceRepository
+              .findById(JsonPath.read(response, "$.credential_id"))
+              .orElseThrow();
       Secret secret = secretRepository.findById(credential.getLocation()).orElseThrow();
       assertThat(secret).isInstanceOf(AzureServicePrincipalSecret.class);
       AzureServicePrincipalSecret azureSecret = (AzureServicePrincipalSecret) secret;
       assertThat(azureSecret.getAzureAuthorityHostUri()).isEqualTo(AZURE_AUTHORITY_HOST_URI);
       // The certificate is stored encrypted, never as the uploaded bytes
       assertThat(azureSecret.getAzureRequestsCertificate())
-              .isNotNull()
-              .isNotEqualTo(azureRequestsCertificateBytes());
+          .isNotNull()
+          .isNotEqualTo(azureRequestsCertificateBytes());
     }
 
     @Test
@@ -1088,19 +1087,19 @@ class CredentialApiTest extends IntegrationTest {
     void given_oversizedAzureCertificate_should_failCreation() throws Exception {
       // Arrange
       Tenant tenant =
-              tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-big-cert");
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-big-cert");
       CredentialInput input = CredentialInputFixture.azureServicePrincipalInput("azure-big-cert");
       byte[] oversizedCertificate = new byte[(int) MAX_CREDENTIAL_FILE_SIZE_BYTES + 1];
 
       // Act
       String errorResponse =
-              mvc.perform(
-                              multipartCreateWithCertificate(
-                                      tenantCredentialsUri(tenant.getId()), input, oversizedCertificate))
-                      .andExpect(status().isBadRequest())
-                      .andReturn()
-                      .getResponse()
-                      .getContentAsString();
+          mvc.perform(
+                  multipartCreateWithCertificate(
+                      tenantCredentialsUri(tenant.getId()), input, oversizedCertificate))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
       // Assert
       assertThat(errorResponse).containsIgnoringCase("The provided file must not exceed");
@@ -1111,18 +1110,18 @@ class CredentialApiTest extends IntegrationTest {
     void given_emptyAzureCertificate_should_failCreation() throws Exception {
       // Arrange
       Tenant tenant =
-              tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-empty-cert");
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-azure-empty-cert");
       CredentialInput input = CredentialInputFixture.azureServicePrincipalInput("azure-empty-cert");
 
       // Act: a present but empty part is a client error, never a silent "keep the stored one"
       String errorResponse =
-              mvc.perform(
-                              multipartCreateWithCertificate(
-                                      tenantCredentialsUri(tenant.getId()), input, new byte[0]))
-                      .andExpect(status().isBadRequest())
-                      .andReturn()
-                      .getResponse()
-                      .getContentAsString();
+          mvc.perform(
+                  multipartCreateWithCertificate(
+                      tenantCredentialsUri(tenant.getId()), input, new byte[0]))
+              .andExpect(status().isBadRequest())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
       // Assert
       assertThat(errorResponse).containsIgnoringCase("must not be empty");
@@ -1135,45 +1134,45 @@ class CredentialApiTest extends IntegrationTest {
       Tenant tenant = createCommittedTenantWithCurrentUser("credential-azure-cert-update");
       CredentialInput input = CredentialInputFixture.azureServicePrincipalInput("azure-cert-keep");
       String credentialId =
-              JsonPath.read(
-                      mvc.perform(
-                                      multipartCreateWithCertificate(
-                                              tenantCredentialsUri(tenant.getId()),
-                                              input,
-                                              azureRequestsCertificateBytes())
-                                              .accept(MediaType.APPLICATION_JSON))
-                              .andExpect(status().is2xxSuccessful())
-                              .andReturn()
-                              .getResponse()
-                              .getContentAsString(),
-                      "$.credential_id");
+          JsonPath.read(
+              mvc.perform(
+                      multipartCreateWithCertificate(
+                              tenantCredentialsUri(tenant.getId()),
+                              input,
+                              azureRequestsCertificateBytes())
+                          .accept(MediaType.APPLICATION_JSON))
+                  .andExpect(status().is2xxSuccessful())
+                  .andReturn()
+                  .getResponse()
+                  .getContentAsString(),
+              "$.credential_id");
       CredentialSecretReference created =
-              credentialSecretReferenceRepository.findById(credentialId).orElseThrow();
+          credentialSecretReferenceRepository.findById(credentialId).orElseThrow();
       byte[] storedCertificate =
-              ((AzureServicePrincipalSecret)
-                      secretRepository.findById(created.getLocation()).orElseThrow())
-                      .getAzureRequestsCertificate();
+          ((AzureServicePrincipalSecret)
+                  secretRepository.findById(created.getLocation()).orElseThrow())
+              .getAzureRequestsCertificate();
 
       // Act: no certificate part on the update
       String response =
-              mvc.perform(
-                              multipartUpdate(tenantCredentialsUri(tenant.getId()) + "/" + credentialId, input)
-                                      .accept(MediaType.APPLICATION_JSON))
-                      .andExpect(status().is2xxSuccessful())
-                      .andReturn()
-                      .getResponse()
-                      .getContentAsString();
+          mvc.perform(
+                  multipartUpdate(tenantCredentialsUri(tenant.getId()) + "/" + credentialId, input)
+                      .accept(MediaType.APPLICATION_JSON))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
 
       // Assert
       CredentialSecretReference updated =
-              credentialSecretReferenceRepository.findById(credentialId).orElseThrow();
+          credentialSecretReferenceRepository.findById(credentialId).orElseThrow();
       AzureServicePrincipalSecret updatedSecret =
-              (AzureServicePrincipalSecret)
-                      secretRepository.findById(updated.getLocation()).orElseThrow();
+          (AzureServicePrincipalSecret)
+              secretRepository.findById(updated.getLocation()).orElseThrow();
       assertThat(updatedSecret.getAzureRequestsCertificate()).isEqualTo(storedCertificate);
       assertThatJson(response)
-              .node("credential_azure_requests_certificate_defined")
-              .isEqualTo(true);
+          .node("credential_azure_requests_certificate_defined")
+          .isEqualTo(true);
     }
   }
 
