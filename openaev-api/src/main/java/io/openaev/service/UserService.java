@@ -43,6 +43,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -352,6 +353,20 @@ public class UserService {
     // Written before the reload: a refresh drops what the user holds in memory and unflushed.
     entityManager.flush();
     entityManager.refresh(user);
+    loadStreamedAssociations(user);
+  }
+
+  /**
+   * Loads the associations the activity stream serializes from the user. The update event holds
+   * this very instance and the stream reads it after the session is closed, so a collection the
+   * refresh leaves unloaded fails there and drops the update for every consumer.
+   */
+  private void loadStreamedAssociations(User user) {
+    Hibernate.initialize(user.getTeams());
+    Hibernate.initialize(user.getTags());
+    Hibernate.initialize(user.getCommunications());
+    Hibernate.initialize(user.getExerciseTeamUsers());
+    user.loadOrganizations();
   }
 
   /**
