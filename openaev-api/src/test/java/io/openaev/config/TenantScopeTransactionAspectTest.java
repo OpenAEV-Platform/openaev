@@ -14,7 +14,7 @@ import io.openaev.context.TxCtx;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import java.util.List;
-import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -58,8 +58,8 @@ class TenantScopeTransactionAspectTest {
     return marking;
   }
 
-  private static JoinPoint joinPointWith(Object... args) {
-    JoinPoint joinPoint = mock(JoinPoint.class);
+  private static ProceedingJoinPoint joinPointWith(Object... args) {
+    ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
     when(joinPoint.getArgs()).thenReturn(args);
     return joinPoint;
   }
@@ -78,7 +78,7 @@ class TenantScopeTransactionAspectTest {
 
   @Test
   @DisplayName("no arguments at all: the connection is never touched")
-  void noArguments() {
+  void noArguments() throws Throwable {
     EntityManager entityManager = mock(EntityManager.class);
     aspect(entityManager).applyScope(joinPointWith());
     verifyNoInteractions(entityManager);
@@ -86,9 +86,9 @@ class TenantScopeTransactionAspectTest {
 
   @Test
   @DisplayName("a null argument array: the connection is never touched")
-  void nullArguments() {
+  void nullArguments() throws Throwable {
     EntityManager entityManager = mock(EntityManager.class);
-    JoinPoint joinPoint = mock(JoinPoint.class);
+    ProceedingJoinPoint joinPoint = mock(ProceedingJoinPoint.class);
     when(joinPoint.getArgs()).thenReturn(null);
     aspect(entityManager).applyScope(joinPoint);
     verifyNoInteractions(entityManager);
@@ -96,7 +96,7 @@ class TenantScopeTransactionAspectTest {
 
   @Test
   @DisplayName("arguments without a TxCtx: the connection is never touched")
-  void argumentsWithoutTxCtx() {
+  void argumentsWithoutTxCtx() throws Throwable {
     EntityManager entityManager = mock(EntityManager.class);
     aspect(entityManager).applyScope(joinPointWith("some-id", 42));
     verifyNoInteractions(entityManager);
@@ -106,7 +106,7 @@ class TenantScopeTransactionAspectTest {
 
   @Test
   @DisplayName("a TxCtx argument: set_config is issued with the scope bound as a parameter")
-  void txCtxArgumentIssuesSetConfig() {
+  void txCtxArgumentIssuesSetConfig() throws Throwable {
     EntityManager entityManager = mock(EntityManager.class);
     stubEmptyCurrentScope(entityManager);
     Query query = mock(Query.class);
@@ -124,7 +124,7 @@ class TenantScopeTransactionAspectTest {
 
   @Test
   @DisplayName("a missing TxCtx: set_config is issued with an empty scope (fail-closed)")
-  void missingTxCtxIssuesEmptyScope() {
+  void missingTxCtxIssuesEmptyScope() throws Throwable {
     EntityManager entityManager = mock(EntityManager.class);
     stubEmptyCurrentScope(entityManager);
     Query query = mock(Query.class);
@@ -140,7 +140,7 @@ class TenantScopeTransactionAspectTest {
 
   @Test
   @DisplayName("several TxCtx arguments: the first one wins")
-  void firstTxCtxWins() {
+  void firstTxCtxWins() throws Throwable {
     EntityManager entityManager = mock(EntityManager.class);
     stubEmptyCurrentScope(entityManager);
     Query query = mock(Query.class);
@@ -158,7 +158,7 @@ class TenantScopeTransactionAspectTest {
 
   @Test
   @DisplayName("a TxCtx argument: the marking scope is written alongside the tenant scope")
-  void txCtxArgumentAlsoWritesMarkingScope() {
+  void txCtxArgumentAlsoWritesMarkingScope() throws Throwable {
     // -- ARRANGE --
     EntityManager entityManager = mock(EntityManager.class);
     stubEmptyCurrentScope(entityManager);
@@ -181,7 +181,7 @@ class TenantScopeTransactionAspectTest {
 
   @Test
   @DisplayName("no marking supplier wired: the marking scope is written empty, not skipped")
-  void absentSupplierWritesEmptyMarkingScope() {
+  void absentSupplierWritesEmptyMarkingScope() throws Throwable {
     // -- ARRANGE --
     EntityManager entityManager = mock(EntityManager.class);
     stubEmptyCurrentScope(entityManager);
@@ -202,7 +202,7 @@ class TenantScopeTransactionAspectTest {
 
   @Test
   @DisplayName("a caller holding no clearance: empty marking scope, which still sees unmarked rows")
-  void noClearanceWritesEmptyMarkingScope() {
+  void noClearanceWritesEmptyMarkingScope() throws Throwable {
     // -- ARRANGE --
     EntityManager entityManager = mock(EntityManager.class);
     stubEmptyCurrentScope(entityManager);
@@ -221,7 +221,7 @@ class TenantScopeTransactionAspectTest {
 
   @Test
   @DisplayName("no TxCtx argument: neither setting is written, the aspect stays inert")
-  void withoutTxCtxNeitherSettingIsWritten() {
+  void withoutTxCtxNeitherSettingIsWritten() throws Throwable {
     // -- ARRANGE --
     EntityManager entityManager = mock(EntityManager.class);
 

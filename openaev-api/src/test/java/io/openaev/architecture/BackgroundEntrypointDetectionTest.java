@@ -487,6 +487,10 @@ class BackgroundEntrypointDetectionTest {
         "a self-isolated strict table is never activated, so it must not be a legal"
             + " until-active target");
     assertTrue(
+        !known.contains("users_tenants"),
+        "users_tenants is self-isolated and never activated, so a waiver that expires on its"
+            + " activation would never expire and must not be a legal until-active target");
+    assertTrue(
         !known.contains("injcts_typo"),
         "a typo'd table name must not be a legal until-active" + " target");
 
@@ -774,8 +778,9 @@ class BackgroundEntrypointDetectionTest {
       "a background entry point that touches tenant-bearing tables is not waived"
           + " touches-no-tenant-table")
   void writesToTenantTableAreNotWaivedAsTouchingNothing() {
-    // OpenCTIConnectorRegisterPingJob's flow writes Group/Role (DualScopeBase) and the strict
-    // users_tenants join (TenantUserService.attachToTenant); AiMetricCollector reads the
+    // OpenCTIConnectorRegisterPingJob's flow writes Group/Role (DualScopeBase) and the
+    // users_tenants membership rows, a self-isolated table (TenantUserService.attachToTenant);
+    // AiMetricCollector reads the
     // platform Setting row (DualScopeBase). Neither "touches no tenant table"; both are
     // platform-global. This pins the reclassification against a revert to the false reason.
     Map<String, String> baseline = BackgroundEntrypointTenantScopeArchTest.loadBaseline();
@@ -841,57 +846,6 @@ class BackgroundEntrypointDetectionTest {
       } else {
         System.setProperty(key, previous);
       }
-    }
-  }
-
-  @Test
-  @DisplayName("a v1-scoped background path names every table it reaches outside the primitive")
-  void v1ScopedWaiversNameEveryTableTheyReach() {
-    // These paths run under the v1 TenantContext, not the v2 primitive, so activating any table
-    // they reach outside the primitive would turn their reads/writes into wrong-tenant accesses.
-    // Each must carry an until-active tag for every such table so the day it activates the guard
-    // fails and forces conversion. A revert to an incomplete reason fails here.
-    // PlaywrightReportingRenderer and ReportingScheduleJob are no longer listed at all: every
-    // documents/reporting_schedules/reportings/reporting_generations read or write on both paths
-    // now goes through the primitive (TxCtx.forTenant / TxCtx.allTenants() via
-    // TenantScopedJobRunner
-    // and TenantScopedTransaction), so neither reaches any table outside it any more.
-    // EsAttackPathService is no longer tagged either: its one JPA read of attack_patterns runs on
-    // the request thread, after both detached futures are joined, and all four entry points into
-    // it are REST endpoints carrying @Transactional with a TxCtx, so the read is inside the
-    // request's v2 scope rather than outside the primitive. Both halves of that are held by a
-    // machine: EndpointTransactionalRule refuses a mapped handler without @Transactional at
-    // compile time, and TenantScopedEntrypointsTxCtxArchTest pins the TxCtx parameter on
-    // DashboardApi#attackPaths, TenantSettingsApi#homeDashboardAttackPaths and the two
-    // dashboardAttackPaths handlers. A tag here would also contradict
-    // no_baseline_waiver_outlives_its_table now that the table is active. What the tag protected is
-    // asserted behaviourally instead, through the real endpoint, by
-    // DashboardAttackPathIsolationTest.
-    // StreamApi is no longer tagged either: its per-event read check runs through
-    // PermissionService#hasPermissionInTenant, whose TxCtx argument makes the aspect scope the
-    // check's transaction to the event row's tenant, so the inject it loads to resolve a parent is
-    // read inside a v2 scope. Asserted behaviourally, with injects armed, by
-    // StreamApiInjectsScopeTest.
-    Map<String, String> baseline = BackgroundEntrypointTenantScopeArchTest.loadBaseline();
-    assertUntilActive(
-        baseline, "io.openaev.notification.engine.NotificationEngineListener", "users_tenants");
-  }
-
-  private static void assertUntilActive(
-      Map<String, String> baseline, String fqcn, String... tables) {
-    String reason = baseline.get(fqcn);
-    assertTrue(reason != null, fqcn + " must be listed in the baseline");
-    Set<String> tagged = BackgroundEntrypointTenantScopeArchTest.untilActiveTables(reason);
-    for (String table : tables) {
-      assertTrue(
-          tagged.contains(table),
-          fqcn
-              + " reaches '"
-              + table
-              + "' outside the primitive and must carry until-active:"
-              + table
-              + ", got: "
-              + reason);
     }
   }
 }

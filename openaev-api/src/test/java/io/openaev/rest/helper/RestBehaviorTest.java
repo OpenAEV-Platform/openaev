@@ -17,6 +17,8 @@ import io.openaev.database.model.Filters.FilterOperator;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ChainingOperationNotSupportedException;
+import io.openaev.rest.exception.CredentialResolutionException;
+import io.openaev.rest.exception.CredentialResolutionException.ErrorCode;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -25,6 +27,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -183,6 +186,43 @@ class RestBehaviorTest {
 
       // THEN
       assertNull(resolved);
+    }
+  }
+
+  @Nested
+  @DisplayName("CredentialResolutionException handling")
+  class CredentialResolutionHandling {
+
+    @ParameterizedTest
+    @EnumSource(ErrorCode.class)
+    @DisplayName("a refused credential resolution returns its status with the error code as body")
+    void given_refusedCredentialResolution_should_returnStatusAndErrorCode(ErrorCode errorCode) {
+      // WHEN
+      ResponseEntity<ErrorMessage> response =
+          new RestBehavior()
+              .handleCredentialResolutionException(new CredentialResolutionException(errorCode));
+
+      // THEN
+      assertEquals(errorCode.getStatus(), response.getStatusCode());
+      assertNotNull(response.getBody());
+      assertEquals(errorCode.name(), response.getBody().getMessage());
+    }
+
+    @Test
+    @DisplayName("the handler is registered for CredentialResolutionException")
+    void given_credentialResolutionException_should_resolveCorrectHandler() {
+      // GIVEN
+      ExceptionHandlerMethodResolver resolver =
+          new ExceptionHandlerMethodResolver(RestBehavior.class);
+
+      // WHEN
+      Method resolved =
+          resolver.resolveMethodByThrowable(
+              new CredentialResolutionException(ErrorCode.CREDENTIAL_NOT_FOUND));
+
+      // THEN
+      assertNotNull(resolved);
+      assertEquals("handleCredentialResolutionException", resolved.getName());
     }
   }
 

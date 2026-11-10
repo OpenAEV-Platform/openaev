@@ -67,6 +67,35 @@ describe('PostureGauges', () => {
     expect(screen.getByText(percentage)).toBeTruthy();
   });
 
+  it('shows the percentage in grey when every expectation is pending', () => {
+    const theme = createTheme();
+    renderGauges([prevention([{
+      id: 'PENDING',
+      label: 'Pending',
+      value: 2,
+    }])]);
+
+    expect(screen.getByText('0%').getAttribute('fill')).toBe(theme.palette.text.disabled);
+  });
+
+  it('keeps the result colours once one expectation is resolved', () => {
+    const theme = createTheme();
+    renderGauges([prevention([
+      {
+        id: 'FAILED',
+        label: 'Failed',
+        value: 1,
+      },
+      {
+        id: 'PENDING',
+        label: 'Pending',
+        value: 1,
+      },
+    ])]);
+
+    expect(screen.getByText('0%').getAttribute('fill')).toBe(theme.palette.error.main);
+  });
+
   it('keeps the no-data placeholder for an empty distribution', () => {
     renderGauges([prevention([])]);
 

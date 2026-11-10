@@ -2,6 +2,7 @@ package io.openaev.api.threat_arsenal;
 
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
+import static io.openaev.rest.exception.TenantScopeForbiddenException.MESSAGE;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
@@ -39,7 +40,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -63,7 +63,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>The production active tables are armed, so the class follows what production enforces. The
  * rows are committed, as a real request sees them, and removed after each test.
  */
-@TestPropertySource(properties = "spring.quartz.auto-startup=false")
 @TestInstance(PER_CLASS)
 @DisplayName("Threat arsenal bulk delete acts in the request's write tenant")
 class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
@@ -226,6 +225,20 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
     assertThat(JsonPath.<String>read(response.getContentAsString(), "$.message"))
         .as("the refusal names the write scope")
         .isEqualTo(WRITE_SCOPE_ERROR);
+  }
+
+  /**
+   * Sends a bulk delete and checks the endpoint's own access check refused it: the right is missing
+   * in at least one tenant of the request scope (#6393), before the per-item eligibility check in
+   * the write tenant ever runs.
+   */
+  private void assertRefusedForMissingRightInScope(MockHttpServletRequestBuilder request)
+      throws Exception {
+    MockHttpServletResponse response = send(request);
+    assertThat(response.getStatus()).as("the bulk delete is refused").isEqualTo(403);
+    assertThat(JsonPath.<String>read(response.getContentAsString(), "$.message"))
+        .as("the body names the scope rule and its remedy")
+        .isEqualTo(MESSAGE);
   }
 
   /**
@@ -596,9 +609,14 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
     @WithMockUser(
         withCapabilities = Capability.DELETE_THREAT_ARSENALS,
         autoJoinDefaultTenant = true)
-    @DisplayName("given an explicit selection without the right there should delete nothing")
-    void given_explicitSelectionWithoutTheRightThere_should_deleteNothing() throws Exception {
-      // Arrange: the right is held in the default tenant, not in the tenant written to.
+    @DisplayName(
+        "given an explicit selection without the right there should refuse and keep the item")
+    void given_explicitSelectionWithoutTheRightThere_should_refuseAndKeepTheItem()
+        throws Exception {
+      // Arrange: the right is held in the default tenant, not in the tenant written to. The
+      // endpoint's own access check now requires it in every tenant of the scope (#6393), so the
+      // header route naming only the write tenant is refused there before the per-item eligibility
+      // check this nest is otherwise about ever runs.
       readOnlyInOtherTenant();
       String label = newLabel();
       CommittedItem inOtherTenant = null;
@@ -606,13 +624,10 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
         inOtherTenant = commitItem(otherTenantId, false, label);
 
         // Act
-        List<String> deleted =
-            deletedIds(
-                bulkDelete(THREAT_ARSENAL_URL, inOtherTenant)
-                    .header(TENANT_IDS_HEADER, otherTenantId));
+        assertRefusedForMissingRightInScope(
+            bulkDelete(THREAT_ARSENAL_URL, inOtherTenant).header(TENANT_IDS_HEADER, otherTenantId));
 
         // Assert
-        assertThat(deleted).as("no item is reported").isEmpty();
         assertThat(stored(inOtherTenant)).as("the item is kept").isEqualTo(1);
       } finally {
         remove(inOtherTenant);
@@ -623,9 +638,10 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
     @WithMockUser(
         withCapabilities = Capability.DELETE_THREAT_ARSENALS,
         autoJoinDefaultTenant = true)
-    @DisplayName("given a select-all request without the right there should delete nothing")
-    void given_selectAllWithoutTheRightThere_should_deleteNothing() throws Exception {
-      // Arrange
+    @DisplayName(
+        "given a select-all request without the right there should refuse and keep the item")
+    void given_selectAllWithoutTheRightThere_should_refuseAndKeepTheItem() throws Exception {
+      // Arrange: same rule as above, read before the select-all filter is even evaluated.
       readOnlyInOtherTenant();
       String label = newLabel();
       CommittedItem inOtherTenant = null;
@@ -634,13 +650,11 @@ class ThreatArsenalBulkDeleteEligibilityTenantTest extends IntegrationTest {
         assertLabelMatches(otherTenantId, label, 1);
 
         // Act
-        List<String> deleted =
-            deletedIds(
-                bulkDeleteAllLabelled(THREAT_ARSENAL_URL, label)
-                    .header(TENANT_IDS_HEADER, otherTenantId));
+        assertRefusedForMissingRightInScope(
+            bulkDeleteAllLabelled(THREAT_ARSENAL_URL, label)
+                .header(TENANT_IDS_HEADER, otherTenantId));
 
         // Assert
-        assertThat(deleted).as("no item is reported").isEmpty();
         assertThat(stored(inOtherTenant)).as("the item is kept").isEqualTo(1);
       } finally {
         remove(inOtherTenant);

@@ -53,7 +53,7 @@ Example: `manager.logger.level` becomes `MANAGER__LOGGER__LEVEL`
 |:---------------------------------|:----------------------------------|:------------------------------------|:-------------------------------------------------|
 | openaev:enable                   | OPENAEV__ENABLE                   | `false`                             | Enable OpenAEV integration (Coming Soon)         |
 | openaev:url                      | OPENAEV__URL                      | http://host.docker.internal:4000    | OpenAEV platform URL (Coming Soon)               |
-| openaev:token                    | OPENAEV__TOKEN                    | ChangeMe                            | OpenAEV API authentication token (Coming Soon)   |
+| openaev:token                    | OPENAEV__TOKEN                    | ChangeMe                            | OpenAEV API token of a user with the platform settings write right (Coming Soon) |
 | openaev:unsecured_certificate    | OPENAEV__UNSECURED_CERTIFICATE    | `false`                             | Allow self-signed SSL certificates (Coming Soon) |
 | openaev:with_proxy               | OPENAEV__WITH_PROXY               | `false`                             | Use system proxy settings (Coming Soon)          |
 | openaev:logs_schedule            | OPENAEV__LOGS_SCHEDULE            | 10                                  | Log report interval in seconds (Coming Soon)     |

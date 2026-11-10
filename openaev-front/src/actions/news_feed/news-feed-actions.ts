@@ -4,8 +4,8 @@ import type { NewsFeedSettingsInput, SearchPaginationInput } from '../../utils/a
 const NEWS_FEED_URI = '/api/news-feed';
 const NEWS_FEED_SETTINGS_URI = '/api/news-feed-settings';
 
-export const searchMyNewsFeedItems = (searchPaginationInput: SearchPaginationInput) => {
-  return simplePostCall(`${NEWS_FEED_URI}/me/search`, searchPaginationInput);
+export const searchMyNewsFeedItems = (searchPaginationInput: SearchPaginationInput, notifyError = true) => {
+  return simplePostCall(`${NEWS_FEED_URI}/me/search`, searchPaginationInput, undefined, notifyError);
 };
 
 export const fetchMyNewsFeedSettings = () => {

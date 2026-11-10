@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.model.hash.Hashed;
+import io.openaev.database.model.hash.NotHashed;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -35,6 +37,7 @@ public class DetectionRemediation implements Base {
     AI_OUTDATED
   }
 
+  @NotHashed
   @Id
   @Column(name = "detection_remediation_id")
   @JsonProperty("detection_remediation_id")
@@ -44,6 +47,7 @@ public class DetectionRemediation implements Base {
   @NotBlank
   private String id;
 
+  @NotHashed
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "detection_remediation_payload_id")
   @JsonSerialize(using = MonoIdSerializer.class)
@@ -53,6 +57,8 @@ public class DetectionRemediation implements Base {
   @NotNull
   private Payload payload;
 
+  // The platform enters by its type, never by its identifier.
+  @Hashed(key = "security_platform_type", property = "securityPlatformType")
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "detection_remediation_security_platform")
   @JsonSerialize(using = MonoIdSerializer.class)
@@ -62,11 +68,13 @@ public class DetectionRemediation implements Base {
   @NotNull
   private SecurityPlatform securityPlatform;
 
+  @Hashed
   @Column(name = "detection_remediation_values", columnDefinition = "JSONB")
   @JsonProperty("detection_remediation_values")
   @NotNull
   private String values;
 
+  @NotHashed
   @Column(name = "author_rule")
   @JsonProperty("author_rule")
   @Enumerated(EnumType.STRING)
@@ -76,12 +84,14 @@ public class DetectionRemediation implements Base {
 
   // -- AUDIT --
 
+  @NotHashed
   @CreationTimestamp
   @Queryable(filterable = true, sortable = true, label = "created at")
   @Column(name = "detection_remediation_created_at", updatable = false)
   @JsonProperty("detection_remediation_created_at")
   private Instant creationDate;
 
+  @NotHashed
   @UpdateTimestamp
   @Queryable(filterable = true, sortable = true, label = "updated at")
   @Column(name = "detection_remediation_updated_at")

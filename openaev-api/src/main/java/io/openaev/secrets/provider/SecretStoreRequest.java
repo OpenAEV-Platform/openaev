@@ -3,6 +3,7 @@ package io.openaev.secrets.provider;
 import io.openaev.database.model.AwsAssumeRoleSecret;
 import io.openaev.database.model.AwsRegion;
 import io.openaev.database.model.HashSecret;
+import lombok.Builder;
 
 /**
  * Payload for provider-side secret storage.
@@ -32,7 +33,20 @@ import io.openaev.database.model.HashSecret;
  * @param gcpOauthClientId OAuth client id for GCP_OAUTH2
  * @param gcpOauthClientSecret OAuth client secret for GCP_OAUTH2
  * @param gcpOauthRefreshToken OAuth refresh token for GCP_OAUTH2
+ * @param awsAccountId optional AWS account id, for both AWS auth methods
+ * @param awsEndpointUrl optional endpoint override of a sovereign or mocked AWS, for both AWS auth
+ *     methods
+ * @param gcpCustomTokenUri optional token endpoint override for GCP_OAUTH2
+ * @param gcpCustomProjectsUri optional projects endpoint override, for both GCP auth methods
+ * @param gcpCustomResourceManagerUri optional resource manager endpoint override for
+ *     GCP_SERVICE_ACCOUNT
+ * @param gcpCustomIamUri optional IAM endpoint override for GCP_OAUTH2
+ * @param gcpCustomOauthAccessToken optional OAuth access token for GCP_OAUTH2
+ * @param azureAuthorityHostUri optional authority host override, for both Azure auth methods
+ * @param azureRequestsCertificate raw content of the uploaded certificate file, for both Azure auth
+ *     methods; null means "left untouched by the client"
  */
+@Builder(toBuilder = true)
 public record SecretStoreRequest(
     // IDENTITY CREDENTIALS
     String username,
@@ -61,4 +75,14 @@ public record SecretStoreRequest(
     byte[] gcpPrivateKeyJson,
     String gcpOauthClientId,
     String gcpOauthClientSecret,
-    String gcpOauthRefreshToken) {}
+    String gcpOauthRefreshToken,
+    // SOVEREIGN OR MOCKED CLOUD OVERRIDES
+    String awsAccountId,
+    String awsEndpointUrl,
+    String gcpCustomTokenUri,
+    String gcpCustomProjectsUri,
+    String gcpCustomResourceManagerUri,
+    String gcpCustomIamUri,
+    String gcpCustomOauthAccessToken,
+    String azureAuthorityHostUri,
+    byte[] azureRequestsCertificate) {}

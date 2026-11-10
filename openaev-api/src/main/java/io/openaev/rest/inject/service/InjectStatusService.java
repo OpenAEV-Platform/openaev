@@ -35,6 +35,7 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -185,6 +186,12 @@ public class InjectStatusService {
   /**
    * Get the execution time from the start trace time and the duration for a specific agent.
    *
+   * <p>An agent can have several START traces: one when it retrieves the job ("Implant spawn by the
+   * agent"), then one when the implant really starts ("Implant is up and starting execution"). The
+   * duration is measured by the implant, so it is added to the latest START trace. Adding it to the
+   * first one would place the end before the expectation start date whenever the implant takes
+   * longer to start than the payload takes to run.
+   *
    * @param injectStatus the InjectStatus containing the traces
    * @param agentId the ID of the agent to filter the start trace
    * @param durationInMilis the duration in milliseconds to add to the start trace time
@@ -196,7 +203,7 @@ public class InjectStatusService {
     // Agent-less START traces exist (global distribution trace): agentTraces skips them
     return agentTraces(injectStatus.getTraces(), agentId)
         .filter(trace -> trace.getAction() == ExecutionTraceAction.START)
-        .findFirst()
+        .max(Comparator.comparing(ExecutionTrace::getTime))
         .map(startTrace -> startTrace.getTime().plusMillis(durationInMilis))
         .orElse(Instant.now());
   }

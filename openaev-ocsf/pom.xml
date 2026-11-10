@@ -4,7 +4,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.261102.0</version>
+        <version>3.261109.1</version>
     </parent>
 
     <artifactId>openaev-ocsf</artifactId>

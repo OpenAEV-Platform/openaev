@@ -76,7 +76,7 @@ import org.springframework.web.bind.annotation.*;
 public class TeamApi extends RestBehavior {
 
   public static final String TEAM_URI = "/api/teams";
-  static final String TENANT_TEAM_URI = TENANT_PREFIX + "/teams";
+  public static final String TENANT_TEAM_URI = TENANT_PREFIX + "/teams";
 
   private final ExerciseRepository exerciseRepository;
   private final ScenarioRepository scenarioRepository;
@@ -158,7 +158,7 @@ public class TeamApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String teamId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return injectSearchService.getPageOfInjectResultsForTeam(teamId, searchPaginationInput);
+    return injectSearchService.getPageOfInjectResultsForTeam(ctx, teamId, searchPaginationInput);
   }
 
   @GetMapping({"/api/teams/{teamId}", TENANT_TEAM_URI + "/{teamId}"})

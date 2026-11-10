@@ -13,9 +13,9 @@ import io.openaev.aop.UrlAccessControl;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.AmbientTenantBridge;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.hash.FileFingerprint;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.raw.RawPaginationDocument;
 import io.openaev.database.repository.*;
@@ -24,11 +24,13 @@ import io.openaev.rest.document.form.DocumentRelationsOutput;
 import io.openaev.rest.document.form.DocumentTagUpdateInput;
 import io.openaev.rest.document.form.DocumentUpdateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.security.error.AuthenticationError;
 import io.openaev.service.ChannelService;
 import io.openaev.service.FileService;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -42,7 +44,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.hibernate.Hibernate;
 import org.springframework.core.io.InputStreamResource;
@@ -79,7 +80,9 @@ public class DocumentApi extends RestBehavior {
   private final TagRepository tagRepository;
   private final DocumentRepository documentRepository;
   private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final ScenarioRepository scenarioRepository;
+  private final ScenarioService scenarioService;
   private final UserRepository userRepository;
   private final SecurityPlatformRepository securityPlatformRepository;
   private final ReportingGenerationRepository reportingGenerationRepository;
@@ -113,7 +116,11 @@ public class DocumentApi extends RestBehavior {
   private Document uploadDocumentInTenant(
       String tenantId, DocumentCreateInput input, MultipartFile file) throws Exception {
     String extension = FilenameUtils.getExtension(file.getOriginalFilename());
-    String fileTarget = DigestUtils.md5Hex(file.getInputStream()) + "." + extension;
+    FileFingerprint fingerprint;
+    try (InputStream content = file.getInputStream()) {
+      fingerprint = FileFingerprint.of(content, extension);
+    }
+    String fileTarget = fingerprint.storageName();
     // Scope the duplicate lookup to the resolved write tenant: an unscoped lookup runs under the
     // ambient tenant filter, so on the header route a request scoped to B would find and mutate the
     // default tenant's document with the same bytes.
@@ -121,6 +128,7 @@ public class DocumentApi extends RestBehavior {
         documentRepository.findFirstByTargetAndTenantIdOrderByIdAsc(fileTarget, tenantId);
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
+      document.describeFile(fingerprint);
       // Compute exercises
       if (!document.getExercises().isEmpty()) {
         Set<Exercise> exercises = new HashSet<>(document.getExercises());
@@ -150,7 +158,7 @@ public class DocumentApi extends RestBehavior {
       fileService.uploadFile(tenantId, fileTarget, file);
       Document document = new Document();
       document.setTenant(new Tenant(tenantId));
-      document.setTarget(fileTarget);
+      document.describeFile(fingerprint);
       document.setName(DocumentService.sanitizeFileName(file.getOriginalFilename()));
       document.setDescription(input.getDescription());
       if (!input.getExerciseIds().isEmpty()) {
@@ -559,12 +567,8 @@ public class DocumentApi extends RestBehavior {
   public List<Document> playerDocuments(
       TxCtx ctx, @PathVariable String exerciseOrScenarioId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    Optional<Exercise> exerciseOpt =
-        this.exerciseRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
-    Optional<Scenario> scenarioOpt =
-        this.scenarioRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
+    Optional<Exercise> exerciseOpt = exerciseService.findInScope(ctx, exerciseOrScenarioId);
+    Optional<Scenario> scenarioOpt = scenarioService.findInScope(ctx, exerciseOrScenarioId);
 
     final User user = impersonateUser(userRepository, userId);
 
@@ -598,12 +602,8 @@ public class DocumentApi extends RestBehavior {
       @PathVariable String documentId,
       @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    Optional<Exercise> exerciseOpt =
-        this.exerciseRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
-    Optional<Scenario> scenarioOpt =
-        this.scenarioRepository.findByIdAndTenantId(
-            exerciseOrScenarioId, TenantContext.getCurrentTenant());
+    Optional<Exercise> exerciseOpt = exerciseService.findInScope(ctx, exerciseOrScenarioId);
+    Optional<Scenario> scenarioOpt = scenarioService.findInScope(ctx, exerciseOrScenarioId);
 
     final User user = impersonateUser(userRepository, userId);
 

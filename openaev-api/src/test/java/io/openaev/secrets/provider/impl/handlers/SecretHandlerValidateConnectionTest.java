@@ -296,12 +296,15 @@ class SecretHandlerValidateConnectionTest {
   class AzureManagedIdentity {
 
     @Mock private AzureCredentialConnectivityCheck azureCredentialConnectivityCheck;
+    @Mock private NativeEncryptionService nativeEncryptionService;
 
     private AzureManagedIdentityHandler handler;
 
     @BeforeEach
     void setUp() {
-      handler = new AzureManagedIdentityHandler(azureCredentialConnectivityCheck);
+      handler =
+          new AzureManagedIdentityHandler(
+              nativeEncryptionService, azureCredentialConnectivityCheck);
     }
 
     @Test

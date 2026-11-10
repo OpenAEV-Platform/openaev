@@ -6,6 +6,7 @@ import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -201,7 +202,7 @@ public interface ScenarioRepository
 
   @Query(
       value =
-          "SELECT sce.scenario_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
+          "SELECT sce.scenario_id, sce.tenant_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
               + "WHERE sce.tenant_id = :#{#tenantContext.currentTenant} "
@@ -211,7 +212,7 @@ public interface ScenarioRepository
 
   @Query(
       value =
-          "SELECT sce.scenario_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
+          "SELECT sce.scenario_id, sce.tenant_id, sce.scenario_name, sce.scenario_subtitle, array_agg(sct.tag_id) FILTER (WHERE sct.tag_id IS NOT NULL) as scenario_tags "
               + "FROM scenarios sce "
               + "LEFT JOIN scenarios_tags sct ON sct.scenario_id = sce.scenario_id "
               + "WHERE sce.scenario_id IN :scenarioIds "
@@ -250,10 +251,12 @@ public interface ScenarioRepository
               + "), "
               + "kill_chain AS ( "
               + "  SELECT i.inject_scenario AS scenario_id, "
-              + "         json_agg(DISTINCT kcp.*) FILTER (WHERE kcp IS NOT NULL) AS scenario_kill_chain_phases "
+              + "         json_agg(DISTINCT kcp.*) FILTER (WHERE kcp.phase_id IS NOT NULL) AS scenario_kill_chain_phases "
               + "  FROM injects i "
               + "  JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract "
+              + "    AND ic.tenant_id = i.tenant_id "
               + "  JOIN injectors_contracts_attack_patterns icap ON ic.injector_contract_id = icap.injector_contract_id "
+              + "    AND icap.tenant_id = ic.tenant_id "
               + "  JOIN attack_patterns_kill_chain_phases apkcp ON icap.attack_pattern_id = apkcp.attack_pattern_id "
               + "  JOIN kill_chain_phases kcp ON kcp.phase_id = apkcp.phase_id "
               + "  WHERE i.inject_scenario = :scenarioId "
@@ -266,6 +269,7 @@ public interface ScenarioRepository
               + "         AS scenario_platforms "
               + "  FROM injects i "
               + "  JOIN injectors_contracts ic ON ic.injector_contract_id = i.inject_injector_contract "
+              + "    AND ic.tenant_id = i.tenant_id "
               + "  WHERE i.inject_scenario = :scenarioId "
               + "  GROUP BY i.inject_scenario "
               + "), "
@@ -367,4 +371,13 @@ public interface ScenarioRepository
   Optional<Scenario> findByIdAndTenantId(String id, String tenantId);
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /**
+   * By-id read keyed on a request's resolved tenant scope rather than on the v1 ambient tenant,
+   * which is set only on the tenant-prefixed route.
+   */
+  Optional<Scenario> findByIdAndTenantIdIn(
+      @NotNull String id, @NotNull Collection<String> tenantIds);
+
+  boolean existsByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
 }

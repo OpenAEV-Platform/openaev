@@ -62,7 +62,10 @@ class ImapServiceInjectsScopeTest extends IntegrationTest {
   private JdbcTemplate jdbc;
   private TenantSeed tenantA;
   private TenantSeed tenantB;
-  private final Instant seededAt = Instant.now().minus(1, ChronoUnit.DAYS);
+  // Truncated to the millisecond so the timestamp column stores it exactly: a nanosecond clock
+  // reading is rounded to the microsecond by the database and can cross a millisecond boundary.
+  private final Instant seededAt =
+      Instant.now().minus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.MILLIS);
 
   /** One tenant's inject and the participant who replies to it. */
   private record TenantSeed(String id, String injectId, User participant) {}
@@ -207,10 +210,7 @@ class ImapServiceInjectsScopeTest extends IntegrationTest {
       assertTrue(
           injectUpdatedAt(tenantB).isAfter(seededAt.plusSeconds(1)),
           "tenant B's inject must be touched, so its simulation view refreshes");
-      assertEquals(
-          seededAt.truncatedTo(ChronoUnit.MILLIS),
-          injectUpdatedAt(tenantA).truncatedTo(ChronoUnit.MILLIS),
-          "tenant A's inject must be left alone");
+      assertEquals(seededAt, injectUpdatedAt(tenantA), "tenant A's inject must be left alone");
       assertTrue(communicationUsersOf(tenantA).isEmpty(), "tenant A must record nothing");
     }
 

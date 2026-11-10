@@ -381,7 +381,13 @@ const ScenarioHeader = ({
     );
 
   useEffect(() => {
-    searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+    const refreshHealthchecks = () => {
+      searchScenarioHealthcheks(scenarioId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+    };
+    refreshHealthchecks();
+    // Step changes in the Logic tab touch none of the dependencies below: it signals them instead.
+    const subscription = MESSAGING$.refreshHealthchecks.subscribe(refreshHealthchecks);
+    return () => subscription.unsubscribe();
   }, [scenarioId, scenario, workflowConfiguration]);
 
   // Count the attack-path steps that back the hero stat, read from the scenario's chaining workflow

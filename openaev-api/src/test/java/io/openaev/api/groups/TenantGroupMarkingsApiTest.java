@@ -2,15 +2,18 @@ package io.openaev.api.groups;
 
 import static io.openaev.api.groups.TenantGroupApi.TENANT_GROUP_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createInput;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
@@ -20,14 +23,18 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
+import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.TenantGroupFixture;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,14 +73,18 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private GroupRepository groupRepository;
+  @Autowired private MarkingDefinitionRepository markingDefinitionRepository;
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
   @Autowired private MarkingClearanceCacheManager clearanceCache;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private UserComposer userComposer;
   @PersistenceContext private EntityManager entityManager;
 
   private String tenantId;
   private String userId;
+  private String memberId;
+  private Group holderGroup;
   private Group group;
   private MarkingDefinition green;
   private MarkingDefinition red;
@@ -82,6 +93,7 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
   void setUp() {
     tenantGroupComposer.reset();
     markingDefinitionComposer.reset();
+    userComposer.reset();
     tenantId = TenantContext.getCurrentTenant();
     User user = testUserHolder.get();
     userId = user.getId();
@@ -93,15 +105,22 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
     green = persistedMarking(60);
     red = persistedMarking(70);
 
-    group =
-        tenantGroupComposer
-            .forGroup(TenantGroupFixture.getGroup("markings-" + uniqueDefinition()))
-            .persist()
-            .get();
-    // The caller must be a member: a clearance is what a group grants ITS MEMBERS.
-    group.setUsers(new ArrayList<>(List.of(user)));
+    // The caller may only give markings they hold: their own group holds RED.
+    holderGroup = persistedGroup("holder-");
+    holderGroup.setMarkings(new HashSet<>(Set.of(red)));
+    holderGroup.setUsers(new ArrayList<>(List.of(user)));
+    groupRepository.save(holderGroup);
+
+    User member = userComposer.forUser(UserFixture.getUserWithDefaultEmail()).persist().get();
+    memberId = member.getId();
+    tenantRepository.addUserToTenant(memberId, tenantId);
+    tenantMembershipCacheManager.evict(memberId, tenantId);
+
+    group = persistedGroup("markings-");
+    group.setUsers(new ArrayList<>(List.of(member)));
     groupRepository.save(group);
-    clearanceCache.evictForUser(userId);
+    entityManager.flush();
+    clearanceCache.evictForUsers(List.of(userId, memberId));
   }
 
   @Nested
@@ -234,12 +253,114 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("new markings")
+  class NewMarkings {
+
+    @Test
+    @DisplayName("given a group that receives new markings, should let its members hold a new one")
+    void given_autoNewMarkingGroup_should_letMembersHoldNewMarking() throws Exception {
+      // -- ARRANGE --
+      group.setAutoNewMarking(true);
+      groupRepository.save(group);
+      // Warm the cache: without eviction the next read would serve this value.
+      clearanceOfMember();
+
+      // -- ACT --
+      String created = createMarking();
+
+      // -- ASSERT --
+      assertTrue(clearanceOfMember().contains(created), "new marking not held");
+    }
+
+    @Test
+    @DisplayName("given a group that does not receive new markings, should leave it untouched")
+    void given_ordinaryGroup_should_beLeftUntouched() throws Exception {
+      // -- ACT --
+      String created = createMarking();
+
+      // -- ASSERT --
+      assertFalse(clearanceOfMember().contains(created), "new marking held");
+      assertTrue(reloadedGroup().getMarkings().isEmpty());
+    }
+  }
+
+  @Nested
+  @DisplayName("receiving every marking, set from the API")
+  class AutoNewMarking {
+
+    @Test
+    @DisplayName(
+        "given every marking held, should give them all when turned on, keep them when turned off, and stop new ones")
+    void given_everyMarkingHeld_should_giveAllThenKeepThemWhenTurnedOff() throws Exception {
+      // -- ARRANGE --
+      holderGroup.setMarkings(
+          new HashSet<>(markingDefinitionRepository.findAllByTenantId(tenantId)));
+      groupRepository.save(holderGroup);
+      entityManager.flush();
+      clearanceCache.evictForUser(userId);
+      // Warm the cache: without eviction the next read would serve this value.
+      clearanceOfMember();
+
+      // -- ACT: turn it on --
+      updateMarkings(List.of(), true).andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertTrue(reloadedGroup().isAutoNewMarking());
+      Set<String> clearance = clearanceOfMember();
+      assertTrue(clearance.contains(green.getId()), "GREEN should be held: " + clearance);
+      assertTrue(clearance.contains(red.getId()), "RED should be held: " + clearance);
+
+      // -- ACT: turn it off, keeping its markings --
+      List<String> held =
+          reloadedGroup().getMarkings().stream().map(MarkingDefinition::getId).toList();
+      updateMarkings(held, false).andExpect(status().is2xxSuccessful());
+      String created = createMarking();
+
+      // -- ASSERT --
+      Group reloaded = reloadedGroup();
+      assertFalse(reloaded.isAutoNewMarking());
+      Set<String> kept = Set.copyOf(held);
+      assertTrue(
+          reloaded.getMarkings().stream().map(MarkingDefinition::getId).toList().containsAll(kept));
+      assertFalse(clearanceOfMember().contains(created), "new marking held");
+    }
+
+    private ResultActions updateMarkings(List<String> markingIds, Boolean autoNewMarking)
+        throws Exception {
+      return mvc.perform(
+          put(TENANT_GROUP_URI + "/{groupId}/markings", tenantId, group.getId())
+              .content(asJsonString(new GroupUpdateMarkingsInput(markingIds, autoNewMarking)))
+              .contentType(MediaType.APPLICATION_JSON)
+              .accept(MediaType.APPLICATION_JSON)
+              .with(csrf()));
+    }
+  }
+
   // -- HELPERS --
+
+  private String createMarking() throws Exception {
+    // Order above GREEN and RED so no other grant implies it.
+    String response =
+        mvc.perform(
+                post("/api/tenants/{tenantId}/marking_definitions", tenantId)
+                    .content(
+                        asJsonString(
+                            createInput(
+                                MarkingDefinition.TYPE_TLP, uniqueDefinition(), 80, "#c62828")))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .with(csrf()))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    return JsonPath.read(response, "$.marking_definition_id");
+  }
 
   private ResultActions assignMarkings(List<String> markingIds) throws Exception {
     return mvc.perform(
         put(TENANT_GROUP_URI + "/{groupId}/markings", tenantId, group.getId())
-            .content(asJsonString(new GroupUpdateMarkingsInput(markingIds)))
+            .content(asJsonString(new GroupUpdateMarkingsInput(markingIds, null)))
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON)
             .with(csrf()));
@@ -256,10 +377,17 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
     // written the groups_markings rows yet: nothing commits inside a rolled-back test. Without this
     // flush the query would correctly return zero rows and the test would be measuring the flush.
     entityManager.flush();
-    MarkingCtx ctx = clearanceCache.findClearance(userId, tenantId, false);
+    MarkingCtx ctx = clearanceCache.findClearance(memberId, tenantId);
     return ctx instanceof MarkingCtx.Restricted restricted
         ? Set.copyOf(restricted.markingIds())
         : Set.of();
+  }
+
+  private Group persistedGroup(String prefix) {
+    return tenantGroupComposer
+        .forGroup(TenantGroupFixture.getGroup(prefix + uniqueDefinition()))
+        .persist()
+        .get();
   }
 
   private Group reloadedGroup() {
