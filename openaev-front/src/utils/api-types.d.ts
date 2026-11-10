@@ -7318,6 +7318,7 @@ export interface InjectUpdateStatusInput {
 
 export interface Injector {
   injector_category?: string;
+  injector_commit?: string;
   /** @format date-time */
   injector_created_at: string;
   injector_custom_contracts?: boolean;
