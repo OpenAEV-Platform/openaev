@@ -98,12 +98,17 @@ To check that the token is protected, run in PowerShell as administrator:
 
 ```powershell
 icacls "[FOLDER_PATH]\openaev-agent-token.dpapi"
+(Get-Acl "[FOLDER_PATH]\openaev-agent-token.dpapi").Owner
 Select-String "[FOLDER_PATH]\openaev-agent-config.toml" -Pattern '^\s*token\s*='
 ```
 
-The expected result: `icacls` lists only `NT AUTHORITY\SYSTEM`, `BUILTIN\Administrators` and `OWNER RIGHTS` (the
-account the agent runs as, which created the file), with no `(I)` (inherited permissions), and `Select-String` returns
-nothing.
+The expected result:
+
+* `icacls` lists only `NT AUTHORITY\SYSTEM`, `BUILTIN\Administrators` and `OWNER RIGHTS`, with no `(I)` (inherited
+  permissions). `OWNER RIGHTS` stands for the owner of the file, the account that created it.
+* `(Get-Acl ...).Owner` shows that account: the account the agent runs as (see the table above). If the agent runs as
+  a member of Administrators, Windows can set `BUILTIN\Administrators` as the owner instead.
+* `Select-String` returns nothing.
 
 !!! warning "Limits of DPAPI"
 

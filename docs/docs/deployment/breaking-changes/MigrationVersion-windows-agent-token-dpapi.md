@@ -31,9 +31,11 @@ Other impacts:
 
 Nothing to do for the **Standard installation (session)** and the **Advanced installation as System (service)**.
 
-For each **Advanced installation as User (service)**, reinstall the agent from the platform once after upgrading.
-Until then, the agent logs `The token is still in clear text` and stops at each start, and the Endpoint shows as
-inactive.
+For each **Advanced installation as User (service)**, reinstall the agent once after upgrading, with the install
+command of the **Install simulation agents** page (see
+[Installation](../../integrations/agents/openaev-agent.md#installation)). The new installer lets the service account
+update its config file, so the agent can remove the token from it. Until then, the agent logs
+`The token is still in clear text` and stops at each start, and the Endpoint shows as inactive.
 
 !!! warning
 
