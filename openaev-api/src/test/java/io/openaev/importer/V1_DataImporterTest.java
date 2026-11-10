@@ -249,6 +249,7 @@ class V1_DataImporterTest extends IntegrationTest {
     entityManager.clear();
     // Delete in FK order: injects → injector contracts → scenarios → payloads
     injectRepository.deleteAll();
+    entityManager.flush();
     injectorContractRepository.deleteAll();
     scenarioRepository.deleteAll();
     payloadRepository.deleteAll();

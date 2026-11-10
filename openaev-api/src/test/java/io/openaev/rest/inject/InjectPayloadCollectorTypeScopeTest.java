@@ -152,6 +152,7 @@ class InjectPayloadCollectorTypeScopeTest extends IntegrationTest {
         TxCtx.forTenant(tenantId),
         () -> {
           injectRepository.deleteAllById(List.of(scenarioInjectId, exerciseInjectId));
+          entityManager.flush();
           scenarioRepository.deleteById(scenarioId);
           exerciseRepository.deleteById(exerciseId);
           injectorContractRepository.deleteById(

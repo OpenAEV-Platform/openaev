@@ -35,7 +35,8 @@ public interface PayloadRepository
   Optional<Payload> findByIdentityExternalId(@NotNull String externalId);
 
   /** Scenario or simulation name per inject running this payload; null for an atomic testing. */
-  // No flush first: it runs while the payload's contract is being removed, read by injects.
+  // No flush first: it runs while the payload's contract is being removed, read by injects. So it
+  // reads injects deleted in the same transaction only once flushed.
   @QueryHints(@QueryHint(name = HibernateHints.HINT_FLUSH_MODE, value = "COMMIT"))
   @Query(
       "SELECT DISTINCT COALESCE(s.name, e.name) FROM Inject i"
