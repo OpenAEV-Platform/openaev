@@ -1,13 +1,12 @@
 import { Box } from '@mui/material';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useSearchParams } from 'react-router';
 
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import { fetchAttackPatterns } from '../../../actions/AttackPattern';
 import { fetchThreatArsenalAction, fetchThreatArsenalActionIdOfPayload } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
-import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
 import MarketplaceLoadMore from '../../../components/common/marketplace/MarketplaceLoadMore';
 import MarketplaceSortSelect from '../../../components/common/marketplace/MarketplaceSortSelect';
 import MarketplaceViewToggle from '../../../components/common/marketplace/MarketplaceViewToggle';
@@ -24,6 +23,7 @@ import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import ThreatArsenalCardGrid, { type ThreatArsenalItemsProps } from './ThreatArsenalCardGrid';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
 import ThreatArsenalHeaderActions from './ThreatArsenalHeaderActions';
+import ThreatArsenalHero from './ThreatArsenalHero';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 import ThreatArsenalList from './ThreatArsenalList';
 import { THREAT_ARSENAL_SORT_OPTIONS } from './threatArsenalListConfig';
@@ -56,6 +56,42 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
     openPayloadId?: string;
   } | null;
   const toOpen = useRef(openState?.openName);
+  // A link to an action (?action=<id>, e.g. "See where it is used" or a card's Migrate): its drawer
+  // opens, on the Versions tab with tab=versions, ready to migrate with focus=migrate.
+  // Read on every change of the link, not only on load: a Migrate link clicked on a card of this
+  // very page changes the URL without mounting the page again.
+  const [searchParams] = useSearchParams();
+  const linkedActionId = searchParams.get('action');
+  const linked = useRef<{
+    actionId: string | null;
+    tab?: 'versions';
+    focusMigration: boolean;
+  }>({
+    actionId: null,
+    focusMigration: false,
+  });
+  useEffect(() => {
+    if (!linkedActionId) return;
+    linked.current = {
+      actionId: linkedActionId,
+      tab: searchParams.get('tab') === 'versions' ? 'versions' : undefined,
+      focusMigration: searchParams.get('focus') === 'migrate',
+    };
+    fetchThreatArsenalAction(linkedActionId)
+      .then((result: { data: ThreatArsenalActionFullOutput }) => {
+        const name = tPick(result.data.action_labels);
+        // Already on the page: open it at once. Otherwise search it, and open it when it shows.
+        const shown = installed.threatArsenalActions.find(action => action.injector_contract_id === linkedActionId);
+        if (shown) {
+          setOpenedAction(null);
+          setOpenedAction(shown);
+        } else {
+          toOpen.current = name;
+          installed.queryableHelpers.textSearchHelpers.handleTextSearch(name);
+        }
+      })
+      .catch(() => undefined);
+  }, [linkedActionId, searchParams.get('focus'), searchParams.get('tab')]);
   useEffect(() => {
     if (toOpen.current) {
       installed.queryableHelpers.textSearchHelpers.handleTextSearch(toOpen.current);
@@ -72,6 +108,11 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
   useEffect(() => {
     const found = toOpen.current && installed.threatArsenalActions.find(action => tPick(action.action_labels) === toOpen.current);
     if (found) {
+      // A link to an older version opens the action on its latest one: keep the link's tab for it.
+      if (linked.current.actionId) linked.current = {
+        ...linked.current,
+        actionId: found.injector_contract_id,
+      };
       toOpen.current = undefined;
       setOpenedAction(found);
     }
@@ -108,20 +149,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
     >
       <MarketplaceBrowser
         tabs={tabs}
-        hero={(
-          <MarketplaceHero
-            title={t('Threat Arsenal')}
-            subtitle={t('Browse, install and version the actions your simulations run.')}
-            rightSlot={(
-              <ThreatArsenalHeaderActions
-                totalElements={installed.totalElements}
-                actions={installed.threatArsenalActions}
-                searchPaginationInput={installed.searchPaginationInput}
-                onAdd={installed.prependActions}
-              />
-            )}
-          />
-        )}
+        hero={<ThreatArsenalHero onCreate={(result: ThreatArsenalAction) => installed.prependActions([result])} />}
         sidebar={(
           <ThreatArsenalSidebar
             domainElements={installed.iconBarOrderedDomains}
@@ -135,7 +163,23 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           <PaginationComponentV2
             resultsCount
             infiniteScroll
-            topBarButtons={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
+            // Export and Import act on this list: they sit with it, beside the view toggle.
+            topBarButtons={(
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+              >
+                <ThreatArsenalHeaderActions
+                  totalElements={installed.totalElements}
+                  actions={installed.threatArsenalActions}
+                  searchPaginationInput={installed.searchPaginationInput}
+                  onAdd={installed.prependActions}
+                />
+                <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
+              </div>
+            )}
             fetch={installed.fetchActions}
             searchPaginationInput={installed.searchPaginationInput}
             setContent={installed.setThreatArsenalActions}
@@ -178,6 +222,8 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           open
           onClose={() => setOpenedAction(null)}
           threatArsenalAction={openedAction}
+          initialTab={openedAction.injector_contract_id === linked.current.actionId ? linked.current.tab : undefined}
+          focusMigration={openedAction.injector_contract_id === linked.current.actionId && linked.current.focusMigration}
           onRunTest={setRunTestAction}
         />
       )}

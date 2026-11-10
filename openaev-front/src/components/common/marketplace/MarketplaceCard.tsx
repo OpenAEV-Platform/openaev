@@ -31,6 +31,23 @@ interface Props {
   /** A few lines under the header. */
   description?: string;
   chips: ReactNode;
+  /**
+   * Figma Card (8467:4560) parts the code library does not ship yet (DS 1.3.0): a full-bleed
+   * CardBanner at the top for the one thing to act on, a tags row under the header, and CardInfo
+   * label / value pairs under the description. Optional: cards without them are unchanged.
+   */
+  banner?: ReactNode;
+  tags?: ReactNode;
+  info?: {
+    label: string;
+    value: string;
+  }[];
+  /** Fixed card height in the grid (cards of one grid align); taller when the extra parts are used. */
+  height?: number | '100%';
+  /** A row of its own just above the footer (e.g. an install state), so every footer reads the same. */
+  statusRow?: ReactNode;
+  /** Left of the bottom strip (CardMetaBar), in place of the caption: e.g. statuses, as the Figma Card footerStart. */
+  metaStart?: ReactNode;
   platforms: string[];
   /** Shown with the platforms, e.g. a team target. */
   target?: ReactNode;
@@ -63,6 +80,12 @@ const MarketplaceCard: FunctionComponent<Props> = ({
   subtitle,
   description,
   chips,
+  banner,
+  tags,
+  info,
+  height = 280,
+  statusRow,
+  metaStart,
   platforms,
   target,
   caption,
@@ -107,16 +130,32 @@ const MarketplaceCard: FunctionComponent<Props> = ({
         chips={chips}
         platforms={platforms}
         target={target}
-        caption={caption}
-        footerRight={(footerRight || action) && (
+        // A card on the DS anatomy has no caption: the list shows its info values under the name.
+        caption={caption ?? (info?.length ? info.map(item => item.value).filter(value => value !== '–').join(' · ') : undefined)}
+        footerRight={(footerRight || statusRow || action) && (
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: 8,
+            minWidth: 0,
           }}
           >
-            {footerRight}
-            {action}
+            {/* Status chips give way (truncate) before the buttons do. */}
+            <div style={{
+              display: 'flex',
+              minWidth: 0,
+              overflow: 'hidden',
+            }}
+            >
+              {footerRight ?? statusRow}
+            </div>
+            <div style={{
+              display: 'flex',
+              flexShrink: 0,
+            }}
+            >
+              {action}
+            </div>
           </div>
         )}
         badge={badge}
@@ -129,6 +168,10 @@ const MarketplaceCard: FunctionComponent<Props> = ({
     );
   }
 
+  // The description takes the room the other parts leave: three lines beside the info row, one
+  // less for a banner and one less for a tags row, never under one, so cards of a grid stay level.
+  let descriptionLines = subtitle || caption ? 3 : 4;
+  if (info?.length) descriptionLines = Math.max(1, 3 - (banner ? 1 : 0) - (tags ? 1 : 0));
   const interaction = linkTo
     ? { href }
     : onClick && { onClick: () => onClick() };
@@ -143,7 +186,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
         'height': '100%',
         // The doubled class beats the design system hover rules, which load after and use :has().
         '&& > div': {
-          height: 280,
+          height,
           transition: 'transform 0.3s ease-in-out, border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
         },
         // Same hover as the OpenCTI integrations cards: the surface keeps its colour.
@@ -170,6 +213,17 @@ const MarketplaceCard: FunctionComponent<Props> = ({
       }}
     >
       <Card {...interaction} elevation={1} selected={selected} gap={16} padding={24}>
+        {banner && (
+          // Full bleed, like CardMetaBar at the bottom: the card's 24px padding is taken back.
+          <div style={{
+            margin: '-24px -24px 0',
+            position: 'relative',
+            zIndex: 1,
+          }}
+          >
+            {banner}
+          </div>
+        )}
         <CardHeader
           icon={(
             <Box sx={{
@@ -227,7 +281,8 @@ const MarketplaceCard: FunctionComponent<Props> = ({
               </Box>
             </Box>
           )}
-          action={(
+          // No empty slot: without a top-right control the header text runs to the card's edge.
+          action={topRight && (
             <Box
               sx={{
                 display: 'flex',
@@ -268,14 +323,64 @@ const MarketplaceCard: FunctionComponent<Props> = ({
           </Tooltip>
           {subtitle && <CardSubtitle>{subtitle}</CardSubtitle>}
         </CardHeader>
+        {tags && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 4,
+            minWidth: 0,
+          }}
+          >
+            {tags}
+          </div>
+        )}
         <Box sx={{
           flexGrow: 1,
           overflow: 'hidden',
           minHeight: 0,
         }}
         >
-          {description && <CardContent clamp={subtitle || caption ? 3 : 4}>{description}</CardContent>}
+          {description && <CardContent clamp={descriptionLines}>{description}</CardContent>}
+          {info && info.length > 0 && (
+            <dl style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${info.length}, minmax(0, 1fr))`,
+              gap: 8,
+              margin: description ? '16px 0 0' : 0,
+            }}
+            >
+              {info.map(item => (
+                <div key={item.label} style={{ minWidth: 0 }}>
+                  <Text as="dt" variant="content-caption" className="text-default-secondary">{item.label}</Text>
+                  <Text
+                    as="dd"
+                    variant="content-compact"
+                    style={{
+                      margin: 0,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {item.value}
+                  </Text>
+                </div>
+              ))}
+            </dl>
+          )}
         </Box>
+        {statusRow && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            minWidth: 0,
+          }}
+          >
+            {statusRow}
+          </div>
+        )}
         <Box sx={{
           display: 'flex',
           alignItems: 'flex-end',
@@ -304,12 +409,13 @@ const MarketplaceCard: FunctionComponent<Props> = ({
               {badge}
               {chips}
             </div>
+            {/* On the DS anatomy the platforms are in the footer strip (metaStart); the list still reads them here. */}
             <div>
-              {target}
-              {platforms.slice(0, 4).map(platform => (
+              {!metaStart && target}
+              {!metaStart && platforms.slice(0, 4).map(platform => (
                 <PlatformIcon key={platform} width={16} platform={platform} tooltip />
               ))}
-              {platforms.length > 4 && (
+              {!metaStart && platforms.length > 4 && (
                 <Text variant="content-caption" className="text-default-secondary">
                   {`+${platforms.length - 4}`}
                 </Text>
@@ -328,7 +434,7 @@ const MarketplaceCard: FunctionComponent<Props> = ({
             </Box>
           )}
         </Box>
-        {(caption || action) && (
+        {(caption || action || metaStart) && (
           <CardMetaBar style={{
             display: 'flex',
             alignItems: 'center',
@@ -336,7 +442,22 @@ const MarketplaceCard: FunctionComponent<Props> = ({
             gap: 8,
           }}
           >
-            <Text variant="content-caption" className="text-default-secondary">{caption}</Text>
+            {metaStart
+              ? (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    minWidth: 0,
+                    flex: 1,
+                    position: 'relative',
+                    zIndex: 1,
+                  }}
+                  >
+                    {metaStart}
+                  </div>
+                )
+              : <Text variant="content-caption" className="text-default-secondary">{caption}</Text>}
             {action && (
               <div style={{
                 flexShrink: 0,

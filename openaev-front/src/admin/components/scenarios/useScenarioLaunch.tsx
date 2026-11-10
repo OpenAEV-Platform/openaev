@@ -1,42 +1,32 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
-import { fetchScenarioTargets } from '../../../actions/catalog/scenario-catalog-actions';
 import { createRunningExerciseFromScenario } from '../../../actions/scenarios/scenario-actions';
 import { type Exercise } from '../../../utils/api-types';
-import ScenarioLaunchTargetsDrawer from './catalog/ScenarioLaunchTargetsDrawer';
+import { type LaunchTarget } from './launch/scenarioLaunchBlockers';
+import ScenarioLaunchCheckDrawer from './launch/ScenarioLaunchCheckDrawer';
 
-// Launches a scenario and opens its simulation; an inject without target asks for one first.
+// Launches a scenario from a card through the launch check (the same one as the scenario page):
+// every blocker shows with its fix, then the simulation starts and opens.
 const useScenarioLaunch = () => {
   const navigate = useNavigate();
-  const [askTargets, setAskTargets] = useState<{
-    scenarioId: string;
-    scenarioName: string;
-  } | null>(null);
+  const [checking, setChecking] = useState<LaunchTarget | null>(null);
 
-  const launch = (scenarioId: string, scenarioName: string) => fetchScenarioTargets(scenarioId).then(({ data }) => {
-    if (data.injects.some(inject => !inject.is_targeted)) {
-      setAskTargets({
-        scenarioId,
-        scenarioName,
-      });
-      return;
-    }
-    createRunningExerciseFromScenario(scenarioId)
-      .then(({ data: exercise }: { data: Exercise }) => navigate(`/admin/simulations/${exercise.exercise_id}`));
-  });
+  const launch = (target: LaunchTarget) => setChecking(target);
 
-  const targetsDrawer = askTargets && (
-    <ScenarioLaunchTargetsDrawer
-      scenarioId={askTargets.scenarioId}
-      scenarioName={askTargets.scenarioName}
-      onClose={() => setAskTargets(null)}
+  const launchDrawer = checking && (
+    <ScenarioLaunchCheckDrawer
+      scenario={checking}
+      open
+      onClose={() => setChecking(null)}
+      onLaunch={() => createRunningExerciseFromScenario(checking.scenario_id)
+        .then(({ data: exercise }: { data: Exercise }) => navigate(`/admin/simulations/${exercise.exercise_id}`))}
     />
   );
 
   return {
     launch,
-    targetsDrawer,
+    launchDrawer,
   };
 };
 

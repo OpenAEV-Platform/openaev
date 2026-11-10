@@ -76,6 +76,10 @@ const fieldText = (value: unknown) => {
   return typeof value === 'string' ? value : JSON.stringify(value);
 };
 
+// Command-type fields of an inject's content (commands, scripts, scanner templates): shown line by
+// line with + and −, as in the Versions and History tabs of the Threat Arsenal.
+const CODE_KEY = /command|script|argument|prerequisite|cleanup|template/i;
+
 // A field name as people read it: main_focus becomes "Main focus".
 const fieldLabel = (key: string) => {
   const words = key.replace(/^(scenario|inject)_/, '').replace(/_/g, ' ');
@@ -140,11 +144,17 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
     if (isRecord(before) && isRecord(after)) {
       return [...new Set([...Object.keys(before), ...Object.keys(after)])]
         .filter(key => fieldText(before[key]) !== fieldText(after[key]))
-        .map(key => ({
-          field: `${titleOf(change.element, change.title)} · ${t(fieldLabel(key))}`,
-          before: fieldText(before[key]),
-          after: fieldText(after[key]),
-        }));
+        .map((key) => {
+          const code = CODE_KEY.test(key);
+          // A structured command (arguments, prerequisites) reads line by line when indented.
+          const text = (value: unknown) => (code && typeof value !== 'string' && value != null ? JSON.stringify(value, null, 2) : fieldText(value));
+          return {
+            field: `${titleOf(change.element, change.title)} · ${t(fieldLabel(key))}`,
+            before: text(before[key]),
+            after: text(after[key]),
+            code,
+          };
+        });
     }
     return [{
       field: `${titleOf(change.element, change.title)} · ${blockOf(change)}`,
@@ -244,6 +254,25 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
               gap: 20,
             }}
             >
+              {/* Idea B: the size of the update first, then the details below. */}
+              <div style={section} data-testid="scenario-update-summary">
+                <Text variant="title-xs">{t('In this update')}</Text>
+                <div style={row}>
+                  <Chip label={t('Changes from Filigran: {count}', { count: String(taken.length) })} severity="info" />
+                  <Chip label={t('Your edits kept: {count}', { count: String(kept.length) })} />
+                  <Chip
+                    label={t('Conflicts to decide: {count}', { count: String(conflicts.length) })}
+                    severity={conflicts.length > 0 ? 'medium' : 'low'}
+                  />
+                  <Chip label={t('Injects added: {count}', { count: String(preview.elements.filter(element => element.change === 'ADDED').length) })} />
+                  <Chip label={t('Injects removed: {count}', { count: String(preview.elements.filter(element => element.change === 'REMOVED').length) })} />
+                </div>
+                <Text variant="content-caption">
+                  {conflicts.length > 0
+                    ? t('Only the conflicts need a choice; everything else is combined for you.')
+                    : t('Nothing to decide: apply it, or look at the details first.')}
+                </Text>
+              </div>
               <Alert severity="info" title={t('Your targets, teams, schedule and tags stay as they are.')} />
               {preview.revoked_payloads.length > 0 && (
                 <Alert
@@ -356,20 +385,28 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                     );
                   })}
                   {taken.length > 0 && (
-                    <ChangesTable changes={taken.flatMap(change => rowsOf(change, change.local ?? change.base, change.applied))} />
+                    <ChangesTable
+                      changes={taken.flatMap(change => rowsOf(change, change.local ?? change.base, change.applied))}
+                      beforeLabel={t('Before · now')}
+                      afterLabel={String(version ? t('After · v{version}', { version }) : t('After · revision #{number}', { number: revisionNumber ?? '' }))}
+                    />
                   )}
                 </div>
               )}
               {kept.length > 0 && (
                 <div style={section}>
-                  <Text variant="title-xs">{t('Your changes, kept')}</Text>
-                  <ChangesTable changes={kept.flatMap(change => rowsOf(change, change.base, change.local))} />
+                  <Text variant="title-xs">{version ? t('Your edits — the update keeps them') : t('Your edits — the rollback keeps them')}</Text>
+                  <ChangesTable
+                    changes={kept.flatMap(change => rowsOf(change, change.base, change.local))}
+                    beforeLabel={String(t('Before · Filigran v{version}', { version: preview.current_version }))}
+                    afterLabel={t('After · your edit')}
+                  />
                 </div>
               )}
               {preview.warnings.length > 0 && (
                 <Alert severity="warning" title={t('{count} points to check after applying', { count: preview.warnings.length })} />
               )}
-              {conflicts.length === 0 && taken.length === 0 && preview.elements.length === 0 && (
+              {conflicts.length === 0 && taken.length === 0 && kept.length === 0 && preview.elements.length === 0 && (
                 <Text variant="content-base">{t('Nothing changes in the content.')}</Text>
               )}
             </div>

@@ -109,6 +109,17 @@ const ThreatArsenalActionPopover = ({
   };
 
   const [newVersion, setNewVersion] = useState<ThreatArsenalAction | null>(null);
+  // A save that added a version offers to move what runs any older version, not only the one just
+  // edited: shown when at least one older version is still used.
+  const offerToMoveUsages = (saved: ThreatArsenalAction) => {
+    if (!saved.action_previous_version_id) return;
+    fetchThreatArsenalVersions(saved.action_previous_version_id).then((response: { data: PayloadVersionOutput[] }) => {
+      const used = response.data.some(v => v.payload_installed
+        && v.payload_id !== saved.action_payload?.payload_id
+        && (v.payload_usage_count ?? 0) > 0);
+      if (used) setNewVersion(saved);
+    });
+  };
 
   const onSubmitEdit = async (data: ThreatArsenalActionCreateCustomInput) => {
     const inputValues: ThreatArsenalActionUpdateInput = {
@@ -137,8 +148,8 @@ const ThreatArsenalActionPopover = ({
       onUpdate(saved);
     }
     handleCloseEdit();
-    if (saved?.action_previous_version_id && (saved.action_previous_version_usages ?? 0) > 0) {
-      setNewVersion(saved);
+    if (saved?.action_previous_version_id) {
+      offerToMoveUsages(saved);
     }
   };
 
@@ -299,19 +310,8 @@ const ThreatArsenalActionPopover = ({
             {t('Edit customization')}
           </MenuItem>
         )}
-        {hasDeleteCapability && !managed && (
-          <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
-        )}
-        {((hasDeleteCapability && managed) || (hasRevokeCapability && (canRevoke || canLift))) && <Divider />}
-        {hasDeleteCapability && managed && (
-          <MenuItem onClick={() => {
-            handlePopoverClose();
-            setUninstall(true);
-          }}
-          >
-            {t('Uninstall')}
-          </MenuItem>
-        )}
+        {/* Revoking stops a version from running and can be lifted: its own group, away from removal (L41). */}
+        {hasRevokeCapability && !!payloadId && (canRevoke || canLift) && <Divider />}
         {hasRevokeCapability && !!payloadId && canRevoke && (
           <MenuItem onClick={handleOpenRevocation}>{t('Revoke')}</MenuItem>
         )}
@@ -323,6 +323,19 @@ const ThreatArsenalActionPopover = ({
           >
             {t('Lift revocation')}
           </MenuItem>
+        )}
+        {hasDeleteCapability && <Divider />}
+        {hasDeleteCapability && managed && (
+          <MenuItem onClick={() => {
+            handlePopoverClose();
+            setUninstall(true);
+          }}
+          >
+            {t('Uninstall')}
+          </MenuItem>
+        )}
+        {hasDeleteCapability && !managed && (
+          <MenuItem onClick={handleOpenDelete} disabled={disableDelete}>{t('Delete')}</MenuItem>
         )}
       </Menu>
 
@@ -337,8 +350,8 @@ const ThreatArsenalActionPopover = ({
                 action_previous_version_id: output.previous_action_id ?? output.action.action_previous_version_id,
               });
             }
-            if (output.new_version && output.previous_action_id && output.previous_version_usages > 0 && output.action) {
-              setNewVersion({
+            if (output.new_version && output.previous_action_id && output.action) {
+              offerToMoveUsages({
                 ...output.action,
                 action_previous_version_id: output.previous_action_id,
                 action_previous_version_usages: output.previous_version_usages,

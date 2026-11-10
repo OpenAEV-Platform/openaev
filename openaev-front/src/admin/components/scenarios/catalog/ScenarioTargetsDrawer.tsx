@@ -10,20 +10,23 @@ import {
   ComboboxField,
   ComboboxInput,
   ComboboxTrigger,
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
   IconButton,
   Input,
   Spinner,
   Text,
 } from '@filigran/design-system';
 import { AccountTreeOutlined, DnsOutlined, EditOutlined, GroupsOutlined, PlayArrowOutlined } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
 import { searchAssetGroups } from '../../../../actions/asset_groups/assetgroup-action';
 import { searchEndpoints } from '../../../../actions/assets/endpoint-actions';
 import { searchTeams } from '../../../../actions/teams/team-actions';
-import Drawer from '../../../../components/common/Drawer';
 import { useFormatter } from '../../../../components/i18n';
 import {
   type AssetGroupOutput,
@@ -125,18 +128,31 @@ interface TargetRowProps {
   children: ReactNode;
 }
 
+// A group of rows on one surface, rows split by a line: the targets form and the injects list.
+const GROUP_STYLE = {
+  display: 'flex',
+  flexDirection: 'column',
+  backgroundColor: 'var(--bg-elevation-default)',
+  border: '1px solid var(--border-elevation-subtle-soft)',
+  borderRadius: 4,
+  overflow: 'hidden',
+} as const;
+const ROW_DIVIDER = '1px solid var(--border-elevation-subtle-soft)';
+
+// Label and field on the same grid in every row, so the inputs line up.
 const TargetRow: FunctionComponent<TargetRowProps> = ({ icon, title, subtitle, children }) => (
   <div style={{
     display: 'grid',
-    gridTemplateColumns: '24px minmax(0, 1fr) minmax(0, 2fr)',
+    gridTemplateColumns: '20px minmax(0, 1fr) minmax(0, 1.4fr)',
     gap: 12,
-    alignItems: 'start',
+    alignItems: 'center',
+    padding: '12px 16px',
   }}
   >
     {icon}
     <div>
-      <Text variant="content-base">{title}</Text>
-      <Text variant="content-caption">{subtitle}</Text>
+      <Text variant="content-base-bold">{title}</Text>
+      <Text variant="content-caption" className="text-default-secondary">{subtitle}</Text>
     </div>
     {children}
   </div>
@@ -163,7 +179,10 @@ export interface MissingPrerequisite {
 const blocksInstall = (kind: MissingPrerequisite['requirement_kind']) => kind === 'OPENAEV' || kind === 'INJECTOR';
 
 interface Props {
+  // Header: what the drawer does (overline), the scenario (title) and its version (badge).
+  overline: string;
   title: string;
+  version?: string;
   mode: 'install' | 'launch';
   // Install, then launch the installed scenario.
   thenLaunch?: boolean;
@@ -181,9 +200,8 @@ interface Props {
 }
 
 // Section 6.3: the chosen targets are added to every inject that takes their kind, existing ones kept.
-const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, thenLaunch = false, chained = false, scenarioId, load, onSubmit, onClose }) => {
+const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ overline, title, version, mode, thenLaunch = false, chained = false, scenarioId, load, onSubmit, onClose }) => {
   const { t } = useFormatter();
-  const theme = useTheme();
   const [injects, setInjects] = useState<InjectPreview[] | null>(null);
   const [previousVersion, setPreviousVersion] = useState<string | undefined>();
   const [missingPrerequisites, setMissingPrerequisites] = useState<MissingPrerequisite[]>([]);
@@ -253,6 +271,7 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, thenLaun
     if (!targetable) return <span />;
     return targeted
       ? <Chip label={t('Targeted')} severity="low" />
+      // DS "high" uses the warning tokens: the same tone as the warning under the list.
       : <Chip label={t('Missing target')} severity="high" />;
   };
 
@@ -287,197 +306,239 @@ const ScenarioTargetsDrawer: FunctionComponent<Props> = ({ title, mode, thenLaun
     ? t('Targets chosen here are added to every inject that takes this kind of target; existing targets are kept. They are saved on the scenario, then the simulation starts.')
     : t('Targets chosen here are added to every inject that takes this kind of target; existing targets are kept. They are saved on the installed scenario.');
 
+  const prerequisiteName = (prerequisite: MissingPrerequisite) => prerequisite.requirement_catalog_connector_title ?? prerequisite.requirement_label;
+  const checkAgainButton = (
+    <Button size="sm" priority="tertiary" disabled={checking} onClick={checkAgain}>
+      {checking ? <Spinner size="sm" /> : t('Check again')}
+    </Button>
+  );
+
   return (
-    <Drawer open handleClose={onClose} title={title}>
-      {injects === null
-        ? <Spinner />
-        : (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 24,
-            }}
-            >
-              {missingPrerequisites.length > 0 && (
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                }}
+    <Drawer open onOpenChange={next => !next && onClose()}>
+      <DrawerContent size="lg" busy={submitting}>
+        <DrawerHeader
+          overline={overline}
+          title={title}
+          badge={version ? <Chip label={`v${version}`} /> : undefined}
+          closeLabel={t('Close')}
+        />
+        <DrawerBody>
+          {injects === null
+            ? <Spinner />
+            : (
+                // FDS-WORKAROUND: Alert title/description are <p> with browser margins — remove when the library resets them — see DS Alert
+                <div
+                  className="targets-drawer-content"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 24,
+                  }}
                 >
-                  <Alert
-                    severity={blockingPrerequisites.length > 0 ? 'error' : 'warning'}
-                    title={t('This platform lacks what the scenario needs')}
-                    description={blockingPrerequisites.length > 0
-                      ? t('Enable the missing integrations, then check again.')
-                      : t('You can install it now; it cannot run until these are available.')}
-                  />
-                  {missingPrerequisites.map(prerequisite => (
-                    <div
-                      key={`${prerequisite.requirement_kind}:${prerequisite.requirement_key}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                      }}
-                    >
-                      <Text variant="content-base" style={{ flex: 1 }}>
-                        {prerequisite.requirement_catalog_connector_title ?? prerequisite.requirement_label}
-                      </Text>
-                      {prerequisite.requirement_status && (
-                        <Chip
-                          label={t(prerequisite.requirement_status === 'NOT_RUNNING' ? 'Not running' : 'Not deployed')}
-                          severity="high"
-                        />
-                      )}
-                      {prerequisite.requirement_kind === 'INJECTOR' && prerequisite.requirement_catalog_connector_id && (
-                        <Button asChild size="sm" priority="secondary">
-                          <Link to={`/admin/integrations/catalog/${prerequisite.requirement_catalog_connector_id}`} target="_blank">
-                            {t('Enable integration')}
-                          </Link>
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                  <div>
-                    <Button size="sm" priority="secondary" disabled={checking} onClick={checkAgain}>
-                      {checking ? <Spinner size="sm" /> : t('Check again')}
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {chainedInstall
-                ? (
-                    <>
-                      <ChainedScopeFields
-                        allow={allowScope}
-                        deny={denyScope}
-                        limits={limits}
-                        onAllowChange={setAllowScope}
-                        onDenyChange={setDenyScope}
-                        onLimitsChange={setLimits}
-                      />
-                      {scopeSelectionCount(allowScope) === 0 && (
-                        <Alert severity="warning" title={t('Add at least one entry to the allow list.')} />
-                      )}
-                    </>
-                  )
-                : (
-                    <>
-                      <Text variant="content-base">{intro}</Text>
-                      {previousVersion && (
-                        <Text variant="content-caption">{t('Injects already in version {version} keep their targets.', { version: previousVersion })}</Text>
-                      )}
-                      <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 16,
-                      }}
-                      >
-                        {(takes(ASSETS) || takes(ASSET_GROUPS)) && (
-                          <TargetRow icon={<DnsOutlined fontSize="small" />} title={t('Assets and asset groups')} subtitle={t('Endpoint injects')}>
-                            <TargetField label={t('Assets and asset groups')} value={endpointsAndGroups} onChange={setEndpointsAndGroups} search={searchEndpointAndGroupOptions} />
-                          </TargetRow>
-                        )}
-                        {takes(MANUAL) && (
-                          <TargetRow icon={<AccountTreeOutlined fontSize="small" />} title={t('Manual targets')} subtitle={t('Injects in manual targeting')}>
-                            <Input
-                              aria-label={t('Manual targets')}
-                              placeholder="e.g. 10.0.0.12, 10.20.0.0/24, app.example.com"
-                              value={manual}
-                              onChange={event => setManual(event.target.value)}
-                            />
-                          </TargetRow>
-                        )}
-                        {takes(TEAMS) && (
-                          <TargetRow icon={<GroupsOutlined fontSize="small" />} title={t('Teams and players')} subtitle={t('Human injects: mail, SMS, challenges')}>
-                            <TargetField label={t('Teams and players')} value={teams} onChange={setTeams} search={searchTeamOptions} />
-                          </TargetRow>
-                        )}
-                      </div>
-                      <div>
-                        <Text variant="content-base-bold">{`${t('Injects')} (${all.length})`}</Text>
-                        <Text variant="content-caption">{t('Targets marked "added" come from this choice; the others were already on the scenario.')}</Text>
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                      }}
-                      >
-                        {all.map((inject, index) => {
-                          const added = addedTo(inject);
-                          const targeted = inject.is_targeted || added.length > 0;
-                          return (
-                            <div
-                              key={inject.inject_catalog_id ?? index}
+                  <style>{'.targets-drawer-content p { margin: 0; }'}</style>
+                  {/* What blocks first, self-contained: each missing integration, its status and its fixes in the alert. */}
+                  {missingPrerequisites.length > 0 && (
+                    <Alert
+                      elevation={1}
+                      severity={blockingPrerequisites.length > 0 ? 'error' : 'warning'}
+                      title={t('This platform lacks what the scenario needs')}
+                      // The Alert renders its description in a <p>: rows are spans (phrasing content), not divs.
+                      description={(
+                        <span style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 12,
+                        }}
+                        >
+                          <span>
+                            {blockingPrerequisites.length > 0
+                              ? t('Enable the missing integrations, then check again.')
+                              : t('You can install it now; it cannot run until these are available.')}
+                          </span>
+                          {missingPrerequisites.map((prerequisite, index) => (
+                            <span
+                              key={`${prerequisite.requirement_kind}:${prerequisite.requirement_key}`}
                               style={{
-                                display: 'grid',
-                                gridTemplateColumns: '24px minmax(0, 2fr) minmax(0, 2fr) auto auto',
-                                gap: 12,
-                                alignItems: 'center',
-                                padding: '8px 0',
-                                borderBottom: `1px solid ${theme.palette.divider}`,
-                              }}
-                            >
-                              {injectIcon(inject.target_fields)}
-                              <div style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 8,
+                                paddingTop: 12,
+                                borderTop: `1px solid var(${blockingPrerequisites.length > 0 ? '--border-alert-error' : '--border-alert-warning'})`,
                               }}
-                              >
-                                <Text variant="content-base">{inject.inject_title}</Text>
-                                {inject.is_new && previousVersion && <Chip label={t('New')} />}
-                              </div>
-                              <div style={{
-                                display: 'flex',
-                                gap: 4,
-                                flexWrap: 'wrap',
-                              }}
-                              >
-                                {(inject.current_targets ?? []).map(target => <Chip key={`${target.kind}:${target.label}`} label={target.label} />)}
-                                {added.map(target => <Chip key={`added:${target.kind}:${target.label}`} label={`${target.label} · ${t('added')}`} severity="info" />)}
-                              </div>
-                              {statusChip(inject.target_fields.length > 0, targeted)}
-                              {mode === 'launch' && scenarioId
-                                ? (
-                                    <IconButton asChild size="sm" priority="tertiary" aria-label={t('Edit the injects')} icon={<EditOutlined fontSize="small" />}>
-                                      <Link to={`/admin/scenarios/${scenarioId}/injects`} />
-                                    </IconButton>
-                                  )
-                                : <span />}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {missing.length > 0 && (
-                        <Alert
-                          severity="warning"
-                          title={missing.length === 1 ? t('1 inject has no target') : t('{count} injects have no target', { count: String(missing.length) })}
-                          description={mode === 'launch'
-                            ? t('Launch stays disabled until each targetable inject has a target.')
-                            : t('You can install it now and set the targets later from the scenario.')}
-                        />
+                            >
+                              <Text as="span" variant="content-base-bold">{prerequisiteName(prerequisite)}</Text>
+                              {prerequisite.requirement_status && (
+                                <Chip
+                                  label={t(prerequisite.requirement_status === 'NOT_RUNNING' ? 'Not running' : 'Not deployed')}
+                                  severity="critical"
+                                />
+                              )}
+                              <span style={{ flex: 1 }} />
+                              {/* One Check again: beside the fix of the last row. */}
+                              {index === missingPrerequisites.length - 1 && checkAgainButton}
+                              {prerequisite.requirement_kind === 'INJECTOR' && prerequisite.requirement_catalog_connector_id && (
+                                <Button asChild size="sm">
+                                  <Link to={`/admin/integrations/catalog/${prerequisite.requirement_catalog_connector_id}`} target="_blank">
+                                    {t('Enable integration')}
+                                  </Link>
+                                </Button>
+                              )}
+                            </span>
+                          ))}
+                        </span>
                       )}
-                    </>
+                    />
                   )}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                gap: 8,
-              }}
+                  {chainedInstall
+                    ? (
+                        <>
+                          <ChainedScopeFields
+                            allow={allowScope}
+                            deny={denyScope}
+                            limits={limits}
+                            onAllowChange={setAllowScope}
+                            onDenyChange={setDenyScope}
+                            onLimitsChange={setLimits}
+                          />
+                          {scopeSelectionCount(allowScope) === 0 && (
+                            <Alert elevation={1} severity="warning" title={t('Add at least one entry to the allow list.')} />
+                          )}
+                        </>
+                      )
+                    : (
+                        <>
+                          {/* Targets read as a form: the explanation is its helper text, the fields share one grid. */}
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 8,
+                          }}
+                          >
+                            <Text variant="content-caption" className="text-default-secondary">{intro}</Text>
+                            {previousVersion && (
+                              <Text variant="content-caption" className="text-default-secondary">
+                                {t('Injects already in version {version} keep their targets.', { version: previousVersion })}
+                              </Text>
+                            )}
+                            {(takes(ASSETS) || takes(ASSET_GROUPS) || takes(MANUAL) || takes(TEAMS)) && (
+                              <div style={GROUP_STYLE}>
+                                {[
+                                  (takes(ASSETS) || takes(ASSET_GROUPS)) && (
+                                    <TargetRow key="assets" icon={<DnsOutlined fontSize="small" />} title={t('Assets and asset groups')} subtitle={t('Endpoint injects')}>
+                                      <TargetField label={t('Assets and asset groups')} value={endpointsAndGroups} onChange={setEndpointsAndGroups} search={searchEndpointAndGroupOptions} />
+                                    </TargetRow>
+                                  ),
+                                  takes(MANUAL) && (
+                                    <TargetRow key="manual" icon={<AccountTreeOutlined fontSize="small" />} title={t('Manual targets')} subtitle={t('Injects in manual targeting')}>
+                                      <Input
+                                        aria-label={t('Manual targets')}
+                                        placeholder="e.g. 10.0.0.12, 10.20.0.0/24, app.example.com"
+                                        value={manual}
+                                        onChange={event => setManual(event.target.value)}
+                                      />
+                                    </TargetRow>
+                                  ),
+                                  takes(TEAMS) && (
+                                    <TargetRow key="teams" icon={<GroupsOutlined fontSize="small" />} title={t('Teams and players')} subtitle={t('Human injects: mail, SMS, challenges')}>
+                                      <TargetField label={t('Teams and players')} value={teams} onChange={setTeams} search={searchTeamOptions} />
+                                    </TargetRow>
+                                  ),
+                                ].filter(Boolean).map((row, index) => (
+                                  <div key={index} style={{ borderTop: index > 0 ? ROW_DIVIDER : undefined }}>{row}</div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 8,
+                          }}
+                          >
+                            <div>
+                              <Text variant="content-base-bold">{`${t('Injects')} (${all.length})`}</Text>
+                              <Text variant="content-caption" className="text-default-secondary">{t('Targets marked "added" come from this choice; the others were already on the scenario.')}</Text>
+                            </div>
+                            {/* The list, then the warning about it, on one surface. */}
+                            <div style={GROUP_STYLE}>
+                              {all.map((inject, index) => {
+                                const added = addedTo(inject);
+                                const targeted = inject.is_targeted || added.length > 0;
+                                return (
+                                  <div
+                                    key={inject.inject_catalog_id ?? index}
+                                    style={{
+                                      display: 'grid',
+                                      gridTemplateColumns: '20px minmax(0, 2fr) minmax(0, 1fr) auto auto',
+                                      gap: 12,
+                                      alignItems: 'center',
+                                      padding: '12px 16px',
+                                      borderTop: index > 0 ? ROW_DIVIDER : undefined,
+                                    }}
+                                  >
+                                    {injectIcon(inject.target_fields)}
+                                    <div style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 8,
+                                      minWidth: 0,
+                                    }}
+                                    >
+                                      <Text variant="content-base">{inject.inject_title}</Text>
+                                      {inject.is_new && previousVersion && <Chip label={t('New')} />}
+                                    </div>
+                                    <div style={{
+                                      display: 'flex',
+                                      gap: 4,
+                                      flexWrap: 'wrap',
+                                    }}
+                                    >
+                                      {(inject.current_targets ?? []).map(target => <Chip key={`${target.kind}:${target.label}`} label={target.label} />)}
+                                      {added.map(target => <Chip key={`added:${target.kind}:${target.label}`} label={`${target.label} · ${t('added')}`} severity="info" />)}
+                                    </div>
+                                    {statusChip(inject.target_fields.length > 0, targeted)}
+                                    {mode === 'launch' && scenarioId
+                                      ? (
+                                          <IconButton asChild size="sm" priority="tertiary" aria-label={t('Edit the injects')} icon={<EditOutlined fontSize="small" />}>
+                                            <Link to={`/admin/scenarios/${scenarioId}/injects`} />
+                                          </IconButton>
+                                        )
+                                      : <span />}
+                                  </div>
+                                );
+                              })}
+                              {missing.length > 0 && (
+                                <div style={{ borderTop: all.length > 0 ? ROW_DIVIDER : undefined }}>
+                                  <Alert
+                                    elevation={1}
+                                    severity="warning"
+                                    title={missing.length === 1 ? t('1 inject has no target') : t('{count} injects have no target', { count: String(missing.length) })}
+                                    description={mode === 'launch'
+                                      ? t('Launch stays disabled until each targetable inject has a target.')
+                                      : t('You can install it now and set the targets later from the scenario.')}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                </div>
+              )}
+          {injects !== null && (
+            <DrawerFooter>
+              <Button priority="secondary" disabled={submitting} onClick={onClose}>{t('Cancel')}</Button>
+              <Button
+                onClick={submit}
+                disabled={submitting || blocked}
+                startIcon={mode === 'launch' || thenLaunch ? <PlayArrowOutlined fontSize="small" /> : undefined}
               >
-                <Button priority="secondary" onClick={onClose}>{t('Cancel')}</Button>
-                <Button
-                  onClick={submit}
-                  disabled={submitting || blocked}
-                  startIcon={mode === 'launch' || thenLaunch ? <PlayArrowOutlined fontSize="small" /> : undefined}
-                >
-                  {mode === 'launch' ? t('Save targets and launch') : t(thenLaunch ? 'Install and launch' : 'Install')}
-                </Button>
-              </div>
-            </div>
+                {mode === 'launch' ? t('Save targets and launch') : t(thenLaunch ? 'Install and launch' : 'Install')}
+              </Button>
+            </DrawerFooter>
           )}
+        </DrawerBody>
+      </DrawerContent>
     </Drawer>
   );
 };

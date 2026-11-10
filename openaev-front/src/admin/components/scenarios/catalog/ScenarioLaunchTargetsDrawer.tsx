@@ -19,7 +19,8 @@ const ScenarioLaunchTargetsDrawer: FunctionComponent<Props> = ({ scenarioId, sce
   const navigate = useNavigate();
   return (
     <ScenarioTargetsDrawer
-      title={`${t('Launch')} ${scenarioName}`}
+      overline={t('Launch')}
+      title={scenarioName}
       mode="launch"
       scenarioId={scenarioId}
       load={() => fetchScenarioTargets(scenarioId).then(({ data }) => ({ injects: data.injects }))}

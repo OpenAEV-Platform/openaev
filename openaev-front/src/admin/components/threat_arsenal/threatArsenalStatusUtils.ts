@@ -28,11 +28,25 @@ export const STATUS_LABEL_MAP: Record<PayloadStatus, string> = {
   REVOKED: 'Revoked',
 };
 
-export const STATUS_CHIP_SEVERITY: Record<PayloadStatus, 'low' | 'medium' | 'neutral' | 'high'> = {
+export const STATUS_CHIP_SEVERITY: Record<PayloadStatus, 'low' | 'medium' | 'neutral' | 'high' | 'critical'> = {
   VERIFIED: 'low',
   UNVERIFIED: 'medium',
   DEPRECATED: 'neutral',
-  REVOKED: 'high',
+  // Red like the revoked banner and the Versions tab: it does not run.
+  REVOKED: 'critical',
+};
+
+// What each lifecycle status means, shown on hover of the card's status chip.
+export const STATUS_HINT_MAP: Record<PayloadStatus, string> = {
+  VERIFIED: 'Verified: the command is known to work.',
+  UNVERIFIED: 'Unverified: nobody has confirmed the command works yet.',
+  DEPRECATED: 'Deprecated: kept for history, no longer maintained.',
+  REVOKED: 'Revoked: does not run in this tenant until the revocation is lifted.',
+};
+
+export const getStatusHint = (status: PayloadStatus | string | undefined | null): string | null => {
+  if (!status) return null;
+  return STATUS_HINT_MAP[status as PayloadStatus] ?? null;
 };
 
 export const getStatusLabel = (status: PayloadStatus | string | undefined | null): string | null => {
