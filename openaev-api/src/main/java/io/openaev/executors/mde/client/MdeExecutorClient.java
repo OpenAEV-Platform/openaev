@@ -2,10 +2,12 @@ package io.openaev.executors.mde.client;
 
 import static io.openaev.integration.impl.executors.mde.MdeExecutorIntegration.MDE_EXECUTOR_NAME;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.executors.exception.ExecutorBusyException;
 import io.openaev.executors.exception.ExecutorException;
 import io.openaev.executors.mde.config.MdeExecutorConfig;
 import io.openaev.executors.mde.model.MdeAdvancedQueryResponse;
@@ -51,6 +53,8 @@ public class MdeExecutorClient {
   private static final String MACHINES_URI = "/machines";
   private static final String MACHINE_ACTIONS_URI = "/machineactions";
   private static final String ADVANCED_QUERIES_URI = "/advancedqueries/run";
+  private static final String ACTIVE_REQUEST_ALREADY_EXISTS = "ActiveRequestAlreadyExists";
+  private static final int TOO_MANY_REQUESTS = 429;
 
   /**
    * MDE {@code onboardingStatus} of a device that actually runs the Defender sensor and can execute
@@ -111,13 +115,14 @@ public class MdeExecutorClient {
   /**
    * Runs a Live Response script on a single MDE machine. MDE creates a machine action that executes
    * the script independently; OpenAEV then awaits the implant callback. Throttled dispatch across
-   * agents is handled by {@code MdeExecutorContextService.executeActions}, which schedules these
-   * calls in rate-limited batches.
+   * agents is handled by {@code BatchExecutorContextService}, which schedules these calls in
+   * rate-limited batches.
    *
    * @param machineId MDE machine ID (40-char hex)
    * @param scriptName name of the script pre-uploaded to the MDE Live Response Library
    * @param encodedCommand Base64-encoded command string passed as script argument
-   * @throws MdeApiException when MDE refuses the action, e.g. another session is open on the device
+   * @throws ExecutorBusyException when another session is open on the device or the rate limit is
+   *     hit
    */
   public void executeAction(
       @NotBlank String machineId, @NotBlank String scriptName, @NotBlank String encodedCommand) {
@@ -356,17 +361,31 @@ public class MdeExecutorClient {
                   respBody.length() > 500
                       ? respBody.substring(0, 500) + "...(truncated)"
                       : respBody;
-              MdeApiException failure = new MdeApiException(uri, code, respBody, objectMapper);
-              // Busy device and rate limit are retried by the caller, which logs each retry.
-              if (!failure.isDeviceBusy() && !failure.isRateLimited()) {
-                log.error("MDE API POST " + uri + " failed: HTTP " + code + " body=" + safeBody);
+              String failure =
+                  "MDE API POST " + uri + " failed: HTTP " + code + " body=" + safeBody;
+              if (isBusy(code, respBody)) {
+                throw new ExecutorBusyException(failure, MDE_EXECUTOR_NAME);
               }
-              throw failure;
+              log.error(failure);
+              throw new ExecutorException(failure, MDE_EXECUTOR_NAME);
             }
             return respBody;
           });
     } catch (IOException e) {
       throw new ClientProtocolException("Unexpected response for request on: " + uri, e);
+    }
+  }
+
+  // MDE runs one Live Response session per device and allows 10 calls per minute.
+  private boolean isBusy(int code, String body) {
+    if (code == TOO_MANY_REQUESTS) {
+      return true;
+    }
+    try {
+      return ACTIVE_REQUEST_ALREADY_EXISTS.equals(
+          objectMapper.readTree(body).path("error").path("code").asText());
+    } catch (JsonProcessingException e) {
+      return false;
     }
   }
 

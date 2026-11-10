@@ -8,36 +8,29 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.executors.ExecutorContextService;
+import io.openaev.executors.BatchExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
-import io.openaev.executors.mde.client.MdeApiException;
 import io.openaev.executors.mde.client.MdeExecutorClient;
 import io.openaev.executors.mde.config.MdeExecutorConfig;
 import io.openaev.executors.mde.model.MdeAction;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
-@Slf4j
 @Service(MdeExecutorContextService.SERVICE_NAME)
 @RequiredArgsConstructor
-public class MdeExecutorContextService extends ExecutorContextService {
+public class MdeExecutorContextService extends BatchExecutorContextService<MdeAction> {
 
   public static final String SERVICE_NAME = MDE_EXECUTOR_NAME;
 
-  private static final long BATCH_INTERVAL_SECONDS = 60;
-  private static final long RETRY_DELAY_SECONDS = 30;
-  // 14 retries of 30 s stay under the 10 minutes after which an agent that never started times out.
-  private static final int MAX_ATTEMPTS = 15;
+  // MDE allows 10 Live Response calls per minute.
+  private static final Duration BATCH_INTERVAL = Duration.ofMinutes(1);
 
   private final MdeExecutorConfig mdeExecutorConfig;
   private final MdeExecutorClient mdeExecutorClient;
@@ -45,13 +38,6 @@ public class MdeExecutorContextService extends ExecutorContextService {
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
   private final OpenAEVConfig openAEVConfig;
-
-  ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-
-  @Override
-  public void shutdown() {
-    scheduledExecutorService.shutdown();
-  }
 
   @Override
   public void launchExecutorSubprocess(
@@ -94,77 +80,33 @@ public class MdeExecutorContextService extends ExecutorContextService {
     actions.addAll(
         getMacOSActions(
             getAgentsFromOS(mdeAgents, Endpoint.PLATFORM_TYPE.MacOS), injector, inject, token));
-    executeActions(actions);
+    dispatch(actions);
     return mdeAgents;
   }
 
-  /**
-   * Dispatches MDE Live Response calls with a global rate limit. MDE allows 10 runliveresponse
-   * calls per minute (HTTP 429 above), so calls are grouped into batches of {@code
-   * apiBatchExecutionActionPagination} machines, one batch per minute, spread across the whole
-   * inject. Actions are built per agent, so the throttle must span all actions — otherwise every
-   * call fires at once and most get throttled, leaving only a handful of machines executed.
-   */
-  public void executeActions(List<MdeAction> actions) {
-    Integer configuredLimit = mdeExecutorConfig.getApiBatchExecutionActionPagination();
-    // A new/absent connector config key is deserialized as null (it overrides the field default),
-    // so
-    // guard against null/non-positive values to avoid an NPE or a division-by-zero in the batching.
-    int paginationLimit =
-        (configuredLimit != null && configuredLimit > 0)
-            ? configuredLimit
-            : MdeExecutorConfig.DEFAULT_API_BATCH_EXECUTION_ACTION_PAGINATION;
-    List<Runnable> dispatches = new ArrayList<>();
-    for (MdeAction action : actions) {
-      for (Agent agent : action.getAgents()) {
-        dispatches.add(() -> send(action, agent, 1));
-      }
-    }
-    int batchCount = (int) Math.ceil(dispatches.size() / (double) paginationLimit);
-    for (int batchIndex = 0; batchIndex < batchCount; batchIndex++) {
-      int fromIndex = batchIndex * paginationLimit;
-      int toIndex = Math.min(fromIndex + paginationLimit, dispatches.size());
-      List<Runnable> batch = dispatches.subList(fromIndex, toIndex);
-      scheduledExecutorService.schedule(
-          () -> batch.forEach(Runnable::run),
-          batchIndex * BATCH_INTERVAL_SECONDS,
-          TimeUnit.SECONDS);
-    }
+  @Override
+  protected void send(MdeAction action) {
+    mdeExecutorClient.executeAction(
+        agentReference(action), action.getScriptName(), action.getCommandEncoded());
   }
 
-  /**
-   * Sends one Live Response action. MDE runs one session per device and refuses the others, and
-   * throttles above 10 calls per minute: both cases are retried instead of losing the payload.
-   */
-  private void send(MdeAction action, Agent agent, int attempt) {
-    try {
-      mdeExecutorClient.executeAction(
-          agent.getExternalReference(), action.getScriptName(), action.getCommandEncoded());
-    } catch (MdeApiException e) {
-      if ((e.isDeviceBusy() || e.isRateLimited()) && attempt < MAX_ATTEMPTS) {
-        log.warn(
-            "MDE Live Response {} on machine {}, retry {}/{} in {}s",
-            e.isDeviceBusy() ? "busy" : "rate limited",
-            agent.getExternalReference(),
-            attempt,
-            MAX_ATTEMPTS - 1,
-            RETRY_DELAY_SECONDS);
-        scheduledExecutorService.schedule(
-            () -> send(action, agent, attempt + 1), RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
-        return;
-      }
-      log.error(
-          "MDE Live Response could not start on machine {}: {}",
-          agent.getExternalReference(),
-          e.getMessage(),
-          e);
-    } catch (Exception e) {
-      log.error(
-          "Error executing MDE Live Response action on machine {}: {}",
-          agent.getExternalReference(),
-          e.getMessage(),
-          e);
-    }
+  @Override
+  protected String agentReference(MdeAction action) {
+    return action.getAgent().getExternalReference();
+  }
+
+  @Override
+  protected int batchSize() {
+    Integer configured = mdeExecutorConfig.getApiBatchExecutionActionPagination();
+    // An absent connector config key is deserialized as null and overrides the field default.
+    return configured != null && configured > 0
+        ? configured
+        : MdeExecutorConfig.DEFAULT_API_BATCH_EXECUTION_ACTION_PAGINATION;
+  }
+
+  @Override
+  protected Duration batchInterval() {
+    return BATCH_INTERVAL;
   }
 
   private List<MdeAction> getWindowsActions(
@@ -180,7 +122,7 @@ public class MdeExecutorContextService extends ExecutorContextService {
     // One action per agent, mirroring CrowdStrike/SentinelOne: the implant is launched with the
     // OpenAEV agent id (its UUID primary key) as --agent-id so the execution callback resolves the
     // agent via findById, while MDE is targeted by the device id (external reference) in
-    // executeActions. Reading the device id from the endpoint registry at runtime is unreliable (it
+    // send. Reading the device id from the endpoint registry at runtime is unreliable (it
     // is empty on some machines), and the agent primary key must not equal the external reference
     // (see migration Reassign_agent_ids_for_external_executors).
     for (Agent agent : agents) {
@@ -222,7 +164,7 @@ public class MdeExecutorContextService extends ExecutorContextService {
       // (CrowdStrike RTR uses UTF-16LE for -encodedCommand, but that's not applicable here).
       action.setCommandEncoded(
           Base64.getEncoder().encodeToString(command.getBytes(StandardCharsets.UTF_8)));
-      action.setAgents(List.of(agent));
+      action.setAgent(agent);
       actions.add(action);
     }
     return actions;
@@ -249,7 +191,7 @@ public class MdeExecutorContextService extends ExecutorContextService {
       MdeAction action = new MdeAction();
       action.setScriptName(mdeExecutorConfig.getUnixScriptName());
       action.setCommandEncoded(getUnixCommand(platform, injector, inject, agent, token));
-      action.setAgents(List.of(agent));
+      action.setAgent(agent);
       actions.add(action);
     }
     return actions;
