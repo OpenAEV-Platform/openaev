@@ -1,5 +1,7 @@
 package io.openaev.rest.lessons;
 
+import static io.openaev.config.OpenAEVAnonymous.ANONYMOUS;
+import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.rest.lessons.LessonsCategoryHydration.hydrateForResponse;
@@ -414,18 +416,17 @@ public class ExerciseLessonsApi extends RestBehavior {
   public List<LessonsCategory> playerLessonsCategories(
       TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    impersonateUser(userRepository, userId); // Protection for ?
+    final User user = impersonateUser(userRepository, userId);
+    final Exercise exercise = playerExercise(ctx, exerciseId, user);
+    final boolean seesEveryCategory = exercise.isUserHasAccess(user);
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
         .stream()
         .filter(
             lessonsCategory ->
-                userId.isEmpty()
+                seesEveryCategory
                     || lessonsCategory.getTeams().stream()
-                        .anyMatch(
-                            team ->
-                                team.getUsers().stream()
-                                    .anyMatch(user -> user.getId().equals(userId.get()))))
+                        .anyMatch(team -> team.getUsers().contains(user)))
         .toList();
   }
 
@@ -439,7 +440,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   public List<LessonsQuestion> playerLessonsQuestions(
       TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    impersonateUser(userRepository, userId); // Protection for ?
+    playerExercise(ctx, exerciseId, impersonateUser(userRepository, userId));
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
         .stream()
@@ -461,7 +462,8 @@ public class ExerciseLessonsApi extends RestBehavior {
   public List<LessonsAnswer> playerLessonsAnswers(
       TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    impersonateUser(userRepository, userId); // Protection for ?
+    final User user = impersonateUser(userRepository, userId);
+    playerExercise(ctx, exerciseId, user);
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
         .stream()
@@ -479,7 +481,8 @@ public class ExerciseLessonsApi extends RestBehavior {
                                 .stream()))
         .filter(
             lessonsAnswer ->
-                userId.isEmpty() || lessonsAnswer.getUser().getId().equals(userId.get()))
+                lessonsAnswer.getUser() != null
+                    && lessonsAnswer.getUser().getId().equals(user.getId()))
         .toList();
   }
 
@@ -494,15 +497,24 @@ public class ExerciseLessonsApi extends RestBehavior {
   public LessonsAnswer createExerciseLessonsQuestion(
       TxCtx ctx,
       @PathVariable String exerciseId,
+      @PathVariable String lessonsCategoryId,
       @PathVariable String lessonsQuestionId,
       @Valid @RequestBody LessonsAnswerCreateInput input,
       @RequestParam Optional<String> userId)
       throws AuthenticationError {
-    User user = impersonateUser(userRepository, userId);
+    final User user = impersonateUser(userRepository, userId);
+    playerExercise(ctx, exerciseId, user);
     LessonsQuestion lessonsQuestion =
         lessonsQuestionRepository
             .findById(lessonsQuestionId)
             .orElseThrow(ElementNotFoundException::new);
+    LessonsCategory lessonsCategory = lessonsQuestion.getCategory();
+    if (lessonsCategory == null
+        || lessonsCategory.getExercise() == null
+        || !exerciseId.equals(lessonsCategory.getExercise().getId())
+        || !lessonsCategoryId.equals(lessonsCategory.getId())) {
+      throw new ElementNotFoundException();
+    }
 
     Optional<LessonsAnswer> optionalAnswer =
         lessonsAnswerRepository.findByUserIdAndQuestionId(user.getId(), lessonsQuestionId);
@@ -519,5 +531,23 @@ public class ExerciseLessonsApi extends RestBehavior {
     lessonsAnswer.setNegative(input.getNegative());
 
     return lessonsAnswerRepository.save(lessonsAnswer);
+  }
+
+  /**
+   * Resolves the simulation of a player route within the request's tenant scope. A classically
+   * authenticated caller must be a player of the simulation or hold a grant on it, as {@code
+   * DocumentApi#playerDocuments} requires; an anonymous caller is already bound to the simulation
+   * by its url access token, so the token carries the authorization.
+   */
+  private Exercise playerExercise(TxCtx ctx, String exerciseId, User user)
+      throws AuthenticationError {
+    Exercise exercise =
+        exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    if (!ANONYMOUS.equals(currentUser().getId())
+        && !exercise.isUserHasAccess(user)
+        && !exercise.getUsers().contains(user)) {
+      throw new AuthenticationError("The given player is not in this exercise");
+    }
+    return exercise;
   }
 }
