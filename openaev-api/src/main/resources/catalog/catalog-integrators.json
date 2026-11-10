@@ -2035,7 +2035,7 @@
                     },
                     "SPLUNKES_LOGGING_ENABLED": {
                         "default": false,
-                        "description": "Search raw-event indexes to answer LOGGING expectations. Requires SPLUNKES_LOGGING_INDEXES.",
+                        "description": "Search raw-event indexes to answer LOGGING expectations. Requires LOGGING_EXPECTATION preview feature and SPLUNKES_LOGGING_INDEXES.",
                         "type": "boolean"
                     },
                     "SPLUNKES_LOGGING_INDEXES": {
