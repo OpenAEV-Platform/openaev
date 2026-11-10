@@ -44,6 +44,7 @@ import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.*;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -499,6 +500,8 @@ public class TenantGroupApiTest extends IntegrationTest {
           defaultTenantId, Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES));
       // The caller stays a member of the default tenant only
       String otherTenantId = tenantIsolationHelper.createTenant("group-roles-other").getId();
+      // createTenant enrols the creating user in the new tenant
+      tenantIsolationHelper.detachCurrentUserFromTenant(otherTenantId);
       tenantIsolationHelper.switchToTenant(otherTenantId, entityManager);
       Role role =
           tenantRoleComposer
@@ -508,6 +511,13 @@ public class TenantGroupApiTest extends IntegrationTest {
       tenantIsolationHelper.switchToTenant(defaultTenantId, entityManager);
 
       // -------- Act & Assert --------
+      assertEquals(
+          Set.of(defaultTenantId),
+          testUserHolder.get().getTenants().stream().map(Tenant::getId).collect(Collectors.toSet()),
+          "the caller is a member of the default tenant only");
+      assertTrue(
+          tenantUri(TENANT_GROUP_URI).contains(defaultTenantId),
+          "the request targets the group's tenant");
       assertGroupRolesRefused(group.getId(), role.getId());
     }
 
