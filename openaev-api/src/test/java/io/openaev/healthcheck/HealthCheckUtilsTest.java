@@ -1172,25 +1172,40 @@ public class HealthCheckUtilsTest {
   class CollectorChecks {
 
     @ParameterizedTest(
-        name = "declares logging: {0}, on {1}, expected platform: {2} -> collector found: {3}")
+        name =
+            "{0} expectation, logging enabled: {1}, collector declaring [{2}] on {3}, expected"
+                + " platform: {4} -> error: {5}")
     @CsvSource({
-      "true, SIEM, , true",
-      "false, SIEM, , false",
-      "true, SIEM, SIEM, true",
-      "true, EDR, SIEM, false"
+      // Logging: only a collector declaring LOGGING, on the expected platform, answers it.
+      "LOGGING, true, LOGGING, SIEM, , false",
+      "LOGGING, true, , SIEM, , true",
+      "LOGGING, true, LOGGING, SIEM, SIEM, false",
+      "LOGGING, true, LOGGING, EDR, SIEM, true",
+      "LOGGING, false, , SIEM, , false",
+      // Detection and Prevention: a collector declaring no type still answers them.
+      "DETECTION, true, , EDR, , false",
+      "DETECTION, true, LOGGING, SIEM, , true",
+      "DETECTION, true, DETECTION, SIEM, EDR, true",
+      "PREVENTION, true, PREVENTION, EDR, EDR, false",
+      // An unknown expected platform type is skipped instead of breaking the check.
+      "LOGGING, true, LOGGING, SIEM, NOT_A_PLATFORM, false",
+      // Vulnerability is answered by its injector, not by a collector.
+      "VULNERABILITY, true, LOGGING, SIEM, , false"
     })
-    void given_logging_expectation_should_require_a_collector_able_to_answer_it(
-        boolean declaresLogging,
+    void given_collector_fulfilled_expectation_should_require_a_collector_able_to_answer_it(
+        String expectationType,
+        boolean loggingEnabled,
+        String declaredType,
         String collectorPlatformType,
         String expectedPlatformType,
-        boolean collectorFound) {
+        boolean expectError) {
       // -- ARRANGE --
       when(previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION))
-          .thenReturn(true);
+          .thenReturn(loggingEnabled);
       Inject inject = new Inject();
       ObjectNode content = mapper.createObjectNode();
       ObjectNode expectation =
-          content.putArray("expectations").addObject().put("expectation_type", "LOGGING");
+          content.putArray("expectations").addObject().put("expectation_type", expectationType);
       if (expectedPlatformType != null) {
         expectation
             .putArray("expectation_expected_security_platform_types")
@@ -1200,10 +1215,10 @@ public class HealthCheckUtilsTest {
       Collector collector = CollectorFixture.createDefaultCollector("collector");
       collector.setSecurityPlatform(
           SecurityPlatformFixture.createDefault("platform", collectorPlatformType));
-      if (declaresLogging) {
+      if (declaredType != null) {
         collector.setSupportedExpectationTypes(
             new BaseInjectExpectation.EXPECTATION_TYPE[] {
-              BaseInjectExpectation.EXPECTATION_TYPE.LOGGING
+              BaseInjectExpectation.EXPECTATION_TYPE.valueOf(declaredType)
             });
       }
 
@@ -1212,7 +1227,7 @@ public class HealthCheckUtilsTest {
           healthCheckUtils.runCollectorChecks(inject, List.of(collector));
 
       // -- ASSERT --
-      assertEquals(collectorFound, healthChecks.isEmpty());
+      assertEquals(expectError, !healthChecks.isEmpty());
     }
   }
 }
