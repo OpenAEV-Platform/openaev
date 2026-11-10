@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,9 +11,16 @@ import { type NewsFeedSettingsOutput } from '../../../../utils/api-types';
 let enabled = false;
 let canManageTenantSettings = true;
 let xtmHubReachable = true;
-const { mockFetchSettings, mockUpdateSettings } = vi.hoisted(() => ({
+const {
+  mockFetchSettings,
+  mockUpdateSettings,
+  mockNotifyError,
+  mockNotifyErrorHandler,
+} = vi.hoisted(() => ({
   mockFetchSettings: vi.fn(),
   mockUpdateSettings: vi.fn(),
+  mockNotifyError: vi.fn(),
+  mockNotifyErrorHandler: vi.fn(),
 }));
 
 vi.mock('../../../../utils/utils', () => ({ isFeatureEnabled: () => enabled }));
@@ -23,6 +30,17 @@ vi.mock('../../../../actions/news_feed/news-feed-actions', () => ({
   fetchMyNewsFeedSettings: mockFetchSettings,
   updateMyNewsFeedSettings: mockUpdateSettings,
 }));
+vi.mock(import('../../../../utils/Environment'), async (importOriginal) => {
+  const original = await importOriginal();
+  return {
+    ...original,
+    MESSAGING$: {
+      ...original.MESSAGING$,
+      notifyError: mockNotifyError,
+    },
+  };
+});
+vi.mock('../../../../utils/error/errorHandlerUtil', () => ({ notifyErrorHandler: mockNotifyErrorHandler }));
 vi.mock('../../../../admin/components/profile/news_feed/NewsFeedList', () => ({ default: () => <div data-testid="news-feed-list" /> }));
 vi.mock('../../../../components/NotFound', () => ({ default: () => <div data-testid="not-found" /> }));
 
@@ -138,7 +156,7 @@ describe('NewsFeed page', () => {
       expect(screen.getByRole('link', { name: 'Connect product to XTM Hub' })).toHaveAttribute('href', '/redirect/connect-xtm-hub');
     });
 
-    it.each(['items', 'settings'] as const)('is not shown on the %s tab to a user who cannot connect XTM Hub', async (tab) => {
+    it.each(['items', 'settings'] as const)('asks a user who cannot connect XTM Hub to ask an administrator, with no way to connect, on the %s tab', async (tab) => {
       canManageTenantSettings = false;
       mockFetchSettings.mockResolvedValue({
         data: buildSettings({
@@ -147,12 +165,8 @@ describe('NewsFeed page', () => {
         }),
       });
       renderPage(tab);
-      await waitFor(() => expect(mockFetchSettings).toHaveBeenCalled());
-      // let the settings land in the page before checking that the banner stays absent
-      await act(async () => {
-        await mockFetchSettings.mock.results[0].value;
-      });
-      expect(screen.queryByText(DISCONNECTED)).not.toBeInTheDocument();
+      expect(await screen.findByText(DISCONNECTED)).toBeInTheDocument();
+      expect(screen.getByText('Ask an administrator to connect your product to XTM Hub so you can receive News Feeds')).toBeInTheDocument();
       expect(screen.queryByRole('link', { name: 'Connect product to XTM Hub' })).not.toBeInTheDocument();
     });
 
@@ -211,7 +225,7 @@ describe('NewsFeed page', () => {
     it('unsubscribes from a type when its switch is turned off', async () => {
       renderPage('settings');
       fireEvent.click(await screen.findByRole('switch', { name: 'Scenario' }));
-      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }, false));
       await waitFor(() => expect(screen.getByRole('switch', { name: 'Scenario' })).not.toBeChecked());
     });
 
@@ -219,35 +233,35 @@ describe('NewsFeed page', () => {
       renderPage('settings');
       await screen.findByRole('switch', { name: 'Scenario' });
       fireEvent.click(screen.getByText('Scenario'));
-      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }, false));
     });
 
     it('unsubscribes from everything when the label of the global switch is clicked', async () => {
       renderPage('settings');
       await screen.findByRole('switch', { name: ENABLE_ALL });
       fireEvent.click(screen.getByText(ENABLE_ALL));
-      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }, false));
     });
 
     it('subscribes to a type again when its switch is turned back on', async () => {
       mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_subscribed_types: [] }) });
       renderPage('settings');
       fireEvent.click(await screen.findByRole('switch', { name: 'Scenario' }));
-      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'] }));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'] }, false));
       await waitFor(() => expect(screen.getByRole('switch', { name: 'Scenario' })).toBeChecked());
     });
 
     it('unsubscribes from everything with the global switch', async () => {
       renderPage('settings');
       fireEvent.click(await screen.findByRole('switch', { name: ENABLE_ALL }));
-      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }, false));
     });
 
     it('subscribes to every type with the global switch', async () => {
       mockFetchSettings.mockResolvedValue({ data: buildSettings({ news_feed_settings_subscribed_types: [] }) });
       renderPage('settings');
       fireEvent.click(await screen.findByRole('switch', { name: ENABLE_ALL }));
-      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'] }));
+      await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'] }, false));
     });
 
     it('keeps the previous state when the save fails', async () => {
@@ -257,6 +271,25 @@ describe('NewsFeed page', () => {
       await waitFor(() => expect(mockUpdateSettings).toHaveBeenCalled());
       await waitFor(() => expect(screen.getByRole('switch', { name: 'Scenario' })).not.toBeDisabled());
       expect(screen.getByRole('switch', { name: 'Scenario' })).toBeChecked();
+    });
+
+    it('explains that the product is no longer connected when the save is refused with a 403', async () => {
+      mockUpdateSettings.mockRejectedValue({ status: 403 });
+      renderPage('settings');
+      fireEvent.click(await screen.findByRole('switch', { name: 'Scenario' }));
+      await waitFor(() => expect(mockNotifyError).toHaveBeenCalledWith('Your OpenAEV product is no longer connected to XTM Hub'));
+      expect(mockUpdateSettings).toHaveBeenCalledWith({ news_feed_settings_subscribed_types: [] }, false);
+      expect(mockNotifyErrorHandler).not.toHaveBeenCalled();
+      expect(screen.getByRole('switch', { name: 'Scenario' })).toBeChecked();
+    });
+
+    it('lets the generic handler notify any other save failure', async () => {
+      const error = new Error('boom');
+      mockUpdateSettings.mockRejectedValue(error);
+      renderPage('settings');
+      fireEvent.click(await screen.findByRole('switch', { name: 'Scenario' }));
+      await waitFor(() => expect(mockNotifyErrorHandler).toHaveBeenCalledWith(error));
+      expect(mockNotifyError).not.toHaveBeenCalled();
     });
 
     it('cannot be changed when the tenant is not registered', async () => {

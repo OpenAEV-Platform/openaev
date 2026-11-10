@@ -7,7 +7,7 @@ import useAuth from '../../../../utils/hooks/useAuth';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { isFeatureEnabled } from '../../../../utils/utils';
-import NewsFeedHubBanner from './NewsFeedHubBanner';
+import NewsFeedHubBanner, { type NewsFeedHubBannerVariant } from './NewsFeedHubBanner';
 import NewsFeedList from './NewsFeedList';
 import NewsFeedSettings from './NewsFeedSettings';
 import NewsFeedTabs, { type NewsFeedTab } from './NewsFeedTabs';
@@ -17,13 +17,13 @@ interface Props { tab: NewsFeedTab }
 
 /**
  * The settings are loaded for both tabs: they tell whether the banner inviting to connect XTM Hub shows.
- * As on OpenCTI, a platform that lost its connectivity gets the banner too, and one that cannot reach
- * XTM Hub gets it without the way to connect.
+ * As on OpenCTI, a platform that lost its connectivity gets the banner too. One that cannot reach XTM Hub,
+ * and a user who cannot connect it, get it without the way to connect.
  */
 const NewsFeedPage = ({ tab }: Props) => {
   const { t } = useFormatter();
   const ability = useAbility();
-  // Same permission as the connect flow: the banner is pointless for a user who cannot follow it.
+  // Same permission as the connect flow: a user without it is told to ask an administrator instead.
   const canConnectXtmHub = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   const { settings: platformSettings } = useAuth();
   const isXtmHubUnreachable = platformSettings.xtm_hub_reachable === false;
@@ -33,6 +33,13 @@ const NewsFeedPage = ({ tab }: Props) => {
     saving,
     updateSubscribedTypes,
   } = useNewsFeedSettings();
+
+  let bannerVariant: NewsFeedHubBannerVariant | null = null;
+  if (isXtmHubUnreachable) {
+    bannerVariant = 'unreachable';
+  } else if (settings && !settings.news_feed_settings_hub_connected) {
+    bannerVariant = canConnectXtmHub ? 'connect' : 'ask_administrator';
+  }
 
   return (
     <>
@@ -44,9 +51,7 @@ const NewsFeedPage = ({ tab }: Props) => {
         }]}
       />
       <Text variant="title-xl" as="h1" style={{ margin: '24px 0' }}>{t('XTM Hub News Feed')}</Text>
-      {isXtmHubUnreachable
-        ? <NewsFeedHubBanner unreachable />
-        : canConnectXtmHub && settings && !settings.news_feed_settings_hub_connected && <NewsFeedHubBanner />}
+      {bannerVariant && <NewsFeedHubBanner variant={bannerVariant} />}
       <NewsFeedTabs current={tab} />
       <div style={{ marginTop: 20 }}>
         {tab === 'items'

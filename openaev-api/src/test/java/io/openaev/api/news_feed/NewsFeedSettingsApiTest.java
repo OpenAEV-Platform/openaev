@@ -293,6 +293,25 @@ class NewsFeedSettingsApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Given more types than the bound, should reject the payload")
+    void given_tooManyEntries_should_returnBadRequest() throws Exception {
+      // Arrange
+      registerTenant(tenantId, XtmHubRegistrationStatus.REGISTERED);
+      String tooMany =
+          "\"RESOURCE_SCENARIO\","
+              .repeat(NewsFeedSettingsInput.MAX_SUBSCRIBED_TYPES)
+              .concat("\"RESOURCE_SCENARIO\"");
+
+      // Act & Assert
+      mvc.perform(
+              put(SETTINGS_URI, tenantId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"" + SUBSCRIBED_TYPES_FIELD + "\":[" + tooMany + "]}")
+                  .with(csrf()))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("Given the feature disabled, should not find the endpoint")
     void given_featureDisabled_should_returnNotFound() throws Exception {
       // Arrange

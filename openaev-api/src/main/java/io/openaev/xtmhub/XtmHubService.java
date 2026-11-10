@@ -29,7 +29,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,7 +78,7 @@ public class XtmHubService {
    */
   public Page<NewsFeedItem> searchMyNewsFeedItems(
       TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
-    if (!isNewsFeedAvailable(ctx)) {
+    if (!isNewsFeedServed(registrationStatuses(ctx))) {
       return new PageImpl<>(
           List.of(),
           PageRequest.of(searchPaginationInput.getPage(), searchPaginationInput.getSize()),
@@ -89,42 +88,62 @@ public class XtmHubService {
   }
 
   /**
+   * The news feed settings of the current user: the types they are subscribed to, whether their
+   * news feed is served by XTM Hub, and whether XTM Hub is connected.
+   */
+  public NewsFeedSettings getMyNewsFeedSettings(TxCtx ctx) {
+    Set<XtmHubRegistrationStatus> statuses = registrationStatuses(ctx);
+    return new NewsFeedSettings(
+        newsFeedItemService.getMySubscribedTypes(),
+        isNewsFeedServed(statuses),
+        isHubConnected(statuses));
+  }
+
+  /**
    * Subscribes the current user to the given news feed types and only those. The preferences only
    * make sense for a tenant registered on XTM Hub, as it is the one that delivers the items.
    *
+   * @return the news feed settings of the user once updated
    * @throws ForbiddenException when no tenant in the scope of the request is registered
    */
-  public List<NewsFeedType> updateMyNewsFeedSubscribedTypes(
+  public NewsFeedSettings updateMyNewsFeedSettings(
       TxCtx ctx, @NotNull final Collection<NewsFeedType> subscribedTypes) {
-    if (!isNewsFeedAvailable(ctx)) {
+    Set<XtmHubRegistrationStatus> statuses = registrationStatuses(ctx);
+    if (!isNewsFeedServed(statuses)) {
       throw new ForbiddenException("The tenant is not registered on XTM Hub");
     }
-    return newsFeedItemService.updateMySubscribedTypes(subscribedTypes);
+    return new NewsFeedSettings(
+        newsFeedItemService.updateMySubscribedTypes(subscribedTypes),
+        true,
+        isHubConnected(statuses));
+  }
+
+  /** The registration statuses of the tenants in the scope of the request, read at once. */
+  private Set<XtmHubRegistrationStatus> registrationStatuses(TxCtx ctx) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (tenantIds.isEmpty()) {
+      return Set.of();
+    }
+    return tenantXtmHubRegistrationRepository.findByTenantIdIn(tenantIds).stream()
+        .map(TenantXtmHubRegistration::getRegistrationStatus)
+        .collect(Collectors.toSet());
   }
 
   /**
-   * Whether the news feed of the user is served by XTM Hub, that is when a tenant in the scope of
-   * the request is registered (a tenant that lost its connectivity still is).
+   * Whether the news feed is served by XTM Hub, that is when a tenant in the scope of the request
+   * is registered (a tenant that lost its connectivity still is).
    */
-  public boolean isNewsFeedAvailable(TxCtx ctx) {
-    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    return !tenantIds.isEmpty()
-        && tenantXtmHubRegistrationRepository.existsByTenantIdInAndRegistrationStatusIn(
-            tenantIds,
-            EnumSet.of(
-                XtmHubRegistrationStatus.REGISTERED, XtmHubRegistrationStatus.LOST_CONNECTIVITY));
+  private static boolean isNewsFeedServed(Set<XtmHubRegistrationStatus> statuses) {
+    return statuses.contains(XtmHubRegistrationStatus.REGISTERED)
+        || statuses.contains(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
   }
 
   /**
-   * Whether a tenant in the scope of the request is registered on XTM Hub and still reaches it,
-   * unlike {@link #isNewsFeedAvailable(TxCtx)} that also holds for a tenant that lost its
-   * connectivity.
+   * Whether a tenant in the scope of the request is registered and still reaches XTM Hub, unlike
+   * {@link #isNewsFeedServed(Set)} that also holds for a tenant that lost its connectivity.
    */
-  public boolean isHubConnected(TxCtx ctx) {
-    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    return !tenantIds.isEmpty()
-        && tenantXtmHubRegistrationRepository.existsByTenantIdInAndRegistrationStatusIn(
-            tenantIds, EnumSet.of(XtmHubRegistrationStatus.REGISTERED));
+  private static boolean isHubConnected(Set<XtmHubRegistrationStatus> statuses) {
+    return statuses.contains(XtmHubRegistrationStatus.REGISTERED);
   }
 
   public TenantXtmHubRegistration register(TxCtx ctx, @NotBlank final String token) {

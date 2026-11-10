@@ -21,6 +21,7 @@ import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.model.User;
@@ -28,6 +29,7 @@ import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.ee.License;
 import io.openaev.ee.LicenseTypeEnum;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.response.PlatformSettings;
 import io.openaev.service.NewsFeedItemService;
@@ -40,7 +42,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1870,21 +1871,26 @@ class XtmHubServiceTest {
   }
 
   @Nested
-  @DisplayName("news feed availability")
-  class NewsFeedAvailability {
+  @DisplayName("news feed settings")
+  class NewsFeedSettingsTests {
 
     private static final String TENANT_A = "tenant-a";
     private static final String TENANT_B = "tenant-b";
-    private static final EnumSet<XtmHubRegistrationStatus> CONNECTED =
-        EnumSet.of(XtmHubRegistrationStatus.REGISTERED);
-    private static final EnumSet<XtmHubRegistrationStatus> SERVED =
-        EnumSet.of(XtmHubRegistrationStatus.REGISTERED, XtmHubRegistrationStatus.LOST_CONNECTIVITY);
 
-    private void givenTenantsInStatuses(
-        Set<String> tenantIds, Set<XtmHubRegistrationStatus> statuses, boolean someTenantMatches) {
-      when(tenantXtmHubRegistrationRepository.existsByTenantIdInAndRegistrationStatusIn(
-              tenantIds, statuses))
-          .thenReturn(someTenantMatches);
+    private void givenRegistrations(
+        Set<String> tenantIds, XtmHubRegistrationStatus... statusesOfTenants) {
+      List<TenantXtmHubRegistration> registrations =
+          Arrays.stream(statusesOfTenants)
+              .map(
+                  status -> {
+                    TenantXtmHubRegistration registration =
+                        buildRegistration(TENANT_A, "token", now.minusHours(1));
+                    registration.setRegistrationStatus(status);
+                    return registration;
+                  })
+              .toList();
+      when(tenantXtmHubRegistrationRepository.findByTenantIdIn(tenantIds))
+          .thenReturn(registrations);
     }
 
     @Test
@@ -1892,27 +1898,29 @@ class XtmHubServiceTest {
         "Given a tenant that lost its connectivity, should still serve the news feed but not be"
             + " connected")
     void given_lostConnectivityTenant_should_serveNewsFeedButNotBeConnected() {
-      // Arrange: no registered tenant, one that lost its connectivity
-      givenTenantsInStatuses(Set.of(TENANT_A), CONNECTED, false);
-      givenTenantsInStatuses(Set.of(TENANT_A), SERVED, true);
-      TxCtx ctx = TxCtx.forTenant(TENANT_A);
+      // Arrange
+      givenRegistrations(Set.of(TENANT_A), XtmHubRegistrationStatus.LOST_CONNECTIVITY);
 
-      // Act & Assert
-      assertThat(xtmHubService.isNewsFeedAvailable(ctx)).isTrue();
-      assertThat(xtmHubService.isHubConnected(ctx)).isFalse();
+      // Act
+      NewsFeedSettings settings = xtmHubService.getMyNewsFeedSettings(TxCtx.forTenant(TENANT_A));
+
+      // Assert
+      assertThat(settings.hubRegistered()).isTrue();
+      assertThat(settings.hubConnected()).isFalse();
     }
 
     @Test
     @DisplayName("Given a registered tenant, should serve the news feed and be connected")
     void given_registeredTenant_should_serveNewsFeedAndBeConnected() {
       // Arrange
-      givenTenantsInStatuses(Set.of(TENANT_A), CONNECTED, true);
-      givenTenantsInStatuses(Set.of(TENANT_A), SERVED, true);
-      TxCtx ctx = TxCtx.forTenant(TENANT_A);
+      givenRegistrations(Set.of(TENANT_A), XtmHubRegistrationStatus.REGISTERED);
 
-      // Act & Assert
-      assertThat(xtmHubService.isNewsFeedAvailable(ctx)).isTrue();
-      assertThat(xtmHubService.isHubConnected(ctx)).isTrue();
+      // Act
+      NewsFeedSettings settings = xtmHubService.getMyNewsFeedSettings(TxCtx.forTenant(TENANT_A));
+
+      // Assert
+      assertThat(settings.hubRegistered()).isTrue();
+      assertThat(settings.hubConnected()).isTrue();
     }
 
     @Test
@@ -1920,41 +1928,76 @@ class XtmHubServiceTest {
         "Given an unregistered tenant, should neither serve the news feed nor be connected")
     void given_unregisteredTenant_should_neitherServeNewsFeedNorBeConnected() {
       // Arrange
-      givenTenantsInStatuses(Set.of(TENANT_A), CONNECTED, false);
-      givenTenantsInStatuses(Set.of(TENANT_A), SERVED, false);
-      TxCtx ctx = TxCtx.forTenant(TENANT_A);
+      givenRegistrations(Set.of(TENANT_A), XtmHubRegistrationStatus.UNREGISTERED);
 
-      // Act & Assert
-      assertThat(xtmHubService.isNewsFeedAvailable(ctx)).isFalse();
-      assertThat(xtmHubService.isHubConnected(ctx)).isFalse();
+      // Act
+      NewsFeedSettings settings = xtmHubService.getMyNewsFeedSettings(TxCtx.forTenant(TENANT_A));
+
+      // Assert
+      assertThat(settings.hubRegistered()).isFalse();
+      assertThat(settings.hubConnected()).isFalse();
     }
 
     @Test
     @DisplayName(
-        "Given several tenants in scope, should look at all of them, and be connected when one is")
-    void given_severalTenantsInScope_should_beConnectedWhenOneIs() {
-      // Arrange: the repository is asked once for the whole scope, not tenant by tenant
+        "Given several tenants in scope, should read them once, and be connected when one is")
+    void given_severalTenantsInScope_should_readOnceAndBeConnectedWhenOneIs() {
+      // Arrange
       Set<String> scope = Set.of(TENANT_A, TENANT_B);
-      givenTenantsInStatuses(scope, CONNECTED, true);
-      givenTenantsInStatuses(scope, SERVED, true);
-      TxCtx ctx = TxCtx.forTenants(List.of(TENANT_A, TENANT_B));
+      givenRegistrations(
+          scope, XtmHubRegistrationStatus.LOST_CONNECTIVITY, XtmHubRegistrationStatus.REGISTERED);
 
-      // Act & Assert
-      assertThat(xtmHubService.isHubConnected(ctx)).isTrue();
-      assertThat(xtmHubService.isNewsFeedAvailable(ctx)).isTrue();
+      // Act
+      NewsFeedSettings settings =
+          xtmHubService.getMyNewsFeedSettings(TxCtx.forTenants(List.of(TENANT_A, TENANT_B)));
+
+      // Assert
+      assertThat(settings.hubRegistered()).isTrue();
+      assertThat(settings.hubConnected()).isTrue();
+      verify(tenantXtmHubRegistrationRepository, times(1)).findByTenantIdIn(any());
     }
 
     @Test
     @DisplayName("Given no tenant in scope, should neither serve the news feed nor be connected")
     void given_noTenantInScope_should_neitherServeNewsFeedNorBeConnected() {
+      // Act
+      NewsFeedSettings settings = xtmHubService.getMyNewsFeedSettings(TxCtx.missing());
+
+      // Assert
+      assertThat(settings.hubRegistered()).isFalse();
+      assertThat(settings.hubConnected()).isFalse();
+      verify(tenantXtmHubRegistrationRepository, never()).findByTenantIdIn(any());
+    }
+
+    @Test
+    @DisplayName("Given a registered tenant, should update the subscriptions and report the state")
+    void given_registeredTenant_should_updateSubscriptions() {
       // Arrange
-      TxCtx ctx = TxCtx.missing();
+      givenRegistrations(Set.of(TENANT_A), XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+      when(newsFeedItemService.updateMySubscribedTypes(List.of()))
+          .thenReturn(List.of(NewsFeedType.RESOURCE_SCENARIO));
+
+      // Act
+      NewsFeedSettings settings =
+          xtmHubService.updateMyNewsFeedSettings(TxCtx.forTenant(TENANT_A), List.of());
+
+      // Assert
+      assertThat(settings.subscribedTypes()).containsExactly(NewsFeedType.RESOURCE_SCENARIO);
+      assertThat(settings.hubRegistered()).isTrue();
+      assertThat(settings.hubConnected()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Given an unregistered tenant, should forbid the update")
+    void given_unregisteredTenant_should_forbidUpdate() {
+      // Arrange
+      givenRegistrations(Set.of(TENANT_A), XtmHubRegistrationStatus.UNREGISTERED);
 
       // Act & Assert
-      assertThat(xtmHubService.isNewsFeedAvailable(ctx)).isFalse();
-      assertThat(xtmHubService.isHubConnected(ctx)).isFalse();
-      verify(tenantXtmHubRegistrationRepository, never())
-          .existsByTenantIdInAndRegistrationStatusIn(any(), any());
+      assertThrows(
+          ForbiddenException.class,
+          () -> xtmHubService.updateMyNewsFeedSettings(TxCtx.forTenant(TENANT_A), List.of()));
+      verify(newsFeedItemService, never()).updateMySubscribedTypes(any());
     }
   }
 

@@ -1,5 +1,6 @@
 package io.openaev.api.news_feed;
 
+import static io.openaev.api.news_feed.NewsFeedSettingsMapper.toOutput;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
@@ -55,10 +56,7 @@ public class NewsFeedSettingsApi {
       })
   public NewsFeedSettingsOutput getMyNewsFeedSettings(TxCtx ctx) {
     assertFeatureEnabled();
-    return new NewsFeedSettingsOutput(
-        newsFeedItemService.getMySubscribedTypes(),
-        xtmHubService.isNewsFeedAvailable(ctx),
-        xtmHubService.isHubConnected(ctx));
+    return toOutput(xtmHubService.getMyNewsFeedSettings(ctx));
   }
 
   // -- UPDATE --
@@ -84,10 +82,7 @@ public class NewsFeedSettingsApi {
   public NewsFeedSettingsOutput updateMyNewsFeedSettings(
       TxCtx ctx, @RequestBody @Valid NewsFeedSettingsInput input) {
     assertFeatureEnabled();
-    return new NewsFeedSettingsOutput(
-        xtmHubService.updateMyNewsFeedSubscribedTypes(ctx, input.subscribedTypes()),
-        true,
-        xtmHubService.isHubConnected(ctx));
+    return toOutput(xtmHubService.updateMyNewsFeedSettings(ctx, input.subscribedTypes()));
   }
 
   private void assertFeatureEnabled() {

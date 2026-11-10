@@ -5,14 +5,25 @@ import { Link } from 'react-router';
 import { useFormatter } from '../../../../components/i18n';
 import { REDIRECT_CONNECT_XTM_HUB_URL } from '../../../../constants/BaseUrls';
 
+export type NewsFeedHubBannerVariant = 'connect' | 'ask_administrator' | 'unreachable';
+
 interface Props {
-  /** XTM Hub cannot be reached: connecting is no use then, so the button is not offered. */
-  unreachable?: boolean;
+  /**
+   * `connect` invites to connect the product, `ask_administrator` is for a user who cannot connect it,
+   * and `unreachable` is for when XTM Hub cannot be reached: connecting is no use then.
+   * Only `connect` offers the button.
+   */
+  variant?: NewsFeedHubBannerVariant;
 }
 
-/** Invites the user to connect the product to XTM Hub, which is what delivers the news feed. */
-const NewsFeedHubBanner = ({ unreachable = false }: Props) => {
+/** Tells the user the product is not connected to XTM Hub, which is what delivers the news feed. */
+const NewsFeedHubBanner = ({ variant = 'connect' }: Props) => {
   const { t } = useFormatter();
+  const messages: Record<NewsFeedHubBannerVariant, string> = {
+    connect: t('Please connect your product so you can receive News Feeds'),
+    ask_administrator: t('Ask an administrator to connect your product to XTM Hub so you can receive News Feeds'),
+    unreachable: t('XTM Hub is unreachable and connection can\'t be established'),
+  };
 
   return (
     <Paper padding={24} style={{ marginBottom: 16 }}>
@@ -40,12 +51,10 @@ const NewsFeedHubBanner = ({ unreachable = false }: Props) => {
             <Text variant="title-md" as="h2" style={{ margin: 0 }}>{t('XTM Hub is disconnected')}</Text>
           </div>
           <Text variant="content-compact" className="text-default-secondary">
-            {unreachable
-              ? t('XTM Hub is unreachable and connection can\'t be established')
-              : t('Please connect your product so you can receive News Feeds')}
+            {messages[variant]}
           </Text>
         </div>
-        {!unreachable && (
+        {variant === 'connect' && (
           <Button asChild>
             <Link to={REDIRECT_CONNECT_XTM_HUB_URL}>{t('Connect product to XTM Hub')}</Link>
           </Button>

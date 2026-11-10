@@ -12,6 +12,6 @@ export const fetchMyNewsFeedSettings = () => {
   return simpleCall(`${NEWS_FEED_SETTINGS_URI}/me`);
 };
 
-export const updateMyNewsFeedSettings = (input: NewsFeedSettingsInput) => {
-  return simplePutCall(`${NEWS_FEED_SETTINGS_URI}/me`, input);
+export const updateMyNewsFeedSettings = (input: NewsFeedSettingsInput, notifyError = true) => {
+  return simplePutCall(`${NEWS_FEED_SETTINGS_URI}/me`, input, undefined, notifyError);
 };
