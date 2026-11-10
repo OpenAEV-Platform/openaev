@@ -144,14 +144,13 @@ class ExecutorTest {
     void given_noLinkedInjectorForTenant_should_throwUnexecutableInjectException() {
       // -------- Arrange --------
       when(inject.getInjector()).thenReturn(null);
-      when(inject.getType()).thenReturn("openaev_test_injector");
       when(injectorRepository.findFirstByContractsCompositeIdIdAndTenantId(CONTRACT_ID, TENANT_ID))
           .thenReturn(Optional.empty());
 
       // -------- Act / Assert --------
       assertThatThrownBy(() -> executor.execute(executableInject))
           .isInstanceOf(UnexecutableInjectException.class)
-          .hasMessageContaining("Injector not found for type");
+          .hasMessage("No injector is registered for the injector contract " + CONTRACT_ID);
     }
 
     @Test

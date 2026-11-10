@@ -127,7 +127,8 @@ public class Executor {
               .orElseThrow(
                   () ->
                       new UnexecutableInjectException(
-                          "Injector not found for type: " + inject.getType()));
+                          "No injector is registered for the injector contract "
+                              + injectorContract.getId()));
     }
 
     // Telemetry - We shouldn't have multiple injector type per executable inject but if it happens,
