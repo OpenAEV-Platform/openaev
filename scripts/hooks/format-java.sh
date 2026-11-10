@@ -11,7 +11,7 @@ if [ -z "$JAVA_VERSION" ]; then echo "java.version not found in pom.xml" >&2; ex
 # Print the major version of the JDK at $1 (empty if not a JDK)
 java_major() {
     [ -x "$1/bin/java" ] || return 0
-    "$1/bin/java" -version 2>&1 | sed -nE '1s/.*version "(1\.)?([0-9]+).*/\2/p'
+    "$1/bin/java" -version 2>&1 | sed -nE 's/.*version "(1\.)?([0-9]+).*/\2/p'
 }
 
 # Resolve JAVA_HOME if not set or wrong version
