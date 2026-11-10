@@ -81,10 +81,10 @@ encrypted one.
 
 ### Files in the installation folder
 
-| File                          | Content                                                 |
-|:------------------------------|:--------------------------------------------------------|
-| `openaev-agent-config.toml`   | Settings. The token only until the agent first starts   |
-| `openaev-agent-token.dpapi`   | Token encrypted with DPAPI                              |
+| File                          | Content                                                                                        |
+|:------------------------------|:-----------------------------------------------------------------------------------------------|
+| `openaev-agent-config.toml`   | Settings. The token only until the next start after an installation, reinstallation or upgrade |
+| `openaev-agent-token.dpapi`   | Token encrypted with DPAPI                                                                     |
 
 ### Who can access the token file
 
