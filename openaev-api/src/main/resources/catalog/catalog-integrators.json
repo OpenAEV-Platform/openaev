@@ -734,7 +734,7 @@
                         "type": "string"
                     },
                     "ELASTIC_AUTHENTICATION_TYPE": {
-                        "description": "Enum for supported authentication types.",
+                        "description": "Authentication method to use for Elasticsearch. One of: API_KEY, USER_PASSWORD, PKI. If unset, the collector infers the method from the other settings (API key takes precedence over username/password, which takes precedence over PKI).",
                         "enum": [
                             "API_KEY",
                             "USER_PASSWORD",
