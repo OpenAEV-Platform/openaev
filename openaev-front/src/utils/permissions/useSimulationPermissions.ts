@@ -3,11 +3,11 @@ import { useMemo } from 'react';
 import { type ExercisesHelper } from '../../actions/exercises/exercise-helper';
 import { type LoggedHelper, type UserHelper } from '../../actions/helper';
 import { useHelper } from '../../store';
-import { type PublicExercise, type SimulationDetails } from '../api-types';
+import { type Exercise, type PublicExercise, type SimulationDetails } from '../api-types';
 import { useAbility } from './permissionsContext';
 import { ACTIONS, SUBJECTS } from './types';
 
-const useSimulationPermissions = (exerciseId: string, fullExercise?: SimulationDetails | PublicExercise) => {
+const useSimulationPermissions = (exerciseId: string, fullExercise?: SimulationDetails | PublicExercise | Exercise) => {
   const ability = useAbility();
 
   const { exercise, me, logged } = useHelper((helper: ExercisesHelper & UserHelper & LoggedHelper) => {

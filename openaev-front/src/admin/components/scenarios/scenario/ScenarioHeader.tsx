@@ -62,6 +62,7 @@ import {
   type Inject,
   type Scenario,
   type Team,
+  type UserSimple,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -193,6 +194,11 @@ const ScenarioHeader = ({
   const hasChallenges = challenges.length > 0;
 
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
+  // scenario_scheduled_by is a resolved object on the real ScenarioOutput DTO but a plain id string on other endpoints that merge into the same store entry - guard the shape instead of rendering it raw.
+  const scheduledByRaw = (scenario as unknown as Record<string, unknown>).scenario_scheduled_by as UserSimple | string | undefined;
+  const scheduledByName = scheduledByRaw && typeof scheduledByRaw === 'object'
+    ? (scheduledByRaw.user_name ?? scheduledByRaw.user_email)
+    : undefined;
   const isScenarioChaining = !!scenarioWorkflowId;
   const canOpenConfiguration = canManage && !isScenarioChaining;
 
@@ -738,6 +744,13 @@ const ScenarioHeader = ({
                 </TooltipTrigger>
                 {(scheduleLabel ?? '') && <TooltipContent>{scheduleLabel ?? ''}</TooltipContent>}
               </Tooltip>
+              {scheduledByName && (
+                <Chip
+                  startIcon={<PersonOutlined sx={{ fontSize: 14 }} />}
+                  label={`${t('Scheduled by')} ${scheduledByName}`}
+                  severity="low"
+                />
+              )}
             </>
           )}
           // The alert-toned controls sit in the body row, right-aligned, where the

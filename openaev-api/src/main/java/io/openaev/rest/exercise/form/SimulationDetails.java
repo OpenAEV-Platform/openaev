@@ -10,6 +10,7 @@ import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.model.Objective;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.raw.RawSimulationIndexing;
+import io.openaev.rest.atomic_testing.form.UserSimple;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -83,6 +84,9 @@ public class SimulationDetails {
 
   @JsonProperty("exercise_scenario")
   private String scenario;
+
+  @JsonProperty("exercise_launched_by")
+  private UserSimple launchedBy;
 
   // -- AUDIT --
 
@@ -190,6 +194,12 @@ public class SimulationDetails {
         .lessonsAnonymized(exercise.getExercise_lessons_anonymized())
         .lessonsEnabled(exercise.getExercise_lessons_enabled())
         .scenario(exercise.getScenario_id())
+        .launchedBy(
+            UserSimple.of(
+                exercise.getExercise_launched_by(),
+                exercise.getExercise_launched_by_firstname(),
+                exercise.getExercise_launched_by_lastname(),
+                exercise.getExercise_launched_by_email()))
         .createAt(exercise.getExercise_created_at())
         .updatedAt(exercise.getExercise_updated_at());
     if (exerciseTeamsUsers != null) {
