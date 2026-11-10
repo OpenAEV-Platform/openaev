@@ -1,5 +1,5 @@
 import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { EventAvailableOutlined, LabelOutlined, RouteOutlined, ScheduleOutlined, TimerOutlined } from '@mui/icons-material';
+import { EventAvailableOutlined, LabelOutlined, PersonOutlined, RouteOutlined, ScheduleOutlined, TimerOutlined } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
@@ -111,6 +111,7 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
   // so the hero stays light (no empty "-" rows like the old info tooltip).
   // The execution window (start / end / duration) lives here since the
   // dedicated "Execution details" tab was dropped.
+  const launchedBy = injectResultOverview.inject_launched_by;
   const startDate = injectResultOverview.inject_status?.tracking_sent_date;
   const endDate = injectResultOverview.inject_status?.tracking_end_date;
   const duration = startDate && endDate
@@ -126,7 +127,7 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
     fontSize: 12.5,
     color: 'text.secondary',
   } as const;
-  const hasMeta = !!startDate || !!endDate || platforms.length > 0 || killChainPhases.length > 0;
+  const hasMeta = !!launchedBy || !!startDate || !!endDate || platforms.length > 0 || killChainPhases.length > 0;
 
   return (
     <DetailHero
@@ -165,6 +166,15 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
               rowGap: 1,
             }}
             >
+              {launchedBy && (
+                <MetaItem icon={<PersonOutlined sx={metaIconSx} />}>
+                  <Typography component="span" sx={metaTextSx}>
+                    {t('Launched by')}
+                    {': '}
+                    {launchedBy.user_name ?? launchedBy.user_email}
+                  </Typography>
+                </MetaItem>
+              )}
               {startDate && (
                 <MetaItem icon={<ScheduleOutlined sx={metaIconSx} />}>
                   <Typography component="span" sx={metaTextSx}>

@@ -7250,6 +7250,8 @@ export interface InjectResultOverviewOutput {
   inject_injector_contract?: AtomicInjectorContractOutput;
   /** Kill chain phases */
   inject_kill_chain_phases?: KillChainPhaseSimple[];
+  /** User who launched this inject */
+  inject_launched_by?: UserSimple;
   /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
   /** Recurrence cron expression for scheduled relaunch */
@@ -11559,6 +11561,8 @@ export interface ScenarioOutput {
    * @format date-time
    */
   scenario_recurrence_start?: string;
+  /** User who last configured the scenario's recurrence */
+  scenario_scheduled_by?: UserSimple;
   /** Severity of the scenario */
   scenario_severity?: string;
   /** Subtitle of the scenario */
@@ -12216,6 +12220,8 @@ export interface SimulationDetails {
   /** @minLength 1 */
   exercise_id: string;
   exercise_kill_chain_phases?: KillChainPhase[];
+  /** User who launched this exercise, or who last scheduled it when created unattended */
+  exercise_launched_by?: UserSimple;
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
@@ -13730,6 +13736,12 @@ export interface UserOutput {
   /** @uniqueItems true */
   user_tags?: string[];
   user_tenants?: UserTenantOutput[];
+}
+
+export interface UserSimple {
+  user_email?: string;
+  user_id?: string;
+  user_name?: string;
 }
 
 export interface UserTenantOutput {
