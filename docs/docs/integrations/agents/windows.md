@@ -65,12 +65,15 @@ Windows account. Only the account the agent runs as can decrypt the token.
 
 ### How it works
 
-1. The installer writes the token and the other settings to `openaev-agent-config.toml`, as before.
-2. When the agent starts, it encrypts the token into `openaev-agent-token.dpapi`, then removes the token from
-   `openaev-agent-config.toml`.
+1. The installer writes the token and the other settings to `openaev-agent-config.toml`, as before. A reinstall also
+   deletes the previous `openaev-agent-token.dpapi`.
+2. When the agent starts and finds a token in `openaev-agent-config.toml`, it encrypts the token into
+   `openaev-agent-token.dpapi`, then removes the token from `openaev-agent-config.toml`. It then reads the token back
+   once to check it. If any of these steps fails, the agent logs the error and stops.
 3. Each time the agent contacts OpenAEV, it decrypts the token, uses it, then wipes it from memory.
 
-The agent repeats step 2 at each start, so a new token written by an upgrade or a reinstall is encrypted too.
+The agent checks the config file at each start, so a new token written by an upgrade or a reinstall replaces the
+encrypted one.
 
 ### Files in the installation folder
 
@@ -94,8 +97,9 @@ icacls "[FOLDER_PATH]\openaev-agent-token.dpapi"
 Select-String "[FOLDER_PATH]\openaev-agent-config.toml" -Pattern '^\s*token\s*='
 ```
 
-The expected result: only the accounts of the table above appear, with no `(I)` (inherited permissions), and
-`Select-String` returns nothing.
+The expected result: `icacls` lists only `NT AUTHORITY\SYSTEM`, `BUILTIN\Administrators` and `OWNER RIGHTS` (the
+account the agent runs as, which created the file), with no `(I)` (inherited permissions), and `Select-String` returns
+nothing.
 
 !!! warning "Limits of DPAPI"
 
@@ -108,12 +112,15 @@ The expected result: only the accounts of the table above appear, with no `(I)` 
 
 ### Token storage messages in the log
 
-| Message in `openaev-agent.log`                                        | Meaning                                                                        | Action              |
-|:----------------------------------------------------------------------|:-------------------------------------------------------------------------------|:--------------------|
-| `Token moved to the OS secret store`                                  | The token is encrypted and removed from the config file                        | None                |
-| `Could not save the token in the OS secret store: ...`                | The agent could not encrypt the token, so it cannot reach OpenAEV              | Reinstall the agent |
+Except for the first one, each message below stops the agent.
+
+| Message in `openaev-agent.log`                                          | Meaning                                                                        | Action              |
+|:------------------------------------------------------------------------|:-------------------------------------------------------------------------------|:--------------------|
+| `Token moved to the OS secret store`                                    | The token is encrypted and removed from the config file                        | None                |
+| `Unable to save the token in the OS secret store: ...`                  | The agent could not encrypt the token                                          | Reinstall the agent |
 | `The token is still in clear text in ...openaev-agent-config.toml: ...` | The token is encrypted, but the agent cannot remove it from the config file    | Reinstall the agent |
-| `Unable to read the token from ...openaev-agent-token.dpapi: ...`     | The file is missing or damaged, or the agent account can no longer decrypt it  | Reinstall the agent |
+| `Unable to read the token from ...openaev-agent-token.dpapi: ...`       | The file is missing or damaged, or the agent account can no longer decrypt it  | Reinstall the agent |
+| `The token in ...openaev-agent-token.dpapi is not text`                 | The file is damaged                                                            | Reinstall the agent |
 
 {% endif %}
 ## Uninstall the agent

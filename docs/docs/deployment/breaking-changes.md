@@ -148,8 +148,8 @@ For more details, see [this migration guide](breaking-changes/MigrationVersion-e
 
 Starting with **OpenAEV \[MigrationVersion\]**, the Windows agent encrypts its token with DPAPI (Data Protection API)
 instead of storing it in clear text in its config file. Hosts running the agent in **service-user** mode must
-reinstall the agent after upgrading: an upgrade only replaces the binary, and the clear-text token can stay in the
-config file.
+reinstall the agent after upgrading: an upgrade only replaces the binary, so the agent cannot remove the token from its
+config file and stops until it is reinstalled.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-windows-agent-token-dpapi.md)
 {% endif %}
