@@ -1982,7 +1982,7 @@
                         "type": "string"
                     },
                     "COLLECTOR_ID": {
-                        "default": "openaev-microsoft-defender-o365",
+			"default": "microsoft-defender-o365--0b13e3f7-5c9e-46f5-acc4-33032e9b4921",
                         "description": "A unique UUIDv4 identifier for this collector instance.",
                         "type": "string"
                     },
