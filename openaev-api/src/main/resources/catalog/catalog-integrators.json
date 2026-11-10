@@ -1922,8 +1922,8 @@
         {
             "title": "Splunk Enterprise Security",
             "slug": "openaev_splunk_es",
-            "description": "Validate OpenAEV detection expectations against Splunk Enterprise Security by collecting the notable events your SIEM raises in response to simulated attacks.",
-            "short_description": "Collect notable events from Splunk Enterprise Security",
+            "description": "Validate OpenAEV detection and logging expectations against Splunk Enterprise Security by collecting the notable events your SIEM raises and the raw logs your endpoints send in response to simulated attacks.",
+            "short_description": "Collect notable events and raw logs from Splunk Enterprise Security",
             "use_cases": [
                 "Security response"
             ],
@@ -2031,6 +2031,25 @@
                     },
                     "SPLUNKES_QUERY_TEMPLATE": {
                         "description": "SPL query template for fetching alerts. Placeholders: {alerts_index} (configured index), {source_ips} (source IP values, quoted for IN operator; * if none), {target_ips} (target IP values, quoted for IN operator; * if none), {hostnames} (hostname values, quoted for IN operator; * if none), {start_date} (inject start date or relative time like -3600s), {end_date} (inject end date or 'now'). Implant names, URLs and other signatures are not query placeholders: they are matched afterwards in each alert's _raw text. The query MUST include '| table _time' for proper alert parsing. Leave empty to use the collector's built-in query.",
+                        "type": "string"
+                    },
+                    "SPLUNKES_LOGGING_ENABLED": {
+                        "default": false,
+                        "description": "Search raw-event indexes to answer LOGGING expectations. Requires LOGGING_EXPECTATION preview feature and SPLUNKES_LOGGING_INDEXES.",
+                        "type": "boolean"
+                    },
+                    "SPLUNKES_LOGGING_INDEXES": {
+                        "description": "Comma-separated raw-event indexes or patterns searched for LOGGING expectations (e.g. sysmon,wineventlog). Required when SPLUNKES_LOGGING_ENABLED is true.",
+                        "type": "string"
+                    },
+                    "SPLUNKES_LOGGING_QUERY_TEMPLATE": {
+                        "description": "SPL template of the Logging search, to adapt it to your data (sourcetypes, data models, field names). Placeholders: {indexes}, {earliest}, {latest}, {terms}, {source_ips}, {target_ips}. Must include '| table _time, index, _raw'. Leave empty to use the built-in search.",
+                        "type": "string"
+                    },
+                    "SPLUNKES_LOGGING_MAX_INTERVAL": {
+                        "default": "PT15M",
+                        "description": "Longest time between two Logging searches of the same expectation (ISO 8601, at most PT1H).",
+                        "format": "duration",
                         "type": "string"
                     }
                 },
