@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20261106120100000__Threat_arsenal_grants_on_payload_identities
+public class V6_20261110090100000__Threat_arsenal_grants_on_payload_identities
     extends BaseJavaMigration {
 
   @Override

@@ -21,10 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("Migration V6_20261106120000000: payload identities")
+@DisplayName("Migration V6_20261110090000000: payload identities")
 class PayloadIdentitiesMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20261106120000000__Payload_identities migration;
+  @Autowired private V6_20261110090000000__Payload_identities migration;
 
   private final String payloadId = UUID.randomUUID().toString();
   private final String externalId = UUID.randomUUID().toString();

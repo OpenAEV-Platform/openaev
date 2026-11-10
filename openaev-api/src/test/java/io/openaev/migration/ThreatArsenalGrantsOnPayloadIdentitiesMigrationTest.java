@@ -20,10 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("Migration V6_20261106120100000: threat arsenal grants on payload identities")
+@DisplayName("Migration V6_20261110090100000: threat arsenal grants on payload identities")
 class ThreatArsenalGrantsOnPayloadIdentitiesMigrationTest extends IntegrationTest {
 
-  @Autowired private V6_20261106120100000__Threat_arsenal_grants_on_payload_identities migration;
+  @Autowired private V6_20261110090100000__Threat_arsenal_grants_on_payload_identities migration;
 
   private final String contractId = UUID.randomUUID().toString();
   private final String tenantA = UUID.randomUUID().toString();
