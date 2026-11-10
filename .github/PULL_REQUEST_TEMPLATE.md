@@ -25,7 +25,7 @@ Keep one line per issue:
 * Closes #ISSUE-NUMBER
 * Related #ISSUE-NUMBER
 
-<!-- If the related issue is in a private repository, do not link or reference it here. Use "* N/A" and link this public PR from the private issue instead. Agents use "* N/A" only when the author explicitly says the issue is private. -->
+<!-- If the related issue is in a private repository, do not link or reference it here. Use "* N/A" and link this public PR from the private issue instead. Agents use "* N/A" only when the author explicitly says the issue is private. If there is no issue, leave this section empty: the title check fails on purpose, do not add "* N/A" or an invented issue to turn it green. -->
 
 ### Checklist
 
