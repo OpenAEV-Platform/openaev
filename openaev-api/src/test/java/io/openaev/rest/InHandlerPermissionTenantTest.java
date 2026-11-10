@@ -518,7 +518,7 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
       withCapabilities = {
         Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
         Capability.MANAGE_ASSETS,
-        Capability.DELETE_MARKING_ASSIGNMENT
+        Capability.MANAGE_MARKING_ASSIGNMENT
       })
   class MarkingAssignment {
 
@@ -548,7 +548,7 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
     @DisplayName("given the removal right in B should remove a group marking")
     void given_removalRightInB_should_removeGroupMarking() throws Exception {
       // -- ARRANGE --
-      grantInB(Capability.DELETE_MARKING_ASSIGNMENT);
+      grantInB(Capability.MANAGE_MARKING_ASSIGNMENT);
       Group group = markedGroupInB();
 
       // -- ACT & ASSERT --
@@ -571,7 +571,7 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
     @DisplayName("given the removal right in B should remove an asset marking")
     void given_removalRightInB_should_removeAssetMarking() throws Exception {
       // -- ARRANGE --
-      grantInB(Capability.DELETE_MARKING_ASSIGNMENT);
+      grantInB(Capability.MANAGE_MARKING_ASSIGNMENT);
       String assetId = markedAssetInB();
 
       // -- ACT & ASSERT --
