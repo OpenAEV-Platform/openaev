@@ -19,9 +19,7 @@ implemented.
 | [Injector contract expectation format](#injector-contract-expectation-format) | -             | \[MigrationVersion\]        |
 | [Tenant users, groups and roles capabilities](#tenant-users-groups-and-roles-capabilities) | -             | \[MigrationVersion\]        |
 | [Elasticsearch 9 and engine auto-detection](#elasticsearch-9)  | -             | \[MigrationVersion\]        |
-{%- if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
 | [Windows agent token encrypted with DPAPI](#windows-agent-token-dpapi) | -             | \[MigrationVersion\]        |
-{%- endif %}
 | [Windows agent config file permissions](#windows-agent-config-permissions) | -             | 3.261016.0 |
 
 ## OpenAEV 2.2.0
@@ -141,7 +139,6 @@ cannot decide.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-elasticsearch-9.md)
 
-{% if "secret-store" in (config.extra.feature_flags.enabled|string|lower|replace(" ", "")).split(",") %}
 <a id="windows-agent-token-dpapi"></a>
 
 #### Windows agent token encrypted with DPAPI
@@ -152,7 +149,6 @@ reinstall the agent after upgrading: an upgrade only replaces the binary, so the
 config file and stops until it is reinstalled.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-windows-agent-token-dpapi.md)
-{% endif %}
 
 ## OpenAEV 3.261016.0
 
