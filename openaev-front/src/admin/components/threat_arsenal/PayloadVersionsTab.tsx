@@ -136,7 +136,6 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
           cursor: 'pointer',
         }}
       >
-        {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
         <Text variant="content-base-bold">{`v${source.payload_version ?? '-'}`}</Text>
         {source.payload_installed && (
           <Text variant="content-base" className="text-default-secondary">
@@ -147,6 +146,8 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
         {source.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
         <Box sx={{ flex: 1 }} />
         {!source.payload_installed && <span onClick={event => event.stopPropagation()}>{installAction}</span>}
+        {/* On the right, as the MUI Accordion and the DS Accordion, and as the History rows. */}
+        {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
       </Box>
       <Collapse in={expanded} unmountOnExit>
         {source.payload_changelog && (

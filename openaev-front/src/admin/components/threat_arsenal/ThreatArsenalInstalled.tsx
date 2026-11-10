@@ -108,6 +108,11 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
   useEffect(() => {
     const found = toOpen.current && installed.threatArsenalActions.find(action => tPick(action.action_labels) === toOpen.current);
     if (found) {
+      // A link to an older version opens the action on its latest one: keep the link's tab for it.
+      if (linked.current.actionId) linked.current = {
+        ...linked.current,
+        actionId: found.injector_contract_id,
+      };
       toOpen.current = undefined;
       setOpenedAction(found);
     }

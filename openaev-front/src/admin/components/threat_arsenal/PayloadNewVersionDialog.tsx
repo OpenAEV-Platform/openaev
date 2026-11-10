@@ -211,7 +211,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
         <TableBody>
           {(sources ?? []).map(source => (
             <Fragment key={source.version.payload_id}>
-              {/* Group row: one tick for all its injects, and the arrow of the Versions tab to fold them. */}
+              {/* Group row: one tick for all its injects, and the arrow of the Versions tab (right) to fold them. */}
               <TableRow sx={{ height: 44 }}>
                 {canMigrate && (
                   <TableCell padding="checkbox" sx={CHECKBOX_CELL_SX}>
@@ -229,7 +229,14 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
                     gap: 8,
                   }}
                   >
+                    <Text as="span" variant="content-base-bold">{`v${source.version.payload_version}`}</Text>
+                    {source.version.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
+                    <Text as="span" variant="content-base" className="text-default-secondary">
+                      {`(${t('{count, plural, one {# inject} other {# injects}}', { count: source.usages.length })})`}
+                    </Text>
+                    {/* On the right, as the Versions and History rows. */}
                     <IconButton
+                      style={{ marginLeft: 'auto' }}
                       size="sm"
                       priority="tertiary"
                       aria-expanded={!folded.has(source.version.payload_id ?? '')}
@@ -239,11 +246,6 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
                       icon={folded.has(source.version.payload_id ?? '') ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
                       onClick={() => toggleFolded(source.version.payload_id ?? '')}
                     />
-                    <Text as="span" variant="content-base-bold">{`v${source.version.payload_version}`}</Text>
-                    {source.version.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
-                    <Text as="span" variant="content-base" className="text-default-secondary">
-                      {`(${t('{count, plural, one {# inject} other {# injects}}', { count: source.usages.length })})`}
-                    </Text>
                   </span>
                 </TableCell>
               </TableRow>
