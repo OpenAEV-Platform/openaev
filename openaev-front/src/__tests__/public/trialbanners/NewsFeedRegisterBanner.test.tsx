@@ -12,7 +12,7 @@ import { TOP_BANNER_HEIGHT } from '../../../public/components/trialbanners/const
 import NewsFeedRegisterBanner from '../../../public/components/trialbanners/NewsFeedRegisterBanner';
 import NewsFeedRegisterBannerProvider from '../../../public/components/trialbanners/NewsFeedRegisterBannerProvider';
 import { useHelper } from '../../../store';
-import { type PlatformSettings, type User, type XtmHubRegistrationOutput } from '../../../utils/api-types';
+import { type PlatformSettings, type TenantOutput, type User, type XtmHubRegistrationOutput } from '../../../utils/api-types';
 import { UserContext, type UserContextType } from '../../../utils/hooks/useAuth';
 import { type AppAbility, defineAbility } from '../../../utils/permissions/ability';
 import { AbilityProvider } from '../../../utils/permissions/permissionsContext';
@@ -31,8 +31,12 @@ interface Scenario {
   ability?: AppAbility;
   flagEnabled?: boolean;
   reachable?: boolean;
+  backendReachable?: boolean;
+  userTenants?: TenantOutput[] | undefined;
   registration?: XtmHubRegistrationOutput | null;
 }
+
+const TENANTS = [{ tenant_id: 'tenant-1' }] as TenantOutput[];
 
 let scenario: Scenario = {};
 
@@ -44,8 +48,12 @@ const Probe = () => {
 const LocationDisplay = () => <span data-testid="location">{useLocation().pathname}</span>;
 
 const Tree = ({ children }: { children?: ReactNode }) => {
-  const { ability = ADMIN_ABILITY, flagEnabled = true, reachable = true, registration = null } = scenario;
-  const settings = { enabled_dev_features: flagEnabled ? ['XTM_HUB_NEWS_FEED'] : [] } as PlatformSettings;
+  const { ability = ADMIN_ABILITY, flagEnabled = true, reachable = true, backendReachable = true, registration = null } = scenario;
+  const userTenants = 'userTenants' in scenario ? scenario.userTenants : TENANTS;
+  const settings = {
+    enabled_dev_features: flagEnabled ? ['XTM_HUB_NEWS_FEED'] : [],
+    xtm_hub_reachable: backendReachable,
+  } as PlatformSettings;
   const helper = {
     getPlatformSettings: () => settings,
     getXtmHubRegistration: () => registration,
@@ -55,6 +63,7 @@ const Tree = ({ children }: { children?: ReactNode }) => {
     me: { user_id: 'user-1' } as User,
     settings,
     isXTMHubAccessible: reachable,
+    userTenants,
     currentUserTenant: { tenant_id: 'tenant-1' },
   } as UserContextType;
   return (
@@ -91,7 +100,7 @@ const registrationWith = (status: XtmHubRegistrationOutput['tenant_xtmhub_regist
 describe('NewsFeedRegisterBanner', () => {
   beforeEach(() => {
     localStorage.clear();
-    mockDispatch.mockImplementation(() => Promise.resolve());
+    mockDispatch.mockImplementation(() => Promise.resolve(true));
   });
 
   afterEach(() => {
@@ -106,13 +115,19 @@ describe('NewsFeedRegisterBanner', () => {
 
       expect(await screen.findByText(BANNER_TEXT)).toBeInTheDocument();
       expect(screen.getByText('Connect your product to access and deploy these feeds in one click.', { exact: false })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Connect Product' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Connect Product' })).toBeInTheDocument();
     });
 
-    it('given a click on the button should open the XTM Hub connect flow', async () => {
+    it('given the banner is shown should expose the connect flow as a real link', async () => {
       renderBanner();
 
-      fireEvent.click(await screen.findByRole('button', { name: 'Connect Product' }));
+      expect(await screen.findByRole('link', { name: 'Connect Product' })).toHaveAttribute('href', '/redirect/connect-xtm-hub');
+    });
+
+    it('given a click on the link should open the XTM Hub connect flow', async () => {
+      renderBanner();
+
+      fireEvent.click(await screen.findByRole('link', { name: 'Connect Product' }));
 
       expect(screen.getByTestId('location')).toHaveTextContent('/redirect/connect-xtm-hub');
     });
@@ -137,6 +152,52 @@ describe('NewsFeedRegisterBanner', () => {
 
       expect(screen.queryByText(BANNER_TEXT)).not.toBeInTheDocument();
       expect(screen.getByTestId('banner-height')).toHaveTextContent('0');
+    });
+  });
+
+  describe('while the registration is unknown', () => {
+    it('given the registration lookup failed should not show it', async () => {
+      mockDispatch.mockImplementation(() => Promise.resolve(false));
+      renderBanner();
+
+      await waitFor(() => expect(mockDispatch).toHaveBeenCalled());
+      await Promise.resolve();
+
+      expect(screen.queryByText(BANNER_TEXT)).not.toBeInTheDocument();
+      expect(screen.getByTestId('banner-height')).toHaveTextContent('0');
+    });
+
+    it('given the tenants are not initialized yet should neither fetch the registration nor show it', async () => {
+      renderBanner({ userTenants: undefined });
+
+      await Promise.resolve();
+
+      expect(mockDispatch).not.toHaveBeenCalled();
+      expect(screen.queryByText(BANNER_TEXT)).not.toBeInTheDocument();
+    });
+
+    it('given the memberships arrive after the registration should fetch it again for the resolved tenant', async () => {
+      const view = renderBanner({
+        userTenants: undefined,
+        registration: registrationWith('REGISTERED'),
+      });
+      expect(mockDispatch).not.toHaveBeenCalled();
+
+      rerenderBanner(view, {
+        userTenants: TENANTS,
+        registration: registrationWith('REGISTERED'),
+      });
+
+      await waitFor(() => expect(mockDispatch).toHaveBeenCalledTimes(1));
+      await Promise.resolve();
+      expect(screen.queryByText(BANNER_TEXT)).not.toBeInTheDocument();
+    });
+
+    it('given a platform admin without any membership should still fetch the registration and show it', async () => {
+      renderBanner({ userTenants: [] });
+
+      expect(await screen.findByText(BANNER_TEXT)).toBeInTheDocument();
+      expect(mockDispatch).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -187,6 +248,21 @@ describe('NewsFeedRegisterBanner', () => {
 
       await waitFor(() => expect(mockDispatch).toHaveBeenCalled());
       expect(screen.queryByText(BANNER_TEXT)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('when only the browser can reach XTM Hub', () => {
+    it('given a hub the backend cannot reach should not show it', async () => {
+      renderBanner({
+        reachable: true,
+        backendReachable: false,
+      });
+
+      await waitFor(() => expect(mockDispatch).toHaveBeenCalled());
+      await Promise.resolve();
+
+      expect(screen.queryByText(BANNER_TEXT)).not.toBeInTheDocument();
+      expect(screen.getByTestId('banner-height')).toHaveTextContent('0');
     });
   });
 

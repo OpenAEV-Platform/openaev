@@ -3,6 +3,7 @@ import { ChevronRight, Close } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 import { type ComponentProps } from 'react';
+import { Link } from 'react-router';
 
 import type { LoggedHelper } from '../../../actions/helper';
 import { useFormatter } from '../../../components/i18n';
@@ -46,11 +47,13 @@ interface TopBannerProps {
   /** Primitive token the action button is filled with, matching the band it sits on. */
   buttonColor?: BannerButtonColor;
   onButtonClick?: () => void;
+  /** In-app destination: renders the action as a router link (new tab, copy link) rather than a click handler. */
+  buttonTo?: string;
   /** Adds a close control at the end of the strip; remembering the dismissal is up to the caller. */
   onDismiss?: () => void;
 }
 
-const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, buttonColor, onButtonClick, onDismiss }: TopBannerProps) => {
+const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, buttonColor, onButtonClick, buttonTo, onDismiss }: TopBannerProps) => {
   const theme = useTheme();
   const { t } = useFormatter();
   const { settings } = useHelper((helper: LoggedHelper) => {
@@ -80,17 +83,32 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
       <span>
         {bannerText}
       </span>
-      { buttonText && (
-        <Button
-          size="sm"
-          color={buttonColor}
-          onClick={onButtonClick}
-          endIcon={<ChevronRight fontSize="small" />}
-          style={{ marginLeft: theme.spacing(1) }}
-        >
-          {buttonText}
-        </Button>
-      )}
+      { buttonText && (buttonTo
+        ? (
+            // The icon sits inside the anchor: `endIcon` is ignored under `asChild`.
+            <Button
+              asChild
+              size="sm"
+              color={buttonColor}
+              style={{ marginLeft: theme.spacing(1) }}
+            >
+              <Link to={buttonTo} onClick={onButtonClick}>
+                {buttonText}
+                <ChevronRight fontSize="small" />
+              </Link>
+            </Button>
+          )
+        : (
+            <Button
+              size="sm"
+              color={buttonColor}
+              onClick={onButtonClick}
+              endIcon={<ChevronRight fontSize="small" />}
+              style={{ marginLeft: theme.spacing(1) }}
+            >
+              {buttonText}
+            </Button>
+          ))}
       {onDismiss && (
         <IconButton
           icon={<Close fontSize="small" />}
