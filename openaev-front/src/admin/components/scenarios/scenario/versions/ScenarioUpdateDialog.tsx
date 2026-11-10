@@ -76,6 +76,10 @@ const fieldText = (value: unknown) => {
   return typeof value === 'string' ? value : JSON.stringify(value);
 };
 
+// Command-type fields of an inject's content (commands, scripts, scanner templates): shown line by
+// line with + and −, as in the Versions and History tabs of the Threat Arsenal.
+const CODE_KEY = /command|script|argument|prerequisite|cleanup|template/i;
+
 // A field name as people read it: main_focus becomes "Main focus".
 const fieldLabel = (key: string) => {
   const words = key.replace(/^(scenario|inject)_/, '').replace(/_/g, ' ');
@@ -140,11 +144,17 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
     if (isRecord(before) && isRecord(after)) {
       return [...new Set([...Object.keys(before), ...Object.keys(after)])]
         .filter(key => fieldText(before[key]) !== fieldText(after[key]))
-        .map(key => ({
-          field: `${titleOf(change.element, change.title)} · ${t(fieldLabel(key))}`,
-          before: fieldText(before[key]),
-          after: fieldText(after[key]),
-        }));
+        .map((key) => {
+          const code = CODE_KEY.test(key);
+          // A structured command (arguments, prerequisites) reads line by line when indented.
+          const text = (value: unknown) => (code && typeof value !== 'string' && value != null ? JSON.stringify(value, null, 2) : fieldText(value));
+          return {
+            field: `${titleOf(change.element, change.title)} · ${t(fieldLabel(key))}`,
+            before: text(before[key]),
+            after: text(after[key]),
+            code,
+          };
+        });
     }
     return [{
       field: `${titleOf(change.element, change.title)} · ${blockOf(change)}`,

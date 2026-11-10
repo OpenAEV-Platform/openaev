@@ -7,10 +7,11 @@ import {
   DialogContent,
   DialogFooter,
   DialogTitle,
+  IconButton,
   Spinner,
   Text,
 } from '@filigran/design-system';
-import { ArrowForwardOutlined } from '@mui/icons-material';
+import { ArrowForwardOutlined, ExpandLess, ExpandMore } from '@mui/icons-material';
 // fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -67,6 +68,14 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
   const [sources, setSources] = useState<Source[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moving, setMoving] = useState(false);
+  // Older versions folded by the user (all open at first), as the version rows of the Versions tab.
+  const [folded, setFolded] = useState<Set<string>>(new Set());
+  const toggleFolded = (id: string) => setFolded((previous) => {
+    const next = new Set(previous);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
 
   useEffect(() => {
     fetchThreatArsenalVersions(previousActionId).then(async (response: { data: PayloadVersionOutput[] }) => {
@@ -202,7 +211,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
         <TableBody>
           {(sources ?? []).map(source => (
             <Fragment key={source.version.payload_id}>
-              {/* Group row: the version, its count, and one tick for all its injects (nothing to fold: they are listed below). */}
+              {/* Group row: one tick for all its injects, and the arrow of the Versions tab to fold them. */}
               <TableRow sx={{ height: 44 }}>
                 {canMigrate && (
                   <TableCell padding="checkbox" sx={CHECKBOX_CELL_SX}>
@@ -220,6 +229,16 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
                     gap: 8,
                   }}
                   >
+                    <IconButton
+                      size="sm"
+                      priority="tertiary"
+                      aria-expanded={!folded.has(source.version.payload_id ?? '')}
+                      aria-label={folded.has(source.version.payload_id ?? '')
+                        ? t('Show the injects on v{version}', { version: source.version.payload_version ?? '' })
+                        : t('Hide the injects on v{version}', { version: source.version.payload_version ?? '' })}
+                      icon={folded.has(source.version.payload_id ?? '') ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
+                      onClick={() => toggleFolded(source.version.payload_id ?? '')}
+                    />
                     <Text as="span" variant="content-base-bold">{`v${source.version.payload_version}`}</Text>
                     {source.version.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
                     <Text as="span" variant="content-base" className="text-default-secondary">
@@ -228,7 +247,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
                   </span>
                 </TableCell>
               </TableRow>
-              {usageRows(source.usages)}
+              {!folded.has(source.version.payload_id ?? '') && usageRows(source.usages)}
             </Fragment>
           ))}
         </TableBody>

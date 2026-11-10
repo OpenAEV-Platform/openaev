@@ -17,6 +17,8 @@ export interface HistoryChange {
   field: string;
   before?: unknown;
   after?: unknown;
+  /** Command-type value: compared line by line with + and −. Defaults to the known code fields. */
+  code?: boolean;
 }
 
 interface HistoryDetails {
@@ -200,7 +202,7 @@ export const ChangesTable: FunctionComponent<{
           after={valueText(change.after)}
           beforeLabel={before}
           afterLabel={after}
-          code={CODE_FIELDS.has(change.field)}
+          code={change.code ?? CODE_FIELDS.has(change.field)}
           legend={false}
         />
       ))}
