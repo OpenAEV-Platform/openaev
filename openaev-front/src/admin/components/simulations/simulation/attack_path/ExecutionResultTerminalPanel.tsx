@@ -26,6 +26,7 @@ import expectationIconByType from '../../../common/ExpectationIconByType';
 import GlobalExecutionTraces from '../../../common/injects/status/traces/GlobalExecutionTraces';
 import TerminalViewTab from '../../../common/injects/status/traces/TerminalViewTab';
 import FindingList from '../../../findings/FindingList';
+import ExecutionMitigationTab from './ExecutionMitigationTab';
 import { InjectorExecutionStatusBadge, PayloadExecutionStatusBadge } from './ExecutionStatusBadge';
 import ExpectationPlatformsTable, {
   type ExpectationPlatformAlert,
@@ -52,6 +53,7 @@ const RESULT_TAB = 'result';
 const TERMINAL_TAB = 'terminal';
 const FINDINGS_TAB = 'findings';
 const REMEDIATION_TAB = 'remediation';
+const MITIGATION_TAB = 'mitigation';
 
 interface SecurityPlatformRow {
   key: string;
@@ -708,6 +710,10 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                 key: REMEDIATION_TAB,
                 label: t('Remediation'),
               },
+              {
+                key: MITIGATION_TAB,
+                label: t('Mitigation'),
+              },
             ]}
             currentTab={currentTab}
             onChange={handleChangeTab}
@@ -866,6 +872,19 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
                   </div>
                 ))}
               </div>
+            )}
+
+            {currentTab === MITIGATION_TAB && (
+              <ExecutionMitigationTab
+                executionLabel={endpointLabel ?? detail.agentName ?? 'execution'}
+                actionName={detail.payloadName ?? t('Execution')}
+                findingTypes={(detail.findings ?? []).map(finding => finding.type ?? '').filter(Boolean)}
+                attackPatterns={(detail.attackPatterns ?? []).map(ap => ap.externalId ?? ap.name ?? '').filter(Boolean)}
+                targetPlatform={detail.targetPlatform ?? undefined}
+                agentName={detail.agentName ?? undefined}
+                agentPrivilege={detail.agentPrivilege ?? undefined}
+                prevented={getSecurityPlatforms(detail).some(platform => platform.bucket === 'prevention')}
+              />
             )}
           </div>
         </div>

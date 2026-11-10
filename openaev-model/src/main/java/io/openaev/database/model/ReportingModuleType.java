@@ -12,5 +12,6 @@ public enum ReportingModuleType {
   FAILED_EXPECTATIONS,
   FINDINGS,
   ATTACK_PATHS,
+  MITIGATIONS,
   CUSTOM_MARKDOWN
 }

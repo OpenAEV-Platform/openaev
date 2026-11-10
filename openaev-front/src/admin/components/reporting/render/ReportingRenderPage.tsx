@@ -10,6 +10,7 @@ import CustomMarkdownModule from './modules/CustomMarkdownModule';
 import ExecutiveSummaryModule from './modules/ExecutiveSummaryModule';
 import FailedExpectationsModule from './modules/FailedExpectationsModule';
 import FindingsModule from './modules/FindingsModule';
+import MitigationsModule from './modules/MitigationsModule';
 import MitreCoverageModule from './modules/MitreCoverageModule';
 import { ModuleSection } from './modules/ModuleSection';
 import ResultsBreakdownModule from './modules/ResultsBreakdownModule';
@@ -123,6 +124,8 @@ const ReportingRenderPage: FunctionComponent<Props> = ({ reporting, token }) => 
         return <FindingsModule findings={data.findings} />;
       case 'ATTACK_PATHS':
         return <AttackPathsModule attackPaths={data.attackPaths} />;
+      case 'MITIGATIONS':
+        return <MitigationsModule module={module} />;
       case 'CUSTOM_MARKDOWN':
         return <CustomMarkdownModule module={module} />;
       default:

@@ -29,6 +29,7 @@ export const MODULE_TYPE_LABELS: Record<NonNullable<ReportingModule['module_type
   FAILED_EXPECTATIONS: 'Failed expectations',
   FINDINGS: 'Findings',
   ATTACK_PATHS: 'Attack paths',
+  MITIGATIONS: 'Mitigations',
   CUSTOM_MARKDOWN: 'Custom content',
 };
 

@@ -75,6 +75,13 @@ const InjectIndexTabs = ({ injectResultOverview, exercise, backlabel, backuri }:
             </Link>
           </TabsTrigger>
         )}
+        {hasPayload && (
+          <TabsTrigger value={`${base}/mitigations`} asChild>
+            <Link to={computePath(`${base}/mitigations`)} aria-current={current(`${base}/mitigations`)}>
+              {t('Mitigations')}
+            </Link>
+          </TabsTrigger>
+        )}
       </TabsList>
     </Tabs>
   );

@@ -11026,6 +11026,7 @@ export interface ReportingModule {
     | "FAILED_EXPECTATIONS"
     | "FINDINGS"
     | "ATTACK_PATHS"
+    | "MITIGATIONS"
     | "CUSTOM_MARKDOWN";
 }
 

@@ -63,6 +63,13 @@ const AtomicTestingTabs = ({ injectResultOverview }: Props) => {
             </Link>
           </TabsTrigger>
         )}
+        {hasPayload && (
+          <TabsTrigger value={`${base}/mitigations`} asChild>
+            <Link to={`${base}/mitigations`} aria-current={current(`${base}/mitigations`)}>
+              {t('Mitigations')}
+            </Link>
+          </TabsTrigger>
+        )}
       </TabsList>
     </Tabs>
   );
