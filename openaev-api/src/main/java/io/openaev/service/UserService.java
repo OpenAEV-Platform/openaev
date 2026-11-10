@@ -41,6 +41,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -77,6 +78,7 @@ import org.springframework.util.StringUtils;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
   @Value("${openbas.admin.email:${openaev.admin.email:#{null}}}")
@@ -480,8 +482,25 @@ public class UserService {
     tenantTx.executeNew(
         TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
         () -> {
-          mailingService.sendEmail(confirmSubject, confirmBody, List.of(newAddressRecipient));
-          mailingService.sendEmail(noticeSubject, noticeBody, List.of(user));
+          // The two deliveries are independent: sendEmail throws on a failed delivery, so a failure
+          // of one must not suppress the other. The current-address notice is attempted even when
+          // the confirmation delivery fails (the owner is still warned), and a notice-only failure
+          // does not abort a request whose confirmation link is already out. A failed confirmation
+          // delivery is surfaced, so the caller learns the change was not actually set in motion.
+          RuntimeException confirmFailure = null;
+          try {
+            mailingService.sendEmail(confirmSubject, confirmBody, List.of(newAddressRecipient));
+          } catch (RuntimeException e) {
+            confirmFailure = e;
+          }
+          try {
+            mailingService.sendEmail(noticeSubject, noticeBody, List.of(user));
+          } catch (RuntimeException e) {
+            log.warn("Email-change notice to the current address could not be delivered", e);
+          }
+          if (confirmFailure != null) {
+            throw confirmFailure;
+          }
         });
   }
 
