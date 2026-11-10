@@ -290,6 +290,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -417,7 +418,8 @@ class TenantActiveTableAccessArchTest {
             .map(java.lang.reflect.Field::getName)
             .collect(Collectors.toSet());
     Set<String> missingRule =
-        tablesWithoutAccessorRule(active, declaredRules, TABLES_OWING_AN_ACCESSOR_RULE);
+        tablesWithoutAccessorRule(
+            active, declaredRules, TABLES_OWING_AN_ACCESSOR_RULE, TABLES_GUARDED_BY_OTHER_RULES);
     assertTrue(
         missingRule.isEmpty(),
         "these active tables have no accessor rule in this class, so nothing constrains who reads"
@@ -430,15 +432,35 @@ class TenantActiveTableAccessArchTest {
    * The active tables that have no {@code <table>_repository_access_is_reviewed} rule among {@code
    * declaredRules} and are not in {@code owing}. The rule name is matched in full: a table name is
    * often the prefix of another one ({@code steps} and {@code steps_delay_queue}), and a prefix
-   * match would let the longer table's rule stand in for the shorter table's missing one.
+   * match would let the longer table's rule stand in for the shorter table's missing one. A table
+   * of {@code guardedByOtherRules} counts as guarded only when every rule named for it is declared.
    */
   static Set<String> tablesWithoutAccessorRule(
-      Set<String> active, Set<String> declaredRules, Set<String> owing) {
+      Set<String> active,
+      Set<String> declaredRules,
+      Set<String> owing,
+      Map<String, Set<String>> guardedByOtherRules) {
     return active.stream()
         .filter(t -> !owing.contains(t))
         .filter(t -> !declaredRules.contains(t + "_repository_access_is_reviewed"))
+        .filter(
+            t ->
+                !guardedByOtherRules.containsKey(t)
+                    || !declaredRules.containsAll(guardedByOtherRules.get(t)))
         .collect(Collectors.toSet());
   }
+
+  /**
+   * Active tables guarded by rules other than a repository access rule, with those rules. {@code
+   * parameters} is dual-scope: a platform row is readable under any scope, so its guard follows its
+   * writers and the readers of its tenant rows instead of its repository.
+   */
+  private static final Map<String, Set<String>> TABLES_GUARDED_BY_OTHER_RULES =
+      Map.of(
+          "parameters",
+          Set.of(
+              "parameters_platform_row_writers_run_under_platform_write",
+              "parameters_tenant_row_readers_off_the_request_thread"));
 
   @ArchTest
   static void the_accessor_rule_of_a_table_is_matched_by_its_full_name(JavaClasses classes) {
@@ -455,7 +477,26 @@ class TenantActiveTableAccessArchTest {
             Set.of(
                 "steps_delay_queue_repository_access_is_reviewed",
                 "attackpath_execution_collector_repository_access_is_reviewed"),
-            Set.of()));
+            Set.of(),
+            Map.of()));
+  }
+
+  @ArchTest
+  static void a_table_guarded_by_other_rules_counts_only_when_each_of_them_exists(
+      JavaClasses classes) {
+    Map<String, Set<String>> guardedByOtherRules =
+        Map.of("parameters", Set.of("parameters_writers", "parameters_readers"));
+    assertEquals(
+        Set.of(),
+        tablesWithoutAccessorRule(
+            Set.of("parameters"),
+            Set.of("parameters_writers", "parameters_readers"),
+            Set.of(),
+            guardedByOtherRules));
+    assertEquals(
+        Set.of("parameters"),
+        tablesWithoutAccessorRule(
+            Set.of("parameters"), Set.of("parameters_writers"), Set.of(), guardedByOtherRules));
   }
 
   /**

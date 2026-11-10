@@ -6,8 +6,10 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -76,7 +78,9 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>The simulation lives in a tenant of its own. Each call is sent on the non-prefixed route, from
  * the request thread's empty ambient tenant, by a caller who is a member of another tenant only, by
  * one with no membership at all, and by a member of the simulation's tenant: the step receives its
- * event in every case, stamped with the simulation's tenant.
+ * event in every case, stamped with the simulation's tenant. The inject execution callback is the
+ * exception: it loads the inject in the request's scope first, so a caller whose scope does not
+ * cover the simulation's tenant is answered not found and nothing is published.
  *
  * <p>The caller with no membership is the narrowest of the three, not an unscoped one: an empty set
  * of authorized tenants resolves to the missing scope ({@link
@@ -227,8 +231,9 @@ class WorkflowUpdateEventOutOfScopeCallersTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given a scope without its tenant should notify the step in that tenant")
-    void given_anExecutionReportFromAScopeWithoutItsTenant_should_notifyTheStep() throws Exception {
+    @DisplayName("given a scope without its tenant should refuse the report and notify nothing")
+    void given_anExecutionReportFromAScopeWithoutItsTenant_should_refuseItAndNotifyNothing()
+        throws Exception {
       // Arrange
       joinAnotherTenantOnly();
       Seeded seeded = seedChainedInject();
@@ -237,12 +242,13 @@ class WorkflowUpdateEventOutOfScopeCallersTest extends IntegrationTest {
       int httpStatus = reportInjectExecution(seeded.injectId());
 
       // Assert
-      assertStepNotifiedInItsTenant(httpStatus, seeded);
+      assertRefusedWithNothingPublished(httpStatus);
     }
 
     @Test
-    @DisplayName("given no tenant membership should notify the step in that tenant")
-    void given_anExecutionReportWithNoTenantMembership_should_notifyTheStep() throws Exception {
+    @DisplayName("given no tenant membership should refuse the report and notify nothing")
+    void given_anExecutionReportWithNoTenantMembership_should_refuseItAndNotifyNothing()
+        throws Exception {
       // Arrange
       Seeded seeded = seedChainedInject();
 
@@ -250,7 +256,7 @@ class WorkflowUpdateEventOutOfScopeCallersTest extends IntegrationTest {
       int httpStatus = reportInjectExecution(seeded.injectId());
 
       // Assert
-      assertStepNotifiedInItsTenant(httpStatus, seeded);
+      assertRefusedWithNothingPublished(httpStatus);
     }
 
     @Test
@@ -317,6 +323,11 @@ class WorkflowUpdateEventOutOfScopeCallersTest extends IntegrationTest {
         .extracting(ExternalUpdateEvent::getStepId, ExternalUpdateEvent::getTenantId)
         .as("the active step of the simulation's tenant, stamped with that tenant")
         .containsExactly(tuple(seeded.stepId(), ownerTenantId));
+  }
+
+  private void assertRefusedWithNothingPublished(int httpStatus) throws IOException {
+    assertThat(httpStatus).isEqualTo(404);
+    verify(updateQueue, never()).publish(any());
   }
 
   // -- Arrange helpers --
