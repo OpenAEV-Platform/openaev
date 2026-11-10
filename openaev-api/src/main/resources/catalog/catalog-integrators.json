@@ -1859,48 +1859,48 @@
                         "format": "duration",
                         "type": "string"
                     },
-                    "SOURCE_TENANT_ID": {
+                    "COLLECTOR_MICROSOFT_DEFENDER_TENANT_ID": {
                         "description": "Azure AD (Entra ID) tenant identifier used to authenticate against Microsoft Graph.",
                         "type": "string"
                     },
-                    "SOURCE_CLIENT_ID": {
+                    "COLLECTOR_MICROSOFT_DEFENDER_CLIENT_ID": {
                         "description": "Azure AD application (client) identifier used to authenticate against Microsoft Graph.",
                         "type": "string"
                     },
-                    "SOURCE_USE_CERTIFICATE_AUTH": {
+                    "COLLECTOR_MICROSOFT_DEFENDER_USE_CERTIFICATE_AUTH": {
                         "default": false,
                         "description": "Whether to authenticate using a client certificate instead of a client secret.",
                         "type": "boolean"
                     },
-                    "SOURCE_CLIENT_SECRET": {
+                    "COLLECTOR_MICROSOFT_DEFENDER_CLIENT_SECRET": {
                         "default": null,
                         "description": "Azure AD application client secret. Required unless use_certificate_auth is enabled.",
                         "format": "password",
                         "type": "string",
                         "writeOnly": true
                     },
-                    "SOURCE_CLIENT_CERT_DATA": {
+                    "COLLECTOR_MICROSOFT_DEFENDER_CLIENT_CERT_DATA": {
                         "default": null,
                         "description": "PEM encoded private key of the client certificate registered on the Entra ID application. Required when use_certificate_auth is enabled.",
                         "format": "password",
                         "type": "string",
                         "writeOnly": true
                     },
-                    "SOURCE_CLIENT_CERT_THUMBPRINT": {
+                    "COLLECTOR_MICROSOFT_DEFENDER_CLIENT_CERT_THUMBPRINT": {
                         "default": null,
                         "description": "SHA-1 thumbprint of the client certificate registered on the Entra ID application. Required when use_certificate_auth is enabled.",
                         "format": "password",
                         "type": "string",
                         "writeOnly": true
                     },
-                    "SOURCE_CLIENT_CERT_PASSPHRASE": {
+                    "COLLECTOR_MICROSOFT_DEFENDER_CLIENT_CERT_PASSPHRASE": {
                         "default": null,
                         "description": "Passphrase protecting the client certificate private key. Only needed when the private key is encrypted.",
                         "format": "password",
                         "type": "string",
                         "writeOnly": true
                     },
-                    "SOURCE_BASE_URL": {
+                    "COLLECTOR_MICROSOFT_DEFENDER_BASE_URL": {
                         "default": "https://graph.microsoft.com/v1.0",
                         "description": "Base URL for the Microsoft Graph API.",
                         "format": "uri",
@@ -1908,24 +1908,24 @@
                         "minLength": 1,
                         "type": "string"
                     },
-                    "SOURCE_FILTER_SERVICE_SOURCE": {
+                    "COLLECTOR_MICROSOFT_DEFENDER_FILTER_SERVICE_SOURCE": {
                         "default": "microsoftDefenderForEndpoint",
                         "description": "Value used to filter Microsoft Graph security alerts down to those produced by Microsoft Defender for Endpoint.",
                         "type": "string"
                     },
-                    "SOURCE_RATE_LIMIT_REQUESTS_PER_MINUTE": {
+                    "COLLECTOR_MICROSOFT_DEFENDER_RATE_LIMIT_REQUESTS_PER_MINUTE": {
                         "default": 150,
                         "description": "Maximum number of Microsoft Graph API requests issued per minute.",
                         "minimum": 1,
                         "type": "integer"
                     },
-                    "SOURCE_MAX_FETCH_RETRIES": {
+                    "COLLECTOR_MICROSOFT_DEFENDER_MAX_FETCH_RETRIES": {
                         "default": 5,
                         "description": "Maximum number of retries when fetching data from Microsoft Graph fails transiently.",
                         "minimum": 0,
                         "type": "integer"
                     },
-                    "SOURCE_RETRY_WINDOW": {
+                    "COLLECTOR_MICROSOFT_DEFENDER_RETRY_WINDOW": {
                         "default": "PT20M",
                         "description": "How long after the recorded end date an unresolved expectation is re-attempted on every collector cycle, before one final attempt emits the verdict (ISO 8601 format) - if the end date is not available, the start date is used with a factor 1.5 on the retry window (until the end date is available)",
                         "format": "duration",
@@ -1935,8 +1935,8 @@
                 "required": [
                     "OPENAEV_URL",
                     "OPENAEV_TOKEN",
-                    "SOURCE_TENANT_ID",
-                    "SOURCE_CLIENT_ID"
+                    "COLLECTOR_MICROSOFT_DEFENDER_TENANT_ID",
+                    "COLLECTOR_MICROSOFT_DEFENDER_CLIENT_ID"
                 ],
                 "additionalProperties": true
             }
