@@ -10,11 +10,10 @@ To see the Collectors you can deploy, open **Integrations** and the **Available*
 ### Detection & prevention (SIEM, XDR, EDR, NDR)
 
 These Collectors connect to SIEM (Security Information and Event Management), XDR (Extended Detection and Response), EDR (Endpoint Detection and Response) and NDR (Network Detection and Response) tools. They fill the detection and prevention expectations of Injects.
-{% if feature_visible("LOGGING_EXPECTATION") %}
-Some SIEM Collectors also fill logging expectations (see [Logging with SIEM](#logging-with-siem)).
-{% endif %}
-
 If no matching data is found before the expectation expires (6 hours by default), the Inject is marked as not detected or not prevented.
+{% if feature_visible("LOGGING_EXPECTATION") %}
+Some SIEM Collectors also fill Logging Expectations (see [Logging with SIEM](#logging-with-siem)).
+{% endif %}
 
 #### Detection & prevention with EDR
 

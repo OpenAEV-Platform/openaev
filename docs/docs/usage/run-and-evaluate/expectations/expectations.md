@@ -158,11 +158,11 @@ Expectations must validate within a defined time window. If the time expires, th
 
 Override expiration times globally (environment variables) or per Expectation (UI):
 
-| Parameter | Environment variable | Default (seconds) | Description |
-|---|---|---|---|
-| `openaev.expectation.technical.expiration-time` | `OPENAEV_EXPECTATION_TECHNICAL_EXPIRATION-TIME` | 21600 | Technical Expectations (detection and prevention) |
-| `openaev.expectation.detection.expiration-time` | `OPENAEV_EXPECTATION_DETECTION_EXPIRATION-TIME` | 21600 | Detection Expectations |
-| `openaev.expectation.prevention.expiration-time` | `OPENAEV_EXPECTATION_PREVENTION_EXPIRATION-TIME` | 21600 | Prevention Expectations |
+| Parameter | Environment variable | Default (seconds) | Description                                                |
+|---|---|---|------------------------------------------------------------|
+| `openaev.expectation.technical.expiration-time` | `OPENAEV_EXPECTATION_TECHNICAL_EXPIRATION-TIME` | 21600 | Technical Expectations (detection, prevention and logging) |
+| `openaev.expectation.detection.expiration-time` | `OPENAEV_EXPECTATION_DETECTION_EXPIRATION-TIME` | 21600 | Detection Expectations                                     |
+| `openaev.expectation.prevention.expiration-time` | `OPENAEV_EXPECTATION_PREVENTION_EXPIRATION-TIME` | 21600 | Prevention Expectations                                    |
 {%- if feature_visible("LOGGING_EXPECTATION") %}
 | `openaev.expectation.logging.expiration-time` | `OPENAEV_EXPECTATION_LOGGING_EXPIRATION-TIME` | 21600 | Logging Expectations ("Not Logged" when they expire). When unset, the technical expiration time applies |
 {%- endif %}
