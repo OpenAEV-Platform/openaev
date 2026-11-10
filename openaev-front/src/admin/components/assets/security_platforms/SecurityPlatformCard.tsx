@@ -28,18 +28,12 @@ const SecurityPlatformCard: FunctionComponent<Props> = ({
   return (
     <EntityCard
       testId="security-platform-card"
+      layout="ds2026"
       to={`${SECURITY_PLATFORM_BASE_URL}/${securityPlatform.asset_id}`}
-      icon={(
-        <img
-          src={buildTenantApiPath(`/api/images/security_platforms/id/${securityPlatform.asset_id}/${theme.palette.mode}?${Date.now()}`)}
-          alt={securityPlatform.asset_name}
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 4,
-          }}
-        />
-      )}
+      image={{
+        src: buildTenantApiPath(`/api/images/security_platforms/id/${securityPlatform.asset_id}/${theme.palette.mode}?${Date.now()}`),
+        alt: securityPlatform.asset_name,
+      }}
       overline={securityPlatformTypeLabel(securityPlatform.security_platform_type)}
       title={securityPlatform.asset_name}
       description={securityPlatform.asset_description}
@@ -55,7 +49,9 @@ const SecurityPlatformCard: FunctionComponent<Props> = ({
           disabled={isConnectorManaged(securityPlatform)}
         />
       )}
-      footerStart={<ItemTags variant="reduced-view" tags={securityPlatform.asset_tags} />}
+      tags={securityPlatform.asset_tags?.length
+        ? <ItemTags variant="reduced-view" tags={securityPlatform.asset_tags} />
+        : undefined}
     />
   );
 };

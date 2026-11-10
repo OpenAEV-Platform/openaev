@@ -1,9 +1,11 @@
-import { Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ButtonGroup, ButtonGroupItem, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { GridViewOutlined, ViewListOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { Binoculars } from 'mdi-material-ui';
 import { type CSSProperties, useState } from 'react';
 import { Link } from 'react-router';
 
+import CardGrid from '../../../components/common/card/CardGrid';
 import { initSorting, type Page } from '../../../components/common/queryable/Page';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { buildSearchPagination } from '../../../components/common/queryable/QueryableUtils';
@@ -17,7 +19,10 @@ import { useFormatter } from '../../../components/i18n';
 import ItemTargets from '../../../components/ItemTargets';
 import PaginatedListLoader from '../../../components/PaginatedListLoader';
 import { type AggregatedFindingOutput, type SearchPaginationInput, type TargetSimple } from '../../../utils/api-types';
+import ThreatArsenalHero from '../threat_arsenal/ThreatArsenalHero';
 import ContractOutputElementType from './ContractOutputElementType';
+import FindingCard from './FindingCard';
+import FindingSidebar from './FindingSidebar';
 
 interface Props {
   searchDistinctFindings: (input: SearchPaginationInput) => Promise<{ data: Page<AggregatedFindingOutput> }>;
@@ -28,7 +33,16 @@ interface Props {
   // Compact mode for embedding in a narrow container (e.g. the attack-path drawer): hides the
   // search/filters/pagination top bar. Defaults to false so the full-page usage is unchanged.
   compact?: boolean;
+  // Findings page: section header, filter sidebar and a cards / list switch (cards by default),
+  // laid out like the Threat Arsenal page. Defaults to false: the embedded tabs keep the plain list.
+  fullPage?: boolean;
 }
+
+type ViewMode = 'cards' | 'list';
+
+const VIEW_MODE_STORAGE_KEY = 'findings:view-mode';
+
+const readViewMode = (): ViewMode => (localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'list' ? 'list' : 'cards');
 
 const inlineStyles: Record<string, CSSProperties> = ({
   finding_type: { width: '13%' },
@@ -39,10 +53,16 @@ const inlineStyles: Record<string, CSSProperties> = ({
   finding_updated_at: { width: '14%' },
 });
 
-const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false }: Props) => {
+const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId, hiddenFields = [], compact = false, fullPage = false }: Props) => {
   const bodyItemsStyles = useBodyItemsStyles();
   const { t, nsdt } = useFormatter();
   const [loading, setLoading] = useState<boolean>(true);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (fullPage ? readViewMode() : 'list'));
+  const onViewModeChange = (value: string) => {
+    const next: ViewMode = value === 'list' ? 'list' : 'cards';
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, next);
+    setViewMode(next);
+  };
 
   const availableFilterNames = [
     'finding_type',
@@ -196,7 +216,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
     }),
   );
 
-  return (
+  const content = (
     <>
       <PaginationComponentV2
         fetch={searchFindingsToload}
@@ -210,64 +230,76 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         disableFilters={compact}
         disablePagination={compact}
       />
-      <List>
-        <ListItem
-          sx={{
-            textTransform: 'uppercase',
-            paddingTop: 0,
-          }}
-        >
-          <ListItemIcon />
-          <ListItemText
-            primary={(
-              <SortHeadersComponentV2
-                headers={visibleHeaders}
-                inlineStylesHeaders={visibleStyles}
-                sortHelpers={queryableHelpers.sortHelpers}
-              />
-            )}
-          />
-        </ListItem>
-        {loading
-          ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={visibleStyles} />
-          : findings.map(finding => (
-              <ListItem
-                key={finding.finding_id}
-                sx={{ height: 50 }}
-                divider
-                disablePadding
-                data-testid="finding-row"
-              >
-                <ListItemButton
+      {viewMode === 'cards' && (
+        <>
+          {/* Every row takes the height of the tallest card of the page: all the cards share one
+              height, the least their content needs (the cards fit their content, see FindingCard). */}
+          <CardGrid loading={loading} style={{ gridAutoRows: '1fr' }}>
+            {findings.map(finding => <FindingCard key={finding.finding_id} finding={finding} />)}
+          </CardGrid>
+          {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}
+        </>
+      )}
+      {viewMode === 'list' && (
+        <List>
+          <ListItem
+            sx={{
+              textTransform: 'uppercase',
+              paddingTop: 0,
+            }}
+          >
+            <ListItemIcon />
+            <ListItemText
+              primary={(
+                <SortHeadersComponentV2
+                  headers={visibleHeaders}
+                  inlineStylesHeaders={visibleStyles}
+                  sortHelpers={queryableHelpers.sortHelpers}
+                />
+              )}
+            />
+          </ListItem>
+          {loading
+            ? <PaginatedListLoader Icon={Binoculars} headers={visibleHeaders} headerStyles={visibleStyles} />
+            : findings.map(finding => (
+                <ListItem
+                  key={finding.finding_id}
                   sx={{ height: 50 }}
-                  component={Link}
-                  to={`/admin/findings/${finding.finding_id}`}
+                  divider
+                  disablePadding
+                  data-testid="finding-row"
                 >
-                  <ListItemIcon>
-                    <FindingIcon findingType={finding.finding_type} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={(
-                      <div style={bodyItemsStyles.bodyItems}>
-                        {visibleHeaders.map(header => (
-                          <div
-                            key={header.field}
-                            style={{
-                              ...bodyItemsStyles.bodyItem,
-                              ...visibleStyles[header.field],
-                            }}
-                          >
-                            {header.value && header.value(finding)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-        {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}
-      </List>
+                  <ListItemButton
+                    sx={{ height: 50 }}
+                    component={Link}
+                    to={`/admin/findings/${finding.finding_id}`}
+                  >
+                    <ListItemIcon>
+                      <FindingIcon findingType={finding.finding_type} />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={(
+                        <div style={bodyItemsStyles.bodyItems}>
+                          {visibleHeaders.map(header => (
+                            <div
+                              key={header.field}
+                              style={{
+                                ...bodyItemsStyles.bodyItem,
+                                ...visibleStyles[header.field],
+                              }}
+                            >
+                              {header.value && header.value(finding)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+          {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}
+        </List>
+      )}
       {/* Compact mode has no pager: if the run produced more findings than one compact page, say so
           explicitly (with the total) so the list never reads as "this inject has N findings". */}
       {compact && !loading && total > findings.length && (
@@ -287,6 +319,69 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
         </Typography>
       )}
     </>
+  );
+
+  if (!fullPage) {
+    return content;
+  }
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16,
+    }}
+    >
+      <ThreatArsenalHero
+        title={t('Findings')}
+        totalLabel={t('Findings').toLowerCase()}
+        totalElements={queryableHelpers.paginationHelpers.getTotalElements()}
+        stats={[]}
+        rightSlot={(
+          <ButtonGroup
+            value={viewMode}
+            size="md"
+            usecase="isolated"
+            onValueChange={onViewModeChange}
+            aria-label={t('View mode')}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ButtonGroupItem value="cards" aria-label={t('Grid view')} icon={<GridViewOutlined fontSize="small" />} />
+              </TooltipTrigger>
+              <TooltipContent>{t('Grid view')}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <ButtonGroupItem value="list" aria-label={t('List view')} icon={<ViewListOutlined fontSize="small" />} />
+              </TooltipTrigger>
+              <TooltipContent>{t('List view')}</TooltipContent>
+            </Tooltip>
+          </ButtonGroup>
+        )}
+      />
+      <div style={{
+        display: 'flex',
+        gap: 24,
+        alignItems: 'flex-start',
+      }}
+      >
+        <FindingSidebar
+          searchPaginationInput={searchPaginationInput}
+          filterHelpers={queryableHelpers.filterHelpers}
+          contextId={contextId}
+        />
+        <main style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        >
+          {content}
+        </main>
+      </div>
+    </div>
   );
 };
 
