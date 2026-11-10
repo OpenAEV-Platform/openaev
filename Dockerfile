@@ -43,16 +43,6 @@ COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-ap
 RUN DEBIAN_FRONTEND=noninteractive java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/* \
     && chmod -R a+rX /ms-playwright
-RUN set -eux; \
-    sed -i -E 's|^(mozilla/emSign_.*\.crt)$|!\1|' /etc/ca-certificates.conf; \
-    update-ca-certificates --fresh; \
-    keytool -list -v -cacerts -storepass changeit > /tmp/cacerts.txt; \
-    sed -n 's/^Alias name: //p' /tmp/cacerts.txt | grep -i emsign > /tmp/emsign.txt || true; \
-    while IFS= read -r alias; do keytool -delete -noprompt -cacerts -storepass changeit -alias "$alias"; done < /tmp/emsign.txt; \
-    keytool -list -v -cacerts -storepass changeit > /tmp/cacerts.txt; \
-    grep -q '^Alias name: ' /tmp/cacerts.txt; \
-    if ls /etc/ssl/certs | grep -i emsign || grep -iE 'emsign|emudhra' /tmp/cacerts.txt; then exit 1; fi; \
-    rm /tmp/cacerts.txt /tmp/emsign.txt
 
 # Set by CI to the built commit, exposed in the platform settings
 ARG OPENAEV_COMMIT
