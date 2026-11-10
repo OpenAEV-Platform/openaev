@@ -219,24 +219,6 @@ public class ConnectorInstanceService implements AuditLoggedService {
   }
 
   /**
-   * Resolves the {@link ConnectorInstancePersisted} that owns the given executor entity, scoped to
-   * the executor's tenant.
-   *
-   * @param executorId the executor entity ID
-   * @param tenantId the tenant owning the executor
-   * @return the owning connector instance
-   * @throws EntityNotFoundException if no connector instance is found for the executor ID
-   */
-  @Transactional(readOnly = true)
-  public ConnectorInstancePersisted findByExecutorId(String executorId, String tenantId) {
-    return findPersistedByConnectorId(ConnectorType.EXECUTOR, executorId, tenantId)
-        .orElseThrow(
-            () ->
-                new EntityNotFoundException(
-                    "No connector instance found for executor ID: " + executorId));
-  }
-
-  /**
    * Retrieves all connector instances.
    *
    * @return the list of connector instances
