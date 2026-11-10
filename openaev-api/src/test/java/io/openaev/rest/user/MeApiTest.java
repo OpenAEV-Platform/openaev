@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.*;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -382,6 +383,47 @@ public class MeApiTest extends IntegrationTest {
           .isNotEmpty()
           .get()
           .satisfies(user -> assertThat(user.getEmail()).isEqualTo(newEmail));
+    }
+
+    @Test
+    @DisplayName("Given email change request, then confirmation link is sent to the new address")
+    void given_emailChangeRequest_then_confirmationLinkGoesToNewAddress() throws Exception {
+      String currentPassword = "current_user_password";
+      String newEmail = "new-owner@elsewhere.invalid";
+      User me = testUserHolder.get();
+      String currentEmail = me.getEmail();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userRepository.save(me);
+
+      UpdateMeEmailInput input = new UpdateMeEmailInput();
+      input.setCurrentPassword(currentPassword);
+      input.setEmail(newEmail);
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isOk());
+
+      ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<User>> recipientsCaptor = ArgumentCaptor.forClass(List.class);
+      verify(mockMailingService, atLeastOnce())
+          .sendEmail(anyString(), bodyCaptor.capture(), recipientsCaptor.capture());
+
+      // The message carrying the confirmation link must be delivered to the new address, so the
+      // change only applies once the holder of that address confirms it.
+      List<String> bodies = bodyCaptor.getAllValues();
+      List<List<User>> recipients = recipientsCaptor.getAllValues();
+      String confirmRecipient = null;
+      for (int i = 0; i < bodies.size(); i++) {
+        if (bodies.get(i).contains("/api/me/confirm-email-change/")) {
+          confirmRecipient = recipients.get(i).get(0).getEmail();
+        }
+      }
+      assertThat(confirmRecipient).isEqualTo(newEmail);
+      assertThat(confirmRecipient).isNotEqualTo(currentEmail);
     }
 
     @Test

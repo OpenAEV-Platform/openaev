@@ -437,27 +437,52 @@ public class UserService {
           user.getId(), new EmailChangeRequest(confirmationCode, newEmail));
     }
 
-    String subject = "OpenAEV email change to " + newEmail + " requested";
-    String body =
+    String confirmLink =
+        openAEVConfig.getBaseUrl() + "/api/me/confirm-email-change/" + confirmationCode;
+    String validityMinutes = String.valueOf(Math.ceilDivExact(tenMinutes, 60000));
+
+    // Send the confirmation link to the NEW address, so the change takes effect only once the
+    // person
+    // who controls that address confirms it. The recipient carries only the new address and has no
+    // platform account, which the email injector already supports for non-platform recipients.
+    User newAddressRecipient = new User();
+    newAddressRecipient.setEmail(newEmail);
+    String confirmSubject = "OpenAEV email change to " + newEmail + " requested";
+    String confirmBody =
         """
-            Hi %s,<br/>
+            Hi,<br/>
             <br/>
-            A request to change your account's email address on OpenAEV was submitted. The change will only
-            take effect after you confirm the request.<br/>
+            This address was submitted as the new email address for an OpenAEV account. The change
+            will only take effect after you confirm it from this address.<br/>
             <br/>
-            If you have not requested this change yourself, please take steps to secure your account.<br/>
+            If you did not expect this, you can ignore this message.<br/>
             <br/>
             Follow this link to confirm and apply the email address change: <a href="%s">confirm email change</a>.<br/>
             <br/>
             The link is valid for %s minutes.
             """
-            .formatted(
-                user.getName(),
-                openAEVConfig.getBaseUrl() + "/api/me/confirm-email-change/" + confirmationCode,
-                String.valueOf(Math.ceilDivExact(tenMinutes, 60000)));
+            .formatted(confirmLink, validityMinutes);
+
+    // Notify the current address that a change was requested, without the confirmation link, so the
+    // account owner can react if they did not start it.
+    String noticeSubject = "OpenAEV email change requested";
+    String noticeBody =
+        """
+            Hi %s,<br/>
+            <br/>
+            A request to change your account's email address on OpenAEV was submitted. The change
+            will only take effect after it is confirmed from the new address.<br/>
+            <br/>
+            If you have not requested this change yourself, please take steps to secure your account.<br/>
+            """
+            .formatted(user.getName());
+
     tenantTx.executeNew(
         TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
-        () -> mailingService.sendEmail(subject, body, List.of(user)));
+        () -> {
+          mailingService.sendEmail(confirmSubject, confirmBody, List.of(newAddressRecipient));
+          mailingService.sendEmail(noticeSubject, noticeBody, List.of(user));
+        });
   }
 
   public User confirmEmailChange(String confirmationCode) {
