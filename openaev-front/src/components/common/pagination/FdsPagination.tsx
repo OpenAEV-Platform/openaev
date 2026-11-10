@@ -1,5 +1,5 @@
-import { IconButton, Menu, MenuContent, MenuItem, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger, Text } from '@filigran/design-system';
-import { ArrowLeft, ArrowRight, TuneOutlined } from '@mui/icons-material';
+import { Icon, IconButton, Menu, MenuContent, MenuItem, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger, Text } from '@filigran/design-system';
+import { ArrowLeft, ArrowRight } from '@mui/icons-material';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../i18n';
@@ -89,13 +89,13 @@ const FdsPagination: FunctionComponent<Props> = ({
               size="sm"
               priority="tertiary"
               aria-label={t('Table settings')}
-              icon={<TuneOutlined fontSize="small" style={arrowStyle} />}
-              style={{
-                borderLeft: '1px solid var(--border-elevation-default)',
-                borderRadius: 0,
-                height: 34,
-                width: 36,
-              }}
+              // Figma: the DS "table-properties" glyph, no divider before it.
+              icon={(
+                // The DS Icon paints with the current text colour: the highlight, as the arrows.
+                <span className="inline-flex" style={arrowStyle}>
+                  <Icon name="table-properties" size={20} aria-hidden />
+                </span>
+              )}
             />
           </MenuTrigger>
           <MenuContent align="start">
@@ -118,5 +118,20 @@ const FdsPagination: FunctionComponent<Props> = ({
     </nav>
   );
 };
+
+/**
+ * The pagination on its own row, at the right end, with one spacing everywhere: inside a framed list
+ * it keeps the list's 16px inset (never touching the frame), below a list it sits 12px under it.
+ */
+export const FdsPaginationRow: FunctionComponent<Props & { inset?: boolean }> = ({ inset = false, ...props }) => (
+  <div style={{
+    display: 'flex',
+    justifyContent: 'flex-end',
+    padding: inset ? '8px 16px' : '12px 0 0',
+  }}
+  >
+    <FdsPagination {...props} />
+  </div>
+);
 
 export default FdsPagination;

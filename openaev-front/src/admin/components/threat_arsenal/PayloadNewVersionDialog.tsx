@@ -7,15 +7,12 @@ import {
   DialogContent,
   DialogFooter,
   DialogTitle,
-  IconButton,
   Spinner,
   Text,
 } from '@filigran/design-system';
-import { ArrowForwardOutlined, ExpandLess, ExpandMore } from '@mui/icons-material';
-// fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
-import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import { ArrowForwardOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { Fragment, type FunctionComponent, useEffect, useState } from 'react';
+import { type FunctionComponent, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
 import {
@@ -23,7 +20,7 @@ import {
   fetchThreatArsenalUsages,
   fetchThreatArsenalVersions,
 } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
-import { FDS_GROUP_ROW_STYLE, FDS_SELECT_ALL_BANNER_STYLE, FDS_TABLE_SX } from '../../../components/common/fdsTableSpec';
+import { FDS_GROUP_ROW_STYLE, FDS_SELECT_ALL_BANNER_STYLE } from '../../../components/common/fdsTableSpec';
 import { useFormatter } from '../../../components/i18n';
 import {
   type PayloadUsageOutput,
@@ -31,7 +28,6 @@ import {
   type PayloadVersionOutput,
 } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
-import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
 
 interface Props {
   // Contract of the version the save replaced, and the version it created.
@@ -42,25 +38,15 @@ interface Props {
   onClose: () => void;
 }
 
-// Above this many, a list of every inject no longer fits a dialog: one row per older version (all
-// of it in one tick), its injects on demand, and the Versions tab for a finer choice.
-const LARGE_LIST = 10;
-
-// One width and inset for every checkbox cell (header, version rows, inject rows): the ticks line up.
-const CHECKBOX_CELL_SX = {
-  width: 48,
-  padding: '0 8px 0 16px !important',
-};
-
 interface Source {
   version: PayloadVersionOutput;
   usages: PayloadUsageOutput[];
 }
 
-// After a save that added a version: every inject, atomic test and chained step still on an older
-// version (with its scenario and type, as in the Versions tab), all selected; unticking keeps one on
-// its version. The selected ones move to the new version (F30), decided here, not version by version later.
-// A few: one table of them all. Many: a summary per older version, details on demand (LARGE_LIST).
+// After a save that added a version: one row per older version something still runs, with how many
+// injects and scenarios, all selected; unticking a version keeps its injects on it. The selected ones
+// move to the new version (F30). The same design for 1 inject or hundreds; a finer choice, inject by
+// inject, is in the Versions tab.
 const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, newPayloadId, newVersion, onClose }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -68,15 +54,6 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
   const [sources, setSources] = useState<Source[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moving, setMoving] = useState(false);
-  // Older versions folded by the user (all open at first), as the version rows of the Versions tab.
-  const [folded, setFolded] = useState<Set<string>>(new Set());
-  const toggleFolded = (id: string) => setFolded((previous) => {
-    const next = new Set(previous);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    return next;
-  });
-
   useEffect(() => {
     fetchThreatArsenalVersions(previousActionId).then(async (response: { data: PayloadVersionOutput[] }) => {
       setVersions(response.data);
@@ -99,54 +76,14 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
 
   const allUsages = (sources ?? []).flatMap(source => source.usages);
   const allSelected = allUsages.length > 0 && selected.size === allUsages.length;
-  // Every usage on an older version can move to the new one.
-  const canMigrate = true;
-  const large = allUsages.length > LARGE_LIST;
   const scenarioCount = (usages: PayloadUsageOutput[]) => new Set(usages.map(usage => usage.usage_scenario_id).filter(Boolean)).size;
   const newActionId = versions?.find(v => v.payload_id === newPayloadId)?.payload_action_id;
-
-  const toggle = (id: string) => setSelected((previous) => {
-    const next = new Set(previous);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    return next;
-  });
-
-  // A version's tick: on when all its injects are, mixed when some are.
-  const groupState = (usages: PayloadUsageOutput[]) => {
-    const chosen = usages.filter(usage => selected.has(usage.usage_id)).length;
-    if (chosen === usages.length) return true;
-    return chosen > 0 ? 'indeterminate' as const : false;
-  };
 
   const setGroup = (ids: string[], on: boolean) => setSelected((previous) => {
     const next = new Set(previous);
     ids.forEach(id => (on ? next.add(id) : next.delete(id)));
     return next;
   });
-
-  const usageRows = (usages: PayloadUsageOutput[]) => usages.map(usage => (
-    <TableRow
-      key={usage.usage_id}
-      hover={canMigrate}
-      selected={canMigrate && selected.has(usage.usage_id)}
-      onClick={canMigrate ? () => toggle(usage.usage_id) : undefined}
-      sx={{ cursor: canMigrate ? 'pointer' : 'default' }}
-    >
-      {canMigrate && (
-        <TableCell padding="checkbox" sx={CHECKBOX_CELL_SX} onClick={event => event.stopPropagation()}>
-          <Checkbox
-            aria-label={usage.usage_name ?? usage.usage_id}
-            checked={selected.has(usage.usage_id)}
-            onCheckedChange={() => toggle(usage.usage_id)}
-          />
-        </TableCell>
-      )}
-      <TableCell>{usage.usage_name ?? usage.usage_id}</TableCell>
-      <TableCell>{usage.usage_scenario_name ?? '-'}</TableCell>
-      <TableCell>{t(USAGE_TYPE_LABELS[usage.usage_type] ?? usage.usage_type)}</TableCell>
-    </TableRow>
-  ));
 
   const migrate = () => {
     if (!sources) return;
@@ -180,86 +117,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
       });
   };
 
-  const renderTable = () => (
-    <div
-
-      style={{
-        backgroundColor: 'var(--bg-elevation-default)',
-        maxHeight: 360,
-        overflowY: 'auto',
-        border: '1px solid var(--border-elevation-subtle-soft)',
-        borderRadius: theme.shape.borderRadius,
-      }}
-    >
-      <Table size="small" stickyHeader sx={FDS_TABLE_SX} aria-label={t('Injects on older versions')}>
-        <TableHead>
-          <TableRow>
-            {canMigrate && (
-              <TableCell padding="checkbox" sx={CHECKBOX_CELL_SX}>
-                <Checkbox
-                  aria-label={t('Select all')}
-                  checked={allSelected || (selected.size > 0 ? 'indeterminate' : false)}
-                  onCheckedChange={() => setSelected(allSelected ? new Set() : new Set(allUsages.map(usage => usage.usage_id)))}
-                />
-              </TableCell>
-            )}
-            <TableCell>{t('Inject')}</TableCell>
-            <TableCell>{t('Scenario')}</TableCell>
-            <TableCell>{t('Type')}</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {(sources ?? []).map(source => (
-            <Fragment key={source.version.payload_id}>
-              {/* Group row: one tick for all its injects, and the arrow of the Versions tab (right) to fold them. */}
-              <TableRow sx={{ height: 44 }}>
-                {canMigrate && (
-                  <TableCell padding="checkbox" sx={CHECKBOX_CELL_SX}>
-                    <Checkbox
-                      aria-label={t('Every inject on v{version}', { version: source.version.payload_version ?? '' })}
-                      checked={groupState(source.usages)}
-                      onCheckedChange={() => setGroup(source.usages.map(usage => usage.usage_id), groupState(source.usages) !== true)}
-                    />
-                  </TableCell>
-                )}
-                <TableCell colSpan={3}>
-                  <span style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                  }}
-                  >
-                    <Text as="span" variant="content-base-bold">{`v${source.version.payload_version}`}</Text>
-                    {source.version.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
-                    <Text as="span" variant="content-base" className="text-default-secondary">
-                      {`(${t('{count, plural, one {# inject} other {# injects}}', { count: source.usages.length })})`}
-                    </Text>
-                    {/* On the right, as the Versions and History rows. */}
-                    <IconButton
-                      style={{ marginLeft: 'auto' }}
-                      size="sm"
-                      priority="tertiary"
-                      aria-expanded={!folded.has(source.version.payload_id ?? '')}
-                      aria-label={folded.has(source.version.payload_id ?? '')
-                        ? t('Show the injects on v{version}', { version: source.version.payload_version ?? '' })
-                        : t('Hide the injects on v{version}', { version: source.version.payload_version ?? '' })}
-                      // White like the Versions rows' arrow (the tertiary button would paint it blue).
-                      icon={folded.has(source.version.payload_id ?? '') ? <ExpandMore fontSize="small" style={{ color: 'var(--text-default-primary)' }} /> : <ExpandLess fontSize="small" style={{ color: 'var(--text-default-primary)' }} />}
-                      onClick={() => toggleFolded(source.version.payload_id ?? '')}
-                    />
-                  </span>
-                </TableCell>
-              </TableRow>
-              {!folded.has(source.version.payload_id ?? '') && usageRows(source.usages)}
-            </Fragment>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
-
-  // Large list (A): one row per older version with one tick for all of it, its injects on demand,
-  // and "Select all" across versions, as in Gmail.
+  // One row per older version with one tick for all of it, and "Select all" across versions, as in Gmail.
   const renderSummary = () => (
     <div
 
@@ -271,23 +129,21 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
         overflowY: 'auto',
       }}
     >
-      {canMigrate && (
-        <div style={FDS_SELECT_ALL_BANNER_STYLE}>
-          <Text variant="content-base">
-            {t('{selected} of {count} selected', {
-              selected: String(selected.size),
-              count: String(allUsages.length),
-            })}
-          </Text>
-          {allSelected
-            ? <Button priority="tertiary" size="sm" onClick={() => setSelected(new Set())}>{t('Clear selection')}</Button>
-            : (
-                <Button priority="tertiary" size="sm" onClick={() => setSelected(new Set(allUsages.map(usage => usage.usage_id)))}>
-                  {t('Select all {count}', { count: String(allUsages.length) })}
-                </Button>
-              )}
-        </div>
-      )}
+      <div style={FDS_SELECT_ALL_BANNER_STYLE}>
+        <Text variant="content-base">
+          {t('{selected} of {count} selected', {
+            selected: String(selected.size),
+            count: String(allUsages.length),
+          })}
+        </Text>
+        {allSelected
+          ? <Button priority="tertiary" size="sm" onClick={() => setSelected(new Set())}>{t('Clear selection')}</Button>
+          : (
+              <Button priority="tertiary" size="sm" onClick={() => setSelected(new Set(allUsages.map(usage => usage.usage_id)))}>
+                {t('Select all {count}', { count: String(allUsages.length) })}
+              </Button>
+            )}
+      </div>
       {(sources ?? []).map((source) => {
         const id = source.version.payload_id ?? source.version.payload_version ?? '';
         const ids = source.usages.map(usage => usage.usage_id);
@@ -295,13 +151,11 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
         return (
           <div key={id}>
             <div style={FDS_GROUP_ROW_STYLE}>
-              {canMigrate && (
-                <Checkbox
-                  aria-label={t('Every inject on v{version}', { version: source.version.payload_version ?? '' })}
-                  checked={chosen === ids.length || (chosen > 0 ? 'indeterminate' : false)}
-                  onCheckedChange={() => setGroup(ids, chosen !== ids.length)}
-                />
-              )}
+              <Checkbox
+                aria-label={t('Every inject on v{version}', { version: source.version.payload_version ?? '' })}
+                checked={chosen === ids.length || (chosen > 0 ? 'indeterminate' : false)}
+                onCheckedChange={() => setGroup(ids, chosen !== ids.length)}
+              />
               <Text variant="content-base-bold">{`v${source.version.payload_version}`}</Text>
               {source.version.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
               <Text variant="content-base" className="text-default-secondary">
@@ -310,7 +164,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
                   scenarios: String(scenarioCount(source.usages)),
                 })})`}
               </Text>
-              {canMigrate && chosen > 0 && chosen < ids.length && (
+              {chosen > 0 && chosen < ids.length && (
                 <Text variant="content-compact" className="text-default-secondary" style={{ marginLeft: 'auto' }}>
                   {t('{count} selected', { count: String(chosen) })}
                 </Text>
@@ -327,7 +181,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
       <DialogContent size="lg">
         <DialogTitle>{t('New version v{version}', { version: newVersion })}</DialogTitle>
         <DialogBody>
-          {/* The sentence introduces the table: 8px apart (DS spacing token). */}
+          {/* The sentence introduces the list: 8px apart (DS spacing token). */}
           {sources === null ? <Spinner /> : (
             <div style={{
               display: 'flex',
@@ -338,13 +192,13 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
               <Text variant="content-base">
                 {t('{count} scenario injects, atomic tests or chained steps use older versions:', { count: String(allUsages.length) })}
               </Text>
-              {large ? renderSummary() : renderTable()}
+              {renderSummary()}
             </div>
           )}
         </DialogBody>
         <DialogFooter>
-          {/* Large list (C): a finer choice, with filters and room, in the Versions tab. */}
-          {canMigrate && sources !== null && large && newActionId && (
+          {/* A finer choice, inject by inject, with filters and room, in the Versions tab. */}
+          {sources !== null && newActionId && (
             <Button asChild priority="tertiary" style={{ marginRight: 'auto' }}>
               <Link to={`/admin/threat-arsenal?action=${newActionId}&tab=versions&focus=migrate`} onClick={onClose}>
                 {t('Choose in the Versions tab')}
@@ -352,20 +206,13 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
               </Link>
             </Button>
           )}
-          {canMigrate && sources !== null && !large && (
-            <Text variant="content-compact" className="text-default-secondary" style={{ marginRight: 'auto' }}>
-              {t('Unticked ones stay on their version. You can move them later from the Versions tab.')}
-            </Text>
-          )}
-          <Button priority="secondary" onClick={onClose}>{canMigrate ? t('Later') : t('Close')}</Button>
-          {canMigrate && (
-            <Button onClick={migrate} disabled={moving || selected.size === 0 || sources === null}>
-              {moving ? <Spinner size="sm" /> : t('Move {count} to v{version}', {
-                count: String(selected.size),
-                version: newVersion,
-              })}
-            </Button>
-          )}
+          <Button priority="secondary" onClick={onClose}>{t('Later')}</Button>
+          <Button onClick={migrate} disabled={moving || selected.size === 0 || sources === null}>
+            {moving ? <Spinner size="sm" /> : t('Move {count} to v{version}', {
+              count: String(selected.size),
+              version: newVersion,
+            })}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

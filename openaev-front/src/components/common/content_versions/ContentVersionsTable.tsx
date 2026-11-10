@@ -8,7 +8,7 @@ import { Link } from 'react-router';
 import { type ContentHistoryOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
 import { FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../fdsTableSpec';
-import FdsPagination from '../pagination/FdsPagination';
+import { FdsPaginationRow } from '../pagination/FdsPagination';
 import BeforeAfter from '../update/BeforeAfter';
 import DiffLegend from '../update/DiffLegend';
 
@@ -376,14 +376,7 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
         </Table>
       </div>
       {history.length > HISTORY_PER_PAGE && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          paddingTop: 12,
-        }}
-        >
-          <FdsPagination count={history.length} page={page} onPageChange={setPage} rowsPerPage={HISTORY_PER_PAGE} />
-        </div>
+        <FdsPaginationRow count={history.length} page={page} onPageChange={setPage} rowsPerPage={HISTORY_PER_PAGE} />
       )}
     </>
   );
