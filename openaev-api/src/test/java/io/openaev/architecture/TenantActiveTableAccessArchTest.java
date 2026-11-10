@@ -2,6 +2,7 @@ package io.openaev.architecture;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
@@ -49,6 +50,7 @@ import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
+import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.CustomDomainRepository;
@@ -75,13 +77,19 @@ import io.openaev.database.repository.PhishingResultRepository;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.database.repository.ReportingRepository;
 import io.openaev.database.repository.ReportingScheduleRepository;
+import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
+import io.openaev.database.repository.StepDelayQueueRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
 import io.openaev.database.repository.WidgetRepository;
+import io.openaev.database.repository.WorkflowRepository;
+import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionCollectorRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
@@ -282,6 +290,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -369,7 +378,14 @@ class TenantActiveTableAccessArchTest {
           "catalog_items",
           "catalog_releases",
           "parameters",
-          "payload_identities");
+          "payload_identities",
+          "workflows",
+          "steps",
+          "conditions",
+          "scope_variables",
+          "steps_delay_queue",
+          "workflow_scope_rules",
+          "workflow_states");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -402,16 +418,85 @@ class TenantActiveTableAccessArchTest {
             .map(java.lang.reflect.Field::getName)
             .collect(Collectors.toSet());
     Set<String> missingRule =
-        active.stream()
-            .filter(t -> !TABLES_OWING_AN_ACCESSOR_RULE.contains(t))
-            .filter(t -> declaredRules.stream().noneMatch(r -> r.startsWith(t + "_")))
-            .collect(Collectors.toSet());
+        tablesWithoutAccessorRule(
+            active, declaredRules, TABLES_OWING_AN_ACCESSOR_RULE, TABLES_GUARDED_BY_OTHER_RULES);
     assertTrue(
         missingRule.isEmpty(),
         "these active tables have no accessor rule in this class, so nothing constrains who reads"
             + " them: "
             + missingRule
             + ". Add a <table>_repository_access_is_reviewed rule with an explicit allowlist.");
+  }
+
+  /**
+   * The active tables that have no {@code <table>_repository_access_is_reviewed} rule among {@code
+   * declaredRules} and are not in {@code owing}. The rule name is matched in full: a table name is
+   * often the prefix of another one ({@code steps} and {@code steps_delay_queue}), and a prefix
+   * match would let the longer table's rule stand in for the shorter table's missing one. A table
+   * of {@code guardedByOtherRules} counts as guarded only when every rule named for it is declared.
+   */
+  static Set<String> tablesWithoutAccessorRule(
+      Set<String> active,
+      Set<String> declaredRules,
+      Set<String> owing,
+      Map<String, Set<String>> guardedByOtherRules) {
+    return active.stream()
+        .filter(t -> !owing.contains(t))
+        .filter(t -> !declaredRules.contains(t + "_repository_access_is_reviewed"))
+        .filter(
+            t ->
+                !guardedByOtherRules.containsKey(t)
+                    || !declaredRules.containsAll(guardedByOtherRules.get(t)))
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * Active tables guarded by rules other than a repository access rule, with those rules. {@code
+   * parameters} is dual-scope: a platform row is readable under any scope, so its guard follows its
+   * writers and the readers of its tenant rows instead of its repository.
+   */
+  private static final Map<String, Set<String>> TABLES_GUARDED_BY_OTHER_RULES =
+      Map.of(
+          "parameters",
+          Set.of(
+              "parameters_platform_row_writers_run_under_platform_write",
+              "parameters_tenant_row_readers_off_the_request_thread"));
+
+  @ArchTest
+  static void the_accessor_rule_of_a_table_is_matched_by_its_full_name(JavaClasses classes) {
+    // Each active table below is the prefix of another one whose rule exists; neither borrowed
+    // rule may count as its own.
+    assertEquals(
+        Set.of("steps", "attackpath_execution"),
+        tablesWithoutAccessorRule(
+            Set.of(
+                "steps",
+                "steps_delay_queue",
+                "attackpath_execution",
+                "attackpath_execution_collector"),
+            Set.of(
+                "steps_delay_queue_repository_access_is_reviewed",
+                "attackpath_execution_collector_repository_access_is_reviewed"),
+            Set.of(),
+            Map.of()));
+  }
+
+  @ArchTest
+  static void a_table_guarded_by_other_rules_counts_only_when_each_of_them_exists(
+      JavaClasses classes) {
+    Map<String, Set<String>> guardedByOtherRules =
+        Map.of("parameters", Set.of("parameters_writers", "parameters_readers"));
+    assertEquals(
+        Set.of(),
+        tablesWithoutAccessorRule(
+            Set.of("parameters"),
+            Set.of("parameters_writers", "parameters_readers"),
+            Set.of(),
+            guardedByOtherRules));
+    assertEquals(
+        Set.of("parameters"),
+        tablesWithoutAccessorRule(
+            Set.of("parameters"), Set.of("parameters_writers"), Set.of(), guardedByOtherRules));
   }
 
   /**
@@ -2474,4 +2559,137 @@ class TenantActiveTableAccessArchTest {
           .because(
               "payload_identities is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule workflows_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Chaining engine services. HTTP reach is through the TxCtx-carrying chaining and
+              // simulation entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest; background
+              // reach is through QueueChainingJob (allTenants() poll, forTenant per entry),
+              // WorkflowTimeoutJob (allTenants() poll, forTenant per run), the step event consumers
+              // (forTenant of the event) and InjectsFinalizationJob (per-tenant block):
+              io.openaev.service.chaining.WorkflowService.class,
+              io.openaev.service.chaining.WorkflowEndService.class,
+              io.openaev.service.chaining.WorkflowResumeService.class,
+              io.openaev.service.chaining.ConditionService.class,
+              // Reads a run's own tenant_id by primary key to stamp its ready events; like its
+              // other reads, it sees the run only when the caller's scope includes its tenant:
+              io.openaev.service.chaining.QueueChainingService.class,
+              // Attack-path seeding, reached only from the TxCtx-carrying AttackPathApi:
+              io.openaev.service.attackpath.AttackPathCausalSeedService.class,
+              // Background telemetry: counts across all tenants explicitly (countAcrossAllTenants):
+              io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(WorkflowRepository.class)
+          .because(
+              "workflows is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule steps_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Chaining engine services, reached as described on the workflows rule:
+              io.openaev.service.chaining.StepService.class,
+              io.openaev.service.chaining.StepEventService.class,
+              io.openaev.service.chaining.ConditionService.class,
+              io.openaev.service.chaining.ChainingStepCleanupService.class,
+              io.openaev.service.chaining.QueueChainingService.class,
+              // Attack-path graph and seeding, reached only from the TxCtx-carrying AttackPathApi:
+              io.openaev.service.attackpath.AttackPathGraphService.class,
+              io.openaev.service.attackpath.AttackPathCausalSeedService.class,
+              // Takes a reference by id to link a phishing result to its step, no read:
+              io.openaev.injectors.phishing.service.PhishingTrackingService.class,
+              // Existence check inside the TxCtx-carrying injector contract entrypoints:
+              io.openaev.rest.injector_contract.InjectorContractService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(StepRepository.class)
+          .because(
+              "steps is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule conditions_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Chaining engine services, reached as described on the workflows rule:
+              io.openaev.service.chaining.ConditionService.class,
+              io.openaev.service.chaining.WorkflowStateService.class,
+              // Attack-path graph and seeding, reached only from the TxCtx-carrying AttackPathApi:
+              io.openaev.service.attackpath.AttackPathGraphService.class,
+              io.openaev.service.attackpath.AttackPathCausalSeedService.class,
+              // Export path, reached from the TxCtx-carrying simulation and scenario exports:
+              io.openaev.export.WorkflowExportInitializer.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ConditionRepository.class)
+          .because(
+              "conditions is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule scope_variables_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Sole accessor, keyed by workflow, inside the engine's scoped transaction:
+              io.openaev.service.chaining.WorkflowService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ScopeVariableRepository.class)
+          .because(
+              "scope_variables is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule steps_delay_queue_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Sole accessor. The due-entry poll runs under QueueChainingJob's allTenants()
+              // scope, each popped entry under forTenant of its run:
+              io.openaev.service.chaining.StepDelayQueueService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(StepDelayQueueRepository.class)
+          .because(
+              "steps_delay_queue is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule workflow_scope_rules_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Chaining engine services, reached as described on the workflows rule:
+              io.openaev.service.chaining.WorkflowService.class,
+              io.openaev.service.chaining.ScopeService.class,
+              // BEFORE_COMMIT listener, runs in the deleting request's scoped transaction:
+              io.openaev.service.chaining.WorkflowScopeRuleCascadeListener.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(WorkflowScopeRuleRepository.class)
+          .because(
+              "workflow_scope_rules is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule workflow_states_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Sole accessor, keyed by run, inside the step event consumers' forTenant scope:
+              io.openaev.service.chaining.WorkflowStateStore.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(WorkflowStateRepository.class)
+          .because(
+              "workflow_states is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
 }

@@ -111,9 +111,8 @@ class InjectorContractCollectorTypeGroupByTest extends IntegrationTest {
     tenantTx.execute(
         TxCtx.forTenant(tenantId),
         () -> {
-          // Direct query, no entity loading, same shape as
-          // InjectorContractService#deleteInjectorContractById: the contract and the injector's
-          // own cascade would otherwise race to delete this join row twice.
+          // Direct query, no entity loading: the contract and the injector's own cascade would
+          // otherwise race to delete this join row twice.
           entityManager
               .createNativeQuery(
                   "DELETE FROM injectors_injector_contracts WHERE injector_contract_id = :contractId"
