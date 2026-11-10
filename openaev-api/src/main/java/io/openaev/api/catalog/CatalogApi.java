@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.catalog.dto.CatalogManifest;
+import io.openaev.api.catalog.dto.CatalogPayloadInstallAllOutput;
 import io.openaev.api.catalog.dto.CatalogPayloadInstallOutput;
 import io.openaev.api.catalog.dto.CatalogPayloadOutput;
 import io.openaev.api.catalog.dto.CatalogScenarioOutput;
@@ -24,6 +25,8 @@ import io.openaev.service.catalog.CatalogListService;
 import io.openaev.service.catalog.CatalogPayloadInstaller;
 import io.openaev.service.catalog.CatalogPayloadService;
 import io.openaev.service.catalog.CatalogSyncService;
+import io.openaev.service.catalog.InstallablePayloadVersion;
+import io.openaev.service.catalog.InstalledPayloads;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -93,14 +96,13 @@ public class CatalogApi {
   @ResponseStatus(HttpStatus.CREATED)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
   @Transactional(propagation = Propagation.SUPPORTS)
-  public CatalogPayloadInstallOutput installAllPayloads(TxCtx ctx) {
+  public CatalogPayloadInstallAllOutput installAllPayloads(TxCtx ctx) {
     requireCatalog();
-    return new CatalogPayloadInstallOutput(
-        catalogPayloadInstaller
-            .installAll(ctx, writeScopeResolver.tenantForWrite(ctx, null))
-            .stream()
-            .map(Payload::getId)
-            .toList());
+    InstalledPayloads result =
+        catalogPayloadInstaller.installAll(ctx, writeScopeResolver.tenantForWrite(ctx, null));
+    return new CatalogPayloadInstallAllOutput(
+        result.installed().stream().map(Payload::getId).toList(),
+        result.failed().stream().map(InstallablePayloadVersion::externalId).toList());
   }
 
   // -- DELETE --
