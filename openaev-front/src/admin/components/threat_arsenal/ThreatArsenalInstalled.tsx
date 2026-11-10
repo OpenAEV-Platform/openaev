@@ -7,7 +7,6 @@ import { fetchAttackPatterns } from '../../../actions/AttackPattern';
 import { fetchThreatArsenalAction, fetchThreatArsenalActionIdOfPayload } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
-import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
 import MarketplaceLoadMore from '../../../components/common/marketplace/MarketplaceLoadMore';
 import MarketplaceSortSelect from '../../../components/common/marketplace/MarketplaceSortSelect';
 import MarketplaceViewToggle from '../../../components/common/marketplace/MarketplaceViewToggle';
@@ -24,6 +23,7 @@ import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import ThreatArsenalCardGrid, { type ThreatArsenalItemsProps } from './ThreatArsenalCardGrid';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
 import ThreatArsenalHeaderActions from './ThreatArsenalHeaderActions';
+import ThreatArsenalHero from './ThreatArsenalHero';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 import ThreatArsenalList from './ThreatArsenalList';
 import { THREAT_ARSENAL_SORT_OPTIONS } from './threatArsenalListConfig';
@@ -149,20 +149,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
     >
       <MarketplaceBrowser
         tabs={tabs}
-        hero={(
-          <MarketplaceHero
-            title={t('Threat Arsenal')}
-            subtitle={t('Browse, install and version the actions your simulations run.')}
-            rightSlot={(
-              <ThreatArsenalHeaderActions
-                totalElements={installed.totalElements}
-                actions={installed.threatArsenalActions}
-                searchPaginationInput={installed.searchPaginationInput}
-                onAdd={installed.prependActions}
-              />
-            )}
-          />
-        )}
+        hero={<ThreatArsenalHero onCreate={(result: ThreatArsenalAction) => installed.prependActions([result])} />}
         sidebar={(
           <ThreatArsenalSidebar
             domainElements={installed.iconBarOrderedDomains}
@@ -176,7 +163,23 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           <PaginationComponentV2
             resultsCount
             infiniteScroll
-            topBarButtons={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
+            // Export and Import act on this list: they sit with it, beside the view toggle.
+            topBarButtons={(
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+              >
+                <ThreatArsenalHeaderActions
+                  totalElements={installed.totalElements}
+                  actions={installed.threatArsenalActions}
+                  searchPaginationInput={installed.searchPaginationInput}
+                  onAdd={installed.prependActions}
+                />
+                <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
+              </div>
+            )}
             fetch={installed.fetchActions}
             searchPaginationInput={installed.searchPaginationInput}
             setContent={installed.setThreatArsenalActions}
