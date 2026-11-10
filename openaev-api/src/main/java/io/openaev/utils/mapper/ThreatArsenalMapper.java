@@ -99,6 +99,7 @@ public class ThreatArsenalMapper {
         .authorId(authorId)
         .authorName(authorName)
         .authorType(authorType)
+        .grantResourceId(injectorContract.getGrantResourceId())
         .build();
   }
 

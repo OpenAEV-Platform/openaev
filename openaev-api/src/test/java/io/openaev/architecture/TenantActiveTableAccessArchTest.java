@@ -31,11 +31,14 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTrigger;
+import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.model.Widget;
 import io.openaev.database.model.attackpath.AttackPathExecution;
+import io.openaev.database.model.payload.HasPayloadIdentity;
+import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AttackPatternRepository;
@@ -364,7 +367,8 @@ class TenantActiveTableAccessArchTest {
           "autonomous_objective_templates",
           "catalog_items",
           "catalog_releases",
-          "parameters");
+          "parameters",
+          "payload_identities");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -2449,4 +2453,18 @@ class TenantActiveTableAccessArchTest {
           .because(
               "the aspect sets app.platform_write only for a @Transactional method with a TxCtx"
                   + " parameter");
+
+  @ArchTest
+  static final ArchRule payload_identities_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // No repository: an identity is only read and written through its payload.
+              Payload.class, HasPayloadIdentity.class, InjectorContract.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(PayloadIdentity.class)
+          .because(
+              "payload_identities is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 }

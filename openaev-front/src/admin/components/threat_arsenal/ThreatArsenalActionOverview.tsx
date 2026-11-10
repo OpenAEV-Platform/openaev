@@ -67,7 +67,7 @@ const EXPECTATION_TYPE_LABELS: Record<string, string> = {
 type ExpectationType = 'ARTICLE' | 'CHALLENGE' | 'MANUAL' | 'PREVENTION' | 'DETECTION' | 'LOGGING' | 'VULNERABILITY';
 
 interface Props {
-  action: ThreatArsenalAction;
+  action: Omit<ThreatArsenalAction, 'action_grant_resource_id'>;
   payload: PayloadType | null;
   // Predefined expectation types declared by the contract (payload- or
   // injector-based), passed separately so contracts without a payload still
