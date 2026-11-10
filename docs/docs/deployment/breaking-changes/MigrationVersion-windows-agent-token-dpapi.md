@@ -11,9 +11,10 @@
 
 ## Description of changes
 
-On Windows, the agent no longer keeps its token in clear text in `openaev-agent-config.toml`. When it starts, it
-encrypts the token with **DPAPI (Data Protection API)** into `openaev-agent-token.dpapi`, in the installation folder,
-then removes the token from the config file. Only the account the agent runs as can decrypt it. See
+On Windows, the agent no longer keeps its token in clear text in `openaev-agent-config.toml`. When it starts and finds
+a token in the config file, it encrypts the token with **DPAPI (Data Protection API)** into
+`openaev-agent-token.dpapi`, in the installation folder, then removes the token from the config file. Only the account
+the agent runs as can decrypt it. If any of these steps fails, the agent stops. See
 [Token storage](../../integrations/agents/windows.md#token-storage) for details.
 
 Linux and macOS agents are not affected for now.
@@ -24,7 +25,7 @@ Linux and macOS agents are not affected for now.
 |:----------------------------------------------|:------------------------------------|:----------------------------------------------------------------------------------------|
 | **Standard installation (session)**           | Runs the new installer              | Token encrypted automatically                                                           |
 | **Advanced installation as System (service)** | Runs the new installer              | Token encrypted automatically                                                           |
-| **Advanced installation as User (service)**   | Replaces the binary only            | Token encrypted, but it stays in clear text in the config file until you reinstall once |
+| **Advanced installation as User (service)**   | Replaces the binary only            | The agent cannot remove the token from its config file and stops until you reinstall it |
 
 Other impacts:
 
@@ -36,7 +37,8 @@ Other impacts:
 Nothing to do for the **Standard installation (session)** and the **Advanced installation as System (service)**.
 
 For each **Advanced installation as User (service)**, reinstall the agent from the platform once after upgrading.
-Until then, the agent logs `The token is still in clear text` at each start.
+Until then, the agent logs `The token is still in clear text` and stops at each start, and the Endpoint shows as
+inactive.
 
 !!! warning
 
