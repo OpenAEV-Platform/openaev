@@ -4,13 +4,16 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.catalog.dto.CatalogManifest;
+import io.openaev.api.catalog.dto.CatalogPayloadInstallOutput;
 import io.openaev.api.catalog.dto.CatalogPayloadOutput;
 import io.openaev.api.catalog.dto.CatalogScenarioOutput;
 import io.openaev.api.catalog.dto.CatalogSyncOutput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
+import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -18,10 +21,13 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.catalog.CatalogFileService;
 import io.openaev.service.catalog.CatalogListService;
+import io.openaev.service.catalog.CatalogPayloadInstaller;
+import io.openaev.service.catalog.CatalogPayloadService;
 import io.openaev.service.catalog.CatalogSyncService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +45,8 @@ public class CatalogApi {
   private final CatalogListService catalogListService;
   private final CatalogFileService catalogFileService;
   private final CatalogSyncService catalogSyncService;
+  private final CatalogPayloadInstaller catalogPayloadInstaller;
+  private final CatalogPayloadService catalogPayloadService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final ObjectMapper mapper;
   private final PreviewFeatureService previewFeatureService;
@@ -61,6 +69,53 @@ public class CatalogApi {
   public List<CatalogPayloadOutput> payloads(TxCtx ctx) {
     requireCatalog();
     return catalogListService.payloads();
+  }
+
+  // -- CREATE --
+
+  @Operation(summary = "Install a catalogue payload version")
+  @PostMapping(TENANT_CATALOG_URI + "/payloads/{externalId}/versions/{version}/install")
+  @ResponseStatus(HttpStatus.CREATED)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public CatalogPayloadInstallOutput installPayload(
+      TxCtx ctx, @PathVariable String externalId, @PathVariable String version) {
+    requireCatalog();
+    Payload payload =
+        catalogPayloadInstaller.install(
+            ctx, writeScopeResolver.tenantForWrite(ctx, null), externalId, version);
+    return new CatalogPayloadInstallOutput(List.of(payload.getId()));
+  }
+
+  @LogExecutionTime
+  @Operation(summary = "Install every catalogue payload never installed")
+  @PostMapping(TENANT_CATALOG_URI + "/payloads/install-all")
+  @ResponseStatus(HttpStatus.CREATED)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public CatalogPayloadInstallOutput installAllPayloads(TxCtx ctx) {
+    requireCatalog();
+    return new CatalogPayloadInstallOutput(
+        catalogPayloadInstaller
+            .installAll(ctx, writeScopeResolver.tenantForWrite(ctx, null))
+            .stream()
+            .map(Payload::getId)
+            .toList());
+  }
+
+  // -- DELETE --
+
+  @Operation(
+      summary = "Uninstall a catalogue payload",
+      description =
+          "Refused while injects run one of its versions; its versions are hidden, not deleted.")
+  @DeleteMapping(TENANT_CATALOG_URI + "/installed-payloads/{payloadId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @AccessControl(actionPerformed = Action.DELETE, resourceType = ResourceType.THREAT_ARSENAL)
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public void uninstallPayload(TxCtx ctx, @PathVariable String payloadId) {
+    requireCatalog();
+    catalogPayloadService.uninstall(ctx, writeScopeResolver.tenantForWrite(ctx, null), payloadId);
   }
 
   // -- SYNC --
