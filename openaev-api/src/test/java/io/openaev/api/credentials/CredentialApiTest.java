@@ -944,6 +944,21 @@ class CredentialApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("given_uriLongerThanItsColumn_should_failCreation")
+    void given_uriLongerThanItsColumn_should_failCreation() throws Exception {
+      // Arrange: the override columns are VARCHAR(255), a longer value must not reach the insert
+      Tenant tenant =
+          tenantIsolationTestHelper.createTenantWithCurrentUser("credential-uri-too-long");
+      CredentialInput input =
+          CredentialInputFixture.azureServicePrincipalInputWithAuthorityHost(
+              "azure-uri-too-long", "https://" + "a".repeat(256) + ".example.com");
+
+      // Act & Assert
+      mvc.perform(multipartCreate(tenantCredentialsUri(tenant.getId()), input))
+          .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("given_azureInputWithCertificatePart_should_storeEncryptedCertificate")
     void given_azureInputWithCertificatePart_should_storeEncryptedCertificate() throws Exception {
       // Arrange

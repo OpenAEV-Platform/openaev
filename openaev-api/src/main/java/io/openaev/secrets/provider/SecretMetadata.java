@@ -20,31 +20,34 @@ import lombok.Builder;
 public record SecretMetadata(
     String username,
     HashSecret.HASH_ALGORITHM hashAlgorithm,
+    // AWS
     AwsRegion awsDefaultRegion,
     String awsAccessKeyId,
     boolean awsSessionTokenPresent,
     String awsRoleArn,
     AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
     String awsSourceProfileAccessKeyId,
+    String awsAccountId,
+    String awsEndpointUrl,
+    // AZURE
     String azureEnvironment,
     String azureClientId,
     String azureTenantId,
     String azureSubscriptionId,
+    String azureAuthorityHostUri,
+    boolean azureRequestsCertificateDefined,
+    // GCP
     String gcpScope,
     String gcpProjectId,
     boolean gcpPrivateKeyDefined,
     String gcpOauthClientId,
     boolean gcpOauthClientSecretDefined,
     boolean gcpOauthRefreshTokenDefined,
-    String awsAccountId,
-    String awsEndpointUrl,
     String gcpCustomTokenUri,
     String gcpCustomProjectsUri,
     String gcpCustomResourceManagerUri,
     String gcpCustomIamUri,
-    boolean gcpCustomOauthAccessTokenDefined,
-    String azureAuthorityHostUri,
-    boolean azureRequestsCertificateDefined) {
+    boolean gcpCustomOauthAccessTokenDefined) {
 
   public static SecretMetadata empty() {
     return SecretMetadata.builder().build();

@@ -3557,6 +3557,10 @@ export interface CredentialFullOutput {
 
 export interface CredentialInput {
   aws_access_key_id?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
@@ -3595,6 +3599,10 @@ export interface CredentialInput {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   aws_endpoint_url?: string;
   aws_external_id?: string;
   aws_role_arn?: string;
@@ -3603,6 +3611,10 @@ export interface CredentialInput {
   aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
   aws_source_profile_access_key_id?: string;
   aws_source_profile_secret_access_key?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_client_secret?: string;
@@ -3627,10 +3639,26 @@ export interface CredentialInput {
   credential_tags?: string[];
   credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   credential_username?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   gcp_custom_iam_uri?: string;
   gcp_custom_oauth_access_token?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   gcp_custom_projects_uri?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   gcp_custom_resource_manager_uri?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
   gcp_custom_token_uri?: string;
   gcp_oauth_client_id?: string;
   gcp_oauth_client_secret?: string;

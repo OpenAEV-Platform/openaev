@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  * {@code secret_gcp_private_key_json}.
  */
 @Component
-public class V6_20261028120000000__Add_sovereign_cloud_columns_to_secrets
+public class V6_20261109120000000__Add_sovereign_cloud_columns_to_secrets
     extends BaseJavaMigration {
 
   @Override

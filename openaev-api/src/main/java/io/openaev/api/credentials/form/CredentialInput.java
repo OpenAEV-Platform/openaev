@@ -7,6 +7,7 @@ import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.HashSecret;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record CredentialInput(
@@ -30,23 +31,24 @@ public record CredentialInput(
         AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
     @JsonProperty("aws_source_profile_access_key_id") String awsSourceProfileAccessKeyId,
     @JsonProperty("aws_source_profile_secret_access_key") String awsSourceProfileSecretAccessKey,
-    @JsonProperty("aws_account_id") String awsAccountId,
-    @JsonProperty("aws_endpoint_url") String awsEndpointUrl,
+    @JsonProperty("aws_account_id") @Size(max = 255) String awsAccountId,
+    @JsonProperty("aws_endpoint_url") @Size(max = 255) String awsEndpointUrl,
     @JsonProperty("azure_environment") String azureEnvironment,
     @JsonProperty("azure_client_id") String azureClientId,
     @JsonProperty("azure_client_secret") String azureClientSecret,
     @JsonProperty("azure_tenant_id") String azureTenantId,
     @JsonProperty("azure_subscription_id") String azureSubscriptionId,
-    @JsonProperty("azure_authority_host_uri") String azureAuthorityHostUri,
+    @JsonProperty("azure_authority_host_uri") @Size(max = 255) String azureAuthorityHostUri,
     @JsonProperty("gcp_scope") String gcpScope,
     @JsonProperty("gcp_project_id") String gcpProjectId,
     @JsonProperty("gcp_oauth_client_id") String gcpOauthClientId,
     @JsonProperty("gcp_oauth_client_secret") String gcpOauthClientSecret,
     @JsonProperty("gcp_oauth_refresh_token") String gcpOauthRefreshToken,
-    @JsonProperty("gcp_custom_token_uri") String gcpCustomTokenUri,
-    @JsonProperty("gcp_custom_projects_uri") String gcpCustomProjectsUri,
-    @JsonProperty("gcp_custom_resource_manager_uri") String gcpCustomResourceManagerUri,
-    @JsonProperty("gcp_custom_iam_uri") String gcpCustomIamUri,
+    @JsonProperty("gcp_custom_token_uri") @Size(max = 255) String gcpCustomTokenUri,
+    @JsonProperty("gcp_custom_projects_uri") @Size(max = 255) String gcpCustomProjectsUri,
+    @JsonProperty("gcp_custom_resource_manager_uri") @Size(max = 255)
+        String gcpCustomResourceManagerUri,
+    @JsonProperty("gcp_custom_iam_uri") @Size(max = 255) String gcpCustomIamUri,
     @JsonProperty("gcp_custom_oauth_access_token") String gcpCustomOauthAccessToken,
     @JsonProperty("credential_tags") List<String> credentialTagIds) {
 
