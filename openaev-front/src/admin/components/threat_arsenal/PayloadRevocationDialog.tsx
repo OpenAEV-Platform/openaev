@@ -91,10 +91,16 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
     onClose();
   };
 
+  const target = replacements.find(v => v.payload_version === replacement);
+  // With "Replace" ticked, the revoke waits until the move can run: the injects loaded and a version to
+  // move them to. Otherwise it would revoke the version and leave its injects failing.
+  const moving = canReplace && replace;
+  const moveReady = !moving || (!!target?.payload_id && !!version?.payload_action_id && !!usages && usages.length > 0);
+
   // The injects move first, so none of them fails between the revocation and the move.
   const submit = async () => {
-    const target = replacements.find(v => v.payload_version === replacement);
-    if (canReplace && replace && target?.payload_id && version?.payload_action_id && usages) {
+    if (!moveReady) return;
+    if (moving && target?.payload_id && version?.payload_action_id && usages) {
       setSubmitting(true);
       try {
         const response = await changeThreatArsenalVersion(version.payload_action_id, {
@@ -248,7 +254,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
         <Button
           type="button"
           variant={lift ? 'default' : 'destructive'}
-          disabled={(needsReason && reason.trim() === '') || !version || submitting}
+          disabled={(needsReason && reason.trim() === '') || !version || !moveReady || submitting}
           onClick={submit}
         >
           {submitting ? <Spinner size="sm" /> : t(lift ? 'Lift revocation' : 'Revoke')}

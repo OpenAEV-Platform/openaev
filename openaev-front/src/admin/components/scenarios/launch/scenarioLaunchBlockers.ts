@@ -40,7 +40,7 @@ export const hardBlockerCount = (blockers: ScenarioLaunchBlockers) => (blockers.
 export const failingInjectCount = (blockers: ScenarioLaunchBlockers) => blockers.revokedInjects.length;
 
 const loadScenarioLaunchBlockers = (scenario: LaunchTarget): Promise<ScenarioLaunchBlockers> => {
-  // Silent: a background check, the server still refuses a launch with a revoked payload.
+  // Silent: a background check. The server still launches; it refuses each revoked inject when it runs.
   const injects = searchScenarioInjectsSimple(scenario.scenario_id, {
     page: 0,
     size: 1000,
