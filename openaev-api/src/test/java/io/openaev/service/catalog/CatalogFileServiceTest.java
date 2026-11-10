@@ -23,11 +23,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.FileService;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -295,6 +297,26 @@ class CatalogFileServiceTest {
 
       // Assert
       assertThat(checked.refusals()).hasSize(1).containsValue(reason);
+    }
+  }
+
+  @Nested
+  @DisplayName("Stored file")
+  class StoredFile {
+
+    @Test
+    @DisplayName("is refused once its bytes no longer have the hash it is stored by")
+    void given_changedStoredFile_should_refuseIt() {
+      // Arrange
+      byte[] released = payloadFile(PAYLOAD_ID);
+      String sha256 = CatalogArchiveChecks.sha256(released);
+      when(fileService.getInPlatform(anyString()))
+          .thenReturn(
+              Optional.of(new ByteArrayInputStream("changed".getBytes(StandardCharsets.UTF_8))));
+
+      // Act & Assert
+      assertThatThrownBy(() -> service.storedFile(sha256))
+          .isInstanceOf(IllegalStateException.class);
     }
   }
 }
