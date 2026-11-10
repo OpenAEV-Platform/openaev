@@ -248,8 +248,6 @@ export interface AiAttack {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -267,6 +265,7 @@ export interface AiAttack {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -993,6 +992,7 @@ export interface AtomicTestingInput {
   inject_documents?: InjectDocumentInput[];
   inject_injector?: string;
   inject_injector_contract?: string;
+  inject_secret_references?: string[];
   inject_tags?: string[];
   inject_teams?: string[];
   /** @minLength 1 */
@@ -2133,8 +2133,6 @@ interface BasePayload {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -2152,6 +2150,7 @@ interface BasePayload {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -2227,6 +2226,7 @@ interface BasePayloadCreateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -2530,6 +2530,33 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface CatalogPayloadOutput {
+  /** @minLength 1 */
+  catalog_payload_external_id: string;
+  catalog_payload_name?: string;
+  /** @minLength 1 */
+  catalog_payload_version: string;
+}
+
+export interface CatalogScenarioOutput {
+  /** @minLength 1 */
+  catalog_scenario_external_id: string;
+  catalog_scenario_name?: string;
+  /** @minLength 1 */
+  catalog_scenario_version: string;
+}
+
+export interface CatalogSyncOutput {
+  /** @format int32 */
+  added?: number;
+  applied?: boolean;
+  refused?: Refusal[];
+  release?: string;
+  release_approver?: string;
+  /** @format int32 */
+  unchanged?: number;
+}
+
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -2710,6 +2737,15 @@ export interface Collector {
   collector_period?: number;
   collector_security_platform?: SecurityPlatform;
   collector_state?: object;
+  collector_supported_expectation_types?: (
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "LOGGING"
+    | "VULNERABILITY"
+  )[];
   /** @minLength 1 */
   collector_type: string;
   /** @format date-time */
@@ -2726,6 +2762,7 @@ export interface CollectorCreateInput {
   /** @format int32 */
   collector_period?: number;
   collector_security_platform?: string;
+  collector_supported_expectation_types?: string[];
   /** @minLength 1 */
   collector_type: string;
 }
@@ -2805,8 +2842,6 @@ export interface Command {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -2824,6 +2859,7 @@ export interface Command {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -3887,8 +3923,6 @@ export interface DnsResolution {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -3906,6 +3940,7 @@ export interface DnsResolution {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -5168,6 +5203,8 @@ export interface EsFinding {
   /** @format date-time */
   base_updated_at?: string;
   finding_field?: string;
+  /** @format int64 */
+  finding_masking_version?: number;
   finding_type?: string;
   finding_value?: string;
 }
@@ -5243,7 +5280,6 @@ export interface EsInjectExpectation {
   inject_expectation_expiration_time?: number;
   inject_expectation_group?: boolean;
   inject_expectation_name?: string;
-  inject_expectation_results?: string;
   /** @format double */
   inject_expectation_score?: number;
   inject_expectation_status?: string;
@@ -5500,8 +5536,6 @@ export interface Executable {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -5519,6 +5553,7 @@ export interface Executable {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -5597,6 +5632,7 @@ export interface ExecutionTrace {
     | "TIMEOUT"
     | "INTERRUPTED"
     | "ASSET_AGENTLESS"
+    | "ASSET_CLEARANCE_RESTRICTED"
     | "AGENT_INACTIVE"
     | "AGENT_OVERLOADED"
     | "INFO"
@@ -5646,6 +5682,7 @@ export interface ExecutionTraceOutput {
     | "TIMEOUT"
     | "INTERRUPTED"
     | "ASSET_AGENTLESS"
+    | "ASSET_CLEARANCE_RESTRICTED"
     | "AGENT_INACTIVE"
     | "AGENT_OVERLOADED"
     | "INFO"
@@ -5735,6 +5772,7 @@ export interface Exercise {
   exercise_injects?: string[];
   exercise_injects_statistics?: Record<string, number>;
   exercise_kill_chain_phases?: KillChainPhase[];
+  exercise_launched_by?: string;
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
@@ -5744,11 +5782,6 @@ export interface Exercise {
   exercise_logo_light?: string;
   /** @format int64 */
   exercise_logs_number?: number;
-  /**
-   * @format email
-   * @minLength 1
-   */
-  exercise_mail_from: string;
   /**
    * @minLength 0
    * @maxLength 100
@@ -5905,16 +5938,12 @@ export interface ExercisesGlobalScoresOutput {
 export interface ExpectationResultsByType {
   avgResult: "FAILED" | "PENDING" | "PARTIAL" | "UNKNOWN" | "SUCCESS";
   distribution: ResultDistribution[];
-  type: "DETECTION" | "HUMAN_RESPONSE" | "PREVENTION" | "VULNERABILITY";
-}
-
-export interface ExpectationUpdateInput {
-  /** @format double */
-  expectation_score: number;
-  source_id: string;
-  source_name: string;
-  source_platform?: string;
-  source_type: string;
+  type:
+    | "DETECTION"
+    | "HUMAN_RESPONSE"
+    | "LOGGING"
+    | "PREVENTION"
+    | "VULNERABILITY";
 }
 
 export interface ExpectationsDriftDismissInput {
@@ -5964,8 +5993,6 @@ export interface FileDrop {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -5983,6 +6010,7 @@ export interface FileDrop {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -6278,7 +6306,7 @@ export interface FullTextSearchResult {
   /** @minLength 1 */
   name: string;
   /** @uniqueItems true */
-  tags?: Tag[];
+  tags?: string[];
 }
 
 export type GcpOAuth2 = Value & {
@@ -6329,6 +6357,7 @@ export interface Grant {
 }
 
 export interface Group {
+  group_auto_new_marking?: boolean;
   group_default_user_assign?: boolean;
   group_description?: string;
   group_grants?: Grant[];
@@ -6356,6 +6385,7 @@ export interface GroupGrantInput {
 }
 
 export interface GroupUpdateMarkingsInput {
+  group_auto_new_marking?: boolean;
   group_markings: string[];
 }
 
@@ -6409,6 +6439,7 @@ export interface HealthCheck {
     | "OPTIONAL_ARGS"
     | "MESSAGE"
     | "SCOPE_DEFINITION"
+    | "CREDENTIAL_REFERENCE"
     | "UNKNOWN";
 }
 
@@ -6547,12 +6578,14 @@ export interface Inject {
   inject_injector?: string;
   inject_injector_contract?: InjectorContract;
   inject_kill_chain_phases?: KillChainPhase[];
+  inject_launched_by?: string;
   inject_recurrence?: string;
   /** @format date-time */
   inject_recurrence_end?: string;
   /** @format date-time */
   inject_recurrence_start?: string;
   inject_scenario?: string;
+  inject_scheduled_by?: string;
   inject_secret_references?: string[];
   /** @format date-time */
   inject_sent_at?: string;
@@ -6717,13 +6750,14 @@ export interface InjectExpectationAgentOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY";
   /** @format int64 */
   inject_expiration_time: number;
 }
 
 export interface InjectExpectationBulkUpdateInput {
-  inputs: Record<string, InjectExpectationUpdateInput>;
+  inputs: Record<string, InjectExpectationUpdateFromCollectorInput>;
 }
 
 export interface InjectExpectationOutput {
@@ -6809,6 +6843,7 @@ export interface InjectExpectationOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY";
   /**
    * Last update date of the inject expectation
@@ -6827,10 +6862,17 @@ export interface InjectExpectationOutput {
 }
 
 export interface InjectExpectationResult {
+  /** @format date-time */
   date?: string;
-  metadata?: Record<string, string>;
   /** @minLength 1 */
-  result: string;
+  inject_expectation_id: string;
+  /** @format date-time */
+  inject_expectation_result_created_at?: string;
+  /** @format date-time */
+  inject_expectation_result_updated_at?: string;
+  listened?: boolean;
+  metadata?: Record<string, string>;
+  result?: string;
   /** @format double */
   score?: number;
   sourceAssetId?: string;
@@ -6874,6 +6916,7 @@ export interface InjectExpectationTrace {
   inject_expectation_trace_expectation?: string;
   /** @minLength 1 */
   inject_expectation_trace_id: string;
+  inject_expectation_trace_match_type?: "MARKER" | "SOURCE_IP" | "TARGET_IP";
   inject_expectation_trace_source_id?: string;
   /** @format date-time */
   inject_expectation_trace_updated_at: string;
@@ -6893,15 +6936,29 @@ export interface InjectExpectationTraceInput {
   inject_expectation_trace_date: string;
   /** @minLength 1 */
   inject_expectation_trace_expectation: string;
+  inject_expectation_trace_match_type?: "marker" | "source_ip" | "target_ip";
   /** @minLength 1 */
   inject_expectation_trace_source_id: string;
 }
 
-export interface InjectExpectationUpdateInput {
+export interface InjectExpectationUpdateFromCollectorInput {
   collector_id: string;
   is_success: boolean;
   metadata?: Record<string, string>;
-  result: string;
+  /**
+   * Ignored for collectors: the result label is derived from is_success and the expectation type
+   * @deprecated
+   */
+  result?: string;
+}
+
+export interface InjectExpectationUpdateFromUIInput {
+  /** @format double */
+  expectation_score: number;
+  source_id: string;
+  source_name: string;
+  source_platform?: string;
+  source_type: string;
 }
 
 export interface InjectExportFromSearchRequestInput {
@@ -6970,6 +7027,7 @@ export interface InjectInput {
   inject_enabled?: boolean;
   inject_injector?: string;
   inject_injector_contract?: string;
+  inject_secret_references?: string[];
   inject_tags?: string[];
   inject_teams?: string[];
   /** @minLength 1 */
@@ -7033,6 +7091,7 @@ export interface InjectOutput {
   inject_ready?: boolean;
   /** Scenario ID of the inject */
   inject_scenario?: string;
+  inject_secret_references?: string[];
   /**
    * Sent date of the inject
    * @format date-time
@@ -7228,6 +7287,7 @@ export type InjectTarget = BaseInjectTarget &
     | BaseInjectTargetTargetTypeMapping<"PLAYERS", PlayerTarget>
     | BaseInjectTargetTargetTypeMapping<"AGENT", AgentTarget>
     | BaseInjectTargetTargetTypeMapping<"AI_TARGETS", AiTargetTarget>
+    | BaseInjectTargetTargetTypeMapping<"MANUAL", ManualTarget>
   );
 
 export interface InjectTeamsInput {
@@ -7289,6 +7349,7 @@ export interface Injector {
 export interface InjectorContract {
   convertedContent?: object;
   injector_contract_arch?: "x86_64" | "arm64" | "ALL_ARCHITECTURES";
+  /** True when this contract can be used to create an atomic test. It does not tell whether a given inject is an atomic test: an inject is one when it belongs to no scenario and no simulation */
   injector_contract_atomic_testing?: boolean;
   injector_contract_attack_patterns?: string[];
   /** @minLength 1 */
@@ -7310,7 +7371,6 @@ export interface InjectorContract {
   injector_contract_payload?: Payload;
   injector_contract_payload_author?: string;
   injector_contract_payload_author_organization?: Organization;
-  injector_contract_payload_author_team?: Team;
   injector_contract_payload_author_user?: User;
   injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
@@ -8006,7 +8066,7 @@ export interface License {
   license_is_valid_product?: boolean;
   license_is_validated?: boolean;
   license_platform?: string;
-  license_source?: "openaev" | "xtm_one";
+  license_source?: "openaev" | "xtm_one" | "filigran";
   /** @format date-time */
   license_start_date?: string;
   license_type?: "trial" | "nfr" | "standard" | "lts";
@@ -8067,6 +8127,47 @@ export interface LoginUserInput {
   password: string;
   /** The tenant ID the user is logging into (optional) */
   tenantId?: string;
+}
+
+export interface ManualTarget {
+  target_category?: string;
+  target_detection_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_execution_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_human_response_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @minLength 1 */
+  target_id: string;
+  target_name?: string;
+  target_prevention_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_subtype?: string;
+  /** @uniqueItems true */
+  target_tags?: string[];
+  target_type?: string;
+  target_vulnerability_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
 }
 
 export interface MapperConditionOutput {
@@ -8208,8 +8309,6 @@ export interface NetworkTraffic {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -8227,6 +8326,7 @@ export interface NetworkTraffic {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -8279,6 +8379,37 @@ export interface NetworkTraffic {
     | "AI_ATTACK";
 }
 
+export interface NewsFeedItemOutput {
+  /**
+   * Creation date of the item
+   * @format date-time
+   */
+  news_feed_item_creation_date: string;
+  /**
+   * ID of the item in XTM Hub
+   * @minLength 1
+   */
+  news_feed_item_hub_id: string;
+  /**
+   * ID of the news feed item
+   * @minLength 1
+   */
+  news_feed_item_id: string;
+  /** Whether the item was read */
+  news_feed_item_is_read: boolean;
+  /** Tags of the item */
+  news_feed_item_tags: string[];
+  /**
+   * Title of the item
+   * @minLength 1
+   */
+  news_feed_item_title: string;
+  /** Type of the item, absent when OpenAEV no longer knows its type */
+  news_feed_item_type?: "RESOURCE_SCENARIO";
+  /** Path of the item in XTM Hub, to append to the XTM Hub URL, absent when XTM Hub sent none */
+  news_feed_item_url_path?: string;
+}
+
 export interface NotificationBulkProcessingInput {
   /** Ids excluded from the select-all scope */
   notification_ids_to_ignore?: string[];
@@ -8317,6 +8448,7 @@ export interface NotificationTriggerInput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8387,6 +8519,7 @@ export interface NotificationTriggerInput {
     | "OBJECTIVE"
     | "EVALUATION"
     | "CATALOG"
+    | "CATALOG_SYNC"
     | "CONNECTOR_INSTANCE_LOG"
     | "SECRET_PROVIDER"
     | "TENANT"
@@ -8429,6 +8562,7 @@ export interface NotificationTriggerOutput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8500,6 +8634,7 @@ export interface NotificationTriggerOutput {
     | "OBJECTIVE"
     | "EVALUATION"
     | "CATALOG"
+    | "CATALOG_SYNC"
     | "CONNECTOR_INSTANCE_LOG"
     | "SECRET_PROVIDER"
     | "TENANT"
@@ -9102,6 +9237,25 @@ export interface PageMitigation {
   totalPages?: number;
 }
 
+export interface PageNewsFeedItemOutput {
+  content?: NewsFeedItemOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
 export interface PageNotificationOutput {
   content?: NotificationOutput[];
   empty?: boolean;
@@ -9641,6 +9795,7 @@ export interface PayloadInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -9724,6 +9879,7 @@ export interface PayloadOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Optional map of expectation type to expected security platform types (empty = any) */
@@ -9827,6 +9983,7 @@ export interface PayloadUpdateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -9895,6 +10052,7 @@ export interface PayloadUpsertInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   payload_expected_security_platforms?: Record<
@@ -10107,6 +10265,9 @@ export interface PlatformSettings {
     | "MARKING"
     | "RATE_LIMITING"
     | "BULK_SNAPSHOT_EXPORT"
+    | "XTM_HUB_NEWS_FEED"
+    | "LOGGING_EXPECTATION"
+    | "CATALOG"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -10125,6 +10286,11 @@ export interface PlatformSettings {
    * @format int64
    */
   expectation_detection_expiration_time: number;
+  /**
+   * Time to wait before logging time has expired
+   * @format int64
+   */
+  expectation_logging_expiration_time: number;
   /**
    * Default score for manuel expectation
    * @format int32
@@ -10494,6 +10660,9 @@ export interface PublicPlatformSettings {
     | "MARKING"
     | "RATE_LIMITING"
     | "BULK_SNAPSHOT_EXPORT"
+    | "XTM_HUB_NEWS_FEED"
+    | "LOGGING_EXPECTATION"
+    | "CATALOG"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -10605,6 +10774,13 @@ export interface RawUser {
   user_phone?: string;
   user_tags?: string[];
   user_teams?: string[];
+}
+
+export interface Refusal {
+  external_id?: string;
+  /** @minLength 1 */
+  reason: string;
+  version?: string;
 }
 
 export interface RegexGroup {
@@ -10991,6 +11167,7 @@ export interface RoleInput {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -11077,6 +11254,7 @@ export interface RoleOutput {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -11148,11 +11326,6 @@ export interface Scenario {
   scenario_lessons_categories?: string[];
   scenario_lessons_enabled?: boolean;
   /**
-   * @format email
-   * @minLength 1
-   */
-  scenario_mail_from: string;
-  /**
    * @minLength 0
    * @maxLength 100
    * @pattern ^[^\r\n\x00]*$
@@ -11183,6 +11356,7 @@ export interface Scenario {
   scenario_recurrence_end?: string;
   /** @format date-time */
   scenario_recurrence_start?: string;
+  scenario_scheduled_by?: string;
   scenario_severity?: "low" | "medium" | "high" | "critical";
   scenario_subtitle?: string;
   scenario_tags?: string[];
@@ -11288,11 +11462,6 @@ export interface ScenarioOutput {
   scenario_kill_chain_phases?: KillChainPhaseOutput[];
   /** Whether the lessons learned module is enabled for the scenario */
   scenario_lessons_enabled?: boolean;
-  /**
-   * From value of the scenario
-   * @minLength 1
-   */
-  scenario_mail_from: string;
   /** Sender display name of the scenario */
   scenario_mail_from_name?: string;
   /** @uniqueItems true */
@@ -11985,8 +12154,6 @@ export interface SimulationDetails {
   exercise_lessons_enabled?: boolean;
   /** @format int64 */
   exercise_logs_number?: number;
-  /** @minLength 1 */
-  exercise_mail_from: string;
   exercise_mail_from_name?: string;
   exercise_mails_reply_to?: string[];
   exercise_main_focus?: string;
@@ -12647,6 +12814,7 @@ export interface TenantGroupCreateInput {
 }
 
 export interface TenantGroupMarkingsOutput {
+  group_auto_new_marking?: boolean;
   /**
    * Group Id
    * @minLength 1
@@ -12788,6 +12956,11 @@ export interface ThreatArsenalAction {
    * @uniqueItems true
    */
   action_domains_ids: string[];
+  /**
+   * Id the action's grants target: its payload identity, else the contract
+   * @minLength 1
+   */
+  action_grant_resource_id: string;
   /** Injector type */
   action_injector_type?: string;
   /** Labels */
@@ -12844,6 +13017,7 @@ export interface ThreatArsenalActionCreateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Optional map of technical expectation type to the security platform types expected to fulfil it (e.g. {"DETECTION": ["EDR","XDR"], "PREVENTION": ["EDR"]}). Empty or absent for a given type means any security platform. */
@@ -12928,6 +13102,7 @@ export interface ThreatArsenalActionFullOutput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Security platform types expected to fulfil each predefined technical expectation (empty or absent = any security platform) */
@@ -13044,6 +13219,7 @@ export interface ThreatArsenalActionUpdateInput {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY"
   )[];
   /** Optional map of technical expectation type to the security platform types expected to fulfil it (e.g. {"DETECTION": ["EDR","XDR"], "PREVENTION": ["EDR"]}). Empty or absent for a given type means any security platform. */
@@ -13161,6 +13337,7 @@ export interface ThreatArsenalExpectationDetail {
     | "MANUAL"
     | "PREVENTION"
     | "DETECTION"
+    | "LOGGING"
     | "VULNERABILITY";
 }
 
@@ -13372,6 +13549,7 @@ export interface User {
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -14207,6 +14385,7 @@ export interface XtmHubRegisterInput {
 }
 
 export interface XtmHubRegistrationOutput {
+  tenant_xtmhub_registration_commercial_model?: "SAAS" | "OTHER";
   /** @format date-time */
   tenant_xtmhub_registration_date?: string;
   tenant_xtmhub_registration_id?: string;

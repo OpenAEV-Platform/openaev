@@ -24,6 +24,9 @@ mvn spotless:apply                     # Format Java
 mvn test                               # Tests (needs Docker services)
 cd openaev-front && yarn build         # Build frontend
 yarn lint && yarn check-ts             # Lint + type-check
+yarn depcruise                         # Import cycles + dependency rules
+yarn knip --dependencies               # Unused or undeclared dependencies
+yarn test:eslint-rules                 # Tests of the local ESLint rules (packages/eslint-plugin-custom-rules)
 yarn generate-types-from-api           # Sync API types
 ```
 
@@ -44,6 +47,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | **ORM** (write correctness, native-query justification, test methodology) | [orm.instructions.md](.github/instructions/orm.instructions.md) | Java in `openaev-api`, `openaev-model`, `openaev-api` `*Test.java` |
 | **Multi-Tenancy** (isolation, filters, context) | [multi-tenancy.instructions.md](.github/instructions/multi-tenancy.instructions.md) | Java in `openaev-api`, `openaev-model`, `**/migration/**` |
 | **Testing** (unit, integration, coverage) | [testing.instructions.md](.github/instructions/testing.instructions.md) | `*Test*.java`, `**/test/**`, `*.test.*`, `*.spec.*`, `tests_e2e/**` |
+| **CI** (workflows, composite actions, template injection) | [ci.instructions.md](.github/instructions/ci.instructions.md) | `.github/workflows/**`, `.github/actions/**` |
 | **Code Review** (review checklist) | [code-review.instructions.md](.github/instructions/code-review.instructions.md) | All files |
 | **Chaining Engine** (steps, conditions, queues, state, workflows) | [chaining-engine.instructions.md](.github/instructions/chaining-engine.instructions.md) | `**/chaining/**`, `QueueChainingJob`, `WorkflowTimeoutJob`, workflow entities and repositories |
 
@@ -64,6 +68,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [review-security](.claude/skills/review-security/SKILL.md) | Auditing security of a PR or module |
 | [review-chaining-engine](.claude/skills/review-chaining-engine/SKILL.md) | Reviewing or modifying the Chaining Engine |
 | [review-docs](.claude/skills/review-docs/SKILL.md) | Detecting missing documentation updates in a PR |
+| [split-tasks](.claude/skills/split-tasks/SKILL.md) | Splitting a feature's user stories and tech design into GitHub issues |
 
 ## Specialized Agents
 
@@ -80,6 +85,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | [Test Specialist](.github/agents/test-specialist.agent.md) | Write/improve tests, check coverage | `AGENTS.md` → `copilot-instructions.md` → `testing.instructions.md` | `add-test` skill |
 | [Chaining Engine Reviewer](.github/agents/chaining-engine-reviewer.agent.md) | Audit chaining engine: steps, conditions, queues, state, scope, timeout | `AGENTS.md` → `chaining-engine.instructions.md` | `review-chaining-engine` skill |
 | [Docs Reviewer](.github/agents/docs-reviewer.agent.md) | Detect functional changes missing documentation updates in `docs/` | `AGENTS.md` → `copilot-instructions.md` | `review-docs` skill |
+| [Task Splitter](.github/agents/task-splitter.agent.md) | Turn user stories and tech design into an epic and independent sub-tasks on GitHub, through a dry-run script | `AGENTS.md` → `.github/LABELS.md` | `split-tasks` skill |
 
 ## When to Use Which Agent
 
@@ -95,6 +101,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | PR adds a new feature without tests, or coverage is below threshold | **Test Specialist** |
 | PR touches chaining (steps, conditions, workflows, queues, scope, WorkflowState) | **Chaining Engine Reviewer** |
 | PR has functional changes but no `docs/` updates | **Docs Reviewer** (auto-triggered on PR open via `/review docs` command) |
+| A feature's user stories and tech design are ready, before development | **Task Splitter** |
 | Critical PR (new entities, migrations, auth changes) | **Code Reviewer** + all relevant specialists |
 
 ### Composition Rules
@@ -135,18 +142,43 @@ These apply to **all agents**. Do not flag these — they are intentional patter
 - Test files using hardcoded credentials for mock setup → test-only context
 - Legacy `io.openaev.rest` controllers passing tenant to services → acceptable (legacy package)
 
+## ADRs (Architecture Decision Records)
+
+ADRs live in `adr/` as `ADR-NNN-<kebab-case-slug>.md`, numbered in sequence. The number is never picked by
+hand:
+
+- **Create** an ADR with `adr/scripts/new-adr.sh "<title>"`, after rebasing on `main`: it takes the number
+  after the highest ADR on disk, copies `adr/ADR-000-template.md` and prints the new file. Never guess, type
+  or "fix up" the number yourself.
+- **Never renumber a merged ADR**: its number is cited in issues, commits and other repositories.
+- **When the 🔢 ADR Numbering CI job fails** because another pull request merged that number first: rebase
+  on `main`, then run `adr/scripts/new-adr.sh --renumber adr/<the-file>.md`. It renames the file and its
+  `# ADR-NNN:` title, and rewrites every reference to the old file name. Update any mention of the bare old
+  number (`git grep -nw ADR-NNN`) by hand, then push: the job turns green.
+- **Before merging** a pull request that adds an ADR, update it with `main` ("Update branch") if `main`
+  moved since its last CI run: a green check from before another ADR merged does not see that ADR.
+- **Before opening or updating a pull request** that touches `adr/` or references an ADR, run
+  `adr/scripts/validate-adrs.sh` and fix every ❌.
+- **Keep an ADR short**: the decision and its "because", each option with its pros and cons. Checks,
+  thresholds and field lists go in the RFC or the code, not in the ADR.
+- The scripts run in bash on macOS, Linux and Windows (Git Bash or WSL; from PowerShell, prefix them with
+  `bash`).
+
 ## Opening a Pull Request
 
 > **The PR description MUST follow [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md).**
 > Read the template before writing the body — never invent your own headings.
 
 Sections, verbatim and in this order: `### Proposed changes`, `### Testing Instructions`,
-`### Related issues`, `### Checklist`, `### Further comments`.
 
-- `Related issues` is mandatory (`* Related #1234`) — every PR is linked to an issue.
+`### Related issues`, `### Checklist`, `### Further comments`.
+- `Related issues` is mandatory for public issues. Use `* N/A` when the related issue is in a private repository. — every PR is linked to an issue: `* Closes #1234` when the PR finishes it
+  (closed at merge), `* Related #1234` when the PR is one step of it (sub-task, epic, `feature-flag` issue before
+  the flag is removed).
 - Keep all checklist lines **unchecked** — never tick a box, the human author does that.
 - Drop the template's HTML comments from the final body.
-- Title follows Conventional Commits and ends with the issue reference.
+- Title follows Conventional Commits and ends with the issue reference, unless the related issue is in a private repository.
+- Never expose a private issue reference in a public PR. Link the public PR from the private issue instead.
 
 Full rules: [copilot-instructions.md → PR description format](.github/copilot-instructions.md#pr-description-format).
 
@@ -168,6 +200,7 @@ The mapping is:
 | `migration.instructions.md` | `migration-reviewer.agent.md` |
 | `testing.instructions.md` | `test-specialist.agent.md` |
 | `code-review.instructions.md` | `code-reviewer.agent.md` |
+| `ci.instructions.md` | `code-reviewer.agent.md` |
 
 If no agent exists yet for a new instruction file → create one following the pattern in `migration-reviewer.agent.md`.
 
@@ -185,7 +218,8 @@ A folder with its own `AGENTS.md` (e.g. `docs/`, `fds-migration/`) also needs a 
 
 All commits, pull requests and issues in this repository follow the
 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-specification with a GitHub issue reference:
+specification. Pull request titles include a GitHub issue reference unless the
+related issue is in a private repository:
 
 ```
 type(scope?)!?: description (#issue)
@@ -198,7 +232,10 @@ type(scope?)!?: description (#issue)
 - The old `[backend]` / `[frontend]` bracket prefixes are discontinued — use a
   Conventional Commits scope instead.
 - Pull request titles **must** end with the related issue reference, e.g.
-  `(#1234)`, and every pull request must be linked to an issue.
+  `(#1234)`, and every pull request must be linked to an issue. Pull requests
+  tracked by an issue in a private repository are exempt: do not expose the
+  private issue reference in the public pull request, and link the public pull
+  request from the private issue instead.
 - Sign your commits.
 
 When generating commit messages, PR titles or issue titles, always follow this

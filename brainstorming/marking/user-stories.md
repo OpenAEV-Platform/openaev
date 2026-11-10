@@ -455,3 +455,210 @@ Once markings are set on assets:
 - AC4 — Given no marking is assigned to an asset, When I interact with it, Then my capabilities and grants behave exactly as before
 - AC5 — Given a marking is assigned and I have the matching marking, When I interact with the asset, Then my capabilities and grants behave exactly as before
 - AC6 — Given markings are introduced on the platform, When existing users access assets with no marking, Then no regression is observed on their permissions
+
+# Task 4 — Handle side effects of asset markings on related entities
+
+**Summary:** Define what happens downstream when assets are marked, across the OpenAEV entities and workflows that use those assets.
+
+> Archived Payload and Credential user stories are excluded.
+
+## 🎯 Business Context
+
+### Use Case & Business Goals
+
+Task 3 (Assign Markings to Assets) controls direct access to marked assets. But assets are used almost everywhere in OpenAEV: 
+Asset Groups, Atomic testing, Scenarios and injects, Simulations, results, scores, findings, remediations and dashboards.
+
+Task 4 defines what happens when one of these entities references, groups, targets or derives information from an asset the current user cannot access.
+
+> **Core principle: a restricted asset does not exist for the user.**  
+> Markings are an access-control mechanism. When a user has no access to an asset, OpenAEV behaves as if the asset does 
+> not exist for that user. This is true everywhere: lists, detail pages, targets, counters, scores, findings, remediations, d
+> ashboards, search, filters, exports, API responses and error messages. The user must not be able to infer that a restricted asset exists, or what state it is in.
+
+Reminder of the access rule (Tasks 2 and 3): a user sees an asset of marking Type X and Order N only if at least one of their Groups holds Type X, and their effective Order for X (the highest across their Groups) is ≥ N. Unmarked assets are visible to everyone.
+
+What Task 4 delivers:
+
+- **Asset Groups:** consistent behaviour when a group contains restricted assets (US1).
+- **Scenarios, Simulations and Atomic testing:** restricted assets are hidden in targets, execution details, results, scores, findings and remediations (US2).
+- **Dashboards:** widgets and aggregated values calculated only from visible assets (US0).
+
+### Impacted areas (impact analysis)
+
+- Asset Groups and entities that contain or reference assets
+- Atomic testing
+- Scenarios and injects
+- Simulations
+- Exercise launch and configuration flows
+- Results and scores
+- Findings and remediations
+- Execution history
+- Dashboards and widgets
+- Counters and pagination totals
+- Search and filters
+- Exports
+- Notifications
+- Audit logs and telemetry
+- API responses and background jobs
+
+### Expected behaviour per related entity
+
+For every impacted entity, refinement chooses one of these behaviours:
+
+1. Keep the entity visible, but filter or redact restricted asset information.
+2. Hide the entire entity when it references a restricted asset.
+3. Keep the entity visible, but block specific actions such as launch or export.
+
+### Global acceptance principles
+
+- List, detail, direct URL and API access enforce the same restrictions.
+- Restricted asset identifiers, names, metadata, counts and derived values are never exposed.
+- Entities with mixed scope (some assets visible, some restricted) behave consistently across the UI, API, exports and background jobs.
+- When a user's effective Group markings change, what the user can read is updated. The underlying configurations and results are not altered or corrupted.
+- Empty states, validation messages, score differences, pagination totals and errors never reveal that hidden assets exist.
+
+### Users & Personas
+
+- **Administrator:** manages Group memberships and markings, and checks behaviour across marking levels.
+- **Exercise author / operator:** configures and launches Atomic testing, Scenarios and Simulations that may reference both visible and restricted assets.
+- **Analyst:** sees execution results, scores, findings and remediations only for assets within their marking scope.
+- **Standard user:** must not discover restricted assets, directly or indirectly, through related entities.
+
+## ⚠️ Important Flags
+
+- [ ] Breaking changes
+- [ ] Data-model updates
+- [ ] RBAC changes
+- [ ] Feature flag required
+- [ ] Target branch / release: to confirm
+- [ ] Import/export impact
+
+## 🤝 Decisions Log
+
+| Date | Decision | Owner |
+| --- | --- | --- |
+| 2026-09-28 | A restricted asset behaves as if it does not exist for the user, across all related entities and surfaces. | Soumaya Boussaha (PO) |
+| 2026-09-28 | Unmarked assets are visible to everyone (confirms Task 3 US4 AC3). | Soumaya Boussaha (PO) |
+| 2026-09-28 | Task 4 is split into 3 stories: Dashboard widgets, Asset Groups, and Scenarios / Simulations / Atomic testing. | Soumaya Boussaha (PO) |
+
+---
+
+# 🧠 What Do We Want?
+
+## User Flow
+
+### Flow A — Browse an Asset Group that contains restricted assets
+
+1. The user opens Assets → Asset groups. *(US1)*
+2. Depending on the chosen option, the user sees the group with only their visible assets (Option 1), or does not see the group at all (Option 2). *(US1)*
+3. The user opens the group, or tries to open it by direct URL or API: the same rule applies. *(US1)*
+
+### Flow B — Target assets in an Atomic testing, a Scenario or a Simulation
+
+1. The author creates or edits an inject and opens the target selection dialog. Only visible assets are listed, and only Asset Groups allowed by the chosen US1 option. *(US1, US2)*
+2. The author opens an existing inject whose targets include a restricted asset. The restricted asset does not appear, and neither does any count or placeholder that would reveal it. *(US2)*
+3. The author adds visible targets and saves. Restricted targets set by another user are kept unchanged in the configuration. *(US2)*
+4. The author launches (Launch now). The launch rule for restricted targets is still an open decision. *(US2)*
+
+### Flow C — Read results, findings and remediations
+
+1. The analyst opens an Atomic testing or a Simulation. *(US2)*
+2. Scores, pie charts, the target list and execution details only take visible assets into account. *(US2)*
+3. The Findings and Remediations tabs only show items derived from visible assets. *(US2)*
+
+### Flow D — Read dashboards
+
+1. The user opens a dashboard. *(US0)*
+2. Every widget is calculated only from the assets the user can see. Totals, scores and empty states give no hint that hidden assets exist. *(US0)*
+
+## Technical use cases (from the refinement)
+
+### Scenario containing a restricted asset
+
+1. `FULL_ADMIN` creates `ASSET_RED` with `TLP:RED`.
+2. `FULL_ADMIN` creates a Scenario containing an inject targeting `ASSET_RED`.
+3. `USER_GREEN` (`TLP:GREEN`) signs in.
+4. `USER_GREEN` can access the Scenario and view the inject, but cannot see `ASSET_RED`.
+5. Open decision: can `USER_GREEN` launch this Scenario? Launching creates a Simulation containing an inject targeting `ASSET_RED`.
+
+### Atomic testing with visible and restricted assets
+
+1. `FULL_ADMIN` creates `ASSET_RED` with `TLP:RED`.
+2. `FULL_ADMIN` creates an Atomic testing targeting `ASSET_RED`.
+3. `USER_GREEN` (`TLP:GREEN`) signs in.
+4. `USER_GREEN` cannot launch the Atomic testing while `ASSET_RED` is its only target.
+5. `USER_GREEN` can still configure it and add `ASSET_GREEN`.
+6. `USER_GREEN` can then launch it using `ASSET_GREEN`.
+7. `FULL_ADMIN` sees both `ASSET_GREEN` and `ASSET_RED` in the Atomic testing.
+
+Score view:
+
+- `USER_GREEN` sees scores and findings only for `ASSET_GREEN`, and remediations only when `ASSET_GREEN` fails.
+- `FULL_ADMIN` sees scores for all assets, all findings, and remediations when at least one asset fails.
+
+## Open questions
+
+1. **Asset Group behaviour (US1): Option 1 or Option 2?**
+
+  - Option 1: the group stays visible, but only visible assets are listed and counted. (Already implemented — more or less there, but it should not allow the accidental targeting of the…)
+  - Option 2: if the group contains at least one restricted asset, the whole group is hidden and cannot be targeted in Atomic testing, Scenarios or Simulations.
+  - Option 3: allow manual marking of asset groups? It’s a new feature.
+
+2. **Launch with restricted targets (US2):** can a user launch an Atomic testing, a Scenario or a Simulation when its targets include assets they cannot see?
+
+  - (a) Launch runs on all targets, and restricted targets stay fully hidden to the launcher.
+  - (b) Launch runs only on visible targets.
+  - (c) Launch is blocked.
+  - (d) Atomic, scenario, simulation not visible at all.
+
+3. **Option 1 plus targeting:** when a user targets a partly restricted Asset Group, are its hidden assets executed at launch? This is linked to question 2. To confirm.
+4. **Should a Finding itself be a marked entity** (for example, inheriting the marking of its asset)? To confirm.
+5. **Remediations:** a remediation is shown to a user only when at least one asset visible to that user fails. Proposal, to validate.
+6. **Cross-cutting surfaces** (search, exports, notifications, audit logs, telemetry, background jobs): these are covered by the global acceptance principles and by the API/export ACs in each story, with no dedicated story. Proposal, to validate.
+7. **Background jobs and scheduled Simulations** run with the full scope. The marking filter applies only when a user reads the results. Proposal, to validate.
+8. **Story order:** US1 → US2 → US0 (dashboards reuse the result filtering from US2). Proposal, to validate.
+
+## Impact of asset markings — problems and solutions
+
+> Principle: a restricted asset does not exist for the user. OpenAEV must behave as if it does not exist.
+
+| # | Area | Problem | Solution options |
+| --- | --- | --- | --- |
+| 1 | **Asset Groups** | A group can contain assets the user cannot access. Showing the group, its members or its asset count can reveal that those assets exist. The group can also be used as a target in Atomic testing, Scenarios and Simulations. | **Option 1 — Filter:** the group stays visible. Only the assets the user can access are listed and counted.<br>**Option 2 — Hide:** if the group contains at least one restricted asset, the whole group is hidden and cannot be targeted. |
+| 2 | **Scenarios, Simulations, Atomic testing: display and results** | Another user can add a restricted asset as a target. Targets, results, scores, findings and remediations can then reveal that the asset exists or what state it is in. | **Option 1 — Hide the entity (simplest):** if it contains an asset the user cannot access, the user does not see the Scenario, Simulation or Atomic testing at all.<br>**Option 2 — Filter in depth:** the entity stays visible. Only the restricted asset is hidden, in targets, results, scores, findings and remediations. |
+| 3 | **Scenarios, Simulations, Atomic testing: execution (manual and scheduled)** | A manual launch, or a scheduled or recurring Simulation started by a job, can run on assets the user cannot access. A job has no signed-in user, so by default it ignores marking restrictions. | **Option 1 — Inherit user restrictions:** the launch, or the job, runs with the effective markings of the user who launched or scheduled it. It only runs on assets that user can access.<br> |
+| 4 | **Dashboards** | Widgets add up assets and the results of Atomic testing and Simulations. Totals, scores and empty states can reveal restricted assets. | **Follows rows 1–3:** widgets are filtered the same way the user sees assets, Asset Groups, Scenarios, Simulations and Atomic testing everywhere else. Dashboards have no separate rule. |
+
+To confirm:
+
+- **Row 3:** which user does a scheduled job inherit from (the scheduler, the owner or the last editor)? What happens if that user's markings change, or the user is deleted, before the job runs?
+- **Rows 2 and 3:** do the options combine? For example, if row 2 is Option 1, an admin's scheduled Simulation that targets restricted assets is simply invisible to GREEN users.
+
+---
+
+# Telemetry
+
+- How do we measure feature usage?
+- How do we follow usage?
+
+# Macro Technical Refinement
+
+# Definition of Ready
+
+- [ ] User workflow, mock-ups, and acceptance criteria are defined and validated during refinement.
+- [ ] For cross-team development, identify the accountable person in the other team—the "buddy."
+- [ ] Set up a weekly meeting with implementation stakeholders, including Staff, PO, buddy, and developers.
+
+# Definition of Done
+
+- [ ] Code works and follows quality and security conventions.
+- [ ] CI/CD passes and the branch is mergeable.
+- [ ] Relevant unit, integration, end-to-end, and bug-fix tests are added or updated.
+- [ ] Structured logs, metrics, or traces provide adequate observability.
+- [ ] Official public documentation is updated.
+- [ ] All acceptance criteria and edge cases are implemented and tested.
+- [ ] The feature solves the identified user problem.
+- [ ] An internal stakeholder demo has been provided and recorded.
+- [ ] Release-note content is ready and a blog post is planned.
+

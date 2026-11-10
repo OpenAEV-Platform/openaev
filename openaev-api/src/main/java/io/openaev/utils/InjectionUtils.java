@@ -34,7 +34,7 @@ public class InjectionUtils {
   public static boolean isInInjectableRange(Injection injection, Integer stalenessThreshold) {
     Instant now = Instant.now();
     Instant start = now.minus(stalenessThreshold, ChronoUnit.MINUTES);
-    Instant injectWhen = injection.getDate().orElseThrow();
+    Instant injectWhen = injection.getDate(now).orElseThrow();
     return injectWhen.isAfter(start) && injectWhen.isBefore(now);
   }
 }

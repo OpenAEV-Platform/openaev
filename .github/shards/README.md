@@ -23,6 +23,12 @@ smallest job by a ~1.5 min margin. Shard 3 keeps `rest/*Test.java`: those 36
 top-level classes are 90% of its remaining measured class time, and `*` does not
 cross a `/`, so the package cannot be split further without listing files.
 
+`rest/exercise` moved from shard 6 to shard 8 when its new test classes ran
+shard 6's Surefire fork out of heap. A shard's heap grows with the Spring
+contexts its classes keep in the test context cache, so the package went to the
+shard with the fewest classes declaring their own context configuration
+(`@MockitoBean`, `@DynamicPropertySource`, `@TestPropertySource`, `@Import`).
+
 Custom exclusion files must preserve Surefire's default `**/*$*` exclusion.
 Otherwise nested classes can be discovered again in the catch-all even when
 their enclosing test belongs to an explicit shard. JUnit still runs nested tests

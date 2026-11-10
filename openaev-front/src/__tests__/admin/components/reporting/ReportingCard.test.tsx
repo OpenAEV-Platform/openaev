@@ -70,6 +70,8 @@ describe('ReportingCard', () => {
     const assign = vi.fn();
     vi.spyOn(window, 'location', 'get').mockReturnValue({
       ...window.location,
+      // The download URL is built from the current tenant path.
+      pathname: window.location.pathname,
       assign,
     });
     renderCard(buildReporting('SUCCESS'));

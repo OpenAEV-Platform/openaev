@@ -96,11 +96,10 @@ class CrossTenantJobSweepTest extends IntegrationTest {
   private String seedExercise(String status, Instant start) {
     String exerciseId = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, exercise_status,"
-            + " exercise_start_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, exercise_status,"
+            + " exercise_start_date, tenant_id) VALUES (?, ?, ?, ?, ?)",
         exerciseId,
         "cross-tenant-sweep",
-        "sweep@openaev.invalid",
         status,
         Timestamp.from(start),
         tenantId);
@@ -211,12 +210,11 @@ class CrossTenantJobSweepTest extends IntegrationTest {
       // Arrange
       String scenarioId = UUID.randomUUID().toString();
       jdbc.update(
-          "INSERT INTO scenarios (scenario_id, scenario_name, scenario_mail_from,"
+          "INSERT INTO scenarios (scenario_id, scenario_name,"
               + " scenario_recurrence, scenario_recurrence_start, scenario_recurrence_end,"
-              + " tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+              + " tenant_id) VALUES (?, ?, ?, ?, ?, ?)",
           scenarioId,
           "cross-tenant-sweep",
-          "sweep@openaev.invalid",
           "0 0 6 * * *",
           Timestamp.from(Instant.now().minus(10, ChronoUnit.DAYS)),
           Timestamp.from(Instant.now().minus(1, ChronoUnit.DAYS)),

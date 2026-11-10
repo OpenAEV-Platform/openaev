@@ -15,12 +15,14 @@ import io.openaev.rest.exception.UnprocessableContentException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.scenario.form.InjectsImportInput;
+import io.openaev.rest.scenario.response.ImportPostSummary;
 import io.openaev.rest.scenario.response.ImportTestSummary;
 import io.openaev.service.InjectImportService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +40,21 @@ public class ExerciseImportApi extends RestBehavior {
   private final ImportMapperRepository importMapperRepository;
   private final ExerciseService exerciseService;
 
+  @PostMapping(TENANT_EXERCISE_URI + "/{exerciseId}/xls/store")
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.SIMULATION)
+  @Transactional(rollbackFor = Exception.class)
+  @Operation(summary = "Store an xls file to import injects into a simulation")
+  public ImportPostSummary storeXlsFile(
+      TxCtx ctx,
+      @PathVariable @NotBlank final String exerciseId,
+      @RequestPart("file") @NotNull MultipartFile file) {
+    this.exerciseService.existsByIdAndTenantId(exerciseId);
+    return injectImportService.storeXlsFileForImport(file);
+  }
+
   @PostMapping({
     EXERCISE_URI + "/{exerciseId}/xls/{importId}/dry",
     TENANT_EXERCISE_URI + "/{exerciseId}/xls/{importId}/dry"
@@ -54,7 +71,7 @@ public class ExerciseImportApi extends RestBehavior {
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
-    Exercise exercise = this.exerciseService.exercise(exerciseId);
+    Exercise exercise = this.exerciseService.exercise(ctx, exerciseId);
 
     // Getting the mapper to use
     ImportMapper importMapper =
@@ -86,7 +103,7 @@ public class ExerciseImportApi extends RestBehavior {
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String importId,
       @Valid @RequestBody final InjectsImportInput input) {
-    Exercise exercise = this.exerciseService.exercise(exerciseId);
+    Exercise exercise = this.exerciseService.exercise(ctx, exerciseId);
 
     if (input.getLaunchDate() != null) {
       exercise.setStart(input.getLaunchDate().toInstant());
@@ -130,8 +147,7 @@ public class ExerciseImportApi extends RestBehavior {
       // The TxCtx parameter makes the transaction aspect set the request's tenant scope, under
       // which the importer reads InjectorContract#getFirstInjector() to attach an injector to
       // each imported inject and writes in the simulation's tenant, which must lie inside that
-      // scope. It does not scope the simulation lookup itself: that is a primary-key load,
-      // unscoped until exercises is tenant-active.
+      // scope. The simulation itself is looked up in that scope.
       TxCtx ctx,
       @RequestPart("file") MultipartFile file,
       @PathVariable @NotBlank final String simulationId,

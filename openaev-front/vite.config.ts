@@ -21,6 +21,17 @@ export default ({ mode }: { mode: string }) => {
     build: {
       sourcemap: true,
       outDir: 'builder/prod/build',
+      rolldownOptions: {
+        onwarn(warning, defaultHandler) {
+          // A namespace member the imported module does not export is undefined at runtime.
+          // tsc reports it in TypeScript files only, so fail the build for JavaScript files too.
+          // Dependencies are left out: they may feature-detect a member of a namespace on purpose.
+          if (warning.code === 'IMPORT_IS_UNDEFINED' && !/[\\/]node_modules[\\/]/.test(warning.id ?? '')) {
+            throw new Error(warning.message);
+          }
+          defaultHandler(warning);
+        },
+      },
     },
 
     experimental: {

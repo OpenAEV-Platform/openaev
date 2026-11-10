@@ -63,7 +63,7 @@ docker compose up -d openaev-dev-pgsql openaev-dev-minio openaev-dev-elasticsear
 | **Elasticsearch (dev)** | 9200, 9300 | Full-text search & indexing engine |
 | **RabbitMQ** | 5672 (AMQP), 15672 (Management) | Async messaging between backend components |
 
-> **Tip:** If you prefer OpenSearch over Elasticsearch, start `openaev-dev-opensearch` instead and set `engine.engine-selector=opensearch` / `engine.url=http://localhost:9202` in your `application-dev.properties`.
+> **Tip:** If you prefer OpenSearch over Elasticsearch, start `openaev-dev-opensearch` instead and set `engine.url=http://localhost:9202` in your `application-dev.properties`: the engine is detected automatically.
 
 #### Full start (all services)
 
@@ -75,7 +75,8 @@ podman compose up -d
 docker compose up -d
 ```
 
-This starts everything, including optional services:
+This starts everything, including optional services, except the alternative search engines (OpenSearch and
+Elasticsearch 8): OpenAEV uses one engine at a time, so they sit behind a profile and only start when asked for.
 
 | Service | Port | Description |
 |---------|------|-------------|
@@ -85,10 +86,12 @@ This starts everything, including optional services:
 | RabbitMQ | 5672 (AMQP), 15672 (Management) | Message queue |
 | Elasticsearch (dev) | 9200, 9300 | Search engine |
 | Elasticsearch (test) | 9201, 9301 | Test search engine |
-| OpenSearch (dev) | 9202, 9600 | Alternative search engine |
+| Elasticsearch 8 | 9203, 9303 | Oldest supported Elasticsearch major (profile `es8`, ephemeral) |
+| OpenSearch (dev) | 9202, 9600 | Alternative search engine (profile `opensearch`) |
 | Kibana (dev) | 5601 | Elasticsearch UI |
 | Kibana (test) | 5602 | Test Elasticsearch UI (optional) |
 | pgAdmin | 5050 | PostgreSQL management UI (optional) |
+| Keycloak | 8180 | Local SSO provider (profile `keycloak`, optional) |
 
 ### 4. Access services
 
@@ -117,6 +120,8 @@ To use them, copy the `*.run.xml` files to your `.idea/runConfigurations/` folde
 | `otlp-config.yaml` | OpenTelemetry Collector configuration (for telemetry) |
 | `Project.xml` | IntelliJ code style settings |
 | `../openaev-api/src/main/resources/application-dev.properties.example` | Example Spring dev profile (copy to `application-dev.properties`) |
+| `../openaev-api/src/main/resources/application-keycloak.properties.example` | Local Keycloak SSO settings (copy to `application-keycloak.properties`, profile `keycloak`) |
+| `keycloak/openaev-dev-realm.json` | Keycloak realm with the SSO test accounts |
 
 ## Setup Scripts
 
@@ -173,9 +178,66 @@ Both Elasticsearch and OpenSearch are included for flexibility. They are configu
 |--------|-----------|----------------------|
 | Elasticsearch (dev) | 9200 | 9300 |
 | Elasticsearch (test) | 9201 | 9301 |
+| Elasticsearch 8 | 9203 | 9303 |
 | OpenSearch (dev) | 9202 | 9600 |
 
-In most cases, you only need to run one search engine at a time. Configure your backend application properties to point to the correct port (9200 for Elasticsearch, 9202 for OpenSearch).
+OpenSearch and Elasticsearch 8 sit behind a compose profile, so a plain `up -d` does not start them. Start one by
+naming it, or with its profile:
+
+```bash
+docker compose up -d openaev-dev-opensearch      # or: docker compose --profile opensearch up -d
+docker compose up -d openaev-dev-elasticsearch8  # or: docker compose --profile es8 up -d
+```
+
+With Podman, `--profile` needs a recent `podman-compose`; naming the service works everywhere.
+
+In most cases, you only need to run one search engine at a time. Point `engine.url` at the one you run (9200 for Elasticsearch, 9203 for Elasticsearch 8, 9202 for OpenSearch): the engine is detected automatically.
+
+### Local SSO with Keycloak (Optional)
+
+`openaev-dev-keycloak` is an OpenID Connect provider with ready-made test accounts, to test SSO login and group mapping.
+
+1. Start Keycloak:
+
+   ```bash
+   podman compose up -d openaev-dev-keycloak
+   ```
+
+2. Copy the Keycloak settings next to your `application-dev.properties`:
+
+   ```bash
+   cp ../openaev-api/src/main/resources/application-keycloak.properties.example \
+      ../openaev-api/src/main/resources/application-keycloak.properties
+   ```
+
+3. Start the backend with the `dev,keycloak` profiles instead of `dev`:
+
+   ```bash
+   mvn -pl openaev-api spring-boot:run -Dspring-boot.run.profiles=dev,keycloak
+   ```
+
+   In IntelliJ, set **Active profiles** to `dev,keycloak` in the run configuration.
+
+4. Open http://localhost:3001, click **Login with Keycloak** and log in with one of the accounts below.
+
+Without the `keycloak` profile, the backend starts as usual and Keycloak is not used.
+
+| Account (password = account name) | Groups in the token | OpenAEV group |
+|-----------------------------------|---------------------|---------------|
+| `platform-observer` | `platform-observers` | SSO Platform Observers (platform) |
+| `platform-manager` | `platform-managers` | SSO Platform Managers (platform) |
+| `platform-admin` | `platform-admins` | SSO Platform Admins (platform) |
+| `tenant-observer` | `tenant-observers` | SSO Tenant Observers (default tenant) |
+| `tenant-manager` | `tenant-managers` | SSO Tenant Managers (default tenant) |
+| `tenant-admin` | `tenant-admins` | SSO Tenant Admins (default tenant) |
+| `super-admin` | none, `admin` role | OpenAEV administrator (`roles_admin`) |
+
+- Groups created at login have no role: give each one its roles once in OpenAEV.
+- Keycloak admin console: http://localhost:8180 (admin/admin). The realm (`openaev-dev`) is loaded from
+  `keycloak/openaev-dev-realm.json` on first start; remove the container to reload it.
+- Use a private window to switch accounts: Keycloak keeps you logged in.
+- Windows with Podman: if the backend fails with `Unable to resolve Configuration with the provided Issuer`, Keycloak
+  only answers on IPv6 `localhost`. Start the backend with `-Djava.net.preferIPv6Addresses=true`.
 
 ### Apple Silicon Support
 

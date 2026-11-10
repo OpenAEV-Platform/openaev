@@ -1,6 +1,7 @@
 package io.openaev.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -361,7 +362,10 @@ public class RabbitmqService {
   }
 
   /**
-   * Deletes all tenant-scoped queues and exchanges for each provided queue configuration.
+   * Deletes everything {@link #declareQueuesForTenant} declares for a tenant: the queue and
+   * exchange of each provided queue configuration, and the tenant-scoped connector exchange.
+   *
+   * <p>Idempotent: deleting a queue or exchange that does not exist is a no-op on RabbitMQ.
    *
    * @param tenantId the tenant ID whose queues should be deleted
    * @param queueConfigs the queue configurations to delete
@@ -389,6 +393,10 @@ public class RabbitmqService {
             exchangeName,
             tenantId);
       }
+
+      String connectorExchange = tenantPrefix + EXCHANGE_KEY;
+      channel.exchangeDelete(connectorExchange);
+      log.debug("Deleted connector exchange '{}' for tenant '{}'", connectorExchange, tenantId);
     }
   }
 
@@ -407,6 +415,39 @@ public class RabbitmqService {
       createChannel(connection, queueName, identifier);
     }
     return rabbitmqConfig.getPrefix() + queueName;
+  }
+
+  /**
+   * Deletes the queue of a deleted injector, unless a consumer still reads it (another deployment
+   * with the same id). Its pending messages are dropped: they would run stale injects.
+   *
+   * @param identifier the injector id the queue was registered with
+   */
+  public void deleteInjectorQueueIfUnused(String identifier) {
+    String queueName = rabbitmqConfig.getPrefix() + INJECTOR_PREFIX + identifier;
+    try (Connection connection = connectionFactory.newConnection()) {
+      // Separate channels: a refused passive declare or delete closes its channel
+      try (Channel checkChannel = connection.createChannel()) {
+        checkChannel.queueDeclarePassive(queueName);
+      } catch (IOException e) {
+        if (isQueueNotFound(e)) {
+          log.debug("No injector queue '{}' to delete.", queueName);
+          return;
+        }
+        throw e;
+      }
+      try (Channel channel = connection.createChannel()) {
+        int dropped = channel.queueDelete(queueName, true, false).getMessageCount();
+        log.info("Deleted injector queue '{}' and its {} pending messages.", queueName, dropped);
+      } catch (IOException e) {
+        if (channelCloseCode(e) != AMQP.PRECONDITION_FAILED) {
+          throw e;
+        }
+        log.info("Injector queue '{}' kept: another deployment still reads it.", queueName);
+      }
+    } catch (Exception e) {
+      log.warn("Could not delete injector queue '{}'.", queueName, e);
+    }
   }
 
   // -- HEALTH & METADATA --
@@ -521,14 +562,19 @@ public class RabbitmqService {
    * exist) rather than a connection/channel error.
    */
   private static boolean isQueueNotFound(IOException e) {
+    return channelCloseCode(e) == AMQP.NOT_FOUND;
+  }
+
+  /** The AMQP reply code of the channel close behind an IOException, or -1 if there is none. */
+  private static int channelCloseCode(IOException e) {
     Throwable cause = e.getCause();
     if (cause instanceof com.rabbitmq.client.ShutdownSignalException shutdown) {
       Object reason = shutdown.getReason();
       if (reason instanceof com.rabbitmq.client.AMQP.Channel.Close close) {
-        return close.getReplyCode() == 404;
+        return close.getReplyCode();
       }
     }
-    return false;
+    return -1;
   }
 
   /**

@@ -17,13 +17,18 @@ import io.openaev.database.model.Filters.FilterOperator;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ChainingOperationNotSupportedException;
+import io.openaev.rest.exception.CredentialResolutionException;
+import io.openaev.rest.exception.CredentialResolutionException.ErrorCode;
 import io.openaev.rest.payload.output_parser.OutputParserInput;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springdoc.api.ErrorMessage;
@@ -35,6 +40,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.transaction.TransactionTimedOutException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
@@ -93,6 +99,41 @@ class RestBehaviorTest {
     assertEquals("handleTenantFilteringException", resolved.getName());
   }
 
+  static Stream<Exception> timeouts() {
+    return Stream.of(
+        new TransactionTimedOutException("deadline reached"),
+        new org.hibernate.TransactionException("transaction timeout expired"),
+        new org.hibernate.QueryTimeoutException("canceling statement", null, "select 1"));
+  }
+
+  @ParameterizedTest
+  @MethodSource("timeouts")
+  @DisplayName("a wrapped timeout still selects the timeout handler")
+  void given_wrappedTimeout_should_resolveTimeoutHandler(Exception timeout) {
+    // GIVEN
+    RuntimeException wrapped = new RuntimeException("wrapped by the persistence layer", timeout);
+
+    // WHEN
+    Method resolved =
+        new ExceptionHandlerMethodResolver(RestBehavior.class).resolveMethodByThrowable(wrapped);
+
+    // THEN
+    assertEquals("handleTransactionTimeout", resolved.getName());
+  }
+
+  @Test
+  @DisplayName("a timeout returns 504")
+  void given_timeout_should_return504() {
+    // GIVEN
+    TransactionTimedOutException timeout = new TransactionTimedOutException("deadline reached");
+
+    // WHEN
+    ResponseEntity<ErrorMessage> response = new RestBehavior().handleTransactionTimeout(timeout);
+
+    // THEN
+    assertEquals(HttpStatus.GATEWAY_TIMEOUT, response.getStatusCode());
+  }
+
   @Nested
   @DisplayName("ChainingOperationNotSupportedException handling")
   class ChainingOperationNotSupportedHandling {
@@ -145,6 +186,43 @@ class RestBehaviorTest {
 
       // THEN
       assertNull(resolved);
+    }
+  }
+
+  @Nested
+  @DisplayName("CredentialResolutionException handling")
+  class CredentialResolutionHandling {
+
+    @ParameterizedTest
+    @EnumSource(ErrorCode.class)
+    @DisplayName("a refused credential resolution returns its status with the error code as body")
+    void given_refusedCredentialResolution_should_returnStatusAndErrorCode(ErrorCode errorCode) {
+      // WHEN
+      ResponseEntity<ErrorMessage> response =
+          new RestBehavior()
+              .handleCredentialResolutionException(new CredentialResolutionException(errorCode));
+
+      // THEN
+      assertEquals(errorCode.getStatus(), response.getStatusCode());
+      assertNotNull(response.getBody());
+      assertEquals(errorCode.name(), response.getBody().getMessage());
+    }
+
+    @Test
+    @DisplayName("the handler is registered for CredentialResolutionException")
+    void given_credentialResolutionException_should_resolveCorrectHandler() {
+      // GIVEN
+      ExceptionHandlerMethodResolver resolver =
+          new ExceptionHandlerMethodResolver(RestBehavior.class);
+
+      // WHEN
+      Method resolved =
+          resolver.resolveMethodByThrowable(
+              new CredentialResolutionException(ErrorCode.CREDENTIAL_NOT_FOUND));
+
+      // THEN
+      assertNotNull(resolved);
+      assertEquals("handleCredentialResolutionException", resolved.getName());
     }
   }
 

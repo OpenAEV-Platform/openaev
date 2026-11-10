@@ -199,6 +199,9 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.marking_definition.MarkingDefinitionApi#create",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#update",
           "io.openaev.api.marking_definition.MarkingDefinitionApi#delete",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#assigned",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#optionsByName",
+          "io.openaev.api.marking_definition.MarkingDefinitionApi#optionsById",
           "io.openaev.api.attackpath.AttackPathApi#relations",
           "io.openaev.api.attackpath.AttackPathApi#findings",
           "io.openaev.api.attackpath.AttackPathApi#executionDetail",
@@ -289,6 +292,9 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.connector_instance.ConnectorInstanceApi#updateConnectorInstanceConfigurations",
           "io.openaev.rest.connector_instance.ConnectorInstanceApi#searchConnectorInstanceLogs",
           "io.openaev.rest.connector_instance.ConnectorInstanceApi#updateRequestedStatus",
+          // connector_instances: the token rotation rewrites the OPENAEV_TOKEN configuration of
+          // every instance of the tenant, through a join on connector_instances
+          "io.openaev.rest.catalog_connector.CatalogConnectorApi#rotateCatalogConnectorToken",
           // connector_instances (v2 activation, Phase 3b two-hop finding): CatalogConnectorApi
           // reads connector_instances indirectly (CatalogConnectorService ->
           // ConnectorInstanceService#connectorInstances/#findAllByCatalogConnectorId) to compute
@@ -451,7 +457,7 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.challenge.SimulationChallengeApi#validateChallenge",
           // inject execution callback (legacy, non-queued path): the vulnerability-verdict
           // propagation chain (matchesVulnerabilityExpectations -> ... ->
-          // propagateTechnicalExpectation)
+          // updateLeavesThenRecomputeParents)
           // reads security_coverages via
           // SecurityCoverageSendJobService#shouldCreateCoverageSendJob.
           // Both overloads (with/without agentId) are covered by the single name entry.

@@ -6,13 +6,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.InjectExpectationRepository;
+import io.openaev.database.repository.InjectExpectationResultRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.injectors.challenge.model.ChallengeContent;
 import io.openaev.model.inject.form.Expectation;
 import io.openaev.service.InjectExpectationUtils;
 import io.openaev.utils.challenge.ChallengeExpectationUtils;
 import java.util.List;
-import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -27,8 +27,9 @@ public class ChallengeBehavior extends AbstractTableTopBehavior {
   public ChallengeBehavior(
       InjectExpectationRepository injectExpectationRepository,
       ChallengeRepository challengeRepository,
-      ObjectMapper mapper) {
-    super(injectExpectationRepository);
+      ObjectMapper mapper,
+      InjectExpectationResultRepository injectExpectationResultRepository) {
+    super(injectExpectationRepository, injectExpectationResultRepository);
     this.challengeRepository = challengeRepository;
     this.mapper = mapper;
   }
@@ -76,14 +77,9 @@ public class ChallengeBehavior extends AbstractTableTopBehavior {
         .toList();
   }
 
-  /** Matches expectations of the same challenge, as each challenge has its own expectation tree. */
+  /** The challenge, as each challenge has its own expectation tree. */
   @Override
-  protected boolean isSameContext(
-      TableTopInjectExpectation expectation, TableTopInjectExpectation reference) {
-    return Objects.equals(challengeId(expectation), challengeId(reference));
-  }
-
-  private static String challengeId(TableTopInjectExpectation expectation) {
+  protected String contextId(TableTopInjectExpectation expectation) {
     Challenge challenge = ((ChallengeInjectExpectation) expectation).getChallenge();
     return challenge != null ? challenge.getId() : null;
   }

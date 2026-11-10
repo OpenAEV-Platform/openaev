@@ -84,7 +84,8 @@ public interface InjectorContractRepository
    * Retrieves injector contracts that a specific user has been granted access to.
    *
    * <p>Returns only contracts where the user has a THREAT_ARSENAL grant on the injector contract ID
-   * through their group memberships.
+   * or on its payload identity, through a group of the contract's tenant or a platform group: a
+   * grant applies in the tenant of the group that holds it.
    *
    * <p>Same tenant-carrying mapping join as {@link #getAllRawInjectorsContracts()}.
    *
@@ -95,6 +96,7 @@ public interface InjectorContractRepository
     return getAllRawInjectorsContractsGranted(userId, ResourceType.THREAT_ARSENAL.name());
   }
 
+  // Native: array_agg over the attack pattern mapping; a read, no session side effect lost.
   @Query(
       value =
           "SELECT injcon.injector_contract_id, "
@@ -104,6 +106,8 @@ public interface InjectorContractRepository
               + "  ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "  AND injcon.tenant_id = injconatt.tenant_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
+              + "LEFT JOIN payloads p ON p.payload_id = injcon.injector_contract_payload "
+              + "  AND p.tenant_id = injcon.tenant_id "
               + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
               + "AND EXISTS ( "
               + "  SELECT 1 FROM users u "
@@ -111,8 +115,9 @@ public interface InjectorContractRepository
               + "  INNER JOIN groups g ON ug.group_id = g.group_id "
               + "  INNER JOIN grants gr ON g.group_id = gr.grant_group "
               + "  WHERE u.user_id = :userId "
-              + "  AND gr.grant_resource = injcon.injector_contract_id "
+              + "  AND gr.grant_resource IN (injcon.injector_contract_id, p.payload_identity) "
               + "  AND gr.grant_resource_type = :resourceType "
+              + "  AND (g.tenant_id IS NULL OR g.tenant_id = injcon.tenant_id) "
               + ") "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
@@ -125,6 +130,9 @@ public interface InjectorContractRepository
 
   @Query("SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id")
   boolean existsByContractId(@Param("id") @NotNull String id);
+
+  @Query("SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.payload.identity.id = :id")
+  boolean existsByPayloadIdentityId(@Param("id") @NotNull String id);
 
   @Query(
       "SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")
@@ -238,20 +246,19 @@ public interface InjectorContractRepository
   Optional<RawPayloadRelatedIds> findRelatedIdsByPayloadId(@Param("payloadId") String payloadId);
 
   /**
-   * Returns the (injector_contract_id, tenant_id) pair of EVERY contract row backed by the given
-   * payload, across all tenants. Deleting a payload cascades to its contracts at the database level
-   * ({@code injector_contract_payload ... ON DELETE CASCADE}), so the payload-delete path must
-   * resolve these pairs BEFORE the delete to cascade-clean the chaining steps that reference the
-   * doomed contracts (the step -> contract link lives only inside {@code step_data}, with no FK to
-   * cascade on).
+   * Returns the (injector_contract_id, tenant_id) pair of every contract row backed by the given
+   * payload that the transaction's tenant scope can read. Deleting a payload cascades to its
+   * contracts at the database level ({@code injector_contract_payload ... ON DELETE CASCADE}), so
+   * the payload-delete path must resolve these pairs BEFORE the delete to cascade-clean the
+   * chaining steps that reference the doomed contracts (the step -> contract link lives only inside
+   * {@code step_data}, with no FK to cascade on).
    *
-   * <p>Deliberately NOT tenant-scoped, unlike the other native queries here: the sweep set must be
-   * exactly what the database cascade deletes, whatever tenant it lives in. {@code
-   * injector_contract_payload_unique} allows one contract per payload per tenant, so this normally
-   * returns one row, but nothing in the schema stops a contract of another tenant from referencing
-   * the same payload: returning the (contract, tenant) pair keeps the delete path correct then. The
-   * caller sweeps each returned tenant separately; the sweep itself stays strictly tenant-scoped
-   * per pair.
+   * <p>Scoped like any other read once {@code injectors_contracts} is tenant-isolated, so it
+   * returns the contracts of the tenants in scope, normally the payload's own: {@code
+   * injector_contract_payload_unique} allows one contract per payload per tenant. A contract of
+   * another tenant referencing the same payload is a cross-tenant link the schema does not forbid
+   * yet; the database cascade still removes it, but its chaining steps are not swept. The caller
+   * sweeps each returned tenant separately; the sweep itself stays strictly tenant-scoped per pair.
    *
    * @param payloadId the payload whose contract rows are enumerated
    * @return one (contract id, tenant id) pair per contract row referencing the payload

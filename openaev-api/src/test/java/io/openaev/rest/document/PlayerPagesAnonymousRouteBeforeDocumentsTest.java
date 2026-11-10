@@ -73,8 +73,7 @@ class PlayerPagesAnonymousRouteBeforeDocumentsTest extends IntegrationTest {
     seededRows.add(new String[] {"tenants", "tenant_id", tenantB});
     exerciseId = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from, tenant_id)"
-            + " VALUES (?, ?, 'noreply@openaev.io', ?)",
+        "INSERT INTO exercises (exercise_id, exercise_name, tenant_id) VALUES (?, ?, ?)",
         exerciseId,
         "player-before-" + exerciseId,
         tenantB);

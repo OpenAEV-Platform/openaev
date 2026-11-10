@@ -16,6 +16,7 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,15 +24,21 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Graph-copy correctness of {@link StepService#copyStepTemplate(Workflow, Workflow)}, the single
  * cloning primitive shared by launch, autonomous plan provisioning, convert-to-manual and
- * duplication (ADR-007).
+ * duplication (ADR-015).
  */
 @SpringBootTest
 @Transactional
+// Runs the test transaction in the default tenant's scope, where every fixture here is created, as
+// a launch or a duplication copies a workflow in its tenant's scope.
+@TestExecutionListeners(
+    listeners = DefaultTenantScopeTestListener.class,
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @DisplayName("StepService - workflow graph copy")
 class StepServiceGraphCopyIntegrationTest {
 

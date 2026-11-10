@@ -1,8 +1,11 @@
 package io.openaev.rest.connector_instance;
 
+import static io.openaev.aop.lock.LockResourceType.CATALOG_CONNECTOR_ACCOUNT;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.service.account.CatalogConnectorPrivilegeService.ACCOUNT_LOCK_KEY;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.lock.Lock;
 import io.openaev.config.RequireTenantSelector;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
@@ -13,6 +16,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceLogService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.exception.ConnectorStatusException;
+import io.openaev.utils.mapper.ConnectorInstanceMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -42,8 +46,10 @@ public class ConnectorInstanceApi extends RestBehavior {
   private final ConnectorInstanceLogService connectorInstanceLogService;
   private final ConnectorOrchestrationService orchestrationService;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final ConnectorInstanceMapper connectorInstanceMapper;
 
   @PostMapping(value = {CONNECTOR_INSTANCE_URI, TENANT_CONNECTOR_INSTANCE_URI})
+  @Lock(type = CATALOG_CONNECTOR_ACCOUNT, key = ACCOUNT_LOCK_KEY)
   @Transactional
   @Operation(
       summary = "Create a new connector instance",
@@ -66,8 +72,9 @@ public class ConnectorInstanceApi extends RestBehavior {
     // --- /!\ --- SECURITY END
 
     // only instance managed by XTM Composer can be created through this API
-    return orchestrationService.createConnectorInstance(
-        catalogConnectorWithConfigMap, safeInput, tenantId);
+    return connectorInstanceMapper.toCreatedConnectorInstanceResponse(
+        orchestrationService.createConnectorInstance(
+            catalogConnectorWithConfigMap, safeInput, tenantId));
   }
 
   @GetMapping(
@@ -179,12 +186,13 @@ public class ConnectorInstanceApi extends RestBehavior {
       value = {
         @ApiResponse(responseCode = "200", description = "Successfully updated requested status")
       })
-  public ConnectorInstancePersisted updateRequestedStatus(
+  public ConnectorInstanceOutput updateRequestedStatus(
       @RequireTenantSelector TxCtx ctx,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody UpdateConnectorInstanceRequestedStatus input) {
-    return orchestrationService.updateRequestedStatus(
-        connectorInstanceId, input.getRequestedStatus());
+    return connectorInstanceMapper.toConnectorInstanceOutput(
+        orchestrationService.updateRequestedStatus(
+            connectorInstanceId, input.getRequestedStatus()));
   }
 
   @DeleteMapping(

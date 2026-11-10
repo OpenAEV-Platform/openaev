@@ -4,7 +4,6 @@ import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.aop.WorkflowUpdateEvent;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -17,6 +16,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.service.InjectExecutionService;
+import io.openaev.service.chaining.WorkflowUpdateEventPublisher;
 import io.openaev.service.queue.BatchQueueService;
 import jakarta.annotation.Resource;
 import java.io.IOException;
@@ -47,6 +47,7 @@ public class BatchingInjectStatusService {
   private final InjectRepository injectRepository;
   private final AgentRepository agentRepository;
   private final InjectExecutionService injectExecutionService;
+  private final WorkflowUpdateEventPublisher workflowUpdateEventPublisher;
 
   // Set from InjectApi.init() function. I preferred that to creating a dedicated @Bean instance
   // to avoid making too big changes.
@@ -67,13 +68,14 @@ public class BatchingInjectStatusService {
    *
    * <p>Deliberately NOT run in the class-level transaction: a batch-level transaction would open
    * before the per-tenant scope and leave the batch running outside any tenant, so {@code
-   * NOT_SUPPORTED} suspends it and each group opens its own scoped transaction.
+   * NOT_SUPPORTED} suspends it and each group opens its own scoped transaction. For the same reason
+   * the chaining engine is notified from each group, under that group's tenant, rather than by
+   * {@code @WorkflowUpdateEvent} on this method, which would run with no scope at all.
    *
    * @param injectExecutionCallbacks the inject execution callbacks
    */
   @LogExecutionTime
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
-  @WorkflowUpdateEvent(injectIds = "#injectExecutionCallbacks.![injectId]")
   public List<InjectExecutionCallback> handleInjectExecutionCallback(
       List<InjectExecutionCallback> injectExecutionCallbacks) {
     List<InjectExecutionCallback> successfullyProcessedCallbacks = new ArrayList<>();
@@ -85,11 +87,37 @@ public class BatchingInjectStatusService {
                 tenantTx.execute(
                     TxCtx.forTenant(tenantId),
                     () -> processTenantCallbacks(tenantCallbacks, successfullyProcessedCallbacks));
+                notifyChainedSteps(tenantId, tenantCallbacks);
               } finally {
                 TenantContext.clearCurrentTenant();
               }
             });
     return successfullyProcessedCallbacks;
+  }
+
+  /**
+   * Notifies the chaining steps that run this group's injects, in a transaction of its own under
+   * the group's tenant, opened once the group's traces are committed: the step lookup and each
+   * event's tenant are then read in that tenant, and the engine re-evaluating a step reads the new
+   * traces. A failure here must not roll the traces back, nor stop the next groups, which the queue
+   * would otherwise reject with the whole batch, so it is logged instead.
+   */
+  private void notifyChainedSteps(String tenantId, List<InjectExecutionCallback> tenantCallbacks) {
+    Set<String> injectIds =
+        tenantCallbacks.stream()
+            .map(InjectExecutionCallback::getInjectId)
+            .collect(Collectors.toSet());
+    try {
+      tenantTx.execute(
+          TxCtx.forTenant(tenantId),
+          () -> workflowUpdateEventPublisher.publishForInjects(injectIds));
+    } catch (RuntimeException e) {
+      log.error(
+          "Workflow update events not published for the injects {} of tenant {}",
+          injectIds,
+          tenantId,
+          e);
+    }
   }
 
   /**

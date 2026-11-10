@@ -21,7 +21,7 @@ permissions:
 jobs:
   sync-status:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'issues' || github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 

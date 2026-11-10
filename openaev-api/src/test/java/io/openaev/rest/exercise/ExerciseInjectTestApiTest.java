@@ -15,6 +15,7 @@ import io.openaev.database.model.*;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
+import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectTestStatusFixture;
@@ -35,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class ExerciseInjectTestApiTest extends IntegrationTest {
 
+  @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private MockMvc mvc;
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private ManagerFactory managerFactory;
@@ -49,7 +51,8 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
   @BeforeEach
   void beforeEach() throws Exception {
-    emailInjectorIntegrationFactory.registerConnectorForTenant(TenantContext.getCurrentTenant());
+    builtinConnectorRegistration.register(
+        emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     managerFactory.getManager(TenantContext.getCurrentTenant()).monitorIntegrations();
   }
 

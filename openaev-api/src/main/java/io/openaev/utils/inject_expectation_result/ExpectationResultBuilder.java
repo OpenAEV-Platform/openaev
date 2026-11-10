@@ -2,26 +2,20 @@ package io.openaev.utils.inject_expectation_result;
 
 import static io.openaev.collectors.expectations_vulnerability_manager.ExpectationsVulnerabilityManagerCollector.*;
 import static io.openaev.service.InjectExpectationService.COLLECTOR;
-import static io.openaev.service.InjectExpectationService.SECURITY_PLATFORM;
 import static java.time.Instant.now;
 import static org.springframework.util.StringUtils.hasText;
 
 import io.openaev.database.model.BaseInjectExpectation;
 import io.openaev.database.model.Collector;
 import io.openaev.database.model.InjectExpectationResult;
-import io.openaev.database.model.SecurityPlatform;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
-import io.openaev.rest.inject.form.InjectExpectationUpdateInput;
-import io.openaev.service.InjectExpectationUtils;
+import io.openaev.service.expectation.ExpectationVerdict;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Utility class for building and managing InjectExpectationResult objects.
@@ -62,38 +56,6 @@ public final class ExpectationResultBuilder {
 
   // -- SCORE --
 
-  /**
-   * Evaluate overall status from per-source results.
-   *
-   * <p>* SUCCESS if any expected source reports expectedScore. For DETECTION and PREVENTION this
-   * settles the expectation at once: one security platform proving it is enough, so the other
-   * expected sources are not waited for. VULNERABILITY keeps waiting, since another source may
-   * still report the asset vulnerable.
-   *
-   * <p>* NO_DATA if no success and at least one expected source is missing
-   *
-   * <p>* ERROR if no success and all expected sources reported but none matched
-   */
-  public static Double computeScore(
-      @NotNull final List<InjectExpectationResult> results,
-      @NotNull final BaseInjectExpectation expectation) {
-    final Double expectedScore = expectation.getExpectedScore();
-    if (expectedScore == null) {
-      return null;
-    }
-    if (hasNoResults(results)) {
-      return null;
-    }
-    if (isSettledByAnySource(expectation) && hasAnyScoreReaching(results, expectedScore)) {
-      return maxScore(results);
-    }
-    if (hasAnyEmptyResult(results)) {
-      return null;
-    }
-
-    return maxScore(results);
-  }
-
   private static boolean isSettledByAnySource(@NotNull final BaseInjectExpectation expectation) {
     return BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.equals(expectation.getType())
         || BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(expectation.getType());
@@ -115,7 +77,6 @@ public final class ExpectationResultBuilder {
    *
    * <p>* ERROR if no success and all expected sources reported but none matched
    */
-  // TODO: duplicate of computeScore
   public static Double computeResultsScore(
       @NotNull final List<InjectExpectationResult> results,
       @NotNull final BaseInjectExpectation expectation) {
@@ -150,21 +111,6 @@ public final class ExpectationResultBuilder {
     return scores.isEmpty() ? null : Collections.max(scores);
   }
 
-  /**
-   * Ensures the expectation's results list is a mutable {@link java.util.ArrayList}. JSON
-   * deserialization can produce an immutable list and a persisted row can have a null column,
-   * either of which breaks a subsequent {@code add} (the null case NPEs inside the copy
-   * constructor).
-   */
-  private static void ensureMutableResults(@NotNull final BaseInjectExpectation expectation) {
-    List<InjectExpectationResult> current = expectation.getResults();
-    if (current == null) {
-      expectation.setResults(new java.util.ArrayList<>());
-    } else if (!(current instanceof java.util.ArrayList)) {
-      expectation.setResults(new java.util.ArrayList<>(current));
-    }
-  }
-
   // -- SETUP --
 
   private static InjectExpectationResult setUp(
@@ -178,7 +124,7 @@ public final class ExpectationResultBuilder {
         .sourceName(sourceName)
         .sourcePlatform(sourcePlatform)
         .sourceAssetId(sourceAssetId)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 
@@ -201,105 +147,31 @@ public final class ExpectationResultBuilder {
 
   public static void addResult(
       @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final ExpectationUpdateInput input,
+      @NotNull final ExpectationVerdict verdict,
       @NotNull final String resultMsg) {
-    ensureMutableResults(baseInjectExpectation);
-
     InjectExpectationResult existing =
-        findResultBySourceId(baseInjectExpectation.getResults(), input.getSourceId());
+        findResultBySourceId(baseInjectExpectation.getResults(), verdict.sourceId());
     if (existing != null) {
       existing.setResult(resultMsg);
-      existing.setScore(input.getScore());
+      existing.setScore(verdict.score());
+      // A source answering again without metadata keeps the metadata of its previous answer
+      if (verdict.metadata() != null) {
+        existing.setMetadata(verdict.metadata());
+      }
     } else {
       existing =
           InjectExpectationResult.builder()
-              .sourceId(input.getSourceId())
-              .sourceType(input.getSourceType())
-              .sourceName(input.getSourceName())
-              .sourcePlatform(input.getSourcePlatform())
-              .sourceAssetId(input.getSourceId())
+              .sourceId(verdict.sourceId())
+              .sourceType(verdict.sourceType())
+              .sourceName(verdict.sourceName())
+              .sourcePlatform(verdict.sourcePlatform())
+              .sourceAssetId(verdict.sourceAssetId())
               .result(resultMsg)
-              .date(now().toString())
-              .score(input.getScore())
+              .date(now())
+              .score(verdict.score())
+              .metadata(verdict.metadata())
               .build();
-      baseInjectExpectation.getResults().add(existing);
-    }
-  }
-
-  public static void addResult(
-      @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final InjectExpectationUpdateInput input,
-      @NotNull final Collector collector) {
-    final double score =
-        InjectExpectationUtils.computeScore(baseInjectExpectation, input.getIsSuccess());
-
-    ensureMutableResults(baseInjectExpectation);
-
-    InjectExpectationResult existing =
-        findResultBySourceId(baseInjectExpectation.getResults(), collector.getId());
-
-    if (existing != null) {
-      existing.setResult(input.getResult());
-      existing.setScore(score);
-      existing.setMetadata(input.getMetadata());
-    } else {
-      existing =
-          InjectExpectationResult.builder()
-              .sourceId(collector.getId())
-              .sourceType(COLLECTOR)
-              .sourceName(collector.getName())
-              .sourcePlatform(
-                  Optional.ofNullable(collector.getSecurityPlatform())
-                      .map(sp -> sp.getSecurityPlatformType().name())
-                      .orElse(null))
-              .sourceAssetId(getSourceAssetId(collector))
-              .result(input.getResult())
-              .date(Instant.now().toString())
-              .score(score)
-              .metadata(input.getMetadata())
-              .build();
-      baseInjectExpectation.getResults().add(existing);
-    }
-  }
-
-  /**
-   * Adds (or updates) the result written by a security platform source, mirroring {@link
-   * #addResult(BaseInjectExpectation, InjectExpectationUpdateInput, Collector)} for verdicts that
-   * are attributed to a platform entry instead of a collector (e.g. assessment injectors).
-   */
-  public static void addResult(
-      @NotNull final BaseInjectExpectation baseInjectExpectation,
-      @NotNull final InjectExpectationUpdateInput input,
-      @NotNull final SecurityPlatform securityPlatform) {
-    final double score =
-        InjectExpectationUtils.computeScore(baseInjectExpectation, input.getIsSuccess());
-
-    ensureMutableResults(baseInjectExpectation);
-
-    InjectExpectationResult existing =
-        findResultBySourceId(baseInjectExpectation.getResults(), securityPlatform.getId());
-
-    if (existing != null) {
-      existing.setResult(input.getResult());
-      existing.setScore(score);
-      existing.setMetadata(input.getMetadata());
-    } else {
-      existing =
-          InjectExpectationResult.builder()
-              .sourceId(securityPlatform.getId())
-              .sourceType(SECURITY_PLATFORM)
-              .sourceName(securityPlatform.getName())
-              .sourcePlatform(
-                  securityPlatform.getSecurityPlatformType() != null
-                      ? securityPlatform.getSecurityPlatformType().name()
-                      : null)
-              .sourceAssetId(securityPlatform.getId())
-              .result(input.getResult())
-              .date(Instant.now().toString())
-              .score(score)
-              .metadata(input.getMetadata())
-              .build();
-      baseInjectExpectation.getResults().add(existing);
+      baseInjectExpectation.addResult(existing);
     }
   }
 
@@ -307,12 +179,9 @@ public final class ExpectationResultBuilder {
    * Removes the result of a source from the expectation. The score is left untouched: it is the
    * caller's job to recompute it.
    */
-  public static void removeResult(
+  public static List<InjectExpectationResult> removeResultsFromSource(
       @NotNull final BaseInjectExpectation expectation, @NotBlank final String sourceId) {
-    expectation.setResults(
-        expectation.getResults().stream()
-            .filter(r -> !sourceId.equals(r.getSourceId()))
-            .collect(Collectors.toCollection(ArrayList::new)));
+    return expectation.clearResultsFromSource(sourceId);
   }
 
   private static InjectExpectationResult buildForMediaPressure(
@@ -324,22 +193,29 @@ public final class ExpectationResultBuilder {
         .sourcePlatform(NOT_APPLICABLE)
         .sourceAssetId(NO_ASSET)
         .result(result)
-        .date(Instant.now().toString())
+        .date(Instant.now())
         .score(score)
         .build();
   }
 
-  private static String getSourceAssetId(Collector collector) {
+  public static String getSourcePlatform(Collector collector) {
+    return Optional.ofNullable(collector.getSecurityPlatform())
+        .map(sp -> sp.getSecurityPlatformType().name())
+        .orElse(null);
+  }
+
+  public static String getSourceAssetId(Collector collector) {
     return collector.isExternal() && collector.getSecurityPlatform() != null
         ? collector.getSecurityPlatform().getId()
         : null;
   }
 
-  public static ExpectationUpdateInput buildMediaPressureUpdateInput(@NotNull final Double score) {
-    return ExpectationUpdateInput.builder()
+  public static ExpectationVerdict buildMediaPressureVerdict(@NotNull final Double score) {
+    return ExpectationVerdict.builder()
         .sourceId(MEDIA_PRESSURE_SOURCE_ID)
         .sourceType(MEDIA_PRESSURE_SOURCE_TYPE)
         .sourceName(MEDIA_PRESSURE_SOURCE_NAME)
+        .sourceAssetId(null)
         .score(score)
         .build();
   }
@@ -358,41 +234,12 @@ public final class ExpectationResultBuilder {
         .sourceAssetId(NO_ASSET)
         .score(score)
         .result(result)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 
   public static InjectExpectationResult buildDefaultForVulnerabilityManagerInFailed() {
     return buildForVulnerabilityManager(NO_RESULT, NO_SCORE);
-  }
-
-  /**
-   * Builds a result attributed to a real security platform (e.g. the platform entry registered by
-   * an assessment injector such as Nuclei), so the verdict renders as a per-platform row - logo,
-   * type chip and pivot - exactly like detection/prevention platform rows.
-   */
-  public static InjectExpectationResult buildForSecurityPlatform(
-      @NotNull final SecurityPlatform securityPlatform,
-      @Nullable final String result,
-      @Nullable final Double score) {
-    return InjectExpectationResult.builder()
-        .sourceId(securityPlatform.getId())
-        .sourceType(SECURITY_PLATFORM)
-        .sourceName(securityPlatform.getName())
-        .sourcePlatform(
-            securityPlatform.getSecurityPlatformType() != null
-                ? securityPlatform.getSecurityPlatformType().name()
-                : null)
-        .sourceAssetId(securityPlatform.getId())
-        .score(score)
-        .result(result)
-        .date(String.valueOf(Instant.now()))
-        .build();
-  }
-
-  public static InjectExpectationResult buildDefaultForSecurityPlatform(
-      @NotNull final SecurityPlatform securityPlatform) {
-    return buildForSecurityPlatform(securityPlatform, NO_RESULT, NO_SCORE);
   }
 
   public static InjectExpectationResult buildDefaultForPlayerManualValidation() {
@@ -409,7 +256,7 @@ public final class ExpectationResultBuilder {
         .sourceAssetId(NO_ASSET)
         .result(result)
         .score(score)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 
@@ -423,7 +270,7 @@ public final class ExpectationResultBuilder {
         .sourceAssetId(NO_ASSET)
         .result(result)
         .score(score)
-        .date(String.valueOf(Instant.now()))
+        .date(Instant.now())
         .build();
   }
 
@@ -478,11 +325,5 @@ public final class ExpectationResultBuilder {
 
   public static boolean hasValidResults(@NotNull final List<InjectExpectationResult> results) {
     return !results.isEmpty() && results.stream().allMatch(r -> hasText(r.getResult()));
-  }
-
-  public static boolean hasValidResultFromSource(
-      @NotNull final List<InjectExpectationResult> results, @NotBlank final String sourceId) {
-    return results.stream()
-        .anyMatch(r -> sourceId.equals(r.getSourceId()) && hasText(r.getResult()));
   }
 }

@@ -6,9 +6,9 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 /**
- * WorkflowState storage refactor (ADR-010) — normalized relational store.
+ * WorkflowState storage refactor (ADR-011) — normalized relational store.
  *
- * <p>ADR-010 replaces the single JSONB blob {@code workflow_states.workflow_state_entries} with a
+ * <p>ADR-011 replaces the single JSONB blob {@code workflow_states.workflow_state_entries} with a
  * normalized relational model so that entry lookups, correlated-tuple reads and anti-replay checks
  * run as flat indexed reads and single-row inserts instead of parsing and re-serializing a JSON
  * document on every mutation.
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
  * <p>This migration is strictly additive: it introduces one table and one column and does
  * <b>not</b> touch the existing {@code workflow_states.workflow_state_entries} JSONB column, which
  * the {@code LEGACY_JSONB} path keeps using until the coexistence window closes (the
- * post-coexistence cleanup described in ADR-010 §4.4 removes the legacy column, the {@code
+ * post-coexistence cleanup described in ADR-011 §4.4 removes the legacy column, the {@code
  * storage_mode} flag and all {@code LEGACY_JSONB} code paths).
  *
  * <p>{@code workflow_state_entries} holds one row per normalized entry; {@code entry_type} carries
@@ -79,7 +79,7 @@ public class V6_20261005105200000__Add_workflow_state_normalized_tables extends 
               + "(workflow_state_id, correlation_hash, entry_key, md5(entry_value)) "
               + "WHERE entry_type = 'CORRELATED';");
 
-      // 3. Dual-run routing flag on the run. Temporary — see ADR-010 §4.4 cleanup.
+      // 3. Dual-run routing flag on the run. Temporary — see ADR-011 §4.4 cleanup.
       statement.execute(
           "ALTER TABLE workflows "
               + "ADD COLUMN IF NOT EXISTS storage_mode VARCHAR(20) NOT NULL "

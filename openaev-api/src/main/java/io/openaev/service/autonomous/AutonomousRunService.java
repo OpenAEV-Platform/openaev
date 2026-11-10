@@ -1,5 +1,6 @@
 package io.openaev.service.autonomous;
 
+import static io.openaev.config.SessionHelper.currentUser;
 import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.springframework.util.StringUtils.hasText;
@@ -23,6 +24,7 @@ import io.openaev.api.chaining.dto.WorkflowScopeRuleInput;
 import io.openaev.api.xtmone.dto.ChatbotAgentOutput;
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -48,6 +50,7 @@ import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.exception.ConflictException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectInput;
@@ -56,6 +59,7 @@ import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.validator.IpAddressUtils;
 import io.openaev.xtmone.XtmOneClient;
 import jakarta.persistence.EntityManager;
@@ -213,6 +217,10 @@ public class AutonomousRunService {
   // GUC scope is already gone and a bare repository call would be denied by the inspector).
   private final TenantScopedTransaction tenantTx;
 
+  // Keeps a create's reads and writes of the tables still on v1 (scenarios, simulations, injects)
+  // in the run's tenant: their filter and their listener follow the ambient tenant.
+  private final AmbientTenantBridge ambientTenantBridge;
+
   // Field-injected (not constructor) so it stays out of @RequiredArgsConstructor and null in the
   // Mockito @InjectMocks unit tests, where detachForResponse() below no-ops. Used only to evict a
   // returned run from the persistence context on the READ paths, so the open-in-view session's
@@ -287,8 +295,7 @@ public class AutonomousRunService {
    */
   private void assertRunAcceptsAuthoring(AutonomousRun run) {
     if (isTerminal(run.getStatus())) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT,
+      throw new ConflictException(
           "This autonomous run has ended ("
               + run.getStatus()
               + "); it no longer accepts"
@@ -312,8 +319,7 @@ public class AutonomousRunService {
    */
   private void assertRunNotTerminal(AutonomousRun run, String action) {
     if (isTerminal(run.getStatus())) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT,
+      throw new ConflictException(
           "This autonomous run has ended ("
               + run.getStatus()
               + "); it can no longer be "
@@ -325,25 +331,68 @@ public class AutonomousRunService {
   // region lifecycle
 
   /**
+   * The live operator's clearance gates dispatch on every simulation this service creates (Task 4)
+   * - {@code create}/{@code restart}/{@code promoteToRealRun} are all reached only through an
+   * {@code accessControl.assertCanManage*} gate, so a real user is always present here.
+   */
+  private User resolveLaunchedBy() {
+    return userRepository
+        .findById(currentUser().getId())
+        .orElseThrow(ElementNotFoundException::new);
+  }
+
+  /**
    * Creates a run: resolves the objective (free text or template), auto-provisions the attack-path
    * (chaining) substrate, spins up its running simulation, and persists the durable run handle in
    * {@code CREATED}. The run is fully autonomous - the operator never authors an attack path; the
    * AI orchestrator builds and executes it. An existing chaining scenario may still be passed
    * explicitly (advanced), otherwise a fresh one is provisioned from the objective. The
    * orchestrator is engaged separately by {@link #start} so creation stays fast and idempotent.
+   *
+   * <p>The whole create runs in one tenant. A run seeded from an existing scenario runs in that
+   * scenario's tenant, which must lie within the request scope, whatever its width. A run that
+   * provisions its own scenario runs in the tenant the request writes to (see {@link
+   * #provisioningTenant}).
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRun create(TxCtx ctx, AutonomousRunCreateInput input) {
-    return doCreate(ctx, input);
+    String tenantId =
+        hasText(input.getScenarioId())
+            ? scenarioService.scenarioTenantWithin(
+                input.getScenarioId(), TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx))
+            : provisioningTenant(ctx);
+    // Reads by business key (an objective template, the tenant's dashboard setting) must resolve
+    // in the tenant the create writes to, not in every tenant of a broad scope. The simulation copy
+    // in toExercise narrows the same transaction to the same tenant, so this only moves that
+    // narrowing to the start of the create.
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
+    return ambientTenantBridge.callInTenant(tenantId, () -> doCreate(ctx, input, tenantId));
+  }
+
+  /**
+   * The tenant a run with no scenario provisions its scenario in. A request scope holding one
+   * tenant writes there. A broader scope, which a request naming no tenant gets from the caller's
+   * memberships, keeps the platform convention for such a request: the default tenant when the
+   * scope includes it, otherwise a refusal, since picking one of the other tenants would be a
+   * guess.
+   */
+  private String provisioningTenant(TxCtx ctx) {
+    Set<String> scoped = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
+    if (scoped.size() > 1 && scoped.contains(Tenant.DEFAULT_TENANT_UUID)) {
+      return Tenant.DEFAULT_TENANT_UUID;
+    }
+    return writeScopeResolver.tenantForWrite(ctx, null);
   }
 
   /**
    * Body of {@link #create}. Kept un-annotated so composite transactional entry points ({@link
    * #launchFromScenario}) can reuse it without the intra-class {@code @Transactional}
    * self-invocation trap (a same-class call bypasses the Spring proxy). Must be called inside an
-   * active transaction.
+   * active transaction. {@code provisioningTenant} is the tenant a scenario provisioned here is
+   * written in; it is not read when the input names a scenario.
    */
-  private AutonomousRun doCreate(TxCtx ctx, AutonomousRunCreateInput input) {
+  private AutonomousRun doCreate(
+      TxCtx ctx, AutonomousRunCreateInput input, String provisioningTenant) {
     String objective = resolveObjective(input);
 
     Scenario scenario;
@@ -354,7 +403,7 @@ public class AutonomousRunService {
       // scenario type, so the scenario is a plain reusable chained scenario and is NOT stamped
       // autonomous. The AI cockpit is discovered from the run row (by-simulation / by-scenario
       // lookups), not from a flag on the scenario.
-      scenario = scenarioService.scenario(scenarioId);
+      scenario = scenarioService.scenario(ctx, scenarioId);
       if (!workflowService.isScenarioChaining(scenarioId)) {
         throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST,
@@ -363,14 +412,16 @@ public class AutonomousRunService {
     } else {
       // Autonomous default: provision a fresh attack-path scenario so the operator never has to
       // build one. The AI orchestrator populates and drives it after start().
-      scenario = provisionAutonomousScenario(objective, input.getName(), input.getDescription());
+      scenario =
+          provisionAutonomousScenario(
+              provisioningTenant, objective, input.getName(), input.getDescription());
       scenarioId = scenario.getId();
     }
 
     boolean planMode = input.isPlanMode();
     Exercise simulation =
         scenarioToExerciseService.toExercise(
-            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, resolveLaunchedBy());
     // Dry-run: provision the simulation substrate so the orchestrator's authoring / mirror / read
     // tools work unchanged, but never start its RUN workflow. With no run workflow the chaining
     // engine has nothing to ready or dispatch, so a plan authors a full attack path without ever
@@ -470,7 +521,7 @@ public class AutonomousRunService {
     List<String> resolvedAgentIds =
         selectedAgentIds != null
             ? new ArrayList<>(selectedAgentIds)
-            : readDefaultAdditionalAgentIds();
+            : readDefaultAdditionalAgentIds(run.getTenant().getId());
     run.setAgentIds(resolvedAgentIds);
     // Per-agent discovery mode: authoritative per-run selection when provided, else the tenant
     // default map; then normalized so every enabled specialist agent has an explicit mode
@@ -480,7 +531,9 @@ public class AutonomousRunService {
     Map<String, String> selectedModes = input.getAgentModes();
     run.setAgentModes(
         normalizeAgentModes(
-            selectedModes != null ? selectedModes : readDefaultAdditionalAgentModes(),
+            selectedModes != null
+                ? selectedModes
+                : readDefaultAdditionalAgentModes(run.getTenant().getId()),
             resolvedAgentIds));
     // Seed-and-adapt: when launched in autonomous mode from a scenario that already carries an
     // authored attack path, hand the orchestrator a starting-plan guidance so it verifies and
@@ -534,6 +587,8 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    // Before any read or write keyed on the scenario id alone
+    scenarioService.existsInScope(ctx, scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
@@ -547,7 +602,7 @@ public class AutonomousRunService {
     effective.setScenarioId(scenarioId);
     effective.setPlanMode(false);
     if (!hasText(effective.getObjective()) && !hasText(effective.getObjectiveTemplateKey())) {
-      Scenario scenario = scenarioService.scenario(scenarioId);
+      Scenario scenario = scenarioService.scenario(ctx, scenarioId);
       // The default mission depends on whether the scenario already carries any logic: with
       // authored
       // steps the run executes them first then adapts; on an empty scenario there is nothing to
@@ -569,7 +624,7 @@ public class AutonomousRunService {
     // The un-annotated internals run inside THIS transaction: doCreate() builds + saves the run,
     // doStart() flips it live and registers the post-commit orchestrator engagement. Calling the
     // public @Transactional create()/start() here would self-invoke past the Spring proxy.
-    AutonomousRun created = doCreate(ctx, effective);
+    AutonomousRun created = doCreate(ctx, effective, null);
     return doStart(created.getId());
   }
 
@@ -591,13 +646,15 @@ public class AutonomousRunService {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    // Before any read keyed on the scenario id alone: the workflow lookup below carries no tenant
+    // scope of its own, so it must not decide the answer for a scenario outside the request scope.
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
           "The scenario must be a chained scenario to be planned by the orchestrator");
     }
     AutonomousRunCreateInput effective = input != null ? input : new AutonomousRunCreateInput();
-    Scenario scenario = scenarioService.scenario(scenarioId);
     // Refine (follow-up) vs rebuild (from scratch): refine keeps the existing logic + history and
     // continues from it; rebuild wipes the logic map and re-authors fresh (the original behaviour).
     return effective.isRefine()
@@ -678,8 +735,7 @@ public class AutonomousRunService {
           || status == AutonomousRunStatus.RUNNING
           || status == AutonomousRunStatus.PAUSED
           || status == AutonomousRunStatus.WAITING_INPUT) {
-        throw new ResponseStatusException(
-            HttpStatus.CONFLICT, "Stop the active autonomous run before refining this scenario");
+        throw new ConflictException("Stop the active autonomous run before refining this scenario");
       }
       // A settled PLAN-mode run is the AI-built case: reuse its row so its decision timeline (full
       // history) is preserved and reopened. A settled LIVE run is a different flow; supersede it
@@ -767,12 +823,14 @@ public class AutonomousRunService {
     List<String> resolvedAgentIds =
         selectedAgentIds != null
             ? new ArrayList<>(selectedAgentIds)
-            : readDefaultAdditionalAgentIds();
+            : readDefaultAdditionalAgentIds(run.getTenant().getId());
     run.setAgentIds(resolvedAgentIds);
     Map<String, String> selectedModes = effective.getAgentModes();
     run.setAgentModes(
         normalizeAgentModes(
-            selectedModes != null ? selectedModes : readDefaultAdditionalAgentModes(),
+            selectedModes != null
+                ? selectedModes
+                : readDefaultAdditionalAgentModes(run.getTenant().getId()),
             resolvedAgentIds));
 
     List<WorkflowScopeRuleInput> seededScopeRules = new ArrayList<>();
@@ -846,8 +904,7 @@ public class AutonomousRunService {
     AutonomousRun run = require(runId);
     if (run.getStatus() != AutonomousRunStatus.CREATED
         && run.getStatus() != AutonomousRunStatus.PAUSED) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "Run cannot be started from status " + run.getStatus());
+      throw new ConflictException("Run cannot be started from status " + run.getStatus());
     }
     boolean planMode = run.isPlanMode();
     run.setStatus(planMode ? AutonomousRunStatus.PLANNING : AutonomousRunStatus.RUNNING);
@@ -1487,7 +1544,7 @@ public class AutonomousRunService {
     run.setStepMirror(new HashMap<>());
     Exercise simulation =
         scenarioToExerciseService.toExercise(
-            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, resolveLaunchedBy());
     try {
       // Mirror create(): a plan-mode restart provisions the simulation TEMPLATE workflow only (no
       // RUN), so the restarted plan can be re-authored without executing; a live restart starts the
@@ -1552,14 +1609,12 @@ public class AutonomousRunService {
     // a locked check-then-act instead of racing a concurrent status write.
     AutonomousRun run = requireForUpdate(runId);
     if (!run.isPlanMode()) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "Only built (non-executed) logic can be launched as a live run");
+      throw new ConflictException("Only built (non-executed) logic can be launched as a live run");
     }
     if (run.getStatus() != AutonomousRunStatus.PLANNED
         && run.getStatus() != AutonomousRunStatus.FAILED
         && run.getStatus() != AutonomousRunStatus.CANCELED) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "A plan can only be launched once building has settled");
+      throw new ConflictException("A plan can only be launched once building has settled");
     }
     // Stop the planning orchestration and purge its coordination state so the live run does not
     // inherit the plan cycle's assumptions.
@@ -1577,7 +1632,7 @@ public class AutonomousRunService {
     run.setStepMirror(new HashMap<>());
     Exercise simulation =
         scenarioToExerciseService.toExercise(
-            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true);
+            scenario, now().truncatedTo(MINUTES).plus(1, MINUTES), true, resolveLaunchedBy());
     try {
       workflowService.startWorkflowByScenarioIdAndSimulation(run.getScenarioId(), simulation, true);
     } catch (ChainingException e) {
@@ -1644,8 +1699,7 @@ public class AutonomousRunService {
     AutonomousRun run = require(runId);
     String scenarioId = run.getScenarioId();
     if (!hasText(scenarioId)) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "This autonomous run has no scenario to convert");
+      throw new ConflictException("This autonomous run has no scenario to convert");
     }
     if (mode == ConvertToManualMode.DUPLICATE) {
       // Non-destructive: clone the scenario into a fresh manual chained scenario and leave the AI
@@ -1733,8 +1787,7 @@ public class AutonomousRunService {
         || status == AutonomousRunStatus.RUNNING
         || status == AutonomousRunStatus.PAUSED
         || status == AutonomousRunStatus.WAITING_INPUT) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "Stop the autonomous run before deleting its scenario");
+      throw new ConflictException("Stop the autonomous run before deleting its scenario");
     }
     tearDownRun(run);
   }
@@ -1833,8 +1886,7 @@ public class AutonomousRunService {
         || status == AutonomousRunStatus.PAUSED
         || status == AutonomousRunStatus.WAITING_INPUT) {
       if (refuseIfActive) {
-        throw new ResponseStatusException(
-            HttpStatus.CONFLICT,
+        throw new ConflictException(
             "Stop the active autonomous run before rebuilding or relaunching this scenario");
       }
       // A normal (operator-driven) launch must never tear down a live orchestration: leave the
@@ -2250,6 +2302,7 @@ public class AutonomousRunService {
       try {
         if (hasText(run.getSimulationId())) {
           exerciseService.enableTargetedTeamMembersIsolated(
+              TxCtx.forTenant(runTenantId(run)),
               run.getSimulationId(),
               scope.stream()
                   .filter(t -> "TEAMS".equals(t.getType()))
@@ -2496,8 +2549,7 @@ public class AutonomousRunService {
       // author failure SHOULD surface (400) since the scenario is the primary artifact.
       if (!hasText(run.getSimulationId())) {
         if (!hasText(run.getScenarioId())) {
-          throw new ResponseStatusException(
-              HttpStatus.CONFLICT,
+          throw new ConflictException(
               "The autonomous run has neither a live simulation nor a scenario to build steps on");
         }
         // Validate a reused event id up front so a bad/foreign id is a precise 400, never a silent
@@ -2577,7 +2629,7 @@ public class AutonomousRunService {
       //    user".
       //  - Scenario mirror: the exportable/reproducible twin of the attack path (the executing copy
       //    lives on the simulation; this twin never runs).
-      enableTargetedTeamMembersBestEffort(run.getSimulationId(), injectInput.getTeams());
+      enableTargetedTeamMembersBestEffort(run, injectInput.getTeams());
       mirrorStepOntoScenario(
           run,
           injectInput,
@@ -2845,8 +2897,7 @@ public class AutonomousRunService {
       // scenario workflow (no simulation, no mirror twin).
       if (!hasText(run.getSimulationId())) {
         if (!hasText(run.getScenarioId())) {
-          throw new ResponseStatusException(
-              HttpStatus.CONFLICT,
+          throw new ConflictException(
               "The autonomous run has neither a live simulation nor a scenario to update steps on");
         }
         // Validate a reused event id up front so a bad/foreign id is a precise 400. In
@@ -2910,7 +2961,7 @@ public class AutonomousRunService {
       // update transaction rollback-only. Mirrors doAppendAttackPathStep / setRunScope.
       mirrorStepUpdateOntoScenario(
           run, stepTemplateId, injectInput, triggerConditions, requestedEventId);
-      enableTargetedTeamMembersBestEffort(run.getSimulationId(), injectInput.getTeams());
+      enableTargetedTeamMembersBestEffort(run, injectInput.getTeams());
       eventService.append(
           runId,
           runTenantId(run),
@@ -2964,12 +3015,14 @@ public class AutonomousRunService {
       }
       // Prune the scenario mirror twin and drop the mapping entry - both SECONDARY projections that
       // must never fail (500) this callback (the primary step is already gone). The twin delete
-      // runs in its OWN REQUIRES_NEW transaction so a failure rolls back only itself.
+      // runs in its OWN REQUIRES_NEW transaction so a failure rolls back only itself; that
+      // transaction does not inherit this one's scope, so it takes the run's own tenant.
       Map<String, String> mirror = run.getStepMirror();
       String scenarioStepId = mirror == null ? null : mirror.get(stepTemplateId);
       if (hasText(scenarioStepId)) {
         try {
-          workflowService.deleteChainedStepIsolated(scenarioStepId);
+          workflowService.deleteChainedStepIsolated(
+              TxCtx.forTenant(runTenantId(run)), scenarioStepId);
         } catch (Exception e) {
           log.warn(
               "[Autonomous] Deleted step {} but pruning its scenario mirror twin {} failed"
@@ -3055,15 +3108,16 @@ public class AutonomousRunService {
     }
     try {
       // Append the scenario twin in its OWN transaction (REQUIRES_NEW): a mirror-side persistence
-      // failure (scenario template invisible under this thread's tenant, an action-target
-      // realignment error, a concurrent author racing the same scenario workflow) then rolls back
-      // only the twin and can never mark the caller's authoring transaction rollback-only - which
-      // previously turned a swallowed mirror error into a failed commit that lost the executing
-      // step. The mirror map updates + run save below deliberately stay in the OUTER transaction
-      // so they commit atomically with the executing step and never race a REQUIRES_NEW twin over
-      // the same managed AutonomousRun row.
+      // failure (an action-target realignment error, a concurrent author racing the same scenario
+      // workflow) then rolls back only the twin and can never mark the caller's authoring
+      // transaction rollback-only - which previously turned a swallowed mirror error into a failed
+      // commit that lost the executing step. The new transaction does not inherit this one's
+      // scope, so it takes the run's own tenant. The mirror map updates + run save below
+      // deliberately stay in the OUTER transaction so they commit atomically with the executing
+      // step and never race a REQUIRES_NEW twin over the same managed AutonomousRun row.
       String scenarioStepId =
           workflowService.appendChainedStepToScenarioIsolated(
+              TxCtx.forTenant(runTenantId(run)),
               scenarioId,
               injectInput,
               parentScenarioStepId,
@@ -3094,10 +3148,10 @@ public class AutonomousRunService {
       runRepository.save(run);
     } catch (Exception e) {
       log.warn(
-          "[Autonomous] Failed to mirror attack-path step onto scenario {} for run {}: {}",
+          "[Autonomous] Failed to mirror attack-path step onto scenario {} for run {}",
           scenarioId,
           run.getId(),
-          e.getMessage());
+          e);
     }
   }
 
@@ -3145,7 +3199,11 @@ public class AutonomousRunService {
     }
     try {
       workflowService.updateChainedStepIsolated(
-          scenarioStepId, injectInput, scenarioConditions, scenarioExistingEventIds);
+          TxCtx.forTenant(runTenantId(run)),
+          scenarioStepId,
+          injectInput,
+          scenarioConditions,
+          scenarioExistingEventIds);
       // Record the sim->scenario event twin whenever the trigger was (re)built - a fresh event OR a
       // reuse that took the fallback COPY path - so a later step reusing this sim event shares the
       // SAME scenario event instead of triggering the fallback again and duplicating it. A
@@ -3169,10 +3227,10 @@ public class AutonomousRunService {
       }
     } catch (Exception e) {
       log.warn(
-          "[Autonomous] Failed to update scenario mirror step {} for run {}: {}",
+          "[Autonomous] Failed to update scenario mirror step {} for run {}",
           scenarioStepId,
           run.getId(),
-          e.getMessage());
+          e);
     }
   }
 
@@ -3207,19 +3265,22 @@ public class AutonomousRunService {
    * so enabling players can never fail (500) the callback: the check-then-insert on {@code
    * exercise_teams_users} can race a concurrent callback (the agent authors steps in parallel), and
    * such a failure would otherwise mark the callback's transaction rollback-only and lose the
-   * executing step just authored. The caller is responsible for establishing the run's v1 {@link
-   * TenantContext} (the legacy non-prefixed callback route leaves it on the DEFAULT tenant). Unlike
-   * {@link #enableTargetedTeamMembers}, do NOT use this on the creation flow, whose simulation is
-   * not yet committed and must join the caller's transaction.
+   * executing step just authored. The new transaction takes the run's own tenant as its scope; the
+   * caller is responsible for establishing the run's v1 {@link TenantContext} (the legacy
+   * non-prefixed callback route leaves it on the DEFAULT tenant). Unlike {@link
+   * #enableTargetedTeamMembers}, do NOT use this on the creation flow, whose simulation is not yet
+   * committed and must join the caller's transaction.
    */
-  private void enableTargetedTeamMembersBestEffort(String simulationId, List<String> teamIds) {
+  private void enableTargetedTeamMembersBestEffort(AutonomousRun run, List<String> teamIds) {
+    String simulationId = run.getSimulationId();
     // Author-scenario (AI planning) runs have no simulation to enable players on - nothing is
     // delivered while planning, so this is a no-op.
     if (!hasText(simulationId)) {
       return;
     }
     try {
-      exerciseService.enableTargetedTeamMembersIsolated(simulationId, teamIds);
+      exerciseService.enableTargetedTeamMembersIsolated(
+          TxCtx.forTenant(runTenantId(run)), simulationId, teamIds);
     } catch (Exception e) {
       log.warn(
           "[Autonomous] Failed to enable targeted team members on simulation {} (best-effort): {}",
@@ -3554,8 +3615,7 @@ public class AutonomousRunService {
     AutonomousRun run = require(runId);
     String simulationId = run.getSimulationId();
     if (!hasText(simulationId)) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "The autonomous run has no live simulation to attach a team to");
+      throw new ConflictException("The autonomous run has no live simulation to attach a team to");
     }
     List<String> requestedPlayerIds =
         playerIds == null
@@ -3901,11 +3961,11 @@ public class AutonomousRunService {
    * pre-fill from the last configuration so the operator can review, then Build or Launch.
    */
   @Transactional(readOnly = true)
-  public AutonomousRunCreateInput getScenarioAutonomousConfig(String scenarioId) {
+  public AutonomousRunCreateInput getScenarioAutonomousConfig(TxCtx ctx, String scenarioId) {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
-    Scenario scenario = scenarioService.scenario(scenarioId);
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     Map<String, Object> stored = scenario.getAutonomousConfig();
     if (stored == null || stored.isEmpty()) {
       return null;
@@ -3921,16 +3981,18 @@ public class AutonomousRunService {
    */
   @Transactional(rollbackFor = Exception.class)
   public AutonomousRunCreateInput saveScenarioAutonomousConfig(
-      String scenarioId, AutonomousRunCreateInput input) {
+      TxCtx ctx, String scenarioId, AutonomousRunCreateInput input) {
     if (!hasText(scenarioId)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A scenario id is required");
     }
+    // Before any read keyed on the scenario id alone: the workflow lookup below carries no tenant
+    // scope of its own, so it must not decide the answer for a scenario outside the request scope.
+    Scenario scenario = scenarioService.scenario(ctx, scenarioId);
     if (!workflowService.isScenarioChaining(scenarioId)) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST,
           "Only a chained scenario can carry an autonomous-run configuration");
     }
-    Scenario scenario = scenarioService.scenario(scenarioId);
     if (input == null) {
       scenario.setAutonomousConfig(null);
     } else {
@@ -3973,15 +4035,24 @@ public class AutonomousRunService {
     return xtmOneClient.listAdditionalAttackAgents();
   }
 
-  /** The tenant's default additional agents (ids) attached to every new autonomous run. */
+  /**
+   * The default additional agents (ids) of the tenant the request's scope pins, attached to every
+   * new autonomous run of that tenant.
+   */
   @Transactional(readOnly = true)
-  public List<String> defaultAdditionalAgentIds() {
-    return readDefaultAdditionalAgentIds();
+  public List<String> defaultAdditionalAgentIds(TxCtx ctx) {
+    return readDefaultAdditionalAgentIds(TxCtxScopeUtils.requireSingleTenant(ctx));
   }
 
-  /** Persists the tenant's default additional agents (ids). */
+  /**
+   * Persists the tenant's default additional agents (ids). Stored as a tenant-scoped {@code
+   * parameters} row ({@code tenant_id} set to the caller's tenant), not a platform row: this is
+   * per-tenant configuration: a platform row would be shared by every tenant, and the
+   * platform-write rule of the dual-scope {@code parameters} table refuses a platform row written
+   * from a tenant route.
+   */
   @Transactional(rollbackFor = Exception.class)
-  public List<String> updateDefaultAdditionalAgentIds(List<String> agentIds) {
+  public List<String> updateDefaultAdditionalAgentIds(TxCtx ctx, List<String> agentIds) {
     List<String> cleaned = new ArrayList<>();
     if (agentIds != null) {
       for (String id : agentIds) {
@@ -3991,8 +4062,11 @@ public class AutonomousRunService {
       }
     }
     String key = TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENTS.key();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Setting setting =
-        settingRepository.findByKeyAndTenantIsNull(key).orElseGet(() -> new Setting(key, "[]"));
+        settingRepository
+            .findByKeyAndTenantId(key, tenantId)
+            .orElseGet(() -> newTenantSetting(key, "[]", tenantId));
     try {
       setting.setValue(objectMapper.writeValueAsString(cleaned));
     } catch (Exception e) {
@@ -4003,10 +4077,17 @@ public class AutonomousRunService {
     return cleaned;
   }
 
-  private List<String> readDefaultAdditionalAgentIds() {
+  /** A new tenant-scoped {@code Setting}, attributed to {@code tenantId} by reference (no load). */
+  private Setting newTenantSetting(String key, String value, String tenantId) {
+    Setting setting = new Setting(key, value);
+    setting.setTenant(entityManager.getReference(Tenant.class, tenantId));
+    return setting;
+  }
+
+  private List<String> readDefaultAdditionalAgentIds(String tenantId) {
     Optional<Setting> setting =
-        settingRepository.findByKeyAndTenantIsNull(
-            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENTS.key());
+        settingRepository.findByKeyAndTenantId(
+            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENTS.key(), tenantId);
     // No row at all: the tenant has never configured this, so the license-independent built-in
     // payload creator is the enabled-by-default specialist. An existing row (even an empty "[]") is
     // authoritative - it means the admin explicitly chose the set, up to disabling the built-in.
@@ -4045,19 +4126,30 @@ public class AutonomousRunService {
     }
   }
 
-  /** The tenant's default per-agent discovery modes (agent id -> mode name). */
+  /**
+   * The default per-agent discovery modes (agent id -> mode name) of the tenant the request's scope
+   * pins.
+   */
   @Transactional(readOnly = true)
-  public Map<String, String> defaultAdditionalAgentModes() {
-    return readDefaultAdditionalAgentModes();
+  public Map<String, String> defaultAdditionalAgentModes(TxCtx ctx) {
+    return readDefaultAdditionalAgentModes(TxCtxScopeUtils.requireSingleTenant(ctx));
   }
 
-  /** Persists the tenant's default per-agent discovery modes (canonicalized to valid modes). */
+  /**
+   * Persists the tenant's default per-agent discovery modes (canonicalized to valid modes). Stored
+   * as a tenant-scoped {@code parameters} row; see {@link #updateDefaultAdditionalAgentIds} for
+   * why.
+   */
   @Transactional(rollbackFor = Exception.class)
-  public Map<String, String> updateDefaultAdditionalAgentModes(Map<String, String> agentModes) {
+  public Map<String, String> updateDefaultAdditionalAgentModes(
+      TxCtx ctx, Map<String, String> agentModes) {
     Map<String, String> cleaned = normalizeAgentModes(agentModes, null);
     String key = TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key();
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Setting setting =
-        settingRepository.findByKeyAndTenantIsNull(key).orElseGet(() -> new Setting(key, "{}"));
+        settingRepository
+            .findByKeyAndTenantId(key, tenantId)
+            .orElseGet(() -> newTenantSetting(key, "{}", tenantId));
     try {
       setting.setValue(objectMapper.writeValueAsString(cleaned));
     } catch (Exception e) {
@@ -4068,10 +4160,10 @@ public class AutonomousRunService {
     return cleaned;
   }
 
-  private Map<String, String> readDefaultAdditionalAgentModes() {
+  private Map<String, String> readDefaultAdditionalAgentModes(String tenantId) {
     Optional<Setting> setting =
-        settingRepository.findByKeyAndTenantIsNull(
-            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key());
+        settingRepository.findByKeyAndTenantId(
+            TenantSettingKeys.AUTONOMOUS_ADDITIONAL_AGENT_MODES.key(), tenantId);
     if (setting.isEmpty() || !hasText(setting.get().getValue())) {
       return new HashMap<>();
     }
@@ -4132,10 +4224,12 @@ public class AutonomousRunService {
    * is strictly required by the model; {@link ScenarioService#createScenarioChaining} fills the
    * mandatory sender emails and attaches the (empty) TEMPLATE workflow the AI orchestrator then
    * builds upon. Kept intentionally minimal so launching a run never asks the operator for anything
-   * beyond the objective.
+   * beyond the objective. The scenario is written in the tenant the caller resolved for the create.
    */
-  private Scenario provisionAutonomousScenario(String objective, String name, String description) {
+  private Scenario provisionAutonomousScenario(
+      String tenantId, String objective, String name, String description) {
     Scenario scenario = new Scenario();
+    scenario.setTenant(new Tenant(tenantId));
     scenario.setName(hasText(name) ? name.trim() : defaultScenarioName());
     scenario.setDescription(
         hasText(description) ? description.trim() : defaultScenarioDescription(objective));
@@ -4330,7 +4424,7 @@ public class AutonomousRunService {
     if (!active) {
       return run;
     }
-    SimulationStatusProbe probe = probeSimulationStatus(run.getSimulationId());
+    SimulationStatusProbe probe = probeSimulationStatus(run);
     if (probe.unreadable()) {
       // Defense in depth on top of OrchestratorRunTenantInterceptor: an UNREADABLE simulation read
       // (a scope miss, a DB blip, any non-not-found error) must never be mistaken for a deletion
@@ -4423,7 +4517,16 @@ public class AutonomousRunService {
    * left to drive), and UNREADABLE (any other error - a scope miss, a DB blip). Only DELETED may
    * settle a run; an UNREADABLE probe must leave the run untouched so a transient miss can never be
    * mistaken for a deletion and cancel a healthy run.
+   *
+   * <p>The simulation is read in the run's own tenant, whatever the ambient one: the lookup is
+   * bound to the ambient tenant, which a request without a tenant prefix leaves on the default one
+   * while the run may belong to another tenant of the caller's scope.
    */
+  private SimulationStatusProbe probeSimulationStatus(AutonomousRun run) {
+    return ambientTenantBridge.callInTenant(
+        runTenantId(run), () -> probeSimulationStatus(run.getSimulationId()));
+  }
+
   private SimulationStatusProbe probeSimulationStatus(String simulationId) {
     try {
       return SimulationStatusProbe.ofReadable(exerciseService.exercise(simulationId).getStatus());

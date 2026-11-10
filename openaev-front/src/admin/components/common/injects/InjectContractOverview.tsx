@@ -34,18 +34,14 @@ const InjectContractOverview: FunctionComponent<Props> = ({ injectorContract, do
 
   const payload = injectorContract.injector_contract_payload ?? null;
 
-  const action: ThreatArsenalAction = useMemo(() => {
+  const action: Omit<ThreatArsenalAction, 'action_grant_resource_id'> = useMemo(() => {
     const authorUser = injectorContract.injector_contract_payload_author_user;
-    const authorTeam = injectorContract.injector_contract_payload_author_team;
     const authorOrganization = injectorContract.injector_contract_payload_author_organization;
     let authorName: string | undefined;
     let authorType: string | undefined;
     if (authorUser) {
       authorName = resolveUserName(authorUser);
       authorType = 'user';
-    } else if (authorTeam) {
-      authorName = authorTeam.team_name;
-      authorType = 'team';
     } else if (authorOrganization) {
       authorName = authorOrganization.organization_name;
       authorType = 'organization';

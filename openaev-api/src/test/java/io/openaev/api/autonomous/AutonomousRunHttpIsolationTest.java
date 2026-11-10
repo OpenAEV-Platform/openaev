@@ -2,6 +2,11 @@ package io.openaev.api.autonomous;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,13 +15,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.autonomous.AutonomousRunStatus;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousEventRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.security.token.XtmJwksExtractor;
+import io.openaev.service.autonomous.AutonomousRunReconciliationWriter;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.WithoutTenantScope;
 import java.sql.PreparedStatement;
@@ -25,11 +37,14 @@ import java.util.UUID;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,7 +90,9 @@ import org.springframework.transaction.annotation.Transactional;
  * attribution at the column level and the refusal outside a valid scope. A deliberately
  * multi-tenant header scope is covered too: parent-derived writes must stay deterministic (landing
  * on the run's own tenant) rather than refusing the broad scope or spilling into another selected
- * tenant - only a create without any tenant selector is ambiguous under a broad scope and refused.
+ * tenant. A create seeded from an existing scenario takes that scenario's tenant under a broad
+ * scope too; only a create that provisions its own scenario is ambiguous under a broad scope that
+ * does not include the default tenant, and refused.
  *
  * <p>Each test stays on a single tenant selection: the per-request scope is set once and the aspect
  * refuses to redefine it within one transaction.
@@ -83,7 +100,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @TestPropertySource(
     properties = {
-      "openaev.tenant.active-tables=autonomous_runs,autonomous_events,autonomous_directives"
+      "openaev.tenant.active-tables=autonomous_runs,autonomous_events,autonomous_directives,"
+          + "autonomous_objective_templates"
     })
 @WithMockUser(isAdmin = true)
 @DisplayName("autonomous run isolation through the real HTTP endpoints")
@@ -100,6 +118,12 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
   @Autowired private AutonomousRunRepository runRepository;
   @Autowired private AutonomousEventRepository eventRepository;
   @Autowired private AutonomousDirectiveRepository directiveRepository;
+  @Autowired private ScenarioService scenarioService;
+  @Autowired private ExerciseRepository exerciseRepository;
+
+  // Spied so a test can tell whether a read settled the run: the reconcile persists a settle
+  // through this writer, and queues the orchestrator cancel only once that settle succeeded.
+  @MockitoSpyBean private AutonomousRunReconciliationWriter reconciliationWriter;
 
   // The endpoints are EE-gated; the mock's license checks default to "active" (Mockito false).
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
@@ -534,10 +558,11 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
     // convention as TxCtxArgumentResolver#fallbackSelector and TenantContext#getCurrentTenant):
     // a multi-tenant caller falls back to the DEFAULT tenant - deterministic and well-known,
     // never a "first membership" guess - and only a multi-tenant caller WITHOUT default-tenant
-    // access is refused, which createOutsideValidWriteScopeIsRefusedAndWritesNothing pins. The
-    // bare autonomous create converges to the same outcome through the provisioned scenario's
-    // legacy default-tenant stamping, validated against the caller's scope. This case pins the
-    // convention: 200, and every new row lands on the default tenant at the raw column level.
+    // access is refused, which createOutsideValidWriteScopeIsRefusedAndWritesNothing pins. With no
+    // selector the request scope is the caller's whole membership set, so the create that
+    // provisions its own scenario resolves its write tenant to the default one and runs entirely
+    // in it. This case pins the convention: 200, and every new row lands on the default tenant at
+    // the raw column level.
     String userId = testUserHolder.get().getId();
     if (!tenantMembershipCacheManager
         .findTenantIdsByUserId(userId)
@@ -568,11 +593,11 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("POST create outside a single valid write scope is refused (400), no run written")
   void createOutsideValidWriteScopeIsRefusedAndWritesNothing() throws Exception {
-    // A two-tenant selection on the plain route: the auto-provisioned scenario lands in the
-    // caller's legacy default tenant (no path prefix sets TenantContext), which is outside the
-    // selected {A, B} scope, so TenantWriteScopeResolver refuses the attribution with 400
-    // (TENANT_WRITE_SCOPE) before the run INSERT - same contract as an ambiguous bare create,
-    // whose multi-tenant scope cannot pin the row to one tenant either.
+    // A two-tenant selection on the plain route, the default tenant not among them: the create
+    // that provisions its own scenario cannot pick its write tenant from a scope holding two
+    // tenants, so TenantWriteScopeResolver refuses it with 400 (TENANT_WRITE_SCOPE) before any row
+    // is written - same contract as a bare create by a caller outside the default tenant, whose
+    // multi-tenant scope cannot pin the row to one tenant either.
     mvc.perform(
             post(PLAIN)
                 .with(csrf())
@@ -583,6 +608,434 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
 
     assertThat(rawCount("autonomous_runs", "autonomous_run_objective", "ambiguous-scope-objective"))
         .isEqualTo(0L);
+  }
+
+  @Test
+  @DisplayName("given_headerSelectingTenantA_should_createRunScenarioAndSimulationInTenantA")
+  void given_headerSelectingTenantA_should_createRunScenarioAndSimulationInTenantA()
+      throws Exception {
+    // Arrange: the header route carries no ambient tenant, so anything still stamped from it
+    // falls back to the default tenant, outside the selected scope.
+    TenantContext.clearCurrentTenant();
+    assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+    // Act
+    String response =
+        mvc.perform(
+                post(PLAIN)
+                    .with(csrf())
+                    .header("X-Tenant-Ids", tenantA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"objective\": \"Header-selected run\", \"plan_mode\": true}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Assert: the provisioned scenario, its simulation and the run all land in the selected tenant.
+    String createdRunId = JsonPath.read(response, "$.autonomous_run_id");
+    String scenarioId = JsonPath.read(response, "$.autonomous_run_scenario_id");
+    String simulationId = JsonPath.read(response, "$.autonomous_run_simulation_id");
+    assertThat(rawTenantId("autonomous_runs", "autonomous_run_id", createdRunId))
+        .isEqualTo(tenantA);
+    assertThat(rawTenantId("scenarios", "scenario_id", scenarioId)).isEqualTo(tenantA);
+    assertThat(rawTenantId("exercises", "exercise_id", simulationId)).isEqualTo(tenantA);
+  }
+
+  @Nested
+  @DisplayName("Create on the route without a tenant prefix")
+  class CreateWithoutTenantPrefix {
+
+    @Test
+    @DisplayName(
+        "given_callerInSeveralTenantsWithDefaultAndNoSelector_should_createRunInScenarioTenant")
+    void given_callerInSeveralTenantsWithDefaultAndNoSelector_should_createRunInScenarioTenant()
+        throws Exception {
+      // Arrange
+      setDefaultTenantMembership(true);
+      String scenarioId = seedChainingScenario(tenantA);
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      String response = createFromScenario(post(PLAIN), scenarioId).getContentAsString();
+
+      // Assert
+      assertRunAndSimulationIn(response, scenarioId, tenantA);
+    }
+
+    @Test
+    @DisplayName(
+        "given_callerInSeveralTenantsWithoutDefaultAndNoSelector_should_createRunInScenarioTenant")
+    void given_callerInSeveralTenantsWithoutDefaultAndNoSelector_should_createRunInScenarioTenant()
+        throws Exception {
+      // Arrange
+      setDefaultTenantMembership(false);
+      String scenarioId = seedChainingScenario(tenantA);
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      String response = createFromScenario(post(PLAIN), scenarioId).getContentAsString();
+
+      // Assert
+      assertRunAndSimulationIn(response, scenarioId, tenantA);
+    }
+
+    @Test
+    @DisplayName(
+        "given_scenarioInTenantOutsideCallerMemberships_should_answerNotFoundAndWriteNothing")
+    void given_scenarioInTenantOutsideCallerMemberships_should_answerNotFoundAndWriteNothing()
+        throws Exception {
+      // Arrange
+      String foreignTenant = tenantHelper.createTenant("auto-iso-scenario-foreign").getId();
+      String userId = testUserHolder.get().getId();
+      tenantRepository.removeUserFromTenant(userId, foreignTenant);
+      tenantMembershipCacheManager.evict(userId, foreignTenant);
+      String scenarioId = seedChainingScenario(foreignTenant);
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      mvc.perform(createFromScenarioRequest(post(PLAIN), scenarioId))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertThat(rawCount("autonomous_runs", "autonomous_run_scenario_id", scenarioId))
+          .isEqualTo(0L);
+      assertThat(rawCount("scenarios_exercises", "scenario_id", scenarioId)).isEqualTo(0L);
+    }
+
+    @Test
+    @DisplayName("given_headerSelectingAnotherTenant_should_answerNotFoundAndWriteNothing")
+    void given_headerSelectingAnotherTenant_should_answerNotFoundAndWriteNothing()
+        throws Exception {
+      // Arrange: the caller belongs to the scenario's tenant but selects only another one.
+      String scenarioId = seedChainingScenario(tenantA);
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      mvc.perform(
+              createFromScenarioRequest(post(PLAIN).header("X-Tenant-Ids", tenantB), scenarioId))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertThat(rawCount("autonomous_runs", "autonomous_run_scenario_id", scenarioId))
+          .isEqualTo(0L);
+      assertThat(rawCount("scenarios_exercises", "scenario_id", scenarioId)).isEqualTo(0L);
+    }
+
+    @Test
+    @DisplayName(
+        "given_objectiveTemplateKeyInSeveralCallerTenants_should_readScenarioTenantTemplate")
+    void given_objectiveTemplateKeyInSeveralCallerTenants_should_readScenarioTenantTemplate()
+        throws Exception {
+      // Arrange: the same key in two of the caller's tenants, read by key during the create.
+      setDefaultTenantMembership(false);
+      String scenarioId = seedChainingScenario(tenantA);
+      String key = "iso-template-" + UUID.randomUUID();
+      seedObjectiveTemplate(tenantA, key, "Prompt of tenant A");
+      seedObjectiveTemplate(tenantB, key, "Prompt of tenant B");
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(PLAIN)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(
+                          "{\"objective_template_key\": \""
+                              + key
+                              + "\", \"plan_mode\": true, \"scenario_id\": \""
+                              + scenarioId
+                              + "\"}"))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat((String) JsonPath.read(response, "$.autonomous_run_objective"))
+          .isEqualTo("Prompt of tenant A");
+      assertRunAndSimulationIn(response, scenarioId, tenantA);
+    }
+
+    @Test
+    @DisplayName("given_noSelectorAndTemplateKeyInDefaultAndA_should_provisionWithDefaultTemplate")
+    void given_noSelectorAndTemplateKeyInDefaultAndA_should_provisionWithDefaultTemplate()
+        throws Exception {
+      // Arrange: a run with no scenario and no selector is written in the default tenant, so the
+      // template it reads by key is the default tenant's one.
+      setDefaultTenantMembership(true);
+      String key = "iso-template-" + UUID.randomUUID();
+      seedObjectiveTemplate(Tenant.DEFAULT_TENANT_UUID, key, "Prompt of the default tenant");
+      seedObjectiveTemplate(tenantA, key, "Prompt of tenant A");
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(PLAIN)
+                      .with(csrf())
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(
+                          "{\"objective_template_key\": \"" + key + "\", \"plan_mode\": true}"))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat((String) JsonPath.read(response, "$.autonomous_run_objective"))
+          .isEqualTo("Prompt of the default tenant");
+      String scenarioId = JsonPath.read(response, "$.autonomous_run_scenario_id");
+      assertThat(rawTenantId("scenarios", "scenario_id", scenarioId))
+          .isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      assertRunAndSimulationIn(response, scenarioId, Tenant.DEFAULT_TENANT_UUID);
+    }
+
+    @Test
+    @DisplayName(
+        "given_noSelectorAndCallerOutsideDefaultTenant_should_refuseProvisioningAndWriteNothing")
+    void given_noSelectorAndCallerOutsideDefaultTenant_should_refuseProvisioningAndWriteNothing()
+        throws Exception {
+      // Arrange
+      setDefaultTenantMembership(false);
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      mvc.perform(
+              post(PLAIN)
+                  .with(csrf())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"objective\": \"no-default-bare-objective\", \"plan_mode\": true}"))
+          .andExpect(status().isBadRequest());
+
+      // Assert
+      assertThat(
+              rawCount("autonomous_runs", "autonomous_run_objective", "no-default-bare-objective"))
+          .isEqualTo(0L);
+    }
+
+    @Test
+    @DisplayName("given_runInScenarioTenantReadWithoutSelector_should_keepTheRunStatus")
+    void given_runInScenarioTenantReadWithoutSelector_should_keepTheRunStatus() throws Exception {
+      // Arrange
+      String createdRunId = createRunInTenantA();
+      clearAmbientTenant();
+
+      // Act
+      String response =
+          mvc.perform(get(PLAIN + "/{runId}", createdRunId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat((String) JsonPath.read(response, "$.autonomous_run_status"))
+          .isEqualTo(AutonomousRunStatus.CREATED.name());
+      verify(reconciliationWriter, never())
+          .settleRunStatus(any(), anyString(), anyString(), any(), anyString());
+    }
+
+    @Test
+    @DisplayName("given_runInScenarioTenantReadBySimulationWithoutSelector_should_keepTheRunStatus")
+    void given_runInScenarioTenantReadBySimulationWithoutSelector_should_keepTheRunStatus()
+        throws Exception {
+      // Arrange
+      String createdRunId = createRunInTenantA();
+      String simulationId =
+          rawColumn(
+              "autonomous_runs", "autonomous_run_simulation_id", "autonomous_run_id", createdRunId);
+      clearAmbientTenant();
+
+      // Act
+      String response =
+          mvc.perform(get(PLAIN + "/by-simulation/{simulationId}", simulationId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat((String) JsonPath.read(response, "$.autonomous_run_status"))
+          .isEqualTo(AutonomousRunStatus.CREATED.name());
+      verify(reconciliationWriter, never())
+          .settleRunStatus(any(), anyString(), anyString(), any(), anyString());
+    }
+
+    @Test
+    @DisplayName("given_runInScenarioTenantReadByScenarioWithoutSelector_should_keepTheRunStatus")
+    void given_runInScenarioTenantReadByScenarioWithoutSelector_should_keepTheRunStatus()
+        throws Exception {
+      // Arrange
+      String createdRunId = createRunInTenantA();
+      String scenarioId =
+          rawColumn(
+              "autonomous_runs", "autonomous_run_scenario_id", "autonomous_run_id", createdRunId);
+      clearAmbientTenant();
+
+      // Act
+      String response =
+          mvc.perform(get(PLAIN + "/by-scenario/{scenarioId}", scenarioId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat((String) JsonPath.read(response, "$.autonomous_run_status"))
+          .isEqualTo(AutonomousRunStatus.CREATED.name());
+      verify(reconciliationWriter, never())
+          .settleRunStatus(any(), anyString(), anyString(), any(), anyString());
+    }
+
+    @Test
+    @DisplayName("given_activeRunInScenarioTenantRelaunchWithoutSelector_should_keepTheRunStatus")
+    void given_activeRunInScenarioTenantRelaunchWithoutSelector_should_keepTheRunStatus()
+        throws Exception {
+      // Arrange
+      String createdRunId = createRunInTenantA();
+      String scenarioId =
+          rawColumn(
+              "autonomous_runs", "autonomous_run_scenario_id", "autonomous_run_id", createdRunId);
+      clearAmbientTenant();
+
+      // Act
+      mvc.perform(post(PLAIN + "/from-scenario/{scenarioId}", scenarioId).with(csrf()))
+          .andExpect(status().is4xxClientError());
+
+      // Assert
+      assertThat(
+              rawColumn(
+                  "autonomous_runs", "autonomous_run_status", "autonomous_run_id", createdRunId))
+          .isEqualTo(AutonomousRunStatus.CREATED.name());
+      verify(reconciliationWriter, never())
+          .settleRunStatus(any(), anyString(), anyString(), any(), anyString());
+    }
+
+    @Test
+    @DisplayName("given_simulationOfRunInScenarioTenantDeleted_should_settleTheRunAsCanceled")
+    void given_simulationOfRunInScenarioTenantDeleted_should_settleTheRunAsCanceled()
+        throws Exception {
+      // Arrange
+      String createdRunId = createRunInTenantA();
+      String simulationId =
+          rawColumn(
+              "autonomous_runs", "autonomous_run_simulation_id", "autonomous_run_id", createdRunId);
+      exerciseRepository.deleteById(simulationId);
+      entityManager.flush();
+      assertThat(rawCount("exercises", "exercise_id", simulationId)).isZero();
+      clearAmbientTenant();
+
+      // Act
+      String response =
+          mvc.perform(get(PLAIN + "/{runId}", createdRunId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat((String) JsonPath.read(response, "$.autonomous_run_status"))
+          .isEqualTo(AutonomousRunStatus.CANCELED.name());
+      verify(reconciliationWriter)
+          .settleRunStatus(
+              any(), eq(createdRunId), eq(tenantA), eq(AutonomousRunStatus.CANCELED), anyString());
+    }
+
+    // A run created on the route without a prefix by a caller of several tenants, with no
+    // selector, from a scenario of tenant A, so the run and its simulation live in tenant A.
+    private String createRunInTenantA() throws Exception {
+      setDefaultTenantMembership(true);
+      String scenarioId = seedChainingScenario(tenantA);
+      clearAmbientTenant();
+      String response = createFromScenario(post(PLAIN), scenarioId).getContentAsString();
+      assertRunAndSimulationIn(response, scenarioId, tenantA);
+      String createdRunId = JsonPath.read(response, "$.autonomous_run_id");
+      assertThat(
+              rawColumn(
+                  "autonomous_runs", "autonomous_run_status", "autonomous_run_id", createdRunId))
+          .isEqualTo(AutonomousRunStatus.CREATED.name());
+      return createdRunId;
+    }
+
+    // The route without a prefix sets no ambient tenant, so a read there falls back to the
+    // default one; a fixture may have left another tenant on the test thread.
+    private void clearAmbientTenant() {
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+    }
+
+    private void setDefaultTenantMembership(boolean member) {
+      String userId = testUserHolder.get().getId();
+      if (member) {
+        tenantRepository.addUserToTenant(userId, Tenant.DEFAULT_TENANT_UUID);
+      } else {
+        tenantRepository.removeUserFromTenant(userId, Tenant.DEFAULT_TENANT_UUID);
+      }
+      tenantMembershipCacheManager.evict(userId, Tenant.DEFAULT_TENANT_UUID);
+      assertThat(tenantMembershipCacheManager.findTenantIdsByUserId(userId))
+          .contains(tenantA, tenantB)
+          .hasSizeGreaterThan(1);
+      assertThat(
+              tenantMembershipCacheManager
+                  .findTenantIdsByUserId(userId)
+                  .contains(Tenant.DEFAULT_TENANT_UUID))
+          .isEqualTo(member);
+    }
+
+    private void seedObjectiveTemplate(String tenantId, String key, String prompt) {
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO autonomous_objective_templates (autonomous_objective_template_id,"
+                  + " tenant_id, autonomous_objective_template_key,"
+                  + " autonomous_objective_template_label, autonomous_objective_template_prompt)"
+                  + " VALUES (:id, :tenant, :key, :key, :prompt)")
+          .setParameter("id", UUID.randomUUID().toString())
+          .setParameter("tenant", tenantId)
+          .setParameter("key", key)
+          .setParameter("prompt", prompt)
+          .executeUpdate();
+    }
+
+    private String seedChainingScenario(String tenantId) throws Exception {
+      Scenario scenario = ScenarioFixture.getScenario();
+      scenario.setTenant(new Tenant(tenantId));
+      return scenarioService.createScenarioChaining(scenario).getId();
+    }
+
+    private MockHttpServletRequestBuilder createFromScenarioRequest(
+        MockHttpServletRequestBuilder request, String scenarioId) {
+      return request
+          .with(csrf())
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(
+              "{\"objective\": \"Run from an existing scenario\", \"plan_mode\": true,"
+                  + " \"scenario_id\": \""
+                  + scenarioId
+                  + "\"}");
+    }
+
+    private MockHttpServletResponse createFromScenario(
+        MockHttpServletRequestBuilder request, String scenarioId) throws Exception {
+      return mvc.perform(createFromScenarioRequest(request, scenarioId))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse();
+    }
+
+    private void assertRunAndSimulationIn(String response, String scenarioId, String tenantId) {
+      String createdRunId = JsonPath.read(response, "$.autonomous_run_id");
+      String simulationId = JsonPath.read(response, "$.autonomous_run_simulation_id");
+      assertThat((String) JsonPath.read(response, "$.autonomous_run_scenario_id"))
+          .isEqualTo(scenarioId);
+      assertThat(rawTenantId("autonomous_runs", "autonomous_run_id", createdRunId))
+          .isEqualTo(tenantId);
+      assertThat(rawTenantId("autonomous_events", "autonomous_event_run_id", createdRunId))
+          .isEqualTo(tenantId);
+      assertThat(rawTenantId("exercises", "exercise_id", simulationId)).isEqualTo(tenantId);
+    }
   }
 
   @Test

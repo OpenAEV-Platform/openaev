@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
@@ -69,7 +70,8 @@ class LicenseCacheManagerTest {
             mock(PermissionService.class),
             mock(UserService.class),
             enterpriseEditionService,
-            licenseCacheManager);
+            licenseCacheManager,
+            mock(AmbientTenantBridge.class));
   }
 
   // -- Helpers --

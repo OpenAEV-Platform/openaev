@@ -25,8 +25,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -106,7 +104,6 @@ class AuditLoggerDocumentTest extends IntegrationTest {
           assertAuditLogContainsNewContent(
               sizeBefore,
               "\"event_scope\" : \"update\"",
-              "\"method\" : \"POST\"",
               "\"url\" : \"http://localhost/api/documents\"",
               "\"entity_type\" : \"Document\"");
       assertThat(newContent).contains("\"message\" : \"updates Document\"");
@@ -145,7 +142,6 @@ class AuditLoggerDocumentTest extends IntegrationTest {
           assertAuditLogContainsNewContent(
               sizeBefore,
               "\"event_scope\" : \"update\"",
-              "\"method\" : \"PUT\"",
               "\"url\" : \"http://localhost/api/documents/" + documentId + "\"",
               "\"input\" : {",
               "\"document_description\" : \"" + newDescription + "\"");
@@ -159,7 +155,7 @@ class AuditLoggerDocumentTest extends IntegrationTest {
     @WithMockUser(
         withCapabilities = {Capability.MANAGE_DOCUMENTS, Capability.DELETE_DOCUMENTS},
         autoJoinDefaultTenant = true)
-    void given_documentDeletion_should_notAppendAuditEvent() throws Exception {
+    void given_documentDeletion_should_logEntityTypeAndDocumentIdInMessage() throws Exception {
       // Arrange
       String fileName = "audit-delete-" + UUID.randomUUID() + ".txt";
       String uploadResponse =
@@ -173,7 +169,11 @@ class AuditLoggerDocumentTest extends IntegrationTest {
           .andExpect(status().isOk());
 
       // Assert
-      assertNoAuditLogAppendWithin(sizeBefore, 1);
+      assertAuditLogContainsNewContent(
+          sizeBefore,
+          "\"event_scope\" : \"delete\"",
+          "\"entity_type\" : \"Document\"",
+          "\"message\" : \"deletes Document `" + documentId + "`\"");
       assertThat(documentName).isNotBlank();
     }
 
@@ -208,7 +208,6 @@ class AuditLoggerDocumentTest extends IntegrationTest {
       assertAuditLogContainsNewContent(
           sizeBefore,
           "\"event_scope\" : \"update\"",
-          "\"method\" : \"PUT\"",
           "\"url\" : \"http://localhost/api/documents/" + documentId + "\"",
           "\"document_description\" : \"" + description + "\"");
     }
@@ -245,16 +244,5 @@ class AuditLoggerDocumentTest extends IntegrationTest {
   private String assertAuditLogContainsNewContent(long sizeBefore, String... expectedSnippets) {
     return AuditLogTestHelper.assertAuditLogContainsNewContent(
         AUDIT_LOG_FILE, sizeBefore, expectedSnippets);
-  }
-
-  private void assertNoAuditLogAppendWithin(long sizeBefore, long durationSeconds) {
-    Awaitility.await()
-        .during(durationSeconds, TimeUnit.SECONDS)
-        .atMost(durationSeconds + 1, TimeUnit.SECONDS)
-        .untilAsserted(
-            () -> {
-              long sizeAfter = Files.exists(AUDIT_LOG_FILE) ? Files.size(AUDIT_LOG_FILE) : 0L;
-              assertThat(sizeAfter).isEqualTo(sizeBefore);
-            });
   }
 }

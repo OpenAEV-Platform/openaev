@@ -15,6 +15,8 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
+import io.openaev.database.model.author.Authored;
+import io.openaev.database.model.author.Authorship;
 import io.openaev.helper.InjectStatisticsHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
@@ -26,7 +28,6 @@ import jakarta.persistence.CascadeType;
 import jakarta.persistence.NamedEntityGraph;
 import jakarta.persistence.NamedEntityGraphs;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -83,7 +84,7 @@ import org.hibernate.type.SqlTypes;
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("injects")})
 })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SCENARIO)
-public class Scenario extends ModelBehaviour implements GrantableBase, TenantBase {
+public class Scenario extends ModelBehaviour implements GrantableBase, TenantBase, Authored {
 
   /** Status of scenario recurrence scheduling. */
   public enum RECURRENCE_STATUS {
@@ -280,6 +281,30 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @JsonProperty("scenario_recurrence_end")
   private Instant recurrenceEnd;
 
+  /**
+   * The user who last configured (created or updated) this scenario's recurrence — not the
+   * scenario's editor in general. This is the actor a scheduled {@link Exercise}'s {@code
+   * launchedBy} is resolved from when {@link io.openaev.scheduler.jobs.ScenarioExecutionJob}
+   * materializes it with no live user present. No deserializer on purpose: this field is stamped
+   * server-side only (recurrence update endpoint), never accepted from client JSON.
+   */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "scenario_scheduled_by")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("scenario_scheduled_by")
+  @Schema(implementation = String.class)
+  private User scheduledBy;
+
+  // -- AUTHOR --
+
+  @Embedded
+  @AssociationOverride(name = "user", joinColumns = @JoinColumn(name = "scenario_author_user"))
+  @AssociationOverride(
+      name = "organization",
+      joinColumns = @JoinColumn(name = "scenario_author_organization"))
+  @JsonIgnore
+  private Authorship author;
+
   // -- MESSAGE --
 
   @Column(name = "scenario_message_header")
@@ -290,12 +315,6 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   @JsonProperty("scenario_message_footer")
   private String footer = "SIMULATION FOOTER";
 
-  @Column(name = "scenario_mail_from")
-  @JsonProperty("scenario_mail_from")
-  @Email
-  @NotBlank
-  private String from;
-
   @Getter(NONE)
   @Pattern(regexp = FROM_NAME_PATTERN, message = FROM_NAME_PATTERN_MESSAGE)
   @Size(max = FROM_NAME_MAX_LENGTH, message = FROM_NAME_SIZE_MESSAGE)
@@ -304,7 +323,7 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
   private String fromName;
 
   public String getFromName() {
-    return resolveFromName(fromName, from);
+    return resolveFromName(fromName, null);
   }
 
   @ElementCollection(fetch = FetchType.EAGER)
@@ -464,7 +483,6 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
       }
     }
     this.exercises = exercises == null ? null : new HashSet<>(exercises);
-    this.setUpdatedAt(now());
   }
 
   @Getter

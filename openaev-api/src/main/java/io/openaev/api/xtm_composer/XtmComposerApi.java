@@ -3,6 +3,7 @@ package io.openaev.api.xtm_composer;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.PlatformWrite;
 import io.openaev.api.xtm_composer.dto.XtmComposerInstanceOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerOutput;
 import io.openaev.api.xtm_composer.dto.XtmComposerRegisterInput;
@@ -38,22 +39,28 @@ public class XtmComposerApi extends RestBehavior {
   private final XtmComposerService xtmComposerService;
   private final ConnectorOrchestrationService orchestrationService;
 
-  // Tenant URI needed for RBAC only, NOT because the underlying data is tenant-scoped.
-  // Without the tenant path here, a user whose only CATALOG-capable group lives on a
-  // non-default tenant would resolve zero capabilities and get a 403, even though registration
-  // itself is not scoped to any tenant (issue #6485).
+  // Tenant URI needed for RBAC only, NOT because the underlying data is tenant-scoped: the
+  // registration is not scoped to any tenant (issue #6485).
+  // The registration is a platform row of the parameters table: readable under any scope, the
+  // empty one of a composer identity with no tenant membership included, and written only under
+  // @PlatformWrite. The two writes need the platform setting write right, which a tenant
+  // administrator does not hold: the tenant-scoped catalog write that MANAGE_TENANT_SETTINGS grants
+  // does not reach them, on either route. A composer token user that only holds the catalog write
+  // right must be given the platform setting write right.
   // TODO v2: #7248
   @PostMapping(value = {XTMCOMPOSER_URI + "/register", TENANT_XTMCOMPOSER_URI + "/register"})
   @Operation(
       summary = "Register XtmComposer",
       description = "Save registration data into settings from XTM Composer registration")
   @ApiResponses({@ApiResponse(responseCode = "200", description = "Successful registration")})
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @Transactional(rollbackFor = Exception.class)
+  @PlatformWrite
   public XtmComposerOutput register(TxCtx ctx, @Valid @RequestBody XtmComposerRegisterInput input) {
     return this.xtmComposerService.register(input);
   }
 
+  // Same platform-row reasoning as register() above.
   // TODO v2: #7248.
   @PutMapping(
       value = {
@@ -63,9 +70,10 @@ public class XtmComposerApi extends RestBehavior {
   @Operation(
       summary = "Refresh connectivity with XTM composer",
       description = "Refresh last check connectivity in settings and version in XTM Composer")
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful refresh")})
   @Transactional(rollbackFor = Exception.class)
+  @PlatformWrite
   public XtmComposerOutput refreshConnectivity(
       TxCtx ctx, @PathVariable @NotBlank final String xtmComposerId) {
     AuditLogContext.setEnabled(false);
@@ -75,7 +83,8 @@ public class XtmComposerApi extends RestBehavior {
 
   // The ONLY XtmComposerApi endpoint actually called from the frontend
   // (isXtmComposerIsReachable() in catalog-actions.ts, used by Integrations/CatalogLayout/
-  // ConnectorLayout to gate deploy/migrate/update buttons). It is NOT tenant-scoped data
+  // ConnectorLayout to gate deploy/migrate/update buttons). It is NOT tenant-scoped data, and reads
+  // only the parameters table's platform row: same platform-row reasoning as register() above.
   // TODO v2: #7248.
   @GetMapping(value = {XTMCOMPOSER_URI + "/reachable", TENANT_XTMCOMPOSER_URI + "/reachable"})
   @Operation(

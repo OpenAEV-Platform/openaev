@@ -2,7 +2,8 @@ package io.openaev.utils.fixtures;
 
 import io.openaev.database.model.*;
 import io.openaev.model.inject.form.Expectation;
-import io.openaev.rest.exercise.form.ExpectationUpdateInput;
+import io.openaev.rest.exercise.form.InjectExpectationUpdateFromUIInput;
+import io.openaev.service.expectation.ExpectationVerdict;
 import java.time.Instant;
 
 public class ExpectationFixture {
@@ -35,14 +36,19 @@ public class ExpectationFixture {
     return expectation;
   }
 
-  public static ExpectationUpdateInput getExpectationUpdateInput(String sourceId, Double score) {
-    return ExpectationUpdateInput.builder()
+  public static InjectExpectationUpdateFromUIInput getExpectationUpdateInput(
+      String sourceId, Double score) {
+    return InjectExpectationUpdateFromUIInput.builder()
         .sourceId(sourceId)
         .sourceName("security-platform-name")
         .sourceType("security-platform-type")
         .sourcePlatform(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR.name())
         .score(score)
         .build();
+  }
+
+  public static ExpectationVerdict getExpectationVerdict(String sourceId, Double score) {
+    return ExpectationVerdict.fromUI(getExpectationUpdateInput(sourceId, score));
   }
 
   // -- DETECTION EXPECTATION --

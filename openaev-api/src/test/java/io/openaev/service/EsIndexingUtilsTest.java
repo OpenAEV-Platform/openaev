@@ -72,6 +72,40 @@ class EsIndexingUtilsTest {
   }
 
   @Nested
+  @DisplayName("isIncompatibleMappingError")
+  class IsIncompatibleMappingError {
+
+    @Test
+    @DisplayName("A mapping the existing index cannot take allows a reset")
+    void given_incompatibleMappingAnswer_should_allowAReset() {
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(400, "illegal_argument_exception"))
+          .isTrue();
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(400, "mapper_parsing_exception"))
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("An operational failure never allows a reset, whatever its error type")
+    void given_operationalFailure_should_neverAllowAReset() {
+      // Authorization, unavailable engine, overloaded engine: nothing about the mapping
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(403, "security_exception")).isFalse();
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(401, "security_exception")).isFalse();
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(503, "cluster_block_exception"))
+          .isFalse();
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(429, "es_rejected_execution_exception"))
+          .isFalse();
+      // A mapping-like type with a non-400 status is not a confirmed incompatibility either
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(500, "illegal_argument_exception"))
+          .isFalse();
+      assertThat(
+              EsIndexingUtils.isIncompatibleMappingError(
+                  400, "action_request_validation_exception"))
+          .isFalse();
+      assertThat(EsIndexingUtils.isIncompatibleMappingError(400, null)).isFalse();
+    }
+  }
+
+  @Nested
   @DisplayName("computeNewCursor")
   class ComputeNewCursor {
 

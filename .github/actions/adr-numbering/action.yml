@@ -1,0 +1,25 @@
+name: ADR Numbering
+description: >
+  Check the ADR numbering with adr/scripts/validate-adrs.sh. On a pull request the checkout is the merge
+  commit, whose first parent is the target branch: the ADRs are checked as they will be once merged, so a
+  number another pull request merged first fails until this one is rebased and renumbered. Elsewhere the
+  ADRs are checked alone. Requires a checkout with fetch-depth 2.
+
+inputs:
+  pull-request:
+    description: "Whether the run checks a pull request (true/false)"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Check ADR numbering
+      shell: bash
+      env:
+        PULL_REQUEST: ${{ inputs.pull-request }}
+      run: |
+        if [ "$PULL_REQUEST" = "true" ]; then
+          adr/scripts/validate-adrs.sh --base HEAD^1
+        else
+          adr/scripts/validate-adrs.sh --no-base
+        fi

@@ -1,5 +1,29 @@
+import { sendErrorMessageToBackend } from './Action';
 import { type PlatformSettings } from './api-types';
 import { getUrl } from './utils';
+
+export const getXtmHubOrigin = (hubUrl?: string | null): string | null => {
+  if (!hubUrl) {
+    return null;
+  }
+  try {
+    return new URL(hubUrl).origin;
+  } catch {
+    return null;
+  }
+};
+
+// A tab can repeat the same message: log each mismatch once per page load.
+const reportedOriginMismatches = new Set<string>();
+
+export const reportXtmHubOriginMismatch = (action: string, origin: string, expectedOrigin: string | null) => {
+  const key = JSON.stringify([action, origin, expectedOrigin]);
+  if (reportedOriginMismatches.has(key)) {
+    return;
+  }
+  reportedOriginMismatches.add(key);
+  sendErrorMessageToBackend(`XTM Hub: "${action}" message ignored, it comes from "${origin}" but the configured XTM Hub origin is "${expectedOrigin}"`);
+};
 
 interface FetchDocumentParams {
   settings: Pick<PlatformSettings, 'xtm_hub_url'>;

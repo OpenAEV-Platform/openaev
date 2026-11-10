@@ -12,6 +12,7 @@ import { expectLibraryIconButton, expectLibrarySearchField, expectNoMuiControls 
 // would drag in Relay, the redux store or the chatbot context is stubbed down
 // to a marker, so a failure here can only mean the Header wiring broke.
 vi.mock('../../../../admin/components/nav/TopBarNotifications', () => ({ default: () => null }));
+vi.mock('../../../../admin/components/nav/TopBarNewsFeed', () => ({ default: () => null }));
 vi.mock('../../../../admin/components/nav/BulkOperationsIndicator', () => ({ default: () => null }));
 vi.mock('../../../../admin/components/ariane/AskArianeButton', () => ({ default: () => null }));
 vi.mock('../../../../admin/components/ariane/CtemCommandCenterButton', () => ({ default: () => null }));

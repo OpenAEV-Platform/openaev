@@ -10,13 +10,16 @@ import { useFormatter } from '../../../../../components/i18n';
 import InfoChip from '../../../../../components/InfoChip';
 import { useHelper } from '../../../../../store';
 import { type PlatformSettings, type XtmHubRegistrationOutput } from '../../../../../utils/api-types';
-import { XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
+import { isDemoInstance, XTM_HUB_DEFAULT_URL } from '../../../../../utils/Environment';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useAuth from '../../../../../utils/hooks/useAuth';
 import { useAbility } from '../../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../../utils/permissions/types';
+import { getCurrentTenantId } from '../../../../../utils/url-helper';
 import ExperienceCard from '../ExperienceCard';
+import { buildXtmHubRegistrationUrl } from './xtm-hub-url';
 import XtmHubRegisteredSection from './XtmHubRegisteredSection';
+import XtmHubSaasMetrics from './XtmHubSaasMetrics';
 import XtmHubTab from './XtmHubTab';
 import XtmHubUnregisteredSection from './XtmHubUnregisteredSection';
 
@@ -48,8 +51,10 @@ const XtmHubSettings: React.FC = () => {
 
   const registrationStatus = registration?.tenant_xtmhub_registration_status;
   const isXTMHubRegistered = registrationStatus === 'REGISTERED' || registrationStatus === 'LOST_CONNECTIVITY';
+  const isSaas = registration?.tenant_xtmhub_registration_commercial_model === 'SAAS';
   const canInteract = isXTMHubAccessible && !!settings.xtm_hub_reachable;
   const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
+  const isDemoMode = isDemoInstance(settings);
   const hubUrl = settings?.xtm_hub_url ?? XTM_HUB_DEFAULT_URL;
 
   const statusChip = (() => {
@@ -58,12 +63,28 @@ const XtmHubSettings: React.FC = () => {
     return <InfoChip label={t('Not connected')} tone="accent" />;
   })();
 
-  const buildFooter = (handleOpen?: () => void) => (isXTMHubRegistered
+  const renderActionButton = (handleOpen?: () => void) => (isXTMHubRegistered
+    ? (
+        <Button type="button" variant="destructive" priority="secondary" onClick={handleOpen} disabled={!handleOpen}>
+          {t('Disconnect XTM Hub')}
+        </Button>
+      )
+    : (
+        <Button type="button" variant="highlight" onClick={handleOpen} disabled={!handleOpen}>
+          {t('Connect to XTM Hub')}
+        </Button>
+      ));
+
+  const actionButton = (() => {
+    if (isDemoMode) return null;
+    if (canInteract && canManage) return <XtmHubTab renderTrigger={renderActionButton} />;
+    return renderActionButton();
+  })();
+
+  const footer = isXTMHubRegistered
     ? (
         <>
-          <Button type="button" variant="destructive" priority="secondary" onClick={handleOpen} disabled={!handleOpen}>
-            {t('Disconnect XTM Hub')}
-          </Button>
+          {actionButton}
           <Button variant="highlight" asChild>
             <a href={hubUrl} target="_blank" rel="noreferrer"><span className="text-gradient-focus">{t('Go to the Hub')}</span></a>
           </Button>
@@ -76,30 +97,30 @@ const XtmHubSettings: React.FC = () => {
               {t('Explore XTM Hub')}
             </a>
           </Button>
-          <Button type="button" variant="highlight" onClick={handleOpen} disabled={!handleOpen}>
-            {t('Connect to XTM Hub')}
-          </Button>
+          {actionButton}
         </>
-      ));
+      );
 
-  const renderCard = (handleOpen?: () => void) => (
+  return (
     <ExperienceCard
       icon={<HubOutlined />}
       overline={t('Filigran Experience')}
       title={t('XTM Hub')}
       accent={theme.palette.xtmhub.main}
       statusChip={statusChip}
-      footer={buildFooter(handleOpen)}
+      footer={footer}
       testId="experience-xtm-hub-card"
     >
-      {isXTMHubRegistered ? <XtmHubRegisteredSection /> : <XtmHubUnregisteredSection />}
+      {isXTMHubRegistered
+        ? (
+            <>
+              <XtmHubRegisteredSection />
+              {isSaas && <XtmHubSaasMetrics metricsUrl={buildXtmHubRegistrationUrl(hubUrl, settings.platform_id, getCurrentTenantId())} />}
+            </>
+          )
+        : <XtmHubUnregisteredSection />}
     </ExperienceCard>
   );
-
-  if (canInteract && canManage) {
-    return <XtmHubTab renderTrigger={handleOpen => renderCard(handleOpen)} />;
-  }
-  return renderCard();
 };
 
 export default XtmHubSettings;

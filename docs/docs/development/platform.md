@@ -87,7 +87,8 @@ The frontend dev server starts on port `3001` and proxies API requests to the ba
 mvn test                                          # Run all tests
 mvn test -pl openaev-api -Dtest=MyTestClass       # Run a single test class
 mvn test -pl openaev-api -Dtest=MyTestClass#myMethod  # Run a single test method
-mvn jacoco:check                                  # Verify coverage thresholds
+# Coverage of the backend lines your branch changes: CI asks for 80%, partly covered lines not counting
+python3 .github/scripts/check-patch-coverage.py --report openaev-api/target/site/jacoco/jacoco.xml --base origin/main --fail-under 80
 ```
 
 !!! note
@@ -100,6 +101,9 @@ mvn jacoco:check                                  # Verify coverage thresholds
 cd openaev-front
 yarn lint                  # ESLint (must pass with 0 warnings)
 yarn check-ts              # TypeScript type checking
+yarn depcruise             # Import cycles and dependency rules (dependency-cruiser)
+yarn knip --dependencies   # Unused or undeclared dependencies (knip)
+yarn test:eslint-rules     # Tests of the local ESLint rules (packages/eslint-plugin-custom-rules)
 yarn test                  # Unit tests (Vitest)
 yarn test:e2e              # E2E tests (Playwright, requires running application)
 ```

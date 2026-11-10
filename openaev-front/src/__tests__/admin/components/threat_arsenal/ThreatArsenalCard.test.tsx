@@ -48,6 +48,7 @@ const theme = createTheme();
 const buildAction = (overrides: Partial<ThreatArsenalAction> = {}): ThreatArsenalAction => ({
   injector_contract_id: 'contract-1',
   injector_contract_updated_at: '2026-10-16T10:00:00Z',
+  action_grant_resource_id: 'grant-1',
   action_labels: { en: 'Dump credentials' },
   action_attack_patterns_ids: [],
   action_domains_ids: ['endpoint', 'network', 'unclassified'],

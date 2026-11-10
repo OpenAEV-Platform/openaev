@@ -11,10 +11,10 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.UserService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
+import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -78,12 +79,21 @@ public class MarkingDefinitionApi extends RestBehavior {
     // request scope to exactly one tenant or refuse an ambiguous one - is exactly what a clearance
     // lookup needs too; this endpoint doesn't write anything.
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    User currentUser = userService.currentUser();
-    return service
-        .listAssignable(ctx, tenantId, currentUser.getId(), currentUser.isAdminOrBypass())
-        .stream()
+    return service.listAssignable(ctx, tenantId, userService.currentUser().getId()).stream()
         .map(MarkingDefinitionMapper::toOutput)
         .toList();
+  }
+
+  @LogExecutionTime
+  @GetMapping("/{markingDefinitionId}/assigned")
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#markingDefinitionId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.MARKING_DEFINITION)
+  @Operation(summary = "Check if a marking definition is currently assigned to any entity")
+  public boolean assigned(TxCtx ctx, @PathVariable String markingDefinitionId) {
+    return service.isAssigned(ctx, markingDefinitionId);
   }
 
   @LogExecutionTime
@@ -138,5 +148,30 @@ public class MarkingDefinitionApi extends RestBehavior {
   @Operation(summary = "Delete a marking definition")
   public void delete(TxCtx ctx, @PathVariable String markingDefinitionId) {
     service.delete(ctx, markingDefinitionId);
+  }
+
+  // -- OPTIONS --
+
+  @LogExecutionTime
+  @GetMapping("/options")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
+  @Operation(
+      summary = "Search marking definition options",
+      description = "Labeled {id, label} options for a filter's dynamic value picker")
+  public List<FilterUtilsJpa.Option> optionsByName(
+      TxCtx ctx, @RequestParam(required = false) String searchText) {
+    return service.optionsByName(ctx, searchText);
+  }
+
+  @LogExecutionTime
+  @PostMapping("/options")
+  @Transactional(readOnly = true)
+  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.MARKING_DEFINITION)
+  @Operation(
+      summary = "Resolve marking definition options by id",
+      description = "Labels a set of already-selected marking definition ids")
+  public List<FilterUtilsJpa.Option> optionsById(TxCtx ctx, @RequestBody List<String> ids) {
+    return service.optionsById(ctx, ids);
   }
 }

@@ -18,6 +18,7 @@ import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.GroupSpecification;
 import io.openaev.rest.exception.BadRequestException;
@@ -130,6 +131,14 @@ public class UserService {
     return userRepository.globalCount();
   }
 
+  /**
+   * Returns the platform users of the given tenants (players and reserved accounts excluded), with
+   * the XTM Hub news feed types they unsubscribed from.
+   */
+  public List<RawNewsFeedRecipient> newsFeedRecipients(Collection<String> tenantIds) {
+    return userRepository.rawNewsFeedRecipients(tenantIds);
+  }
+
   // -- CREATE --
 
   /**
@@ -150,12 +159,15 @@ public class UserService {
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
     user.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
     String password = input.plainPassword();
     User createdUser = createUser(user, password, UUID.randomUUID().toString(), scope);
+    // A tenant creator sets the organization itself, once it knows its tenant.
+    if (scope == UserCreationScope.PLATFORM) {
+      applyPlatformOrganization(createdUser, input.organizationId());
+    }
     if (!CollectionUtils.isEmpty(tenantIds)) {
       tenantMembershipCacheManager.evictForUser(createdUser.getId(), tenantIds);
     }
@@ -238,7 +250,7 @@ public class UserService {
                 spec,
                 specCount,
                 pageable,
-                (cq, root) -> UserQueryHelper.select(cb, cq, root),
+                (cq, root) -> UserQueryHelper.selectForPlatform(cb, cq, root),
                 UserQueryHelper::executionWithTenants),
         searchPaginationInput,
         User.class);
@@ -260,6 +272,7 @@ public class UserService {
             : List.of();
     PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
     applyProfile(existing, input);
+    applyPlatformOrganization(existing, input.organizationId());
     existing.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(
@@ -296,7 +309,19 @@ public class UserService {
     user.setPhone2(input.phone2());
     user.setPgpKey(input.pgpKey());
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+  }
+
+  /**
+   * Links the user to an organization from the platform level, in the tenant that organization
+   * belongs to: organizations are tenant-level, so a user keeps the ones it holds in other tenants.
+   * An empty value changes nothing, since the platform level has no tenant whose organization it
+   * could clear.
+   */
+  private void applyPlatformOrganization(User user, String organizationId) {
+    Organization organization = referenceResolver.resolve(organizationId, Organization.class);
+    if (organization != null) {
+      userRepository.assignOrganization(user, organization.getTenant().getId(), organization);
+    }
   }
 
   /**

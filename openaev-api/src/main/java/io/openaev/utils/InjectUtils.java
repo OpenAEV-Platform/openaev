@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Inject;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -264,10 +263,12 @@ public class InjectUtils {
     return inject.getExpectations().stream()
         .filter(
             expectation -> {
+              // A player targeted outside of any team (chaining scope player) is its own leaf
               boolean teamMatch =
                   expectation instanceof TableTopInjectExpectation tableTopInjectExpectation
-                      && tableTopInjectExpectation.getTeam() != null
-                      && firstIds.contains(tableTopInjectExpectation.getTeam().getId());
+                      && (tableTopInjectExpectation.getTeam() != null
+                          ? firstIds.contains(tableTopInjectExpectation.getTeam().getId())
+                          : tableTopInjectExpectation.getUser() != null);
               boolean assetMatch =
                   expectation instanceof TechnicalInjectExpectation technicalInjectExpectation
                       && isAssetExpectation(technicalInjectExpectation)
@@ -317,6 +318,28 @@ public class InjectUtils {
   private static final ObjectMapper STATIC_MAPPER = ObjectMapperHelper.openAEVJsonMapper();
 
   /**
+   * Gives an inject to a scenario, and to no simulation, and stamps it with the scenario's tenant:
+   * the owner of an inject decides its tenant, whatever tenant the request or the job that creates
+   * it runs in.
+   */
+  public static void attachToScenario(@NotNull Inject inject, @NotNull Scenario scenario) {
+    inject.setScenario(scenario);
+    inject.setExercise(null);
+    inject.setTenant(scenario.getTenant());
+  }
+
+  /**
+   * Gives an inject to a simulation, and to no scenario, and stamps it with the simulation's
+   * tenant: the owner of an inject decides its tenant, whatever tenant the request or the job that
+   * creates it runs in.
+   */
+  public static void attachToExercise(@NotNull Inject inject, @NotNull Exercise exercise) {
+    inject.setExercise(exercise);
+    inject.setScenario(null);
+    inject.setTenant(exercise.getTenant());
+  }
+
+  /**
    * Creates a deep copy of an inject.
    *
    * <p>Duplicates all properties of the source inject including content, teams, assets, asset
@@ -362,11 +385,17 @@ public class InjectUtils {
 
     duplicatedInject.setExercise(injectOrigin.getExercise());
     duplicatedInject.setScenario(injectOrigin.getScenario());
+    duplicatedInject.setSecretReferences(new ArrayList<>(injectOrigin.getSecretReferences()));
     // Carry the recurrence schedule forward so a scheduled atomic testing keeps relaunching after
     // each occurrence (relaunch = duplicate + delete old).
     duplicatedInject.setRecurrence(injectOrigin.getRecurrence());
     duplicatedInject.setRecurrenceStart(injectOrigin.getRecurrenceStart());
     duplicatedInject.setRecurrenceEnd(injectOrigin.getRecurrenceEnd());
+    duplicatedInject.setScheduledBy(injectOrigin.getScheduledBy());
+    // launchedBy is deliberately NOT copied here: it must reflect whoever is relaunching THIS
+    // occurrence, not the previous launcher. The caller (InjectService.doRelaunch) stamps it
+    // explicitly right after duplication - never let it fall through as a silent copy the way
+    // `user` and the recurrence fields above intentionally do.
     return duplicatedInject;
   }
 

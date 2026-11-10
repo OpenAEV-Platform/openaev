@@ -22,10 +22,7 @@ public class InjectStatusMapper {
                 this.<InjectStatusOutput>buildInjectStatusOutput(
                     InjectStatusOutput.builder().build(),
                     status,
-                    status.getTraces().stream()
-                        .filter(
-                            trace -> trace.getAgent() == null && trace.getIdentifiers().isEmpty())
-                        .toList()))
+                    status.getTraces().stream().filter(ExecutionTrace::isGlobal).toList()))
         .orElseGet(() -> InjectStatusOutput.builder().build());
   }
 

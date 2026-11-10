@@ -27,6 +27,10 @@ public class EsFinding extends EsTenantBase {
   @Queryable(label = "field")
   private String finding_field;
 
+  // Not @Queryable on purpose: bookkeeping of the masking rule the value was indexed with (see
+  // SensitiveValueMaskingUtils#MASKING_VERSION), not something a widget filters on.
+  private Long finding_masking_version;
+
   // -- SIDE --
 
   @Queryable(label = "inject", filterable = true)

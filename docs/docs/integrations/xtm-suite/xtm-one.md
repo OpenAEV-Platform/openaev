@@ -5,7 +5,7 @@ XTM One is the AI platform of the Filigran eXtended Threat Management (XTM) suit
 ## What it enables
 
 - **Enterprise Edition**: an XTM license on XTM One can grant Enterprise Edition to OpenAEV. See [Enterprise Edition](../../administration/enterprise.md).
-- **Ask Ariane**: the AI assistant in the top bar, and the **CTEM Command Center** link.
+- **Ask Ariane**: the AI assistant in the top bar, and the **CTEM Command Center** link. Ask Ariane also turns your OpenAEV data into a report, a presentation or a video (a validation readout, a deck for a review meeting, an attack path explained). Each one shows as a card in the conversation, which opens it in XTM One and downloads it through OpenAEV as PDF, PowerPoint or MP4.
 - **Ask AI**: generate or improve text in some form fields.
 - **Scenario assistant**: generate TTPs from a threat report or a file. See [Scenario assistant](../../usage/build/scenario/scenario.md#scenario-assistant).
 - **Detection rules**: generate detection rules from an executed Inject. See [Inject result](../../usage/run-and-evaluate/injects/inject-result.md).

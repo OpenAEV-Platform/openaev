@@ -86,7 +86,7 @@ and runs steps 5–6 in the enclosing transaction (`ExerciseService.changeExerci
 
 Pause and resume only act on the **current execution** of the simulation (its latest run, by
 `workflow_created_at`) and only when it is in the expected status (RUN to pause, STOP to resume).
-Reset deletes executions (ADR-009), but a database reset before that may still hold older runs.
+Reset deletes executions (ADR-014), but a database reset before that may still hold older runs.
 
 ### Time impact rule
 

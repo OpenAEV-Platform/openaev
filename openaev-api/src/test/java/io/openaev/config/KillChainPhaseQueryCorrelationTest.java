@@ -186,8 +186,7 @@ class KillChainPhaseQueryCorrelationTest extends TenantIsolationIntegrationTest 
   private void insertExercise(String id) {
     entityManager
         .createNativeQuery(
-            "INSERT INTO exercises (exercise_id, exercise_name, exercise_mail_from)"
-                + " VALUES (:id, :id, 'test@openaev.io')")
+            "INSERT INTO exercises (exercise_id, exercise_name)" + " VALUES (:id, :id)")
         .setParameter("id", id)
         .executeUpdate();
   }

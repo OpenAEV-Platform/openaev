@@ -1,7 +1,9 @@
+import { Alert, DialogContentText } from '@mui/material';
 import { type FunctionComponent, useMemo, useState } from 'react';
 
 import {
   deleteMarkingDefinition,
+  fetchMarkingDefinitionAssigned,
   updateMarkingDefinition,
 } from '../../../../actions/marking_definitions/marking-definition-actions';
 import ButtonPopover, { type PopoverEntry } from '../../../../components/common/ButtonPopover';
@@ -41,6 +43,7 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
 
   const [openUpdate, setOpenUpdate] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  const [isAssigned, setIsAssigned] = useState(false);
   const [openOrderConfirm, setOpenOrderConfirm] = useState(false);
   const [pendingUpdateInput, setPendingUpdateInput] = useState<MarkingDefinitionInput | null>(null);
 
@@ -88,6 +91,17 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
     });
   };
 
+  // The backend still deletes an assigned definition (removing it from every entity that holds
+  // it), so the check only warns the user before they confirm.
+  const handleOpenDelete = () => {
+    fetchMarkingDefinitionAssigned(markingDefinition.marking_definition_id)
+      .then((result: { data: boolean }) => {
+        setIsAssigned(result.data);
+      })
+      .catch(() => setIsAssigned(false))
+      .finally(() => setOpenDelete(true));
+  };
+
   const submitDelete = () => {
     return dispatch(deleteMarkingDefinition(markingDefinition.marking_definition_id))
       .then(() => {
@@ -107,7 +121,7 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
     },
     {
       label: 'Delete',
-      action: () => setOpenDelete(true),
+      action: handleOpenDelete,
       disabled: isProtected,
       disabledMessage: protectedTooltip,
       userRight: canDelete,
@@ -129,6 +143,16 @@ const MarkingDefinitionPopover: FunctionComponent<Props> = ({
         handleClose={() => setOpenDelete(false)}
         handleSubmit={submitDelete}
         text={t('Do you want to delete this marking definition?')}
+        richContent={isAssigned ? (
+          <>
+            <DialogContentText>
+              {t('Do you want to delete this marking definition?')}
+            </DialogContentText>
+            <Alert severity="warning" style={{ marginTop: 16 }}>
+              {t('This marking definition is currently assigned. Deleting it will remove it from every entity that carries it.')}
+            </Alert>
+          </>
+        ) : undefined}
       />
       <DialogConfirmation
         open={openOrderConfirm}

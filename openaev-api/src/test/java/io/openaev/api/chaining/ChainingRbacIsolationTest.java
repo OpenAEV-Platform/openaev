@@ -94,7 +94,6 @@ class ChainingRbacIsolationTest extends IntegrationTest {
     Workflow workflow = WorkflowFixture.getDefaultWorkflowTemplate();
     workflow.setStatus(WorkflowStatus.TEMPLATE);
     Exercise exercise = ExerciseFixture.getExercise();
-    exercise.setFrom("exercise@mail.fr");
     ExerciseComposer.Composer simulation = exerciseComposer.forExercise(exercise);
     StepComposer.Composer step = stepComposer.forStep(StepFixture.getDefaultStepTemplate());
     Workflow persisted =
@@ -238,7 +237,7 @@ class ChainingRbacIsolationTest extends IntegrationTest {
         .andExpect(status().isOk());
   }
 
-  // -- DUPLICATE (ADR-007): the chained branch of POST /api/exercises/{id} reads and writes
+  // -- DUPLICATE (ADR-015): the chained branch of POST /api/exercises/{id} reads and writes
   // chaining rows, which carry no tenant_id. Its isolation is the same grant chain as above,
   // resolved on the owning simulation. --
 

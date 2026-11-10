@@ -60,6 +60,7 @@ class StepServiceTest {
   @Mock private StepDelayQueueRepository stepDelayQueueRepository;
   @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private TenantScopedTransaction tenantScopedTransaction;
+  @Mock private StepEventService stepEventService;
 
   @Spy @InjectMocks StepService stepService;
   private QueueChainingJob queueChainingJob;
@@ -81,7 +82,11 @@ class StepServiceTest {
         .thenAnswer(invocation -> new HashSet<>(invocation.<Set<String>>getArgument(2)));
     queueChainingJob =
         new QueueChainingJob(
-            stepDelayQueueService, stepService, workflowService, tenantScopedTransaction);
+            stepDelayQueueService,
+            stepService,
+            workflowService,
+            tenantScopedTransaction,
+            stepEventService);
     lenient()
         .doAnswer(
             invocation -> {

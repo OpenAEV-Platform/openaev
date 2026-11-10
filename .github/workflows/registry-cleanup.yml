@@ -1,8 +1,8 @@
 name: "🧹 Registry Cleanup"
 
-# CI images (ghcr.io/<repo>-ci) exist only to hand a build over to E2E, the
-# platform merge and the container vulnerability scan. Sweeping them on a schedule rather than at
-# the end of each pipeline keeps the housekeeping job off every run, and also
+# CI images (ghcr.io/<repo>-ci) exist only to hand a build over to E2E and the
+# platform merge. Sweeping them on a schedule rather than at the end of each
+# pipeline keeps the housekeeping job off every run, and also
 # reclaims tags from runs that were cancelled before an in-pipeline cleanup
 # could have run.
 
@@ -29,7 +29,7 @@ concurrency:
 jobs:
   cleanup:
     name: "🧹 Sweep stale CI images"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Delete stale CI image versions

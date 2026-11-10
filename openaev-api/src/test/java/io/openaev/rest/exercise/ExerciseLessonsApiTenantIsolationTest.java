@@ -1,6 +1,7 @@
 package io.openaev.rest.exercise;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -55,7 +56,7 @@ class ExerciseLessonsApiTenantIsolationTest extends IntegrationTest {
     templateA = seedTemplate(tenantA, "exercise-template-a");
     templateB = seedTemplate(tenantB, "exercise-template-b");
 
-    when(exerciseRepository.findByIdAndTenantId(anyString(), anyString()))
+    when(exerciseRepository.findByIdAndTenantIdIn(anyString(), anyCollection()))
         .thenReturn(Optional.of(new Exercise()));
     when(lessonsCategoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     when(lessonsCategoryRepository.findAll(any(Specification.class)))

@@ -84,6 +84,9 @@ final class HandledErrorRollbackRules {
       Map.ofEntries(
           // --- Rethrows: the exception leaves the handler, so the rollback is honoured. ---
           entry(
+              "CatalogSyncService#sync -> CatalogService.apply",
+              "rethrows after asking for the refusal alert, sent once the rollback is done"),
+          entry(
               "AutonomousRunService#convertToManual -> WorkflowService.copyScenarioChainingWorkflowAsManual",
               "rethrows as ResponseStatusException(400)"),
           entry(
@@ -139,7 +142,7 @@ final class HandledErrorRollbackRules {
               "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
                   + " while the transaction is not rollback-only"),
           entry(
-              "InjectExecutionStep#run -> ServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant",
+              "InjectExecutionStep#run -> AgentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant",
               "rethrows as ChainingException; the ExecutionExecutorException catch returns empty only"
                   + " while the transaction is not rollback-only"),
           entry(
@@ -176,7 +179,7 @@ final class HandledErrorRollbackRules {
               "SimulationInjectApi#executeInject -> ManagerCreator.createManager",
               "known defect, reported by the #8102 sweep"),
           entry(
-              "SimulationInjectApi#executeInject -> ServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant",
+              "SimulationInjectApi#executeInject -> AgentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant",
               "known defect, reported by the #8102 sweep"),
           entry(
               "BatchingInjectStatusService#processTenantCallbacks -> InjectRepository.updateUpdatedAt",
@@ -188,7 +191,7 @@ final class HandledErrorRollbackRules {
               "InjectExecutionService#handleInjectExecutionCallback -> InjectRepository.updateUpdatedAt",
               "known defect, reported by the #8102 sweep"),
           entry(
-              "ExecutorApi#getOpenAevAgentInstallerToken -> ServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant",
+              "ExecutorApi#getOpenAevAgentInstallerToken -> AgentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant",
               "known defect, reported by the #8102 sweep; the documented 404 becomes a 500"),
           entry(
               "WorkflowService#deleteAllScenarioSteps -> StepService.deleteStepTemplate",
