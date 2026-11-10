@@ -109,6 +109,8 @@ public class CatalogPayloadService {
     Payload payload =
         installed.orElseGet(() -> createVersion(ctx, tenantId, identity, released, file));
     identity.setLatestVersion(highest(versions, payload));
+    // Creating the version's contract clears the session: the identity is saved again.
+    payloadIdentityRepository.save(identity);
     changePublisher.payloadChanged(identity, released.version(), CatalogHistory.Action.INSTALL);
     return payload;
   }
