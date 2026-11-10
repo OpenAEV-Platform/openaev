@@ -193,8 +193,25 @@ public class ZipJsonService<T extends Base> {
    * as {@link #handleImport}, or {@code null} when the document has no data or no type.
    */
   public String readRootType(byte[] fileBytes) throws IOException {
-    JsonApiDocument<ResourceObject> doc = this.readZip(fileBytes).getDocument();
-    return doc.data() != null ? doc.data().type() : null;
+    // Read only the JSON:API document entry to resolve the root type, without materializing the
+    // attachments: import dispatch reads the root type before handleImport parses the whole archive
+    // again, and a full readZip here would decompress and buffer every attachment a second time.
+    try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(fileBytes))) {
+      ZipEntry entry;
+      while ((entry = zis.getNextEntry()) != null) {
+        if (entry.getName().endsWith(".json") && !META_ENTRY.equals(entry.getName())) {
+          JsonApiDocument<ResourceObject> doc =
+              mapper.readValue(
+                  readAll(zis),
+                  mapper
+                      .getTypeFactory()
+                      .constructParametricType(JsonApiDocument.class, ResourceObject.class));
+          return doc.data() != null ? doc.data().type() : null;
+        }
+        zis.closeEntry();
+      }
+    }
+    return null;
   }
 
   private void addDocumentToExtras(Document doc, Map<String, byte[]> out, String owningTenantId) {

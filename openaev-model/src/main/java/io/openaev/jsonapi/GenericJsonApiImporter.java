@@ -14,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.database.model.Base;
+import io.openaev.database.model.Document;
 import io.openaev.database.model.DualScopeBase;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
@@ -171,7 +172,7 @@ public class GenericJsonApiImporter<T extends Base> {
     if (doc.included() != null) {
       for (Object o : doc.included()) {
         if (o instanceof ResourceObject ro
-            && "document".equals(ro.type())
+            && resolveType(Document.class).equals(ro.type())
             && isAllowedType(allowedTypes, ro.type())) {
           Map<String, Object> attrs = ro.attributes();
           if (attrs != null && attrs.containsKey("document_name")) {

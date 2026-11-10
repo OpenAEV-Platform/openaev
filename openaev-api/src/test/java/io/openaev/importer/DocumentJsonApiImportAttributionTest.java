@@ -1,13 +1,16 @@
 package io.openaev.importer;
 
+import static io.openaev.jsonapi.GenericJsonApiIUtils.resolveType;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Document;
 import io.openaev.jsonapi.GenericJsonApiImporter;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.service.MinioService;
+import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayInputStream;
@@ -117,7 +120,10 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
     String target = DigestUtils.md5Hex(new ByteArrayInputStream(bytes)) + ".txt";
     ResourceObject includedDocument =
         new ResourceObject(
-            UUID.randomUUID().toString(), "document", Map.of("document_name", target), null);
+            UUID.randomUUID().toString(),
+            resolveType(Document.class),
+            Map.of("document_name", target),
+            null);
     JsonApiDocument<ResourceObject> doc =
         new JsonApiDocument<>(null, List.of((Object) includedDocument));
     Map<String, byte[]> extras = Map.of(target, bytes);
@@ -146,7 +152,10 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
     String target = DigestUtils.md5Hex(new ByteArrayInputStream(bytes)) + ".txt";
     ResourceObject includedDocument =
         new ResourceObject(
-            UUID.randomUUID().toString(), "document", Map.of("document_name", target), null);
+            UUID.randomUUID().toString(),
+            resolveType(Document.class),
+            Map.of("document_name", target),
+            null);
     JsonApiDocument<ResourceObject> doc =
         new JsonApiDocument<>(null, List.of((Object) includedDocument));
     Map<String, byte[]> extras = Map.of(target, bytes);
@@ -171,13 +180,20 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
     String target = DigestUtils.md5Hex(new ByteArrayInputStream(bytes)) + ".txt";
     ResourceObject includedDocument =
         new ResourceObject(
-            UUID.randomUUID().toString(), "document", Map.of("document_name", target), null);
+            UUID.randomUUID().toString(),
+            resolveType(Document.class),
+            Map.of("document_name", target),
+            null);
     JsonApiDocument<ResourceObject> doc =
         new JsonApiDocument<>(null, List.of((Object) includedDocument));
     TenantContext.setCurrentTenant(tenantA);
 
-    // Act: the type set permits the type of the resource
-    importer.handleImportDocument(doc, Map.of(target, bytes), tenantB, Set.of("document"));
+    // Act: the production allowlist, which carries the document type as
+    // resolveType(Document.class),
+    // must let the document object through (a literal "document" would hide the singular/plural
+    // mismatch between the wire type and the allowlist).
+    importer.handleImportDocument(
+        doc, Map.of(target, bytes), tenantB, ThreatArsenalImportService.EXPORT_FORMAT_TYPES);
     uploadedObjects.add(new String[] {tenantB, target});
 
     // Assert: the gate, not another condition, is what refused the object above
