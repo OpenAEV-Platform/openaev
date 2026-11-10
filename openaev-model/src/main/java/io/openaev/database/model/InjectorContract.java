@@ -19,6 +19,7 @@ import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.converter.ContentConverter;
 import io.openaev.database.model.author.Authored;
 import io.openaev.database.model.author.Authorship;
+import io.openaev.database.model.payload.InjectorContractDeleteGuard;
 import io.openaev.helper.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -39,7 +40,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Setter
 @Entity
 @Table(name = "injectors_contracts")
-@EntityListeners({ModelBaseListener.class, TenantBaseListener.class})
+@EntityListeners({
+  ModelBaseListener.class,
+  TenantBaseListener.class,
+  InjectorContractDeleteGuard.class
+})
 @Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class InjectorContract implements TenantBase, CompositeIdResolvableI, Authored {
 
