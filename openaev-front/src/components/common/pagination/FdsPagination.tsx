@@ -1,104 +1,122 @@
-import {
-  IconButton,
-  Menu,
-  MenuContent,
-  MenuItem,
-  MenuSub,
-  MenuSubContent,
-  MenuSubTrigger,
-  MenuTrigger,
-  Text,
-} from '@filigran/design-system';
+import { IconButton, Menu, MenuContent, MenuItem, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger, Text } from '@filigran/design-system';
 import { ArrowLeft, ArrowRight, TuneOutlined } from '@mui/icons-material';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../i18n';
 
-// FDS-WORKAROUND: Figma DS Pagination (Design_System_2026 2814:16367) built from library parts — remove when the library ships Pagination — see DS Figma 2814:16367
-
 interface Props {
-  /** Zero-based page shown. */
+  /** Zero-based page. */
   page: number;
   rowsPerPage: number;
-  /** Total number of rows. */
   count: number;
   onPageChange: (page: number) => void;
-  /** With options, the tune menu offers "Rows per page" and "Reset table". Without, there is no tune button. */
-  rowsPerPageOptions?: number[];
+  /** With it, the settings menu offers "Rows per page". */
   onRowsPerPageChange?: (rowsPerPage: number) => void;
+  rowsPerPageOptions?: number[];
+  /** With it, the settings menu offers "Reset table". */
+  onReset?: () => void;
 }
 
-/** "26-50 / 123" between previous and next, and the table settings behind the tune button. */
-const FdsPagination: FunctionComponent<Props> = ({ page, rowsPerPage, count, onPageChange, rowsPerPageOptions, onRowsPerPageChange }) => {
+/**
+ * The pagination of the design system Figma (Pagination 2814:16367): a 36px bar with the previous and
+ * next arrows around the range ("26-50/123"), and a settings button whose menu holds "Reset table" and
+ * "Rows per page" (10, 25, 50, 100). Tokens as in the Figma: elevation border, small radius, highlight
+ * icons, Content/base text, the total in the secondary colour.
+ *
+ * FDS-WORKAROUND: the library has no Pagination component yet (designed in Figma, not in code) — remove
+ * when the library ships it — see the DS ROADMAP.
+ */
+const FdsPagination: FunctionComponent<Props> = ({
+  page,
+  rowsPerPage,
+  count,
+  onPageChange,
+  onRowsPerPageChange,
+  rowsPerPageOptions = [10, 25, 50, 100],
+  onReset,
+}) => {
   const { t } = useFormatter();
   const lastPage = Math.max(0, Math.ceil(count / rowsPerPage) - 1);
   const from = count === 0 ? 0 : page * rowsPerPage + 1;
   const to = Math.min(count, (page + 1) * rowsPerPage);
-  const hasSettings = !!onRowsPerPageChange && (rowsPerPageOptions?.length ?? 0) > 1;
-
-  const changeRowsPerPage = (next: number) => {
-    onRowsPerPageChange?.(next);
-    onPageChange(0);
-  };
+  const hasSettings = !!onReset || !!onRowsPerPageChange;
+  const arrowStyle = { color: 'var(--icon-highlight)' };
 
   return (
-    <div style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      border: '1px solid var(--border-elevation-default)',
-      borderRadius: 4,
-    }}
+    <nav
+      aria-label={t('Pagination')}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        height: 36,
+        boxSizing: 'border-box',
+        border: '1px solid var(--border-elevation-default)',
+        borderRadius: 'var(--radius-sm)',
+        overflow: 'hidden',
+      }}
     >
       <IconButton
+        size="sm"
         priority="tertiary"
         aria-label={t('Previous page')}
-        icon={<ArrowLeft />}
         disabled={page <= 0}
         onClick={() => onPageChange(page - 1)}
+        icon={<ArrowLeft fontSize="small" style={arrowStyle} />}
       />
-      <Text as="span" variant="content-base">{`${from}-${to}`}</Text>
-      <Text as="span" variant="content-base" className="text-default-secondary">{`/${count}`}</Text>
+      <Text
+        variant="content-base"
+        aria-live="polite"
+        style={{
+          padding: '0 4px',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {`${from}-${to}`}
+        <span className="text-default-secondary">{`/${count}`}</span>
+      </Text>
       <IconButton
+        size="sm"
         priority="tertiary"
         aria-label={t('Next page')}
-        icon={<ArrowRight />}
         disabled={page >= lastPage}
         onClick={() => onPageChange(page + 1)}
+        icon={<ArrowRight fontSize="small" style={arrowStyle} />}
       />
       {hasSettings && (
-        <Menu modal={false}>
+        <Menu>
           <MenuTrigger asChild>
-            <IconButton priority="tertiary" aria-label={t('Table settings')} icon={<TuneOutlined />} />
+            <IconButton
+              size="sm"
+              priority="tertiary"
+              aria-label={t('Table settings')}
+              icon={<TuneOutlined fontSize="small" style={arrowStyle} />}
+              style={{
+                borderLeft: '1px solid var(--border-elevation-default)',
+                borderRadius: 0,
+                height: 34,
+                width: 36,
+              }}
+            />
           </MenuTrigger>
           <MenuContent align="start">
-            <MenuItem onSelect={() => changeRowsPerPage(rowsPerPageOptions?.[0] ?? rowsPerPage)}>{t('Reset table')}</MenuItem>
-            <MenuSub>
-              <MenuSubTrigger>{t('Rows per page')}</MenuSubTrigger>
-              <MenuSubContent>
-                {rowsPerPageOptions?.map(option => (
-                  <MenuItem key={option} selected={option === rowsPerPage} onSelect={() => changeRowsPerPage(option)}>
-                    {String(option)}
-                  </MenuItem>
-                ))}
-              </MenuSubContent>
-            </MenuSub>
+            {onReset && <MenuItem onSelect={onReset}>{t('Reset table')}</MenuItem>}
+            {onRowsPerPageChange && (
+              <MenuSub>
+                <MenuSubTrigger>{t('Rows per page')}</MenuSubTrigger>
+                <MenuSubContent>
+                  {rowsPerPageOptions.map(option => (
+                    <MenuItem key={option} selected={option === rowsPerPage} onSelect={() => onRowsPerPageChange(option)}>
+                      {String(option)}
+                    </MenuItem>
+                  ))}
+                </MenuSubContent>
+              </MenuSub>
+            )}
           </MenuContent>
         </Menu>
       )}
-    </div>
+    </nav>
   );
 };
-
-/** The pagination at the right end of its own row, under a table or list. */
-export const FdsPaginationRow: FunctionComponent<Props> = props => (
-  <div style={{
-    display: 'flex',
-    justifyContent: 'flex-end',
-    padding: '8px 0',
-  }}
-  >
-    <FdsPagination {...props} />
-  </div>
-);
 
 export default FdsPagination;

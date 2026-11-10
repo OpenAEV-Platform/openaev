@@ -58,22 +58,43 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
   const toOpen = useRef(openState?.openName);
   // A link to an action (?action=<id>, e.g. "See where it is used" or a card's Migrate): its drawer
   // opens, on the Versions tab with tab=versions, ready to migrate with focus=migrate.
+  // Read on every change of the link, not only on load: a Migrate link clicked on a card of this
+  // very page changes the URL without mounting the page again.
   const [searchParams] = useSearchParams();
-  const linked = useRef({
-    actionId: searchParams.get('action'),
-    tab: searchParams.get('tab') === 'versions' ? 'versions' as const : undefined,
-    focusMigration: searchParams.get('focus') === 'migrate',
+  const linkedActionId = searchParams.get('action');
+  const linked = useRef<{
+    actionId: string | null;
+    tab?: 'versions';
+    focusMigration: boolean;
+  }>({
+    actionId: null,
+    focusMigration: false,
   });
+  useEffect(() => {
+    if (!linkedActionId) return;
+    linked.current = {
+      actionId: linkedActionId,
+      tab: searchParams.get('tab') === 'versions' ? 'versions' : undefined,
+      focusMigration: searchParams.get('focus') === 'migrate',
+    };
+    fetchThreatArsenalAction(linkedActionId)
+      .then((result: { data: ThreatArsenalActionFullOutput }) => {
+        const name = tPick(result.data.action_labels);
+        // Already on the page: open it at once. Otherwise search it, and open it when it shows.
+        const shown = installed.threatArsenalActions.find(action => action.injector_contract_id === linkedActionId);
+        if (shown) {
+          setOpenedAction(null);
+          setOpenedAction(shown);
+        } else {
+          toOpen.current = name;
+          installed.queryableHelpers.textSearchHelpers.handleTextSearch(name);
+        }
+      })
+      .catch(() => undefined);
+  }, [linkedActionId, searchParams.get('focus'), searchParams.get('tab')]);
   useEffect(() => {
     if (toOpen.current) {
       installed.queryableHelpers.textSearchHelpers.handleTextSearch(toOpen.current);
-    } else if (linked.current.actionId) {
-      fetchThreatArsenalAction(linked.current.actionId)
-        .then((result: { data: ThreatArsenalActionFullOutput }) => {
-          toOpen.current = tPick(result.data.action_labels);
-          installed.queryableHelpers.textSearchHelpers.handleTextSearch(toOpen.current);
-        })
-        .catch(() => undefined);
     } else if (openState?.openPayloadId) {
       fetchThreatArsenalActionIdOfPayload(openState.openPayloadId)
         .then((result: { data: ThreatArsenalActionIdOutput }) => fetchThreatArsenalAction(result.data.action_id))

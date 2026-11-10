@@ -12,7 +12,7 @@ import {
 } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
 import { SkeletonRows } from '../../../components/common/content_versions/ContentVersionsTable';
 import { FDS_GROUP_ROW_STYLE, FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../../../components/common/fdsTableSpec';
-import { FdsPaginationRow } from '../../../components/common/pagination/FdsPagination';
+import FdsPagination from '../../../components/common/pagination/FdsPagination';
 import { useFormatter } from '../../../components/i18n';
 import {
   type PayloadUsageOutput,
@@ -218,14 +218,24 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
           </Table>
         )}
         {usages.length > USAGES_PER_PAGE_OPTIONS[0] && (
-          <FdsPaginationRow
-            count={usages.length}
-            page={page}
-            onPageChange={setPage}
-            rowsPerPage={rowsPerPage}
-            rowsPerPageOptions={USAGES_PER_PAGE_OPTIONS}
-            onRowsPerPageChange={setRowsPerPage}
-          />
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            paddingTop: 8,
+          }}
+          >
+            <FdsPagination
+              count={usages.length}
+              page={page}
+              onPageChange={setPage}
+              rowsPerPage={rowsPerPage}
+              rowsPerPageOptions={USAGES_PER_PAGE_OPTIONS}
+              onRowsPerPageChange={(next) => {
+                setRowsPerPage(next);
+                setPage(0);
+              }}
+            />
+          </div>
         )}
         {canMigrate && usages.length > 0 && (
           <Box sx={{
@@ -390,13 +400,19 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
         </div>
       )}
       {pageCount > 1 && (
-        // Versions are counted per page of VERSIONS_PER_PAGE; this list's page is one-based.
-        <FdsPaginationRow
-          count={listed.length}
-          page={page - 1}
-          onPageChange={next => setPage(next + 1)}
-          rowsPerPage={VERSIONS_PER_PAGE}
-        />
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          paddingTop: 12,
+        }}
+        >
+          <FdsPagination
+            count={listed.length}
+            rowsPerPage={VERSIONS_PER_PAGE}
+            page={page - 1}
+            onPageChange={next => setPage(next + 1)}
+          />
+        </div>
       )}
     </div>
   );

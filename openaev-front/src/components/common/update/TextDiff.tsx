@@ -12,6 +12,8 @@ interface Props {
    * strikethrough, so they stay readable; the Before / After labels say which side is which.
    */
   side?: 'before' | 'after';
+  /** 'base' (14px) where it is the content being reviewed; 'compact' (12px) by default. */
+  size?: 'compact' | 'base';
 }
 
 // DS tokens as shipped, no custom strength: the neutral Chip fill and the normal light text (11:1 on
@@ -25,12 +27,13 @@ const MARK_STYLE = {
 };
 
 // A text with the words that differ from another text highlighted.
-const TextDiff = ({ text, other, side }: Props) => {
+const TextDiff = ({ text, other, side, size = 'compact' }: Props) => {
   const parts = useMemo(() => diffRuns(text, other), [text, other]);
   return (
     <div style={{
-      fontFamily: 'monospace',
-      fontSize: 12,
+      fontFamily: 'var(--font-content-code), ui-monospace, monospace',
+      fontSize: size === 'base' ? 'var(--text-content-code)' : 12,
+      lineHeight: size === 'base' ? '20px' : undefined,
       whiteSpace: 'pre-wrap',
       overflowWrap: 'anywhere',
       color: side === 'before' ? 'var(--text-default-secondary)' : undefined,

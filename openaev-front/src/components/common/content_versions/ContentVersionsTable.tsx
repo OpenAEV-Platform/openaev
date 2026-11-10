@@ -1,4 +1,4 @@
-import { Chip, IconButton } from '@filigran/design-system';
+import { Chip, IconButton, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 // fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
 import { Skeleton, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
@@ -8,8 +8,9 @@ import { Link } from 'react-router';
 import { type ContentHistoryOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
 import { FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../fdsTableSpec';
-import { FdsPaginationRow } from '../pagination/FdsPagination';
+import FdsPagination from '../pagination/FdsPagination';
 import BeforeAfter from '../update/BeforeAfter';
+import DiffLegend from '../update/DiffLegend';
 
 // Shape of content_history_details, a free JSON object on the API side.
 export interface HistoryChange {
@@ -148,6 +149,9 @@ const FIELD_LABELS: Record<string, string> = {
   payload_cleanup_command: 'Cleanup command',
 };
 
+// What the payload runs, compared line by line like code (same block as the Versions tab).
+const CODE_FIELDS = new Set(['command_content', 'payload_cleanup_command', 'payload_arguments', 'payload_prerequisites']);
+
 const CHOICE_LABELS: Record<string, string> = {
   KEEP_MINE: 'kept mine',
   TAKE_CATALOG: 'took Filigran\'s',
@@ -175,23 +179,29 @@ export const ChangesTable: FunctionComponent<{
   afterLabel?: string;
 }> = ({ changes, beforeLabel, afterLabel }) => {
   const { t } = useFormatter();
+  const before = beforeLabel ?? String(t('Before'));
+  const after = afterLabel ?? String(t('After'));
   return (
     <div
       aria-label={t('Changes')}
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 10,
+        gap: 12,
       }}
     >
+      {/* One key for the whole change, then one block per field (no key repeated on each). */}
+      <DiffLegend beforeLabel={before} afterLabel={after} />
       {changes.map(change => (
         <BeforeAfter
           key={change.field}
           label={t(FIELD_LABELS[change.field] ?? change.field)}
           before={valueText(change.before)}
           after={valueText(change.after)}
-          beforeLabel={beforeLabel ?? t('Before')}
-          afterLabel={afterLabel ?? t('After')}
+          beforeLabel={before}
+          afterLabel={after}
+          code={CODE_FIELDS.has(change.field)}
+          legend={false}
         />
       ))}
     </div>
@@ -204,23 +214,34 @@ interface HistoryProps {
 }
 
 export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, loading = false }) => {
-  const { t, nsdt } = useFormatter();
+  const { t, fsd, ft } = useFormatter();
   const [opened, setOpened] = useState<string | null>(null);
   const [page, setPage] = useState(0);
-  const label = (entry: ContentHistoryOutput) => {
-    const action = t(HISTORY_ACTION_LABELS[entry.content_history_action ?? ''] ?? entry.content_history_action ?? '-');
-    if (entry.content_history_action === 'VERSION_CHANGE' && entry.content_history_count != null) {
-      return t('{count} injects moved from v{from} to v{to}', {
-        count: String(entry.content_history_count),
-        from: entry.content_history_from_version ?? '-',
-        to: entry.content_history_version ?? '-',
-      });
-    }
+  // The row reads version first (what the reader scans for), then what happened under it.
+  const versionLine = (entry: ContentHistoryOutput) => {
     if (entry.content_history_from_version) {
-      return `${action} (v${entry.content_history_from_version} → v${entry.content_history_version})`;
+      return `v${entry.content_history_from_version} → v${entry.content_history_version ?? '-'}`;
     }
-    return entry.content_history_version ? `${action} v${entry.content_history_version}` : action;
+    return entry.content_history_version ? `v${entry.content_history_version}` : null;
   };
+  const actionLine = (entry: ContentHistoryOutput) => {
+    if (entry.content_history_action === 'VERSION_CHANGE' && entry.content_history_count != null) {
+      return t('{count, plural, one {# inject moved} other {# injects moved}}', { count: String(entry.content_history_count) });
+    }
+    return t(HISTORY_ACTION_LABELS[entry.content_history_action ?? ''] ?? entry.content_history_action ?? '-');
+  };
+  const twoLines = (first: ReactNode, second: ReactNode) => (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 2,
+    }}
+    >
+      <Text variant="content-compact-bold">{first}</Text>
+      <Text variant="content-compact" className="text-default-secondary">{second}</Text>
+    </div>
+  );
+
   // One line on what the entry changed; the field by field detail opens below it.
   const summary = (entry: ContentHistoryOutput) => {
     const details = historyDetails(entry);
@@ -293,11 +314,34 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
               const open = opened === entry.content_history_id;
               return (
                 <Fragment key={entry.content_history_id}>
-                  <TableRow>
-                    <TableCell>{label(entry)}</TableCell>
+                  {/* Every cell starts on the same baseline (version, changes, user, date); the expand button stays centred. */}
+                  <TableRow sx={{
+                    '& > td': { verticalAlign: 'baseline' },
+                    '& > td:last-of-type': { verticalAlign: 'middle' },
+                  }}
+                  >
+                    <TableCell>
+                      {versionLine(entry)
+                        ? twoLines(versionLine(entry), actionLine(entry))
+                        : <Text variant="content-compact-bold">{actionLine(entry)}</Text>}
+                    </TableCell>
                     <TableCell sx={{ overflowWrap: 'anywhere' }}>{summary(entry)}</TableCell>
                     <TableCell>{entry.content_history_user ?? (entry.content_history_automatic ? t('Platform') : '-')}</TableCell>
-                    <TableCell>{entry.content_history_created_at ? nsdt(entry.content_history_created_at) : '-'}</TableCell>
+                    <TableCell>
+                      {entry.content_history_created_at
+                        ? (
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 2,
+                            }}
+                            >
+                              <Text variant="content-compact">{fsd(entry.content_history_created_at)}</Text>
+                              <Text variant="content-compact" className="text-default-secondary">{ft(entry.content_history_created_at)}</Text>
+                            </div>
+                          )
+                        : '-'}
+                    </TableCell>
                     <TableCell align="right">
                       {changes.length > 0 && (
                         <IconButton
@@ -329,12 +373,14 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
         </Table>
       </div>
       {history.length > HISTORY_PER_PAGE && (
-        <FdsPaginationRow
-          count={history.length}
-          page={page}
-          onPageChange={setPage}
-          rowsPerPage={HISTORY_PER_PAGE}
-        />
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          paddingTop: 12,
+        }}
+        >
+          <FdsPagination count={history.length} page={page} onPageChange={setPage} rowsPerPage={HISTORY_PER_PAGE} />
+        </div>
       )}
     </>
   );
