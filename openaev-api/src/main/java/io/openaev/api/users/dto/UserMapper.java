@@ -27,9 +27,12 @@ public class UserMapper {
    * A detached copy of the user for the response of a request that works on the given tenant: its
    * {@code user_organization} answers for that tenant instead of the ambient one, which is the
    * default tenant when the request names another in {@code X-Tenant-Ids}. Every field of the user
-   * is copied, and the loaded associations are shared, not initialised. The copy is never persisted
-   * and the entity itself is left as it is: a lifecycle event keeps it and serializes it later, for
-   * the consumers of other tenants, which must not see the organization of this one.
+   * is copied, and the associations are shared with the user, not initialised by the copy. The only
+   * final field of a user, its resource type, is a constant the copy already has. A Hibernate proxy
+   * of the user is unwrapped first, which initialises the proxy: a proxy is a subclass of {@code
+   * User} that the field copy refuses as a source. The copy is never persisted and the entity
+   * itself is left as it is: a lifecycle event keeps it and serializes it later, for the consumers
+   * of other tenants, which must not see the organization of this one.
    *
    * @param user the user the request worked on
    * @param tenantId the tenant the request works on
