@@ -349,7 +349,8 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
                         <IconButton
                           priority="tertiary"
                           size="sm"
-                          icon={open ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+                          // White like the Versions rows' arrow (the tertiary button would paint it blue).
+                          icon={open ? <ExpandLess fontSize="small" style={{ color: 'var(--text-default-primary)' }} /> : <ExpandMore fontSize="small" style={{ color: 'var(--text-default-primary)' }} />}
                           aria-label={open ? t('Hide the changes') : t('Show the changes')}
                           onClick={() => setOpened(open ? null : entry.content_history_id)}
                         />

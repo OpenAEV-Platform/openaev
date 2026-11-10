@@ -243,7 +243,8 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
                       aria-label={folded.has(source.version.payload_id ?? '')
                         ? t('Show the injects on v{version}', { version: source.version.payload_version ?? '' })
                         : t('Hide the injects on v{version}', { version: source.version.payload_version ?? '' })}
-                      icon={folded.has(source.version.payload_id ?? '') ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
+                      // White like the Versions rows' arrow (the tertiary button would paint it blue).
+                      icon={folded.has(source.version.payload_id ?? '') ? <ExpandMore fontSize="small" style={{ color: 'var(--text-default-primary)' }} /> : <ExpandLess fontSize="small" style={{ color: 'var(--text-default-primary)' }} />}
                       onClick={() => toggleFolded(source.version.payload_id ?? '')}
                     />
                   </span>
