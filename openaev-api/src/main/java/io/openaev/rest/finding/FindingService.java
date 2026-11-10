@@ -105,11 +105,6 @@ public class FindingService {
     return saved;
   }
 
-  public Finding updateFinding(@NotNull final Finding finding, @NotNull final String injectId) {
-    findingOccurrenceService.updateField(finding.getId(), injectId, finding.getField());
-    return this.findingRepository.save(finding);
-  }
-
   public void deleteFinding(@NotNull final String id) {
     if (!this.findingRepository.existsByIdAndTenantId(id, TenantContext.getCurrentTenant())) {
       throw new EntityNotFoundException("Finding not found with id: " + id);

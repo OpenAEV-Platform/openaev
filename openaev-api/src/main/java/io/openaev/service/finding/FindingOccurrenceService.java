@@ -52,23 +52,6 @@ public class FindingOccurrenceService {
     findingOccurrenceRepository.saveAll(occurrences);
   }
 
-  // -- UPDATE --
-
-  /**
-   * Sets the field of a finding's occurrence on one inject: readers take the field from the
-   * occurrence, not from the finding. The occurrence must exist, the inject of a finding cannot be
-   * changed.
-   */
-  @Transactional(rollbackFor = Exception.class)
-  public void updateField(String findingId, String injectId, String field) {
-    FindingOccurrence occurrence =
-        findingOccurrenceRepository
-            .findByFindingIdAndInjectId(findingId, injectId)
-            .orElseThrow(
-                () -> new IllegalArgumentException("Inject id cannot be changed: " + injectId));
-    occurrence.setField(field);
-  }
-
   // -- READ --
 
   /** Returns the occurrence of a finding for one inject, if it was recorded. */
