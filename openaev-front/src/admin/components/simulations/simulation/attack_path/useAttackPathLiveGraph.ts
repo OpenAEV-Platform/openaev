@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { fetchAttackPathGraph, fetchAttackPathGraphDelta } from '../../../../../actions/attack-path/attack-path-actions';
 import type { AttackPathDTO, AttackPathNodeDTO } from '../../../../../utils/api-types';
-import { isStreamHealthy, subscribeStreamEvent } from '../../../../../utils/hooks/useDataLoader';
+import { isStreamHealthy, subscribeStreamEvent } from '../../../../../utils/stream/streamClient';
 import { applyDelta, type AttackPathGraphStore, emptyStore, fromSnapshot, toCollapsedDto, toFullDto, withFullSnapshot } from './attack-path-delta-store';
 
 // Delta cadence when the stream cannot nudge us (issue 6647). Product commits to a committed backend

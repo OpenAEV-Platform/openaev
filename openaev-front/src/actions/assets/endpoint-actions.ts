@@ -1,7 +1,7 @@
 import { type Dispatch } from 'redux';
 
 import { delReferential, getReferential, postReferential, putReferential, simpleCall, simpleDelCall, simplePostCall } from '../../utils/Action';
-import { type AssetBulkProcessingInput, type AssetUpdateMarkingsInput, type Endpoint, type EndpointInput, type EndpointOutput, type SearchPaginationInput } from '../../utils/api-types';
+import { type AssetBulkProcessingInput, type AssetUpdateMarkingsInput, type Endpoint, type EndpointInput, type EndpointOutput, type EndpointOverviewOutput, type SearchPaginationInput } from '../../utils/api-types';
 import { arrayOfEndpoints, endpoint } from './asset-schema';
 
 const ENDPOINT_URI = '/api/endpoints';
@@ -73,9 +73,13 @@ export const bulkDeleteAssets = (input: AssetBulkProcessingInput) => {
 
 // Generic asset overview for the unified detail page: returns any asset type with its
 // category-relevant fields (endpoints keep agents/platform; AI targets expose connection metadata).
-export const fetchAssetOverview = (assetId: string) => {
-  return simpleCall(`/api/assets/${assetId}`);
-};
+// Plain read backing the query cache: no store dispatch, no toast (the query cache notifies), and
+// cancellable through the query's signal.
+export const getAssetOverview = ({ assetId, signal }: {
+  assetId: string;
+  signal?: AbortSignal;
+}): Promise<EndpointOverviewOutput> =>
+  simpleCall(`/api/assets/${assetId}`, { signal }, false).then(response => response.data);
 
 // "Injects played" for the asset detail page: every inject (atomic testing or simulation inject)
 // that concerns the asset - targeted directly, through an asset group (static or dynamic) or
