@@ -669,8 +669,6 @@
             "support_version": "",
             "subscription_link": "https://www.elastic.co/security",
             "source_code": "https://github.com/OpenAEV-Platform/collectors/tree/main/elastic",
-            "description": "Validate OpenAEV detection expectations against Splunk Enterprise Security by collecting the notable events your SIEM raises in response to simulated attacks.",
-            "short_description": "Collect notable events from Splunk Enterprise Security",
             "manager_supported": true,
             "container_version": "rolling",
             "container_image": "openaev/collector-elastic",
