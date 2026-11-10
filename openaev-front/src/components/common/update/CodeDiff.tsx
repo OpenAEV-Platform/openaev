@@ -18,6 +18,8 @@ interface Props {
   afterLabel: string;
   /** Show the Before / After key in the header (default). Off when a key is shown once above several fields. */
   legend?: boolean;
+  /** Wrap long lines (text such as a description); code keeps one line per row. */
+  wrap?: boolean;
 }
 
 // Unchanged lines kept around each change; longer unchanged stretches fold.
@@ -99,7 +101,7 @@ const rowsOf = (lines: DiffLine[], expanded: Set<number>): Row[] => {
  * stretches fold ("⋯ 12 unchanged lines", click to show), and a long diff scrolls in its own frame.
  * The same block is used in the Versions tab, the History tab and rolled-back versions.
  */
-const CodeDiff: FunctionComponent<Props> = ({ label, before, after, beforeLabel, afterLabel, legend = true }) => {
+const CodeDiff: FunctionComponent<Props> = ({ label, before, after, beforeLabel, afterLabel, legend = true, wrap = false }) => {
   const { t } = useFormatter();
   const lines = useMemo(() => lineDiff(before, after), [before, after]);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -181,9 +183,10 @@ const CodeDiff: FunctionComponent<Props> = ({ label, before, after, beforeLabel,
           lineHeight: '22px',
         }}
       >
+        {/* Code scrolls sideways (one line per row); wrapped text stays the width of the frame. */}
         <div style={{
           minWidth: '100%',
-          width: 'max-content',
+          width: wrap ? '100%' : 'max-content',
         }}
         >
           {rows.map(row => (row.type === 'fold'
@@ -236,7 +239,10 @@ const CodeDiff: FunctionComponent<Props> = ({ label, before, after, beforeLabel,
                     }[row.line.kind]}
                   </span>
                   <span style={{
-                    whiteSpace: 'pre',
+                    whiteSpace: wrap ? 'pre-wrap' : 'pre',
+                    overflowWrap: wrap ? 'anywhere' : undefined,
+                    flex: wrap ? 1 : undefined,
+                    minWidth: wrap ? 0 : undefined,
                     paddingRight: 12,
                     color: 'var(--text-default-primary)',
                   }}
