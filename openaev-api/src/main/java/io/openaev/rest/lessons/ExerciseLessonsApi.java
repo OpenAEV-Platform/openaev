@@ -419,15 +419,21 @@ public class ExerciseLessonsApi extends RestBehavior {
     final User user = impersonateUser(userRepository, userId);
     final Exercise exercise = playerExercise(ctx, exerciseId, user);
     final boolean seesEveryCategory = exercise.isUserHasAccess(user);
-    return lessonsCategoryRepository
-        .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
-        .stream()
-        .filter(
-            lessonsCategory ->
-                seesEveryCategory
-                    || lessonsCategory.getTeams().stream()
-                        .anyMatch(team -> team.getUsers().contains(user)))
-        .toList();
+    // Hydrate the lazy lessons_category_teams inside the transaction: when seesEveryCategory is
+    // true the filter never walks getTeams(), so without this the teams/users arrays would
+    // serialize
+    // empty through open-in-view once the request scope is gone (same reason as the other
+    // handlers).
+    return hydrateForResponse(
+        lessonsCategoryRepository
+            .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
+            .stream()
+            .filter(
+                lessonsCategory ->
+                    seesEveryCategory
+                        || lessonsCategory.getTeams().stream()
+                            .anyMatch(team -> team.getUsers().contains(user)))
+            .toList());
   }
 
   @GetMapping({
