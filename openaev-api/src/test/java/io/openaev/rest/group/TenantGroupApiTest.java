@@ -966,7 +966,7 @@ public class TenantGroupApiTest extends IntegrationTest {
     @WithMockUser(
         withCapabilities = {
           Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
-          Capability.MANAGE_ASSESSMENT
+          Capability.MANAGE_MARKING_ASSIGNMENT
         })
     @DisplayName("Given ASSIGN_MARKING but not every marking, should forbid turning it on")
     void given_notEveryMarkingHeld_should_forbidTurningItOn() throws Exception {
