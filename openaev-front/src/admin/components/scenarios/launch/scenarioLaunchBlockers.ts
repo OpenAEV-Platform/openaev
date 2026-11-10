@@ -1,4 +1,4 @@
-import { fetchCatalogScenarioInstallPreview, fetchScenarioTargets } from '../../../../actions/catalog/scenario-catalog-actions';
+import { fetchCatalogScenarioInstallPreview, fetchCatalogScenarios, fetchScenarioTargets } from '../../../../actions/catalog/scenario-catalog-actions';
 import { searchScenarioHealthcheks } from '../../../../actions/scenarios/scenario-actions';
 import { searchScenarioInjectsSimple } from '../../../../actions/scenarios/scenario-inject-actions';
 import { type HealthCheck, type InjectOutput, type Scenario } from '../../../../utils/api-types';
@@ -59,10 +59,18 @@ const loadScenarioLaunchBlockers = (scenario: LaunchTarget): Promise<ScenarioLau
     .catch(() => [] as string[]);
   const catalogId = scenario.scenario_catalog_id;
   const version = scenario.scenario_version;
+  const missingFor = (catalogVersion: string) => fetchCatalogScenarioInstallPreview(catalogId as string, catalogVersion)
+    // Declared locally until the API types are regenerated, as in the install drawer.
+    .then(({ data }) => (data as { missing_prerequisites?: MissingPrerequisite[] }).missing_prerequisites ?? []);
+  // Once Filigran publishes a newer version, the catalogue no longer lists the installed one: its
+  // requirements are then read on the catalogue's current version of the scenario.
   const prerequisites = catalogId && version
-    ? fetchCatalogScenarioInstallPreview(catalogId, version)
-        // Declared locally until the API types are regenerated, as in the install drawer.
-        .then(({ data }) => (data as { missing_prerequisites?: MissingPrerequisite[] }).missing_prerequisites ?? [])
+    ? missingFor(version)
+        .catch(() => fetchCatalogScenarios()
+          .then((items) => {
+            const current = items.find(item => item.catalog_item_external_id === catalogId)?.catalog_item_version;
+            return current && current !== version ? missingFor(current) : null;
+          }))
         .catch(() => null)
     : Promise.resolve([] as MissingPrerequisite[]);
   const healthchecks = searchScenarioHealthcheks(scenario.scenario_id)
