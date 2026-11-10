@@ -16,6 +16,7 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.specification.FindingSpecification;
 import io.openaev.rest.finding.form.FindingOutput;
@@ -25,10 +26,12 @@ import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.FindingFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.FindingComposer;
 import io.openaev.utils.fixtures.composers.FindingOccurrenceComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -36,6 +39,7 @@ import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -60,6 +64,7 @@ class FindingOccurrenceReadPathTest extends IntegrationTest {
   @Autowired private FindingComposer findingComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private ExerciseComposer exerciseComposer;
+  @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private FindingRepository findingRepository;
   @Autowired private FindingOccurrenceComposer findingOccurrenceComposer;
   @Autowired private FindingMapper findingMapper;
@@ -183,6 +188,64 @@ class FindingOccurrenceReadPathTest extends IntegrationTest {
 
       // Act & Assert
       search(input)
+          .andExpect(jsonPath("$.totalElements").value(1))
+          .andExpect(jsonPath("$.content[0].finding_id").value(findingId));
+    }
+
+    @Test
+    @DisplayName("Should be found by the title of the inject of its second occurrence")
+    void given_textSearchOnSecondInjectTitle_should_findTheFinding() throws Exception {
+      // Arrange: only the second occurrence carries this title, not the legacy inject
+      String title = "Second inject " + UUID.randomUUID();
+      secondInject.setTitle(title);
+
+      // Act & Assert
+      search(PaginationFixture.simpleTextSearch(title))
+          .andExpect(jsonPath("$.totalElements").value(1))
+          .andExpect(jsonPath("$.content[0].finding_id").value(findingId));
+    }
+  }
+
+  @Nested
+  @DisplayName("When a finding also occurs in a simulation of a scenario")
+  class WhenAFindingOccursInAScenarioSimulation {
+
+    private String simulationName;
+    private String scenarioName;
+
+    @BeforeEach
+    void addAnOccurrenceInASimulationOfAScenario() {
+      // Arrange: only this occurrence leads to these names, not the legacy inject
+      scenarioComposer.reset();
+      simulationName = "Other simulation " + UUID.randomUUID();
+      scenarioName = "Scenario " + UUID.randomUUID();
+      Exercise otherSimulation = ExerciseFixture.createDefaultExercise();
+      otherSimulation.setName(simulationName);
+      Scenario scenario = ScenarioFixture.createDefaultCrisisScenario();
+      scenario.setName(scenarioName);
+      InjectComposer.Composer injectWrapper =
+          injectComposer.forInject(InjectFixture.getDefaultInject());
+      scenarioComposer
+          .forScenario(scenario)
+          .withSimulation(exerciseComposer.forExercise(otherSimulation).withInject(injectWrapper))
+          .persist();
+      addOccurrence(injectWrapper.get(), later(), OTHER_FIELD);
+    }
+
+    @Test
+    @DisplayName("Should be found by the name of the simulation of an occurrence")
+    void given_textSearchOnSimulationName_should_findTheFinding() throws Exception {
+      // Act & Assert
+      search(PaginationFixture.simpleTextSearch(simulationName))
+          .andExpect(jsonPath("$.totalElements").value(1))
+          .andExpect(jsonPath("$.content[0].finding_id").value(findingId));
+    }
+
+    @Test
+    @DisplayName("Should be found by the name of the scenario of an occurrence")
+    void given_textSearchOnScenarioName_should_findTheFinding() throws Exception {
+      // Act & Assert
+      search(PaginationFixture.simpleTextSearch(scenarioName))
           .andExpect(jsonPath("$.totalElements").value(1))
           .andExpect(jsonPath("$.content[0].finding_id").value(findingId));
     }

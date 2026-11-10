@@ -75,6 +75,7 @@ class IndexingRegressionTest extends IntegrationTest {
   @Autowired private CollectorComposer collectorComposer;
   @Autowired private SecurityPlatformComposer securityPlatformComposer;
   @Autowired private FindingComposer findingComposer;
+  @Autowired private FindingOccurrenceComposer findingOccurrenceComposer;
   @Autowired private TeamComposer teamComposer;
   @Autowired private UserComposer userComposer;
 
@@ -95,6 +96,7 @@ class IndexingRegressionTest extends IntegrationTest {
     collectorComposer.reset();
     securityPlatformComposer.reset();
     findingComposer.reset();
+    findingOccurrenceComposer.reset();
     teamComposer.reset();
     userComposer.reset();
   }
@@ -1070,6 +1072,53 @@ class IndexingRegressionTest extends IntegrationTest {
           .filteredOn(es -> es.getBase_id().equals(findingId))
           .singleElement()
           .satisfies(es -> assertThat(es.getBase_endpoint_side()).isEmpty());
+    }
+
+    @Test
+    @DisplayName(
+        "Only the inject the finding is deleted with is a deletion dependency, every occurrence is"
+            + " a side")
+    void given_occurrenceOnAnotherInject_should_keepItOutOfTheDependencies() {
+      // Arrange
+      FindingComposer.Composer findingWrapper =
+          findingComposer.forFinding(FindingFixture.createDefaultCveFindingWithRandomTitle());
+      InjectComposer.Composer ownInject =
+          injectComposer.forInject(InjectFixture.getDefaultInject()).withFinding(findingWrapper);
+      Exercise ownSimulation =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(ownInject)
+              .persist()
+              .get();
+      InjectComposer.Composer otherInject =
+          injectComposer.forInject(InjectFixture.getDefaultInject());
+      Exercise otherSimulation =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(otherInject)
+              .persist()
+              .get();
+      findingOccurrenceComposer
+          .forOccurrence(
+              FindingOccurrenceFixture.createOccurrence(
+                  findingWrapper.get(),
+                  otherInject.get(),
+                  Instant.now(),
+                  FindingOccurrenceFixture.OTHER_FIELD))
+          .persist();
+      entityManager.flush();
+
+      // Act
+      EsFinding indexed = fetchIndexedFinding(findingWrapper.get().getId());
+
+      // Assert: deleting the other inject leaves the finding in place, so it must not cascade
+      assertThat(indexed.getBase_dependencies())
+          .contains(ownInject.get().getId(), ownSimulation.getId())
+          .doesNotContain(otherInject.get().getId(), otherSimulation.getId());
+      assertThat(indexed.getBase_inject_side())
+          .containsExactlyInAnyOrder(ownInject.get().getId(), otherInject.get().getId());
+      assertThat(indexed.getBase_simulation_side())
+          .containsExactlyInAnyOrder(ownSimulation.getId(), otherSimulation.getId());
     }
 
     private String persistFindingInSimulation(Finding finding) {

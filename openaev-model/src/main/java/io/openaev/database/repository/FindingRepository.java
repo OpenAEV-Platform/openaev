@@ -191,11 +191,16 @@ public interface FindingRepository
               + " array_agg(DISTINCT se.scenario_id)"
               + " FILTER ( WHERE se.scenario_id IS NOT NULL ) AS scenario_ids,"
               + " array_agg(DISTINCT fa.asset_id) FILTER ( WHERE fa.asset_id IS NOT NULL ) AS asset_ids,"
+              // The inject the finding is deleted with (ON DELETE CASCADE), and its context
+              + " f.finding_inject_id, li.inject_exercise AS finding_simulation_id,"
+              + " MAX(lse.scenario_id) AS finding_scenario_id,"
               + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "FROM findings f "
               + "LEFT JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = f.finding_id "
               + "LEFT JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id "
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
+              + "LEFT JOIN injects li ON li.inject_id = f.finding_inject_id "
+              + "LEFT JOIN scenarios_exercises lse ON lse.exercise_id = li.inject_exercise "
               + "LEFT JOIN findings_assets fa ON f.finding_id = fa.finding_id "
               // Keyset resume on (updated_at, id): a batch whose LIMIT falls inside a group of
               // findings sharing one timestamp - an upsert stamps a whole transaction with now() -
@@ -210,6 +215,7 @@ public interface FindingRepository
               // and this query stops being valid SQL: search indexing then fails outright instead
               // of degrading. The array_agg(...) stay out, being aggregates.
               + "GROUP BY f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
+              + " f.finding_inject_id, li.inject_exercise,"
               + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "ORDER BY f.finding_updated_at, f.finding_id LIMIT :limit;",
       nativeQuery = true)

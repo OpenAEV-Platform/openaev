@@ -128,6 +128,13 @@ public class Finding implements TenantBase {
   @OneToMany(mappedBy = "finding", fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
   @Fetch(FetchMode.SUBSELECT)
   @JsonIgnore
+  @Queryable(
+      searchable = true,
+      paths = {
+        "occurrences.inject.title",
+        "occurrences.inject.exercise.name",
+        "occurrences.inject.exercise.scenario.name"
+      })
   private List<FindingOccurrence> occurrences = new ArrayList<>();
 
   // -- AUDIT --

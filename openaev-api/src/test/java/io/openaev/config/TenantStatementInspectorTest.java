@@ -1267,6 +1267,7 @@ class TenantStatementInspectorTest {
           "f.finding_value",
           "f.finding_value_display",
           "f.finding_type",
+          "f.finding_inject_id",
           "f.finding_created_at",
           "f.finding_updated_at",
           "f.tenant_id"

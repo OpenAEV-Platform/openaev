@@ -85,6 +85,15 @@ public interface RawFindingIndexing extends RawTenant {
    */
   Set<String> getScenario_ids();
 
+  /** Returns the inject the finding is deleted with. */
+  String getFinding_inject_id();
+
+  /** Returns the simulation of the inject the finding is deleted with. */
+  String getFinding_simulation_id();
+
+  /** Returns the scenario of the inject the finding is deleted with. */
+  String getFinding_scenario_id();
+
   /**
    * Returns the IDs of the assets where this finding was discovered.
    *
