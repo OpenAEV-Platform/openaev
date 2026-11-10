@@ -304,6 +304,10 @@ public class PlayerService {
     // below reads what the previous one committed. The lock also stops a membership from being
     // added to the player until this transaction ends, so the account is not deleted under it.
     userRepository.lockRowAgainstNewLinks(userId);
+    // The endpoint loads the player, with its groups, before this lock. The refresh reads the
+    // groups as the last committed delete holds them, so revoking the groups of this tenant
+    // rewrites the list from the committed groups.
+    entityManager.refresh(userService.user(userId));
     userRepository.removeTeamsOfTenant(userId, tenantId);
     userRepository.removeSimulationTeamUsersOfTenant(userId, tenantId);
     userRepository.removeScenarioTeamUsersOfTenant(userId, tenantId);

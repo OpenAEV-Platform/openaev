@@ -207,6 +207,103 @@ class PlayerDeleteConcurrencyTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("A player of three tenants, holding a group in each, deleted from two of them")
+  class GroupsOfTheSurvivingMembership {
+
+    private String tenantC;
+    private String groupA;
+    private String groupB;
+    private String groupC;
+
+    @BeforeEach
+    void seedThirdTenantAndGroups() {
+      tenantC = seedTenant("c");
+      jdbc.update("INSERT INTO users_tenants (user_id, tenant_id) VALUES (?, ?)", userId, tenantC);
+      groupA = seedGroupOf(tenantA, "a");
+      groupB = seedGroupOf(tenantB, "b");
+      groupC = seedGroupOf(tenantC, "c");
+    }
+
+    @AfterEach
+    void cleanupGroupsAndThirdTenant() {
+      jdbc.update("DELETE FROM users_groups WHERE user_id = ?", userId);
+      jdbc.update("DELETE FROM groups WHERE group_id IN (?, ?, ?)", groupA, groupB, groupC);
+      jdbc.update("DELETE FROM users_tenants WHERE user_id = ?", userId);
+      jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", tenantC);
+    }
+
+    private String seedGroupOf(String tenantId, String suffix) {
+      String groupId = UUID.randomUUID().toString();
+      jdbc.update(
+          "INSERT INTO groups (group_id, group_name, tenant_id)"
+              + " VALUES (?, ?, CAST(? AS uuid))",
+          groupId,
+          "player-delete-concurrency-group-" + suffix + "-" + groupId,
+          tenantId);
+      jdbc.update("INSERT INTO users_groups (user_id, group_id) VALUES (?, ?)", userId, groupId);
+      return groupId;
+    }
+
+    /**
+     * One request as the endpoint runs it: the player is loaded in the transaction (with its
+     * groups), then deleted. Both requests have loaded the player before either one deletes it.
+     */
+    private Boolean loadThenDeleteFrom(String tenantId, CyclicBarrier bothLoaded) {
+      TxCtx ctx = TxCtx.forTenant(tenantId);
+      return tenantTx.execute(
+          ctx,
+          () -> {
+            playerService.findPlayerOfWriteTenant(ctx, userId);
+            try {
+              bothLoaded.await(30, SECONDS);
+            } catch (Exception e) {
+              throw new IllegalStateException(e);
+            }
+            playerService.deletePlayerOfTenant(ctx, userId);
+            return Boolean.TRUE;
+          });
+    }
+
+    @Test
+    @DisplayName("given_playersLoadedBeforeTheDeletes_should_keepOnlyTheGroupOfTheSurvivingTenant")
+    void given_playersLoadedBeforeTheDeletes_should_keepOnlyTheGroupOfTheSurvivingTenant()
+        throws Exception {
+      // Arrange
+      CyclicBarrier bothLoaded = new CyclicBarrier(2);
+      ExecutorService pool = Executors.newFixedThreadPool(2);
+      try {
+        // Act
+        List<Future<?>> both =
+            List.of(
+                pool.submit(() -> loadThenDeleteFrom(tenantA, bothLoaded)),
+                pool.submit(() -> loadThenDeleteFrom(tenantB, bothLoaded)));
+        for (Future<?> one : both) {
+          one.get(60, SECONDS);
+        }
+      } finally {
+        pool.shutdownNow();
+      }
+
+      // Assert
+      assertThat(accounts()).as("accounts left").isEqualTo(1);
+      assertThat(
+              jdbc.queryForList(
+                  "SELECT tenant_id::text FROM users_tenants WHERE user_id = ?",
+                  String.class,
+                  userId))
+          .as("memberships left")
+          .containsExactly(tenantC);
+      assertThat(
+              jdbc.queryForList(
+                  "SELECT group_id::text FROM users_groups WHERE user_id = ?",
+                  String.class,
+                  userId))
+          .as("groups left")
+          .containsExactly(groupC);
+    }
+  }
+
+  @Nested
   @DisplayName("A player deleted from its last tenant while it is attached to another one")
   class AttachedWhileDeleted {
 
