@@ -62,6 +62,11 @@ The agent uses a token to authenticate to OpenAEV. On Windows, the agent does no
 encrypts it with **DPAPI (Data Protection API)**, the Windows service that encrypts data with a key that belongs to a
 Windows account. Only the account the agent runs as can decrypt the token.
 
+DPAPI is built into Windows since Windows XP and Windows Server 2003, so it is available on every Windows version the
+agent supports, with nothing to install (see
+[CryptProtectData](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata) in the
+Microsoft documentation).
+
 ### How it works
 
 1. The installer writes the token and the other settings to `openaev-agent-config.toml`, as before. A reinstall also
@@ -111,11 +116,11 @@ nothing.
 
 ### Token storage messages in the log
 
-Except for the first one, each message below stops the agent.
+At start, each message below stops the agent. While the agent runs, a read error only blocks the request that needs
+the token.
 
 | Message in `openaev-agent.log`                                          | Meaning                                                                        | Action              |
 |:------------------------------------------------------------------------|:-------------------------------------------------------------------------------|:--------------------|
-| `Token moved to the OS secret store`                                    | The token is encrypted and removed from the config file                        | None                |
 | `Unable to save the token in the OS secret store: ...`                  | The agent could not encrypt the token                                          | Reinstall the agent |
 | `The token is still in clear text in ...openaev-agent-config.toml: ...` | The token is encrypted, but the agent cannot remove it from the config file    | Reinstall the agent |
 | `Unable to read the token from ...openaev-agent-token.dpapi: ...`       | The file is missing or damaged, or the agent account can no longer decrypt it  | Reinstall the agent |
