@@ -1,7 +1,8 @@
 import { Button, Checkbox, Chip, Spinner, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
-import { Alert, Box, Collapse, Pagination, Skeleton, Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
-import { type FunctionComponent, type ReactNode, useEffect, useState } from 'react';
+// fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
+import { Alert, Box, Collapse, Skeleton, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import { type FunctionComponent, type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { installCatalogPayload } from '../../../actions/catalog/payload-catalog-actions';
 import {
@@ -10,15 +11,21 @@ import {
   fetchThreatArsenalVersions,
 } from '../../../actions/threat_arsenals/threatArsenal-version-actions';
 import { SkeletonRows } from '../../../components/common/content_versions/ContentVersionsTable';
+import { FDS_GROUP_ROW_STYLE, FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../../../components/common/fdsTableSpec';
+import FdsPagination from '../../../components/common/pagination/FdsPagination';
 import { useFormatter } from '../../../components/i18n';
 import {
   type PayloadUsageOutput,
   type PayloadVersionChangeOutput,
   type PayloadVersionOutput,
+  type ThreatArsenalApprovalDecisionOutput,
 } from '../../../utils/api-types';
 import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import ApprovalStatusChip from './approval/ApprovalStatusChip';
+import RejectedVersionPanel from './approval/RejectedVersionPanel';
+import VersionApprovalPanel from './approval/VersionApprovalPanel';
+import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
 import PayloadVersionSelect from './PayloadVersionSelect';
 
 const VERSIONS_PER_PAGE = 5;
@@ -27,6 +34,10 @@ const USAGES_PER_PAGE_OPTIONS = [10, 25, 50];
 interface Props {
   actionId: string;
   onChanged?: () => void;
+  /** Called after an approve / reject decision on a version (the drawer then offers to move the injects). */
+  onDecided?: (decision: ThreatArsenalApprovalDecisionOutput) => void;
+  /** Opened from a card's Migrate link: older versions still used are open, their usages ticked, the latest as target. */
+  focusMigration?: boolean;
 }
 
 interface UsagesProps {
@@ -36,20 +47,38 @@ interface UsagesProps {
   canMigrate: boolean;
   loading: boolean;
   installAction?: ReactNode;
+  /** The newest approved version older than this one, which a pending version is compared with. */
+  baseline?: PayloadVersionOutput;
+  onDecided: (decision: ThreatArsenalApprovalDecisionOutput) => void;
+  /** Open, with every usage ticked, ready to migrate (from a card's Migrate link). */
+  focus?: boolean;
+  /** Another version is focused: stay folded so the focused ones stand out. */
+  folded?: boolean;
+  scrollIntoView?: boolean;
   onMigrate: (source: PayloadVersionOutput, target: PayloadVersionOutput, usages: PayloadUsageOutput[]) => Promise<PayloadVersionChangeOutput | null>;
 }
 
-const USAGE_TYPE_LABELS: Record<string, string> = {
-  inject: 'Inject',
-  atomic_testing: 'Atomic testing',
-  step: 'Chained step',
-};
-
 // The injects, atomic tests and chained steps on one version, moved together to another version (F30).
-const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets, canMigrate, loading, installAction, onMigrate }) => {
+const VersionUsages: FunctionComponent<UsagesProps> = ({
+  source,
+  usages,
+  targets,
+  canMigrate,
+  loading,
+  installAction,
+  baseline,
+  onDecided,
+  focus = false,
+  folded = false,
+  scrollIntoView = false,
+  onMigrate,
+}) => {
   const { t } = useFormatter();
   const usageCount = source.payload_usage_count ?? 0;
-  const [expanded, setExpanded] = useState(!!source.payload_is_latest);
+  const pending = source.payload_approval_status === 'PENDING';
+  // The latest version, and a version waiting for a decision, open on what to do with them.
+  const [expanded, setExpanded] = useState(focus || (!folded && (!!source.payload_is_latest || pending)));
+  const rowRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(USAGES_PER_PAGE_OPTIONS[0]);
@@ -60,9 +89,15 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
   const [result, setResult] = useState<PayloadVersionChangeOutput | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
   useEffect(() => {
-    setSelected(new Set());
+    setSelected(focus && canMigrate ? new Set(usages.map(usage => usage.usage_id)) : new Set());
     setPage(0);
   }, [usages]);
+  useEffect(() => {
+    if (scrollIntoView && usages.length > 0) rowRef.current?.scrollIntoView({
+      block: 'start',
+      behavior: 'smooth',
+    });
+  }, [scrollIntoView, usages.length]);
   useEffect(() => setTarget(defaultTarget), [defaultTarget]);
 
   // The header checkbox selects every usage of the version, on every page.
@@ -90,18 +125,12 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
   const sectionSx = {
     paddingInline: 2,
     paddingBlock: 1.5,
-    borderTop: 1,
-    borderColor: 'divider',
+    borderBottom: '1px solid var(--border-elevation-subtle-soft)',
   };
 
   return (
-    <Box sx={{
-      border: 1,
-      borderColor: 'divider',
-      borderRadius: 1,
-      overflow: 'hidden',
-    }}
-    >
+    // One group of the versions table (its frame is the list): no box of its own.
+    <Box ref={rowRef}>
       <Box
         role="button"
         tabIndex={0}
@@ -113,31 +142,36 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
             setExpanded(!expanded);
           }
         }}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          paddingInline: 2,
-          paddingBlock: 1.5,
-          backgroundColor: 'action.hover',
+        // The version is a Table group row of the DS: chevron, bold label, (count), then its chips.
+        style={{
+          ...FDS_GROUP_ROW_STYLE,
           cursor: 'pointer',
         }}
       >
         {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
         <Text variant="content-base-bold">{`v${source.payload_version ?? '-'}`}</Text>
+        {source.payload_installed && (
+          <Text variant="content-base" className="text-default-secondary">
+            {`(${t('{count} injects', { count: String(loading ? usageCount : usages.length) })})`}
+          </Text>
+        )}
         {!source.payload_installed && <Chip label={t('Not installed')} />}
         {source.payload_revoked && <Chip label={t('Revoked')} severity="critical" />}
         {source.payload_approval_status && source.payload_approval_status !== 'APPROVED' && <ApprovalStatusChip status={source.payload_approval_status} />}
         <Box sx={{ flex: 1 }} />
-        {source.payload_installed
-          ? (
-              <Text variant="content-compact" className="text-default-secondary">
-                {t('{count} injects', { count: String(loading ? usageCount : usages.length) })}
-              </Text>
-            )
-          : <span onClick={event => event.stopPropagation()}>{installAction}</span>}
+        {!source.payload_installed && <span onClick={event => event.stopPropagation()}>{installAction}</span>}
       </Box>
       <Collapse in={expanded} unmountOnExit>
+        {source.payload_installed && pending && (
+          <Box sx={sectionSx}>
+            <VersionApprovalPanel version={source} baseline={baseline} onDecided={onDecided} />
+          </Box>
+        )}
+        {source.payload_installed && source.payload_approval_status === 'REJECTED' && (
+          <Box sx={sectionSx}>
+            <RejectedVersionPanel version={source} baseline={baseline} />
+          </Box>
+        )}
         {source.payload_changelog && (
           <Box sx={sectionSx}>
             <Text variant="content-compact" className="text-default-secondary">{source.payload_changelog}</Text>
@@ -154,13 +188,14 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
             ))}
           </Alert>
         )}
-        {source.payload_installed && !loading && usages.length === 0 && (
+        {/* A version waiting for a decision cannot be used yet: saying nothing uses it adds nothing. */}
+        {source.payload_installed && !pending && !loading && usages.length === 0 && (
           <Box sx={sectionSx}>
             <Text variant="content-compact" className="text-default-secondary">{t('No inject uses this version')}</Text>
           </Box>
         )}
         {source.payload_installed && ((loading && usageCount > 0) || usages.length > 0) && (
-          <Table size="small" aria-label={t('Injects on v{version}', { version: source.payload_version ?? '-' })}>
+          <Table size="small" sx={FDS_TABLE_SX} aria-label={t('Injects on v{version}', { version: source.payload_version ?? '-' })}>
             <TableHead>
               <TableRow>
                 {canMigrate && (
@@ -207,18 +242,24 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
           </Table>
         )}
         {usages.length > USAGES_PER_PAGE_OPTIONS[0] && (
-          <TablePagination
-            component="div"
-            count={usages.length}
-            page={page}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            rowsPerPage={rowsPerPage}
-            rowsPerPageOptions={USAGES_PER_PAGE_OPTIONS}
-            onRowsPerPageChange={(event) => {
-              setRowsPerPage(parseInt(event.target.value, 10));
-              setPage(0);
-            }}
-          />
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            paddingTop: 8,
+          }}
+          >
+            <FdsPagination
+              count={usages.length}
+              page={page}
+              onPageChange={setPage}
+              rowsPerPage={rowsPerPage}
+              rowsPerPageOptions={USAGES_PER_PAGE_OPTIONS}
+              onRowsPerPageChange={(next) => {
+                setRowsPerPage(next);
+                setPage(0);
+              }}
+            />
+          </div>
         )}
         {canMigrate && usages.length > 0 && (
           <Box sx={{
@@ -259,7 +300,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({ source, usages, targets
 };
 
 // F7: every version of the payload, installed or only in the catalogue, with the injects on each one.
-const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged }) => {
+const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, onDecided, focusMigration = false }) => {
   const { t } = useFormatter();
   // Installing and moving usages both need to manage the arsenal, as the API requires.
   const canManage = useAbility().can(ACTIONS.MANAGE, SUBJECTS.THREAT_ARSENALS);
@@ -272,6 +313,9 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged }) =
   const [installing, setInstalling] = useState<string | null>(null);
 
   const listed = versions.filter(v => !!v.payload_version);
+  // From a card's Migrate link: the older installed versions something still runs.
+  const isFocused = (v: PayloadVersionOutput) => focusMigration && !v.payload_is_latest && !!v.payload_installed && (v.payload_usage_count ?? 0) > 0;
+  const firstFocused = listed.find(isFocused);
   const pageCount = Math.max(1, Math.ceil(listed.length / VERSIONS_PER_PAGE));
   const pageVersions = listed.slice((page - 1) * VERSIONS_PER_PAGE, page * VERSIONS_PER_PAGE);
 
@@ -306,6 +350,10 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged }) =
     setPage(1);
     load();
   }, [actionId]);
+
+  useEffect(() => {
+    if (firstFocused) setPage(Math.floor(listed.indexOf(firstFocused) / VERSIONS_PER_PAGE) + 1);
+  }, [firstFocused?.payload_id]);
 
   // Every reload resets the usages, so the page shown fetches them again.
   useEffect(() => {
@@ -355,32 +403,48 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged }) =
     }}
     >
       {loading && versions.length === 0 && [0, 1].map(key => <Skeleton key={key} variant="rounded" height={96} />)}
-      {pageVersions.map(source => (
-        <VersionUsages
-          key={source.payload_version}
-          source={source}
-          usages={source.payload_action_id ? usages[source.payload_action_id] ?? [] : []}
-          // Payload approval: injects move only to an approved version (a catalogue version not
-          // installed yet is approved when installed, its source being trusted).
-          targets={versions.filter(v => v.payload_version && v.payload_version !== source.payload_version && !v.payload_revoked
-            && (v.payload_installed ? v.payload_approval_status === 'APPROVED' : true))}
-          canMigrate={canManage}
-          loading={!!source.payload_action_id && (loadingUsages.has(source.payload_action_id) || (!usages[source.payload_action_id] && (source.payload_usage_count ?? 0) > 0))}
-          installAction={installButton(source)}
-          onMigrate={migrate}
-        />
-      ))}
+      {/* One DS table: each version a group row, its injects the rows under it. */}
+      {pageVersions.length > 0 && (
+        <div style={FDS_TABLE_FRAME_STYLE}>
+          {pageVersions.map(source => (
+            <VersionUsages
+              key={source.payload_version}
+              source={source}
+              usages={source.payload_action_id ? usages[source.payload_action_id] ?? [] : []}
+              // Payload approval: injects move only to an approved version (a catalogue version not
+              // installed yet is approved when installed, its source being trusted).
+              targets={versions.filter(v => v.payload_version && v.payload_version !== source.payload_version && !v.payload_revoked
+                && (v.payload_installed ? v.payload_approval_status === 'APPROVED' : true))}
+              canMigrate={canManage}
+              loading={!!source.payload_action_id && (loadingUsages.has(source.payload_action_id) || (!usages[source.payload_action_id] && (source.payload_usage_count ?? 0) > 0))}
+              installAction={installButton(source)}
+              focus={isFocused(source)}
+              folded={!!firstFocused && !isFocused(source)}
+              scrollIntoView={source === firstFocused}
+              baseline={listed.slice(listed.indexOf(source) + 1).find(v => v.payload_installed && v.payload_approval_status === 'APPROVED')}
+              onDecided={(decision) => {
+                reload();
+                onDecided?.(decision);
+              }}
+              onMigrate={migrate}
+            />
+          ))}
+        </div>
+      )}
       {pageCount > 1 && (
-        <Pagination
-          count={pageCount}
-          page={page}
-          onChange={(_, newPage) => setPage(newPage)}
-          size="small"
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-          }}
-        />
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          paddingTop: 12,
+        }}
+        >
+          <FdsPagination
+            count={listed.length}
+            rowsPerPage={VERSIONS_PER_PAGE}
+            page={page - 1}
+            onPageChange={next => setPage(next + 1)}
+          />
+        </div>
       )}
     </div>
   );

@@ -7,11 +7,11 @@ import { fetchAttackPatterns } from '../../../actions/AttackPattern';
 import { fetchThreatArsenalAction, fetchThreatArsenalActionIdOfPayload } from '../../../actions/threat_arsenals/threatArsenal-actions';
 import DialogDelete from '../../../components/common/DialogDelete';
 import MarketplaceBrowser from '../../../components/common/marketplace/MarketplaceBrowser';
-import MarketplaceHero from '../../../components/common/marketplace/MarketplaceHero';
 import MarketplaceLoadMore from '../../../components/common/marketplace/MarketplaceLoadMore';
 import MarketplaceSortSelect from '../../../components/common/marketplace/MarketplaceSortSelect';
 import MarketplaceViewToggle from '../../../components/common/marketplace/MarketplaceViewToggle';
 import useMarketplaceView from '../../../components/common/marketplace/useMarketplaceView';
+import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
@@ -28,6 +28,7 @@ import ThreatArsenalHeaderActions from './ThreatArsenalHeaderActions';
 import ThreatArsenalInformationDrawer from './ThreatArsenalInformationDrawer';
 import ThreatArsenalList from './ThreatArsenalList';
 import { THREAT_ARSENAL_SORT_OPTIONS } from './threatArsenalListConfig';
+import { ThreatArsenalHero } from './ThreatArsenalPageHeader';
 import ThreatArsenalSelectAll from './ThreatArsenalSelectAll';
 import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
@@ -101,6 +102,18 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
       setOpenedAction(found);
     }
   }, [installed.threatArsenalActions]);
+  // Same as ticking the sidebar Approval row: one approval value.
+  const filterApproval = (status: string) => {
+    const { filterHelpers } = installed.queryableHelpers;
+    filterHelpers.handleRemoveFilterByKey('action_payload_approval_status');
+    filterHelpers.handleAddFilterWithEmptyValue({
+      id: generateFilterId(),
+      key: 'action_payload_approval_status',
+      operator: 'eq',
+      values: [status],
+      mode: 'and',
+    });
+  };
   const { selection } = installed;
   const selectionCount = selection.numberOfSelectedElements;
 
@@ -140,20 +153,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
     >
       <MarketplaceBrowser
         tabs={tabs}
-        hero={(
-          <MarketplaceHero
-            title={t('Threat Arsenal')}
-            subtitle={t('Browse, install and version the actions your simulations run.')}
-            rightSlot={(
-              <ThreatArsenalHeaderActions
-                totalElements={installed.totalElements}
-                actions={installed.threatArsenalActions}
-                searchPaginationInput={installed.searchPaginationInput}
-                onAdd={installed.prependActions}
-              />
-            )}
-          />
-        )}
+        hero={<ThreatArsenalHero onFilterApproval={filterApproval} onCreate={action => installed.prependActions([action])} />}
         sidebar={(
           <ThreatArsenalSidebar
             domainElements={installed.iconBarOrderedDomains}
@@ -167,7 +167,23 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           <PaginationComponentV2
             resultsCount
             infiniteScroll
-            topBarButtons={<MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />}
+            // Export and import act on this list, so they sit with it, not in the Hero shared by every tab.
+            topBarButtons={(
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+              >
+                <ThreatArsenalHeaderActions
+                  totalElements={installed.totalElements}
+                  actions={installed.threatArsenalActions}
+                  searchPaginationInput={installed.searchPaginationInput}
+                  onAdd={installed.prependActions}
+                />
+                <MarketplaceViewToggle value={viewMode} onChange={handleViewModeChange} />
+              </div>
+            )}
             fetch={installed.fetchActions}
             searchPaginationInput={installed.searchPaginationInput}
             setContent={installed.setThreatArsenalActions}
@@ -211,6 +227,9 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           onClose={closeOpenedAction}
           threatArsenalAction={openedAction}
           onApprovalChanged={(actionId, status) => installed.setApprovalStatus(actionId, status)}
+          // "See where it is used" (revoke dialog) opens the Versions tab, which lists every usage.
+          initialTab={linkedActionId && searchParams.get('tab') === 'versions' ? 'versions' : undefined}
+          focusMigration={!!linkedActionId && searchParams.get('focus') === 'migrate'}
           onRunTest={setRunTestAction}
         />
       )}

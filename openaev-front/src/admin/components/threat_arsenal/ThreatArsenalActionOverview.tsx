@@ -51,6 +51,7 @@ import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
+import { useApprovedEarlierVersion } from './approval/approvedEarlierVersion';
 import PayloadRevocationBanner from './PayloadRevocationBanner';
 import PayloadVerificationTag from './PayloadVerificationTag';
 import ThreatArsenalStatusChip from './ThreatArsenalStatusChip';
@@ -111,6 +112,12 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
 }) => {
   const { t, tPick, nsdt } = useFormatter();
   const theme = useTheme();
+  const shownApproval = action.action_payload?.payload_approval_status ?? payload?.payload_approval_status;
+  const isNewVersion = useApprovedEarlierVersion(
+    action.injector_contract_id,
+    shownApproval === 'PENDING' || shownApproval === 'REJECTED' || shownApproval === 'SUPERSEDED',
+    (action.action_payload?.payload_installed_versions ?? 0) > 1,
+  );
 
   const { attackPatternsMap, documentsMap: storeDocumentsMap, allDomains } = useHelper(
     (helper: AttackPatternHelper & DocumentHelper & DomainHelper) => ({
@@ -285,6 +292,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
                 <ThreatArsenalStatusChip
                   revoked={action.action_payload?.payload_revoked || payload?.payload_status === 'REVOKED'}
                   approvalStatus={action.action_payload?.payload_approval_status ?? payload?.payload_approval_status}
+                  pendingVersion={isNewVersion}
                 />
               )}
             </Box>

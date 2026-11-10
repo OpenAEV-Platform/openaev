@@ -1,10 +1,9 @@
 import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { EventAvailableOutlined, LabelOutlined, RouteOutlined, ScheduleOutlined, TimerOutlined } from '@mui/icons-material';
-import { Box, Typography } from '@mui/material';
+import { LabelOutlined, RouteOutlined, ScheduleOutlined } from '@mui/icons-material';
 import { type FunctionComponent, type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { getInjectStatusWithGlobalExecutionTraces } from '../../../../actions/injects/inject-action';
-import { DetailHero } from '../../../../components/common/detail/EntityDetailCommon';
+import { DetailHero, HeroMetaItem } from '../../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
 import type { InjectResultOverviewOutput, InjectStatus as InjectStatusType, InjectStatusOutput } from '../../../../utils/api-types';
@@ -25,31 +24,6 @@ interface Props {
   injectResultOverview: InjectResultOverviewOutput;
   actions?: ReactNode;
 }
-
-// A single compact meta item (icon + inline content) for the hero metadata row.
-const MetaItem = ({ icon, children }: {
-  icon: ReactNode;
-  children: ReactNode;
-}) => (
-  <span style={{
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    minWidth: 0,
-  }}
-  >
-    {icon}
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 6,
-      minWidth: 0,
-    }}
-    >
-      {children}
-    </span>
-  </span>
-);
 
 /**
  * Hero header shared by the atomic testing page and the simulation inject
@@ -127,15 +101,14 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
     : null;
   const platforms = injectResultOverview.inject_injector_contract?.injector_contract_platforms ?? [];
   const killChainPhases = injectResultOverview.inject_kill_chain_phases ?? [];
-  const metaIconSx = {
-    fontSize: 15,
-    color: 'text.disabled',
-  } as const;
-  const metaTextSx = {
-    fontSize: 12.5,
-    color: 'text.secondary',
-  } as const;
-  const hasMeta = !!startDate || !!endDate || platforms.length > 0 || killChainPhases.length > 0;
+  const metaIcon = { fontSize: 16 };
+  // When it ran, in one item: start and duration, exact start and end on hover.
+  const runHint = [
+    startDate && `${t('Start date')}: ${nsdt(startDate)}`,
+    endDate && `${t('End date')}: ${nsdt(endDate)}`,
+    duration && `${t('Duration')}: ${duration}`,
+  ].filter(Boolean).join(' · ');
+  const hasMeta = !!startDate || platforms.length > 0 || killChainPhases.length > 0 || (injectResultOverview.injects_tags?.length ?? 0) > 0;
 
   return (
     <DetailHero
@@ -175,80 +148,49 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
           )}
         </>
       )}
-      action={actions}
-      footer={(
+      meta={hasMeta && (
         <>
-          {hasMeta && (
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              columnGap: 2.5,
-              rowGap: 1,
-            }}
-            >
-              {startDate && (
-                <MetaItem icon={<ScheduleOutlined sx={metaIconSx} />}>
-                  <Typography component="span" sx={metaTextSx}>
-                    {t('Start date')}
-                    {': '}
-                    {nsdt(startDate)}
-                  </Typography>
-                </MetaItem>
-              )}
-              {endDate && (
-                <MetaItem icon={<EventAvailableOutlined sx={metaIconSx} />}>
-                  <Typography component="span" sx={metaTextSx}>
-                    {t('End date')}
-                    {': '}
-                    {nsdt(endDate)}
-                  </Typography>
-                </MetaItem>
-              )}
-              {duration && (
-                <MetaItem icon={<TimerOutlined sx={metaIconSx} />}>
-                  <Typography component="span" sx={metaTextSx}>
-                    {t('Duration')}
-                    {': '}
-                    {duration}
-                  </Typography>
-                </MetaItem>
-              )}
-              {platforms.length > 0 && (
-                <MetaItem icon={null}>
-                  {platforms.map(platform => (
-                    <Tooltip key={platform}>
-                      <TooltipTrigger asChild>
-                        <span style={{ display: 'inline-flex' }}>
-                          <PlatformIcon platform={platform} width={16} />
-                        </span>
-                      </TooltipTrigger>
-                      {platform && <TooltipContent>{platform}</TooltipContent>}
-                    </Tooltip>
-                  ))}
-                </MetaItem>
-              )}
-              {killChainPhases.length > 0 && (
-                <MetaItem icon={<RouteOutlined sx={metaIconSx} />}>
-                  <Typography component="span" sx={metaTextSx}>
-                    {killChainPhases.map(phase => phase.phase_name).join(', ')}
-                  </Typography>
-                </MetaItem>
-              )}
-              {(injectResultOverview.injects_tags?.length ?? 0) > 0 && (
-                <MetaItem icon={<LabelOutlined sx={metaIconSx} />}>
-                  <Typography component="span" sx={metaTextSx}>
-                    {injectResultOverview.injects_tags?.length}
-                    {' '}
-                    {t('tag(s)')}
-                  </Typography>
-                </MetaItem>
-              )}
-            </Box>
+          {startDate && (
+            <HeroMetaItem
+              icon={<ScheduleOutlined sx={metaIcon} />}
+              label={duration ? `${nsdt(startDate)} · ${duration}` : nsdt(startDate)}
+              hint={runHint}
+            />
           )}
-          <InjectScoreTiles expectationResultsByTypes={injectResultOverview.inject_expectation_results} />
+          {platforms.length > 0 && (
+            <HeroMetaItem
+              label={(
+                <span style={{
+                  display: 'inline-flex',
+                  gap: 6,
+                }}
+                >
+                  {platforms.map(platform => <PlatformIcon key={platform} platform={platform} width={16} />)}
+                </span>
+              )}
+              hint={`${t('Platforms')}: ${platforms.join(', ')}`}
+            />
+          )}
+          {killChainPhases.length > 0 && (
+            <HeroMetaItem
+              icon={<RouteOutlined sx={metaIcon} />}
+              label={killChainPhases.map(phase => phase.phase_name).join(', ')}
+              hint={`${t('Kill chain phases')}: ${killChainPhases.map(phase => phase.phase_name).join(', ')}`}
+            />
+          )}
+          {(injectResultOverview.injects_tags?.length ?? 0) > 0 && (
+            <HeroMetaItem
+              icon={<LabelOutlined sx={metaIcon} />}
+              label={`${injectResultOverview.injects_tags?.length} ${t('tag(s)')}`}
+            />
+          )}
         </>
       )}
+      action={actions}
+      // The body keeps the results only (facts about the run are in meta); no tiles, no body.
+      footer={(injectResultOverview.inject_expectation_results ?? []).some(entry => entry?.type)
+        ? <InjectScoreTiles expectationResultsByTypes={injectResultOverview.inject_expectation_results} />
+        : undefined}
     />
   );
 };

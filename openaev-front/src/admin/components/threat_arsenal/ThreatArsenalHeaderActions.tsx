@@ -6,7 +6,6 @@ import ExportButton from '../../../components/common/ExportButton';
 import { type SearchPaginationInput, type ThreatArsenalAction } from '../../../utils/api-types';
 import { Can } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
-import CreateThreatArsenalAction from './CreateThreatArsenalAction';
 import ImportUploaderThreatArsenal from './ImportUploaderThreatArsenal';
 
 interface Props {
@@ -16,40 +15,34 @@ interface Props {
   onAdd: (results: ThreatArsenalAction[]) => void;
 }
 
+// Export and import of the Active list, in its toolbar; Create is the Hero's section action.
 const ThreatArsenalHeaderActions: FunctionComponent<Props> = ({
   totalElements,
   actions,
   searchPaginationInput,
   onAdd,
 }) => (
-  <>
-    {/* A plain row of actions: this was a ToggleButtonGroup used as a frame,
-        which announced a group of choices that never existed. */}
-    <Box sx={{
-      display: 'flex',
-      gap: 1,
-    }}
-    >
-      <ExportButton
-        totalElements={totalElements}
-        exportProps={{
-          exportType: 'THREAT_ARSENAL_ACTIONS',
-          exportKeys: [],
-          exportData: actions,
-          searchPaginationInput,
-        }}
-        exportCsvMapperFunction={exportThreatArsenalCsvMapper}
-      />
-      <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
-        <ImportUploaderThreatArsenal onImport={onAdd} />
-      </Can>
-    </Box>
-    {/* Beside the import icons, one instance for both views: in the pagination
-        row the card view's sort select pushed it out of reach (#7340). */}
+  // A plain row of actions: this was a ToggleButtonGroup used as a frame,
+  // which announced a group of choices that never existed.
+  <Box sx={{
+    display: 'flex',
+    gap: 1,
+  }}
+  >
+    <ExportButton
+      totalElements={totalElements}
+      exportProps={{
+        exportType: 'THREAT_ARSENAL_ACTIONS',
+        exportKeys: [],
+        exportData: actions,
+        searchPaginationInput,
+      }}
+      exportCsvMapperFunction={exportThreatArsenalCsvMapper}
+    />
     <Can I={ACTIONS.MANAGE} a={SUBJECTS.THREAT_ARSENALS}>
-      <CreateThreatArsenalAction onCreate={(result: ThreatArsenalAction) => onAdd([result])} />
+      <ImportUploaderThreatArsenal onImport={onAdd} />
     </Can>
-  </>
+  </Box>
 );
 
 export default ThreatArsenalHeaderActions;

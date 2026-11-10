@@ -2,18 +2,22 @@ import { Chip } from '@filigran/design-system';
 import { type FunctionComponent } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
-import { type ApprovalStatus, approvalStatusLabel, approvalStatusSeverity } from './approvalStatusUtils';
+import { actionApprovalLabel, type ApprovalStatus, approvalStatusLabel, approvalStatusSeverity } from './approvalStatusUtils';
 
-interface Props { status?: ApprovalStatus | null }
+interface Props {
+  status?: ApprovalStatus | null;
+  /** Set where the chip stands for the whole action: a pending status then says new action or new version. */
+  pendingVersion?: boolean;
+}
 
-const ApprovalStatusChip: FunctionComponent<Props> = ({ status }) => {
+const ApprovalStatusChip: FunctionComponent<Props> = ({ status, pendingVersion }) => {
   const { t } = useFormatter();
   if (!status) {
     return <span>-</span>;
   }
   return (
     <Chip
-      label={t(approvalStatusLabel(status))}
+      label={t(pendingVersion === undefined ? approvalStatusLabel(status) : actionApprovalLabel(status, pendingVersion))}
       severity={approvalStatusSeverity(status)}
       style={{ maxWidth: '100%' }}
     />

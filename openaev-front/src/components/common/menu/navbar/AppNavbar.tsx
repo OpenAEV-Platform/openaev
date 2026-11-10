@@ -65,7 +65,7 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
         aria-label={t(item.label)}
         aria-current={isItemCurrent(location.pathname, item.path) ? 'page' : undefined}
       >
-        <NavbarItemContent icon={item.icon()} label={t(item.label)} collapsed={collapsed} />
+        <NavbarItemContent icon={item.icon()} label={t(item.label)} collapsed={collapsed} badge={item.badge} />
       </Link>
     </NavbarItem>
   );

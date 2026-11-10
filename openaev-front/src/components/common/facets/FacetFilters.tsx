@@ -1,4 +1,4 @@
-import { Text } from '@filigran/design-system';
+import { Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { Box, ButtonBase, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { type ReactElement } from 'react';
@@ -10,6 +10,8 @@ export interface FacetRow {
   label: string;
   count?: number;
   icon?: () => ReactElement;
+  /** Explains the value on hover (e.g. what "New version" means). */
+  hint?: string;
   onToggle: () => void;
   checked: boolean;
 }
@@ -28,7 +30,7 @@ export interface FacetSection {
 export const FacetRowItem = ({ row }: { row: FacetRow }) => {
   const theme = useTheme();
   const disabled = row.count === 0 && !row.checked;
-  return (
+  const item = (
     <ButtonBase
       role="checkbox"
       aria-checked={row.checked}
@@ -102,6 +104,13 @@ export const FacetRowItem = ({ row }: { row: FacetRow }) => {
         </span>
       )}
     </ButtonBase>
+  );
+  if (!row.hint) return item;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{item}</TooltipTrigger>
+      <TooltipContent side="right">{row.hint}</TooltipContent>
+    </Tooltip>
   );
 };
 
