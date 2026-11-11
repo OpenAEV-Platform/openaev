@@ -259,7 +259,11 @@ public class StreamService {
    * nor {@code exerciseTeamUsers}, and a collection that was not loaded is never initialized from
    * the stream thread. {@code user_teams} and {@code user_tags} are rebuilt from the collections
    * when they are loaded, {@code user_is_player} from them, and the other two are never sent: their
-   * ids carry no tenant and no screen reads them from the stream.
+   * ids carry no tenant and no screen reads them from the stream. {@code unscopedGroups} is not
+   * serialized either.
+   *
+   * <p>That guarantee stops there: {@code user_organization} is still serialized, and reads {@code
+   * organizations}, which the writer of the event loads ({@code User#loadOrganizations}).
    */
   @JsonIgnoreProperties({
     USER_TEAMS_FIELD,
@@ -387,8 +391,8 @@ public class StreamService {
 
   /**
    * The user as the consumer's tenant holds it, in a tree of its own: a user is platform-level, so
-   * its event reaches the consumers of every tenant, and the instance it holds was loaded in the
-   * scope of the write.
+   * its event is delivered to the consumers of each tenant, and the instance it holds was loaded in
+   * the scope of the write.
    *
    * <ul>
    *   <li>{@code user_teams} and {@code user_tags} keep the ids of the consumer's tenant, read from
@@ -408,6 +412,9 @@ public class StreamService {
    *
    * The groups, capabilities and the other flags are derived from the tenant context of the
    * consumer, set by the caller, and need no trim.
+   *
+   * <p>When the consumer's tenant is null, the write is never in the consumer's tenant: no id is of
+   * its tenant, and {@code user_teams} and {@code user_tags} are left out, not sent empty.
    *
    * <p>A field added to {@code User} is ruled on here, and added to {@code STREAMED_USER_FIELDS} in
    * {@code UserStreamEventConsumerTenantTest}.

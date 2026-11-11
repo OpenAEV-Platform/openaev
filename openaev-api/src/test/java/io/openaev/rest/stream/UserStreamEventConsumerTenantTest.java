@@ -82,16 +82,16 @@ import org.springframework.transaction.support.TransactionTemplate;
 import reactor.core.Disposable;
 
 /**
- * A user is platform-level, so its events reach the stream consumers of every tenant. Each consumer
- * is sent the user as it holds in the tenant of that consumer: the links of the user to the
- * entities of the tenant, and the ids the consumer's tenant knows.
+ * A user is platform-level, so its events are delivered to the stream consumers of each tenant.
+ * Each consumer is sent the user as it holds in the tenant of that consumer: the links of the user
+ * to the entities of the tenant, and the ids the consumer's tenant knows.
  *
  * <p>The rule, per field of the user, as a consumer of tenant T receives it:
  *
  * <ul>
- *   <li>{@code user_teams}, {@code user_tags}: the ids of tenant T, and the field is left out when
- *       the write was made in another tenant, so the consumer keeps what it holds, or when the
- *       collection was not loaded;
+ *   <li>{@code user_teams}, {@code user_tags}: the ids of tenant T; the field is left out when no
+ *       id of tenant T is loaded and the write was made in another tenant, so the consumer keeps
+ *       what it holds, or when the collection was not loaded;
  *   <li>{@code user_is_player}: true for an admin, a planner or an observer, otherwise true when
  *       the {@code user_teams} sent hold an id, false when they are sent empty, left out when
  *       {@code user_teams} is;
