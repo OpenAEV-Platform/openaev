@@ -513,8 +513,8 @@ class ChannelArticleLinksTenantScopeTest extends IntegrationTest {
   }
 
   /**
-   * A null document id reaches {@code findById(null)}, which Spring Data refuses with an {@code
-   * InvalidDataAccessApiUsageException}; the REST handler answers 400 and the transaction rolls
+   * A null document id reaches {@code DocumentRepository.findByIdInTenant}, which refuses it with
+   * an {@code IllegalArgumentException}; the REST handler answers 400 and the transaction rolls
    * back.
    */
   private static void assertNullDocumentRefused(ResultActions result) throws Exception {
