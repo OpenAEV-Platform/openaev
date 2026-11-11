@@ -15,6 +15,7 @@ import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
+import io.openaev.database.model.Grant;
 import io.openaev.database.model.Tenant;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
@@ -24,6 +25,7 @@ import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.ContractRightsFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,6 +66,9 @@ class InjectorContractRightsPerCopyTest extends ProductionTablesIntegrationTest 
 
   private static final String LABEL_PREFIX = "rights-copy-";
   private static final String HEADER = "X-Tenant-Ids";
+
+  /** Both surfaces name the contract of a row by this field. */
+  private static final String CONTRACT_ID_FIELD = "injector_contract_id";
 
   @Autowired private MockMvc mvc;
   @Autowired private DataSource dataSource;
@@ -143,12 +148,30 @@ class InjectorContractRightsPerCopyTest extends ProductionTablesIntegrationTest 
     testUserHolder.refreshSecurityContext();
   }
 
+  private void grantOnIdentity(String groupId, String identityId) {
+    rights.grantObserver(groupId, identityId);
+    testUserHolder.refreshSecurityContext();
+  }
+
+  /** A contract id with a copy in the default tenant and one in tenant A, each labelled apart. */
+  private String copiesOf(String name) {
+    String id = "rights-" + name + "-" + UUID.randomUUID();
+    rights.cloneManualContract(
+        id, Tenant.DEFAULT_TENANT_UUID, copyLabel(name, Tenant.DEFAULT_TENANT_UUID));
+    rights.cloneManualContract(id, tenantA, copyLabel(name, tenantA));
+    return id;
+  }
+
+  private static String copyLabel(String name, String tenantId) {
+    return LABEL_PREFIX + name + "-" + tenantId;
+  }
+
   private MockHttpServletRequestBuilder request(
       MockHttpServletRequestBuilder builder, Route route, String scope) {
     // a fixture leaves a tenant on the test thread: production's thread starts with none
     TenantContext.clearCurrentTenant();
     assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
-    return route == Route.HEADER ? builder.header(HEADER, scope) : builder;
+    return route == Route.HEADER && scope != null ? builder.header(HEADER, scope) : builder;
   }
 
   private String path(Surface surface, Route route, String suffix) {
@@ -196,6 +219,28 @@ class InjectorContractRightsPerCopyTest extends ProductionTablesIntegrationTest 
       assertThat(labels).as(surface + " labels").containsExactlyInAnyOrder(expectedLabels);
       assertThat(total).as(surface + " total").isEqualTo(expectedLabels.length);
     }
+  }
+
+  /**
+   * The copies the search returns as {@code contract id|label}, and the total it counts, on one
+   * surface. The id is read with the label so that one contract's copy cannot pass as another's.
+   */
+  private void assertSearchReturnsCopies(Surface surface, String scope, String... expectedCopies)
+      throws Exception {
+    String body =
+        postSearch(surface, Route.HEADER, scope, "/search", search(LABEL_PREFIX))
+            .getResponse()
+            .getContentAsString();
+    List<String> ids = JsonPath.read(body, "$.content[*]." + CONTRACT_ID_FIELD);
+    List<String> labels = JsonPath.read(body, "$.content[*]." + surface.labelsField + ".en");
+    long total = ((Number) JsonPath.read(body, "$.totalElements")).longValue();
+    assertThat(ids).as(surface + " ids").hasSameSizeAs(labels);
+    List<String> copies = new ArrayList<>();
+    for (int i = 0; i < ids.size(); i++) {
+      copies.add(ids.get(i) + "|" + labels.get(i));
+    }
+    assertThat(copies).as(surface + " copies").containsExactlyInAnyOrder(expectedCopies);
+    assertThat(total).as(surface + " total").isEqualTo(expectedCopies.length);
   }
 
   @Nested
@@ -315,6 +360,67 @@ class InjectorContractRightsPerCopyTest extends ProductionTablesIntegrationTest 
       // Act / Assert
       assertSearchReturns(route, tenantA);
     }
+
+    @Test
+    @DisplayName("given_payloadIdentityGrantInPlatformGroup_should_returnTenantACopy")
+    void given_payloadIdentityGrantInPlatformGroup_should_returnTenantACopy() throws Exception {
+      // Arrange: A's copy has a payload; the grant on its identity sits in a platform group
+      grantOnIdentity(groupOf(null, Set.of()), rights.withPayloadIdentity(contractId, tenantA));
+
+      // Act / Assert
+      assertSearchReturns(Route.HEADER, tenantA, labelOf(tenantA));
+    }
+
+    @Test
+    @DisplayName("given_payloadIdentityGrantInTenantAGroup_should_returnTenantACopy")
+    void given_payloadIdentityGrantInTenantAGroup_should_returnTenantACopy() throws Exception {
+      // Arrange
+      grantOnIdentity(groupOf(tenantA, Set.of()), rights.withPayloadIdentity(contractId, tenantA));
+
+      // Act / Assert
+      assertSearchReturns(Route.HEADER, tenantA, labelOf(tenantA));
+    }
+
+    @Test
+    @DisplayName("given_plannerGrantOnContractIdInTenantAGroup_should_returnTenantACopy")
+    void given_plannerGrantOnContractIdInTenantAGroup_should_returnTenantACopy() throws Exception {
+      // Arrange: a grant above OBSERVER counts as well
+      rights.grant(
+          groupOf(tenantA, Set.of()),
+          contractId,
+          Grant.GRANT_TYPE.PLANNER,
+          Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL);
+      testUserHolder.refreshSecurityContext();
+
+      // Act / Assert
+      assertSearchReturns(Route.HEADER, tenantA, labelOf(tenantA));
+    }
+
+    @Test
+    @DisplayName("given_grantHeldByTenantAGroupOfAnotherUser_should_notReturnTenantACopy")
+    void given_grantHeldByTenantAGroupOfAnotherUser_should_notReturnTenantACopy() throws Exception {
+      // Arrange: the group holds another user and not the caller
+      grantOnContract(rights.group(tenantA, rights.otherUser(), Set.of()));
+
+      // Act / Assert
+      assertSearchReturns(Route.HEADER, tenantA);
+    }
+
+    @Test
+    @DisplayName("given_grantOfAnotherResourceTypeOnTheContractId_should_notReturnTenantACopy")
+    void given_grantOfAnotherResourceTypeOnTheContractId_should_notReturnTenantACopy()
+        throws Exception {
+      // Arrange: a SCENARIO grant whose resource id equals the contract id
+      rights.grant(
+          groupOf(tenantA, Set.of()),
+          contractId,
+          Grant.GRANT_TYPE.OBSERVER,
+          Grant.GRANT_RESOURCE_TYPE.SCENARIO);
+      testUserHolder.refreshSecurityContext();
+
+      // Act / Assert
+      assertSearchReturns(Route.HEADER, tenantA);
+    }
   }
 
   @Nested
@@ -386,6 +492,100 @@ class InjectorContractRightsPerCopyTest extends ProductionTablesIntegrationTest 
       // Assert
       Map<String, Integer> platforms = JsonPath.read(body, "$.platforms");
       assertThat(platforms.values()).containsOnly(0);
+    }
+  }
+
+  @Nested
+  @DisplayName("Rights held through several groups, with no selector or over two tenants")
+  class RightsAcrossGroups {
+
+    private String bothTenants() {
+      return Tenant.DEFAULT_TENANT_UUID + "," + tenantA;
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Surface.class)
+    @DisplayName("given_grantOnlyInTenantAGroup_should_countTheFacetsOfTenantACopyForAPayloadGrant")
+    void given_grantOnlyInTenantAGroup_should_countTheFacetsOfTenantACopyForAPayloadGrant(
+        Surface surface) throws Exception {
+      // Arrange: the grant is on the identity of A's copy, the copies differ by platform
+      rights.platformsOf(contractId, Tenant.DEFAULT_TENANT_UUID, "Linux");
+      rights.platformsOf(contractId, tenantA, "Windows");
+      grantOnIdentity(groupOf(tenantA, Set.of()), rights.withPayloadIdentity(contractId, tenantA));
+
+      // Act
+      String body =
+          postSearch(surface, Route.HEADER, bothTenants(), "/facet-counts", search(null))
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      Map<String, Integer> platforms = JsonPath.read(body, "$.platforms");
+      assertThat(platforms).containsEntry("Windows", 1).containsEntry("Linux", 0);
+    }
+
+    @Test
+    @DisplayName("given_noSelectorAndGrantInTenantAGroup_should_returnTenantACopyOnce")
+    void given_noSelectorAndGrantInTenantAGroup_should_returnTenantACopyOnce() throws Exception {
+      // Arrange: the caller belongs to the default tenant and to A, and names neither
+      grantOnContract(groupOf(tenantA, Set.of()));
+
+      // Act / Assert: with no selector the scope is the caller's authorized set
+      assertSearchReturns(Route.HEADER, null, labelOf(tenantA));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Surface.class)
+    @DisplayName("given_rightsHeldInGroupsOfEachTenant_should_returnEachContractOnceWhereItIsHeld")
+    void given_rightsHeldInGroupsOfEachTenant_should_returnEachContractOnceWhereItIsHeld(
+        Surface surface) throws Exception {
+      // Arrange: one group of each kind, and seven contract ids with a copy in each tenant
+      String defaultTenant = Tenant.DEFAULT_TENANT_UUID;
+      String defaultGroup = groupOf(defaultTenant, Set.of());
+      String groupA = groupOf(tenantA, Set.of());
+      String platformGroup = groupOf(null, Set.of());
+      String x1 = copiesOf("x1");
+      String x2 = copiesOf("x2");
+      String x3 = copiesOf("x3");
+      String x4 = copiesOf("x4");
+      String x5 = copiesOf("x5");
+      String x6 = copiesOf("x6");
+      String x7 = copiesOf("x7");
+
+      // Act / Assert: the grant on the id of X1 sits in a default group and X2's in an A group
+      rights.grantObserver(defaultGroup, x1);
+      rights.grantObserver(groupA, x2);
+      testUserHolder.refreshSecurityContext();
+      assertSearchReturnsCopies(
+          surface,
+          bothTenants(),
+          x1 + "|" + copyLabel("x1", defaultTenant),
+          x2 + "|" + copyLabel("x2", tenantA));
+
+      // a platform group counts in both tenants, and the default copy outranks A's
+      rights.grantObserver(platformGroup, x3);
+      testUserHolder.refreshSecurityContext();
+      assertSearchReturnsCopies(
+          surface,
+          bothTenants(),
+          x1 + "|" + copyLabel("x1", defaultTenant),
+          x2 + "|" + copyLabel("x2", tenantA),
+          x3 + "|" + copyLabel("x3", defaultTenant));
+
+      // each copy has a payload identity of its own: a grant on it names that copy's payload
+      grantOnIdentity(defaultGroup, rights.withPayloadIdentity(x4, defaultTenant));
+      grantOnIdentity(groupA, rights.withPayloadIdentity(x5, tenantA));
+      grantOnIdentity(platformGroup, rights.withPayloadIdentity(x6, tenantA));
+      grantOnIdentity(groupA, rights.withPayloadIdentity(x7, defaultTenant));
+      assertSearchReturnsCopies(
+          surface,
+          bothTenants(),
+          x1 + "|" + copyLabel("x1", defaultTenant),
+          x2 + "|" + copyLabel("x2", tenantA),
+          x3 + "|" + copyLabel("x3", defaultTenant),
+          x4 + "|" + copyLabel("x4", defaultTenant),
+          x5 + "|" + copyLabel("x5", tenantA),
+          x6 + "|" + copyLabel("x6", tenantA));
     }
   }
 

@@ -23,6 +23,7 @@ public class ContractRightsFixture {
   private final JdbcTemplate jdbc;
   private final List<String> groups = new ArrayList<>();
   private final List<String> roles = new ArrayList<>();
+  private final List<String> users = new ArrayList<>();
   private final List<String[]> rows = new ArrayList<>();
 
   public ContractRightsFixture(DataSource dataSource) {
@@ -63,13 +64,31 @@ public class ContractRightsFixture {
 
   /** An OBSERVER grant on a threat arsenal resource (a contract id or a payload identity). */
   public void grantObserver(String groupId, String resourceId) {
+    grant(groupId, resourceId, Grant.GRANT_TYPE.OBSERVER, Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL);
+  }
+
+  /** A grant of {@code name} on a resource of {@code type}, held by the group. */
+  public void grant(
+      String groupId, String resourceId, Grant.GRANT_TYPE name, Grant.GRANT_RESOURCE_TYPE type) {
     jdbc.update(
         "INSERT INTO grants (grant_id, grant_group, grant_name, grant_resource,"
-            + " grant_resource_type) VALUES (?, ?, ?, ?, 'THREAT_ARSENAL')",
+            + " grant_resource_type) VALUES (?, ?, ?, ?, ?)",
         "rights-grant-" + UUID.randomUUID(),
         groupId,
-        Grant.GRANT_TYPE.OBSERVER.name(),
-        resourceId);
+        name.name(),
+        resourceId,
+        type.name());
+  }
+
+  /** A user that is not the caller, removed by {@link #cleanup}; returns its id. */
+  public String otherUser() {
+    String userId = "rights-user-" + UUID.randomUUID();
+    users.add(userId);
+    jdbc.update(
+        "INSERT INTO users (user_id, user_email, user_admin, user_status) VALUES (?, ?, false, 1)",
+        userId,
+        userId + "@example.invalid");
+    return userId;
   }
 
   /**
@@ -178,7 +197,7 @@ public class ContractRightsFixture {
 
   /**
    * Removes what this fixture created and what the mock user's own setup left committed: its groups
-   * with their roles and grants, its tenant memberships.
+   * with their roles and grants, its tenant memberships, the other users it made.
    */
   public void cleanup(String mockUserId) {
     List<String> userGroups =
@@ -208,8 +227,12 @@ public class ContractRightsFixture {
       jdbc.update("DELETE FROM roles_capabilities WHERE role_id = ?", roleId);
       jdbc.update("DELETE FROM roles WHERE role_id = ?", roleId);
     }
+    for (String otherUserId : users) {
+      jdbc.update("DELETE FROM users WHERE user_id = ?", otherUserId);
+    }
     groups.clear();
     roles.clear();
+    users.clear();
     if (mockUserId != null) {
       jdbc.update("DELETE FROM users_tenants WHERE user_id = ?", mockUserId);
     }
