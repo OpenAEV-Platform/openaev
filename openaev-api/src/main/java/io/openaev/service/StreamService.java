@@ -252,7 +252,6 @@ public class StreamService {
   private static final String USER_IS_PLAYER_FIELD = "user_is_player";
   private static final String USER_GRANTS_FIELD = "user_grants";
   private static final String USER_HOME_DASHBOARD_FIELD = "user_home_dashboard";
-  private static final String USER_UNSCOPED_GROUPS_FIELD = "unscopedGroups";
 
   /**
    * The user as the stream serializes it: the fields that read a lazy collection are not
@@ -267,7 +266,8 @@ public class StreamService {
     USER_TAGS_FIELD,
     USER_COMMUNICATIONS_FIELD,
     USER_EXERCISE_TEAM_USERS_FIELD,
-    USER_IS_PLAYER_FIELD
+    USER_IS_PLAYER_FIELD,
+    "unscopedGroups"
   })
   private abstract static class UserStreamMixIn {}
 
@@ -417,7 +417,6 @@ public class StreamService {
     boolean writtenInConsumerTenant =
         consumerTenantId != null && consumerTenantId.equals(event.getTenantId());
     ObjectNode data = userStreamMapper().valueToTree(user);
-    data.remove(USER_UNSCOPED_GROUPS_FIELD);
     putIdsOfTenant(
         data, USER_TEAMS_FIELD, user.getTeams(), consumerTenantId, writtenInConsumerTenant);
     putIdsOfTenant(
