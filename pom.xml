@@ -31,7 +31,7 @@
         <jjwt.version>0.13.0</jjwt.version>
         <pyroscope.version>2.9.2</pyroscope.version>
         <bouncycastle.version>1.86.2</bouncycastle.version>
-        <jackson-bom.version>3.2.4</jackson-bom.version>
+        <jackson-bom.version>3.3.0</jackson-bom.version>
         <jackson-2-bom.version>2.23.0</jackson-2-bom.version>
         <netty.version>4.2.20.Final</netty.version>
         <commons-lang3.version>3.21.0</commons-lang3.version>
