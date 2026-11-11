@@ -408,6 +408,9 @@ public class StreamService {
    *
    * The groups, capabilities and the other flags are derived from the tenant context of the
    * consumer, set by the caller, and need no trim.
+   *
+   * <p>A field added to {@code User} is ruled on here, and added to {@code STREAMED_USER_FIELDS} in
+   * {@code UserStreamEventConsumerTenantTest}.
    */
   private ObjectNode userInTenantOf(StreamConsumer consumer, BaseEvent event, User user) {
     String consumerTenantId = consumer.tenantId();

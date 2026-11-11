@@ -89,14 +89,23 @@ import reactor.core.Disposable;
  *
  * <ul>
  *   <li>{@code user_teams}, {@code user_tags}: the ids of tenant T, and the field is left out when
- *       the write was made in another tenant, so the consumer keeps what it holds;
+ *       the write was made in another tenant, so the consumer keeps what it holds, or when the
+ *       collection was not loaded;
+ *   <li>{@code user_is_player}: true for an admin, a planner or an observer, otherwise true when
+ *       the {@code user_teams} sent hold an id, false when they are sent empty, left out when
+ *       {@code user_teams} is;
  *   <li>{@code user_organization}: left out when the write was made in another tenant;
  *   <li>{@code user_communications}, {@code team_exercises_users}: never sent, their ids carry no
  *       tenant and no screen reads them from the stream;
  *   <li>{@code user_grants}, {@code user_home_dashboard}: sent to the user they belong to only;
- *   <li>{@code user_groups}, {@code user_capabilities}, {@code user_is_*}: derived from the groups
- *       of tenant T and the platform groups.
+ *   <li>{@code user_groups}, {@code user_capabilities}, {@code user_is_*} but {@code
+ *       user_is_player}: derived from the groups of tenant T and the platform groups.
  * </ul>
+ *
+ * <p>{@code unscopedGroups}, {@code user_communications} and {@code team_exercises_users} are never
+ * sent. Whoever adds a field to {@code User} rules on it in {@code StreamService#userInTenantOf},
+ * then lists it in {@code STREAMED_USER_FIELDS} below: until then the check of the fields fails
+ * every test of this class that delivers a user.
  *
  * <p>The class is deliberately NOT {@code @Transactional}: the write commits and its session closes
  * before the events are delivered, as in production, and the stream is fed through {@code
@@ -1034,8 +1043,9 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("No consumer receives the communications or the simulation links of the player")
-    void given_updateInA_should_sendNoCommunicationNorSimulationLink() throws Exception {
+    @DisplayName(
+        "The communications and the simulation links of the player are left out for every consumer")
+    void given_updateInA_should_leaveTheCommunicationsAndSimulationLinksOut() throws Exception {
       // -- PREPARE --
       List<Consumer> all =
           List.of(consumerOfA(), playerInA(), consumerOfB(), playerInB(), consumerOfDefault());
@@ -1126,7 +1136,7 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "A member of a team of A only is a player for the consumers of A, and unknown to the others")
+        "The consumers of A receive user_is_player from the teams of A, the others keep the value they hold")
     void given_updateInA_should_sendIsPlayerFromTheTeamsOfTheConsumerTenant() throws Exception {
       // -- PREPARE --
       User teamMember = persistedUser(tenantA);
@@ -1154,8 +1164,8 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("The consumers of A receive no id of B")
-    void given_updateInA_should_sendTheConsumersOfANoIdOfB() throws Exception {
+    @DisplayName("The consumers of A receive only the ids of A and of the platform")
+    void given_updateInA_should_sendTheConsumersOfAOnlyTheIdsOfA() throws Exception {
       // -- PREPARE --
       Consumer other = consumerOfA();
       Consumer self = playerInA();
@@ -1288,14 +1298,16 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("A user whose teams are not loaded is delivered without them, still not loaded")
-    void given_teamsNotLoaded_should_deliverTheUserWithoutTeams() {
+    @DisplayName(
+        "A user whose teams are not loaded is delivered with its teams left out and not loaded")
+    void given_teamsNotLoaded_should_leaveTheTeamsOutAndNotLoaded() {
       assertLeftLazyAndLeftOut("teams", "user_teams", true);
     }
 
     @Test
-    @DisplayName("A user whose tags are not loaded is delivered without them, still not loaded")
-    void given_tagsNotLoaded_should_deliverTheUserWithoutTags() {
+    @DisplayName(
+        "A user whose tags are not loaded is delivered with its tags left out and not loaded")
+    void given_tagsNotLoaded_should_leaveTheTagsOutAndNotLoaded() {
       assertLeftLazyAndLeftOut("tags", "user_tags", false);
     }
   }
@@ -1445,8 +1457,8 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("The deletion of the account carries no id outside the tenant of the consumer")
-    void given_lastDetachFromB_should_sendTheDeletionWithTheIdsOfTheConsumerTenant()
+    @DisplayName("The deletion of the account carries only the ids of the tenant of the consumer")
+    void given_lastDetachFromB_should_sendTheDeletionWithOnlyTheIdsOfTheConsumerTenant()
         throws Exception {
       // -- PREPARE --
       Consumer ofA = consumerOfA();
