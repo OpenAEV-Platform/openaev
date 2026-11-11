@@ -31,6 +31,11 @@ FROM eclipse-temurin:21.0.13_9-jre-noble AS app
 # Fixed world-readable browser path so any runtime UID finds the Chromium bundle (reporting)
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
+# apt retries transient mirror failures ("Temporary failure resolving", exit 100) instead of
+# failing the build on the first one; every apt call below, Playwright's included, reads it.
+RUN printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' \
+    > /etc/apt/apt.conf.d/80-retries
+
 # Upgrade the base image's packages: it lags behind Ubuntu updates between two rebuilds.
 RUN DEBIAN_FRONTEND=noninteractive apt-get update -q \
     && DEBIAN_FRONTEND=noninteractive apt-get upgrade -qq -y \
@@ -40,9 +45,16 @@ COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-ap
 # Install Chromium and its system libraries for server-side report rendering. The boot jar uses
 # the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI (Spring Boot 3.x
 # loader). Dev machines need nothing: Playwright auto-downloads the browser on first use.
-RUN DEBIAN_FRONTEND=noninteractive java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install --with-deps chromium \
-    && rm -rf /var/lib/apt/lists/* \
-    && chmod -R a+rX /ms-playwright
+# The runtime image lacks Chromium's libraries, so apt is needed here: a mirror outage that
+# outlasts apt's own retries gets two more attempts, 60 s apart, before the build fails.
+RUN set -eu; \
+    for attempt in 1 2 3; do \
+      DEBIAN_FRONTEND=noninteractive java -Dloader.main=com.microsoft.playwright.CLI -jar openaev-api.jar install --with-deps chromium && break; \
+      if [ "$attempt" -eq 3 ]; then exit 1; fi; \
+      echo "playwright install --with-deps failed (attempt $attempt of 3)"; sleep 60; \
+    done; \
+    rm -rf /var/lib/apt/lists/*; \
+    chmod -R a+rX /ms-playwright
 RUN set -eux; \
     sed -i -E 's|^(mozilla/emSign_.*\.crt)$|!\1|' /etc/ca-certificates.conf; \
     update-ca-certificates --fresh; \
