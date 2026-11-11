@@ -429,6 +429,16 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     return user;
   }
 
+  /** A user with no group, so no role: only its teams can make it a player. */
+  private User roleFreeUserInTeams(List<String> tenantIds, String... teams) {
+    User user = persistedUser(tenantIds.toArray(String[]::new));
+    createdUserIds.add(user.getId());
+    for (String team : teams) {
+      jdbc.update("INSERT INTO users_teams (user_id, team_id) VALUES (?, ?)", user.getId(), team);
+    }
+    return user;
+  }
+
   private String insertTag(String tenantId) {
     String id = UUID.randomUUID().toString();
     jdbc.update(
@@ -1165,6 +1175,30 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "A user holding only a team of B is no player for the consumers of A, and unknown to the consumers of B")
+    void given_updateInA_should_leaveIsPlayerOutOfTheConsumersOfBWhenOnlyATeamOfBIsHeld()
+        throws Exception {
+      // -- PREPARE --
+      User teamMemberOfB = roleFreeUserInTeams(List.of(tenantA, tenantB), teamB);
+      Consumer ofA = consumerOfA();
+      Consumer ofB = consumerOfB();
+
+      // -- EXECUTE --
+      List<BaseEvent> events = updateUserIn(teamMemberOfB, tenantA, NEW_NAME, List.of());
+
+      // -- ASSERT --
+      for (Consumer consumer : List.of(ofA, ofB)) {
+        assertDelivered(consumer, teamMemberOfB, events, "user_firstname", NEW_NAME);
+        assertFlags(consumer, false, false);
+      }
+      assertIds(ofA, "user_teams", List.of());
+      assertIsPlayer(ofA, false);
+      assertLeftOut(ofB, "user_teams");
+      assertIsPlayer(ofB, null);
+    }
+
+    @Test
     @DisplayName("The consumers of A receive only the ids of A and of the platform")
     void given_updateInA_should_sendTheConsumersOfAOnlyTheIdsOfA() throws Exception {
       // -- PREPARE --
@@ -1323,9 +1357,15 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     private static final String NEW_NAME = "Written-by-the-platform";
 
     private List<BaseEvent> updateFromThePlatform() throws Exception {
+      return updateFromThePlatform(
+          player, List.of(tagA, tagB), List.of(Tenant.DEFAULT_TENANT_UUID, tenantA, tenantB));
+    }
+
+    private List<BaseEvent> updateFromThePlatform(
+        User target, List<String> tagIds, List<String> tenantIds) throws Exception {
       UserInput input =
           new UserInput(
-              player.getEmail(),
+              target.getEmail(),
               NEW_NAME,
               "User",
               null,
@@ -1333,13 +1373,13 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
               null,
               null,
               null,
-              List.of(tagA, tagB),
+              tagIds,
               false,
-              List.of(Tenant.DEFAULT_TENANT_UUID, tenantA, tenantB));
+              tenantIds);
       return writeAndStream(
-          player.getId(),
+          target.getId(),
           () ->
-              mvc.perform(json(put(PLATFORM_USER_URI + "/" + player.getId()), input))
+              mvc.perform(json(put(PLATFORM_USER_URI + "/" + target.getId()), input))
                   .andExpect(status().is2xxSuccessful()));
     }
 
@@ -1375,6 +1415,32 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       assertNoIdOutsideTheScope(ofA, tagA, teamA, groupA, groupPlatform);
       assertNoIdOutsideTheScope(ofB, tagB, teamB, groupB, groupPlatform);
       assertNoIdOutsideTheScope(ofDefault, groupPlatform);
+    }
+
+    @Test
+    @DisplayName("A user with no role is a player for the tenant that holds a team of it only")
+    void given_platformUpdateOfARoleFreeUser_should_sendIsPlayerPerConsumerTenant()
+        throws Exception {
+      // -- PREPARE --
+      User teamMember = roleFreeUserInTeams(List.of(Tenant.DEFAULT_TENANT_UUID, tenantA), teamA);
+      Consumer ofA = consumerOfA();
+      Consumer ofDefault = consumerOfDefault();
+
+      // -- EXECUTE --
+      List<BaseEvent> events =
+          updateFromThePlatform(
+              teamMember, List.of(), List.of(Tenant.DEFAULT_TENANT_UUID, tenantA));
+
+      // -- ASSERT --
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, events.getFirst().getTenantId());
+      for (Consumer consumer : List.of(ofA, ofDefault)) {
+        assertDelivered(consumer, teamMember, events, "user_firstname", NEW_NAME);
+        assertFlags(consumer, false, false);
+      }
+      assertIds(ofDefault, "user_teams", List.of());
+      assertIsPlayer(ofDefault, false);
+      assertIds(ofA, "user_teams", List.of(teamA));
+      assertIsPlayer(ofA, true);
     }
   }
 
