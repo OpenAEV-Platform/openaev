@@ -116,13 +116,17 @@ public class SimulationInjectService {
     return injectStatusService.updateInjectStatus(injectId, input);
   }
 
-  /** Replaces the teams assigned to an inject that belongs to the given simulation. */
+  /**
+   * Replaces the teams assigned to an inject that belongs to the given simulation. The teams are
+   * read in the tenant of the inject: a team id outside it is skipped, as an unknown id is.
+   */
   public Inject updateInjectTeamsForSimulation(
       @NotBlank final String simulationId,
       @NotBlank final String injectId,
       InjectTeamsInput input) {
     Inject inject = findInjectForSimulation(simulationId, injectId);
-    Iterable<Team> injectTeams = teamRepository.findAllById(input.getTeamIds());
+    Iterable<Team> injectTeams =
+        teamRepository.findAllByIdInTenant(input.getTeamIds(), inject.getTenant().getId());
     inject.setTeams(fromIterable(injectTeams));
     return injectRepository.save(inject);
   }
