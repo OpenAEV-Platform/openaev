@@ -101,13 +101,20 @@ public class ChannelApi extends RestBehavior {
       TxCtx ctx, @PathVariable String channelId, @Valid @RequestBody ChannelUpdateLogoInput input) {
     Channel channel =
         channelRepository.findById(channelId).orElseThrow(ElementNotFoundException::new);
+    String channelTenantId = channel.getTenant().getId();
     if (input.getLogoDark() != null) {
-      channel.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
+      channel.setLogoDark(
+          documentRepository
+              .findByIdAndTenantId(input.getLogoDark(), channelTenantId)
+              .orElse(null));
     } else {
       channel.setLogoDark(null);
     }
     if (input.getLogoLight() != null) {
-      channel.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
+      channel.setLogoLight(
+          documentRepository
+              .findByIdAndTenantId(input.getLogoLight(), channelTenantId)
+              .orElse(null));
     } else {
       channel.setLogoLight(null);
     }
@@ -205,11 +212,12 @@ public class ChannelApi extends RestBehavior {
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody ArticleCreateInput input) {
     Exercise exercise =
         exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    String ownerTenantId = exercise.getTenant().getId();
     Article article = new Article();
     article.setUpdateAttributes(input);
     article.setChannel(
         channelRepository
-            .findById(input.getChannelId())
+            .findByIdAndTenantId(input.getChannelId(), ownerTenantId)
             .orElseThrow(ElementNotFoundException::new));
     article.setExercise(exercise);
     Article savedArticle = articleRepository.save(article);
@@ -217,7 +225,10 @@ public class ChannelApi extends RestBehavior {
     List<Document> finalArticleDocuments = new ArrayList<>();
     articleDocuments.forEach(
         articleDocument -> {
-          Optional<Document> doc = documentRepository.findById(articleDocument);
+          Optional<Document> doc =
+              articleDocument == null
+                  ? documentRepository.findById(articleDocument)
+                  : documentRepository.findByIdAndTenantId(articleDocument, ownerTenantId);
           if (doc.isPresent()) {
             Document document = doc.get();
             finalArticleDocuments.add(document);
@@ -248,13 +259,14 @@ public class ChannelApi extends RestBehavior {
       @Valid @RequestBody ArticleUpdateInput input) {
     Exercise exercise =
         exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    String ownerTenantId = exercise.getTenant().getId();
     Article article =
         articleRepository.findById(articleId).orElseThrow(ElementNotFoundException::new);
     List<String> newDocumentsIds = input.getDocuments();
     List<String> currentDocumentIds = article.getDocuments().stream().map(Document::getId).toList();
     article.setChannel(
         channelRepository
-            .findById(input.getChannelId())
+            .findByIdAndTenantId(input.getChannelId(), ownerTenantId)
             .orElseThrow(ElementNotFoundException::new));
     article.setUpdateAttributes(input);
     // Original List
@@ -269,7 +281,10 @@ public class ChannelApi extends RestBehavior {
         .filter(doc -> !currentDocumentIds.contains(doc))
         .forEach(
             in -> {
-              Optional<Document> doc = documentRepository.findById(in);
+              Optional<Document> doc =
+                  in == null
+                      ? documentRepository.findById(in)
+                      : documentRepository.findByIdAndTenantId(in, ownerTenantId);
               if (doc.isPresent()) {
                 Document document = doc.get();
                 articleDocuments.add(document);
@@ -315,11 +330,12 @@ public class ChannelApi extends RestBehavior {
       @PathVariable @NotBlank final String scenarioId,
       @Valid @RequestBody ArticleCreateInput input) {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
+    String ownerTenantId = scenario.getTenant().getId();
     Article article = new Article();
     article.setUpdateAttributes(input);
     article.setChannel(
         this.channelRepository
-            .findById(input.getChannelId())
+            .findByIdAndTenantId(input.getChannelId(), ownerTenantId)
             .orElseThrow(ElementNotFoundException::new));
     article.setScenario(scenario);
     Article savedArticle = this.articleRepository.save(article);
@@ -327,7 +343,10 @@ public class ChannelApi extends RestBehavior {
     List<Document> finalArticleDocuments = new ArrayList<>();
     articleDocuments.forEach(
         articleDocument -> {
-          Optional<Document> doc = this.documentRepository.findById(articleDocument);
+          Optional<Document> doc =
+              articleDocument == null
+                  ? this.documentRepository.findById(articleDocument)
+                  : this.documentRepository.findByIdAndTenantId(articleDocument, ownerTenantId);
           if (doc.isPresent()) {
             Document document = doc.get();
             finalArticleDocuments.add(document);
@@ -357,13 +376,14 @@ public class ChannelApi extends RestBehavior {
       @PathVariable @NotBlank final String articleId,
       @Valid @RequestBody ArticleUpdateInput input) {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
+    String ownerTenantId = scenario.getTenant().getId();
     Article article =
         articleRepository.findById(articleId).orElseThrow(ElementNotFoundException::new);
     List<String> newDocumentsIds = input.getDocuments();
     List<String> currentDocumentIds = article.getDocuments().stream().map(Document::getId).toList();
     article.setChannel(
         channelRepository
-            .findById(input.getChannelId())
+            .findByIdAndTenantId(input.getChannelId(), ownerTenantId)
             .orElseThrow(ElementNotFoundException::new));
     article.setUpdateAttributes(input);
     // Original List
@@ -378,7 +398,10 @@ public class ChannelApi extends RestBehavior {
         .filter(doc -> !currentDocumentIds.contains(doc))
         .forEach(
             in -> {
-              Optional<Document> doc = documentRepository.findById(in);
+              Optional<Document> doc =
+                  in == null
+                      ? documentRepository.findById(in)
+                      : documentRepository.findByIdAndTenantId(in, ownerTenantId);
               if (doc.isPresent()) {
                 Document document = doc.get();
                 articleDocuments.add(document);
