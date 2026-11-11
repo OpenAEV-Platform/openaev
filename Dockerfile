@@ -1,3 +1,18 @@
+# Set by BuildKit to the target platform's architecture (amd64, arm64); selects the tini stage.
+ARG TARGETARCH
+
+# tini comes from its release as a static binary, checksum-pinned, so the app stage takes it
+# without apt. BuildKit builds only the stage of the target architecture.
+FROM scratch AS tini-amd64
+ADD --checksum=sha256:c5b0666b4cb676901f90dfcb37106783c5fe2077b04590973b885950611b30ee --chmod=755 \
+    https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-amd64 /tini
+
+FROM scratch AS tini-arm64
+ADD --checksum=sha256:eae1d3aa50c48fb23b8cbdf4e369d0910dfc538566bfd09df89a774aa84a48b9 --chmod=755 \
+    https://github.com/krallin/tini/releases/download/v0.19.0/tini-static-arm64 /tini
+
+FROM tini-${TARGETARCH} AS tini
+
 FROM node:24.22.2-alpine3.24 AS front-builder
 
 WORKDIR /opt/openaev-build/openaev-front
@@ -42,12 +57,12 @@ RUN set -eu; \
     for attempt in 1 2 3; do \
       DEBIAN_FRONTEND=noninteractive apt-get update -q \
         && DEBIAN_FRONTEND=noninteractive apt-get upgrade -qq -y \
-        && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tini \
         && break; \
       if [ "$attempt" -eq 3 ]; then exit 1; fi; \
       echo "apt-get failed (attempt $attempt of 3)"; sleep 60; \
     done; \
     rm -rf /var/lib/apt/lists/*
+COPY --from=tini /tini /usr/bin/tini
 COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-api.jar ./
 # Install Chromium and its system libraries for server-side report rendering. The boot jar uses
 # the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI (Spring Boot 3.x
