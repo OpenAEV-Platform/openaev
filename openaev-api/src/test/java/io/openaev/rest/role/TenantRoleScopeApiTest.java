@@ -1,13 +1,16 @@
 package io.openaev.rest.role;
 
+import static io.openaev.rest.exception.PrivilegeGrantException.UNHELD_CAPABILITIES;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -25,6 +28,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.hibernate.Session;
@@ -142,6 +146,27 @@ class TenantRoleScopeApiTest extends IntegrationTest {
   private long rawCountByName(String name) {
     String count = rawString("SELECT count(*)::text FROM roles WHERE role_name = ?", name);
     return Long.parseLong(count);
+  }
+
+  private Set<String> rawCapabilitiesOf(String roleId) {
+    entityManager.flush();
+    return entityManager
+        .unwrap(Session.class)
+        .doReturningWork(
+            connection -> {
+              try (PreparedStatement statement =
+                  connection.prepareStatement(
+                      "SELECT capability FROM roles_capabilities WHERE role_id = ?")) {
+                statement.setString(1, roleId);
+                try (ResultSet rs = statement.executeQuery()) {
+                  Set<String> capabilities = new HashSet<>();
+                  while (rs.next()) {
+                    capabilities.add(rs.getString(1));
+                  }
+                  return capabilities;
+                }
+              }
+            });
   }
 
   private String rawString(String sql, String argument) {
@@ -500,6 +525,114 @@ class TenantRoleScopeApiTest extends IntegrationTest {
 
       // Assert
       assertEquals(0L, rawCountByName("created-outside-membership"));
+    }
+
+    // The caller holds BYPASS in the default tenant, which is where the plain route reads rights,
+    // and only the pair of MANAGE_ROLES in A, where the role is written.
+    private void givenBypassInDefaultAndOnlyManageRolesInA() {
+      tenantHelper.grantCapabilitiesInTenant(tenantA, MANAGE_ROLES);
+      tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.BYPASS})
+    @DisplayName(
+        "given a capability held in the default tenant and not in A, should refuse a create"
+            + " selecting A by header and store nothing")
+    void given_capabilityNotHeldInA_should_refuseACreateInA() throws Exception {
+      // Arrange
+      givenBypassInDefaultAndOnlyManageRolesInA();
+      givenNoAmbientTenant();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      mvc.perform(
+              post(ROLES_ON_HEADER)
+                  .header(TENANT_HEADER, tenantA)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      asJsonString(
+                          new RoleInput("refused-in-a", null, Set.of(Capability.ACCESS_ASSETS))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(UNHELD_CAPABILITIES))
+          .andExpect(
+              jsonPath("$.errors.children.message.errors")
+                  .value(hasItem(Capability.ACCESS_ASSETS.name())));
+
+      // Assert
+      assertEquals(0L, rawCountByName("refused-in-a"));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.BYPASS})
+    @DisplayName(
+        "given a capability held in the default tenant and not in A, should refuse an update of"
+            + " A's role selecting A by header and keep its capabilities")
+    void given_capabilityNotHeldInA_should_refuseAnUpdateOfTheRoleOfA() throws Exception {
+      // Arrange
+      givenBypassInDefaultAndOnlyManageRolesInA();
+      Set<String> before = rawCapabilitiesOf(roleA);
+      givenNoAmbientTenant();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      mvc.perform(
+              put(ROLES_ON_HEADER + "/" + roleA)
+                  .header(TENANT_HEADER, tenantA)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      asJsonString(
+                          new RoleInput(
+                              "refused-rename",
+                              null,
+                              Set.of(
+                                  Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
+                                  Capability.ACCESS_TENANT_USERS_GROUPS_AND_ROLES,
+                                  Capability.ACCESS_ASSETS))))
+                  .with(csrf()))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(UNHELD_CAPABILITIES))
+          .andExpect(
+              jsonPath("$.errors.children.message.errors")
+                  .value(hasItem(Capability.ACCESS_ASSETS.name())));
+
+      // Assert
+      assertEquals(before, rawCapabilitiesOf(roleA));
+      assertEquals("role-of-a", rawNameOf(roleA));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.BYPASS})
+    @DisplayName(
+        "given only capabilities held in A, should create the role in A selecting A by header")
+    void given_onlyCapabilitiesHeldInA_should_createTheRoleInA() throws Exception {
+      // Arrange
+      givenBypassInDefaultAndOnlyManageRolesInA();
+      givenNoAmbientTenant();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      String response =
+          mvc.perform(
+                  post(ROLES_ON_HEADER)
+                      .header(TENANT_HEADER, tenantA)
+                      .accept(MediaType.APPLICATION_JSON)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(asJsonString(newRole("created-with-held-capabilities")))
+                      .with(csrf()))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertEquals(tenantA, rawTenantOf(JsonPath.read(response, "$.role_id")));
     }
   }
 }

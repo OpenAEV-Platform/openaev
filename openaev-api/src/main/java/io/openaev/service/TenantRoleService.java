@@ -17,6 +17,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -31,6 +33,13 @@ public class TenantRoleService {
   private final GroupRepository groupRepository;
   private final UserService userService;
 
+  private PermissionService permissionService;
+
+  @Autowired
+  public void setPermissionService(@Lazy PermissionService permissionService) {
+    this.permissionService = permissionService;
+  }
+
   // -- CREATE --
 
   public Role createRole(
@@ -39,7 +48,7 @@ public class TenantRoleService {
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
     String id = UUID.randomUUID().toString();
-    assertCanAssignCapabilities(userService.currentUser(), capabilities, CapabilityScope.TENANT);
+    assertCanAssignInTenant(tenantId, capabilities);
     ReservedKeyValidator.validateRoleId(id);
     return createRoleInternal(id, roleName, roleDescription, capabilities, tenantId);
   }
@@ -115,8 +124,7 @@ public class TenantRoleService {
       @NotBlank final String roleDescription,
       @NotNull final Set<Capability> capabilities) {
     Set<Capability> scopedCapabilities = Capability.filterForTenantRole(capabilities);
-    assertCanAssignCapabilities(
-        userService.currentUser(), scopedCapabilities, CapabilityScope.TENANT);
+    assertCanAssignInTenant(tenantId, scopedCapabilities);
     ReservedKeyValidator.validateRoleId(roleId);
     return updateRoleInternal(roleId, roleName, roleDescription, scopedCapabilities, tenantId);
   }
@@ -138,6 +146,17 @@ public class TenantRoleService {
     role.setDescription(roleDescription);
     role.setCapabilities(scopedCapabilities);
     return roleRepository.save(role);
+  }
+
+  /** Reads the caller's rights in the role's tenant, not in the tenant of the route. */
+  private void assertCanAssignInTenant(String tenantId, Set<Capability> capabilities) {
+    permissionService.inTenant(
+        tenantId,
+        () -> {
+          assertCanAssignCapabilities(
+              userService.currentUser(), capabilities, CapabilityScope.TENANT);
+          return null;
+        });
   }
 
   // -- DELETE --
