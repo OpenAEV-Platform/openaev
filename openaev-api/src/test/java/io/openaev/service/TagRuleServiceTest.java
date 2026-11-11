@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.TagRule;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetGroupRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
@@ -92,7 +93,7 @@ class TagRuleServiceTest {
         .getAssetGroups()
         .forEach(
             assetGroup ->
-                when(assetGroupRepository.findById(assetGroup.getId()))
+                when(assetGroupRepository.findByIdAndTenantId(assetGroup.getId(), TENANT_ID))
                     .thenReturn(Optional.of(assetGroup)));
 
     TagRule result =
@@ -115,7 +116,7 @@ class TagRuleServiceTest {
         .getAssetGroups()
         .forEach(
             assetGroup ->
-                when(assetGroupRepository.findById(assetGroup.getId()))
+                when(assetGroupRepository.findByIdAndTenantId(assetGroup.getId(), TENANT_ID))
                     .thenReturn(Optional.of(assetGroup)));
     assertThrows(
         ForbiddenException.class,
@@ -139,7 +140,7 @@ class TagRuleServiceTest {
         .getAssetGroups()
         .forEach(
             assetGroup ->
-                when(assetGroupRepository.findById(assetGroup.getId()))
+                when(assetGroupRepository.findByIdAndTenantId(assetGroup.getId(), TENANT_ID))
                     .thenReturn(Optional.of(assetGroup)));
     assertThrows(
         ElementNotFoundException.class,
@@ -162,7 +163,7 @@ class TagRuleServiceTest {
         .getAssetGroups()
         .forEach(
             assetGroup ->
-                when(assetGroupRepository.findById(assetGroup.getId()))
+                when(assetGroupRepository.findByIdAndTenantId(assetGroup.getId(), TENANT_ID))
                     .thenReturn(Optional.empty()));
     assertThrows(
         ElementNotFoundException.class,
@@ -192,7 +193,8 @@ class TagRuleServiceTest {
         .getAssetGroups()
         .forEach(
             assetGroup ->
-                when(assetGroupRepository.findById(assetGroup.getId()))
+                when(assetGroupRepository.findByIdAndTenantId(
+                        assetGroup.getId(), Tenant.DEFAULT_TENANT_UUID))
                     .thenReturn(Optional.of(assetGroup)));
 
     TagRule result =
@@ -220,7 +222,8 @@ class TagRuleServiceTest {
         .getAssetGroups()
         .forEach(
             assetGroup ->
-                when(assetGroupRepository.findById(assetGroup.getId()))
+                when(assetGroupRepository.findByIdAndTenantId(
+                        assetGroup.getId(), Tenant.DEFAULT_TENANT_UUID))
                     .thenReturn(Optional.of(assetGroup)));
     assertThrows(
         ForbiddenException.class,
@@ -240,6 +243,7 @@ class TagRuleServiceTest {
 
     TagRule tagRule = new TagRule();
     tagRule.setId(TAG_RULE_ID);
+    tagRule.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
     tagRule.setTag(unreservedTag);
 
     when(tagRuleRepository.save(any())).thenReturn(tagRule);
@@ -251,7 +255,8 @@ class TagRuleServiceTest {
         .getAssetGroups()
         .forEach(
             assetGroup ->
-                when(assetGroupRepository.findById(assetGroup.getId()))
+                when(assetGroupRepository.findByIdAndTenantId(
+                        assetGroup.getId(), Tenant.DEFAULT_TENANT_UUID))
                     .thenReturn(Optional.of(assetGroup)));
     assertThrows(
         ForbiddenException.class,
@@ -276,7 +281,8 @@ class TagRuleServiceTest {
         .getAssetGroups()
         .forEach(
             assetGroup ->
-                when(assetGroupRepository.findById(assetGroup.getId()))
+                when(assetGroupRepository.findByIdAndTenantId(
+                        assetGroup.getId(), Tenant.DEFAULT_TENANT_UUID))
                     .thenReturn(Optional.of(assetGroup)));
     assertThrows(
         ElementNotFoundException.class,
@@ -300,7 +306,8 @@ class TagRuleServiceTest {
         .getAssetGroups()
         .forEach(
             assetGroup ->
-                when(assetGroupRepository.findById(assetGroup.getId()))
+                when(assetGroupRepository.findByIdAndTenantId(
+                        assetGroup.getId(), Tenant.DEFAULT_TENANT_UUID))
                     .thenReturn(Optional.empty()));
     assertThrows(
         ElementNotFoundException.class,
