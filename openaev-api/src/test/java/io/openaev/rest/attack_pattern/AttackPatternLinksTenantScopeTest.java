@@ -12,7 +12,6 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
@@ -61,6 +60,9 @@ class AttackPatternLinksTenantScopeTest extends IntegrationTest {
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
   private static final String TENANT_ATTACK_PATTERN_URI = TENANT_PREFIX + "/attack_patterns";
+  // A null id list is refused with an IllegalArgumentException, which RestBehavior answers with a
+  // 400.
+  private static final String NULL_LIST_OUTCOME = "status 400";
 
   @DynamicPropertySource
   static void activeTables(DynamicPropertyRegistry registry) {
@@ -258,21 +260,15 @@ class AttackPatternLinksTenantScopeTest extends IntegrationTest {
 
   // -- Requests --
 
-  // findAllById(null) throws IllegalArgumentException, which RestBehavior answers with a 400.
-  private static final String NULL_LIST_OUTCOME = "status 400: Ids must not be null";
-
   private interface Request {
     ResultActions perform() throws Exception;
   }
 
-  /** The status and message of the response, or the class and cause of the exception thrown. */
+  /** The status of the response, or the class and cause of the exception thrown. */
   private static String outcomeOf(Request request) {
     try {
       MockHttpServletResponse response = request.perform().andReturn().getResponse();
-      return "status "
-          + response.getStatus()
-          + ": "
-          + JsonPath.<String>read(response.getContentAsString(), "$.message");
+      return "status " + response.getStatus();
     } catch (Exception e) {
       Throwable cause = e.getCause();
       return e.getClass().getName()

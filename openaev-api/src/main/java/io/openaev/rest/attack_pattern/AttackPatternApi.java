@@ -161,20 +161,10 @@ public class AttackPatternApi extends RestBehavior {
             .orElseThrow(ElementNotFoundException::new);
     attackPattern.setUpdateAttributes(input);
     attackPattern.setKillChainPhases(
-        killChainPhasesOf(input.getKillChainPhasesIds(), attackPattern.getTenant().getId()));
+        killChainPhaseRepository.findAllByIdInTenant(
+            input.getKillChainPhasesIds(), attackPattern.getTenant().getId()));
     attackPattern.setUpdatedAt(Instant.now());
     return attackPatternRepository.save(attackPattern);
-  }
-
-  // A phase is linked only when it belongs to the tenant of the attack pattern; the id of a phase
-  // of a different tenant is skipped, as findAllById skips an unknown id. A null list keeps going
-  // through findAllById, which refuses it with an IllegalArgumentException (answered by a 400); the
-  // derived query accepts a null list and the request succeeds.
-  private List<KillChainPhase> killChainPhasesOf(List<String> ids, String ownerTenantId) {
-    return fromIterable(
-        ids == null
-            ? killChainPhaseRepository.findAllById(ids)
-            : killChainPhaseRepository.findAllByIdInAndTenantId(ids, ownerTenantId));
   }
 
   @PostMapping("/upsert")
