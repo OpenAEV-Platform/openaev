@@ -9,8 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Step;
@@ -35,8 +34,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,16 +50,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @DisplayName("A chained export embeds the contracts of the exported row's own tenant")
 @WithMockUser(isAdmin = true)
-class WorkflowExportContractTenantTest extends IntegrationTest {
+class WorkflowExportContractTenantTest extends ProductionTablesIntegrationTest {
 
   private static final String DEFAULT_LABEL = "default-tenant-copy";
   private static final String OTHER_LABEL = "other-tenant-copy";
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;

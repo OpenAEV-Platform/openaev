@@ -9,8 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Filters;
 import io.openaev.database.model.Tenant;
@@ -36,8 +35,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -55,13 +52,7 @@ import org.springframework.test.web.servlet.MvcResult;
  */
 @DisplayName("Contract copy ranking for a caller of several tenants")
 @WithMockUser(isAdmin = true)
-class InjectorContractApiCopyRankingTenantScopeTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class InjectorContractApiCopyRankingTenantScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String LABEL_PREFIX = "copy-rank-";
   private static final int MAX_TENANT_ATTEMPTS = 80;

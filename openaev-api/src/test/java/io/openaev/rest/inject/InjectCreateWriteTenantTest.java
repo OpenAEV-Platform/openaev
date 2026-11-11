@@ -3,8 +3,7 @@ package io.openaev.rest.inject;
 import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -32,8 +31,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * An inject created under a scenario or a simulation takes that parent's tenant. {@code injects}
@@ -56,13 +53,7 @@ import org.springframework.test.context.DynamicPropertySource;
  */
 @DisplayName("Creating an inject writes it in its parent's tenant, not the ambient one")
 @WithMockUser(isAdmin = true)
-class InjectCreateWriteTenantTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class InjectCreateWriteTenantTest extends ProductionTablesIntegrationTest {
 
   @Autowired private InjectService injectService;
   @Autowired private ScenarioToExerciseService scenarioToExerciseService;

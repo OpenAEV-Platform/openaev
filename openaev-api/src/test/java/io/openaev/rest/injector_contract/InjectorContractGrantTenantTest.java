@@ -13,8 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
@@ -41,8 +40,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,13 +61,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser
 @DisplayName("Injector contract grants apply in the tenant of their group")
-class InjectorContractGrantTenantTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class InjectorContractGrantTenantTest extends ProductionTablesIntegrationTest {
 
   private static final String CONTRACT_URI = TENANT_INJECTOR_CONTRACT_URL + "/{contractId}";
   private static final String SEARCH_URI = TENANT_INJECTOR_CONTRACT_URL + "/search";

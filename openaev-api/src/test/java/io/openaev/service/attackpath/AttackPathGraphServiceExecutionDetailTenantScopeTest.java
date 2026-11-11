@@ -3,8 +3,7 @@ package io.openaev.service.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Tenant;
@@ -29,8 +28,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,18 +44,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("AttackPathGraphService resolves the contract in the execution's own tenant")
-class AttackPathGraphServiceExecutionDetailTenantScopeTest extends IntegrationTest {
+class AttackPathGraphServiceExecutionDetailTenantScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String SIM = "SIM-EXEC-DETAIL-TENANT-SCOPE";
   private static final String SHARED_EXTERNAL_ID = "shared-contract-ext";
   private static final String OWN_LABEL = "own-tenant-contract";
   private static final String OTHER_LABEL = "other-tenant-contract";
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private AttackPathGraphService graphService;
   @Autowired private AttackPathExecutionRepository executionRepository;

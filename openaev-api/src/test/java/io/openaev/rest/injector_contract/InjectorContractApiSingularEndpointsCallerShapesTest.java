@@ -10,8 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
@@ -39,8 +38,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -61,13 +58,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  */
 @DisplayName("Singular contract endpoints, the caller shapes with no tenant selector")
 @WithMockUser(isAdmin = true)
-class InjectorContractApiSingularEndpointsCallerShapesTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class InjectorContractApiSingularEndpointsCallerShapesTest extends ProductionTablesIntegrationTest {
 
   private static final String SELECTOR_REQUIRED = "TENANT_SELECTOR_REQUIRED";
   private static final String UNTOUCHED_UPDATED_AT = "1970-01-01 00:00:00+00";

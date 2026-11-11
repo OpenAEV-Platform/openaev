@@ -8,8 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.injectors.manual.ManualContract;
@@ -31,8 +30,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -48,13 +45,7 @@ import org.springframework.test.web.servlet.MvcResult;
 @DisplayName(
     "InjectorContractApi singular endpoints resolve a single tenant for a two-tenant caller")
 @WithMockUser(isAdmin = true)
-class InjectorContractApiSingularEndpointsTenantScopeTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class InjectorContractApiSingularEndpointsTenantScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String URL = INJECTOR_CONTRACT_URL;
   private static final String DEFAULT_LABEL = "default-tenant-copy";

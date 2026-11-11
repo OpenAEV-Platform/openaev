@@ -9,8 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
-import io.openaev.config.ProductionActiveTables;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
@@ -28,8 +27,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -47,15 +44,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @DisplayName(
     "AtomicTestingApi resolves the built-in contract in the write tenant, not the ambient one")
 @WithMockUser(isAdmin = true)
-class AtomicTestingApiWriteTenantContractTest extends IntegrationTest {
+class AtomicTestingApiWriteTenantContractTest extends ProductionTablesIntegrationTest {
 
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
