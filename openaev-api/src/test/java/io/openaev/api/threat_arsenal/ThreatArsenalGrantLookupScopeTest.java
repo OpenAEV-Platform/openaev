@@ -185,6 +185,38 @@ class ThreatArsenalGrantLookupScopeTest extends ProductionTablesIntegrationTest 
       // Assert
       assertThat(onA.getResponse().getStatus()).isEqualTo(200);
     }
+
+    @Test
+    @DisplayName(
+        "given_platformGroupGrantOnTenantAIdentityAndScopeOfAOnTheHeaderRoute_should_serveTenantACopy")
+    void
+        given_platformGroupGrantOnTenantAIdentityAndScopeOfAOnTheHeaderRoute_should_serveTenantACopy()
+            throws Exception {
+      // Arrange: the default tenant (ambient) and A each copy the contract with a payload of their
+      // own; the grant names A's identity and sits in a platform group, which counts in every
+      // tenant
+      String contract = "lookup-" + UUID.randomUUID();
+      rights.cloneManualContract(contract, Tenant.DEFAULT_TENANT_UUID, "lookup-default");
+      rights.cloneManualContract(contract, tenantA, "lookup-" + tenantA);
+      rights.withPayloadIdentity(contract, Tenant.DEFAULT_TENANT_UUID);
+      String identityOfA = rights.withPayloadIdentity(contract, tenantA);
+      String platformGroupId = rights.group(null, userId, Set.of());
+      rights.grantObserver(platformGroupId, identityOfA);
+      testUserHolder.refreshSecurityContext();
+      TenantContext.clearCurrentTenant();
+
+      // Act: the scope names A on the non-prefixed route; the ambient tenant is the default one
+      MvcResult result =
+          mvc.perform(get(THREAT_ARSENAL_URL + "/" + contract).header("X-Tenant-Ids", tenantA))
+              .andReturn();
+
+      // Assert: the identity is read from A's copy, so the grant matches and A's copy is served
+      assertThat(result.getResponse().getStatus()).isEqualTo(200);
+      assertThat(
+              JsonPath.<String>read(
+                  result.getResponse().getContentAsString(), "$.action_labels.en"))
+          .isEqualTo("lookup-" + tenantA);
+    }
   }
 
   @Nested
