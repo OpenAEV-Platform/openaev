@@ -9,7 +9,6 @@ import io.openaev.config.EngineConfig;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
-import io.openaev.database.repository.IndexingStatusRepository;
 import io.openaev.engine.api.CursorPageQuery;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.snapshotobservation.EsVulnerabilityObservation;
@@ -73,7 +72,6 @@ class CursorPagedSearchResultWindowTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private FindingComposer findingComposer;
   @Autowired private InjectComposer injectComposer;
-  @Autowired private IndexingStatusRepository indexingStatusRepository;
   @Autowired private EngineConfig engineConfig;
 
   private final ObjectMapper objectMapper = new ObjectMapper();
@@ -109,9 +107,6 @@ class CursorPagedSearchResultWindowTest extends IntegrationTest {
     for (EsModel<?> model : engineContext.getModels()) {
       engineService.cleanUpIndex(model.getName());
     }
-    // The indexing cursors are shared with every test class that ran before in this JVM: start
-    // the incremental fetch from scratch so a cursor left by another class can never hide a row.
-    indexingStatusRepository.deleteAll();
   }
 
   /**
@@ -176,8 +171,9 @@ class CursorPagedSearchResultWindowTest extends IntegrationTest {
       newGrain();
     }
     indexAll();
-    // Separates an indexing loss (bulk outcome, cursor, concurrent writer) from a paging loss:
-    // the walk below is only meaningful once every observation is in the index (issue #8943).
+    // Diagnostic for issue #8943 (20 or 22 of 25 seen on elk8-3): separates an indexing loss
+    // (bulk outcome, batch cut, concurrent writer) from a paging loss. The walk below is only
+    // meaningful once every observation is in the index.
     assertThat(indexedObservationCount())
         .as("vulnerability observations indexed before the walk")
         .isEqualTo(total);
