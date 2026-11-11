@@ -502,14 +502,26 @@ class TenantActiveTableAccessArchTest {
   /**
    * Active tables guarded by rules other than a repository access rule, with those rules. {@code
    * parameters} is dual-scope: a platform row is readable under any scope, so its guard follows its
-   * writers and the readers of its tenant rows instead of its repository.
+   * writers and the readers of its tenant rows instead of its repository. The five link tables of
+   * injectors_contracts have no repository: their readers are the queries that name them, and the
+   * contract repository rule covers the entity load that fetches them.
    */
   private static final Map<String, Set<String>> TABLES_GUARDED_BY_OTHER_RULES =
       Map.of(
           "parameters",
           Set.of(
               "parameters_platform_row_writers_run_under_platform_write",
-              "parameters_tenant_row_readers_off_the_request_thread"));
+              "parameters_tenant_row_readers_off_the_request_thread"),
+          "injector_contract_tags",
+          Set.of("injector_contract_tags_native_query_access_is_reviewed"),
+          "injectors_contracts_attack_patterns",
+          Set.of("injectors_contracts_attack_patterns_native_query_access_is_reviewed"),
+          "injectors_contracts_domains",
+          Set.of("injectors_contracts_domains_native_query_access_is_reviewed"),
+          "injectors_contracts_vulnerabilities",
+          Set.of("injectors_contracts_vulnerabilities_native_query_access_is_reviewed"),
+          "injectors_injector_contracts",
+          Set.of("injectors_injector_contracts_native_query_access_is_reviewed"));
 
   @ArchTest
   static void the_accessor_rule_of_a_table_is_matched_by_its_full_name(JavaClasses classes) {
@@ -2596,8 +2608,7 @@ class TenantActiveTableAccessArchTest {
                   + " parameter");
 
   private static final Reaching SCENARIO_SERVICE_READS =
-      reaching(
-          io.openaev.service.scenario.ScenarioService.class, "getScenarioById", "getScenarioTeams");
+      reaching(io.openaev.service.scenario.ScenarioService.class, "rawScenario");
 
   private static final Reaching V1_DATA_IMPORTER_READS =
       reaching(
@@ -2844,7 +2855,12 @@ class TenantActiveTableAccessArchTest {
                   // (StepEventService). The contract reads of this class are the authoring lookups
                   // in
                   // the step's parent tenant and the findById of the allowlisted run path.
-                  io.openaev.api.chaining.InjectExecutionStep.class))
+                  io.openaev.api.chaining.InjectExecutionStep.class,
+                  // The content hash of an imported payload reads the contract keyed by the
+                  // payload entity, from the import under the TxCtx importData receives; the usage
+                  // check of a bulk delete reads the contracts of the one tenant it writes in:
+                  io.openaev.service.payload.PayloadContentHashService.class,
+                  io.openaev.service.payload.PayloadUsageService.class))
           .should()
           .dependOnClassesThat()
           .areAssignableTo(io.openaev.database.repository.InjectorContractRepository.class)
@@ -3086,7 +3102,8 @@ class TenantActiveTableAccessArchTest {
         "its only caller ThreatArsenalApi#securityPlatformsFromAction is mapped under the tenant"
             + " prefix only"),
     // Reached from delete and from the bulk delete chain bulkDelete -> bulkDeleteInTenant ->
-    // resolveEligibleIds, each the only caller of the next. bulkDelete calls tenantForWrite
+    // resolveEligibleIds -> resolveCandidateIds, each the only caller of the next. bulkDelete calls
+    // tenantForWrite
     // before it hands the chain to ambientTenantBridge.callInTenant.
     allowPinned(
         ThreatArsenalService.class,
@@ -3191,6 +3208,17 @@ class TenantActiveTableAccessArchTest {
         "findInjectorContractByPayload",
         "keyed by the payload entity"),
     allow(
+        io.openaev.service.GrantService.class,
+        "threatArsenalGrantResources",
+        "findById",
+        "its only caller PermissionService#hasGrantPermission runs in the permission check, which"
+            + " resolves the contract in the ambient tenant alone"),
+    allow(
+        io.openaev.service.payload.PayloadContentHashService.class,
+        "attackPatternsOf",
+        "findInjectorContractByPayload",
+        "keyed by a Payload entity, whose primary key is the single column payload_id"),
+    allow(
         io.openaev.importer.V1_DataImporter.class,
         "findContractByPayloadExternalId",
         "findInjectorContractByPayload",
@@ -3234,14 +3262,18 @@ class TenantActiveTableAccessArchTest {
         ThreatArsenalService.class,
         "getSecurityPlatformsForActionRemediation",
         at(ThreatArsenalApi.class, "securityPlatformsFromAction")),
-    // Every overload of the name: the String overload is called by resolveEligibleIds, the contract
-    // overload by delete and by the String overload.
+    // Every overload of the name: the String and the output overloads are called by
+    // resolveCandidateIds, the contract overload by delete and by the String overload.
     claim(
         ThreatArsenalService.class,
         "isEligibleForDeletion",
         at(ThreatArsenalService.class, "delete"),
-        at(ThreatArsenalService.class, "resolveEligibleIds"),
+        at(ThreatArsenalService.class, "resolveCandidateIds"),
         overload(ThreatArsenalService.class, "isEligibleForDeletion", String.class)),
+    claim(
+        ThreatArsenalService.class,
+        "resolveCandidateIds",
+        at(ThreatArsenalService.class, "resolveEligibleIds")),
     claim(
         ThreatArsenalService.class,
         "resolveEligibleIds",
@@ -3250,6 +3282,10 @@ class TenantActiveTableAccessArchTest {
         ThreatArsenalService.class,
         "bulkDeleteInTenant",
         at(ThreatArsenalService.class, "bulkDelete")),
+    claim(
+        io.openaev.service.GrantService.class,
+        "threatArsenalGrantResources",
+        at(io.openaev.service.PermissionService.class, "hasGrantPermission")),
     // The exporter endpoint is called by nothing: Spring serves it.
     claim(ThreatArsenalApiExporter.class, "export"),
     claim(InjectExecutionStep.class, "getInjectFromDataStep", at(InjectExecutionStep.class, "run")),

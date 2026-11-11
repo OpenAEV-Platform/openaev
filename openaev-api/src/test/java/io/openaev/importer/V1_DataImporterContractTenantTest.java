@@ -210,8 +210,9 @@ class V1_DataImporterContractTenantTest extends ProductionTablesIntegrationTest 
           .containsExactly(contractInB);
       assertThat(
               column(
-                  "SELECT payload_id FROM payloads WHERE payload_external_id = ? AND tenant_id ="
-                      + " ?",
+                  "SELECT p.payload_id FROM payloads p JOIN payload_identities pi ON"
+                      + " pi.payload_identity_id = p.payload_identity WHERE"
+                      + " pi.payload_external_id = ? AND p.tenant_id = ?",
                   externalId,
                   tenantB))
           .hasSize(1);
@@ -313,6 +314,8 @@ class V1_DataImporterContractTenantTest extends ProductionTablesIntegrationTest 
       Payload createdPayload = PayloadFixture.createDefaultCommand();
       createdPayload.setId(UUID.randomUUID().toString());
       PayloadCreationService creation = Mockito.mock(PayloadCreationService.class);
+      Mockito.when(creation.toPayload(Mockito.any(), Mockito.anyString(), Mockito.any()))
+          .thenReturn(createdPayload);
       Mockito.when(creation.createPayload(Mockito.any(), Mockito.anyString(), Mockito.any()))
           .thenReturn(
               new PayloadCreationService.PayloadInjectorContractCreationResult(
