@@ -297,7 +297,9 @@ public class TeamApi extends RestBehavior {
     Team team = teamService.teamInScope(ctx, teamId);
     team.setUpdateAttributes(input);
     team.setUpdatedAt(now());
-    team.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    team.setTags(
+        iterableToSet(
+            tagRepository.findAllByIdInTenant(input.getTagIds(), team.getTenant().getId())));
     team.setOrganization(
         updateRelation(input.getOrganizationId(), team.getOrganization(), organizationRepository));
     return teamRepository.save(team);
