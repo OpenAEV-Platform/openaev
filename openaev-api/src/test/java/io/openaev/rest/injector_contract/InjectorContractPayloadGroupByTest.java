@@ -33,18 +33,17 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * On the production list of isolated tables, which holds {@code payloads}, {@code
- * InjectorContractService}'s tuple queries (FULL, THREAT_ARSENAL and THREAT_ARSENAL_CONTENT)
- * project {@code payload.type}, {@code payload.executionArch} and {@code payload.status} while
- * grouping only by {@code payload.id} ({@code getCommonGroupBy}). {@code TenantStatementInspector}
- * wraps the joined {@code payloads} table in a filtered derived table, which has no primary key, so
- * PostgreSQL rejects the statement: the selected columns are no longer functionally dependent on
- * the grouped {@code id}. This surfaces as a 500 on {@code POST /injector_contracts/search} (full
- * details) and on both {@code /threat_arsenals/search} routes.
+ * Pins that, on the production list of isolated tables, which holds {@code payloads}, {@code POST
+ * /injector_contracts/search} (full details) and both {@code /threat_arsenals/search} routes answer
+ * 200. {@code InjectorContractService}'s tuple queries (FULL, THREAT_ARSENAL and
+ * THREAT_ARSENAL_CONTENT) project {@code payload.type}, {@code payload.executionArch} and {@code
+ * payload.status} and group by {@code payload.id} ({@code getCommonGroupBy}); {@code
+ * TenantStatementInspector} wraps the joined {@code payloads} table in a filtered derived table,
+ * which has no primary key, so the statement is valid only if the projected columns are part of the
+ * grouping.
  *
- * <p>Deliberately NOT {@code @Transactional}, same shape as {@code
- * InjectorContractCollectorTypeGroupByTest}: a test-managed transaction changes how the tenant
- * scope is applied to the request and was found to mask this exact defect.
+ * <p>Not {@code @Transactional}, same shape as {@code InjectorContractCollectorTypeGroupByTest}:
+ * the request runs in its own transaction, as in production, and applies the tenant scope itself.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName(
