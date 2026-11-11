@@ -288,8 +288,7 @@ public class DocumentApi extends RestBehavior {
     documentService.assertNotReportingGenerationOutput(documentId);
     document.setTags(
         new HashSet<>(
-            tagRepository.findAllByIdInAndTenantId(
-                input.getTagIds(), document.getTenant().getId())));
+            tagRepository.findAllByIdInTenant(input.getTagIds(), document.getTenant().getId())));
     return documentService.withSerializedLinks(documentService.save(document));
   }
 
@@ -321,8 +320,7 @@ public class DocumentApi extends RestBehavior {
     document.setUpdateAttributes(input);
     document.setTags(
         new HashSet<>(
-            tagRepository.findAllByIdInAndTenantId(
-                input.getTagIds(), document.getTenant().getId())));
+            tagRepository.findAllByIdInTenant(input.getTagIds(), document.getTenant().getId())));
 
     // Get removed exercises
     Stream<String> askExerciseIdsStream =

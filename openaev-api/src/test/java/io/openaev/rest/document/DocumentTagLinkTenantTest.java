@@ -23,9 +23,11 @@ import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.assertj.core.api.SoftAssertions;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,11 +44,10 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * The document tag endpoints link a document to the tags of the document's own tenant.
  *
- * <p>On the non-prefixed route {@code X-Tenant-Ids} can name several tenants, and the repository
- * scope then holds all of them: a lookup of tag ids in that scope returns the tags of every tenant
- * of the header. The links are read from the join table through JDBC on the test connection, which
- * the statement inspector does not rewrite. The class arms the production list, so {@code tags} and
- * {@code documents} are both scoped by the inspector.
+ * <p>On the non-prefixed route {@code X-Tenant-Ids} can name several tenants. The tag ids of the
+ * body resolve in the tenant of the document alone. The links are read from the join table through
+ * JDBC on the test connection, which the statement inspector does not rewrite. The class arms the
+ * production list, so {@code tags} and {@code documents} are both scoped by the inspector.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
@@ -151,6 +152,95 @@ class DocumentTagLinkTenantTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Body without tag ids")
+  class BodyWithoutTagIds {
+
+    @Test
+    @DisplayName(
+        "given a tag update without tag ids on a document of B holding a tag of B then the request"
+            + " is refused and the link stays")
+    void given_tagUpdateWithoutTagIds_should_refuseAndKeepTheLinks() throws Exception {
+      // -- Arrange --
+      String document = saveDocumentInBWithTag(tagInB);
+      assertSeedTenants();
+
+      // -- Act --
+      int status =
+          mvc.perform(
+                  put(DOCUMENT_API + "/" + document + "/tags")
+                      .header(TENANT_HEADER, Tenant.DEFAULT_TENANT_UUID + "," + tenantB)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content("{}")
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -- Assert --
+      SoftAssertions.assertSoftly(
+          softly -> {
+            softly.assertThat(status).as("status of a tag update without tag ids").isEqualTo(400);
+            softly.assertThat(linkedTags(document)).containsExactly(tagInB);
+          });
+    }
+
+    @Test
+    @DisplayName(
+        "given an update without tag ids on a document of B holding a tag of B then the request"
+            + " is refused and the link stays")
+    void given_documentUpdateWithoutTagIds_should_refuseAndKeepTheLinks() throws Exception {
+      // -- Arrange --
+      String document = saveDocumentInBWithTag(tagInB);
+      assertSeedTenants();
+
+      // -- Act --
+      int status =
+          mvc.perform(
+                  put(DOCUMENT_API + "/" + document)
+                      .header(TENANT_HEADER, Tenant.DEFAULT_TENANT_UUID + "," + tenantB)
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(
+                          objectMapper.writeValueAsString(
+                              Map.of(
+                                  "document_exercises", List.of(),
+                                  "document_scenarios", List.of())))
+                      .with(csrf()))
+              .andReturn()
+              .getResponse()
+              .getStatus();
+
+      // -- Assert --
+      SoftAssertions.assertSoftly(
+          softly -> {
+            softly.assertThat(status).as("status of an update without tag ids").isEqualTo(400);
+            softly.assertThat(linkedTags(document)).containsExactly(tagInB);
+          });
+    }
+
+    @Test
+    @DisplayName(
+        "given a tag update with an empty tag list on a document of B holding a tag of B then no"
+            + " tag stays linked")
+    void given_tagUpdateWithEmptyTagList_should_clearTheLinks() throws Exception {
+      // -- Arrange --
+      String document = saveDocumentInBWithTag(tagInB);
+      assertSeedTenants();
+
+      // -- Act --
+      mvc.perform(
+              put(DOCUMENT_API + "/" + document + "/tags")
+                  .header(TENANT_HEADER, Tenant.DEFAULT_TENANT_UUID + "," + tenantB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(Map.of("tags", List.of())))
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // -- Assert --
+      assertThat(linkedTags(document)).isEmpty();
+    }
+  }
+
+  @Nested
   @DisplayName("Prefixed route")
   class PrefixedRoute {
 
@@ -198,6 +288,19 @@ class DocumentTagLinkTenantTest extends IntegrationTest {
     return documentRepository.save(document).getId();
   }
 
+  private String saveDocumentInBWithTag(String tagId) {
+    Document document = DocumentFixture.getDocumentJpeg();
+    document.setTenant(new Tenant(tenantB));
+    document.setTarget("document-tag-link-" + UUID.randomUUID() + ".jpeg");
+    document.setName("document-tag-link-" + UUID.randomUUID() + ".jpeg");
+    document.setTags(
+        new HashSet<>(tagRepository.findAllByIdInAndTenantId(List.of(tagId), tenantB)));
+    String id = documentRepository.save(document).getId();
+    entityManager.flush();
+    entityManager.clear();
+    return id;
+  }
+
   /** Each tag and the document carry the tenant the scenario relies on. */
   private void assertSeedTenants() {
     assertThat(column("SELECT tenant_id FROM tags WHERE tag_id = ?", tagInB))
@@ -209,8 +312,11 @@ class DocumentTagLinkTenantTest extends IntegrationTest {
   }
 
   private List<String> linkedTags() {
-    return column(
-        "SELECT tag_id FROM documents_tags WHERE document_id = ? ORDER BY 1", documentInB);
+    return linkedTags(documentInB);
+  }
+
+  private List<String> linkedTags(String documentId) {
+    return column("SELECT tag_id FROM documents_tags WHERE document_id = ? ORDER BY 1", documentId);
   }
 
   /** JDBC on the test connection: the statement inspector does not rewrite it. */
