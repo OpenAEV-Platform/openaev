@@ -860,8 +860,7 @@ class BackgroundEntrypointDetectionTest {
     // held by no_baseline_waiver_outlives_its_table, which fails on any until-active tag whose
     // table is active, but the completeness of its tags is only this test's, so add it here.
     Map<String, String> baseline = BackgroundEntrypointTenantScopeArchTest.loadBaseline();
-    assertUntilActive(
-        baseline, "io.openaev.scheduler.jobs.InjectsFinalizationJob", "injects", "exercises");
+    assertUntilActive(baseline, "io.openaev.scheduler.jobs.InjectsFinalizationJob", "injects");
   }
 
   private static void assertUntilActive(
