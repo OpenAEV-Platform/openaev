@@ -80,7 +80,7 @@ class GrantReaderAllowlistArchTest {
 
   /** The Criteria form of the same rule, shared by every Criteria reader that needs it. */
   private static final Pattern GROUP_TENANT_CRITERIA =
-      Pattern.compile("\\bgroupCountsInTenant\\s*\\(");
+      Pattern.compile("\\b(?:groupCountsInTenant|groupTenantKey)\\s*\\(");
 
   private static final Pattern ENTRY_LINE = Pattern.compile("(\\S+)\\s+#\\s*(.*)");
 
@@ -227,6 +227,21 @@ class GrantReaderAllowlistArchTest {
       assertTrue(!GROUP_TENANT_SQL.matcher(split).find(), "two aliases must not pass");
       assertTrue(GROUP_TENANT_SQL.matcher(joined).find(), "the JPQL form must pass");
       assertTrue(GROUP_TENANT_SQL.matcher(nativeForm).find(), "the native form must pass");
+    }
+
+    @Test
+    @DisplayName(
+        "given a Criteria reader with neither group tenant call, when matched, then it is refused")
+    void given_criteriaReaderWithoutGroupTenantCall_should_beRefused() {
+      // Arrange
+      String neither = "accessibleResources.where(cb.equal(userTable.get(\"id\"), userId));";
+      String platform = "groupCountsInTenant(cb, groupTable)";
+      String keyed = "accessibleResources.select(groupTenantKey(cb, grantTable, groupTable));";
+
+      // Act / Assert
+      assertTrue(!GROUP_TENANT_CRITERIA.matcher(neither).find(), "no call must not pass");
+      assertTrue(GROUP_TENANT_CRITERIA.matcher(platform).find(), "the platform call must pass");
+      assertTrue(GROUP_TENANT_CRITERIA.matcher(keyed).find(), "the keyed call must pass");
     }
 
     @Test

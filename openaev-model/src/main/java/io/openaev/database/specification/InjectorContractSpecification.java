@@ -8,6 +8,7 @@ import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
+import java.util.List;
 import org.springframework.data.jpa.domain.Specification;
 
 public class InjectorContractSpecification {
@@ -107,18 +108,31 @@ public class InjectorContractSpecification {
               cb.equal(group.get("tenant").get("id"), rowTenant),
               capability.in(Capability.ACCESS_THREAT_ARSENALS, Capability.BYPASS));
 
-      Subquery<String> granted =
+      List<Grant.GRANT_TYPE> grantTypes = Grant.GRANT_TYPE.OBSERVER.andHigher();
+      Subquery<String> platformGrants =
           SpecificationUtils.accessibleResourcesSubquery(
               query,
               cb,
               currentUser.getId(),
-              rowTenant,
+              SpecificationUtils.GrantGroups.PLATFORM,
               Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
-              Grant.GRANT_TYPE.OBSERVER.andHigher());
+              grantTypes);
+      Subquery<String> tenantGrants =
+          SpecificationUtils.accessibleResourcesSubquery(
+              query,
+              cb,
+              currentUser.getId(),
+              SpecificationUtils.GrantGroups.KEYED_BY_TENANT,
+              Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
+              grantTypes);
+      Path<String> contractId = root.get("compositeId").get("id");
+      Path<String> payloadIdentity = root.join("payload", JoinType.LEFT).get("identity").get("id");
       return cb.or(
           cb.exists(holdsCapability),
-          root.get("compositeId").get("id").in(granted),
-          root.join("payload", JoinType.LEFT).get("identity").get("id").in(granted));
+          contractId.in(platformGrants),
+          SpecificationUtils.tenantKey(cb, contractId, rowTenant).in(tenantGrants),
+          payloadIdentity.in(platformGrants),
+          SpecificationUtils.tenantKey(cb, payloadIdentity, rowTenant).in(tenantGrants));
     };
   }
 }
