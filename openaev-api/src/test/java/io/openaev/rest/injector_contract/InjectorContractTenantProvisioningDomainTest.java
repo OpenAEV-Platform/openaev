@@ -2,7 +2,7 @@ package io.openaev.rest.injector_contract;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.injectors.email.EmailContract;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -17,7 +17,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -36,10 +35,9 @@ import org.springframework.transaction.annotation.Transactional;
  * empty table look identical without the non-empty one.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=domains")
 @WithMockUser(isAdmin = true)
 @DisplayName("tenant onboarding links the provisioned contracts to the new tenant's own domains")
-class InjectorContractTenantProvisioningDomainTest extends IntegrationTest {
+class InjectorContractTenantProvisioningDomainTest extends ProductionTablesIntegrationTest {
 
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private EntityManager entityManager;

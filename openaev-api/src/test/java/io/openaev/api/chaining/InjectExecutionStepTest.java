@@ -627,13 +627,17 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   /**
-   * Pins {@code InjectExecutionStep#create}'s parent-tenant computation: the contract is resolved
-   * in the simulation's own tenant, not the caller's ambient one. The stub only answers for that
-   * exact (contract id, simulation tenant id) pair, and the contract row exists only under the
-   * simulation's tenant, so a regression that reverts the computation to the ambient tenant fails
-   * on two independent checks: the stub does not match (the mocked service returns {@code null},
-   * failing {@code injectUtils.resolveInjector}) and {@code assertInjectorContractExists}'s real,
-   * tenant-scoped lookup finds no row for the ambient tenant.
+   * Pins the tenant {@code InjectExecutionStep#create} passes for the contract: the simulation's
+   * own tenant, not the caller's ambient one. The contract service is a mock that answers only for
+   * the exact (contract id, simulation tenant id) pair, and the contract row exists only under the
+   * simulation's tenant. Two checks fail when the computation falls back to the ambient tenant: the
+   * stub does not match (the mocked service returns {@code null}, failing {@code
+   * injectUtils.resolveInjector}) and the existence check, a repository query with an explicit
+   * tenant id predicate, finds no row for the ambient tenant.
+   *
+   * <p>This class arms the {@code documents} table only, so {@code injectors_contracts} is not
+   * isolated here: the test proves which tenant id the step passes on, and the explicit predicate
+   * of the existence check. It does not prove the statement inspector scopes the contract read.
    */
   @Test
   public void given_simulationInAnotherTenant_should_resolveInjectorContractInSimulationsTenant()
