@@ -300,6 +300,7 @@ public class User implements Base {
    * cleanup before delete). Never serialize this — use {@link #getScopedGroups()} for API
    * responses.
    */
+  @JsonIgnore
   public List<Group> getUnscopedGroups() {
     return groups;
   }
