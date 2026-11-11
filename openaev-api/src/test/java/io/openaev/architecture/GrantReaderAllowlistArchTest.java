@@ -239,7 +239,7 @@ class GrantReaderAllowlistArchTest {
       assertThat(found.keySet())
           .contains(
               "GrantRepository#existsByUserIdAndGroupTenantAndResourceIdAndNameIn",
-              "InjectorContractRepository#getAllRawInjectorsContractsGranted",
+              "InjectorContractRepository#getAllRawInjectorsContractsVisible",
               "SpecificationUtils#accessibleResourcesSubquery");
     }
   }

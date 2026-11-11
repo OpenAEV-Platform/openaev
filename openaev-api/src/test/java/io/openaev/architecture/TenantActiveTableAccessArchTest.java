@@ -3048,12 +3048,12 @@ class TenantActiveTableAccessArchTest {
     allow(
         InjectorContractService.class,
         "getAllRawInjectContracts",
-        "getAllRawInjectorsContractsGranted",
-        "a list of the request scope's granted contracts, one row per contract id"),
+        "getAllRawInjectorsContractsVisible",
+        "a list of the request scope's visible contracts, one row per contract id"),
     allow(
         InjectorContractRepository.class,
-        "getAllRawInjectorsContractsGranted",
-        "getAllRawInjectorsContractsGranted",
+        "getAllRawInjectorsContractsVisible",
+        "getAllRawInjectorsContractsVisible",
         "the default method delegates to the two-argument query of the same interface"),
     // Threat arsenal: each of these service methods has one ThreatArsenalApi endpoint as its
     // only caller (injector_contract_callers_are_the_claimed_ones), and that endpoint pins one

@@ -72,30 +72,51 @@ public class InjectorContractSpecification {
   }
 
   /**
-   * Specification to filter InjectorContracts based on user grants. Only injector contracts on
-   * which the user has at least an OBSERVER grant (grant_resource = injector_contract_id,
-   * grant_resource_type = THREAT_ARSENAL) or the ACCESS_THREAT_ARSENALS capability are returned.
+   * Specification to filter InjectorContracts on the caller's rights in the tenant of each row. A
+   * contract id repeats across tenants, so a copy is visible on rights held in its own tenant:
+   *
+   * <ul>
+   *   <li>a platform administrator sees every row of the scope;
+   *   <li>a role of a group of the row's tenant holds {@code ACCESS_THREAT_ARSENALS} or {@code
+   *       BYPASS} (a platform group does not count);
+   *   <li>a THREAT_ARSENAL grant of at least OBSERVER on the contract id or on its payload
+   *       identity, held through a group of the row's tenant or a platform group.
+   * </ul>
    *
    * @param currentUser current user performing the search
-   * @return Specification for filtering InjectorContracts based on user grants
+   * @return Specification for filtering InjectorContracts based on the caller's rights
    */
   public static Specification<InjectorContract> hasAccessToInjectorContract(
       final User currentUser) {
     return (root, query, cb) -> {
-      if (currentUser.isAdminOrBypass()
-          || currentUser.getCapabilities().contains(Capability.ACCESS_THREAT_ARSENALS)) {
+      if (currentUser.isAdmin()) {
         return cb.conjunction();
       }
+
+      Path<String> rowTenant = root.get("compositeId").<String>get("tenantId");
+
+      Subquery<Integer> holdsCapability = query.subquery(Integer.class);
+      Root<Group> group = holdsCapability.from(Group.class);
+      Join<Group, User> member = group.join("users");
+      Join<Group, Role> role = group.join("roles");
+      Join<Role, Capability> capability = role.join("capabilities");
+      holdsCapability
+          .select(cb.literal(1))
+          .where(
+              cb.equal(member.get("id"), currentUser.getId()),
+              cb.equal(group.get("tenant").get("id"), rowTenant),
+              capability.in(Capability.ACCESS_THREAT_ARSENALS, Capability.BYPASS));
 
       Subquery<String> granted =
           SpecificationUtils.accessibleResourcesSubquery(
               query,
               cb,
               currentUser.getId(),
-              currentUser.scopedTenantId(),
+              rowTenant,
               Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
               Grant.GRANT_TYPE.OBSERVER.andHigher());
       return cb.or(
+          cb.exists(holdsCapability),
           root.get("compositeId").get("id").in(granted),
           root.join("payload", JoinType.LEFT).get("identity").get("id").in(granted));
     };

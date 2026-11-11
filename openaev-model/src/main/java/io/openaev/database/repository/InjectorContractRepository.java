@@ -87,20 +87,23 @@ public interface InjectorContractRepository
       @Param("exerciseId") String exerciseId);
 
   /**
-   * Retrieves injector contracts that a specific user has been granted access to.
+   * Retrieves the injector contracts a specific user may see, decided per row in the tenant of the
+   * row: a contract id repeats across tenants, so a copy is visible on rights held in its own
+   * tenant.
    *
-   * <p>Returns only contracts where the user has a THREAT_ARSENAL grant on the injector contract ID
-   * or on its payload identity, through a group of the contract's tenant or a platform group: a
-   * grant applies in the tenant of the group that holds it.
+   * <p>A copy is visible when a role of one of the user's groups of the copy's tenant holds {@code
+   * ACCESS_THREAT_ARSENALS} or {@code BYPASS} (a platform group does not count), or when a
+   * THREAT_ARSENAL grant on the contract id or on its payload identity comes from a group of the
+   * copy's tenant or from a platform group.
    *
    * <p>Same tenant-carrying mapping join and one row per contract id as {@link
-   * #getAllRawInjectorsContracts()}; only the copies the user holds a grant on contribute.
+   * #getAllRawInjectorsContracts()}; only the visible copies contribute their attack patterns.
    *
    * @param userId the ID of the user to check access for
-   * @return list of raw injector contract projections the user has been granted access to
+   * @return list of raw injector contract projections the user may see
    */
-  default List<RawInjectorsContracts> getAllRawInjectorsContractsGranted(String userId) {
-    return getAllRawInjectorsContractsGranted(userId, ResourceType.THREAT_ARSENAL.name());
+  default List<RawInjectorsContracts> getAllRawInjectorsContractsVisible(String userId) {
+    return getAllRawInjectorsContractsVisible(userId, ResourceType.THREAT_ARSENAL.name());
   }
 
   // Native: array_agg over the attack pattern mapping; a read, no session side effect lost.
@@ -116,6 +119,14 @@ public interface InjectorContractRepository
               + "LEFT JOIN payloads p ON p.payload_id = injcon.injector_contract_payload "
               + "  AND p.tenant_id = injcon.tenant_id "
               + "WHERE EXISTS ( "
+              + "  SELECT 1 FROM users_groups ug "
+              + "  INNER JOIN groups g ON ug.group_id = g.group_id "
+              + "  INNER JOIN groups_roles gro ON gro.group_id = g.group_id "
+              + "  INNER JOIN roles_capabilities rc ON rc.role_id = gro.role_id "
+              + "  WHERE ug.user_id = :userId "
+              + "  AND g.tenant_id = injcon.tenant_id "
+              + "  AND rc.capability IN ('ACCESS_THREAT_ARSENALS', 'BYPASS') "
+              + ") OR EXISTS ( "
               + "  SELECT 1 FROM users u "
               + "  INNER JOIN users_groups ug ON u.user_id = ug.user_id "
               + "  INNER JOIN groups g ON ug.group_id = g.group_id "
@@ -127,7 +138,7 @@ public interface InjectorContractRepository
               + ") "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
-  List<RawInjectorsContracts> getAllRawInjectorsContractsGranted(
+  List<RawInjectorsContracts> getAllRawInjectorsContractsVisible(
       @Param("userId") String userId, @Param("resourceType") String resourceType);
 
   @NotNull

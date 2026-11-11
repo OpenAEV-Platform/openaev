@@ -159,6 +159,24 @@ public class SpecificationUtils {
       String tenantId,
       Grant.GRANT_RESOURCE_TYPE resourceType,
       List<Grant.GRANT_TYPE> allowedGrantTypes) {
+    return accessibleResourcesSubquery(
+        query, cb, userId, cb.literal(tenantId), resourceType, allowedGrantTypes);
+  }
+
+  /**
+   * Same as above, for a resource whose tenant is a column of the outer query: {@code rowTenant} is
+   * the tenant of each row the subquery is correlated with, so a grant counts for a row only when
+   * its group belongs to the tenant of that row or is a platform group.
+   *
+   * @param rowTenant the tenant of the row the grant must count for
+   */
+  public static Subquery<String> accessibleResourcesSubquery(
+      CriteriaQuery<?> query,
+      CriteriaBuilder cb,
+      String userId,
+      Expression<String> rowTenant,
+      Grant.GRANT_RESOURCE_TYPE resourceType,
+      List<Grant.GRANT_TYPE> allowedGrantTypes) {
 
     Subquery<String> accessibleResources = query.subquery(String.class);
     Root<Grant> grantTable = accessibleResources.from(Grant.class);
@@ -173,7 +191,7 @@ public class SpecificationUtils {
     accessibleResources.where(
         cb.and(
             cb.equal(userTable.get("id"), userId),
-            groupCountsInTenant(cb, groupTable, tenantId),
+            groupCountsInTenant(cb, groupTable, rowTenant),
             cb.equal(grantTable.get("grantResourceType"), resourceType),
             grantTable.get("name").in(allowedGrantTypes)));
 
@@ -185,7 +203,7 @@ public class SpecificationUtils {
    * is a platform group.
    */
   private static Predicate groupCountsInTenant(
-      CriteriaBuilder cb, Join<Grant, Group> groupTable, String tenantId) {
+      CriteriaBuilder cb, Join<Grant, Group> groupTable, Expression<String> tenantId) {
     return cb.or(
         cb.isNull(groupTable.get("tenant")),
         cb.equal(groupTable.get("tenant").get("id"), tenantId));

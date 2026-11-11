@@ -29,8 +29,8 @@
 # Restricted to the group's tenant.
 # ---------------------------------------------------------------------------------------------
 GrantRepository#existsByUserIdAndGroupTenantAndResourceIdAndNameIn  # group-tenant : the access check behind every grant-managed resource; the caller passes User.scopedTenantId(), the tenant capabilities and user_grants resolve against.
-SpecificationUtils#accessibleResourcesSubquery  # group-tenant : the search subquery behind the contract search and the inject grant filter; the caller passes User.scopedTenantId().
-InjectorContractRepository#getAllRawInjectorsContractsGranted  # group-tenant : the granted contract list; the group is correlated to the contract's own tenant, which the statement pins to the current one.
+SpecificationUtils#accessibleResourcesSubquery  # group-tenant : the search subquery behind the contract search and the inject grant filter; the caller passes a tenant id (User.scopedTenantId()) or, for the contract search, the tenant column of the row.
+InjectorContractRepository#getAllRawInjectorsContractsVisible  # group-tenant : the visible contract list; the grant's group is correlated to the contract's own tenant or is a platform group.
 
 # ---------------------------------------------------------------------------------------------
 # Matched against single-column ids.

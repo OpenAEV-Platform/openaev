@@ -238,9 +238,12 @@ public class InjectorContractService implements DependenciesManager {
     // Always apply access spec, and read a contract id repeated across the scope's tenants once,
     // through its best-ranked copy that matches the request (specificationCount carries no join
     // shared with the page query, so it can also run on the competing copies)
+    Specification<InjectorContract> visible =
+        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
     Specification<InjectorContract> accessSpec =
-        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser())
-            .and(InjectorContractSpecification.onePerContractId(specificationCount));
+        visible.and(
+            InjectorContractSpecification.onePerContractId(
+                specificationCount == null ? visible : specificationCount.and(visible)));
 
     Specification<InjectorContract> combinedSpec =
         (specification == null ? accessSpec : specification.and(accessSpec));
@@ -277,11 +280,10 @@ public class InjectorContractService implements DependenciesManager {
 
   public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_THREAT_ARSENALS)) {
+    if (currentUser.isAdmin()) {
       return injectorContractRepository.getAllRawInjectorsContracts();
     }
-    return injectorContractRepository.getAllRawInjectorsContractsGranted(currentUser.getId());
+    return injectorContractRepository.getAllRawInjectorsContractsVisible(currentUser.getId());
   }
 
   /**
@@ -1165,9 +1167,12 @@ public class InjectorContractService implements DependenciesManager {
   private Specification<InjectorContract> facetBaseSpec(SearchPaginationInput input) {
     Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
+    Specification<InjectorContract> visible =
+        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
     Specification<InjectorContract> accessSpec =
-        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser())
-            .and(InjectorContractSpecification.onePerContractId(filterSpec.and(searchSpec)));
+        visible.and(
+            InjectorContractSpecification.onePerContractId(
+                filterSpec.and(searchSpec).and(visible)));
     return Specification.<InjectorContract>unrestricted()
         .and(filterSpec)
         .and(searchSpec)
