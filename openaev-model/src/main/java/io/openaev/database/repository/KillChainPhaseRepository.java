@@ -18,6 +18,8 @@ public interface KillChainPhaseRepository
   @NotNull
   Optional<KillChainPhase> findById(@NotNull String id);
 
+  List<KillChainPhase> findAllByIdInAndTenantId(Collection<String> ids, @NotNull String tenantId);
+
   List<KillChainPhase> findAllByExternalIdInIgnoreCaseAndTenantId(
       List<String> externalIds, @NotNull String tenantId);
 

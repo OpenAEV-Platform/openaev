@@ -142,9 +142,20 @@ public class MitigationApi extends RestBehavior {
         this.mitigationRepository.findById(mitigationId).orElseThrow(ElementNotFoundException::new);
     mitigation.setUpdateAttributes(input);
     mitigation.setAttackPatterns(
-        fromIterable(this.attackPatternRepository.findAllById(input.getAttackPatternsIds())));
+        attackPatternsOf(input.getAttackPatternsIds(), mitigation.getTenant().getId()));
     mitigation.setUpdatedAt(Instant.now());
     return hydrated(mitigationRepository.save(mitigation));
+  }
+
+  // An attack pattern is linked only when it belongs to the tenant of the mitigation; the id of an
+  // attack pattern of a different tenant is skipped, as findAllById skips an unknown id. A null
+  // list keeps going through findAllById, which refuses it with an IllegalArgumentException
+  // (answered by a 400); the derived query accepts a null list and the request succeeds.
+  private List<AttackPattern> attackPatternsOf(List<String> ids, String ownerTenantId) {
+    return fromIterable(
+        ids == null
+            ? attackPatternRepository.findAllById(ids)
+            : attackPatternRepository.findAllByIdInAndTenantId(ids, ownerTenantId));
   }
 
   // -- UPSERT --

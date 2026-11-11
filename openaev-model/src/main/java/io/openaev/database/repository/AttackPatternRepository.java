@@ -31,6 +31,8 @@ public interface AttackPatternRepository
 
   List<AttackPattern> findAllByIdIn(List<String> ids);
 
+  List<AttackPattern> findAllByIdInAndTenantId(Collection<String> ids, @NotNull String tenantId);
+
   /**
    * Load attack patterns together with their kill chain phases in a single query. Avoids the N+1
    * pattern that would otherwise occur when iterating the LAZY {@code killChainPhases} association
