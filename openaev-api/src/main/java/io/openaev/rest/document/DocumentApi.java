@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FilenameUtils;
@@ -319,6 +320,9 @@ public class DocumentApi extends RestBehavior {
 
   private Document updateDocumentInTenant(Document document, DocumentUpdateInput input) {
     String documentId = document.getId();
+    // The request scope can hold several tenants: a parent of another tenant is dropped like an
+    // unknown id, so the document only links simulations and scenarios of its own tenant.
+    String tenantId = document.getTenant().getId();
     document.setUpdateAttributes(input);
     document.setTags(
         new HashSet<>(
@@ -341,7 +345,10 @@ public class DocumentApi extends RestBehavior {
         document.getExercises().stream()
             .filter(exercise -> !askExerciseIds.contains(exercise.getId()))
             .toList();
-    document.setExercises(iterableToSet(exerciseRepository.findAllById(askExerciseIds)));
+    document.setExercises(
+        fromIterable(exerciseRepository.findAllById(askExerciseIds)).stream()
+            .filter(exercise -> tenantId.equals(exercise.getTenant().getId()))
+            .collect(Collectors.toSet()));
     // In case of exercise removal, all inject doc attachment for exercise
     removedExercises.forEach(
         exercise -> injectService.cleanInjectsDocExercise(exercise.getId(), documentId));
@@ -363,7 +370,10 @@ public class DocumentApi extends RestBehavior {
         document.getScenarios().stream()
             .filter(scenario -> !askScenarioIds.contains(scenario.getId()))
             .toList();
-    document.setScenarios(iterableToSet(scenarioRepository.findAllById(askScenarioIds)));
+    document.setScenarios(
+        fromIterable(scenarioRepository.findAllById(askScenarioIds)).stream()
+            .filter(scenario -> tenantId.equals(scenario.getTenant().getId()))
+            .collect(Collectors.toSet()));
     // In case of scenario removal, all inject doc attachment for scenario
     removedScenarios.forEach(
         scenario -> injectService.cleanInjectsDocScenario(scenario.getId(), documentId));
