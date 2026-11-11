@@ -225,10 +225,7 @@ public class ChannelApi extends RestBehavior {
     List<Document> finalArticleDocuments = new ArrayList<>();
     articleDocuments.forEach(
         articleDocument -> {
-          Optional<Document> doc =
-              articleDocument == null
-                  ? documentRepository.findById(articleDocument)
-                  : documentRepository.findByIdAndTenantId(articleDocument, ownerTenantId);
+          Optional<Document> doc = documentOfOwner(articleDocument, ownerTenantId);
           if (doc.isPresent()) {
             Document document = doc.get();
             finalArticleDocuments.add(document);
@@ -281,10 +278,7 @@ public class ChannelApi extends RestBehavior {
         .filter(doc -> !currentDocumentIds.contains(doc))
         .forEach(
             in -> {
-              Optional<Document> doc =
-                  in == null
-                      ? documentRepository.findById(in)
-                      : documentRepository.findByIdAndTenantId(in, ownerTenantId);
+              Optional<Document> doc = documentOfOwner(in, ownerTenantId);
               if (doc.isPresent()) {
                 Document document = doc.get();
                 articleDocuments.add(document);
@@ -343,10 +337,7 @@ public class ChannelApi extends RestBehavior {
     List<Document> finalArticleDocuments = new ArrayList<>();
     articleDocuments.forEach(
         articleDocument -> {
-          Optional<Document> doc =
-              articleDocument == null
-                  ? this.documentRepository.findById(articleDocument)
-                  : this.documentRepository.findByIdAndTenantId(articleDocument, ownerTenantId);
+          Optional<Document> doc = documentOfOwner(articleDocument, ownerTenantId);
           if (doc.isPresent()) {
             Document document = doc.get();
             finalArticleDocuments.add(document);
@@ -398,10 +389,7 @@ public class ChannelApi extends RestBehavior {
         .filter(doc -> !currentDocumentIds.contains(doc))
         .forEach(
             in -> {
-              Optional<Document> doc =
-                  in == null
-                      ? documentRepository.findById(in)
-                      : documentRepository.findByIdAndTenantId(in, ownerTenantId);
+              Optional<Document> doc = documentOfOwner(in, ownerTenantId);
               if (doc.isPresent()) {
                 Document document = doc.get();
                 articleDocuments.add(document);
@@ -415,6 +403,14 @@ public class ChannelApi extends RestBehavior {
     article.setDocuments(articleDocuments);
     Article savedArticle = articleRepository.save(article);
     return enrichArticleWithVirtualPublication(scenario.getInjects(), savedArticle, this.mapper);
+  }
+
+  // A null id keeps the refusal (400) that findById gives; the tenant query would match nothing
+  // and skip it.
+  private Optional<Document> documentOfOwner(String id, String ownerTenantId) {
+    return id == null
+        ? documentRepository.findById(id)
+        : documentRepository.findByIdAndTenantId(id, ownerTenantId);
   }
 
   @DeleteMapping({

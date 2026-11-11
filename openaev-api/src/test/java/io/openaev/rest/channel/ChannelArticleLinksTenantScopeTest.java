@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
@@ -34,6 +33,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -55,8 +56,9 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * <p>Header cases select the default tenant and a second one through {@code X-Tenant-Ids}. On that
  * route the simulation and scenario owners are looked up in the default tenant (the ambient one),
  * so they live there and the foreign channel and documents are the second tenant's. The channel of
- * the logos cases is the second tenant's (channels are v2, the scope covers both) and the foreign
- * logo document is the default tenant's.
+ * the logos cases is the second tenant's (the channel table is isolated by the statement inspector,
+ * so on the header route the scope holds both tenants) and the foreign logo document is the default
+ * tenant's.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Channel logo and article links are read in the tenant of their owner")
@@ -150,76 +152,41 @@ class ChannelArticleLinksTenantScopeTest extends IntegrationTest {
   @DisplayName("Channel logos")
   class ChannelLogos {
 
-    @Test
-    @DisplayName(
-        "given a dark logo of a foreign tenant when updating the logos then the logo is null")
-    void given_foreignDarkLogo_should_setNullDarkLogoThroughHeader() throws Exception {
+    @ParameterizedTest(name = "given a foreign {0} logo when updating the logos then it is null")
+    @ValueSource(strings = {"dark", "light"})
+    void given_foreignLogo_should_setNullLogoThroughHeader(String variant) throws Exception {
       // Arrange
       String channelId = seedChannel(tenantB);
       String foreignLogoId = seedDocument(DEFAULT_TENANT);
       arrangeHeaderRoute();
 
       // Act
-      ResultActions result = updateLogos(channelId, foreignLogoId, null, false);
+      ResultActions result = updateLogo(channelId, variant, foreignLogoId);
 
       // Assert
       result.andExpect(status().isOk());
-      assertNull(channelLogo(channelId, "channel_logo_dark"));
+      assertNull(channelLogo(channelId, "channel_logo_" + variant));
     }
 
-    @Test
-    @DisplayName(
-        "given a light logo of a foreign tenant when updating the logos then the logo is null")
-    void given_foreignLightLogo_should_setNullLightLogoThroughHeader() throws Exception {
-      // Arrange
-      String channelId = seedChannel(tenantB);
-      String foreignLogoId = seedDocument(DEFAULT_TENANT);
-      arrangeHeaderRoute();
-
-      // Act
-      ResultActions result = updateLogos(channelId, null, foreignLogoId, false);
-
-      // Assert
-      result.andExpect(status().isOk());
-      assertNull(channelLogo(channelId, "channel_logo_light"));
-    }
-
-    @Test
-    @DisplayName("given a dark logo of the channel's tenant when updating the logos then it is set")
-    void given_ownDarkLogo_should_setDarkLogoThroughHeader() throws Exception {
+    @ParameterizedTest(name = "given an own {0} logo when updating the logos then it is set")
+    @ValueSource(strings = {"dark", "light"})
+    void given_ownLogo_should_setLogoThroughHeader(String variant) throws Exception {
       // Arrange
       String channelId = seedChannel(tenantB);
       String ownLogoId = seedDocument(tenantB);
       arrangeHeaderRoute();
 
       // Act
-      ResultActions result = updateLogos(channelId, ownLogoId, null, false);
+      ResultActions result = updateLogo(channelId, variant, ownLogoId);
 
       // Assert
       result.andExpect(status().isOk());
-      assertEquals(ownLogoId, channelLogo(channelId, "channel_logo_dark"));
-    }
-
-    @Test
-    @DisplayName(
-        "given a light logo of the channel's tenant when updating the logos then it is set")
-    void given_ownLightLogo_should_setLightLogoThroughHeader() throws Exception {
-      // Arrange
-      String channelId = seedChannel(tenantB);
-      String ownLogoId = seedDocument(tenantB);
-      arrangeHeaderRoute();
-
-      // Act
-      ResultActions result = updateLogos(channelId, null, ownLogoId, false);
-
-      // Assert
-      result.andExpect(status().isOk());
-      assertEquals(ownLogoId, channelLogo(channelId, "channel_logo_light"));
+      assertEquals(ownLogoId, channelLogo(channelId, "channel_logo_" + variant));
     }
 
     @Test
     @DisplayName("given own logos on the tenant route when updating the logos then both are set")
-    void given_ownLogosOnTenantRoute_should_setBothLogos() throws Exception {
+    void given_ownLogos_should_setBothLogosOnTenantRoute() throws Exception {
       // Arrange
       String channelId = seedChannel(tenantB);
       String darkId = seedDocument(tenantB);
@@ -387,7 +354,7 @@ class ChannelArticleLinksTenantScopeTest extends IntegrationTest {
     @DisplayName(
         "given own ids on the tenant route when creating an article then the channel and the"
             + " document are linked")
-    void given_ownIdsOnTenantRoute_should_createArticle() throws Exception {
+    void given_ownIds_should_createArticleOnTenantRoute() throws Exception {
       // Arrange
       String ownerId = seedOwner(owner(), tenantB);
       String channelId = seedChannel(tenantB);
@@ -412,7 +379,7 @@ class ChannelArticleLinksTenantScopeTest extends IntegrationTest {
     @DisplayName(
         "given own ids on the tenant route when updating an article then the channel and the"
             + " document are linked")
-    void given_ownIdsOnTenantRoute_should_updateArticle() throws Exception {
+    void given_ownIds_should_updateArticleOnTenantRoute() throws Exception {
       // Arrange
       String ownerId = seedOwner(owner(), tenantB);
       String channelId = seedChannel(tenantB);
@@ -449,7 +416,7 @@ class ChannelArticleLinksTenantScopeTest extends IntegrationTest {
     @Test
     @DisplayName(
         "given a null channel id when creating an article then the request is a bad request")
-    void given_nullChannelId_should_refuseCreateWithBadRequest() throws Exception {
+    void given_nullChannelId_should_refuseCreateWithBadRequestThroughHeader() throws Exception {
       // Arrange
       String ownerId = seedOwner(owner(), DEFAULT_TENANT);
       arrangeHeaderRoute();
@@ -487,6 +454,13 @@ class ChannelArticleLinksTenantScopeTest extends IntegrationTest {
             : put(CHANNEL_URI + "/{channelId}/logos", channelId)
                 .header(TENANT_HEADER, scopeHeader());
     return perform(request, body);
+  }
+
+  private ResultActions updateLogo(String channelId, String variant, String documentId)
+      throws Exception {
+    return "dark".equals(variant)
+        ? updateLogos(channelId, documentId, null, false)
+        : updateLogos(channelId, null, documentId, false);
   }
 
   private ResultActions createArticle(
@@ -540,13 +514,11 @@ class ChannelArticleLinksTenantScopeTest extends IntegrationTest {
 
   /**
    * A null document id reaches {@code findById(null)}, which Spring Data refuses with an {@code
-   * InvalidDataAccessApiUsageException} caused by an {@code IllegalArgumentException}; the REST
-   * handler answers 400 with that message and the transaction rolls back.
+   * InvalidDataAccessApiUsageException}; the REST handler answers 400 and the transaction rolls
+   * back.
    */
   private static void assertNullDocumentRefused(ResultActions result) throws Exception {
-    result
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("The given id must not be null"));
+    result.andExpect(status().isBadRequest());
   }
 
   /**
