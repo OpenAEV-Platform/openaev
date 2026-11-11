@@ -30,6 +30,7 @@ import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.service.PermissionService;
@@ -52,6 +53,7 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import javax.sql.DataSource;
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -72,6 +74,8 @@ import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import reactor.core.Disposable;
 
 /**
@@ -122,6 +126,8 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private UserComposer userComposer;
   @Autowired private UserService userService;
+  @Autowired private UserRepository userRepository;
+  @Autowired private PlatformTransactionManager transactionManager;
   @Autowired private AttackPathAccessControl attackPathAccessControl;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
 
@@ -516,13 +522,18 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
 
   private List<BaseEvent> updatePlayerIn(String tenantId, String firstname, List<String> tagIds)
       throws Exception {
+    return updateUserIn(player, tenantId, firstname, tagIds);
+  }
+
+  private List<BaseEvent> updateUserIn(
+      User target, String tenantId, String firstname, List<String> tagIds) throws Exception {
     return writeAndStream(
-        player.getId(),
+        target.getId(),
         () ->
             mvc.perform(
                     json(
-                        put(PLAYER_URI + "/" + player.getId()).header(TENANT_HEADER, tenantId),
-                        playerInput(player.getEmail(), firstname, tagIds)))
+                        put(PLAYER_URI + "/" + target.getId()).header(TENANT_HEADER, tenantId),
+                        playerInput(target.getEmail(), firstname, tagIds)))
                 .andExpect(status().is2xxSuccessful()));
   }
 
@@ -590,7 +601,16 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
 
   private void assertDelivered(
       Consumer consumer, List<BaseEvent> published, String field, String expectedValue) {
-    soft(() -> hardAssertDelivered(consumer, published, field, expectedValue));
+    assertDelivered(consumer, player, published, field, expectedValue);
+  }
+
+  private void assertDelivered(
+      Consumer consumer,
+      User target,
+      List<BaseEvent> published,
+      String field,
+      String expectedValue) {
+    soft(() -> hardAssertDelivered(consumer, target, published, field, expectedValue));
     assertKnownFields(consumer);
   }
 
@@ -630,6 +650,11 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     soft(() -> hardAssertFlags(consumer, planner, observer));
   }
 
+  /** {@code user_is_player} as the consumer received it: absent when {@code expected} is null. */
+  private void assertIsPlayer(Consumer consumer, Boolean expected) {
+    soft(() -> hardAssertIsPlayer(consumer, expected));
+  }
+
   private void assertNoIdOutsideTheScope(Consumer consumer, String... allowedIds) {
     soft(() -> hardAssertNoIdOutsideTheScope(consumer, allowedIds));
   }
@@ -660,9 +685,13 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     assertTrue(failures.isEmpty(), "No delivery may fail, got " + failures);
   }
 
-  /** Every published event reached the consumer, as the player, carrying the written value. */
+  /** Every published event reached the consumer, as the target user, carrying the written value. */
   private void hardAssertDelivered(
-      Consumer consumer, List<BaseEvent> published, String field, String expectedValue) {
+      Consumer consumer,
+      User target,
+      List<BaseEvent> published,
+      String field,
+      String expectedValue) {
     assertNothingFailedToStream();
     assertEquals(
         published.size(),
@@ -673,7 +702,7 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
         .forEach(
             instance -> {
               assertEquals(
-                  player.getId(), instance.path("user_id").asText(), consumer.name() + " user_id");
+                  target.getId(), instance.path("user_id").asText(), consumer.name() + " user_id");
               assertEquals(
                   expectedValue,
                   instance.path(field).asText(),
@@ -755,9 +784,36 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
                   instance.path("user_is_observer").asBoolean(),
                   consumer.name() + " user_is_observer");
               assertTrue(instance.has("user_is_manager"), consumer.name() + " user_is_manager");
-              assertTrue(instance.has("user_is_player"), consumer.name() + " user_is_player");
+              if (planner || observer) {
+                assertTrue(
+                    instance.path("user_is_player").asBoolean(),
+                    consumer.name() + " user_is_player, as a planner or an observer");
+              }
               assertTrue(
                   instance.has("user_is_only_player"), consumer.name() + " user_is_only_player");
+            });
+  }
+
+  private void hardAssertIsPlayer(Consumer consumer, Boolean expected) {
+    consumer
+        .received()
+        .forEach(
+            instance -> {
+              if (expected == null) {
+                assertFalse(
+                    instance.has("user_is_player"),
+                    consumer.name()
+                        + " must not receive user_is_player but got "
+                        + instance.path("user_is_player"));
+              } else {
+                assertTrue(
+                    instance.has("user_is_player"),
+                    consumer.name() + " must receive user_is_player");
+                assertEquals(
+                    expected,
+                    instance.path("user_is_player").asBoolean(),
+                    consumer.name() + " user_is_player");
+              }
             });
   }
 
@@ -949,6 +1005,35 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "A member of a team of A only is a player for the consumers of A, and unknown to the others")
+    void given_updateInA_should_sendIsPlayerFromTheTeamsOfTheConsumerTenant() throws Exception {
+      // -- PREPARE --
+      User teamMember = persistedUser(tenantA);
+      createdUserIds.add(teamMember.getId());
+      jdbc.update(
+          "INSERT INTO users_teams (user_id, team_id) VALUES (?, ?)", teamMember.getId(), teamA);
+      Consumer ofA = consumerOfA();
+      Consumer ofB = consumerOfB();
+      Consumer ofDefault = consumerOfDefault();
+
+      // -- EXECUTE --
+      List<BaseEvent> events = updateUserIn(teamMember, tenantA, NEW_NAME, List.of(tagA));
+
+      // -- ASSERT --
+      for (Consumer consumer : List.of(ofA, ofB, ofDefault)) {
+        assertDelivered(consumer, teamMember, events, "user_firstname", NEW_NAME);
+        assertFlags(consumer, false, false);
+      }
+      assertIds(ofA, "user_teams", List.of(teamA));
+      assertIsPlayer(ofA, true);
+      assertLeftOut(ofB, "user_teams");
+      assertIsPlayer(ofB, null);
+      assertLeftOut(ofDefault, "user_teams");
+      assertIsPlayer(ofDefault, null);
+    }
+
+    @Test
     @DisplayName("The consumers of A receive no id of B")
     void given_updateInA_should_sendTheConsumersOfANoIdOfB() throws Exception {
       // -- PREPARE --
@@ -1009,6 +1094,89 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       }
       assertNoIdOutsideTheScope(ofA, groupA, groupPlatform);
       assertNoIdOutsideTheScope(ofDefault, groupPlatform);
+    }
+  }
+
+  @Nested
+  @DisplayName("User whose links were not loaded when the event is delivered")
+  class NotLoaded {
+
+    /**
+     * The user as a stream finds it after the write's session is gone: loaded outside any
+     * transaction, its organizations initialized, and the {@code lazyField} collection left lazy.
+     * The event is built with a mapper that serializes nothing, so the instance keeps the
+     * collection as loaded: the constructor of the event would otherwise initialize it in the
+     * write's session.
+     */
+    private BaseEvent eventOfAUserLeavingLazy(String lazyField) {
+      User created = persistedUser(tenantA);
+      createdUserIds.add(created.getId());
+      jdbc.update(
+          "INSERT INTO users_teams (user_id, team_id) VALUES (?, ?)", created.getId(), teamA);
+      jdbc.update("INSERT INTO users_tags (user_id, tag_id) VALUES (?, ?)", created.getId(), tagA);
+      User detached =
+          new TransactionTemplate(transactionManager)
+              .execute(
+                  status -> {
+                    User loaded = userRepository.findById(created.getId()).orElseThrow();
+                    loaded.loadOrganizations();
+                    if (!"teams".equals(lazyField)) {
+                      Hibernate.initialize(loaded.getTeams());
+                    }
+                    if (!"tags".equals(lazyField)) {
+                      Hibernate.initialize(loaded.getTags());
+                    }
+                    return loaded;
+                  });
+      assertFalse(
+          Hibernate.isInitialized(
+              "teams".equals(lazyField) ? detached.getTeams() : detached.getTags()),
+          "The fixture must leave " + lazyField + " lazy");
+      TenantContext.clearCurrentTenant();
+      return new BaseEvent(ModelBaseListener.DATA_UPDATE, detached, mock(ObjectMapper.class));
+    }
+
+    private void assertLeftLazyAndLeftOut(
+        String lazyField, String jsonField, boolean isPlayerLeftOut) {
+      // -- PREPARE --
+      Consumer ofDefault = consumerOfDefault();
+      BaseEvent event = eventOfAUserLeavingLazy(lazyField);
+      User detached = (User) event.getInstance();
+
+      // -- EXECUTE --
+      stream.listenDatabaseUpdate(event);
+
+      // -- ASSERT --
+      soft(
+          () -> {
+            assertNothingFailedToStream();
+            assertEquals(1, ofDefault.received().size(), "one event per consumer");
+            assertEquals(
+                detached.getId(), ofDefault.received().getFirst().path("user_id").asText());
+          });
+      assertLeftOut(ofDefault, jsonField);
+      if (isPlayerLeftOut) {
+        assertIsPlayer(ofDefault, null);
+      }
+      assertKnownFields(ofDefault);
+      soft(
+          () ->
+              assertFalse(
+                  Hibernate.isInitialized(
+                      "teams".equals(lazyField) ? detached.getTeams() : detached.getTags()),
+                  "The delivery must not initialize " + lazyField));
+    }
+
+    @Test
+    @DisplayName("A user whose teams are not loaded is delivered without them, still not loaded")
+    void given_teamsNotLoaded_should_deliverTheUserWithoutTeams() {
+      assertLeftLazyAndLeftOut("teams", "user_teams", true);
+    }
+
+    @Test
+    @DisplayName("A user whose tags are not loaded is delivered without them, still not loaded")
+    void given_tagsNotLoaded_should_deliverTheUserWithoutTags() {
+      assertLeftLazyAndLeftOut("tags", "user_tags", false);
     }
   }
 

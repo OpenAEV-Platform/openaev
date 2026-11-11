@@ -4,9 +4,11 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -23,7 +25,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -77,6 +78,9 @@ public class StreamService {
   private final UserService userService;
   private final AttackPathAccessControl attackPathAccessControl;
   private final ObjectMapper mapper;
+
+  // Built on the first user event: the stream's own mapper is untouched, REST keeps its output.
+  private volatile ObjectMapper userStreamMapper;
 
   private Instant lastUpdate = Instant.now();
 
@@ -243,13 +247,29 @@ public class StreamService {
   private static final String USER_ORGANIZATION_FIELD = "user_organization";
   private static final String USER_TEAMS_FIELD = "user_teams";
   private static final String USER_TAGS_FIELD = "user_tags";
+  private static final String USER_COMMUNICATIONS_FIELD = "user_communications";
+  private static final String USER_EXERCISE_TEAM_USERS_FIELD = "team_exercises_users";
+  private static final String USER_IS_PLAYER_FIELD = "user_is_player";
   private static final String USER_GRANTS_FIELD = "user_grants";
   private static final String USER_HOME_DASHBOARD_FIELD = "user_home_dashboard";
+  private static final String USER_UNSCOPED_GROUPS_FIELD = "unscopedGroups";
 
-  // Never sent: the ids of the first two carry no tenant, and unscopedGroups holds the groups of
-  // every tenant. No screen reads them from the stream.
-  private static final List<String> USER_FIELDS_NEVER_STREAMED =
-      List.of("user_communications", "team_exercises_users", "unscopedGroups");
+  /**
+   * The user as the stream serializes it: the fields that read a lazy collection are not
+   * serialized, so the serializer never touches {@code teams}, {@code tags}, {@code communications}
+   * nor {@code exerciseTeamUsers}, and a collection that was not loaded is never initialized from
+   * the stream thread. {@code user_teams} and {@code user_tags} are rebuilt from the collections
+   * when they are loaded, {@code user_is_player} from them, and the other two are never sent: their
+   * ids carry no tenant and no screen reads them from the stream.
+   */
+  @JsonIgnoreProperties({
+    USER_TEAMS_FIELD,
+    USER_TAGS_FIELD,
+    USER_COMMUNICATIONS_FIELD,
+    USER_EXERCISE_TEAM_USERS_FIELD,
+    USER_IS_PLAYER_FIELD
+  })
+  private abstract static class UserStreamMixIn {}
 
   private static final EnumSet<ResourceType> RESOURCES_STREAM_EXCLUSION =
       EnumSet.of(
@@ -372,9 +392,12 @@ public class StreamService {
    *
    * <ul>
    *   <li>{@code user_teams} and {@code user_tags} keep the ids of the consumer's tenant, read from
-   *       the entities already loaded. The field is left out, so the consumer keeps what it holds,
-   *       when nothing of its tenant was loaded and the write was made in another tenant, or when
-   *       the tenant of a link cannot be read without loading it.
+   *       the entities already loaded, nothing is initialized. The field is left out, so the
+   *       consumer keeps what it holds, when a collection or one of its links was not loaded, or
+   *       when nothing of its tenant was loaded and the write was made in another tenant.
+   *   <li>{@code user_is_player} is true for an admin, a planner or an observer, as serialized for
+   *       the consumer's tenant, and otherwise follows the {@code user_teams} sent: true when it
+   *       holds an id, false when it is sent empty, left out when {@code user_teams} is.
    *   <li>{@code user_organization} is left out when the write was made in another tenant, as the
    *       user is only loaded with the organizations of the write.
    *   <li>{@code user_communications}, {@code team_exercises_users} and {@code unscopedGroups} are
@@ -383,18 +406,20 @@ public class StreamService {
    *       and only the user reads them: they go to the consumer of that user.
    * </ul>
    *
-   * The groups, capabilities and flags are derived from the tenant context of the consumer, set by
-   * the caller, and need no trim.
+   * The groups, capabilities and the other flags are derived from the tenant context of the
+   * consumer, set by the caller, and need no trim.
    */
   private ObjectNode userInTenantOf(StreamConsumer consumer, BaseEvent event, User user) {
     String consumerTenantId = consumer.tenantId();
-    boolean writtenInConsumerTenant = Objects.equals(event.getTenantId(), consumerTenantId);
-    ObjectNode data = mapper.valueToTree(user);
-    USER_FIELDS_NEVER_STREAMED.forEach(data::remove);
-    keepIdsOfTenant(
+    boolean writtenInConsumerTenant =
+        consumerTenantId != null && consumerTenantId.equals(event.getTenantId());
+    ObjectNode data = userStreamMapper().valueToTree(user);
+    data.remove(USER_UNSCOPED_GROUPS_FIELD);
+    putIdsOfTenant(
         data, USER_TEAMS_FIELD, user.getTeams(), consumerTenantId, writtenInConsumerTenant);
-    keepIdsOfTenant(
+    putIdsOfTenant(
         data, USER_TAGS_FIELD, user.getTags(), consumerTenantId, writtenInConsumerTenant);
+    putIsPlayer(data);
     if (!writtenInConsumerTenant) {
       data.remove(USER_ORGANIZATION_FIELD);
     }
@@ -405,30 +430,46 @@ public class StreamService {
     return data;
   }
 
-  private void keepIdsOfTenant(
+  private ObjectMapper userStreamMapper() {
+    ObjectMapper userMapper = userStreamMapper;
+    if (userMapper == null) {
+      userMapper = mapper.copy().addMixIn(User.class, UserStreamMixIn.class);
+      userStreamMapper = userMapper;
+    }
+    return userMapper;
+  }
+
+  private void putIdsOfTenant(
       ObjectNode data,
       String field,
       Collection<? extends Base> links,
       String tenantId,
       boolean writtenInConsumerTenant) {
     if (!Hibernate.isInitialized(links)) {
-      data.remove(field);
       return;
     }
     ArrayNode ids = mapper.createArrayNode();
     for (Base link : links) {
       if (!Hibernate.isInitialized(link)) {
-        data.remove(field);
         return;
       }
       if (tenantId != null && tenantId.equals(tenantOf(link))) {
         ids.add(link.getId());
       }
     }
-    if (ids.isEmpty() && !writtenInConsumerTenant) {
-      data.remove(field);
-    } else {
+    if (!ids.isEmpty() || writtenInConsumerTenant) {
       data.set(field, ids);
+    }
+  }
+
+  /** The rule of {@code User#isPlayer}, over the flags and the teams as sent to the consumer. */
+  private void putIsPlayer(ObjectNode data) {
+    if (data.path("user_admin").asBoolean()
+        || data.path("user_is_planner").asBoolean()
+        || data.path("user_is_observer").asBoolean()) {
+      data.set(USER_IS_PLAYER_FIELD, BooleanNode.TRUE);
+    } else if (data.has(USER_TEAMS_FIELD)) {
+      data.set(USER_IS_PLAYER_FIELD, BooleanNode.valueOf(!data.path(USER_TEAMS_FIELD).isEmpty()));
     }
   }
 
