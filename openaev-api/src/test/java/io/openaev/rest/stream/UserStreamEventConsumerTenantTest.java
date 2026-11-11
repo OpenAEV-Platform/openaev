@@ -43,11 +43,13 @@ import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -159,11 +161,15 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
   private StreamService stream;
   private final List<Consumer> consumers = new ArrayList<>();
   private ListAppender<ILoggingEvent> warnings;
+  private Level streamLoggerLevelBefore;
+  private boolean streamLoggerSaved;
 
   // -- FIXTURE --
 
   @BeforeEach
   void aPlayerHoldingLinksInTwoTenants() throws Exception {
+    streamLoggerLevelBefore = ((Logger) LoggerFactory.getLogger(STREAM_LOGGER)).getLevel();
+    streamLoggerSaved = true;
     jdbc = new JdbcTemplate(dataSource);
     tenantIsolationHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
     tenantA = tenantIsolationHelper.createTenant("stream-a").getId();
@@ -245,22 +251,46 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
 
   @AfterEach
   void removeEveryCommittedRowThenReportTheChecks() {
+    removeEveryCommittedRow();
+    reportTheChecksAndTheCleanup();
+  }
+
+  // What the cleanup could not do is reported with the failed checks of the test, never hidden by
+  // them, and a step that fails does not stop the ones after it.
+  private final List<String> cleanupProblems = new ArrayList<>();
+
+  private void cleanupStep(String name, Runnable step) {
     try {
-      removeEveryCommittedRow();
-    } finally {
-      assertTrue(failures.isEmpty(), "Failed checks:\n" + String.join("\n", failures));
+      step.run();
+    } catch (RuntimeException | AssertionError e) {
+      cleanupProblems.add(name + ": " + e);
     }
   }
 
+  private void deleteWhere(String sql, Object... arguments) {
+    cleanupStep(sql, () -> jdbc.update(sql, arguments));
+  }
+
+  /** The ids the fixture holds so far: a setup that stopped half way leaves the others null. */
+  private static List<String> present(String... ids) {
+    return Arrays.stream(ids).filter(Objects::nonNull).toList();
+  }
+
   private void removeEveryCommittedRow() {
-    consumers.forEach(consumer -> consumer.subscription().dispose());
-    ((Logger) LoggerFactory.getLogger(STREAM_LOGGER)).detachAppender(warnings);
-    TenantContext.clearCurrentTenant();
+    cleanupStep(
+        "dispose the subscriptions", () -> consumers.forEach(c -> c.subscription().dispose()));
+    cleanupStep("restore the stream logger", this::restoreStreamLogger);
+    cleanupStep("clear the tenant", TenantContext::clearCurrentTenant);
+    if (jdbc == null) {
+      return;
+    }
     List<String> users = new ArrayList<>(createdUserIds);
-    users.add(player.getId());
-    users.add(userOfA.getId());
-    users.add(userOfB.getId());
-    users.add(userOfDefault.getId());
+    users.addAll(
+        present(
+            player == null ? null : player.getId(),
+            userOfA == null ? null : userOfA.getId(),
+            userOfB == null ? null : userOfB.getId(),
+            userOfDefault == null ? null : userOfDefault.getId()));
     for (String user : users) {
       for (String table :
           List.of(
@@ -271,35 +301,114 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
               "users_groups",
               "users_organizations",
               "users_tenants")) {
-        jdbc.update("DELETE FROM " + table + " WHERE user_id = ?", user);
+        deleteWhere("DELETE FROM " + table + " WHERE user_id = ?", user);
       }
-      jdbc.update("DELETE FROM tokens WHERE token_user = ?", user);
-      jdbc.update("DELETE FROM users WHERE user_id = ?", user);
+      deleteWhere("DELETE FROM tokens WHERE token_user = ?", user);
+      deleteWhere("DELETE FROM users WHERE user_id = ?", user);
     }
-    jdbc.update(
+    deleteWhere(
         "DELETE FROM grants WHERE grant_id = ANY (?)", (Object) grants.toArray(String[]::new));
-    for (String communication : List.of(communicationA, communicationB)) {
-      jdbc.update("DELETE FROM communications WHERE communication_id = ?", communication);
+    for (String communication : present(communicationA, communicationB)) {
+      deleteWhere("DELETE FROM communications WHERE communication_id = ?", communication);
     }
-    for (String simulation : List.of(simulationA, simulationB)) {
-      jdbc.update("DELETE FROM exercises WHERE exercise_id = ?", simulation);
+    for (String simulation : present(simulationA, simulationB)) {
+      deleteWhere("DELETE FROM exercises WHERE exercise_id = ?", simulation);
     }
-    for (String team : List.of(teamA, teamB)) {
-      jdbc.update("DELETE FROM teams WHERE team_id = ?", team);
+    for (String team : present(teamA, teamB)) {
+      deleteWhere("DELETE FROM teams WHERE team_id = ?", team);
     }
-    for (String tag : List.of(tagA, tagB)) {
-      jdbc.update("DELETE FROM tags WHERE tag_id = ?", tag);
+    for (String tag : present(tagA, tagB)) {
+      deleteWhere("DELETE FROM tags WHERE tag_id = ?", tag);
     }
-    jdbc.update("DELETE FROM custom_dashboards WHERE custom_dashboard_id = ?", dashboardA);
-    for (String group : List.of(groupA, groupB, groupPlatform)) {
-      jdbc.update("DELETE FROM groups_roles WHERE group_id = ?", group);
-      jdbc.update("DELETE FROM groups WHERE group_id = ?", group);
+    for (String dashboard : present(dashboardA)) {
+      deleteWhere("DELETE FROM custom_dashboards WHERE custom_dashboard_id = ?", dashboard);
+    }
+    for (String group : present(groupA, groupB, groupPlatform)) {
+      deleteWhere("DELETE FROM groups_roles WHERE group_id = ?", group);
+      deleteWhere("DELETE FROM groups WHERE group_id = ?", group);
     }
     for (String role : roles) {
-      jdbc.update("DELETE FROM roles_capabilities WHERE role_id = ?", role);
-      jdbc.update("DELETE FROM roles WHERE role_id = ?", role);
+      deleteWhere("DELETE FROM roles_capabilities WHERE role_id = ?", role);
+      deleteWhere("DELETE FROM roles WHERE role_id = ?", role);
     }
-    tenantIsolationHelper.deleteCommittedTenants(tenantA, tenantB);
+    cleanupStep(
+        "delete the committed tenants",
+        () -> tenantIsolationHelper.deleteCommittedTenants(tenantA, tenantB));
+    cleanupStep("check that no fixture row is left", () -> assertNoFixtureRowLeft(users));
+  }
+
+  private void restoreStreamLogger() {
+    Logger streamLogger = (Logger) LoggerFactory.getLogger(STREAM_LOGGER);
+    if (warnings != null) {
+      streamLogger.detachAppender(warnings);
+    }
+    if (streamLoggerSaved) {
+      streamLogger.setLevel(streamLoggerLevelBefore);
+    }
+  }
+
+  /** Counts, by the ids of this test, what is still committed after the cleanup. */
+  private void assertNoFixtureRowLeft(List<String> userIds) {
+    Map<String, List<String>> idsByTable = new LinkedHashMap<>();
+    idsByTable.put("users.user_id", userIds);
+    idsByTable.put("tags.tag_id", present(tagA, tagB));
+    idsByTable.put("teams.team_id", present(teamA, teamB));
+    idsByTable.put("exercises.exercise_id", present(simulationA, simulationB));
+    idsByTable.put("communications.communication_id", present(communicationA, communicationB));
+    idsByTable.put("custom_dashboards.custom_dashboard_id", present(dashboardA));
+    idsByTable.put("groups.group_id", present(groupA, groupB, groupPlatform));
+    idsByTable.put("roles.role_id", roles);
+    idsByTable.put("grants.grant_id", grants);
+    idsByTable.put("tenants.tenant_id", present(tenantA, tenantB));
+    Map<String, Integer> left = new LinkedHashMap<>();
+    idsByTable.forEach((tableAndColumn, ids) -> countRowsLeft(left, tableAndColumn, ids));
+    List<String> tenants = present(tenantA, tenantB);
+    List<String> tablesWithATenant =
+        jdbc.queryForList(
+            "SELECT c.table_name FROM information_schema.columns c"
+                + " JOIN information_schema.tables t ON t.table_schema = c.table_schema"
+                + " AND t.table_name = c.table_name AND t.table_type = 'BASE TABLE'"
+                + " WHERE c.column_name = 'tenant_id' AND c.table_schema = current_schema()"
+                + " ORDER BY c.table_name",
+            String.class);
+    tablesWithATenant.forEach(table -> countRowsLeft(left, table + ".tenant_id", tenants));
+    assertTrue(left.isEmpty(), "Committed rows left behind, by table.column: " + left);
+  }
+
+  private void countRowsLeft(Map<String, Integer> left, String tableAndColumn, List<String> ids) {
+    if (ids.isEmpty()) {
+      return;
+    }
+    String[] parts = tableAndColumn.split("\\.");
+    Integer count =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM " + parts[0] + " WHERE " + parts[1] + " = ANY (?)",
+            Integer.class,
+            (Object) ids.toArray(String[]::new));
+    if (count != null && count > 0) {
+      left.merge(tableAndColumn, count, Integer::sum);
+    }
+  }
+
+  private void reportTheChecksAndTheCleanup() {
+    if (streamLoggerSaved) {
+      Logger streamLogger = (Logger) LoggerFactory.getLogger(STREAM_LOGGER);
+      if (streamLogger.getLevel() != streamLoggerLevelBefore) {
+        cleanupProblems.add(
+            "the stream logger level is "
+                + streamLogger.getLevel()
+                + ", it was "
+                + streamLoggerLevelBefore);
+      }
+    }
+    List<String> report = new ArrayList<>();
+    if (!failures.isEmpty()) {
+      report.add("Failed checks:\n" + String.join("\n", failures));
+    }
+    if (!cleanupProblems.isEmpty()) {
+      report.add("Cleanup problems:\n" + String.join("\n", cleanupProblems));
+    }
+    assertTrue(report.isEmpty(), String.join("\n", report));
   }
 
   private User persistedUser(String... tenantIds) {
@@ -638,6 +747,17 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     soft(() -> hardAssertLeftOut(consumer, field));
   }
 
+  private void assertPresent(Consumer consumer, String field) {
+    soft(
+        () ->
+            consumer
+                .received()
+                .forEach(
+                    instance ->
+                        assertTrue(
+                            instance.has(field), consumer.name() + " must receive " + field)));
+  }
+
   private void assertCapabilities(Consumer consumer, String... expected) {
     soft(() -> hardAssertCapabilities(consumer, expected));
   }
@@ -908,7 +1028,7 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
         assertIds(consumer, "user_groups", List.of(groupA, groupPlatform));
         assertCapabilities(consumer, CAPABILITY_OF_A, CAPABILITY_OF_PLATFORM);
         assertFlags(consumer, true, true);
-        assertTrue(consumer.received().getFirst().has("user_organization"));
+        assertPresent(consumer, "user_organization");
       }
       assertDelivered(ofB, events, "user_firstname", NEW_NAME);
     }
@@ -1181,7 +1301,7 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("User updated from the platform, with no tenant named")
+  @DisplayName("User updated from the platform, attributed to the default tenant")
   class UpdatedFromThePlatform {
 
     private static final String NEW_NAME = "Written-by-the-platform";
@@ -1227,6 +1347,9 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
         assertLeftOut(consumer, "user_grants");
         assertLeftOut(consumer, "user_home_dashboard");
       }
+      assertPresent(ofDefault, "user_organization");
+      assertLeftOut(ofA, "user_organization");
+      assertLeftOut(ofB, "user_organization");
       assertIds(ofA, "user_teams", List.of(teamA));
       assertIds(ofA, "user_tags", List.of(tagA));
       assertIds(ofB, "user_teams", List.of(teamB));
