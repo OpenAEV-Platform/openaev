@@ -83,9 +83,9 @@ public class DocumentService {
       DocumentCreateInput input,
       String tenantId)
       throws Exception {
-    // Injects and the other parents still on the v1 filter are scoped by the ambient tenant, which
-    // may differ from the write tenant: resolve the ids the caller supplies in the write tenant, so
-    // the document is only bound to parents of its own tenant.
+    // Documents, simulations, scenarios and tags are v2, so the bridge protects nothing on this
+    // path: the parents the caller names are read in the scope of the caller, which is the write
+    // tenant alone on the upload endpoints (tenantForWrite refuses a scope that holds several).
     return ambientTenantBridge.callInTenantChecked(
         tenantId,
         () -> upsertInTenant(fileName, fileIS, fileSize, fileContentType, input, tenantId));
