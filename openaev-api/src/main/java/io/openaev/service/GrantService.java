@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -97,10 +98,21 @@ public class GrantService {
     }
   }
 
-  /** Ids a THREAT_ARSENAL grant on this contract may target: the contract, its payload identity. */
-  public List<String> threatArsenalGrantResources(@NotBlank final String contractId) {
+  /**
+   * Ids a THREAT_ARSENAL grant on this contract may target: the contract id and the payload
+   * identity of the contract's copy in the tenant of the request's scope. A contract id repeats
+   * across tenants, so a scope of several tenants names no single copy: it takes the contract id
+   * alone, and the handler refuses the request for want of one tenant.
+   *
+   * @param scopeTenants the tenants the request reads from
+   */
+  public List<String> threatArsenalGrantResources(
+      @NotBlank final String contractId, @NotNull final Set<String> scopeTenants) {
+    if (scopeTenants.size() != 1) {
+      return List.of(contractId);
+    }
     return injectorContractRepository
-        .findById(contractId)
+        .findByContractIdAndTenant(contractId, scopeTenants.iterator().next())
         .map(contract -> List.of(contractId, contract.getGrantResourceId()))
         .orElse(List.of(contractId))
         .stream()

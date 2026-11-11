@@ -3210,9 +3210,10 @@ class TenantActiveTableAccessArchTest {
     allow(
         io.openaev.service.GrantService.class,
         "threatArsenalGrantResources",
-        "findById",
-        "its only caller PermissionService#hasGrantPermission runs in the permission check, which"
-            + " resolves the contract in the ambient tenant alone"),
+        "findByContractIdAndTenant",
+        "keyed by the contract id and the one tenant of the request's scope: a scope of several"
+            + " tenants never reaches the lookup, and a gate that carries no scope reads the"
+            + " ambient tenant"),
     allow(
         io.openaev.service.payload.PayloadContentHashService.class,
         "attackPatternsOf",

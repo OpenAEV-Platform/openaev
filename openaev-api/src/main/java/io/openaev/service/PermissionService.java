@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.utils.TxCtxScopeUtils.requestReadScope;
 import static io.openaev.utils.TxCtxScopeUtils.tenantIdsFromHTTPCtx;
 
 import io.openaev.aop.AccessControlAspect;
@@ -116,6 +117,7 @@ public class PermissionService {
         resourceId,
         resourceType,
         action,
+        TxCtx.missing(),
         () -> resolveTarget(TxCtx.missing(), resourceId, resourceType, action));
   }
 
@@ -143,6 +145,7 @@ public class PermissionService {
         resourceId,
         resourceType,
         action,
+        ctx,
         () ->
             ambientTenantBridge.callInTenant(
                 resolutionTenant, () -> resolveTarget(ctx, resourceId, resourceType, action)));
@@ -160,6 +163,7 @@ public class PermissionService {
         resource.resourceId,
         resource.resourceType,
         resource.action,
+        resource.ctx,
         resource::parent);
   }
 
@@ -182,6 +186,7 @@ public class PermissionService {
         resourceId,
         resourceType,
         action,
+        ctx,
         () -> resolveTarget(ctx, resourceId, resourceType, action));
   }
 
@@ -347,6 +352,7 @@ public class PermissionService {
       String resourceId,
       ResourceType resourceType,
       Action action,
+      TxCtx scope,
       Supplier<Target> parent) {
 
     // admin user bypasses all checks
@@ -395,7 +401,7 @@ public class PermissionService {
     }
     // if the user doesn't have the capa check if the user has a grant
     if (RESOURCES_MANAGED_BY_GRANTS.contains(resourceType)) {
-      return hasGrantPermission(user, resourceId, resourceType, action);
+      return hasGrantPermission(user, resourceId, resourceType, action, scope);
     }
 
     // Specific case: /options endpoints are used to filter tables.
@@ -411,7 +417,7 @@ public class PermissionService {
       // Retrieve the request param to check if a source ID is provided
       if (mappingInfo.args().containsKey("sourceId")) {
         String sourceId = mappingInfo.args().get("sourceId").toString();
-        return hasGrantPermission(user, sourceId, resourceType, action);
+        return hasGrantPermission(user, sourceId, resourceType, action, scope);
       }
     }
     return false;
@@ -421,7 +427,8 @@ public class PermissionService {
       @NotNull final User user,
       final String resourceId,
       @NotNull final ResourceType resourceType,
-      @NotNull final Action action) {
+      @NotNull final Action action,
+      @NotNull final TxCtx scope) {
     // user can access search apis but the result will be filtered
     if (Action.SEARCH.equals(action)) {
       return true;
@@ -429,7 +436,7 @@ public class PermissionService {
 
     List<String> resourceIds =
         ResourceType.THREAT_ARSENAL.equals(resourceType) && resourceId != null
-            ? grantService.threatArsenalGrantResources(resourceId)
+            ? grantService.threatArsenalGrantResources(resourceId, requestReadScope(scope))
             : Collections.singletonList(resourceId);
     switch (action) {
       case READ:
@@ -608,6 +615,7 @@ public class PermissionService {
     private final String resourceId;
     private final ResourceType resourceType;
     private final Action action;
+    private final TxCtx ctx;
     private final Supplier<Target> parentResolution;
     private Target parent;
 
@@ -615,10 +623,12 @@ public class PermissionService {
         String resourceId,
         ResourceType resourceType,
         Action action,
+        TxCtx ctx,
         Supplier<Target> parentResolution) {
       this.resourceId = resourceId;
       this.resourceType = resourceType;
       this.action = action;
+      this.ctx = ctx;
       this.parentResolution = parentResolution;
     }
 
