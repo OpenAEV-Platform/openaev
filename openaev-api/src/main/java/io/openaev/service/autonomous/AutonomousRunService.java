@@ -219,8 +219,10 @@ public class AutonomousRunService {
   // GUC scope is already gone and a bare repository call would be denied by the inspector).
   private final TenantScopedTransaction tenantTx;
 
-  // Keeps a create's reads and writes of the tables still on v1 (scenarios, simulations, injects)
-  // in the run's tenant: their filter and their listener follow the ambient tenant.
+  // Sets the ambient tenant (v1 filter and TenantContext) for a call, for two reasons: injects and
+  // injectors_contracts still carry the v1 filter and listener, which follow it, and some reads are
+  // keyed by TenantContext explicitly (ExerciseService#exercise(String), the changeExerciseStatus
+  // overload without a TxCtx).
   private final AmbientTenantBridge ambientTenantBridge;
 
   // Field-injected (not constructor) so it stays out of @RequiredArgsConstructor and null in the
@@ -2272,14 +2274,15 @@ public class AutonomousRunService {
     run.setScopeAssetGroupId(firstScopeIdOfType(scope, "ASSETS_GROUPS"));
     run.setScopeTeamId(firstScopeIdOfType(scope, "TEAMS"));
     AutonomousRun saved = runRepository.save(run);
-    // Both projections below read v1-filtered entities (the scenario's template workflow through
-    // its scenario join, the simulation, its teams), and this callback arrives on the legacy
-    // non-prefixed route where the v1 TenantContext is never set and falls back to the DEFAULT
-    // tenant. Establish the run's own tenant for their isolated transactions - the same
-    // run-authoritative scope @RunTenantScope already gives the v2 GUC - so a run owned by another
-    // tenant mirrors its scope instead of silently matching nothing. Restored in finally: the
-    // operator (tenant-prefixed) route carries the caller's tenant in this thread-local and must
-    // get it back, and a pooled request thread must never leak the run tenant onward.
+    // This callback arrives on the legacy non-prefixed route where the v1 TenantContext is never
+    // set and falls back to the DEFAULT tenant. The ambient tenant is still set for the isolated
+    // transactions below because they reach reads keyed by TenantContext explicitly
+    // (WorkflowService#resolveValueLabel, ScopeService#getValidPlayers). It is the run's own
+    // tenant, the same run-authoritative scope @RunTenantScope already gives the v2 GUC, so a run
+    // owned by a non-default tenant mirrors its scope and never matches nothing silently. Restored
+    // in finally: the operator (tenant-prefixed) route carries the caller's tenant in this
+    // thread-local and must get it back, and a pooled request thread must not carry the run tenant
+    // onward.
     boolean hadTenant = TenantContext.hasCurrentTenant();
     String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
     TenantContext.setCurrentTenant(runTenantId(run));

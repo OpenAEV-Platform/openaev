@@ -291,9 +291,9 @@ public class ExerciseService {
   }
 
   /**
-   * Reads the details of a simulation found inside the request's tenant scope. The native read is
-   * rewritten by the statement inspector, so it runs in the simulation's own tenant, which is also
-   * the tenant of the workflow the detail names.
+   * Reads the details of a simulation found inside the request's tenant scope. The whole native
+   * read runs inside {@code workflowOwnerScope.call}, so it runs in the simulation's own tenant,
+   * which is also the tenant of the workflow the detail names.
    */
   public RawSimulationIndexing rawSimulation(
       @NotNull final TxCtx ctx, @NotBlank final String simulationId) {
