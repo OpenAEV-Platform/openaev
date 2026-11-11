@@ -79,7 +79,7 @@ public class InitAdminCommandLineRunner implements CommandLineRunner {
     // The default tenant comes from a Flyway migration and never runs the provisioning chain that
     // seeds these groups, so both are bootstrapped here. Platform first: the tenant path clears
     // the persistence context last.
-    this.adminPrivilegeService.ensurePlatformAdminGroup(adminUser);
+    this.adminPrivilegeService.ensurePlatformAdminGroup(ctx, adminUser);
     this.adminPrivilegeService.ensureAdminGroup(ctx, DEFAULT_TENANT_UUID, adminUser);
   }
 

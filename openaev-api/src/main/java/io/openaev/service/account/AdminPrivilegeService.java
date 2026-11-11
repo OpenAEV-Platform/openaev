@@ -1,5 +1,6 @@
 package io.openaev.service.account;
 
+import io.openaev.aop.PlatformWrite;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TxCtx;
@@ -141,11 +142,17 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
    * to the platform-only capabilities (tenants, platform settings, platform users/groups/roles).
    * Safe to call on every platform startup.
    *
+   * <p>Writes a platform row of {@code roles} ({@code tenant_id IS NULL}), so it runs as a
+   * platform-write transaction: the marker belongs to this method, and {@code ctx} is the scope the
+   * caller's transaction already carries.
+   *
+   * @param ctx the scope of the transaction, only read by the platform-write aspect
    * @param adminUser the user to enroll as a platform administrator
    * @return the (created or existing) platform admin group
    */
   @Transactional
-  public Group ensurePlatformAdminGroup(User adminUser) {
+  @PlatformWrite
+  public Group ensurePlatformAdminGroup(TxCtx ctx, User adminUser) {
     Role role =
         platformRoleService.ensureInternalPlatformRole(
             PLATFORM_ADMIN_ACCESS.roleId(),
