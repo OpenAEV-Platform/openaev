@@ -58,6 +58,7 @@ class InjectorContractApiSingularEndpointsTenantScopeTest extends ProductionTabl
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
   private String otherTenantId;
+  private String defaultTenantLabels;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -70,7 +71,16 @@ class InjectorContractApiSingularEndpointsTenantScopeTest extends ProductionTabl
     builtinConnectorRegistration.register(manualInjectorIntegrationFactory, otherTenantId);
     builtinConnectorRegistration.register(
         manualInjectorIntegrationFactory, Tenant.DEFAULT_TENANT_UUID);
-    // Each tenant's copy carries its own label, so a response tells which copy it came from.
+    // Each tenant's copy carries its own label, so a response tells which copy it came from. The
+    // default tenant's row outlives the test: its label is put back in the cleanup.
+    defaultTenantLabels =
+        new JdbcTemplate(dataSource)
+            .queryForObject(
+                "SELECT injector_contract_labels::text FROM injectors_contracts"
+                    + " WHERE injector_contract_id = ? AND tenant_id = ?",
+                String.class,
+                ManualContract.MANUAL_DEFAULT,
+                Tenant.DEFAULT_TENANT_UUID);
     labelCopy(Tenant.DEFAULT_TENANT_UUID, DEFAULT_LABEL);
     labelCopy(otherTenantId, OTHER_LABEL);
   }
@@ -87,6 +97,15 @@ class InjectorContractApiSingularEndpointsTenantScopeTest extends ProductionTabl
 
   @AfterEach
   void cleanup() {
+    if (defaultTenantLabels != null) {
+      new JdbcTemplate(dataSource)
+          .update(
+              "UPDATE injectors_contracts SET injector_contract_labels = ?::hstore"
+                  + " WHERE injector_contract_id = ? AND tenant_id = ?",
+              defaultTenantLabels,
+              ManualContract.MANUAL_DEFAULT,
+              Tenant.DEFAULT_TENANT_UUID);
+    }
     if (otherTenantId != null) {
       tenantHelper.deleteCommittedTenants(otherTenantId);
     }
