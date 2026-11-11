@@ -337,11 +337,10 @@ public class InjectorContractService implements DependenciesManager {
     // during registration (InjectorService.registerBuiltinInjector).
     injectorContract.addInjector(injector);
 
-    // A contract lives in its injector's tenant. Stamp it explicitly instead of relying on
-    // TenantBaseListener's TenantContext fallback: injectors is on v2 isolation, so the injector
-    // lookup above follows the request's TxCtx while TenantContext is only populated from the
-    // tenant path - a header-selected tenant would otherwise link tenant A's injector to a
-    // contract stamped on the default tenant.
+    // A contract lives in its injector's tenant, and InjectorContract has no listener that stamps
+    // one, so the tenant is set here from the injector. The injector lookup above follows the
+    // request's TxCtx while TenantContext is only populated from the tenant path: a header-selected
+    // tenant takes the injector's tenant, not the default one.
     injectorContract.setTenant(new Tenant(injector.getTenantId()));
 
     // Authorship is a function of the creation's provenance (machine sync vs interactive),
@@ -636,8 +635,9 @@ public class InjectorContractService implements DependenciesManager {
     // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
     // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
     // The sweep is tenant-scoped: default contracts share their ids across tenants, so an unscoped
-    // sweep would wipe other tenants' authored logic-map nodes. It runs in the contract's own
-    // tenant, which the caller's scope may not hold: the deletion was granted on the contract.
+    // sweep would wipe other tenants' authored logic-map nodes. The contract was loaded through
+    // the statement inspector, in the request's tenant scope, so the tenant it carries is one that
+    // scope holds; the sweep runs in that tenant, read from the loaded contract.
     workflowOwnerScope.run(
         injectorContract,
         () ->

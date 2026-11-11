@@ -324,9 +324,10 @@ public interface StepRepository extends JpaRepository<Step, String> {
    *
    * <p>Native because it reads {@code step_data} through jsonb operators JPQL cannot express; it is
    * read-only, so no indexed, audited or streamed row is skipped. {@code workflows} and {@code
-   * steps} are not tenant-active, so the statement carries its own tenant predicate: it answers
-   * only for a workflow of one of {@code tenantIds}, the caller's scope, and reads only the steps
-   * of the workflow's own tenant. Do not return this value to a client.
+   * steps} are tenant-active, so the statement inspector scopes both tables to the transaction's
+   * tenant scope; the statement also states its own tenant predicates: it answers only for a
+   * workflow of one of {@code tenantIds}, the caller's scope, and reads only the steps of the
+   * workflow's own tenant. Do not return this value to a client.
    *
    * @param workflowId the ID of the workflow whose steps are inspected
    * @param injectorContractId the injector contract ID to look for

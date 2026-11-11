@@ -181,12 +181,13 @@ public interface InjectorContractRepository
    * <p>Deliberately a scalar id projection, not an entity select: {@link InjectorContract} eagerly
    * loads several collections, and a {@code SELECT ic ... FOR SHARE} would outer-join them and fail
    * on Postgres ("FOR SHARE cannot be applied to the nullable side of an outer join"). Projecting a
-   * single column keeps the locking query on the {@code injectors_contracts} row alone. Tenant-
-   * scoped JPQL (so Hibernate's {@code tenantFilter} also applies) because the default contracts
-   * share their ids across every tenant.
+   * single column keeps the locking query on the {@code injectors_contracts} row alone. The query
+   * names the tenant in the composite key because the default contracts share their ids across
+   * every tenant; {@code injectors_contracts} is tenant-active, so the statement inspector also
+   * scopes the read to the transaction's tenant scope.
    *
    * @param id the injector contract id referenced by the step being authored
-   * @param tenantId the current tenant
+   * @param tenantId the tenant of the simulation or scenario the step is authored in
    * @return the contract id if it exists in the tenant, empty otherwise
    */
   @Lock(LockModeType.PESSIMISTIC_READ)

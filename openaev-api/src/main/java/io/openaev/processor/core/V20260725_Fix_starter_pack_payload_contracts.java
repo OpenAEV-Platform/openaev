@@ -56,12 +56,12 @@ public class V20260725_Fix_starter_pack_payload_contracts extends RuntimeMigrati
 
   @Override
   protected boolean doMigrate(Tenant tenant) {
-    // This migration reads v1-scoped entities (injectors_contracts is a composite-PK table where
-    // built-in contract ids repeat across tenants) through queries that are not all explicitly
-    // tenant-parameterized: findById(String) below matches every tenant's copy of a built-in
-    // contract unless the v1 filter scopes it. The filter used to be enabled implicitly by the
-    // @Transactional aspect before migrations moved under MigrationProcessor's programmatic
-    // tenant-scoped transactions; enable it explicitly now.
+    // injectors_contracts is a composite-PK table where built-in contract ids repeat across
+    // tenants. It is tenant-active: MigrationProcessor opens this migration's transaction with the
+    // scope of the tenant being processed, so the statement inspector limits findById(String)
+    // below to that tenant's copy of a contract. The contract, payload, injector, attack pattern,
+    // domain and tag reads of this migration are all tenant-active, and none of their entities
+    // carries the v1 filter that the call below arms.
     enableV1TenantFilter(tenant);
     String tenantId = tenant.getId();
     List<String> brokenContractIds =
