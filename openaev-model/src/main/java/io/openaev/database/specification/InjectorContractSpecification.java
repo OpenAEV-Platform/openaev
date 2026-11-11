@@ -40,8 +40,8 @@ public class InjectorContractSpecification {
    * that {@code matching} refuses never outranks one it accepts: the contract is listed through the
    * best copy that satisfies the request's filter and text search.
    *
-   * @param matching the filter and text search of the request, applied to the competing copies;
-   *     null when the request has none
+   * @param matching the filter, the text search and the visibility predicate of the request,
+   *     applied to the competing copies; null when the request has none
    */
   public static Specification<InjectorContract> onePerContractId(
       @Nullable final Specification<InjectorContract> matching) {

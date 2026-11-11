@@ -33,21 +33,22 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * With {@code payloads} v2-activated, {@code InjectorContractService}'s tuple queries (FULL,
- * THREAT_ARSENAL and THREAT_ARSENAL_CONTENT) project {@code payload.type}, {@code
- * payload.executionArch} and {@code payload.status} while grouping only by {@code payload.id}
- * ({@code getCommonGroupBy}). {@code TenantStatementInspector} wraps the joined {@code payloads}
- * table in a filtered derived table, which has no primary key, so PostgreSQL rejects the statement:
- * the selected columns are no longer functionally dependent on the grouped {@code id}. This
- * surfaces as a 500 on {@code POST /injector_contracts/search} (full details) and on both {@code
- * /threat_arsenals/search} routes.
+ * On the production list of isolated tables, which holds {@code payloads}, {@code
+ * InjectorContractService}'s tuple queries (FULL, THREAT_ARSENAL and THREAT_ARSENAL_CONTENT)
+ * project {@code payload.type}, {@code payload.executionArch} and {@code payload.status} while
+ * grouping only by {@code payload.id} ({@code getCommonGroupBy}). {@code TenantStatementInspector}
+ * wraps the joined {@code payloads} table in a filtered derived table, which has no primary key, so
+ * PostgreSQL rejects the statement: the selected columns are no longer functionally dependent on
+ * the grouped {@code id}. This surfaces as a 500 on {@code POST /injector_contracts/search} (full
+ * details) and on both {@code /threat_arsenals/search} routes.
  *
  * <p>Deliberately NOT {@code @Transactional}, same shape as {@code
  * InjectorContractCollectorTypeGroupByTest}: a test-managed transaction changes how the tenant
  * scope is applied to the request and was found to mask this exact defect.
  */
 @WithMockUser(isAdmin = true)
-@DisplayName("InjectorContractApi/ThreatArsenalApi search with payloads active")
+@DisplayName(
+    "InjectorContractApi/ThreatArsenalApi search on the production list of isolated tables")
 class InjectorContractPayloadGroupByTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
@@ -116,7 +117,8 @@ class InjectorContractPayloadGroupByTest extends ProductionTablesIntegrationTest
 
   @Test
   @DisplayName(
-      "POST /injector_contracts/search with full details does not 500 once payloads is active")
+      "POST /injector_contracts/search with full details does not 500 on the production list of"
+          + " isolated tables")
   void given_payloadsActive_should_notFailOnInjectorContractSearch() throws Exception {
     SearchPaginationInput input = new SearchPaginationInput();
 
@@ -129,7 +131,8 @@ class InjectorContractPayloadGroupByTest extends ProductionTablesIntegrationTest
   }
 
   @Test
-  @DisplayName("POST /threat_arsenals/search does not 500 once payloads is active")
+  @DisplayName(
+      "POST /threat_arsenals/search does not 500 on the production list of isolated tables")
   void given_payloadsActive_should_notFailOnThreatArsenalSearch() throws Exception {
     SearchPaginationInput input = new SearchPaginationInput();
 

@@ -141,8 +141,7 @@ public class PayloadService {
                   InjectorContract newContract = new InjectorContract();
                   newContract.setId(contractId);
                   // InjectorContract has no listener that stamps a tenant, so the new contract
-                  // takes
-                  // its payload's tenant here: a contract lives in its payload's tenant.
+                  // takes its payload's tenant here: a contract lives in its payload's tenant.
                   newContract.setTenant(payload.getTenant());
                   return newContract;
                 });

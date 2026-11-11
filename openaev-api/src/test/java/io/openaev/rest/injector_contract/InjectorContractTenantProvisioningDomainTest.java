@@ -22,9 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Onboarding a tenant copies the platform's default injector contracts into it ({@code
  * InjectorContractService#createDependencyForTenant}), reading source rows that live in the default
- * tenant. With {@code domains} v2-active, the source contract's eagerly fetched {@code domains}
- * collection is a gated read, so the copy step cannot be what decides which domains the new
- * tenant's contracts end up with.
+ * tenant. On the production list of isolated tables, which holds {@code domains}, the source
+ * contract's eagerly fetched {@code domains} collection is a gated read, so the copy step cannot be
+ * what decides which domains the new tenant's contracts end up with.
  *
  * <p>What makes the end state correct is the built-in injector registration that runs later in the
  * same onboarding transaction, scoped to the new tenant, and re-resolves every contract's domains
@@ -36,7 +36,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-@DisplayName("tenant onboarding links the provisioned contracts to the new tenant's own domains")
+@DisplayName(
+    "tenant onboarding on the production list of isolated tables links the provisioned contracts"
+        + " to the new tenant's own domains")
 class InjectorContractTenantProvisioningDomainTest extends ProductionTablesIntegrationTest {
 
   @Autowired private TenantIsolationTestHelper tenantHelper;
