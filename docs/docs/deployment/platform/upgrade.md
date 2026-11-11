@@ -38,18 +38,19 @@ This page explains how to upgrade OpenAEV. The steps depend on your [installatio
 
     `GET`, `PUT`, `PUT .../mapping` and `DELETE` on `/api/injector_contracts/{id}`, and `GET` on `/api/threat_arsenals/{id}`, act on one tenant's copy of a contract. A built-in contract exists in every tenant.
 
-    - A caller of several tenants that include the default one, with no selector, acts on the default tenant's copy, also when it meant another one.
+    - A caller of several tenants that include the default one, with no selector, acts on the default tenant's copy; name the tenant to act on another copy.
     - A caller of several tenants without the default one, with no selector, gets 400 (`TENANT_SELECTOR_REQUIRED`).
-    - A selector that names several tenants, or a caller that belongs to no tenant, gets 400 (`TENANT_SINGLE_SCOPE_REQUIRED`).
+    - A selector that names several tenants gets 400 (`TENANT_SINGLE_SCOPE_REQUIRED`).
+    - A caller that belongs to no tenant gets 400 (`TENANT_SINGLE_SCOPE_REQUIRED`) with no selector and 403 (`TENANT_ACCESS_DENIED`) with a selector.
     - A `DELETE` of a contract that belongs to another tenant than the one of the request gets 404, and the contract is kept.
 
     Send `X-Tenant-Ids` with the one tenant or use `/api/tenants/{tenantId}/...`. The user interface already does.
 
 !!! warning "Rights on contracts count where they are held"
 
-    A contract copy appears in the search, the count, the facets and the raw list of a caller, and opens by id, only when the right comes from a group of the tenant of that copy. A `THREAT_ARSENAL` grant also counts when a platform group holds it. The `ACCESS_THREAT_ARSENALS` capability and the tenant bypass count only from a group of the tenant of the copy. A caller whose right sits in a group of another tenant no longer sees that tenant's copy.
+    A contract copy counts for a caller in the search, its count and facets, and the contract list (`GET /api/injector_contracts`) only when the right comes from a group of the tenant of that copy. A `THREAT_ARSENAL` grant also counts when a platform group holds it. The `ACCESS_THREAT_ARSENALS` capability and the capability `BYPASS` count only from a group of the tenant of the copy. A right held in a group of another tenant does not count for that copy.
 
-    On the regular path, the by-id check also reads the default tenant (see [tenant isolation](../../development/tenant-isolation.md)). With `X-Tenant-Ids: A`, a caller whose right is held only in a group of tenant A sees A's copy in the search and gets 403 on `GET /api/injector_contracts/{id}`. On `/api/tenants/{A}/...` both agree.
+    On the non-prefixed route, opening a contract by id also requires the right in the default tenant: the by-id check covers the request context and every tenant of the scope (see [tenant isolation](../../development/tenant-isolation.md#authorization-covers-every-tenant-of-the-scope)). With a right held only in one tenant's group, use `/api/tenants/{tenantId}/...`.
 
 ## Using Docker
 

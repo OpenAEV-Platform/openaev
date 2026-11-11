@@ -106,7 +106,7 @@ checking one of them is not enough.
 The rule: when the handler takes a `TxCtx` that lists tenants, the aspect evaluates the
 `@AccessControl` decision in the tenant of the request context, then in every other tenant of the
 scope. The request is authorized only if the caller holds the right in each of them. In each
-tenant, the decision reads the capabilities and the tenant bypass the caller holds in that tenant.
+tenant, the decision reads the capabilities the caller holds in that tenant, `BYPASS` included.
 A grant on a resource applies in the tenant of the group that holds it, so in each tenant the
 decision reads the grants of the caller's groups in that tenant. A grant held by a platform group
 applies in every tenant.
@@ -141,20 +141,26 @@ on `/api/threat_arsenals/{id}`. A built-in contract exists in every tenant, so t
 name a row:
 
 - A caller of several tenants that include the default one, with no selector, acts on the default
-  tenant's copy, also when it meant another one.
+  tenant's copy; name the tenant to act on another copy.
 - A caller of several tenants without the default one, with no selector, is refused with
   `TENANT_SELECTOR_REQUIRED`.
-- A selector that names several tenants, or a caller that belongs to no tenant, is refused with
-  `TENANT_SINGLE_SCOPE_REQUIRED`.
+- A selector that names several tenants is refused with `TENANT_SINGLE_SCOPE_REQUIRED`.
+- A caller that belongs to no tenant is refused with `TENANT_SINGLE_SCOPE_REQUIRED` when it sends no
+  selector, and with `TENANT_ACCESS_DENIED` (HTTP 403) when it sends one.
+- A `DELETE` of a contract that belongs to another tenant than the one of the request gets 404, and
+  the contract is kept.
 
 To act on a given tenant's copy, send `X-Tenant-Ids` with that tenant alone or use the tenant path.
-A search or a list over several tenants returns each contract once, as one tenant's copy.
+The search returns one copy per contract. The contract list (`GET /api/injector_contracts`) returns
+each contract id once, with the attack patterns of every copy in the scope for an administrator and
+of the visible copies otherwise.
 
 A right counts for a contract only where it is held. A `THREAT_ARSENAL` grant, the
-`ACCESS_THREAT_ARSENALS` capability and the tenant bypass make a copy of a contract visible when
-they come from a group of the tenant of that copy; a grant also counts when a platform group holds
-it. A right held in a group of another tenant does not show the copy. This applies to the contract
-search, its count and facets, the raw list and the lookup by id.
+`ACCESS_THREAT_ARSENALS` capability and the capability `BYPASS` make a copy of a contract visible
+when they come from a group of the tenant of that copy; a grant also counts when a platform group
+holds it. A right held in a group of another tenant does not show the copy. This per-copy rule covers
+the contract search, its count and facets, and the contract list; the lookup by id follows [the
+authorization check above](#authorization-covers-every-tenant-of-the-scope).
 
 A refusal in the tenant of the request context returns the usual HTTP 403. A refusal in another
 tenant of the scope returns an HTTP 403 whose message starts with `TENANT_SCOPE_FORBIDDEN`. That
