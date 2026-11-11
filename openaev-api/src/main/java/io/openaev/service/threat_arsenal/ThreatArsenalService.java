@@ -530,7 +530,8 @@ public class ThreatArsenalService {
       String tenantId, InjectorContractSearchPaginationInput input) {
     TxCtx tenantScope = TxCtx.forTenant(tenantId);
     List<String> eligibleIds =
-        bulkDeleteExecutor.resolveInTransaction(tenantScope, () -> resolveEligibleIds(input));
+        bulkDeleteExecutor.resolveInTransaction(
+            tenantScope, () -> resolveEligibleIds(tenantId, input));
     return bulkDeleteExecutor.deleteInChunks(
         tenantScope,
         "threat arsenal items",
@@ -549,8 +550,9 @@ public class ThreatArsenalService {
    * was deleted. The explicit-selection path stays entity-based: it is bounded by what the user
    * ticked on screen.
    */
-  private List<String> resolveEligibleIds(InjectorContractSearchPaginationInput input) {
-    return payloadUsageService.notInUse(resolveCandidateIds(input));
+  private List<String> resolveEligibleIds(
+      String tenantId, InjectorContractSearchPaginationInput input) {
+    return payloadUsageService.notInUse(resolveCandidateIds(input), tenantId);
   }
 
   private List<String> resolveCandidateIds(InjectorContractSearchPaginationInput input) {

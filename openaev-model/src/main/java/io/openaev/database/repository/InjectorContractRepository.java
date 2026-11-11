@@ -136,9 +136,12 @@ public interface InjectorContractRepository
 
   @Query(
       "SELECT c.compositeId.id FROM InjectorContract c"
-          + " WHERE c.compositeId.id IN :contractIds AND c.payload IS NOT NULL"
+          + " WHERE c.compositeId.id IN :contractIds AND c.compositeId.tenantId = :tenantId"
+          + " AND c.payload IS NOT NULL"
           + " AND EXISTS (SELECT 1 FROM Inject i WHERE i.injectorContract = c)")
-  Set<String> findIdsInUse(@Param("contractIds") Collection<String> contractIds);
+  Set<String> findIdsInUse(
+      @Param("contractIds") Collection<String> contractIds,
+      @Param("tenantId") @NotNull String tenantId);
 
   @Query(
       "SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.payload.identity.id = :id"
