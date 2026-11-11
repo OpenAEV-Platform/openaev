@@ -134,6 +134,28 @@ several memberships and no selector gets the default tenant as its scope when it
 the last row checks the default tenant only. A caller that does not belong to the default tenant
 is refused with an HTTP 400 (`TENANT_SELECTOR_REQUIRED`) before any check.
 
+An endpoint that reads or changes one tenant's row refuses a scope that does not hold exactly one
+tenant with an HTTP 400 (`TENANT_SINGLE_SCOPE_REQUIRED`). The contract endpoints that need one
+tenant are `GET`, `PUT`, `PUT .../mapping` and `DELETE` on `/api/injector_contracts/{id}` and `GET`
+on `/api/threat_arsenals/{id}`. A built-in contract exists in every tenant, so the id alone does not
+name a row:
+
+- A caller of several tenants that include the default one, with no selector, acts on the default
+  tenant's copy, also when it meant another one.
+- A caller of several tenants without the default one, with no selector, is refused with
+  `TENANT_SELECTOR_REQUIRED`.
+- A selector that names several tenants, or a caller that belongs to no tenant, is refused with
+  `TENANT_SINGLE_SCOPE_REQUIRED`.
+
+To act on a given tenant's copy, send `X-Tenant-Ids` with that tenant alone or use the tenant path.
+A search or a list over several tenants returns each contract once, as one tenant's copy.
+
+A right counts for a contract only where it is held. A `THREAT_ARSENAL` grant, the
+`ACCESS_THREAT_ARSENALS` capability and the tenant bypass make a copy of a contract visible when
+they come from a group of the tenant of that copy; a grant also counts when a platform group holds
+it. A right held in a group of another tenant does not show the copy. This applies to the contract
+search, its count and facets, the raw list and the lookup by id.
+
 A refusal in the tenant of the request context returns the usual HTTP 403. A refusal in another
 tenant of the scope returns an HTTP 403 whose message starts with `TENANT_SCOPE_FORBIDDEN`. That
 message states the rule and the remedy, and never names the tenant that refused, so the response
