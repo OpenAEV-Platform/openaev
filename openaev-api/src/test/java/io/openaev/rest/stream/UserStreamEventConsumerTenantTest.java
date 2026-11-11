@@ -74,6 +74,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -1249,7 +1250,10 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
               .execute(
                   status -> {
                     User loaded = userRepository.findById(created.getId()).orElseThrow();
-                    loaded.loadOrganizations();
+                    // Read by reflection: the entity gives no access to its organizations but the
+                    // method that scopes them, which would put a production frame in the shadow
+                    // run.
+                    Hibernate.initialize(ReflectionTestUtils.getField(loaded, "organizations"));
                     if (!"teams".equals(lazyField)) {
                       Hibernate.initialize(loaded.getTeams());
                     }
