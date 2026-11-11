@@ -102,7 +102,7 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
         given_headerNamingTwoTenantsAndAFindingOfTheOther_should_answerFindingNotFoundAndWriteNothing()
             throws Exception {
       // Arrange
-      long endpointsBefore = endpointsNamed(tenantA, VALUE_OF_B);
+      assertThat(endpointsNamed(tenantA, VALUE_OF_B)).isZero();
 
       // Act
       Exception resolved =
@@ -120,8 +120,33 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
       assertThat(refusal.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
       assertThat(refusal.getReason()).isEqualTo("Finding not found");
       assertThat(linksOf(findingOfB)).isZero();
-      assertThat(endpointsBefore).isZero();
       assertThat(endpointsNamed(tenantA, VALUE_OF_B)).isZero();
+    }
+
+    @Test
+    @DisplayName("given_headerNamingTwoTenantsAndAnUnknownFindingId_should_answerFindingNotFound")
+    void given_headerNamingTwoTenantsAndAnUnknownFindingId_should_answerFindingNotFound()
+        throws Exception {
+      // Arrange
+      String unknownFinding = UUID.randomUUID().toString();
+      long linksBefore = allLinks();
+
+      // Act
+      Exception resolved =
+          mvc.perform(
+                  post(PLAIN, runOfA, unknownFinding)
+                      .header("X-Tenant-Ids", tenantA + "," + tenantB)
+                      .with(csrf()))
+              .andExpect(status().isNotFound())
+              .andReturn()
+              .getResolvedException();
+
+      // Assert
+      assertThat(resolved).isInstanceOf(ResponseStatusException.class);
+      assertThat(((ResponseStatusException) resolved).getReason()).isEqualTo("Finding not found");
+      assertThat(endpointsNamed(tenantA, VALUE_OF_A)).isZero();
+      assertThat(endpointsNamed(tenantA, VALUE_OF_B)).isZero();
+      assertThat(allLinks()).isEqualTo(linksBefore);
     }
 
     @Test
@@ -165,6 +190,20 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
   @Nested
   @DisplayName("tenant path")
   class TenantPath {
+
+    @Test
+    @DisplayName("given_tenantPathAndAFindingOfTheRun_should_linkItToAnEndpointOfThatTenant")
+    void given_tenantPathAndAFindingOfTheRun_should_linkItToAnEndpointOfThatTenant()
+        throws Exception {
+      // Act
+      mvc.perform(post(SCOPED, tenantA, runOfA, findingOfA).with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.finding_id").value(findingOfA));
+
+      // Assert
+      assertThat(linksOf(findingOfA)).isEqualTo(1L);
+      assertThat(endpointsNamed(tenantA, VALUE_OF_A)).isEqualTo(1L);
+    }
 
     @Test
     @DisplayName(
@@ -225,6 +264,21 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
   private long linksOf(String findingId) {
     return rawQuery(
         "SELECT count(*) FROM findings_assets WHERE finding_id = ?", findingId, Long.class);
+  }
+
+  private long allLinks() {
+    entityManager.flush();
+    return entityManager
+        .unwrap(Session.class)
+        .doReturningWork(
+            connection -> {
+              try (PreparedStatement statement =
+                      connection.prepareStatement("SELECT count(*) FROM findings_assets");
+                  ResultSet rows = statement.executeQuery()) {
+                rows.next();
+                return rows.getLong(1);
+              }
+            });
   }
 
   private long endpointsNamed(String tenantId, String name) {
