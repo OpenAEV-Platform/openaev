@@ -6,6 +6,7 @@ import static java.time.Instant.now;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -20,13 +21,16 @@ import io.openaev.service.utils.BulkOperationMonitor;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.scheduling.annotation.Async;
@@ -237,6 +241,15 @@ public class StreamService {
   }
 
   private static final String USER_ORGANIZATION_FIELD = "user_organization";
+  private static final String USER_TEAMS_FIELD = "user_teams";
+  private static final String USER_TAGS_FIELD = "user_tags";
+  private static final String USER_GRANTS_FIELD = "user_grants";
+  private static final String USER_HOME_DASHBOARD_FIELD = "user_home_dashboard";
+
+  // Never sent: the ids of the first two carry no tenant, and unscopedGroups holds the groups of
+  // every tenant. No screen reads them from the stream.
+  private static final List<String> USER_FIELDS_NEVER_STREAMED =
+      List.of("user_communications", "team_exercises_users", "unscopedGroups");
 
   private static final EnumSet<ResourceType> RESOURCES_STREAM_EXCLUSION =
       EnumSet.of(
@@ -340,16 +353,8 @@ public class StreamService {
         ObjectNode instanceData = mapper.valueToTree(event.getInstance());
         instanceData.putNull("notifier_configuration");
         sendStreamEvent(fluxSink, event.clone(), instanceData);
-      } else if (event.getInstance() instanceof User
-          && event.getInstanceData() instanceof ObjectNode serializedUser
-          && !Objects.equals(event.getTenantId(), consumer.tenantId())) {
-        // A user is platform-level, so its events reach every tenant, but user_organization is the
-        // one of the tenant the change was made in: the user is only loaded with the organizations
-        // of that scope, so it would serialize as null here and overwrite the one the consumer
-        // holds. The field is left out, the consumer keeps its cached value.
-        ObjectNode instanceData = mapper.valueToTree(event.getInstance());
-        instanceData.remove(USER_ORGANIZATION_FIELD);
-        sendStreamEvent(fluxSink, event.clone(), instanceData);
+      } else if (event.getInstance() instanceof User streamedUser) {
+        sendStreamEvent(fluxSink, event.clone(), userInTenantOf(consumer, event, streamedUser));
       } else {
         sendStreamEvent(fluxSink, event);
       }
@@ -357,6 +362,73 @@ public class StreamService {
       // Reset tenant context unconditionally to avoid leaking into other
       // consumers in the loop or into later tasks on this pooled thread
       TenantContext.clearCurrentTenant();
+    }
+  }
+
+  /**
+   * The user as the consumer's tenant holds it, in a tree of its own: a user is platform-level, so
+   * its event reaches the consumers of every tenant, and the instance it holds was loaded in the
+   * scope of the write.
+   *
+   * <ul>
+   *   <li>{@code user_teams} and {@code user_tags} keep the ids of the consumer's tenant, read from
+   *       the entities already loaded. The field is left out, so the consumer keeps what it holds,
+   *       when nothing of its tenant was loaded and the write was made in another tenant, or when
+   *       the tenant of a link cannot be read without loading it.
+   *   <li>{@code user_organization} is left out when the write was made in another tenant, as the
+   *       user is only loaded with the organizations of the write.
+   *   <li>{@code user_communications}, {@code team_exercises_users} and {@code unscopedGroups} are
+   *       never sent.
+   *   <li>{@code user_grants} and {@code user_home_dashboard} hold ids of the tenant that set them,
+   *       and only the user reads them: they go to the consumer of that user.
+   * </ul>
+   *
+   * The groups, capabilities and flags are derived from the tenant context of the consumer, set by
+   * the caller, and need no trim.
+   */
+  private ObjectNode userInTenantOf(StreamConsumer consumer, BaseEvent event, User user) {
+    String consumerTenantId = consumer.tenantId();
+    boolean writtenInConsumerTenant = Objects.equals(event.getTenantId(), consumerTenantId);
+    ObjectNode data = mapper.valueToTree(user);
+    USER_FIELDS_NEVER_STREAMED.forEach(data::remove);
+    keepIdsOfTenant(
+        data, USER_TEAMS_FIELD, user.getTeams(), consumerTenantId, writtenInConsumerTenant);
+    keepIdsOfTenant(
+        data, USER_TAGS_FIELD, user.getTags(), consumerTenantId, writtenInConsumerTenant);
+    if (!writtenInConsumerTenant) {
+      data.remove(USER_ORGANIZATION_FIELD);
+    }
+    if (!consumer.principal().getId().equals(user.getId())) {
+      data.remove(USER_GRANTS_FIELD);
+      data.remove(USER_HOME_DASHBOARD_FIELD);
+    }
+    return data;
+  }
+
+  private void keepIdsOfTenant(
+      ObjectNode data,
+      String field,
+      Collection<? extends Base> links,
+      String tenantId,
+      boolean writtenInConsumerTenant) {
+    if (!Hibernate.isInitialized(links)) {
+      data.remove(field);
+      return;
+    }
+    ArrayNode ids = mapper.createArrayNode();
+    for (Base link : links) {
+      if (!Hibernate.isInitialized(link)) {
+        data.remove(field);
+        return;
+      }
+      if (tenantId != null && tenantId.equals(tenantOf(link))) {
+        ids.add(link.getId());
+      }
+    }
+    if (ids.isEmpty() && !writtenInConsumerTenant) {
+      data.remove(field);
+    } else {
+      data.set(field, ids);
     }
   }
 
