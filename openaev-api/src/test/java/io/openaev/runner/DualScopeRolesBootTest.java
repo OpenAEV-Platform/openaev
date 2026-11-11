@@ -63,8 +63,18 @@ class DualScopeRolesBootTest extends IntegrationTest {
     @Test
     @DisplayName("given_theRoleAlreadyExists_should_bootAgainThroughTheUpdatePath")
     void given_theRoleAlreadyExists_should_bootAgainThroughTheUpdatePath() {
-      // Arrange: the context boot already ran the INSERT path
+      // Arrange: the context boot already ran the INSERT path; the description is changed so the
+      // restart has a real UPDATE to write back. A run that fails before the assertion leaves the
+      // changed description in the shared database
       assertThat(platformAdminRole().getTenant()).isNull();
+      tenantScopedTransaction.executeAsPlatformWrite(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> {
+            Role role = roleRepository.findById(PLATFORM_ADMIN_ROLE_ID).orElseThrow();
+            role.setDescription("changed before the restart");
+            roleRepository.saveAndFlush(role);
+          });
+      assertThat(platformAdminRole().getDescription()).isEqualTo("changed before the restart");
 
       // Act: the same run a restart makes, against the existing row
       initAdminCommandLineRunner.run();
@@ -73,6 +83,8 @@ class DualScopeRolesBootTest extends IntegrationTest {
       Role role = platformAdminRole();
       assertThat(role.getTenant()).isNull();
       assertThat(role.getName()).isEqualTo(AdminPrivilegeService.PLATFORM_ADMIN_ACCESS.roleName());
+      assertThat(role.getDescription())
+          .isEqualTo(AdminPrivilegeService.PLATFORM_ADMIN_ACCESS.roleDescription());
     }
 
     @Test
