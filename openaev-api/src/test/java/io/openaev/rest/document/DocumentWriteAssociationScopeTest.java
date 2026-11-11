@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.assertj.core.api.SoftAssertions;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -367,6 +368,47 @@ class DocumentWriteAssociationScopeTest extends IntegrationTest {
       assertThat(linked("scenarios_documents", "scenario_id", documentId))
           .containsExactly(scenarioInB);
       assertThat(linked("documents_tags", "tag_id", documentId)).containsExactly(tagInB);
+    }
+  }
+
+  @Nested
+  @DisplayName("Update of a document of B by a caller scoped to several tenants")
+  class UpdateDocumentOnSeveralTenantScope {
+
+    @Test
+    @DisplayName(
+        "given a header naming the default tenant and B when it names a simulation and a scenario"
+            + " of each then the document links only those of its own tenant")
+    void given_parentsOfTwoTenants_should_linkOnlyTheParentsOfTheDocumentTenant() throws Exception {
+      // -- Arrange --
+      String documentId =
+          saveDocumentInB(target(randomContent()), randomName(), exerciseInB, scenarioInB);
+      Map<String, Object> input =
+          Map.of(
+              "document_exercises", List.of(exerciseInB, exerciseInDefault),
+              "document_scenarios", List.of(scenarioInB, scenarioInDefault),
+              "document_tags", List.of());
+
+      // -- Act --
+      mvc.perform(
+              put(DOCUMENT_API + "/" + documentId)
+                  .header(TENANT_HEADER, Tenant.DEFAULT_TENANT_UUID + "," + tenantB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(objectMapper.writeValueAsString(input))
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // -- Assert --
+      SoftAssertions softly = new SoftAssertions();
+      softly
+          .assertThat(linked("exercises_documents", "exercise_id", documentId))
+          .as("simulations linked to the document")
+          .containsExactly(exerciseInB);
+      softly
+          .assertThat(linked("scenarios_documents", "scenario_id", documentId))
+          .as("scenarios linked to the document")
+          .containsExactly(scenarioInB);
+      softly.assertAll();
     }
   }
 
