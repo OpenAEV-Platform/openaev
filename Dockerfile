@@ -37,10 +37,17 @@ RUN printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\nAcquire::https:
     > /etc/apt/apt.conf.d/80-retries
 
 # Upgrade the base image's packages: it lags behind Ubuntu updates between two rebuilds.
-RUN DEBIAN_FRONTEND=noninteractive apt-get update -q \
-    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -qq -y \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tini \
-    && rm -rf /var/lib/apt/lists/*
+# A mirror outage that outlasts apt's own retries gets two more attempts, 60 s apart.
+RUN set -eu; \
+    for attempt in 1 2 3; do \
+      DEBIAN_FRONTEND=noninteractive apt-get update -q \
+        && DEBIAN_FRONTEND=noninteractive apt-get upgrade -qq -y \
+        && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y tini \
+        && break; \
+      if [ "$attempt" -eq 3 ]; then exit 1; fi; \
+      echo "apt-get failed (attempt $attempt of 3)"; sleep 60; \
+    done; \
+    rm -rf /var/lib/apt/lists/*
 COPY --from=api-builder /opt/openaev-build/openaev/openaev-api/target/openaev-api.jar ./
 # Install Chromium and its system libraries for server-side report rendering. The boot jar uses
 # the ZIP layout, so PropertiesLauncher can run the embedded Playwright CLI (Spring Boot 3.x
