@@ -286,7 +286,10 @@ public class DocumentApi extends RestBehavior {
     // the scoped lookup above, so a caller outside the document's tenant gets the same 404 as for a
     // missing document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
-    document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    document.setTags(
+        new HashSet<>(
+            tagRepository.findAllByIdInAndTenantId(
+                input.getTagIds(), document.getTenant().getId())));
     return documentService.withSerializedLinks(documentService.save(document));
   }
 
@@ -316,7 +319,10 @@ public class DocumentApi extends RestBehavior {
   private Document updateDocumentInTenant(Document document, DocumentUpdateInput input) {
     String documentId = document.getId();
     document.setUpdateAttributes(input);
-    document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    document.setTags(
+        new HashSet<>(
+            tagRepository.findAllByIdInAndTenantId(
+                input.getTagIds(), document.getTenant().getId())));
 
     // Get removed exercises
     Stream<String> askExerciseIdsStream =

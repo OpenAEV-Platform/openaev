@@ -4,6 +4,7 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.raw.RawTagIndexing;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -31,6 +32,10 @@ public interface TagRepository extends CrudRepository<Tag, String>, JpaSpecifica
    */
   @NotNull
   Optional<Tag> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /** The tags among the given ids that belong to the given tenant. */
+  @NotNull
+  List<Tag> findAllByIdInAndTenantId(@NotNull Collection<String> ids, @NotNull String tenantId);
 
   @NotNull
   Optional<Tag> findByNameAndTenantId(@NotNull String name, @NotNull String tenantId);
