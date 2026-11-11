@@ -1313,7 +1313,7 @@ public class ScenarioService {
    * Duplicates a scenario in full: its authored content, plus the logic map when it is chained.
    *
    * <p>This is the entry point for the duplicate endpoint. The metadata-only {@link
-   * #getDuplicateScenario(String)} stays separate because {@code
+   * #getDuplicateScenario(TxCtx, String)} stays separate because {@code
    * AutonomousRunService.convertToManual} calls it and then copies the workflow itself - folding
    * the chaining copy into it would give that duplicate two TEMPLATE workflows.
    *
@@ -1374,7 +1374,7 @@ public class ScenarioService {
 
   /**
    * Same as {@link #getDuplicateScenario(TxCtx, String)} for a scenario of the current tenant, for
-   * work that runs without a request scope.
+   * work that runs without a request scope. No production code calls it: it stays for its tests.
    */
   @Transactional
   public Scenario getDuplicateScenario(@NotBlank String scenarioId) {

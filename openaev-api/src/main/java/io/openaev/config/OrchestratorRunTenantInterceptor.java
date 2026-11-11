@@ -11,12 +11,13 @@ import org.springframework.web.servlet.AsyncHandlerInterceptor;
 import org.springframework.web.servlet.HandlerMapping;
 
 /**
- * Establishes the legacy v1 {@link TenantContext} for the orchestrator CALLBACK route, so the
- * entities those callbacks still reach through the v1 Hibernate {@code tenantFilter} (workflows,
- * injects, exercises, teams, assets, findings - scoped by {@link
- * io.openaev.aop.HibernateFilterTransactionAspect}, which reads this ThreadLocal) are filtered to
- * the run's own tenant. It is the v1 counterpart of what {@link
- * TxCtxArgumentResolver#runTenantScope} does for the v2 {@code app.current_tenants} GUC.
+ * Establishes the legacy v1 {@link TenantContext} for the orchestrator CALLBACK route, for two
+ * reasons: {@code injects} and {@code injectors_contracts} still carry the v1 Hibernate {@code
+ * tenantFilter} and listener (scoped by {@link io.openaev.aop.HibernateFilterTransactionAspect},
+ * which reads this ThreadLocal), and some reads are keyed by {@link TenantContext} explicitly (for
+ * example {@code ExerciseService#exercise(String)}). Both follow the run's own tenant. It is the v1
+ * counterpart of what {@link TxCtxArgumentResolver#runTenantScope} does for the v2 {@code
+ * app.current_tenants} GUC.
  *
  * <p>Why an interceptor and not per-method: the callbacks ride the legacy NON-prefixed route
  * ({@code /api/autonomous-runs/**}), which {@link TenantInterceptor} (registered only for {@code

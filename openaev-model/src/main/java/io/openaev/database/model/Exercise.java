@@ -42,7 +42,7 @@ import org.hibernate.annotations.*;
 @EntityListeners(ModelBaseListener.class)
 // exercises is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
 // TenantBaseListener (#6434). A create path that forgets to stamp the tenant fails loudly
-// on the NOT NULL constraint instead of being silently defaulted to the ambient tenant.
+// on the NOT NULL constraint of tenant_id.
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SIMULATION)
 public class Exercise implements GrantableBase, TenantBase {
 

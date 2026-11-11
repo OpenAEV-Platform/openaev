@@ -78,7 +78,7 @@ import org.hibernate.type.SqlTypes;
 @EntityListeners(ModelBaseListener.class)
 // scenarios is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
 // TenantBaseListener (#6432). A create path that forgets to stamp the tenant fails loudly
-// on the NOT NULL constraint instead of being silently defaulted to the ambient tenant.
+// on the NOT NULL constraint of tenant_id.
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Scenario.tags-injects",

@@ -55,8 +55,9 @@ public class AutonomousTimeoutService {
     Instant threshold = Instant.now().plusSeconds(AutonomousRunService.WINDDOWN_5M_SECONDS);
     tenantTx.forEachTenant(
         tenantId -> {
-          // v1 @Filter bridge for the tenant-filtered entities the enforcement path touches
-          // (simulation / workflow); the v2 GUC scope is already set by forEachTenant.
+          // The v2 GUC scope is already set by forEachTenant. The ambient tenant is still set for
+          // two reasons: injects and injectors_contracts carry the v1 filter and listener, and
+          // some reads are keyed by TenantContext explicitly (ExerciseService#exercise(String)).
           TenantContext.setCurrentTenant(tenantId);
           try {
             List<String> dueRunIds = runRepository.findRunIdsDueForTimeout(tenantId, threshold);

@@ -107,9 +107,9 @@ public class DocumentApi extends RestBehavior {
     // must be refused with 400 whether the uploaded bytes match an existing document or not, not
     // only on the new-document branch. The new document below is attributed to this tenant.
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    // The parents still on the v1 filter are scoped by the ambient tenant, which is the default one
-    // on the non-prefixed route: resolve the ids the caller supplies in the write tenant, so the
-    // document is only bound to parents of its own tenant.
+    // Documents, simulations, scenarios and tags are v2, so the bridge protects nothing on this
+    // path: the parents the caller names are read in the request scope, which is the write tenant
+    // alone because tenantForWrite refuses a scope that holds several.
     return ambientTenantBridge.callInTenantChecked(
         tenantId, () -> uploadDocumentInTenant(tenantId, input, file));
   }
@@ -311,9 +311,10 @@ public class DocumentApi extends RestBehavior {
     // the scoped lookup above, so a caller outside the document's tenant gets the same 404 as for a
     // missing document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
-    // The parents still on the v1 filter are scoped by the ambient tenant, which is the default one
-    // on the non-prefixed route: resolve the ids the caller supplies in the tenant of the document,
-    // so it keeps the parents of its own tenant and is never bound to those of another one.
+    // The bridge protects the inject attachments a removed simulation or scenario takes with it
+    // (injects are v1, scoped by the ambient tenant, which is the default one on the non-prefixed
+    // route). The simulations and scenarios themselves are v2: they follow the request scope and
+    // the update keeps those of the tenant of the document.
     return ambientTenantBridge.callInTenant(
         document.getTenant().getId(), () -> updateDocumentInTenant(document, input));
   }
