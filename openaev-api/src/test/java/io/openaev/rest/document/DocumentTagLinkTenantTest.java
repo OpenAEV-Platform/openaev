@@ -2,6 +2,8 @@ package io.openaev.rest.document;
 
 import static io.openaev.rest.document.DocumentApi.DOCUMENT_API;
 import static io.openaev.rest.document.DocumentApi.TENANT_DOCUMENT_API;
+import static io.openaev.utils.TagLinkJdbc.column;
+import static io.openaev.utils.TagLinkJdbc.saveTag;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -12,23 +14,17 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
-import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.DocumentFixture;
-import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.assertj.core.api.SoftAssertions;
-import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -78,8 +74,8 @@ class DocumentTagLinkTenantTest extends IntegrationTest {
     // The caller belongs to both tenants, so the header can name both of them.
     tenantRepository.addUserToTenant(testUserHolder.get().getId(), Tenant.DEFAULT_TENANT_UUID);
     tenantB = tenantHelper.createTenantWithCurrentUser("document-tag-link-b").getId();
-    tagInB = saveTag(tenantB);
-    tagInDefault = saveTag(Tenant.DEFAULT_TENANT_UUID);
+    tagInB = saveTag(tagRepository, tenantB);
+    tagInDefault = saveTag(tagRepository, Tenant.DEFAULT_TENANT_UUID);
     documentInB = saveDocumentInB();
     entityManager.flush();
     entityManager.clear();
@@ -274,12 +270,6 @@ class DocumentTagLinkTenantTest extends IntegrationTest {
     return List.of(tagInB, tagInDefault);
   }
 
-  private String saveTag(String tenantId) {
-    Tag tag = TagFixture.getTagWithText("document-tag-link-" + UUID.randomUUID());
-    tag.setTenant(new Tenant(tenantId));
-    return tagRepository.save(tag).getId();
-  }
-
   private String saveDocumentInB() {
     Document document = DocumentFixture.getDocumentJpeg();
     document.setTenant(new Tenant(tenantB));
@@ -303,11 +293,15 @@ class DocumentTagLinkTenantTest extends IntegrationTest {
 
   /** Each tag and the document carry the tenant the scenario relies on. */
   private void assertSeedTenants() {
-    assertThat(column("SELECT tenant_id FROM tags WHERE tag_id = ?", tagInB))
+    assertThat(column(entityManager, "SELECT tenant_id FROM tags WHERE tag_id = ?", tagInB))
         .containsExactly(tenantB);
-    assertThat(column("SELECT tenant_id FROM tags WHERE tag_id = ?", tagInDefault))
+    assertThat(column(entityManager, "SELECT tenant_id FROM tags WHERE tag_id = ?", tagInDefault))
         .containsExactly(Tenant.DEFAULT_TENANT_UUID);
-    assertThat(column("SELECT tenant_id FROM documents WHERE document_id = ?", documentInB))
+    assertThat(
+            column(
+                entityManager,
+                "SELECT tenant_id FROM documents WHERE document_id = ?",
+                documentInB))
         .containsExactly(tenantB);
   }
 
@@ -316,26 +310,9 @@ class DocumentTagLinkTenantTest extends IntegrationTest {
   }
 
   private List<String> linkedTags(String documentId) {
-    return column("SELECT tag_id FROM documents_tags WHERE document_id = ? ORDER BY 1", documentId);
-  }
-
-  /** JDBC on the test connection: the statement inspector does not rewrite it. */
-  private List<String> column(String sql, String parameter) {
-    entityManager.flush();
-    return entityManager
-        .unwrap(Session.class)
-        .doReturningWork(
-            connection -> {
-              List<String> values = new ArrayList<>();
-              try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                statement.setString(1, parameter);
-                try (ResultSet resultSet = statement.executeQuery()) {
-                  while (resultSet.next()) {
-                    values.add(resultSet.getString(1));
-                  }
-                }
-              }
-              return values;
-            });
+    return column(
+        entityManager,
+        "SELECT tag_id FROM documents_tags WHERE document_id = ? ORDER BY 1",
+        documentId);
   }
 }
