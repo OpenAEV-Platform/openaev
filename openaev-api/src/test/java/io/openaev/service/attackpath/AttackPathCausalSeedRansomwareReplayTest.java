@@ -6,6 +6,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.service.attackpath.dto.AttackPathReplayStepDTO;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ class AttackPathCausalSeedRansomwareReplayTest extends IntegrationTest {
   @DisplayName("each call plays the next stage; the completed graph carries every causal hop")
   void replay_lands_the_kill_chain_one_stage_at_a_time() {
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-ransomware-replay-tenant"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
     String sim = causalSeedService.createRansomwareSimulation(tenant.getId());
 
     // Created empty: the intrusion has not started yet.

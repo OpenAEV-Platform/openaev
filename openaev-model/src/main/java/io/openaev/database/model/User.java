@@ -25,6 +25,7 @@ import lombok.Setter;
 import org.hibernate.Hibernate;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.Immutable;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -210,23 +211,14 @@ public class User implements Base {
 
   /**
    * The tenant whose organization {@link #getOrganization()} answers for, when it is not the
-   * ambient one: a request that works on a tenant named by {@code X-Tenant-Ids} still has the
-   * default tenant as its ambient tenant. Never persisted, never serialized.
+   * ambient one. Only ever set on a response view built by {@code UserMapper#toResponseView}, never
+   * on an entity the persistence context or a lifecycle event holds. Never persisted, never
+   * serialized.
    */
   @Transient
   @JsonIgnore
   @Getter(NONE)
   private String organizationTenantId;
-
-  /**
-   * Makes {@link #getOrganization()}, so the {@code user_organization} of the response, answer for
-   * the given tenant instead of the ambient one.
-   *
-   * @param tenantId the tenant the request works on
-   */
-  public void answerOrganizationOfTenant(final String tenantId) {
-    this.organizationTenantId = tenantId;
-  }
 
   /**
    * Loads the organizations of the user. Call it inside the scoped transaction of an endpoint that
@@ -337,8 +329,19 @@ public class User implements Base {
   @Queryable(dynamicValues = true, filterable = true, path = "teams.id")
   private List<Team> teams = new ArrayList<>();
 
+  /**
+   * Owning side of {@code users_tags}, but a user is platform-level and its tags may belong to
+   * several tenants, so the collection only holds the ones in the scope of the transaction. The
+   * tags of an existing user are never written through it: a flush of this collection deletes every
+   * row of the user as soon as it is empty, the links to the tags out of scope included. The links
+   * of an existing user are written by {@code UserService#replaceTags}; {@link #setTags} is for a
+   * user that is not saved yet and refuses a saved one. {@link Immutable} makes a change of the
+   * loaded collection in place ({@code clear}, {@code add}, {@code remove}) fail at flush instead
+   * of deleting links; Hibernate does not check a collection that is replaced, which is why the
+   * setter does.
+   */
   @ArraySchema(schema = @Schema(description = "Tag IDs of the user", implementation = String.class))
-  @Setter
+  @Immutable
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "users_tags",
@@ -348,6 +351,20 @@ public class User implements Base {
   @JsonProperty("user_tags")
   @Queryable(dynamicValues = true, filterable = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
+
+  /**
+   * @throws IllegalStateException when the user is saved: replacing its collection deletes every
+   *     link of the user, the ones to the tags out of the scope of the transaction included
+   */
+  public void setTags(Set<Tag> tags) {
+    if (id != null) {
+      throw new IllegalStateException(
+          "The tags of the saved user "
+              + id
+              + " are changed with UserService#replaceTags, never by replacing the collection");
+    }
+    this.tags = tags;
+  }
 
   @ArraySchema(
       schema =
