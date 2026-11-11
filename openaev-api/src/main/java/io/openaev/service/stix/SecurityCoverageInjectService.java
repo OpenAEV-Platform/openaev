@@ -17,6 +17,7 @@ import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.service.InjectAssistantService;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.rest.tag.TagService;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
@@ -57,6 +58,7 @@ public class SecurityCoverageInjectService {
 
   private final InjectRepository injectRepository;
   private final InjectorContractRepository injectorContractRepository;
+  private final InjectorContractService injectorContractService;
   private final TagService tagService;
 
   private final SecurityCoverageUtils securityCoverageUtils;
@@ -99,8 +101,9 @@ public class SecurityCoverageInjectService {
     // tenant, the tenant the injects being created here are written into, rather than the ambient
     // one (the default tenant on the non-prefixed route).
     InjectorContract contractForInjectPlaceholders =
-        injectorContractRepository
-            .findByContractIdAndTenant(ManualContract.MANUAL_DEFAULT, scenario.getTenant().getId())
+        injectorContractService
+            .injectorContractByIdInTenant(
+                ManualContract.MANUAL_DEFAULT, scenario.getTenant().getId())
             .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
 
     // 5. Build injects from Vulnerabilities

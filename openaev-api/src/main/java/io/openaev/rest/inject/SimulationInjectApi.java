@@ -29,6 +29,7 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.SimulationInjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.service.BulkInjectService;
 import io.openaev.service.FaithfulCopyTransaction;
@@ -68,7 +69,7 @@ public class SimulationInjectApi extends RestBehavior {
 
   private final InjectSearchService injectSearchService;
   private final Executor executor;
-  private final InjectorContractRepository injectorContractRepository;
+  private final InjectorContractService injectorContractService;
   private final ExerciseService exerciseService;
   private final UserRepository userRepository;
   private final InjectRepository injectRepository;
@@ -351,8 +352,8 @@ public class SimulationInjectApi extends RestBehavior {
     // id repeats across tenants (#8485), and the read scope the simulation was found in can
     // legitimately span several.
     InjectorContract injectorContract =
-        this.injectorContractRepository
-            .findByContractIdAndTenant(input.getInjectorContract(), exercise.getTenant().getId())
+        this.injectorContractService
+            .injectorContractByIdInTenant(input.getInjectorContract(), exercise.getTenant().getId())
             .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
     Inject inject = input.toInject(injectorContract, injector);

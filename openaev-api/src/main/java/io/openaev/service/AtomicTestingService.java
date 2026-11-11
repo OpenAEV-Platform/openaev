@@ -17,6 +17,7 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
@@ -60,7 +61,7 @@ public class AtomicTestingService {
   private final SecretReferenceRepository secretReferenceRepository;
   private final PayloadMapper payloadMapper;
   private final InjectRepository injectRepository;
-  private final InjectorContractRepository injectorContractRepository;
+  private final InjectorContractService injectorContractService;
   private final UserRepository userRepository;
   private final TeamRepository teamRepository;
   private final TagRepository tagRepository;
@@ -138,8 +139,8 @@ public class AtomicTestingService {
     // API resolved from the request's scope, on an update the tenant of the loaded inject.
     String contractTenantId = isCreate ? tenantId : injectToSave.getTenant().getId();
     InjectorContract injectorContract =
-        injectorContractRepository
-            .findByContractIdAndTenant(input.getInjectorContract(), contractTenantId)
+        injectorContractService
+            .injectorContractByIdInTenant(input.getInjectorContract(), contractTenantId)
             .orElseThrow(ElementNotFoundException::new);
     ObjectNode finalContent = input.getContent();
     // Set expectations

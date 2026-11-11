@@ -186,6 +186,20 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
+   * Looks a contract up by its ID alone in one tenant, leaving the caller to decide what a missing
+   * contract means. A built-in contract id repeats across tenants (#8485), so the tenant of the
+   * parent row the contract is written into is passed explicitly.
+   *
+   * @param id the injector contract ID, not its external ID
+   * @param tenantId the tenant of the row the contract is used by
+   * @return the contract of that tenant, empty when it has none under that ID
+   */
+  public Optional<InjectorContract> injectorContractByIdInTenant(
+      @NotBlank final String id, @NotBlank final String tenantId) {
+    return injectorContractRepository.findByContractIdAndTenant(id, tenantId);
+  }
+
+  /**
    * Retrieves an injector contract by ID, only if it is referenced by one of the given workflow's
    * steps.
    *

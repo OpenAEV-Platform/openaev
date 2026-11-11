@@ -49,8 +49,7 @@ class AtomicTestingServiceTest {
   @Mock private PayloadMapper payloadMapper;
   @Mock private InjectRepository injectRepository;
 
-  @Mock
-  private io.openaev.database.repository.InjectorContractRepository injectorContractRepository;
+  @Mock private io.openaev.rest.injector_contract.InjectorContractService injectorContractService;
 
   @Mock private io.openaev.database.repository.UserRepository userRepository;
   @Mock private io.openaev.database.repository.TeamRepository teamRepository;
