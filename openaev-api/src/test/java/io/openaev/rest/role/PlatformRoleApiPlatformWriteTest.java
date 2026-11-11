@@ -3,6 +3,7 @@ package io.openaev.rest.role;
 import static io.openaev.api.platform.roles.PlatformRoleApi.PLATFORM_ROLES_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,10 +37,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * With {@code roles} active, a platform role (no tenant) is writable only in a platform-write
- * transaction, and the three platform role endpoints are the ones that open it. The fixtures of the
- * other platform role tests mark the test transaction themselves, which would hide a missing marker
- * on an endpoint: this class clears it before each request, so the endpoint's own marker is the
- * only thing that lets the write through.
+ * transaction, and the three platform role endpoints are the ones that open it. The platform role
+ * fixture puts the marker back to the value it read before its save, and this class clears the
+ * marker before each endpoint request, so the endpoint's own marker is the only thing that lets the
+ * write through.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
@@ -153,6 +154,30 @@ class PlatformRoleApiPlatformWriteTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
       assertThat(roleRepository.findById(role.getId())).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("platform role fixtures")
+  class PlatformRoleFixtures {
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.ACCESS_PLATFORM_SETTINGS})
+    @DisplayName("given_aMockUserWithAPlatformOnlyCapability_should_leaveTheTransactionUnmarked")
+    void given_aMockUserWithAPlatformOnlyCapability_should_leaveTheTransactionUnmarked() {
+      // Arrange: the listener has persisted a platform role for the mock user through the composer
+      Role role = PlatformRoleFixture.getPlatformRole("RoleOfAnUnmarkedTransaction");
+
+      // Act + Assert: the marker is not left on, so a platform write with no marker of its own is
+      // refused
+      assertThatThrownBy(
+              () -> {
+                roleRepository.save(role);
+                entityManager.flush();
+              })
+          .rootCause()
+          .hasMessageContaining(
+              "write of a platform row refused: the transaction is not platform-write");
     }
   }
 }
