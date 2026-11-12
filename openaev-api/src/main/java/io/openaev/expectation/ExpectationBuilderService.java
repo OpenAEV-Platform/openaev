@@ -45,8 +45,13 @@ public class ExpectationBuilderService {
   /** Default name for logging expectations. */
   public static final String LOGGING_NAME = "Logging";
 
-  /** Default name for vulnerability expectations. */
-  public static final String VULNERABILITY_NAME = "Vulnerability";
+  /**
+   * Default name for vulnerability expectations. A vulnerability expectation succeeds when the
+   * target is not vulnerable, so its name states the expected outcome, like the success label of
+   * {@code ExpectationType.VULNERABILITY} and the name migrations V4_06 and V6_20260722110000000
+   * already write (#6747).
+   */
+  public static final String VULNERABILITY_NAME = "Not vulnerable";
 
   /** Default name for challenge expectations. */
   public static final String CHALLENGE_NAME = "Expect targets to complete the challenge(s)";
