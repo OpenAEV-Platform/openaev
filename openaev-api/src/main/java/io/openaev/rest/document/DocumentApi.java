@@ -42,7 +42,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FilenameUtils;
@@ -134,7 +133,7 @@ public class DocumentApi extends RestBehavior {
       if (!document.getExercises().isEmpty()) {
         Set<Exercise> exercises = new HashSet<>(document.getExercises());
         List<Exercise> inputExercises =
-            fromIterable(exerciseRepository.findAllById(input.getExerciseIds()));
+            fromIterable(exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), tenantId));
         exercises.addAll(inputExercises);
         document.setExercises(exercises);
       }
@@ -142,7 +141,7 @@ public class DocumentApi extends RestBehavior {
       if (!document.getScenarios().isEmpty()) {
         Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
         List<Scenario> inputScenarios =
-            fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
+            fromIterable(scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), tenantId));
         scenarios.addAll(inputScenarios);
         document.setScenarios(scenarios);
       }
@@ -165,11 +164,13 @@ public class DocumentApi extends RestBehavior {
       document.setDescription(input.getDescription());
       if (!input.getExerciseIds().isEmpty()) {
         document.setExercises(
-            iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
+            iterableToSet(
+                exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), tenantId)));
       }
       if (!input.getScenarioIds().isEmpty()) {
         document.setScenarios(
-            iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
+            iterableToSet(
+                scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), tenantId)));
       }
       document.setTags(
           iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
@@ -347,9 +348,7 @@ public class DocumentApi extends RestBehavior {
             .filter(exercise -> !askExerciseIds.contains(exercise.getId()))
             .toList();
     document.setExercises(
-        fromIterable(exerciseRepository.findAllById(askExerciseIds)).stream()
-            .filter(exercise -> tenantId.equals(exercise.getTenant().getId()))
-            .collect(Collectors.toSet()));
+        new HashSet<>(exerciseRepository.findAllByIdInTenant(askExerciseIds, tenantId)));
     // In case of exercise removal, all inject doc attachment for exercise
     removedExercises.forEach(
         exercise -> injectService.cleanInjectsDocExercise(exercise.getId(), documentId));
@@ -372,9 +371,7 @@ public class DocumentApi extends RestBehavior {
             .filter(scenario -> !askScenarioIds.contains(scenario.getId()))
             .toList();
     document.setScenarios(
-        fromIterable(scenarioRepository.findAllById(askScenarioIds)).stream()
-            .filter(scenario -> tenantId.equals(scenario.getTenant().getId()))
-            .collect(Collectors.toSet()));
+        new HashSet<>(scenarioRepository.findAllByIdInTenant(askScenarioIds, tenantId)));
     // In case of scenario removal, all inject doc attachment for scenario
     removedScenarios.forEach(
         scenario -> injectService.cleanInjectsDocScenario(scenario.getId(), documentId));
