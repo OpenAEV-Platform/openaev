@@ -33,11 +33,23 @@ public class RabbitMQSslConfiguration {
    */
   public void configureSsl(ConnectionFactory factory, RabbitmqConfig rabbitmqConfig)
       throws Exception {
+    factory.useSslProtocol(sslContext(rabbitmqConfig));
+    log.debug("SSL configured for RabbitMQ connection");
+  }
+
+  /**
+   * The SSL context of every TLS connection to the broker, the AMQP connection and the calls to the
+   * management API alike, so both verify the broker with the same trust material.
+   *
+   * @param rabbitmqConfig the RabbitMQ configuration
+   * @return an initialised SSL context
+   * @throws Exception if the configured trust store or client key store cannot be read
+   */
+  public SSLContext sslContext(RabbitmqConfig rabbitmqConfig) throws Exception {
     boolean customTrustStore = hasCustomTrustStore(rabbitmqConfig);
     SSLContext sslContext = SSLContext.getInstance(customTrustStore ? "TLSv1.3" : "TLS");
     sslContext.init(defaultKeyManagers(), trustManagers(rabbitmqConfig), null);
-    factory.useSslProtocol(sslContext);
-    log.debug("SSL configured for RabbitMQ connection");
+    return sslContext;
   }
 
   /**
