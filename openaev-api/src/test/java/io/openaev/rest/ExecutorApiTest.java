@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ExecutorRepository;
@@ -676,7 +677,8 @@ public class ExecutorApiTest extends IntegrationTest {
      * token.
      */
     private void ensureServiceAccount(String tenantId) {
-      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+          TxCtx.forTenant(tenantId), tenantId);
       entityManager.flush();
       entityManager.clear();
     }
@@ -713,7 +715,8 @@ public class ExecutorApiTest extends IntegrationTest {
   class RotateOpenAevAgentInstallerToken {
 
     private void ensureServiceAccount(String tenantId) {
-      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+          TxCtx.forTenant(tenantId), tenantId);
       entityManager.flush();
       entityManager.clear();
     }

@@ -1,6 +1,9 @@
 package io.openaev.service.account;
 
+import io.openaev.aop.PlatformWrite;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
@@ -73,6 +76,7 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
       UserService userService,
       TenantUserService tenantUserService,
       MarkingClearanceCacheManager markingClearanceCacheManager,
+      TenantWriteScopeResolver writeScopeResolver,
       PlatformRoleService platformRoleService,
       PlatformGroupService platformGroupService) {
     super(
@@ -80,7 +84,8 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
         tenantGroupService,
         userService,
         tenantUserService,
-        markingClearanceCacheManager);
+        markingClearanceCacheManager,
+        writeScopeResolver);
     this.platformRoleService = platformRoleService;
     this.platformGroupService = platformGroupService;
   }
@@ -104,13 +109,15 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
    * created or loaded it) rather than an id, so the membership check never depends on re-fetching
    * the user through {@code UserService} - a service that some test contexts replace with a mock.
    *
+   * @param ctx the scope the work runs under; it must contain {@code tenantId}, the tenant the role
+   *     is written in
    * @param tenantId the tenant the group belongs to
    * @param adminUser the user to enroll as an administrator
    * @return the (created or existing) admin group
    */
   @Transactional
-  public Group ensureAdminGroup(String tenantId, User adminUser) {
-    Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(tenantId), tenantId);
+  public Group ensureAdminGroup(TxCtx ctx, String tenantId, User adminUser) {
+    Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(ctx, tenantId), tenantId);
     boolean alreadyMember =
         adminUser.getUnscopedGroups().stream().anyMatch(g -> g.getId().equals(group.getId()));
     if (!alreadyMember) {
@@ -135,11 +142,17 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
    * to the platform-only capabilities (tenants, platform settings, platform users/groups/roles).
    * Safe to call on every platform startup.
    *
+   * <p>Writes a platform row of {@code roles} ({@code tenant_id IS NULL}), so it runs as a
+   * platform-write transaction: the marker belongs to this method, and {@code ctx} is the scope the
+   * caller's transaction already carries.
+   *
+   * @param ctx the scope of the transaction, only read by the platform-write aspect
    * @param adminUser the user to enroll as a platform administrator
    * @return the (created or existing) platform admin group
    */
   @Transactional
-  public Group ensurePlatformAdminGroup(User adminUser) {
+  @PlatformWrite
+  public Group ensurePlatformAdminGroup(TxCtx ctx, User adminUser) {
     Role role =
         platformRoleService.ensureInternalPlatformRole(
             PLATFORM_ADMIN_ACCESS.roleId(),

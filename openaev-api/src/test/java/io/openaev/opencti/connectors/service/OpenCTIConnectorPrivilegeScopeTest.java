@@ -105,6 +105,10 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
       AbstractPrivilegeService.getUUIDFromName(
           OPENCTI_CONNECTOR.access().groupId(), CONNECTOR_TENANT_ID);
 
+  private static final String CONNECTOR_ROLE_ID =
+      AbstractPrivilegeService.getUUIDFromName(
+          OPENCTI_CONNECTOR.access().roleId(), CONNECTOR_TENANT_ID);
+
   @Autowired private OpenCTIConnectorService openCTIConnectorService;
   @Autowired private DataSource dataSource;
   @MockitoBean private OpenCTIClient openCTIClient;
@@ -265,6 +269,21 @@ class OpenCTIConnectorPrivilegeScopeTest extends IntegrationTest {
       assertThat(observedScope.get())
           .as("the connector flow must ensure its well-known group under its own tenant's scope")
           .isEqualTo(CONNECTOR_TENANT_ID);
+    }
+
+    @Test
+    @DisplayName(
+        "given the connector register and ping flow, should write the well-known role in the"
+            + " connector tenant")
+    void given_connectorRegisterPingFlow_should_writeTheRoleInTheConnectorTenant() {
+      // Act
+      openCTIConnectorService.registerOrPingAllConnectors();
+
+      // Assert
+      assertThat(
+              jdbc.queryForList(
+                  "SELECT tenant_id FROM roles WHERE role_id = ?", String.class, CONNECTOR_ROLE_ID))
+          .containsExactly(CONNECTOR_TENANT_ID);
     }
 
     @Test
