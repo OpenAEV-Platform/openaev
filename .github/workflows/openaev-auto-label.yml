@@ -11,4 +11,4 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: "Auto Label"
-        uses: FiligranHQ/filigran-ci-tools/actions/auto-label@56eae5a1f6a69ffb895f9b260745583f05a0bade # main
+        uses: FiligranHQ/filigran-ci-tools/actions/auto-label@7d1dbb14c31f82a69a00bf72ee5a18b85035e248 # main
