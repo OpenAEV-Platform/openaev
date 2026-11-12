@@ -117,7 +117,7 @@ public class TaniumExecutorContextService extends BatchExecutorContextService<Ta
   }
 
   @Override
-  protected int batchSize() {
+  protected Integer batchSize() {
     return this.taniumExecutorConfig.getApiBatchExecutionActionPagination();
   }
 

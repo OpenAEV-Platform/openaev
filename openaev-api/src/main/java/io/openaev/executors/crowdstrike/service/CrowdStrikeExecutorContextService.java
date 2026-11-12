@@ -103,7 +103,7 @@ public class CrowdStrikeExecutorContextService
   }
 
   @Override
-  protected int batchSize() {
+  protected Integer batchSize() {
     return this.crowdStrikeExecutorConfig.getApiBatchExecutionActionPagination();
   }
 

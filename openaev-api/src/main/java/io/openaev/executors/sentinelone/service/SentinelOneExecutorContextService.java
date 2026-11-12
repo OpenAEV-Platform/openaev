@@ -124,7 +124,7 @@ public class SentinelOneExecutorContextService
   }
 
   @Override
-  protected int batchSize() {
+  protected Integer batchSize() {
     return this.config.getApiBatchExecutionActionPagination();
   }
 
