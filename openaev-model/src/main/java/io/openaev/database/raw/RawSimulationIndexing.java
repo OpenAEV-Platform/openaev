@@ -164,19 +164,6 @@ public interface RawSimulationIndexing extends RawTenant {
   String getScenario_id();
 
   /**
-   * ID of the user whose marking clearance this exercise's dispatch is filtered against (see {@code
-   * Exercise.launchedBy}), or {@code null} if never stamped; the sibling getters below project that
-   * same user's name/email.
-   */
-  String getExercise_launched_by();
-
-  String getExercise_launched_by_firstname();
-
-  String getExercise_launched_by_lastname();
-
-  String getExercise_launched_by_email();
-
-  /**
    * Returns the ID of the custom dashboard for this exercise.
    *
    * @return the custom dashboard ID, or {@code null} if using default

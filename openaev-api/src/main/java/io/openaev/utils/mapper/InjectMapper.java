@@ -3,6 +3,7 @@ package io.openaev.utils.mapper;
 import static io.openaev.api.expectations.mapper.InjectExpectationMapper.toOutputs;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.atomic_testing.dto.InjectHeroOutput;
 import io.openaev.database.model.*;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
@@ -88,6 +89,39 @@ public class InjectMapper {
         .recurrence(inject.getRecurrence())
         .recurrenceStart(inject.getRecurrenceStart())
         .recurrenceEnd(inject.getRecurrenceEnd())
+        .build();
+  }
+
+  /**
+   * Converts an inject to the hero output consumed by the atomic testing / simulation inject detail
+   * header. A narrower sibling of {@link #toInjectResultOverviewOutput}: only the fields that
+   * header actually renders, plus the launching user.
+   */
+  public InjectHeroOutput toInjectHeroOutput(Inject inject) {
+    Optional<InjectorContract> injectorContract = inject.getInjectorContract();
+
+    List<BaseInjectExpectation> primaryExpectations = injectUtils.getPrimaryExpectations(inject);
+    List<BaseInjectExpectation> expectationsForScoring =
+        primaryExpectations.isEmpty()
+            ? new ArrayList<>(inject.getExpectations())
+            : primaryExpectations;
+
+    return InjectHeroOutput.builder()
+        .id(inject.getId())
+        .title(inject.getTitle())
+        .type(inject.getType())
+        .status(injectStatusMapper.toInjectStatusSimple(inject.getStatus()))
+        .recurrence(inject.getRecurrence())
+        .recurrenceStart(inject.getRecurrenceStart())
+        .recurrenceEnd(inject.getRecurrenceEnd())
+        .injectorContract(toInjectorContractOutput(injectorContract))
+        .killChainPhases(toKillChainPhasesSimples(inject.getKillChainPhases()))
+        .tagIds(inject.getTags().stream().map(Tag::getId).toList())
+        .expectationResultByTypes(
+            injectExpectationMapper.extractExpectationResults(
+                inject.getContent(),
+                expectationsForScoring,
+                InjectExpectationResultUtils::getScores))
         .launchedBy(toUserSimple(inject.getLaunchedBy()))
         .build();
   }

@@ -43,6 +43,11 @@ export const bulkDeleteExercises = (input: ExerciseBulkProcessingInput) => simpl
 
 export const fetchExercise = (exerciseId: string) => (dispatch: AppDispatch) => getReferential(schema.exercise, `/api/exercises/${exerciseId}`)(dispatch);
 
+// Plain call (no redux normalization): the resolved { user_name, user_email } shape only exists
+// on this endpoint, so it must not be merged into the same store entity as the raw Exercise
+// (whose exercise_launched_by is a plain user-id string) - that caused "undefined" in the hero.
+export const fetchExerciseLaunchedBy = (exerciseId: string) => simpleCall(`/api/exercises/${exerciseId}/launched-by`);
+
 export const fetchExerciseInjectExpectations = (exerciseId: string) => (dispatch: AppDispatch) => getReferential(
   schema.arrayOfInjectexpectations,
   `/api/exercises/${exerciseId}/expectations`,

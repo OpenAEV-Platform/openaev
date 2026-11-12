@@ -30,6 +30,7 @@ import { type ArticlesHelper } from '../../../../actions/channels/article-helper
 import {
   dismissExerciseExpectationsDrift,
   fetchExerciseExpectationsDrift,
+  fetchExerciseLaunchedBy,
   fetchExerciseTeams,
   realignExerciseExpectations,
   searchExerciseHealthchecks,
@@ -60,6 +61,7 @@ import {
   type Inject,
   type SimulationDetails,
   type Team,
+  type UserSimple,
 } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -413,11 +415,21 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   // reload (it only appeared to work right after a create when the redux entity
   // was transiently patched). The injects list is what already feeds the asset
   // counters below, so this keeps every hero counter on the same source.
-  // exercise_launched_by is a resolved object on the SimulationDetails DTO but a plain id string on other endpoints that merge into the same store entry - guard the shape instead of rendering "undefined".
-  const launchedBy = exercise.exercise_launched_by;
-  const launchedByName = launchedBy && typeof launchedBy === 'object'
-    ? (launchedBy.user_name ?? launchedBy.user_email)
-    : undefined;
+  // Fetched on its own (not through the redux-merged exercise entity): launched_by is stamped
+  // once at creation and never changes, and keeping it off the shared store entity avoids it
+  // colliding with the plain id string other endpoints (e.g. changeExerciseStatus) return for the
+  // same JSON key on the raw Exercise entity.
+  const [launchedBy, setLaunchedBy] = useState<UserSimple | undefined>(undefined);
+  useEffect(() => {
+    let stale = false;
+    fetchExerciseLaunchedBy(exerciseId).then((result: { data: UserSimple }) => {
+      if (!stale) setLaunchedBy(result.data);
+    }).catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [exerciseId]);
+  const launchedByName = launchedBy?.user_name ?? launchedBy?.user_email;
 
   const injectsCount = injects?.length ?? 0;
   // Teams and articles are counted from their dedicated list fetches for the

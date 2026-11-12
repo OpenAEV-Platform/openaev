@@ -6978,6 +6978,46 @@ export interface InjectExportTarget {
   inject_id?: string;
 }
 
+/** Fields read by the atomic testing / simulation inject detail header (InjectHero.tsx) */
+export interface InjectHeroOutput {
+  /** Result of expectations */
+  inject_expectation_results: ExpectationResultsByType[];
+  /**
+   * Id of inject
+   * @minLength 1
+   */
+  inject_id: string;
+  /** Full contract */
+  inject_injector_contract?: AtomicInjectorContractOutput;
+  /** Kill chain phases */
+  inject_kill_chain_phases?: KillChainPhaseSimple[];
+  /** User who launched this inject */
+  inject_launched_by?: UserSimple;
+  /** Recurrence cron expression for scheduled relaunch */
+  inject_recurrence?: string;
+  /**
+   * End date of the recurrence scheduling
+   * @format date-time
+   */
+  inject_recurrence_end?: string;
+  /**
+   * Start date of the recurrence scheduling
+   * @format date-time
+   */
+  inject_recurrence_start?: string;
+  /** status */
+  inject_status?: InjectStatusSimple;
+  /**
+   * Title of inject
+   * @minLength 1
+   */
+  inject_title: string;
+  /** Type of inject */
+  inject_type?: string;
+  /** Tags */
+  injects_tags?: string[];
+}
+
 export interface InjectImporter {
   /** @format date-time */
   inject_importer_created_at?: string;
@@ -7182,8 +7222,6 @@ export interface InjectResultOverviewOutput {
   inject_injector_contract?: AtomicInjectorContractOutput;
   /** Kill chain phases */
   inject_kill_chain_phases?: KillChainPhaseSimple[];
-  /** User who launched this inject */
-  inject_launched_by?: UserSimple;
   /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
   /** Recurrence cron expression for scheduled relaunch */
@@ -11493,8 +11531,6 @@ export interface ScenarioOutput {
    * @format date-time
    */
   scenario_recurrence_start?: string;
-  /** User who last configured the scenario's recurrence */
-  scenario_scheduled_by?: UserSimple;
   /** Severity of the scenario */
   scenario_severity?: string;
   /** Subtitle of the scenario */
@@ -12152,8 +12188,6 @@ export interface SimulationDetails {
   /** @minLength 1 */
   exercise_id: string;
   exercise_kill_chain_phases?: KillChainPhase[];
-  /** User who launched this exercise, or who last scheduled it when created unattended */
-  exercise_launched_by?: UserSimple;
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;

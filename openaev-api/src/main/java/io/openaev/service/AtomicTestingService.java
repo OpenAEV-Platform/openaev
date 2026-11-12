@@ -7,6 +7,7 @@ import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteri
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.api.atomic_testing.dto.InjectHeroOutput;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -108,6 +109,12 @@ public class AtomicTestingService {
     // (AssetGroup.dynamicAssets is @Transient: this mutation is never persisted).
     inject.getAssetGroups().forEach(assetGroupService::computeDynamicAssets);
     return injectMapper.toInjectResultOverviewOutput(inject);
+  }
+
+  /** Feeds the atomic testing / simulation inject detail header (InjectHero.tsx). */
+  public InjectHeroOutput findHeroById(TxCtx ctx, String injectId) {
+    Inject inject = injectService.inject(ctx, injectId);
+    return injectMapper.toInjectHeroOutput(inject);
   }
 
   /** Requires the inject inside the request's tenant scope, then maps its payload if it has one. */

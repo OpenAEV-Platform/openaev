@@ -3,10 +3,10 @@ import { Suspense, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { interval } from 'rxjs';
 
-import { fetchInjectResultOverviewOutput } from '../../../../actions/atomic_testings/atomic-testing-actions';
+import { fetchInjectHeroOutput, fetchInjectResultOverviewOutput } from '../../../../actions/atomic_testings/atomic-testing-actions';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
-import { type InjectResultOverviewOutput } from '../../../../utils/api-types';
+import { type InjectHeroOutput, type InjectResultOverviewOutput } from '../../../../utils/api-types';
 import { FIVE_SECONDS } from '../../../../utils/Time';
 import { TeamContext } from '../../common/Context';
 import { InjectResultOverviewOutputContext } from '../InjectResultOverviewOutputContext';
@@ -23,6 +23,21 @@ const Index = () => {
   const [pristine, setPristine] = useState(true);
   const [loading, setLoading] = useState(true);
   const [injectResultOverviewOutput, setInjectResultOverviewOutput] = useState<InjectResultOverviewOutput>();
+  const [injectHeroOutput, setInjectHeroOutput] = useState<InjectHeroOutput>();
+
+  // Keeps the hero's own data (including launched_by, which only InjectHeroOutput carries) in
+  // lockstep with the overview whenever either refreshes, from any of the several call sites
+  // below that already update injectResultOverviewOutput.
+  const refreshInjectHero = (forInjectId: string) => {
+    fetchInjectHeroOutput(forInjectId).then((result: { data: InjectHeroOutput }) => {
+      setInjectHeroOutput(result.data);
+    });
+  };
+
+  const applyInjectResultOverviewOutput = (data: InjectResultOverviewOutput) => {
+    setInjectResultOverviewOutput(data);
+    refreshInjectHero(data.inject_id);
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -32,6 +47,7 @@ const Index = () => {
       setLoading(false);
       setPristine(false);
     });
+    refreshInjectHero(injectId);
   }, [injectId]);
 
   useEffect(() => {
@@ -40,6 +56,7 @@ const Index = () => {
       fetchInjectResultOverviewOutput(injectId).then((result: { data: InjectResultOverviewOutput }) => {
         if (result.data.inject_updated_at !== injectResultOverviewOutput?.inject_updated_at) {
           setInjectResultOverviewOutput(result.data);
+          refreshInjectHero(injectId);
         }
       }).catch(() => {
         subscription.unsubscribe();
@@ -57,11 +74,12 @@ const Index = () => {
     fetchInjectResultOverviewOutput(injectId).then((result: { data: InjectResultOverviewOutput }) => {
       setInjectResultOverviewOutput(result.data);
     });
+    refreshInjectHero(injectId);
   };
 
   if (pristine && loading) return <Loader />;
 
-  if (!injectResultOverviewOutput) {
+  if (!injectResultOverviewOutput || !injectHeroOutput) {
     return (
       <Alert severity="warning">
         <AlertTitle>{t('Warning')}</AlertTitle>
@@ -77,7 +95,11 @@ const Index = () => {
         updateInjectResultOverviewOutput,
       }}
       >
-        <AtomicTestingHeader injectResultOverview={injectResultOverviewOutput} setInjectResultOverview={setInjectResultOverviewOutput} />
+        <AtomicTestingHeader
+          injectResultOverview={injectResultOverviewOutput}
+          injectHero={injectHeroOutput}
+          setInjectResultOverview={applyInjectResultOverviewOutput}
+        />
         <Suspense fallback={<Loader />}>
           <AtomicTestingRoutes injectResultOverview={injectResultOverviewOutput} />
         </Suspense>

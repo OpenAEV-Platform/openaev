@@ -33,6 +33,7 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.importer.ImportResult;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
+import io.openaev.rest.atomic_testing.form.UserSimple;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
@@ -252,6 +253,21 @@ public class ScenarioApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public ScenarioOutput scenario(TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
     return scenarioService.getScenarioById(ctx, scenarioId);
+  }
+
+  /** Feeds the scenario detail header's "scheduled by" chip. */
+  @GetMapping({
+    SCENARIO_URI + "/{scenarioId}/scheduled-by",
+    TENANT_SCENARIO_URI + "/{scenarioId}/scheduled-by"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#scenarioId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SCENARIO)
+  public UserSimple scenarioScheduledBy(
+      TxCtx ctx, @PathVariable @NotBlank final String scenarioId) {
+    return scenarioService.findScheduledBy(ctx, scenarioId);
   }
 
   @GetMapping({

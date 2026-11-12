@@ -6,6 +6,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
+import io.openaev.api.atomic_testing.dto.InjectHeroOutput;
 import io.openaev.api.expectations.ExpectationsDriftService;
 import io.openaev.api.expectations.dto.ExpectationsDriftDismissInput;
 import io.openaev.api.expectations.dto.ExpectationsDriftOutput;
@@ -90,6 +91,18 @@ public class AtomicTestingApi extends RestBehavior {
       // atomic-testing result panel.
       TxCtx ctx, @PathVariable String injectId) {
     return atomicTestingService.findById(ctx, injectId);
+  }
+
+  /** Feeds the atomic testing / simulation inject detail header (InjectHero.tsx). */
+  @LogExecutionTime
+  @Transactional
+  @GetMapping("/{injectId}/hero")
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.INJECT)
+  public InjectHeroOutput findAtomicTestingHero(TxCtx ctx, @PathVariable String injectId) {
+    return atomicTestingService.findHeroById(ctx, injectId);
   }
 
   @LogExecutionTime

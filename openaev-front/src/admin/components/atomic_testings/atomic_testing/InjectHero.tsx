@@ -7,7 +7,7 @@ import { getInjectStatusWithGlobalExecutionTraces } from '../../../../actions/in
 import { DetailHero } from '../../../../components/common/detail/EntityDetailCommon';
 import { useFormatter } from '../../../../components/i18n';
 import PlatformIcon from '../../../../components/PlatformIcon';
-import type { InjectResultOverviewOutput, InjectStatus as InjectStatusType, InjectStatusOutput } from '../../../../utils/api-types';
+import type { InjectHeroOutput, InjectStatus as InjectStatusType, InjectStatusOutput } from '../../../../utils/api-types';
 import handle from '../../../../utils/period/Period';
 import { truncate } from '../../../../utils/String';
 import InjectIcon from '../../common/injects/InjectIcon';
@@ -20,7 +20,7 @@ import InjectScoreTiles from './InjectScoreTiles';
 const INJECT_ERROR_STATUSES = ['ERROR', 'PARTIAL'];
 
 interface Props {
-  injectResultOverview: InjectResultOverviewOutput;
+  injectHero: InjectHeroOutput;
   actions?: ReactNode;
 }
 
@@ -56,31 +56,31 @@ const MetaItem = ({ icon, children }: {
  * entity detail page; the inject-specific metadata row and the score tiles
  * render in the hero footer.
  */
-const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions }) => {
+const InjectHero: FunctionComponent<Props> = ({ injectHero, actions }) => {
   const { t, tPick, nsdt, du, locale, fld } = useFormatter();
 
-  const statusName = injectResultOverview.inject_status?.status_name;
+  const statusName = injectHero.inject_status?.status_name;
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
 
   // Recurring scheduling chip (atomic testings only): mirrors the scenario
   // hero Scheduled chip with the human-readable schedule as tooltip.
-  const isScheduled = !!injectResultOverview.inject_recurrence;
+  const isScheduled = !!injectHero.inject_recurrence;
   const scheduleLabel = useMemo(() => {
-    const cronObject = handle(injectResultOverview.inject_recurrence);
+    const cronObject = handle(injectHero.inject_recurrence);
     if (!cronObject?.isValid()) {
       return null;
     }
     let sentence = cronObject.toTranslatableStringArray(locale).map(element => t(element)).join(' ');
     // Open-ended schedules are legal (null start fires immediately, null end never expires):
     // omit the fragment instead of rendering "from None" via fld(undefined).
-    if (injectResultOverview.inject_recurrence_start) {
-      sentence += ` ${t(injectResultOverview.inject_recurrence_end ? 'recurrence_from' : 'recurrence_starting_from')} ${fld(injectResultOverview.inject_recurrence_start)}`;
+    if (injectHero.inject_recurrence_start) {
+      sentence += ` ${t(injectHero.inject_recurrence_end ? 'recurrence_from' : 'recurrence_starting_from')} ${fld(injectHero.inject_recurrence_start)}`;
     }
-    if (injectResultOverview.inject_recurrence_end) {
-      sentence += ` ${t('recurrence_to')} ${fld(injectResultOverview.inject_recurrence_end)}`;
+    if (injectHero.inject_recurrence_end) {
+      sentence += ` ${t('recurrence_to')} ${fld(injectHero.inject_recurrence_end)}`;
     }
     return sentence;
-  }, [injectResultOverview.inject_recurrence, injectResultOverview.inject_recurrence_start, injectResultOverview.inject_recurrence_end, locale]);
+  }, [injectHero.inject_recurrence, injectHero.inject_recurrence_start, injectHero.inject_recurrence_end, locale]);
 
   // Surface the concrete failure reason on the status chip: the global execution
   // traces hold the real error (e.g. unmet dependencies), while the chip would
@@ -90,35 +90,35 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
     if (!statusName || !INJECT_ERROR_STATUSES.includes(statusName)) {
       return;
     }
-    getInjectStatusWithGlobalExecutionTraces(injectResultOverview.inject_id)
+    getInjectStatusWithGlobalExecutionTraces(injectHero.inject_id)
       .then((response: { data: InjectStatusOutput }) => {
         const firstError = (response.data?.status_main_traces ?? [])
           .find(trace => trace.execution_message?.trim());
         setErrorMessage(firstError?.execution_message);
       })
       .catch(() => setErrorMessage(undefined));
-  }, [injectResultOverview.inject_id, statusName]);
+  }, [injectHero.inject_id, statusName]);
 
-  const payload = injectResultOverview.inject_injector_contract?.injector_contract_payload;
+  const payload = injectHero.inject_injector_contract?.injector_contract_payload;
   const iconType = payload
     ? payload.payload_collector_type ?? payload.payload_type
-    : injectResultOverview.inject_type;
-  const contractLabel = tPick(injectResultOverview.inject_injector_contract?.injector_contract_labels)
-    || injectResultOverview.inject_type
+    : injectHero.inject_type;
+  const contractLabel = tPick(injectHero.inject_injector_contract?.injector_contract_labels)
+    || injectHero.inject_type
     || '';
 
   // Relevant-at-a-glance metadata; each item is rendered only when it has a value
   // so the hero stays light (no empty "-" rows like the old info tooltip).
   // The execution window (start / end / duration) lives here since the
   // dedicated "Execution details" tab was dropped.
-  const launchedBy = injectResultOverview.inject_launched_by;
-  const startDate = injectResultOverview.inject_status?.tracking_sent_date;
-  const endDate = injectResultOverview.inject_status?.tracking_end_date;
+  const launchedBy = injectHero.inject_launched_by;
+  const startDate = injectHero.inject_status?.tracking_sent_date;
+  const endDate = injectHero.inject_status?.tracking_end_date;
   const duration = startDate && endDate
     ? du(new Date(endDate).getTime() - new Date(startDate).getTime())
     : null;
-  const platforms = injectResultOverview.inject_injector_contract?.injector_contract_platforms ?? [];
-  const killChainPhases = injectResultOverview.inject_kill_chain_phases ?? [];
+  const platforms = injectHero.inject_injector_contract?.injector_contract_platforms ?? [];
+  const killChainPhases = injectHero.inject_kill_chain_phases ?? [];
   const metaIconSx = {
     fontSize: 15,
     color: 'text.disabled',
@@ -139,7 +139,7 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
         />
       )}
       overline={contractLabel || undefined}
-      title={truncate(injectResultOverview.inject_title, 80) ?? ''}
+      title={truncate(injectHero.inject_title, 80) ?? ''}
       chips={(
         <>
           <InjectStatus status={statusName as InjectStatusType['status_name']} errorMessage={errorMessage} />
@@ -223,10 +223,10 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
                   </Typography>
                 </MetaItem>
               )}
-              {(injectResultOverview.injects_tags?.length ?? 0) > 0 && (
+              {(injectHero.injects_tags?.length ?? 0) > 0 && (
                 <MetaItem icon={<LabelOutlined sx={metaIconSx} />}>
                   <Typography component="span" sx={metaTextSx}>
-                    {injectResultOverview.injects_tags?.length}
+                    {injectHero.injects_tags?.length}
                     {' '}
                     {t('tag(s)')}
                   </Typography>
@@ -234,7 +234,7 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
               )}
             </Box>
           )}
-          <InjectScoreTiles expectationResultsByTypes={injectResultOverview.inject_expectation_results} />
+          <InjectScoreTiles expectationResultsByTypes={injectHero.inject_expectation_results} />
         </>
       )}
     />
