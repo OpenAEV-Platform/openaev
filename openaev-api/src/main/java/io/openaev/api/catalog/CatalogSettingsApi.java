@@ -9,6 +9,7 @@ import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
+import io.openaev.service.catalog.CatalogSettings;
 import io.openaev.service.catalog.CatalogSettingsService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -39,15 +40,14 @@ public class CatalogSettingsApi {
   @AccessControl(skipRBAC = true)
   public CatalogSettingsOutput settings(TxCtx ctx) {
     catalogFeature.require();
-    return new CatalogSettingsOutput(
-        catalogSettingsService.isPayloadAutoInstall(
-            ctx, writeScopeResolver.tenantForWrite(ctx, null)));
+    return toOutput(
+        catalogSettingsService.settings(ctx, writeScopeResolver.tenantForWrite(ctx, null)));
   }
 
   // -- UPDATE --
 
   @Operation(
-      summary = "Turn on or off the install of the payloads a release brings",
+      summary = "Turn on or off the install of what a release brings",
       description = "Newer versions of the installed payloads always install themselves.")
   @PutMapping(CATALOG_SETTINGS_URI)
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.TENANT_SETTING)
@@ -55,8 +55,14 @@ public class CatalogSettingsApi {
   public CatalogSettingsOutput updateSettings(
       TxCtx ctx, @Valid @RequestBody CatalogSettingsInput input) {
     catalogFeature.require();
-    return new CatalogSettingsOutput(
-        catalogSettingsService.setPayloadAutoInstall(
-            ctx, writeScopeResolver.tenantForWrite(ctx, null), input.payloadAutoInstall()));
+    return toOutput(
+        catalogSettingsService.update(
+            ctx,
+            writeScopeResolver.tenantForWrite(ctx, null),
+            new CatalogSettings(input.payloadAutoInstall(), input.scenarioAutoInstall())));
+  }
+
+  private static CatalogSettingsOutput toOutput(CatalogSettings settings) {
+    return new CatalogSettingsOutput(settings.payloadAutoInstall(), settings.scenarioAutoInstall());
   }
 }

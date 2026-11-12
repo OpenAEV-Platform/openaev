@@ -2,13 +2,17 @@ package io.openaev.api.catalog;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.catalog.dto.CatalogInstallAllOutput;
 import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.api.catalog.dto.payload.CatalogPayloadOutput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioOutput;
+import io.openaev.database.model.Base;
 import io.openaev.database.model.catalog.CatalogItemStatus;
 import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.catalog.CatalogScenario;
 import io.openaev.rest.domain.DomainService;
+import io.openaev.service.catalog.InstallableVersion;
+import io.openaev.service.catalog.Installed;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -92,6 +96,13 @@ public class CatalogItemMapper {
   }
 
   // -- OUTPUT --
+
+  public CatalogInstallAllOutput toOutput(
+      Installed<? extends InstallableVersion, ? extends Base> result) {
+    return new CatalogInstallAllOutput(
+        result.installed().stream().map(Base::getId).toList(),
+        result.failed().stream().map(InstallableVersion::externalId).toList());
+  }
 
   public CatalogScenarioOutput toOutput(CatalogScenario latest) {
     return new CatalogScenarioOutput(latest.getExternalId(), latest.getVersion(), latest.getName());

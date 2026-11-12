@@ -1,6 +1,5 @@
 package io.openaev.service.settings;
 
-import static io.openaev.database.model.TenantSettingKeys.CATALOG_PAYLOAD_AUTO_INSTALL;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_LANG;
 import static io.openaev.database.model.TenantSettingKeys.DEFAULT_THEME;
 import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
@@ -20,6 +19,7 @@ import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.form.ThemeInput;
 import io.openaev.rest.settings.response.TenantSettingsOutput;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -97,8 +97,9 @@ public class TenantSettingsService {
     return findSettings(tenantId);
   }
 
-  public void updateCatalogPayloadAutoInstall(@NotBlank String tenantId, boolean enabled) {
-    upsert(new Tenant(tenantId), CATALOG_PAYLOAD_AUTO_INSTALL.key(), String.valueOf(enabled));
+  public void updateCatalogAutoInstall(
+      @NotBlank String tenantId, @NotNull TenantSettingKeys setting, boolean enabled) {
+    upsert(new Tenant(tenantId), setting.key(), String.valueOf(enabled));
   }
 
   /** Update theme settings for a tenant. */

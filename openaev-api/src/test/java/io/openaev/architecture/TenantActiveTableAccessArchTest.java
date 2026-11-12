@@ -4330,8 +4330,9 @@ class TenantActiveTableAccessArchTest {
       noClasses()
           .that()
           .doNotBelongToAnyOf(
-              // Catalogue installs, in a TxCtx-scoped transaction with the tenantId:
-              io.openaev.service.catalog.scenario.CatalogScenarioService.class)
+              // Catalogue installs and offer, in a TxCtx-scoped transaction with the tenantId:
+              io.openaev.service.catalog.scenario.CatalogScenarioService.class,
+              io.openaev.service.catalog.scenario.CatalogScenarioOfferService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(io.openaev.database.repository.ScenarioIdentityRepository.class)

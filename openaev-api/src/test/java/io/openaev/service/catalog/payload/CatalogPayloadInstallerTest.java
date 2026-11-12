@@ -10,6 +10,7 @@ import io.openaev.database.model.Command;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.service.catalog.CatalogFileService;
+import io.openaev.service.catalog.Installed;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
@@ -37,7 +38,7 @@ class CatalogPayloadInstallerTest {
   interface Installs {
     void listing(CatalogPayloadOfferService offer, List<InstallablePayloadVersion> versions);
 
-    InstalledPayloads run(CatalogPayloadInstaller installer);
+    Installed<InstallablePayloadVersion, Payload> run(CatalogPayloadInstaller installer);
   }
 
   static Stream<Arguments> installs() {
@@ -50,7 +51,7 @@ class CatalogPayloadInstallerTest {
                 when(s.neverInstalled(CTX, TENANT_ID)).thenReturn(v);
               }
 
-              public InstalledPayloads run(CatalogPayloadInstaller i) {
+              public Installed<InstallablePayloadVersion, Payload> run(CatalogPayloadInstaller i) {
                 return i.installAll(CTX, TENANT_ID);
               }
             }),
@@ -62,7 +63,7 @@ class CatalogPayloadInstallerTest {
                 when(s.toAutoInstall(CTX, TENANT_ID)).thenReturn(v);
               }
 
-              public InstalledPayloads run(CatalogPayloadInstaller i) {
+              public Installed<InstallablePayloadVersion, Payload> run(CatalogPayloadInstaller i) {
                 return i.autoInstall(CTX, TENANT_ID);
               }
             }));
@@ -86,7 +87,7 @@ class CatalogPayloadInstallerTest {
         .thenReturn(payload);
 
     // Act
-    InstalledPayloads result = installs.run(installer);
+    Installed<InstallablePayloadVersion, Payload> result = installs.run(installer);
 
     // Assert
     assertThat(result.installed()).containsExactly(payload);
