@@ -5,7 +5,10 @@ import static io.openaev.database.model.SettingKeys.PLATFORM_INSTANCE_CREATION;
 
 import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.debug.DebugLogCorrelationListener;
 import io.openaev.debug.DebugTracingContextInitializer;
@@ -29,6 +32,7 @@ public class App {
   private final SettingRepository settingRepository;
   private final OpenAEVConfig openAEVConfig;
   private final LicenseCacheManager licenseCacheManager;
+  private final TenantScopedTransaction tenantScopedTransaction;
 
   public static void main(String[] args) {
     FlywayMigrationValidator.validateFlywayMigrationNames();
@@ -50,6 +54,19 @@ public class App {
   @PostConstruct
   public void init() {
     log.info("Startup init");
+    // parameters is a dual-scope (platform-write) table: the instance-id bootstrap below reads and
+    // writes a platform row (tenant_id IS NULL) with no HTTP request or tenant data around it, so
+    // it
+    // carries its own explicit scope and platform-write marking.
+    String platformId =
+        tenantScopedTransaction.executeAsPlatformWrite(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), this::initInstanceId);
+    licenseCacheManager.refreshAndNotify();
+    log.info("Startup of the platform - Platform Instance ID: {}", platformId);
+  }
+
+  /** The instance-id bootstrap: reads, and on first boot or override creates, the platform row. */
+  private String initInstanceId() {
     // Get the platform instance id
     Optional<Setting> instanceId =
         this.settingRepository.findByKeyAndTenantIsNull(PLATFORM_INSTANCE.key());
@@ -80,9 +97,8 @@ public class App {
     } else {
       platformId = instanceId.get().getValue();
     }
-    licenseCacheManager.refreshAndNotify();
     keepInstanceCreationDate(instanceCreationDate, instanceId.isEmpty());
-    log.info("Startup of the platform - Platform Instance ID: {}", platformId);
+    return platformId;
   }
 
   /**

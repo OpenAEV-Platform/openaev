@@ -5,6 +5,8 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.openaev.database.model.hash.Hashed;
+import io.openaev.database.model.hash.NotHashed;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.openaev.jsonapi.InnerRelationship;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -27,6 +29,7 @@ import org.hibernate.annotations.UuidGenerator;
 @InnerRelationship
 public class ContractOutputElement implements Base {
 
+  @NotHashed
   @Id
   @Column(name = "contract_output_element_id")
   @GeneratedValue(generator = "UUID")
@@ -35,6 +38,7 @@ public class ContractOutputElement implements Base {
   @NotBlank
   private String id;
 
+  @NotHashed
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "contract_output_element_output_parser_id", nullable = false)
   @JsonIgnore
@@ -42,22 +46,26 @@ public class ContractOutputElement implements Base {
 
   // Fixes a bug due to a new version of jackson and lombok
   // cf: https://github.com/projectlombok/lombok/issues/3978
+  @Hashed
   @Getter(onMethod_ = @JsonProperty("contract_output_element_is_finding"))
   @Column(name = "contract_output_element_is_finding")
   @JsonProperty("contract_output_element_is_finding")
   @NotNull
   private boolean isFinding;
 
+  @Hashed
   @Column(name = "contract_output_element_rule")
   @JsonProperty("contract_output_element_rule")
   @NotBlank
   private String rule;
 
+  @Hashed
   @Column(name = "contract_output_element_name")
   @JsonProperty("contract_output_element_name")
   @NotBlank
   private String name;
 
+  @Hashed(order = Hashed.Order.OBJECTS)
   @OneToMany(
       mappedBy = "contractOutputElement",
       fetch = FetchType.EAGER,
@@ -67,17 +75,20 @@ public class ContractOutputElement implements Base {
   @NotNull
   private Set<RegexGroup> regexGroups = new HashSet<>();
 
+  @Hashed
   @Column(name = "contract_output_element_key")
   @JsonProperty("contract_output_element_key")
   @NotBlank
   private String key;
 
+  @Hashed
   @Enumerated(EnumType.STRING)
   @Column(name = "contract_output_element_type")
   @JsonProperty("contract_output_element_type")
   @NotNull
   private ContractOutputType type;
 
+  @NotHashed
   @Schema(implementation = String[].class)
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
@@ -90,12 +101,14 @@ public class ContractOutputElement implements Base {
 
   // -- AUDIT --
 
+  @NotHashed
   @CreationTimestamp
   @Column(name = "contract_output_element_created_at")
   @JsonProperty("contract_output_element_created_at")
   @NotNull
   private Instant createdAt = now();
 
+  @NotHashed
   @UpdateTimestamp
   @Column(name = "contract_output_element_updated_at")
   @JsonProperty("contract_output_element_updated_at")

@@ -8,6 +8,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.rest.inject.service.InjectService;
 import io.openaev.utils.TargetType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -28,6 +29,7 @@ public class InjectExecutionResultApi extends RestBehavior {
   private static final String TENANT_INJECT_EXECUTION_URI = TENANT_PREFIX + "/injects/{injectId}";
 
   private final InjectExecutionResultService injectExecutionService;
+  private final InjectService injectService;
 
   @GetMapping({
     INJECT_EXECUTION_URI + "/execution-result",
@@ -43,6 +45,7 @@ public class InjectExecutionResultApi extends RestBehavior {
       @PathVariable @NotBlank final String injectId,
       @RequestParam @NotBlank final String targetId,
       @RequestParam @NotNull final TargetType targetType) {
+    injectService.existsInScope(ctx, injectId);
     return this.injectExecutionService.injectExecutionResultPayload(injectId, targetId, targetType);
   }
 }

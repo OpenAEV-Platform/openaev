@@ -9,6 +9,7 @@ import { expectationTypeIcon } from '../../../admin/components/common/Expectatio
 import { expectationResultTypes } from '../../../admin/components/common/injects/expectations/Expectation';
 import { type ExpectationResultsByType } from '../../../utils/api-types';
 import useCountUp from '../../../utils/hooks/useCountUp';
+import { computeResilience, type ResilienceBuckets } from '../../../utils/resilience';
 import { getStatusColor } from '../../../utils/statusUtils';
 import { useFormatter } from '../../i18n';
 
@@ -23,12 +24,7 @@ interface Props {
   onTypeClick?: (type: string) => void;
 }
 
-interface Buckets {
-  success: number;
-  partial: number;
-  failed: number;
-  pending: number;
-}
+type Buckets = ResilienceBuckets;
 
 // Classify each distribution slice into success / partial / failed / pending by
 // its semantic status color, so the ring speaks the same language as the rest
@@ -69,9 +65,7 @@ const Gauge: FunctionComponent<{
   const { t } = useFormatter();
   const Icon = expectationTypeIcon(type);
 
-  const resolved = buckets.success + buckets.partial + buckets.failed;
-  const total = resolved + buckets.pending;
-  const resilience = total > 0 ? Math.round((buckets.success / total) * 100) : 0;
+  const { resolved, total, resilience } = computeResilience(buckets);
   const animated = useCountUp(resilience, 1200);
   const hasData = total > 0;
 

@@ -158,6 +158,9 @@ class InjectPayloadCollectorTypeScopeTest extends IntegrationTest {
               new InjectorContractId(injectorContractId, tenantId));
           injectorRepository.deleteById(ConnectorCompositeId.of(injectorId, tenantId));
           payloadRepository.deleteById(payloadId);
+          // The database deletes the identity with its last version: drop the session's copy.
+          entityManager.flush();
+          entityManager.clear();
           collectorTypeRepository.deleteById(collectorTypeId);
         });
   }

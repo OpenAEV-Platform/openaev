@@ -1,5 +1,6 @@
 package io.openaev.service.account;
 
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
@@ -71,9 +72,15 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
       TenantGroupService tenantGroupService,
       UserService userService,
       TenantUserService tenantUserService,
+      MarkingClearanceCacheManager markingClearanceCacheManager,
       PlatformRoleService platformRoleService,
       PlatformGroupService platformGroupService) {
-    super(tenantRoleService, tenantGroupService, userService, tenantUserService);
+    super(
+        tenantRoleService,
+        tenantGroupService,
+        userService,
+        tenantUserService,
+        markingClearanceCacheManager);
     this.platformRoleService = platformRoleService;
     this.platformGroupService = platformGroupService;
   }
@@ -81,6 +88,11 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
   @Override
   protected WellKnownAccess wellKnownAccess() {
     return ADMIN_ACCESS;
+  }
+
+  @Override
+  protected boolean receivesEveryMarking() {
+    return true;
   }
 
   /**

@@ -61,6 +61,7 @@ import {
   type SimulationDetails,
   type Team,
 } from '../../../../utils/api-types';
+import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { useAbility } from '../../../../utils/permissions/permissionsContext';
@@ -349,7 +350,13 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   }, [canOpenConfiguration, clearConfigurationQueryParam, location.search]);
 
   useEffect(() => {
-    searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+    const refreshHealthchecks = () => {
+      searchExerciseHealthchecks(exerciseId).then((result: { data: HealthCheck[] }) => setHealthchecks(result.data));
+    };
+    refreshHealthchecks();
+    // Step changes in the Logic tab touch none of the dependencies below: it signals them instead.
+    const subscription = MESSAGING$.refreshHealthchecks.subscribe(refreshHealthchecks);
+    return () => subscription.unsubscribe();
   }, [exerciseId, exercise, workflowConfiguration]);
 
   // Expectation drift between the injector contract templates and the inject

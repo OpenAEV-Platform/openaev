@@ -23,6 +23,7 @@ Always load:
 Load conditionally based on the diff:
 - **Frontend files (`.tsx`, `.ts`)** → read `.github/instructions/frontend.instructions.md`
 - **Migration files** → read `.github/instructions/migration.instructions.md`
+- **Workflow or composite action files (`.github/workflows/**`, `.github/actions/**`)** → read `.github/instructions/ci.instructions.md`
 
 Then:
 - **Follow `.claude/skills/review-code/SKILL.md`** step-by-step — run every command
@@ -44,7 +45,9 @@ Then:
 | Check | Rule |
 |---|---|
 | **Module boundaries** | Respects `openaev-model` / `openaev-api` separation? No new code in `openaev-framework` (deprecated). |
-| **Layering** | Controller → Service → Repository? No repository injection in controllers? |
+| **Layering** | Controller → Service → Repository? Controller calls **one** service method, no repository injection? |
+| **Service boundary** | Service returns entities, never an `*Output`? No HTTP types (`ResponseEntity`, `ResponseStatusException`)? Injects only its own repository, other aggregates through their service? |
+| **Entity logic** | Nothing new in `openaev-model/**/model/` beyond state and mapping: no computed `@JsonProperty` getter, stream, branching or static factory? |
 | **Naming** | PascalCase entities, camelCase methods, `snake_case` DB columns? |
 | **DTO pattern** | API never exposes JPA entities — always through Output records + Mapper |
 | **Tenant routes** | New endpoint on tenant-scoped data mapped on `TENANT_PREFIX` only, no `/api/...` alias |
@@ -55,8 +58,11 @@ Then:
 | **Preview features** | Checked in the endpoint with `PreviewFeatureService` (404), no `@Conditional`? |
 | **Service pattern** | Business logic in `@Service`, `@Transactional` on each method, `readOnly = true` on reads |
 | **No writes in read paths** | GET/list code never calls setters on managed entities (`readOnly = true` does NOT prevent the OSIV flush at response commit) — display-only values go into the output DTO via mapper parameters |
-| **Error handling** | Uses `ElementNotFoundException`? Returns proper HTTP status codes? |
+| **Error handling** | Service throws a domain exception (`io.openaev.rest.exception`)? No try/catch or `ResponseStatusException` in a controller (status set only in `RestBehavior`)? |
 | **Logging** | Uses `@Slf4j`? No `System.out.println`? No sensitive data in logs? |
+| **CI scripts** | No `${{ }}` inside a `run:` or `github-script` script? Values passed through the step `env:` and quoted? (🔴 when the value can come from a PR, branch name or other untrusted input) |
+
+> Full rules: `backend.instructions.md` → Layering, Entities.
 
 ### Phase 3 — Code Quality
 
@@ -65,6 +71,7 @@ Then:
 | **Dead code** | Unused imports, commented-out blocks, unreachable branches |
 | **Complexity** | Methods >30 lines, >3 levels of nesting, >4 parameters |
 | **Duplication** | Copy-pasted logic that should be extracted |
+| **Javadoc** | Paraphrases the signature (`/** Updates a tenant. */`) → 🟡 `suggestion:` remove it. Keep only side effects, thrown exceptions, non-obvious behaviour |
 | **Null safety** | Proper use of `Optional`, null checks on external inputs |
 | **Immutability** | Prefer `final` fields, records for DTOs, unmodifiable collections |
 | **Transactions** | `org.springframework.transaction.annotation.Transactional` (never `jakarta.transaction.Transactional`) |

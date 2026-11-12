@@ -40,12 +40,16 @@ public class TenantGroupMarkingsOutput {
   @JsonProperty("group_markings")
   private Set<String> markingIds;
 
+  @JsonProperty("group_auto_new_marking")
+  private boolean autoNewMarking;
+
   public static TenantGroupMarkingsOutput from(Group group) {
     return TenantGroupMarkingsOutput.builder()
         .id(group.getId())
         .name(group.getName())
         .markingIds(
             group.getMarkings().stream().map(MarkingDefinition::getId).collect(Collectors.toSet()))
+        .autoNewMarking(group.isAutoNewMarking())
         .build();
   }
 }

@@ -10,7 +10,7 @@
   "devDependencies": {
     "@types/node": "24.19.2",
     "@typescript-eslint/rule-tester": "8.72.1",
-    "eslint": "10.13.0",
+    "eslint": "10.14.0",
     "typescript": "6.0.3"
   },
   "peerDependencies": {

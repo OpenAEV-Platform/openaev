@@ -6,6 +6,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,7 @@ class AttackPathCausalSeedScaledChainTest extends IntegrationTest {
   @DisplayName("each foothold resolves its own credential into a lateral hop (>= N causal paths)")
   void scaled_chain_fans_out_into_converging_paths() {
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-seed-causal-scaled-tenant"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
 
     String sim = causalSeedService.seedScaledChain(tenant.getId(), FOOTHOLDS);
 

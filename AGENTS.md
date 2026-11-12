@@ -47,6 +47,7 @@ Do NOT look for conventions here — they live in dedicated instruction files, a
 | **ORM** (write correctness, native-query justification, test methodology) | [orm.instructions.md](.github/instructions/orm.instructions.md) | Java in `openaev-api`, `openaev-model`, `openaev-api` `*Test.java` |
 | **Multi-Tenancy** (isolation, filters, context) | [multi-tenancy.instructions.md](.github/instructions/multi-tenancy.instructions.md) | Java in `openaev-api`, `openaev-model`, `**/migration/**` |
 | **Testing** (unit, integration, coverage) | [testing.instructions.md](.github/instructions/testing.instructions.md) | `*Test*.java`, `**/test/**`, `*.test.*`, `*.spec.*`, `tests_e2e/**` |
+| **CI** (workflows, composite actions, template injection) | [ci.instructions.md](.github/instructions/ci.instructions.md) | `.github/workflows/**`, `.github/actions/**` |
 | **Code Review** (review checklist) | [code-review.instructions.md](.github/instructions/code-review.instructions.md) | All files |
 | **Chaining Engine** (steps, conditions, queues, state, workflows) | [chaining-engine.instructions.md](.github/instructions/chaining-engine.instructions.md) | `**/chaining/**`, `QueueChainingJob`, `WorkflowTimeoutJob`, workflow entities and repositories |
 
@@ -178,6 +179,7 @@ Sections, verbatim and in this order: `### Proposed changes`, `### Testing Instr
 - Drop the template's HTML comments from the final body.
 - Title follows Conventional Commits and ends with the issue reference, unless the related issue is in a private repository.
 - Never expose a private issue reference in a public PR. Link the public PR from the private issue instead.
+- Agents use the private-issue exception (`* N/A`, no `(#issue)` in the title) only when the user explicitly says the related issue is in a private repository. Never assume it, and never use it because no issue is known: ask the user for the issue instead. If the user says there is no issue, do not work around the checks: no `* N/A`, no invented or unrelated issue number, no placeholder. Leave `### Related issues` empty, keep `(#issue)` out of the title, and let the title check fail so a maintainer sees it.
 
 Full rules: [copilot-instructions.md → PR description format](.github/copilot-instructions.md#pr-description-format).
 
@@ -199,6 +201,7 @@ The mapping is:
 | `migration.instructions.md` | `migration-reviewer.agent.md` |
 | `testing.instructions.md` | `test-specialist.agent.md` |
 | `code-review.instructions.md` | `code-reviewer.agent.md` |
+| `ci.instructions.md` | `code-reviewer.agent.md` |
 
 If no agent exists yet for a new instruction file → create one following the pattern in `migration-reviewer.agent.md`.
 

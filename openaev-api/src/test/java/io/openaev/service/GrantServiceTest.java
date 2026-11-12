@@ -11,7 +11,11 @@ import static org.mockito.Mockito.*;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.GrantRepository;
+import io.openaev.database.repository.InjectRepository;
+import io.openaev.database.repository.InjectorContractRepository;
+import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.utils.fixtures.UserFixture;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -29,6 +33,10 @@ class GrantServiceTest {
   private static final String RESOURCE_ID = "resourceid";
 
   @Mock private GrantRepository grantRepository;
+  @Mock private ExerciseRepository exerciseRepository;
+  @Mock private ScenarioRepository scenarioRepository;
+  @Mock private InjectRepository injectRepository;
+  @Mock private InjectorContractRepository injectorContractRepository;
 
   @InjectMocks private GrantService grantService;
 
@@ -141,5 +149,58 @@ class GrantServiceTest {
         });
     assertEquals(Grant.GRANT_TYPE.OBSERVER, result.get(0).getName());
     assertEquals(PLANNER, result.get(1).getName());
+  }
+
+  @Test
+  void given_resourceOfTheDeclaredType_should_acceptGrant() {
+    when(exerciseRepository.existsById(RESOURCE_ID)).thenReturn(true);
+
+    assertDoesNotThrow(() -> grantService.validateResourceIdForGrant(RESOURCE_ID, SIMULATION));
+    verifyNoInteractions(scenarioRepository, injectRepository, injectorContractRepository);
+  }
+
+  @Test
+  void given_resourceOfAnotherType_should_rejectGrant() {
+    // A scenario id declared as a SIMULATION grant: only the simulation repository is asked.
+    when(exerciseRepository.existsById(RESOURCE_ID)).thenReturn(false);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, SIMULATION));
+    verifyNoInteractions(scenarioRepository);
+  }
+
+  @Test
+  void given_eachGrantableType_should_checkItsOwnRepository() {
+    when(scenarioRepository.existsById(RESOURCE_ID)).thenReturn(true);
+    when(injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(RESOURCE_ID))
+        .thenReturn(true);
+    when(injectorContractRepository.existsByContractId(RESOURCE_ID)).thenReturn(true);
+
+    assertDoesNotThrow(
+        () ->
+            grantService.validateResourceIdForGrant(
+                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.SCENARIO));
+    assertDoesNotThrow(
+        () ->
+            grantService.validateResourceIdForGrant(
+                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING));
+    assertDoesNotThrow(
+        () ->
+            grantService.validateResourceIdForGrant(
+                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL));
+    verifyNoInteractions(exerciseRepository);
+  }
+
+  @Test
+  void given_typeNotGrantableThroughAGroup_should_rejectGrant() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            grantService.validateResourceIdForGrant(
+                RESOURCE_ID, Grant.GRANT_RESOURCE_TYPE.UNKNOWN));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> grantService.validateResourceIdForGrant(RESOURCE_ID, null));
   }
 }

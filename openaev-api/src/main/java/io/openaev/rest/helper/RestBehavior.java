@@ -15,6 +15,7 @@ import io.openaev.config.TenantFilteringException;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionException;
+import io.openaev.exception.PayloadInUseException;
 import io.openaev.exception.UnknownEngineFieldException;
 import io.openaev.ratelimit.aop.RateLimitAspect;
 import io.openaev.ratelimit.exception.RateLimitedException;
@@ -525,11 +526,25 @@ public class RestBehavior {
 
   // Spring also matches this handler when the exception arrives wrapped in another one.
   @ResponseStatus(HttpStatus.BAD_REQUEST)
+  @ExceptionHandler(PayloadInUseException.class)
+  public ResponseEntity<ErrorMessage> handlePayloadInUseException(PayloadInUseException ex) {
+    return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.BAD_REQUEST);
+  }
+
   @ExceptionHandler(UnknownEngineFieldException.class)
   public ResponseEntity<ErrorMessage> handleUnknownEngineFieldException(
       UnknownEngineFieldException ex) {
     log.debug("UnknownEngineFieldException: {}", ex.getMessage(), ex);
     return new ResponseEntity<>(new ErrorMessage(ex.getMessage()), HttpStatus.BAD_REQUEST);
+  }
+
+  // A credential resolution refused with one of the error codes,
+  // so the injector can report it in the inject execution trace.
+  @ExceptionHandler(CredentialResolutionException.class)
+  public ResponseEntity<ErrorMessage> handleCredentialResolutionException(
+      CredentialResolutionException ex) {
+    return new ResponseEntity<>(
+        new ErrorMessage(ex.getErrorCode().name()), ex.getErrorCode().getStatus());
   }
 
   // A chaining lifecycle operation refused by product decision (e.g. pausing a chained
@@ -880,14 +895,15 @@ public class RestBehavior {
   }
 
   /**
-   * Hydrates, inside the scoped transaction, the lazy {@code user_teams} and {@code
-   * user_organization} associations every endpoint returning a raw {@link User} serializes. They
-   * are loaded after the controller returns, through open-in-view, where the tenant scope is
+   * Hydrates, inside the scoped transaction, the lazy {@code user_teams}, {@code user_tags} and
+   * {@code user_organization} associations every endpoint returning a raw {@link User} serializes.
+   * They are loaded after the controller returns, through open-in-view, where the tenant scope is
    * already gone: a lazy load at that point runs unscoped and fails closed, so the array comes back
    * empty although the memberships exist.
    */
   protected static User hydrateUserForResponse(User user) {
     Hibernate.initialize(user.getTeams());
+    Hibernate.initialize(user.getTags());
     user.loadOrganizations();
     return user;
   }

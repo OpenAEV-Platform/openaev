@@ -3,6 +3,8 @@ package io.openaev.xtmone;
 import static io.openaev.database.model.TenantSettingKeys.PLATFORM_NAME;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.settings.response.PlatformSettings;
@@ -23,6 +25,7 @@ public class XtmOneService {
   private final XtmOneClient client;
   private final PlatformSettingsService platformSettingsService;
   private final TenantSettingsService tenantSettingsService;
+  private final TenantScopedTransaction tenantTx;
   private final EnterpriseEditionService eeService;
   private final XtmOneEntitlementService entitlementService;
   private final LicenseCacheManager licenseCacheManager;
@@ -113,9 +116,14 @@ public class XtmOneService {
       // rename would never reach XTM One. Resolve it the same way the UI does (tenant override →
       // platform fallback → default). This runs on a background scheduler thread with no request
       // scope, so resolve against the default tenant explicitly rather than relying on the
-      // (possibly stale) TenantContext ThreadLocal.
+      // (possibly stale) TenantContext ThreadLocal, in a transaction scoped to that tenant: a
+      // tenant row is invisible to a read with no scope.
       String platformName =
-          tenantSettingsService.resolveSettingValue(Tenant.DEFAULT_TENANT_UUID, PLATFORM_NAME);
+          tenantTx.execute(
+              TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+              () ->
+                  tenantSettingsService.resolveSettingValue(
+                      Tenant.DEFAULT_TENANT_UUID, PLATFORM_NAME));
       if (platformName == null || platformName.isBlank()) {
         platformName = PLATFORM_NAME.defaultValue();
       }
