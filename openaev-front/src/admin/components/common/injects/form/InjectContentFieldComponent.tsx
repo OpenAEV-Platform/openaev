@@ -149,6 +149,7 @@ const InjectContentFieldComponent = ({
                 fieldOnChange={onChange}
                 error={fieldError ?? error}
                 style={{}}
+                placeholder={placeholder}
               />
             )}
           />

@@ -74,7 +74,8 @@ const DEDICATED_TYPES = new Set<ContractType>([
   'credential-reference',
 ]);
 // Field types whose value can be fed by a workflow output (the "Link an Output" adornment).
-const LINKABLE_PRIMITIVE_TYPES = new Set<ContractType>(['text', 'number', 'select', 'choice']);
+// 'document' was a text field before it got its own type: it stays linkable to a previous step's output.
+const LINKABLE_PRIMITIVE_TYPES = new Set<ContractType>(['text', 'number', 'select', 'choice', 'document']);
 
 interface FormValues {
   inject_title: string;
