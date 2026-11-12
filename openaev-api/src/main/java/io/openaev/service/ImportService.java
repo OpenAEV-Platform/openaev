@@ -75,7 +75,7 @@ public class ImportService {
     }
   }
 
-  // Kinds of archive entry the importer handles, told from the entry itself (#3686).
+  // Kinds of archive entry the importer handles, told from the entry itself.
   enum EntryKind {
     // The exported exercise or scenario (the importer reads which one from the JSON).
     EXPORT,
@@ -124,6 +124,28 @@ public class ImportService {
     return false;
   }
 
+  // Names of the entries the exported objects reference as documents (document_target). Such an
+  // entry is an attachment even when its content is itself an OpenAEV export or a payload archive.
+  static Set<String> documentTargets(ZipFile zip, ObjectMapper objectMapper) throws IOException {
+    Set<String> targets = new HashSet<>();
+    Enumeration<? extends ZipEntry> entries = zip.entries();
+    while (entries.hasMoreElements()) {
+      ZipEntry entry = entries.nextElement();
+      String entryName = entry.getName();
+      if (entry.isDirectory() || !entryName.toLowerCase(Locale.ROOT).endsWith(".json")) {
+        continue;
+      }
+      byte[] content;
+      try (InputStream entryStream = zip.getInputStream(entry)) {
+        content = IOUtils.toByteArray(entryStream);
+      }
+      if (inferEntryKind(entryName, content, objectMapper) == EntryKind.EXPORT) {
+        targets.addAll(objectMapper.readTree(content).findValuesAsText("document_target"));
+      }
+    }
+    return targets;
+  }
+
   @Transactional(rollbackFor = Exception.class)
   public ImportResult handleFileImport(
       TxCtx ctx, MultipartFile file, Exercise exercise, Scenario scenario) throws Exception {
@@ -166,6 +188,7 @@ public class ImportService {
     try (ZipFile parentZip = new ZipFile(tempFile)) { // java.util.zip.ZipFile!
       List<InputStream> dataImports = new ArrayList<>();
       Map<String, ImportEntry> docReferences = new HashMap<>();
+      Set<String> documentTargets = documentTargets(parentZip, mapper);
       Enumeration<? extends ZipEntry> entries = parentZip.entries();
 
       while (entries.hasMoreElements()) {
@@ -200,12 +223,16 @@ public class ImportService {
         }
 
         if (!directImport) {
-          // Every other entry is typed from its name and content (#3686).
+          // Every other entry is typed from its name and content; a document the export references
+          // stays an attachment whatever it holds.
           byte[] content;
           try (InputStream entryStream = parentZip.getInputStream(entry)) {
             content = IOUtils.toByteArray(entryStream);
           }
-          EntryKind kind = inferEntryKind(entryName, content, mapper);
+          EntryKind kind =
+              documentTargets.contains(entryName)
+                  ? EntryKind.ATTACHMENT
+                  : inferEntryKind(entryName, content, mapper);
           if (kind == EntryKind.PAYLOAD_ARCHIVE) {
             try (ZipInputStream payloadZipInputStream =
                 new ZipInputStream(new ByteArrayInputStream(content))) {
