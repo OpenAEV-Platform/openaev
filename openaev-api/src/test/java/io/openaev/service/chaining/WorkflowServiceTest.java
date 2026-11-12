@@ -2448,7 +2448,7 @@ class WorkflowServiceTest {
       // Assert - returned untouched, and no step ever readied / enqueued on the ended run.
       assertSame(workflowRun, result);
       verify(stepService, never()).findAllStepTemplateByWorkflow(any());
-      verify(stepService, never()).createReadySteps(any(), any(), any(), anyInt());
+      verify(stepService, never()).createReadySteps(any(), any(), any());
       verify(stepService, never()).enqueueReadySteps(any(), any());
     }
 
@@ -2494,7 +2494,7 @@ class WorkflowServiceTest {
           .thenReturn(List.of(stepTemplate));
       // Active steps (RUN or READY) exist
       when(stepService.countActiveSteps(workflowRunId)).thenReturn(2L);
-      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null))
           .thenReturn(Collections.emptyList());
 
       // Act
@@ -2530,7 +2530,7 @@ class WorkflowServiceTest {
           .thenReturn(List.of(stepTemplate));
       // No active steps
       when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
-      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null))
           .thenReturn(Collections.emptyList());
       // Delay queue has entries
       StepDelayQueue delayedEntry = mock(StepDelayQueue.class);
@@ -2571,7 +2571,7 @@ class WorkflowServiceTest {
       // No pre-existing active steps
       when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
       // But createReadySteps produces a new ready step
-      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null))
           .thenReturn(List.of(stepReady));
 
       // Act
@@ -2608,7 +2608,7 @@ class WorkflowServiceTest {
           .thenReturn(List.of(stepTemplate));
       // No active steps
       when(stepService.countActiveSteps(workflowRunId)).thenReturn(0L);
-      when(stepService.createReadySteps(stepTemplate, workflowRun, null, 0))
+      when(stepService.createReadySteps(stepTemplate, workflowRun, null))
           .thenReturn(Collections.emptyList());
       // Delay queue is empty
       when(stepDelayQueueService.findAllByWorkflowRun(workflowRun))

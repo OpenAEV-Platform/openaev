@@ -79,19 +79,19 @@ public interface StepRepository extends JpaRepository<Step, String> {
       @Param("activeStatus") List<StepStatus> activeStatus);
 
   /**
-   * Counts the steps of a workflow run with the given status and action class. JPQL, so a pending
-   * insert of the same transaction is flushed first and counted.
+   * Counts the steps of every workflow of a simulation with the given status and action class.
+   * JPQL, so a pending insert of the same transaction is flushed first and counted.
    *
-   * @param idWorkflowRun the ID of the workflow run
+   * @param simulationId the ID of the simulation
    * @param status the step status to count
    * @param stepAction the step action class to count
    * @return the count of matching steps
    */
   @Query(
-      "SELECT count(s) FROM Step s WHERE s.workflow.id = :idWorkflowRun"
+      "SELECT count(s) FROM Step s WHERE s.workflow.simulation.id = :simulationId"
           + " AND s.status = :status AND s.stepAction = :stepAction")
-  long countByWorkflowRunAndStatusAndAction(
-      @Param("idWorkflowRun") String idWorkflowRun,
+  long countBySimulationAndStatusAndAction(
+      @Param("simulationId") String simulationId,
       @Param("status") StepStatus status,
       @Param("stepAction") StepActionClass stepAction);
 

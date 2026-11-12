@@ -137,8 +137,9 @@ class SimulationRateLimitServiceTest {
       // 1 launched inject + 2 READY inject steps still queued from an earlier cycle = 3
       when(injectStatusRepository.countLaunchedInjectsSince(anyString(), any(Instant.class)))
           .thenReturn(1L);
-      when(stepRepository.countByWorkflowRunAndStatusAndAction(
-              workflow.getId(), StepStatus.READY, StepActionClass.INJECT_EXECUTION))
+      String simulationId = workflow.getSimulation().getId();
+      when(stepRepository.countBySimulationAndStatusAndAction(
+              simulationId, StepStatus.READY, StepActionClass.INJECT_EXECUTION))
           .thenReturn(2L);
 
       boolean result = simulationRateLimitService.isExecutionAllowed(workflow, 0);

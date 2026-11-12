@@ -132,8 +132,7 @@ public class QueueChainingJob implements Job {
                   stepService.createReadySteps(
                       stepDelayQueue.getStepTemplate(),
                       stepDelayQueue.getWorkflowRun(),
-                      stepDelayQueue.getInput(),
-                      0);
+                      stepDelayQueue.getInput());
 
               stepService.enqueueReadySteps(readySteps, stepDelayQueue.getWorkflowRun());
               if (readySteps.isEmpty() && tenantId != null) {

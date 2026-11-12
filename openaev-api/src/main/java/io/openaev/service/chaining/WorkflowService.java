@@ -1760,11 +1760,8 @@ public class WorkflowService {
 
     // At least one template generated one or more ready execution steps.
     boolean hasActiveSteps = stepService.countActiveSteps(workflowRun.getId()) > 0;
-    // The steps readied by an earlier template of this loop are already saved READY, and the rate
-    // limit counts READY inject steps from the database: passing them again as pending would count
-    // them twice.
     for (Step step : stepsTemplate) {
-      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null, 0);
+      List<Step> stepReadys = stepService.createReadySteps(step, workflowRun, null);
       if (!stepReadys.isEmpty()) {
         hasActiveSteps = true;
         stepService.enqueueReadySteps(stepReadys, workflowRun);

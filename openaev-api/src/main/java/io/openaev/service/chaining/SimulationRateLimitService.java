@@ -18,12 +18,8 @@ import org.springframework.stereotype.Service;
  * <p>When rate limiting is enabled on a workflow run, this service counts how many injects linked
  * to the workflow's simulation have been launched (i.e. have a tracking sent date) within a sliding
  * time window and compares against the configured maximum attempts. If the limit is reached,
- * further inject execution is denied until older launches fall outside the window.
- *
- * <p>An inject step readied but not yet run has no inject with a tracking sent date yet, so it is
- * counted from the READY inject-execution steps of the run: otherwise a step readied in one
- * evaluation cycle and still queued at the next one was invisible to the limit, and the engine
- * could admit more than the configured maximum.
+ * further inject execution is denied until older launches fall outside the window. Inject steps
+ * READY but not run yet count against the limit as well.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -59,9 +55,10 @@ public class SimulationRateLimitService {
         Instant.now().minus(workflowRun.getMaxTemporalRateSeconds(), ChronoUnit.SECONDS);
     String simulationId = workflowRun.getSimulation().getId();
 
+    // Same scope as the launched injects: every workflow run of the simulation.
     long readiedNotRun =
-        stepRepository.countByWorkflowRunAndStatusAndAction(
-            workflowRun.getId(), StepStatus.READY, StepActionClass.INJECT_EXECUTION);
+        stepRepository.countBySimulationAndStatusAndAction(
+            simulationId, StepStatus.READY, StepActionClass.INJECT_EXECUTION);
     long count =
         injectStatusRepository.countLaunchedInjectsSince(simulationId, since)
             + readiedNotRun
