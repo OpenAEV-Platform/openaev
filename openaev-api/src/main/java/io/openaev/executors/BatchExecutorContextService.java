@@ -19,7 +19,7 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
   private static final Duration DEFAULT_BATCH_INTERVAL = Duration.ofSeconds(5);
   private static final Duration RETRY_DELAY = Duration.ofSeconds(30);
   // 14 retries of 30 s stay under the 10 minutes after which an agent that never started times out.
-  private static final int MAX_ATTEMPTS = 15;
+  static final int MAX_ATTEMPTS = 15;
 
   private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -31,6 +31,10 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
 
   protected Duration batchInterval() {
     return DEFAULT_BATCH_INTERVAL;
+  }
+
+  protected Duration retryDelay() {
+    return RETRY_DELAY;
   }
 
   protected final void dispatch(List<A> actions) {
@@ -59,8 +63,8 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
             agentReference(action),
             attempt,
             MAX_ATTEMPTS - 1,
-            RETRY_DELAY.toSeconds());
-        schedule(() -> trySend(action, attempt + 1), RETRY_DELAY);
+            retryDelay().toSeconds());
+        schedule(() -> trySend(action, attempt + 1), retryDelay());
         return;
       }
       log.error("Gave up on agent {}: {}", agentReference(action), e.getMessage(), e);
