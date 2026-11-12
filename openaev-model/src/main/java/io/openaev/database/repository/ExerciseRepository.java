@@ -16,6 +16,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.Assert;
 
 @Repository
 public interface ExerciseRepository
@@ -29,6 +30,21 @@ public interface ExerciseRepository
   Optional<Exercise> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /** The simulations among the given ids that belong to the given tenant. */
+  @NotNull
+  List<Exercise> findAllByIdInAndTenantId(
+      @NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The simulations among the given ids that belong to the given tenant. Refuses a null id list, as
+   * {@code findAllById} does.
+   */
+  @NotNull
+  default List<Exercise> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 
   /**
    * By-id read keyed on a request's resolved tenant scope rather than on the v1 ambient tenant,
