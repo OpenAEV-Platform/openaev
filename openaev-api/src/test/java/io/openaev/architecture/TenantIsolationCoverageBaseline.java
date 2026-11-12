@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  * PinnedActiveTablesBaseline#MIN_WORDS} words, the bar {@link PinnedActiveTablesBaseline} sets.
  *
  * <p>The list only shrinks. A line whose table becomes covered or inactive fails the gate, and the
- * number of lines is frozen, so adding a line is a review call.
+ * number of lines is frozen, so a line is never added.
  */
 final class TenantIsolationCoverageBaseline {
 
@@ -27,7 +27,6 @@ final class TenantIsolationCoverageBaseline {
 
   private static final Pattern TABLE = Pattern.compile("[a-z][a-z0-9_]*");
 
-  /** One line: the table, what is missing, and why it is allowed to stay missing. */
   record Entry(int line, String table, String missing, String why) {}
 
   private TenantIsolationCoverageBaseline() {}

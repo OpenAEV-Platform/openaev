@@ -5,20 +5,29 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import io.openaev.architecture.TenantIsolationCoverageArchTest.Effective;
 import io.openaev.architecture.TenantIsolationCoverageArchTest.Scan;
-import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAProductionFollower;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestsAreInADisabledNestedClass;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseTestsAreNested;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWithNoTestMethod;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksADisabledClass;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksATableItsPinLeavesOut;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksATableItsRegistrationLeavesOut;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksATypo;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAnAbstractClass;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAnInactiveTable;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksNothing;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksNothingAtAll;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksOnAProbePin;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksOnARegistrationHoldingProduction;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksOnARegistrationTheScanCannotEvaluate;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksOnAWildcardPin;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksOnAnInheritedPin;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksWithAParentAndAChildRegistering;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksWithAnAnnotationAndARegistration;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksWithNoDeclaration;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksWithTheKeyDeclaredTwice;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.PinsTags;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.PinsTagsAroundANestedClass;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.RegistersTags;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.TenantTables;
 import java.lang.reflect.Method;
@@ -59,16 +68,17 @@ class TenantIsolationCoverageRulesTest {
   class TheEffectiveList {
 
     @Test
-    @DisplayName("given a class that sets nothing, should read the production list")
-    void given_classThatSetsNothing_should_readTheProductionList() {
+    @DisplayName("given a class that declares nothing, should report it as armed by no one")
+    void given_classThatDeclaresNothing_should_reportItAsArmedByNoOne() {
       // Act
       Effective effective =
-          scan(MarksAProductionFollower.class).effective(MarksAProductionFollower.class);
+          scan(MarksWithNoDeclaration.class).effective(MarksWithNoDeclaration.class);
 
       // Assert
-      assertThat(effective.failure()).isNull();
-      assertThat(effective.tables()).containsExactlyInAnyOrderElementsOf(PRODUCTION);
-      assertThat(effective.sites()).isEmpty();
+      assertThat(effective.tables()).isNull();
+      assertThat(effective.failure())
+          .contains("declares no activation list")
+          .contains("ProductionActiveTables.names()");
     }
 
     @Test
@@ -124,6 +134,51 @@ class TenantIsolationCoverageRulesTest {
       assertThat(scan.effective(MarksOnARegistrationTheScanCannotEvaluate.class).failure())
           .contains("not evaluated");
     }
+
+    @Test
+    @DisplayName("given a parent and a child that both register, should report several classes")
+    void given_parentAndChildThatBothRegister_should_reportSeveralClasses() {
+      // Arrange
+      Scan scan = scan(RegistersTags.class, MarksWithAParentAndAChildRegistering.class);
+
+      // Act
+      Effective effective = scan.effective(MarksWithAParentAndAChildRegistering.class);
+
+      // Assert
+      assertThat(effective.tables()).isNull();
+      assertThat(effective.failure())
+          .contains("several classes")
+          .contains(RegistersTags.class.getName())
+          .contains(MarksWithAParentAndAChildRegistering.class.getName());
+    }
+
+    @Test
+    @DisplayName("given a pin that lists a wildcard, should fail closed without expanding it")
+    void given_pinThatListsAWildcard_should_failClosedWithoutExpandingIt() {
+      // Act
+      Effective effective = scan(MarksOnAWildcardPin.class).effective(MarksOnAWildcardPin.class);
+
+      // Assert
+      assertThat(effective.tables()).isNull();
+      assertThat(effective.failure()).contains("'*'").contains("does not expand");
+    }
+
+    @Test
+    @DisplayName(
+        "given a nested class under an enclosing pin, should read the pin of the enclosing")
+    void given_nestedClassUnderAnEnclosingPin_should_readThePinOfTheEnclosing() {
+      // Arrange
+      Class<?> nested = PinsTagsAroundANestedClass.MarksUnderTheEnclosingPin.class;
+      Scan scan = scan(PinsTagsAroundANestedClass.class, nested);
+
+      // Act
+      Effective effective = scan.effective(nested);
+
+      // Assert
+      assertThat(effective.tables()).containsExactly("tags");
+      assertThat(effective.sites()).containsExactly(PinsTagsAroundANestedClass.class.getName());
+      assertThat(scan.covered()).containsOnlyKeys("tags");
+    }
   }
 
   @Nested
@@ -156,7 +211,7 @@ class TenantIsolationCoverageRulesTest {
       // Arrange
       Scan scan =
           Scan.of(
-              List.of(MarksAProductionFollower.class),
+              List.of(MarksWithNoDeclaration.class),
               List.of(),
               List.of(),
               Set.of("documents", "tags", "members"),
@@ -255,6 +310,58 @@ class TenantIsolationCoverageRulesTest {
           .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST)
           .containsExactly(MarksOnAProbePin.class.getName());
       assertThat(scan.uncovered()).containsExactly("documents");
+    }
+
+    @Test
+    @DisplayName("given a class that declares nothing, should name it and not count it as covering")
+    void given_classThatDeclaresNothing_should_nameItAndNotCountItAsCovering() {
+      // Arrange
+      Scan scan = scan(MarksWithNoDeclaration.class);
+
+      // Act and Assert
+      assertThat(scan.markedOutsideTheEffectiveList())
+          .singleElement()
+          .satisfies(
+              line ->
+                  assertThat(line)
+                      .contains("MarksWithNoDeclaration")
+                      .contains("declares no activation list"));
+      assertThat(scan.covered()).isEmpty();
+      assertThat(scan.uncovered()).containsExactlyInAnyOrder("documents", "tags");
+    }
+
+    @Test
+    @DisplayName(
+        "given an abstract, a disabled and a testless class, should name each and not count")
+    void given_abstractDisabledAndTestlessClass_should_nameEachAndNotCount() {
+      // Arrange
+      Scan scan =
+          scan(
+              MarksAnAbstractClass.class,
+              MarksADisabledClass.class,
+              MarksAClassWithNoTestMethod.class,
+              MarksAClassWhoseOnlyTestsAreInADisabledNestedClass.class);
+
+      // Act and Assert
+      assertThat(scan.unrunnable())
+          .containsEntry(MarksAnAbstractClass.class, "is abstract")
+          .containsEntry(MarksADisabledClass.class, "is @Disabled, or nested in a disabled class")
+          .containsEntry(MarksAClassWithNoTestMethod.class, "has no test method")
+          .containsEntry(
+              MarksAClassWhoseOnlyTestsAreInADisabledNestedClass.class, "has no test method");
+      assertThat(scan.markedOutsideTheEffectiveList()).hasSize(4);
+      assertThat(scan.covered()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given tests held by a nested class, should count the class as runnable")
+    void given_testsHeldByANestedClass_should_countTheClassAsRunnable() {
+      // Arrange
+      Scan scan = scan(MarksAClassWhoseTestsAreNested.class);
+
+      // Act and Assert
+      assertThat(scan.unrunnable()).isEmpty();
+      assertThat(scan.covered()).containsOnlyKeys("tags");
     }
 
     @Test
@@ -392,7 +499,7 @@ class TenantIsolationCoverageRulesTest {
               CoversTenantIsolation.class,
               ProductionActiveTables.class,
               MarksOnAProbePin.class,
-              MarksAProductionFollower.class);
+              MarksOnARegistrationHoldingProduction.class);
 
       // Act
       Scan scan = Scan.of(tree, List.of(), List.of(), PRODUCTION, SELF_ISOLATED);
@@ -401,6 +508,47 @@ class TenantIsolationCoverageRulesTest {
       assertThat(scan.checks(0))
           .isNotEmpty()
           .allSatisfy(check -> assertThat(check.found().get()).as(check.name()).isEmpty());
+    }
+
+    @Test
+    @DisplayName("given a tree that breaks every rule, should fail each of the nine checks")
+    void given_treeThatBreaksEveryRule_should_failEachOfTheNineChecks() {
+      // Arrange: each class and line trips one check, and nothing else covers documents
+      Scan scan =
+          Scan.of(
+              List.of(
+                  MarksATypo.class,
+                  MarksATableItsPinLeavesOut.class,
+                  MarksOnAnInheritedPin.class,
+                  PinsTags.class),
+              TenantIsolationCoverageBaseline.parse(
+                  List.of("tags | nothing | short", "ghosts | nothing | " + GOOD_WHY)),
+              List.of(pinLine(PinsTags.class, "drifts")),
+              Set.of("documents", "tags", "members"),
+              SELF_ISOLATED);
+
+      // Act
+      List<Scan.Check> checks = scan.checks(0);
+
+      // Assert: nine checks, each failing on its own finding, in the order the gate reports them
+      assertThat(checks).hasSize(9);
+      String[] findingOf = {
+        TenantIsolationCoverageArchTest.class.getName(),
+        "members",
+        "tagz",
+        "MarksATableItsPinLeavesOut",
+        "MarksOnAnInheritedPin",
+        "'tags'",
+        "documents",
+        "ghosts",
+        "BASELINE_SIZE 0"
+      };
+      for (int i = 0; i < checks.size(); i++) {
+        String expected = findingOf[i];
+        assertThat(checks.get(i).found().get())
+            .as(checks.get(i).name())
+            .anySatisfy(line -> assertThat(line).contains(expected));
+      }
     }
 
     @Test
@@ -422,7 +570,7 @@ class TenantIsolationCoverageRulesTest {
           .filteredOn(check -> !check.found().get().isEmpty())
           .extracting(Scan.Check::name)
           .containsExactly(
-              "should find each marked table in the effective list of its class",
+              "should find each marked class runnable, with its tables in the effective list",
               "should find every active table covered or named in the baseline");
     }
 

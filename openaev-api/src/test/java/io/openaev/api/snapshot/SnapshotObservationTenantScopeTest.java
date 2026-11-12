@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.snapshot.form.SnapshotSearchInput;
-import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.EngineConfig;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.IndexingStatus;
@@ -44,7 +43,6 @@ import org.springframework.transaction.annotation.Transactional;
  * single native INSERTs on the activated tables: an UPDATE there would go through the inspector
  * before any scope is set and silently match nothing.
  */
-@CoversTenantIsolation("findings")
 @Transactional
 @TestPropertySource(
     properties = {

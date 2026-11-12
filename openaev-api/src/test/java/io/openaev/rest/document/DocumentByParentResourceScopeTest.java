@@ -6,7 +6,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.Challenge;
 import io.openaev.database.model.Channel;
 import io.openaev.database.model.Document;
@@ -44,7 +43,6 @@ import org.springframework.transaction.annotation.Transactional;
  * caller scoped to tenant A gets an empty list for a parent resource owned by tenant B, and the
  * owning tenant B still gets its document back.
  */
-@CoversTenantIsolation("documents")
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Document by-parent-resource endpoints hold the request tenant scope")

@@ -23,9 +23,20 @@ This skill pairs with:
   produces exactly this file, first red, then green as the wiring lands;
 - the tenant isolation coverage gate (`TenantIsolationCoverageArchTest`): this
   file carries `@CoversTenantIsolation("{table}")`, and the build fails when an
-  active table has no marked class. The class must run on the real stack with
-  the table in its effective activation list (the production list, or a `probe`
-  pin that includes it), seed two tenants and assert a cross-tenant refusal.
+  active table has no marked class. The class must be a runnable test on the
+  real stack that declares the table in its activation list (a `probe` pin that
+  includes it, or a `@DynamicPropertySource` registering
+  `ProductionActiveTables.names()`: a class that declares nothing is not armed
+  by the gating CI run), seed two tenants and assert a cross-tenant refusal
+  (read, write or delete) on the table itself, not through a parent row.
+
+Three architecture tests guard the activation list; each answers one question:
+
+| Test | Question |
+|---|---|
+| `TenantTableActivationCoverageArchTest` | Is the table active or deferred? |
+| `PinnedActiveTablesArchTest` | Does a class's activation list follow production? |
+| `TenantIsolationCoverageArchTest` | Does each active table have a marked test that meets the bar? |
 
 ## v1 is gone from this skill
 

@@ -1754,6 +1754,10 @@ Before marking the issue done, write down:
       table-function FROM item (`jsonb_array_elements`, `unnest`, ...) carries
       `LATERAL`; a regression test pins the real production SQL (#7007)
 - [ ] non-admin variant green
+- [ ] the isolation test carries `@CoversTenantIsolation("{table}")` and declares the table in
+      its activation list (a probe pin, or a registration of
+      `ProductionActiveTables.names()`), so `TenantIsolationCoverageArchTest` counts it; the
+      table has no line in `tenant-isolation-coverage-baseline.txt`, which never grows
 - [ ] API v2/integration tests added or modified in this activation do not use
       `TenantContext.getCurrentTenant()`, `TenantContext.setCurrentTenant(...)`,
       or `enableFilter("tenantFilter")`; tenant scope is expressed via explicit

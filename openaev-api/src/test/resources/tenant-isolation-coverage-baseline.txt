@@ -1,13 +1,14 @@
 # Active tables with no test class marked @CoversTenantIsolation, read by TenantIsolationCoverageArchTest.
 #
 # The gate requires every table of the production openaev.tenant.active-tables list to be covered by a
-# class that runs on the real stack, holds the table in its effective activation list (the production
-# list, or a probe pin of pinned-active-tables-baseline.txt that includes it), seeds two tenants and
-# asserts a cross-tenant refusal. A table that no class meets that bar yet is named here.
+# class that is runnable, runs on the real stack, declares the table in its activation list (a probe pin of
+# pinned-active-tables-baseline.txt, or a registration of the production list), seeds two tenants and asserts a
+# cross-tenant refusal on the table itself: a read, write or delete of the other tenant's row is refused, not
+# reached through a parent row. A table that no class meets that bar yet is named here.
 #
 # This list only shrinks. A line whose table becomes covered, or stops being active, fails the gate and
 # is removed in the same change, and the line count is frozen by TenantIsolationCoverageArchTest.BASELINE_SIZE.
-# A new line is a review call: an activation brings its isolation test with it instead.
+# A line is never added: an activation brings its isolation test with it.
 #
 # Format: <table> | <what the existing tests lack> | <why the table is on the list>
 #   Most gaps below are one gap: the only class that asserts the table's cross-tenant refusal is a
@@ -41,3 +42,11 @@ scope_variables | no class on the production list or a probe pin asserts a cross
 steps_delay_queue | no class on the production list or a probe pin asserts a cross-tenant refusal on steps_delay_queue | ChainingHttpIsolationTest is a drifts line, its scope reads touch assets, teams and asset groups that the class leaves disarmed
 workflow_scope_rules | no class on the production list or a probe pin asserts a cross-tenant refusal on workflow_scope_rules | ChainingHttpIsolationTest is a drifts line, its scope reads touch assets, teams and asset groups that the class leaves disarmed
 workflow_states | no class on the production list or a probe pin asserts a cross-tenant refusal on workflow_states | ChainingHttpIsolationTest is a drifts line, its scope reads touch assets, teams and asset groups that the class leaves disarmed
+secret_references | no class that declares its activation list asserts a cross-tenant refusal on secret_references | CredentialApiTest asserts it but declares no list, and the default test run arms no table, so it does not run with the table armed
+secrets | no class that declares its activation list asserts a cross-tenant refusal on secrets | CredentialApiTest asserts it but declares no list, and the default test run arms no table, so it does not run with the table armed
+documents | no class that declares its activation list asserts a cross-tenant refusal on documents | DocumentByParentResourceScopeTest declares no list so it does not run armed, and the other document classes assert fail-closed reads or attribution
+notification_triggers | no class asserts a cross-tenant refusal produced by the scoping of notification_triggers | NotificationTriggerMapperChildScopeTest puts both tenants in scope and the refusal comes from the mapper narrowing to the write tenant, and NotificationTriggerHttpIsolationTest is a drifts line
+autonomous_events | no class asserts a cross-tenant refusal on autonomous_events itself | the run classes get a 404 from the run lookup on autonomous_runs before any event row is read
+autonomous_directives | no class asserts a cross-tenant refusal on autonomous_directives itself | the run classes get a 404 from the run lookup on autonomous_runs before any directive row is read
+reporting_schedules | no class asserts a cross-tenant refusal on reporting_schedules itself | the only cross-tenant case is a create against another tenant's reporting, the other classes read all tenants or compare a parent within one tenant
+findings | no class asserts a cross-tenant refusal on findings itself | the probe class asserts an indexing horizon value, and the occurrence isolation test refuses a finding_occurrences row, not a findings row
