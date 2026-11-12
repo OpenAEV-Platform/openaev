@@ -1,6 +1,5 @@
 package io.openaev.service;
 
-import static io.openaev.service.NewsFeedItemService.READ_CHUNK_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.ArgumentMatchers.any;
@@ -39,7 +38,6 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Limit;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("NewsFeedItemService tests")
@@ -292,71 +290,6 @@ class NewsFeedItemServiceTest {
   }
 
   @Test
-  @DisplayName("Given unread items of the current user, should mark them all as read")
-  void given_unreadItems_should_markThemRead() {
-    // Arrange
-    User me = new User();
-    me.setId("me");
-    when(userService.currentUser()).thenReturn(me);
-    List<NewsFeedItem> unread =
-        List.of(
-            NewsFeedItemFixture.createNewsFeedItem(me, "hub-1"),
-            NewsFeedItemFixture.createNewsFeedItem(me, "hub-2"));
-    when(newsFeedItemRepository.findByUserIdAndReadFalse("me", Limit.of(READ_CHUNK_SIZE)))
-        .thenReturn(unread);
-
-    // Act
-    service.markMyItemsRead();
-
-    // Assert
-    assertThat(unread).allMatch(NewsFeedItem::isRead);
-    verify(newsFeedItemRepository).saveAllAndFlush(unread);
-    verify(newsFeedItemRepository, times(1)).findByUserIdAndReadFalse(any(), any());
-  }
-
-  @Test
-  @DisplayName("Given no unread item, should mark nothing and stop after one query")
-  void given_noUnreadItem_should_stopAfterOneQuery() {
-    // Arrange
-    User me = new User();
-    me.setId("me");
-    when(userService.currentUser()).thenReturn(me);
-    when(newsFeedItemRepository.findByUserIdAndReadFalse("me", Limit.of(READ_CHUNK_SIZE)))
-        .thenReturn(List.of());
-
-    // Act
-    service.markMyItemsRead();
-
-    // Assert
-    verify(newsFeedItemRepository, times(1)).findByUserIdAndReadFalse(any(), any());
-  }
-
-  @Test
-  @DisplayName("Given more unread items than a chunk, should mark them by chunk until none is left")
-  void given_moreUnreadItemsThanChunk_should_markThemByChunk() {
-    // Arrange
-    User me = new User();
-    me.setId("me");
-    when(userService.currentUser()).thenReturn(me);
-    List<NewsFeedItem> fullChunk =
-        IntStream.range(0, READ_CHUNK_SIZE)
-            .mapToObj(i -> NewsFeedItemFixture.createNewsFeedItem(me, "hub-" + i))
-            .toList();
-    List<NewsFeedItem> lastChunk = List.of(NewsFeedItemFixture.createNewsFeedItem(me, "hub-last"));
-    when(newsFeedItemRepository.findByUserIdAndReadFalse("me", Limit.of(READ_CHUNK_SIZE)))
-        .thenReturn(fullChunk, lastChunk);
-
-    // Act
-    service.markMyItemsRead();
-
-    // Assert
-    assertThat(fullChunk).allMatch(NewsFeedItem::isRead);
-    assertThat(lastChunk).allMatch(NewsFeedItem::isRead);
-    verify(newsFeedItemRepository).saveAllAndFlush(fullChunk);
-    verify(newsFeedItemRepository).saveAllAndFlush(lastChunk);
-  }
-
-  @Test
   @DisplayName("Given the current user, should count only their unread items")
   void given_currentUser_should_countTheirUnreadItems() {
     // Arrange
@@ -367,6 +300,27 @@ class NewsFeedItemServiceTest {
 
     // Act & Assert
     assertThat(service.countMyUnreadItems()).isEqualTo(3L);
+  }
+
+  @Test
+  @DisplayName("Given unread items of the current user, should mark them all as read")
+  void given_unreadItems_should_markThemRead() {
+    // Arrange
+    User me = new User();
+    me.setId("me");
+    when(userService.currentUser()).thenReturn(me);
+    List<NewsFeedItem> unread =
+        List.of(
+            NewsFeedItemFixture.createNewsFeedItem(me, "hub-1"),
+            NewsFeedItemFixture.createNewsFeedItem(me, "hub-2"));
+    when(newsFeedItemRepository.findAllByUserIdAndReadFalse("me")).thenReturn(unread);
+
+    // Act
+    service.markMyItemsRead();
+
+    // Assert
+    assertThat(unread).allMatch(NewsFeedItem::isRead);
+    verify(newsFeedItemRepository).saveAll(unread);
   }
 
   @Test

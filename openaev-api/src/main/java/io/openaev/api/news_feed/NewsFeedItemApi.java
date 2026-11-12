@@ -89,7 +89,7 @@ public class NewsFeedItemApi {
   @Operation(
       summary = "Mark all my news feed items as read",
       description =
-          "Reads the unread items of the current user, none when the tenant is not on XTM Hub.")
+          "Marks the unread items of the current user as read, none when the tenant is not on XTM Hub.")
   @Transactional(rollbackFor = Exception.class)
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @ApiResponses(

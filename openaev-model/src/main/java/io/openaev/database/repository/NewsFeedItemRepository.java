@@ -5,7 +5,6 @@ import io.openaev.database.raw.RawNewsFeedItemKey;
 import jakarta.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.List;
-import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -19,7 +18,7 @@ public interface NewsFeedItemRepository
   /** Served by the (user, hub item) unique index, which leads with the user. */
   long countByUserIdAndReadFalse(@NotNull String userId);
 
-  List<NewsFeedItem> findByUserIdAndReadFalse(@NotNull String userId, Limit limit);
+  List<NewsFeedItem> findAllByUserIdAndReadFalse(@NotNull String userId);
 
   /** Projection rather than entities: loading an item also loads its user (EAGER). */
   @Query(

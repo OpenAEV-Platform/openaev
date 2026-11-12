@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Limit;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -170,36 +169,11 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
 
       // Act
       long count = newsFeedItemRepository.countByUserIdAndReadFalse(first.getId());
-      List<NewsFeedItem> items =
-          newsFeedItemRepository.findByUserIdAndReadFalse(first.getId(), Limit.of(10));
+      List<NewsFeedItem> items = newsFeedItemRepository.findAllByUserIdAndReadFalse(first.getId());
 
       // Assert
       assertThat(count).isEqualTo(1);
       assertThat(items).extracting(NewsFeedItem::getId).containsExactly(unread.getId());
-    }
-  }
-
-  @Nested
-  @DisplayName("Unread items chunk")
-  class UnreadItemsChunk {
-
-    @Test
-    @DisplayName("Given more unread items than the limit, should return at most the limit")
-    void given_moreUnreadItemsThanLimit_should_returnAtMostLimit() {
-      // Arrange
-      User user = createUser();
-      for (int i = 0; i < 3; i++) {
-        newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(user, "hub-" + i));
-      }
-      entityManager.flush();
-      entityManager.clear();
-
-      // Act
-      List<NewsFeedItem> items =
-          newsFeedItemRepository.findByUserIdAndReadFalse(user.getId(), Limit.of(2));
-
-      // Assert
-      assertThat(items).hasSize(2);
     }
   }
 
