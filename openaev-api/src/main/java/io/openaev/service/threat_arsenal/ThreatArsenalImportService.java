@@ -8,6 +8,7 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorRepository;
 import io.openaev.jsonapi.GenericJsonApiIUtils;
+import io.openaev.jsonapi.ImportTypes;
 import io.openaev.jsonapi.ZipJsonApi;
 import io.openaev.service.ZipJsonService;
 import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
@@ -67,6 +68,12 @@ public class ThreatArsenalImportService {
                   .stream())
           .collect(Collectors.toUnmodifiableSet());
 
+  public static final ImportTypes CONTRACT_IMPORT =
+      ImportTypes.only(Set.of(INJECTOR_CONTRACTS_TYPE), EXPORT_FORMAT_TYPES);
+
+  private static final ImportTypes PAYLOAD_IMPORT =
+      ImportTypes.only(PAYLOAD_ROOT_TYPES, EXPORT_FORMAT_TYPES);
+
   private static Set<String> typesOf(Class<?>... classes) {
     return Arrays.stream(classes)
         .map(GenericJsonApiIUtils::resolveType)
@@ -80,12 +87,8 @@ public class ThreatArsenalImportService {
 
   public ThreatArsenalAction importThreatArsenalAction(
       @NotNull TxCtx ctx, @NotNull MultipartFile file, @NotNull String tenantId) throws Exception {
-    String rootType = injectorContractZipJsonApi.readRootType(file);
-    if (INJECTOR_CONTRACTS_TYPE.equals(rootType)) {
+    if (INJECTOR_CONTRACTS_TYPE.equals(injectorContractZipJsonApi.readRootType(file))) {
       return importFromInjectorContract(file, tenantId);
-    }
-    if (rootType == null || !PAYLOAD_ROOT_TYPES.contains(rootType)) {
-      throw new IllegalArgumentException("Unsupported resource type for this import: " + rootType);
     }
     return importFromPayload(ctx, file);
   }
@@ -120,7 +123,7 @@ public class ThreatArsenalImportService {
               return contract;
             },
             tenantId,
-            EXPORT_FORMAT_TYPES);
+            CONTRACT_IMPORT);
     return threatArsenalMapper.toThreatArsenalAction(response.persistedData());
   }
 
@@ -133,7 +136,7 @@ public class ThreatArsenalImportService {
    */
   private ThreatArsenalAction importFromPayload(TxCtx ctx, MultipartFile file) throws Exception {
     PayloadImportService.PayloadImportResult result =
-        payloadImportService.importPayload(ctx, file, EXPORT_FORMAT_TYPES);
+        payloadImportService.importPayload(ctx, file, PAYLOAD_IMPORT);
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
   }
 }

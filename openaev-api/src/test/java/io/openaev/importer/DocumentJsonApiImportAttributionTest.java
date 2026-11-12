@@ -7,6 +7,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.jsonapi.GenericJsonApiImporter;
+import io.openaev.jsonapi.ImportTypes;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.ResourceObject;
 import io.openaev.service.MinioService;
@@ -98,7 +99,7 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
     TenantContext.setCurrentTenant(tenantA);
 
     // Act
-    importer.handleImportEntity(doc, null, null, tenantB, null);
+    importer.handleImportEntity(doc, null, null, tenantB, ImportTypes.ANY);
 
     // Assert
     assertEquals(
@@ -162,7 +163,8 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
     TenantContext.setCurrentTenant(tenantA);
 
     // Act: a type set that does not permit the type of the resource
-    importer.handleImportDocument(doc, extras, tenantB, Set.of("domains", "tags"));
+    importer.handleImportDocument(
+        doc, extras, tenantB, ImportTypes.only(Set.of(), Set.of("domains", "tags")));
     uploadedObjects.add(new String[] {tenantB, target});
 
     // Assert
@@ -193,7 +195,7 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
     // must let the document object through (a literal "document" would hide the singular/plural
     // mismatch between the wire type and the allowlist).
     importer.handleImportDocument(
-        doc, Map.of(target, bytes), tenantB, ThreatArsenalImportService.EXPORT_FORMAT_TYPES);
+        doc, Map.of(target, bytes), tenantB, ThreatArsenalImportService.CONTRACT_IMPORT);
     uploadedObjects.add(new String[] {tenantB, target});
 
     // Assert: the gate, not another condition, is what refused the object above

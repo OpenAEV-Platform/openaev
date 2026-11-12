@@ -27,6 +27,6 @@ class GenericJsonApiImporterDeniedTypesTest {
             resolveType(Group.class),
             resolveType(Role.class),
             resolveType(Tenant.class)),
-        GenericJsonApiImporter.DENIED_TYPES);
+        ImportTypes.DENIED);
   }
 }

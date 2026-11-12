@@ -153,15 +153,16 @@ public class ZipJsonService<T extends Base> {
       String writeTenantId)
       throws IOException {
     return handleImport(
-        fileBytes, nameAttributeKey, includeOptions, sanityCheck, suffix, writeTenantId, null);
+        fileBytes,
+        nameAttributeKey,
+        includeOptions,
+        sanityCheck,
+        suffix,
+        writeTenantId,
+        ImportTypes.ANY);
   }
 
-  /**
-   * Same as {@link #handleImport(byte[], String, IncludeOptions, Function, String, String)},
-   * restricted to the given JSON:API resource types (see {@link
-   * GenericJsonApiImporter#handleImportEntity(JsonApiDocument, IncludeOptions, Function, String,
-   * Set)}); {@code null} means no restriction.
-   */
+  /** Same import, restricted to the given resource types. */
   public ImportOutput<T> handleImport(
       byte[] fileBytes,
       String nameAttributeKey,
@@ -169,10 +170,18 @@ public class ZipJsonService<T extends Base> {
       Function<T, T> sanityCheck,
       String suffix,
       String writeTenantId,
-      Set<String> allowedTypes)
+      ImportTypes types)
       throws IOException {
     ParsedZip parsed = this.readZip(fileBytes);
     JsonApiDocument<ResourceObject> doc = parsed.getDocument();
+
+    // Refuse an unsupported root before anything is written: handleImportDocument below uploads the
+    // bundle's document files to object storage, which a later refusal in handleImportEntity would
+    // not undo (object storage is not transactional).
+    String rootType = doc.data() != null ? doc.data().type() : null;
+    if (!types.allowsRoot(rootType)) {
+      throw new IllegalArgumentException("Unsupported resource type for this import: " + rootType);
+    }
 
     if (doc.data() != null && doc.data().attributes() != null) {
       Object current = doc.data().attributes().get(nameAttributeKey);
@@ -181,9 +190,9 @@ public class ZipJsonService<T extends Base> {
       }
     }
 
-    importer.handleImportDocument(doc, parsed.extras, writeTenantId, allowedTypes);
+    importer.handleImportDocument(doc, parsed.extras, writeTenantId, types);
     T persisted =
-        importer.handleImportEntity(doc, includeOptions, sanityCheck, writeTenantId, allowedTypes);
+        importer.handleImportEntity(doc, includeOptions, sanityCheck, writeTenantId, types);
 
     return new ImportOutput<>(exporter.handleExport(persisted, includeOptions), persisted, doc);
   }

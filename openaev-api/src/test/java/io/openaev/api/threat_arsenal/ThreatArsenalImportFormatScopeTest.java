@@ -3,7 +3,7 @@ package io.openaev.api.threat_arsenal;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.THREAT_ARSENAL_URL;
 import static io.openaev.rest.payload.PayloadApi.PAYLOAD_URI;
-import static io.openaev.service.threat_arsenal.ThreatArsenalImportService.EXPORT_FORMAT_TYPES;
+import static io.openaev.service.threat_arsenal.ThreatArsenalImportService.CONTRACT_IMPORT;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.reflection.RelationUtils.getAllRelationsAsMap;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -33,10 +33,12 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.GrantRepository;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.integration.impl.injectors.openaev.OpenaevInjectorIntegrationFactory;
+import io.openaev.jsonapi.ImportTypes;
 import io.openaev.jsonapi.JsonApiDocument;
 import io.openaev.jsonapi.Relationship;
 import io.openaev.jsonapi.ResourceIdentifier;
 import io.openaev.jsonapi.ResourceObject;
+import io.openaev.service.MinioService;
 import io.openaev.service.ZipJsonService;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.DomainFixture;
@@ -46,16 +48,17 @@ import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -102,6 +105,23 @@ class ThreatArsenalImportFormatScopeTest extends IntegrationTest {
   @Autowired private ObjectMapper objectMapper;
   @Autowired private GroupRepository groupRepository;
   @Autowired private GrantRepository grantRepository;
+  @Autowired private MinioService minioService;
+
+  // Objects a test may have caused to be stored, cleaned up after each test (object storage is not
+  // covered by the transactional rollback).
+  private final List<String[]> uploadedObjects = new ArrayList<>();
+
+  @AfterEach
+  void cleanupUploadedObjects() {
+    for (String[] object : uploadedObjects) {
+      try {
+        minioService.deleteFileForTenant(object[0], object[1]);
+      } catch (Exception ignored) {
+        // best-effort cleanup
+      }
+    }
+    uploadedObjects.clear();
+  }
 
   @BeforeEach
   void beforeEach() {
@@ -290,10 +310,9 @@ class ThreatArsenalImportFormatScopeTest extends IntegrationTest {
         .getContentAsString();
   }
 
-  /** The import of a bundle with the given type set ({@code null}: no restriction). */
+  /** The import of a bundle restricted to the given types. */
   @SuppressWarnings("unchecked")
-  private InjectorContract importContractDirect(byte[] zip, Set<String> allowedTypes)
-      throws Exception {
+  private InjectorContract importContractDirect(byte[] zip, ImportTypes types) throws Exception {
     ZipJsonService<InjectorContract> unrestricted =
         (ZipJsonService<InjectorContract>) (ZipJsonService<?>) zipJsonService;
     return unrestricted
@@ -308,7 +327,7 @@ class ThreatArsenalImportFormatScopeTest extends IntegrationTest {
             },
             " (Import)",
             TenantContext.getCurrentTenant(),
-            allowedTypes)
+            types)
         .persistedData();
   }
 
@@ -497,7 +516,7 @@ class ThreatArsenalImportFormatScopeTest extends IntegrationTest {
     long grantsBefore = countGrants();
 
     // Act: no per-caller type set (null), as the other importers call it
-    String importedId = importContractDirect(augmentedZip, null).getId();
+    String importedId = importContractDirect(augmentedZip, ImportTypes.ANY).getId();
 
     // Assert: before the central denylist this import created the user, token, group and grant
     assertAll(
@@ -537,7 +556,7 @@ class ThreatArsenalImportFormatScopeTest extends IntegrationTest {
             readExtras(exported));
 
     // Act / Assert
-    assertThrows(IllegalArgumentException.class, () -> importContractDirect(zip, null));
+    assertThrows(IllegalArgumentException.class, () -> importContractDirect(zip, ImportTypes.ANY));
   }
 
   @Test
@@ -559,8 +578,8 @@ class ThreatArsenalImportFormatScopeTest extends IntegrationTest {
     long grantsBefore = countGrants();
 
     // Act
-    InjectorContract restricted = importContractDirect(zip, EXPORT_FORMAT_TYPES);
-    InjectorContract unrestricted = importContractDirect(zip, null);
+    InjectorContract restricted = importContractDirect(zip, CONTRACT_IMPORT);
+    InjectorContract unrestricted = importContractDirect(zip, ImportTypes.ANY);
 
     // Assert: with or without a type set
     assertEquals(0, restricted.getPayload().getGrants().size());
@@ -578,10 +597,10 @@ class ThreatArsenalImportFormatScopeTest extends IntegrationTest {
                 List.of(new ResourceIdentifier(UUID.randomUUID().toString(), "exercises"))));
 
     // Act / Assert: skipped with the type set...
-    InjectorContract restricted = importContractDirect(zip, EXPORT_FORMAT_TYPES);
+    InjectorContract restricted = importContractDirect(zip, CONTRACT_IMPORT);
     assertEquals(0, restricted.getPayload().getGrants().size());
     // ...while the same reference is resolved, and refused as unknown, without it
-    assertThrows(Exception.class, () -> importContractDirect(zip, null));
+    assertThrows(Exception.class, () -> importContractDirect(zip, ImportTypes.ANY));
   }
 
   /** A contract export whose payload carries the given {@code grants} relationship. */
@@ -717,7 +736,82 @@ class ThreatArsenalImportFormatScopeTest extends IntegrationTest {
 
     // Act / Assert: through the API, and through the importer with a type set
     importZipExpecting(zip, status().isBadRequest());
-    assertThrows(
-        IllegalArgumentException.class, () -> importContractDirect(zip, EXPORT_FORMAT_TYPES));
+    assertThrows(IllegalArgumentException.class, () -> importContractDirect(zip, CONTRACT_IMPORT));
+  }
+
+  @Test
+  @DisplayName("A bundle with a refused root stores none of its document files")
+  void given_refusedRoot_should_storeNoDocumentObject() throws Exception {
+    // Arrange: a bundle whose root type is not a valid root for this import, carrying an included
+    // document resource with its file bytes. The root is refused, so no file may be written.
+    byte[] exported = createAndExportContract();
+    ResourceObject root = readRootDocument(exported).data();
+    String target = "scope-test-doc-" + UUID.randomUUID() + ".txt";
+    byte[] fileBytes = ("scope-test-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+    List<Object> included = new ArrayList<>();
+    included.add(
+        new ResourceObject(
+            UUID.randomUUID().toString(), "documents", Map.of("document_name", target), null));
+    Map<String, byte[]> extras = new HashMap<>();
+    extras.put(target, fileBytes);
+    byte[] zip =
+        zipJsonService.writeZip(
+            new JsonApiDocument<>(
+                new ResourceObject(root.id(), "tags", root.attributes(), root.relationships()),
+                included),
+            extras);
+    String tenant = TenantContext.getCurrentTenant();
+    uploadedObjects.add(new String[] {tenant, target});
+
+    // Act: the root (tags) is not a valid root for the contract import
+    assertThrows(Exception.class, () -> importContractDirect(zip, CONTRACT_IMPORT));
+
+    // Assert: the refusal happens before the document upload, so nothing is stored
+    assertEquals(0, minioService.countObjects(tenant + "/" + target));
+  }
+
+  @Test
+  @DisplayName(
+      "A side-loaded resource is gated on its own type, not the reference type that points to it")
+  void given_sideLoadedDeniedTypeUnderAllowedReference_should_notBuildIt() throws Exception {
+    // Arrange: a reference of an allowed format type (tags) whose side-loaded resource under the
+    // same
+    // id is an identity type (users). The resource must be gated on its built type (users), not on
+    // the type of the reference (tags).
+    byte[] exported = createAndExportContract();
+    JsonApiDocument<ResourceObject> original = readRootDocument(exported);
+    String payloadId =
+        ((ResourceIdentifier) original.data().relationships().get(REL_CONTRACT_PAYLOAD).asOne())
+            .id();
+    String sideLoadId = UUID.randomUUID().toString();
+    String email = "scope-test-" + UUID.randomUUID() + "@example.invalid";
+    Map<String, Object> userAttributes = new HashMap<>();
+    userAttributes.put("user_email", email);
+    userAttributes.put("user_admin", true);
+    List<Object> included = new ArrayList<>();
+    for (Object o : original.included()) {
+      ResourceObject ro = asResource(o);
+      if (ro.id().equals(payloadId)) {
+        ro =
+            new ResourceObject(
+                ro.id(),
+                ro.type(),
+                ro.attributes(),
+                withRelationship(
+                    ro.relationships(), REL_PAYLOAD_GRANTS, toMany("tags", sideLoadId)));
+      }
+      included.add(ro);
+    }
+    included.add(new ResourceObject(sideLoadId, "users", userAttributes, null));
+    byte[] zip =
+        zipJsonService.writeZip(
+            new JsonApiDocument<>(original.data(), included), readExtras(exported));
+
+    // Act: with no restriction and with the contract type set
+    importContractDirect(zip, ImportTypes.ANY);
+    importContractDirect(zip, CONTRACT_IMPORT);
+
+    // Assert: the users resource behind the tags reference is never built
+    assertEquals(0, countUsersByEmail(email));
   }
 }
