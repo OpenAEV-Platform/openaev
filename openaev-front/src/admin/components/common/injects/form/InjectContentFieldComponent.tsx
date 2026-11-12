@@ -150,6 +150,8 @@ const InjectContentFieldComponent = ({
                 error={fieldError ?? error}
                 style={{}}
                 placeholder={placeholder}
+                disabled={isSubmitting || readOnly}
+                required={field.settings?.required}
               />
             )}
           />

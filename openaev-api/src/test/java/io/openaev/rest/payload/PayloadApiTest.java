@@ -531,7 +531,6 @@ class PayloadApiTest extends IntegrationTest {
             if (expectedArgumentTypes.containsKey(key) && f.has("argumentType")) {
               actualArgumentTypes.put(key, f.get("argumentType").asText());
             }
-            // #6973: a document argument gets its own field type, rendered as a document picker.
             if ("arg_document".equals(key)) {
               assertEquals("document", f.get("type").asText());
               assertEquals("document-id", f.get("defaultValue").asText());

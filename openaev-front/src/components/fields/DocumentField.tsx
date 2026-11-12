@@ -41,6 +41,8 @@ interface Props {
   extensions?: string[];
   // Id of a default document, shown by name as a faded placeholder while no document is picked.
   placeholder?: string;
+  disabled?: boolean;
+  required?: boolean;
 }
 
 const DocumentField: FunctionComponent<Props> = ({
@@ -51,6 +53,8 @@ const DocumentField: FunctionComponent<Props> = ({
   style,
   extensions = [],
   placeholder,
+  disabled = false,
+  required = false,
 }) => {
   const { classes } = useStyles();
 
@@ -88,6 +92,8 @@ const DocumentField: FunctionComponent<Props> = ({
         id: string;
         label: string;
       }>
+        required={required}
+        disabled={disabled}
         options={documentsOptions}
         value={valueResolver() ?? null}
         onValueChange={(value) => {
@@ -107,7 +113,7 @@ const DocumentField: FunctionComponent<Props> = ({
           </>
         )}
       >
-        <ComboboxLabel>{label}</ComboboxLabel>
+        <ComboboxLabel required={required}>{label}</ComboboxLabel>
         <ComboboxField>
           <ComboboxInput placeholder={placeholderLabel} />
           <ComboboxControls>

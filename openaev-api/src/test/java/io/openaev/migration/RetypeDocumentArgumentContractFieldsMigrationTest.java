@@ -17,10 +17,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Verifies the retyping of stored contract fields (#6973): a text field whose argument type is
- * document becomes a document field, other fields and contracts are left untouched, and a rerun
- * changes nothing. Rows are seeded and read over the session connection, like the migration runs;
- * {@code @Transactional} rolls them back with the test.
+ * Verifies the retyping of stored contract fields: a text field whose argument type is document
+ * becomes a document field, other fields and contracts are left untouched, and a rerun changes
+ * nothing. Rows are seeded and read over the session connection, like the migration runs; the test
+ * transaction ({@code @Transactional}) rolls them back.
  */
 @Transactional
 @DisplayName("Migration V6_20261112080000000: retype document argument contract fields")

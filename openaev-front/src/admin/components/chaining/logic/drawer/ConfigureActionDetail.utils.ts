@@ -152,7 +152,6 @@ export const getContractFieldDefaultValue = (field: ContractElement): unknown =>
   return undefined;
 };
 
-// 'document' was a text field before it got its own type: its default stays out of the content too.
 const PLACEHOLDER_DEFAULT_TYPES = new Set<ContractType>(['text', 'number', 'document']);
 
 /**

@@ -16,7 +16,6 @@ const field = (type: ContractElement['type']) => ({
   defaultValue: '',
 }) as ContractElement;
 
-// #6973: a payload argument of type document reaches the inject form as a field of type "document".
 describe('getValidatingRule', () => {
   it('validates a document field as a document id', () => {
     const rule = getValidatingRule(field('document'), t);

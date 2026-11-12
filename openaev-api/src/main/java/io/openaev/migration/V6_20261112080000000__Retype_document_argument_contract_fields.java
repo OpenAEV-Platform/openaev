@@ -13,10 +13,10 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 /**
- * Gives the injector contract fields of a payload argument of type document their own field type
- * (#6973). Such fields were stored as {@code "type": "text"} with {@code "argumentType":
- * "document"}; contracts generated from now on carry {@code "type": "document"}, so stored
- * contracts are aligned here and render the document picker without the payload being saved again.
+ * Gives the injector contract fields of a payload argument of type document their own field type.
+ * Such fields were stored as {@code "type": "text"} with {@code "argumentType": "document"};
+ * contracts generated from now on carry {@code "type": "document"}, so stored contracts are aligned
+ * here and render the document picker without the payload being saved again.
  */
 @Component
 public class V6_20261112080000000__Retype_document_argument_contract_fields
