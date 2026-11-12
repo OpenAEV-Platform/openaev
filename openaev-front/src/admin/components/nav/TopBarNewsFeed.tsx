@@ -7,7 +7,10 @@ import { isFeatureEnabled } from '../../../utils/utils';
 import TopBarIconLink from './TopBarIconLink';
 import useNewsFeedUnreadCount from './useNewsFeedUnreadCount';
 
-/** Top bar megaphone: entry point of the XTM Hub news feed, with its unread counter, only shown when the feature is enabled. */
+/**
+ * Top bar megaphone: entry point of the XTM Hub news feed, with its unread counter.
+ * Only shown when the feature is enabled.
+ */
 const TopBarNewsFeed = () => {
   const { t } = useFormatter();
   const location = useLocation();

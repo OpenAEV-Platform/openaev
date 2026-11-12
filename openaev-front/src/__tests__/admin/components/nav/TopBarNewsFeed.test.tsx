@@ -28,8 +28,7 @@ vi.mock('../../../../utils/hooks/useDataLoader', () => ({
 }));
 
 const { default: TopBarNewsFeed } = await import('../../../../admin/components/nav/TopBarNewsFeed');
-const { NEWS_FEED_UNREAD_COUNT_REFRESH_MS } = await import('../../../../admin/components/nav/useNewsFeedUnreadCount');
-const { NEWS_FEED_ITEM_SCHEMA } = await import('../../../../admin/components/nav/NewsFeedToastManager');
+const { NEWS_FEED_ITEM_SCHEMA, NEWS_FEED_STREAM_BATCH_MS } = await import('../../../../admin/components/nav/newsFeedStream');
 const { MESSAGING$ } = await import('../../../../utils/Environment');
 
 const renderMegaphone = (path = '/admin') => render(
@@ -59,7 +58,7 @@ const pushEvent = (event: MessageEvent) => {
 /** Lets the pending count request resolve and the batch timer elapse. */
 const flushRefresh = async () => {
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(NEWS_FEED_UNREAD_COUNT_REFRESH_MS);
+    await vi.advanceTimersByTimeAsync(NEWS_FEED_STREAM_BATCH_MS);
   });
 };
 
@@ -180,6 +179,29 @@ describe('TopBarNewsFeed', () => {
 
       expect(megaphone()).toHaveAccessibleDescription('');
       expect(screen.queryByText('3')).not.toBeInTheDocument();
+    });
+
+    it('keeps the latest count when the answers of two refreshes arrive in reverse order', async () => {
+      renderMegaphone();
+      await flushRefresh();
+      const answers: ((value: { data: number }) => void)[] = [];
+      mocks.fetchMyUnreadNewsFeedCount.mockImplementation(() => new Promise((resolve) => {
+        answers.push(resolve);
+      }));
+
+      act(() => MESSAGING$.refreshNewsFeedUnreadCount.next());
+      act(() => MESSAGING$.refreshNewsFeedUnreadCount.next());
+      expect(answers).toHaveLength(2);
+      await act(async () => {
+        answers[1]({ data: 5 });
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await act(async () => {
+        answers[0]({ data: 2 });
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(megaphone()).toHaveAccessibleDescription('Unread news feed items: 5');
     });
 
     it('stops listening once unmounted', async () => {

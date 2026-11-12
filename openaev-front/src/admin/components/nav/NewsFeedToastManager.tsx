@@ -12,20 +12,11 @@ import useAuth from '../../../utils/hooks/useAuth';
 import { subscribeStreamEvent } from '../../../utils/hooks/useDataLoader';
 import { isFeatureEnabled } from '../../../utils/utils';
 import { buildConfiguredHubUrl } from '../profile/news_feed/newsFeedUtils';
+import { NEWS_FEED_STREAM_BATCH_MS, parseNewsFeedItemStreamEvent } from './newsFeedStream';
 import NewsFeedToastItem, { type NewsFeedToastData } from './NewsFeedToastItem';
 import { useNewsFeedToastStyles } from './newsFeedToastSurface';
 
-export const NEWS_FEED_TOAST_BATCH_MS = 1000;
-
-export const NEWS_FEED_ITEM_SCHEMA = 'newsfeeditems';
-
 export const MAX_VISIBLE_TOASTS = 5;
-
-interface NewsFeedItemStreamEvent {
-  event_type: string;
-  attribute_schema: string;
-  instance: NewsFeedToastData;
-}
 
 /** Toasts the news feed items the collector creates for the current user, until they are dismissed. */
 const NewsFeedToastManager: FunctionComponent = () => {
@@ -61,11 +52,8 @@ const NewsFeedToastManager: FunctionComponent = () => {
         .catch(() => {});
     };
     const unsubscribe = subscribeStreamEvent('message', (event: MessageEvent) => {
-      if (!event.data.includes(`"${NEWS_FEED_ITEM_SCHEMA}"`)) {
-        return;
-      }
-      const data: NewsFeedItemStreamEvent = JSON.parse(event.data);
-      if (data.attribute_schema !== NEWS_FEED_ITEM_SCHEMA || data.event_type !== DATA_FETCH_SUCCESS) {
+      const data = parseNewsFeedItemStreamEvent<NewsFeedToastData>(event);
+      if (data === null || data.event_type !== DATA_FETCH_SUCCESS) {
         return;
       }
       pendingItems.push(data.instance);
@@ -73,7 +61,7 @@ const NewsFeedToastManager: FunctionComponent = () => {
         batchTimer = setTimeout(() => {
           batchTimer = undefined;
           flush();
-        }, NEWS_FEED_TOAST_BATCH_MS);
+        }, NEWS_FEED_STREAM_BATCH_MS);
       }
     });
     return () => {

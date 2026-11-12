@@ -8,7 +8,7 @@ export const searchMyNewsFeedItems = (searchPaginationInput: SearchPaginationInp
   return simplePostCall(`${NEWS_FEED_URI}/me/search`, searchPaginationInput, undefined, notifyError);
 };
 
-/** The count only refreshes a badge: a failure is left to the caller rather than notified to the user. */
+/** The count only refreshes a badge: an error is not notified by default, and still rejects for the caller to handle. */
 export const fetchMyUnreadNewsFeedCount = (notifyError = false) => {
   return simpleCall(`${NEWS_FEED_URI}/me/unread-count`, undefined, notifyError);
 };

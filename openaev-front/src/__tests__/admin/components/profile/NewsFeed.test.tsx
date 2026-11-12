@@ -126,7 +126,7 @@ describe('NewsFeed page', () => {
       await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
       expect(screen.getByTestId('news-feed-list')).toBeInTheDocument();
       expect(refreshCounter).not.toHaveBeenCalled();
-      expect(mockNotifyErrorHandler).not.toHaveBeenCalled();
+      expect(mockNotifyError).not.toHaveBeenCalled();
       subscription.unsubscribe();
     });
   });

@@ -30,12 +30,8 @@ vi.mock('../../../../utils/hooks/useDataLoader', () => ({
   },
 }));
 
-const {
-  default: NewsFeedToastManager,
-  MAX_VISIBLE_TOASTS,
-  NEWS_FEED_ITEM_SCHEMA,
-  NEWS_FEED_TOAST_BATCH_MS,
-} = await import('../../../../admin/components/nav/NewsFeedToastManager');
+const { default: NewsFeedToastManager, MAX_VISIBLE_TOASTS } = await import('../../../../admin/components/nav/NewsFeedToastManager');
+const { NEWS_FEED_ITEM_SCHEMA, NEWS_FEED_STREAM_BATCH_MS } = await import('../../../../admin/components/nav/newsFeedStream');
 
 const HUB_URL = 'https://hub.example.com';
 
@@ -88,7 +84,7 @@ const streamEvent = (
 const pushEvents = async (...events: MessageEvent[]) => {
   await act(async () => {
     events.forEach(event => mocks.streamHandlers.get('message')?.(event));
-    await vi.advanceTimersByTimeAsync(NEWS_FEED_TOAST_BATCH_MS);
+    await vi.advanceTimersByTimeAsync(NEWS_FEED_STREAM_BATCH_MS);
   });
 };
 
