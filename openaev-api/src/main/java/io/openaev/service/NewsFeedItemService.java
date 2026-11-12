@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -43,6 +44,9 @@ public class NewsFeedItemService {
 
   /** Hub items handled per transaction, see {@link #USER_CHUNK_SIZE}. */
   public static final int ITEM_CHUNK_SIZE = 50;
+
+  /** Items marked as read per query and flush, see {@link #markMyItemsRead()}. */
+  public static final int READ_CHUNK_SIZE = 100;
 
   private final NewsFeedItemRepository newsFeedItemRepository;
   private final UserService userService;
@@ -104,13 +108,18 @@ public class NewsFeedItemService {
    *
    * <p>The items are updated through the session rather than by a bulk update: a bulk update would
    * skip the listener chain, so the user's other open tabs would not be told over SSE that their
-   * items changed. A user only holds as many items as the Hub published since they joined.
+   * items changed. They are read and flushed by chunks of {@link #READ_CHUNK_SIZE}, so a query, a
+   * flush and a burst of events stay bounded whatever the number of items the Hub accumulated.
    */
   public void markMyItemsRead() {
-    List<NewsFeedItem> unreadItems =
-        newsFeedItemRepository.findAllByUserIdAndReadFalse(userService.currentUser().getId());
-    unreadItems.forEach(item -> item.setRead(true));
-    newsFeedItemRepository.saveAll(unreadItems);
+    String userId = userService.currentUser().getId();
+    List<NewsFeedItem> chunk;
+    do {
+      chunk = newsFeedItemRepository.findByUserIdAndReadFalse(userId, Limit.of(READ_CHUNK_SIZE));
+      chunk.forEach(item -> item.setRead(true));
+      // Flushed here, so that the next chunk no longer finds these items.
+      newsFeedItemRepository.saveAllAndFlush(chunk);
+    } while (chunk.size() == READ_CHUNK_SIZE);
   }
 
   // -- CREATE --

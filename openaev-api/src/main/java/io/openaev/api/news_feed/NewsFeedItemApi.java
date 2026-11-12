@@ -69,9 +69,7 @@ public class NewsFeedItemApi {
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.NEWS_FEED)
   @Operation(
       summary = "Count my unread news feed items",
-      description =
-          "The number of unread items of the current user, 0 when the tenant is not registered on"
-              + " XTM Hub. Not found when the XTM_HUB_NEWS_FEED feature is disabled.")
+      description = "The unread items of the current user, 0 when the tenant is not on XTM Hub.")
   @Transactional(readOnly = true)
   @ApiResponses(
       value = {
@@ -91,8 +89,7 @@ public class NewsFeedItemApi {
   @Operation(
       summary = "Mark all my news feed items as read",
       description =
-          "Marks the current user's unread items as read, nothing when the tenant is not"
-              + " registered on XTM Hub. Not found when the XTM_HUB_NEWS_FEED feature is disabled.")
+          "Reads the unread items of the current user, none when the tenant is not on XTM Hub.")
   @Transactional(rollbackFor = Exception.class)
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @ApiResponses(
