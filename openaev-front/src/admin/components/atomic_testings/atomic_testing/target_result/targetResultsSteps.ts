@@ -1,4 +1,4 @@
-import type { InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
+import { HUMAN_EXPECTATION_TYPES, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 
 export interface TimelineStep {
   key: string;
@@ -15,37 +15,48 @@ export interface TimelineStep {
 // Pure step-computation logic extracted verbatim from the former
 // TargetResultsReactFlow component (behavior must stay identical).
 
+interface StepLabels {
+  unknown: string;
+  pending: string;
+  success: string;
+  failed: string;
+}
+
+const STEP_LABELS: Record<string, StepLabels> = {
+  DETECTION: {
+    unknown: 'No Expectation for Detection',
+    pending: 'Waiting for Detection',
+    success: 'Attack Detected',
+    failed: 'Attack Not Detected',
+  },
+  PREVENTION: {
+    unknown: 'No Expectation',
+    pending: 'Waiting for Prevention',
+    success: 'Attack Prevented',
+    failed: 'Attack Not Prevented',
+  },
+};
+
+const HUMAN_STEP_LABELS: StepLabels = {
+  unknown: 'No Expectation for Manual',
+  pending: 'Waiting for Validation',
+  success: 'Validation Success',
+  failed: 'Validation Failed',
+};
+
+// Empty for a type without step labels: the step is then left out of the timeline.
 export const getStatusLabel = (type: string, status: string[]): string => {
-  switch (type) {
-    case 'DETECTION':
-      if (status.includes('UNKNOWN')) {
-        return 'No Expectation for Detection';
-      }
-      if (status.includes('PENDING')) {
-        return 'Waiting for Detection';
-      }
-      return status.every(s => s === 'SUCCESS') ? 'Attack Detected' : 'Attack Not Detected';
-    case 'MANUAL':
-    case 'ARTICLE':
-    case 'CHALLENGE':
-      if (status.includes('UNKNOWN')) {
-        return 'No Expectation for Manual';
-      }
-      if (status.includes('PENDING')) {
-        return 'Waiting for Validation';
-      }
-      return status.every(s => s === 'SUCCESS') ? 'Validation Success' : 'Validation Failed';
-    case 'PREVENTION':
-      if (status.includes('UNKNOWN')) {
-        return 'No Expectation';
-      }
-      if (status.includes('PENDING')) {
-        return 'Waiting for Prevention';
-      }
-      return status.every(s => s === 'SUCCESS') ? 'Attack Prevented' : 'Attack Not Prevented';
-    default:
-      return '';
+  const labels = STEP_LABELS[type] ?? (HUMAN_EXPECTATION_TYPES.includes(type) ? HUMAN_STEP_LABELS : undefined);
+  if (!labels) {
+    return '';
   }
+  if (status.includes('UNKNOWN')) {
+    return labels.unknown;
+  }
+  if (status.includes('PENDING')) {
+    return labels.pending;
+  }
+  return status.every(s => s === 'SUCCESS') ? labels.success : labels.failed;
 };
 
 export const getStatus = (status: string[]): string => {

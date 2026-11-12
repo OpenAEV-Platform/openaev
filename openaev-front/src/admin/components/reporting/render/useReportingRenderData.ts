@@ -16,6 +16,7 @@ import {
   type Reporting,
   type TenantSettingsOutput,
 } from '../../../../utils/api-types';
+import { POSTURE_EXPECTATION_TYPES } from '../../common/injects/expectations/Expectation';
 import {
   buildAttackPathsConfig,
   buildFailedExpectationsConfig,
@@ -26,7 +27,6 @@ import {
   buildPostureConfig,
   buildSecurityDomainsConfig,
   buildTrendsConfig,
-  EXPECTATION_TYPES,
   type ReportingContextType,
 } from './reportingRenderQueries';
 
@@ -375,7 +375,7 @@ const useReportingRenderData = (reporting: Reporting | null, token: string | nul
       setPosture(initialState());
       settle(setPosture, () => adhoc('series', { widget_config: buildPostureConfig(contextType, contextId, timeRange) })
         .then((result: { data: EsSeries[] }) => {
-          const breakdown = EXPECTATION_TYPES
+          const breakdown = POSTURE_EXPECTATION_TYPES
             .map(type => ({
               type,
               success: namedSeriesTotal(result.data, `${type}_SUCCESS`),
