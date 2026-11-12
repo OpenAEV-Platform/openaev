@@ -462,6 +462,9 @@ public class ExerciseApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when add Tanium on scheduled scenario")
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_ASSESSMENT},
+        autoJoinDefaultTenant = true)
     void given_taniumAsset_should_not_beAddedToScheduledExercise() throws Exception {
       Exercise exercise = getExercise(null);
 

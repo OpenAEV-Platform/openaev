@@ -624,6 +624,7 @@ public class ScenarioApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Throw license restricted error when add Crowdstrike on scheduled scenario")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_crowdstrikeInsdeDynamicGroup_should_not_beAddedToScheduledExercise()
         throws Exception {
       Scenario scenario = getScenario(ScenarioFixture.getScheduledScenario(), null);
