@@ -9,7 +9,6 @@ import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
@@ -132,10 +131,8 @@ class FindingAssetGroupSinkTest extends IntegrationTest {
               finding.setType(ContractOutputType.Text);
               finding.setField("hostname");
               finding.setName("sink probe");
-              findingId =
-                  findingService
-                      .createFinding(TxCtx.forTenant(tenantId), finding, inject.getId())
-                      .getId();
+              findingService.createFindings(List.of(finding), inject.getId());
+              findingId = finding.getId();
               entityManager.flush();
 
               // A linked asset too: finding_assets is a lazy @ManyToMany on the assets table, the

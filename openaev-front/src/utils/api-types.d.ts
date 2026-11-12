@@ -6193,40 +6193,6 @@ export interface FilterGroup {
   mode: "and" | "or";
 }
 
-export interface FindingInput {
-  /** @minLength 1 */
-  finding_field: string;
-  finding_inject_id?: string;
-  finding_labels?: string[];
-  finding_type:
-    | "text"
-    | "action_output"
-    | "number"
-    | "port"
-    | "portscan"
-    | "ipv4"
-    | "ipv6"
-    | "credentials"
-    | "cve"
-    | "username"
-    | "email"
-    | "share"
-    | "file"
-    | "admin_username"
-    | "group"
-    | "computer"
-    | "password_policy"
-    | "delegation"
-    | "sid"
-    | "vulnerability"
-    | "account_with_password_not_required"
-    | "asreproastable_account"
-    | "kerberoastable_account"
-    | "expectation_signature";
-  /** @minLength 1 */
-  finding_value: string;
-}
-
 export interface FindingOutput {
   /**
    * Asset groups targeted by the inject that produced the finding
