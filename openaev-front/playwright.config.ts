@@ -5,6 +5,7 @@ import 'monocart-reporter';
 import { defineConfig, devices } from '@playwright/test';
 
 import coverageOptions from './tests_e2e/conf/mcr.config';
+import { AUTH_ADMIN } from './tests_e2e/utils/constants';
 
 const isArm = process.env.CI === 'true' && process.arch === 'arm64';
 const armUnsupportedTests = /.*external-injector.*|.*external-executor.*|.*external-collector.*|.*infra-chaining\.spec\.ts$/;
@@ -85,7 +86,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chrome',
-        storageState: 'tests_e2e/.auth/user.json',
+        storageState: AUTH_ADMIN,
         viewport: {
           width: 1920,
           height: 1080,
@@ -98,7 +99,7 @@ export default defineConfig({
       testIgnore: nonInfraTestIgnore,
       use: {
         ...devices['Desktop Chrome'],
-        storageState: 'tests_e2e/.auth/user.json',
+        storageState: AUTH_ADMIN,
         viewport: {
           width: 1920,
           height: 1080,
@@ -111,7 +112,7 @@ export default defineConfig({
       testIgnore: nonInfraTestIgnore,
       use: {
         ...devices['Desktop Firefox'],
-        storageState: 'tests_e2e/.auth/user.json',
+        storageState: AUTH_ADMIN,
         viewport: {
           width: 1920,
           height: 1080,
@@ -124,7 +125,7 @@ export default defineConfig({
       testIgnore: nonInfraTestIgnore,
       use: {
         ...devices['Desktop Safari'],
-        storageState: 'tests_e2e/.auth/user.json',
+        storageState: AUTH_ADMIN,
         viewport: {
           width: 1920,
           height: 1080,
@@ -138,7 +139,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Edge'],
         channel: 'msedge',
-        storageState: 'tests_e2e/.auth/user.json',
+        storageState: AUTH_ADMIN,
         viewport: {
           width: 1920,
           height: 1080,
@@ -153,7 +154,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chrome',
-        storageState: 'tests_e2e/.auth/user.json',
+        storageState: AUTH_ADMIN,
         viewport: {
           width: 1920,
           height: 1080,
@@ -167,7 +168,7 @@ export default defineConfig({
       timeout: INFRA_TEST_TIMEOUT,
       use: {
         ...devices['Desktop Chrome'],
-        storageState: 'tests_e2e/.auth/user.json',
+        storageState: AUTH_ADMIN,
         viewport: {
           width: 1920,
           height: 1080,
@@ -181,7 +182,7 @@ export default defineConfig({
       timeout: INFRA_TEST_TIMEOUT,
       use: {
         ...devices['Desktop Firefox'],
-        storageState: 'tests_e2e/.auth/user.json',
+        storageState: AUTH_ADMIN,
         viewport: {
           width: 1920,
           height: 1080,
@@ -195,7 +196,7 @@ export default defineConfig({
       timeout: INFRA_TEST_TIMEOUT,
       use: {
         ...devices['Desktop Safari'],
-        storageState: 'tests_e2e/.auth/user.json',
+        storageState: AUTH_ADMIN,
         viewport: {
           width: 1920,
           height: 1080,
@@ -210,7 +211,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Edge'],
         channel: 'msedge',
-        storageState: 'tests_e2e/.auth/user.json',
+        storageState: AUTH_ADMIN,
         viewport: {
           width: 1920,
           height: 1080,

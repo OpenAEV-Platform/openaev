@@ -1,0 +1,59 @@
+import { expect, test } from '../../fixtures';
+import LeftMenuComponent from '../../model/LeftMenuComponent';
+import ThreatArsenalListPage from '../../model/threat-arsenals/ThreatArsenalListPage';
+import { PERSONAS } from '../../utils/personas';
+import { tenantApiPath, tenantUrl } from '../../utils/url';
+
+const MARKING_DEFINITIONS_URL = tenantUrl('/admin/settings/security/marking_definitions');
+
+/**
+ * The Observer group grants ACCESS_THREAT_ARSENALS without MANAGE_THREAT_ARSENALS:
+ * the observer reads the threat arsenal but cannot create one.
+ */
+test.describe('Observer persona', () => {
+  test.use({ persona: 'observer' });
+
+  test('API calls run as the observer', async ({ request }) => {
+    const response = await request.get(tenantApiPath('/api/me'));
+
+    expect(response.ok()).toBeTruthy();
+    expect((await response.json()).user_email).toBe(PERSONAS.observer.email);
+  });
+
+  test('the threat arsenal has no create button', async ({ page }) => {
+    const leftMenu = new LeftMenuComponent(page);
+    const threatArsenalList = new ThreatArsenalListPage(page);
+
+    await page.goto(tenantUrl('/admin'));
+    await leftMenu.goToThreatArsenal();
+    await threatArsenalList.waitForLoad();
+
+    await expect(threatArsenalList.addButton).toHaveCount(0);
+  });
+
+  // Marking definitions stay Admin-only: the Observer role has no ACCESS_MARKING_DEFINITION.
+  test('the marking definitions page answers with no access', async ({ page }) => {
+    await page.goto(MARKING_DEFINITIONS_URL);
+
+    await expect(page.getByRole('alert')).toContainText('You dont have the right access');
+  });
+});
+
+/**
+ * Control for the observer refusals above: the same pages load for the admin, so a
+ * refusal comes from the observer's capabilities, not from a disabled preview feature
+ * (with MARKING off, the marking definitions route answers no access to everyone).
+ */
+test.describe('Admin persona', () => {
+  test.use({ persona: 'admin' });
+
+  test('the marking definitions page loads', async ({ page }) => {
+    await page.goto(MARKING_DEFINITIONS_URL);
+
+    await expect(page.getByRole('button', {
+      name: 'Add a marking definition',
+      exact: true,
+    })).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+});
