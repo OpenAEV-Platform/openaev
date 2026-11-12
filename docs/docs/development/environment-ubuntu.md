@@ -24,7 +24,7 @@ too old. In that case, install Maven from [maven.apache.org](https://maven.apach
 
 ### Docker
 
-Development services (PostgreSQL, Elasticsearch, RabbitMQ, Silo) run in containers. Install Docker Engine and the Compose plugin with the official guide: [Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/).
+Development services (PostgreSQL, Elasticsearch, RabbitMQ, RustFS) run in containers. Install Docker Engine and the Compose plugin with the official guide: [Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/).
 
 Verify the installation:
 
