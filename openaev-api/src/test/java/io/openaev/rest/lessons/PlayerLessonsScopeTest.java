@@ -60,6 +60,7 @@ class PlayerLessonsScopeTest extends IntegrationTest {
 
   // Simulation A: two players, a category, a question, one answer per player.
   private String simulationA;
+  private String teamA;
   private String categoryA;
   private String otherCategoryA;
   private String questionA;
@@ -69,6 +70,7 @@ class PlayerLessonsScopeTest extends IntegrationTest {
   private String answerOfPlayerTwo;
   // Simulation B: its own category and question.
   private String simulationB;
+  private String categoryB;
   private String questionB;
 
   private String caller;
@@ -78,7 +80,7 @@ class PlayerLessonsScopeTest extends IntegrationTest {
     caller = testUserHolder.get().getId();
 
     simulationA = seedSimulation();
-    String teamA = seedTeam();
+    teamA = seedTeam();
     seedTeamInSimulation(simulationA, teamA);
     playerOne = seedUser();
     playerTwo = seedUser();
@@ -91,7 +93,8 @@ class PlayerLessonsScopeTest extends IntegrationTest {
     answerOfPlayerTwo = seedAnswer(questionA, playerTwo);
 
     simulationB = seedSimulation();
-    questionB = seedQuestion(seedCategory(simulationB));
+    categoryB = seedCategory(simulationB);
+    questionB = seedQuestion(categoryB);
   }
 
   @Nested
@@ -146,12 +149,13 @@ class PlayerLessonsScopeTest extends IntegrationTest {
   class CallerInTheSimulation {
 
     private String callerAnswer;
+    private String callerTeam;
 
     @BeforeEach
     void joinSimulationA() {
-      String team = seedTeam();
-      seedTeamInSimulation(simulationA, team);
-      seedPlayerInSimulation(simulationA, team, caller);
+      callerTeam = seedTeam();
+      seedTeamInSimulation(simulationA, callerTeam);
+      seedPlayerInSimulation(simulationA, callerTeam, caller);
       callerAnswer = seedAnswer(questionA, caller);
     }
 
@@ -190,6 +194,20 @@ class PlayerLessonsScopeTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("a player sees only the categories of a team they belong to")
+    void playerSeesOnlyTheirTeamsCategory() throws Exception {
+      // categoryA is linked to the caller's team, otherCategoryA to a team the caller is not in.
+      seedUserInTeam(caller, callerTeam);
+      seedCategoryTeam(categoryA, callerTeam);
+      seedCategoryTeam(otherCategoryA, teamA);
+
+      mvc.perform(get(CATEGORIES, simulationA).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(1)))
+          .andExpect(jsonPath("$[0].lessonscategory_id").value(categoryA));
+    }
+
+    @Test
     @DisplayName("a question of the simulation and category in the path saves the caller's answer")
     void answerOnAQuestionOfTheSimulationIsSaved() throws Exception {
       postAnswer(simulationA, categoryA, questionA)
@@ -206,7 +224,9 @@ class PlayerLessonsScopeTest extends IntegrationTest {
     void answerOnAQuestionOfAnotherSimulationIsNotFound() throws Exception {
       long before = countAnswers();
 
-      postAnswer(simulationA, categoryA, questionB).andExpect(status().isNotFound());
+      // categoryB is questionB's own category, so only the simulation-ownership check can refuse
+      // this: the request would be accepted if the exerciseId binding were dropped.
+      postAnswer(simulationA, categoryB, questionB).andExpect(status().isNotFound());
 
       assertEquals(before, countAnswers());
       assertEquals(0, countAnswersOnQuestion(questionB, caller));
@@ -236,6 +256,21 @@ class PlayerLessonsScopeTest extends IntegrationTest {
           simulationA);
 
       mvc.perform(get(QUESTIONS, simulationA)).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("an observer sees every category, whatever the team links")
+    void observerSeesEveryCategory() throws Exception {
+      addGrantToCurrentUser(
+          io.openaev.database.model.Grant.GRANT_RESOURCE_TYPE.SIMULATION,
+          io.openaev.database.model.Grant.GRANT_TYPE.OBSERVER,
+          simulationA);
+      // Teams restrict only players; an observer (grant) sees every category of the simulation.
+      seedCategoryTeam(categoryA, teamA);
+
+      mvc.perform(get(CATEGORIES, simulationA).accept(MediaType.APPLICATION_JSON))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$", hasSize(2)));
     }
   }
 
@@ -316,6 +351,25 @@ class PlayerLessonsScopeTest extends IntegrationTest {
         "INSERT INTO exercises_teams (exercise_id, team_id) VALUES (:exercise, :team)",
         "exercise",
         simulation,
+        "team",
+        team);
+  }
+
+  private void seedUserInTeam(String user, String team) {
+    update(
+        "INSERT INTO users_teams (team_id, user_id) VALUES (:team, :user)",
+        "team",
+        team,
+        "user",
+        user);
+  }
+
+  private void seedCategoryTeam(String category, String team) {
+    update(
+        "INSERT INTO lessons_categories_teams (lessons_category_id, team_id)"
+            + " VALUES (:category, :team)",
+        "category",
+        category,
         "team",
         team);
   }
