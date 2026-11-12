@@ -39,7 +39,7 @@ public class InjectExpectationResultUtils {
    * Computes expectation results grouped by type from a list of expectations.
    *
    * <p>Uses the provided score extraction function to calculate normalized scores for each
-   * expectation type category (Prevention, Detection, Vulnerability, Human Response).
+   * expectation type category (Prevention, Detection, Logging, Vulnerability, Human Response).
    *
    * @param <T> the type of expectation objects (BaseInjectExpectation or
    *     RawInjectExpectationIndexing)
@@ -68,6 +68,12 @@ public class InjectExpectationResultUtils {
         result,
         List.of(EXPECTATION_TYPE.DETECTION),
         ExpectationType.DETECTION,
+        expectations,
+        scoreExtractor);
+    addIfScoresPresent(
+        result,
+        List.of(EXPECTATION_TYPE.LOGGING),
+        ExpectationType.LOGGING,
         expectations,
         scoreExtractor);
     addIfScoresPresent(

@@ -43,6 +43,7 @@ public class HelperTargetSearchAdaptor {
       switch (result.type()) {
         case DETECTION -> target.setTargetDetectionStatus(result.avgResult());
         case PREVENTION -> target.setTargetPreventionStatus(result.avgResult());
+        case LOGGING -> target.setTargetLoggingStatus(result.avgResult());
         case VULNERABILITY -> {
           if (allowVulnerability) {
             target.setTargetVulnerabilityStatus(result.avgResult());
