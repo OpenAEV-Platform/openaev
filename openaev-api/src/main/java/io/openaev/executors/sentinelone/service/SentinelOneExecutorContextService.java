@@ -9,7 +9,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.executors.ExecutorContextService;
+import io.openaev.executors.BatchExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.sentinelone.client.SentinelOneExecutorClient;
@@ -18,27 +18,16 @@ import io.openaev.executors.sentinelone.model.SentinelOneAction;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
-@Slf4j
 @Service(SentinelOneExecutorContextService.SERVICE_NAME)
 @RequiredArgsConstructor
-public class SentinelOneExecutorContextService extends ExecutorContextService {
+public class SentinelOneExecutorContextService
+    extends BatchExecutorContextService<SentinelOneAction> {
   public static final String SERVICE_NAME = SENTINELONE_EXECUTOR_NAME;
-
-  ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-
-  @Override
-  public void shutdown() {
-    scheduledExecutorService.shutdown();
-  }
 
   private final SentinelOneExecutorConfig config;
   private final SentinelOneExecutorClient client;
@@ -117,28 +106,26 @@ public class SentinelOneExecutorContextService extends ExecutorContextService {
     return sentinelOneAgents;
   }
 
+  // Batches of apiBatchExecutionActionPagination calls, one batch every 5 s: each action calls the
+  // SentinelOne API to execute the implant, and each implant calls the OpenAEV API to set traces.
   public void executeActions(List<SentinelOneAction> actions) {
-    int paginationLimit = this.config.getApiBatchExecutionActionPagination();
-    int paginationCount = (int) Math.ceil(actions.size() / (double) paginationLimit);
+    dispatch(actions);
+  }
 
-    for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
-      int fromIndex = (batchIndex * paginationLimit);
-      int toIndex = Math.min(fromIndex + paginationLimit, actions.size());
-      List<SentinelOneAction> batchActions = actions.subList(fromIndex, toIndex);
-      // Pagination of XXX calls (paginationLimit) per batch with 5s waiting
-      // because each action will call the SentinelOne API to execute the implant
-      // and each implant will call OpenAEV API to set traces
-      scheduledExecutorService.schedule(
-          () ->
-              batchActions.forEach(
-                  action ->
-                      this.client.executeScript(
-                          action.getAgentExternalReference(),
-                          action.getScriptId(),
-                          action.getCommandEncoded())),
-          batchIndex * 5L,
-          TimeUnit.SECONDS);
-    }
+  @Override
+  protected void send(SentinelOneAction action) {
+    this.client.executeScript(
+        action.getAgentExternalReference(), action.getScriptId(), action.getCommandEncoded());
+  }
+
+  @Override
+  protected String agentReference(SentinelOneAction action) {
+    return action.getAgentExternalReference();
+  }
+
+  @Override
+  protected int batchSize() {
+    return this.config.getApiBatchExecutionActionPagination();
   }
 
   private List<SentinelOneAction> getWindowsActions(

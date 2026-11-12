@@ -8,7 +8,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.executors.ExecutorContextService;
+import io.openaev.executors.BatchExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.paloaltocortex.client.PaloAltoCortexExecutorClient;
@@ -19,19 +19,15 @@ import io.openaev.executors.paloaltocortex.model.PaloAltoCortexCommandList;
 import jakarta.validation.constraints.NotNull;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
-@Slf4j
 @Service(PaloAltoCortexExecutorContextService.SERVICE_NAME)
 @RequiredArgsConstructor
-public class PaloAltoCortexExecutorContextService extends ExecutorContextService {
+public class PaloAltoCortexExecutorContextService
+    extends BatchExecutorContextService<PaloAltoCortexAction> {
   public static final String SERVICE_NAME = PALOALTOCORTEX_EXECUTOR_NAME;
 
   private final PaloAltoCortexExecutorConfig config;
@@ -40,13 +36,6 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
   private final LicenseCacheManager licenseCacheManager;
   private final ExecutorService executorService;
   private final OpenAEVConfig openAEVConfig;
-
-  ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-
-  @Override
-  public void shutdown() {
-    scheduledExecutorService.shutdown();
-  }
 
   @Override
   public void launchExecutorSubprocess(
@@ -111,30 +100,29 @@ public class PaloAltoCortexExecutorContextService extends ExecutorContextService
     return paloAltoCortexAgents;
   }
 
+  // Batches of apiBatchExecutionActionPagination calls, one batch every 5 s: each action calls the
+  // Palo Alto Cortex API to execute the implant, and each implant calls the OpenAEV API to set
+  // traces.
   public void executeActions(List<PaloAltoCortexAction> actions) {
-    int paginationLimit = this.config.getApiBatchExecutionActionPagination();
-    int paginationCount = (int) Math.ceil(actions.size() / (double) paginationLimit);
+    dispatch(actions);
+  }
 
-    for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
-      int fromIndex = (batchIndex * paginationLimit);
-      int toIndex = Math.min(fromIndex + paginationLimit, actions.size());
-      List<PaloAltoCortexAction> batchActions = actions.subList(fromIndex, toIndex);
-      // Pagination of XXX calls (paginationLimit) per batch with 5s waiting
-      // because each action will call the Palo Alto Cortex API to execute the implant
-      // and each implant will call OpenAEV API to set traces
-      scheduledExecutorService.schedule(
-          () ->
-              batchActions.forEach(
-                  action ->
-                      this.client.executeScript(
-                          action.getAgentExternalReference(),
-                          action.getScriptId(),
-                          action.getCommandWindows() != null
-                              ? action.getCommandWindows()
-                              : action.getCommandUnix())),
-          batchIndex * 5L,
-          TimeUnit.SECONDS);
-    }
+  @Override
+  protected void send(PaloAltoCortexAction action) {
+    this.client.executeScript(
+        action.getAgentExternalReference(),
+        action.getScriptId(),
+        action.getCommandWindows() != null ? action.getCommandWindows() : action.getCommandUnix());
+  }
+
+  @Override
+  protected String agentReference(PaloAltoCortexAction action) {
+    return action.getAgentExternalReference();
+  }
+
+  @Override
+  protected int batchSize() {
+    return this.config.getApiBatchExecutionActionPagination();
   }
 
   private List<PaloAltoCortexAction> getWindowsActions(

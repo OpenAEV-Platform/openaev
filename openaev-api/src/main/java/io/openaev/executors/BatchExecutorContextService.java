@@ -1,5 +1,6 @@
 package io.openaev.executors;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.openaev.executors.exception.ExecutorBusyException;
 import java.time.Duration;
 import java.util.List;
@@ -21,7 +22,7 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
   // 14 retries of 30 s stay under the 10 minutes after which an agent that never started times out.
   static final int MAX_ATTEMPTS = 15;
 
-  private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+  private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
   protected abstract void send(A action);
 
@@ -50,6 +51,11 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
   @Override
   public void shutdown() {
     scheduler.shutdown();
+  }
+
+  @VisibleForTesting
+  public void setScheduler(ScheduledExecutorService scheduler) {
+    this.scheduler = scheduler;
   }
 
   private void trySend(A action, int attempt) {
