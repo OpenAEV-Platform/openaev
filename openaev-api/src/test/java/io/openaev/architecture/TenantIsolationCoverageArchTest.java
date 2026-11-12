@@ -6,6 +6,7 @@ import io.openaev.architecture.PinnedActiveTablesCatalog.Declaration;
 import io.openaev.architecture.PinnedActiveTablesCatalog.Registration;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.TenantTables;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -21,8 +22,9 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
-import org.junit.platform.commons.annotation.Testable;
+import org.junit.jupiter.api.TestTemplate;
 import org.junit.platform.commons.support.AnnotationSupport;
 import org.junit.platform.commons.support.HierarchyTraversalMode;
 import org.junit.platform.commons.support.ReflectionSupport;
@@ -49,10 +51,10 @@ import org.springframework.test.context.TestContextAnnotationUtils;
  * the "Not seen" paragraph of {@link PinnedActiveTablesCatalog}.
  *
  * <p>A runnable test is a class that is not abstract and not {@link Disabled} (nor a {@link Nested}
- * class of a disabled class), with a method JUnit runs as a test that is not itself disabled, in
- * the class, its supertypes or a nested class that is not disabled. A disabled parent class does
- * not disable its subclass, as in JUnit. {@code EnabledIf}, {@code DisabledIf} and the other
- * conditions are not read.
+ * class of a disabled class), with a method Jupiter runs as a test (not private, not static) that
+ * is not itself disabled, in the class, its supertypes or a nested class that is not disabled. A
+ * disabled parent class does not disable its subclass, as in JUnit. {@code EnabledIf}, {@code
+ * DisabledIf} and the other conditions are not read.
  *
  * <p>A class whose pin the baseline of {@link PinnedActiveTablesBaseline} records as {@code drifts}
  * or {@code control} covers nothing: its list is known to differ from production for a reason that
@@ -282,15 +284,18 @@ class TenantIsolationCoverageArchTest {
     }
 
     /**
-     * An enabled method JUnit runs as a test, in the class, its supertypes or a nested class not
-     * disabled.
+     * An enabled method Jupiter runs as a test, in the class, its supertypes or a nested class not
+     * disabled. Jupiter discovers a method carrying {@code @Test}, {@code @TestFactory} or
+     * {@code @TestTemplate} (which {@code @ParameterizedTest} and {@code @RepeatedTest} carry),
+     * directly or as a meta-annotation, and skips one that is private or static. {@code @Testable}
+     * is the Platform's marker and runs nothing by itself.
      */
     private static boolean hasTestMethod(Class<?> type) {
       boolean own =
           !ReflectionSupport.findMethods(
                   type,
                   method ->
-                      AnnotationSupport.isAnnotated(method, Testable.class)
+                      isJupiterTestMethod(method)
                           && !AnnotationSupport.isAnnotated(method, Disabled.class),
                   HierarchyTraversalMode.TOP_DOWN)
               .isEmpty();
@@ -299,6 +304,14 @@ class TenantIsolationCoverageArchTest {
                   type, nested -> AnnotationSupport.isAnnotated(nested, Nested.class))
               .stream()
               .anyMatch(nested -> !isDisabled(nested) && hasTestMethod(nested));
+    }
+
+    private static boolean isJupiterTestMethod(Method method) {
+      return !Modifier.isPrivate(method.getModifiers())
+          && !Modifier.isStatic(method.getModifiers())
+          && (AnnotationSupport.isAnnotated(method, Test.class)
+              || AnnotationSupport.isAnnotated(method, TestFactory.class)
+              || AnnotationSupport.isAnnotated(method, TestTemplate.class));
     }
 
     List<String> markedOutsideTheEffectiveList() {

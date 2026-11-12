@@ -2,11 +2,22 @@ package io.openaev.architecture.fixture;
 
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.platform.commons.annotation.Testable;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
@@ -257,6 +268,86 @@ public final class TenantIsolationCoverageFixtures {
   public static class MarksAClassUnderADisabledParent extends DisabledParent {
     @Test
     void runs() {}
+  }
+
+  /** Jupiter discovers a private method as no test: it is never executed. */
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassWhoseOnlyTestIsPrivate {
+    @Test
+    private void runs() {}
+  }
+
+  /** Jupiter discovers a static method as no test: it is never executed. */
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassWhoseOnlyTestIsStatic {
+    @Test
+    static void runs() {}
+  }
+
+  /** {@code @Testable} is the Platform's marker: Jupiter runs only its own test annotations. */
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassWhoseOnlyTestIsABareTestable {
+    @Testable
+    void runs() {}
+  }
+
+  /** Every method is one Jupiter does not run; the class is reported, not counted. */
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassWhoseOnlyNestedTestIsPrivate {
+    @Nested
+    public class Cases {
+      @Test
+      private void runs() {}
+    }
+  }
+
+  /** A composed annotation that is meta-annotated {@code @Test}, as the isolation tests may use. */
+  @Target(ElementType.METHOD)
+  @Retention(RetentionPolicy.RUNTIME)
+  @Test
+  public @interface IsolationTest {}
+
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassWhoseOnlyTestIsAComposedAnnotation {
+    @IsolationTest
+    void runs() {}
+  }
+
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassWhoseOnlyTestIsAFactory {
+    @TestFactory
+    Stream<DynamicTest> runs() {
+      return Stream.empty();
+    }
+  }
+
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassWhoseOnlyTestIsParameterized {
+    @ParameterizedTest
+    @ValueSource(strings = "a")
+    void runs(String value) {}
+  }
+
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassWhoseOnlyTestIsRepeated {
+    @RepeatedTest(2)
+    void runs() {}
+  }
+
+  /** The test is protected, which Jupiter discovers. */
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassWhoseOnlyTestIsProtected {
+    @Test
+    protected void runs() {}
   }
 
   /** A class that no marker names: the gate leaves it alone. */

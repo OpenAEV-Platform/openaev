@@ -8,8 +8,17 @@ import io.openaev.architecture.TenantIsolationCoverageArchTest.Scan;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.DisablesAClassAroundAMarkedNestedClass;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassUnderADisabledParent;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyNestedTestIsDisabled;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyNestedTestIsPrivate;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestIsABareTestable;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestIsAComposedAnnotation;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestIsAFactory;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestIsDisabled;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestIsInherited;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestIsParameterized;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestIsPrivate;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestIsProtected;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestIsRepeated;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestIsStatic;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestsAreInADisabledNestedClass;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseTestsAreNested;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWithNoTestMethod;
@@ -388,6 +397,50 @@ class TenantIsolationCoverageRulesTest {
           .containsEntry(
               MarksAClassWhoseOnlyNestedTestIsDisabled.class, "has no enabled test method");
       assertThat(scan.covered()).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "given only a private, a static or a bare @Testable method, should name each class and"
+            + " not count it")
+    void given_onlyMethodsJupiterDoesNotRun_should_nameEachClassAndNotCountIt() {
+      // Arrange
+      Scan scan =
+          scan(
+              MarksAClassWhoseOnlyTestIsPrivate.class,
+              MarksAClassWhoseOnlyTestIsStatic.class,
+              MarksAClassWhoseOnlyTestIsABareTestable.class,
+              MarksAClassWhoseOnlyNestedTestIsPrivate.class);
+
+      // Act and Assert
+      assertThat(scan.unrunnable())
+          .containsOnlyKeys(
+              MarksAClassWhoseOnlyTestIsPrivate.class,
+              MarksAClassWhoseOnlyTestIsStatic.class,
+              MarksAClassWhoseOnlyTestIsABareTestable.class,
+              MarksAClassWhoseOnlyNestedTestIsPrivate.class)
+          .containsValue("has no enabled test method");
+      assertThat(scan.markedOutsideTheEffectiveList()).hasSize(4);
+      assertThat(scan.covered()).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "given a composed, factory, parameterized, repeated or protected test, should count the"
+            + " class as runnable")
+    void given_testJupiterRuns_should_countTheClassAsRunnable() {
+      // Arrange
+      Scan scan =
+          scan(
+              MarksAClassWhoseOnlyTestIsAComposedAnnotation.class,
+              MarksAClassWhoseOnlyTestIsAFactory.class,
+              MarksAClassWhoseOnlyTestIsParameterized.class,
+              MarksAClassWhoseOnlyTestIsRepeated.class,
+              MarksAClassWhoseOnlyTestIsProtected.class);
+
+      // Act and Assert
+      assertThat(scan.unrunnable()).isEmpty();
+      assertThat(scan.covered().get("tags")).hasSize(5);
     }
 
     @Test
