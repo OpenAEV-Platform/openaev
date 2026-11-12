@@ -77,6 +77,7 @@ public class MapperService {
   private final EndpointRepository endpointRepository;
   private final EndpointService endpointService;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final UserService userService;
 
   private final TagService tagService;
   private final ObjectMapper objectMapper;
@@ -459,10 +460,14 @@ public class MapperService {
     Specification<InjectorContract> filterSpecifications =
         computeFilterGroupJpa(translated.getFilterGroup());
     filterSpecifications = filterSpecifications.and(computeSearchJpa(translated.getTextSearch()));
-    // One row per contract id, from the same ranked copy the search lists
+    // One row per contract id, from the same ranked copy the search lists: the best-ranked copy
+    // the caller can see
+    Specification<InjectorContract> visible =
+        InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
     Specification<InjectorContract> onePerId =
-        filterSpecifications.and(
-            InjectorContractSpecification.onePerContractId(filterSpecifications));
+        filterSpecifications
+            .and(visible)
+            .and(InjectorContractSpecification.onePerContractId(filterSpecifications.and(visible)));
 
     return injectorContractRepository.findAll(onePerId).stream()
         .map(this::toInjectorContractExport)

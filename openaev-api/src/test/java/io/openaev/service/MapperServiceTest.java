@@ -73,6 +73,7 @@ public class MapperServiceTest extends IntegrationTest {
   @Mock private ObjectMapper objectMapper;
   @Mock private EndpointService endpointService;
   @Mock private TenantWriteScopeResolver writeScopeResolver;
+  @Mock private UserService userService;
   @Mock private TagService tagService;
 
   private MapperService mapperService;
@@ -87,6 +88,7 @@ public class MapperServiceTest extends IntegrationTest {
             endpointRepository,
             endpointService,
             writeScopeResolver,
+            userService,
             tagService,
             objectMapper);
   }

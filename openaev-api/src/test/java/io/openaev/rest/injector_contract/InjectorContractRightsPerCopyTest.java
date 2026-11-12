@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.jayway.jsonpath.JsonPath;
+import com.opencsv.CSVReader;
 import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.context.TenantContext;
@@ -20,11 +21,15 @@ import io.openaev.database.model.Tenant;
 import io.openaev.injectors.manual.ManualContract;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.rest.injector_contract.input.InjectorContractSearchPaginationInput;
+import io.openaev.rest.mapper.MapperApi;
+import io.openaev.utils.CsvType;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.ContractRightsFixture;
 import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -725,6 +730,106 @@ class InjectorContractRightsPerCopyTest extends ProductionTablesIntegrationTest 
 
       // Act / Assert
       assertThat(listedIds(route)).contains(contractId, ManualContract.MANUAL_DEFAULT);
+    }
+  }
+
+  @Nested
+  @DisplayName("Threat arsenal CSV export on a scope of the default tenant and tenant A")
+  class ExportOfBothTenants {
+
+    private String bothTenants() {
+      return Tenant.DEFAULT_TENANT_UUID + "," + tenantA;
+    }
+
+    /** The {@code name} column of the exported rows: the CSV holds no contract id. */
+    private List<String> exportedNames(String scope) throws Exception {
+      SearchPaginationInput input = new SearchPaginationInput();
+      input.setSize(1000);
+      input.setTextSearch(LABEL_PREFIX);
+      MvcResult result =
+          mvc.perform(
+                  request(
+                      post(MapperApi.MAPPER_URI
+                              + "/export/csv?csvType="
+                              + CsvType.INJECTOR_CONTRACTS)
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .content(asJsonString(input))
+                          .with(csrf()),
+                      Route.HEADER,
+                      scope))
+              .andReturn();
+      assertThat(result.getResponse().getStatus()).isEqualTo(200);
+      String csv = result.getResponse().getContentAsString();
+      if (csv.isBlank()) {
+        return List.of();
+      }
+      try (CSVReader reader = new CSVReader(new StringReader(csv))) {
+        List<String[]> lines = reader.readAll();
+        int nameColumn = List.of(lines.getFirst()).indexOf("name");
+        assertThat(nameColumn).as("name column of the export").isGreaterThanOrEqualTo(0);
+        return lines.stream().skip(1).map(line -> line[nameColumn]).toList();
+      }
+    }
+
+    @Test
+    @DisplayName("given_grantOnlyInTenantAGroup_should_exportTenantACopyOnceAsTheSearchLists")
+    void given_grantOnlyInTenantAGroup_should_exportTenantACopyOnceAsTheSearchLists()
+        throws Exception {
+      // Arrange: the default copy outranks A's but the caller cannot see it; a second contract has
+      // no visible copy
+      String seen = copiesOf("seen");
+      copiesOf("hidden");
+      rights.grantObserver(groupOf(tenantA, Set.of()), seen);
+      testUserHolder.refreshSecurityContext();
+
+      // Act
+      List<String> exported = exportedNames(bothTenants());
+
+      // Assert: the export lists the row the search lists
+      assertSearchReturnsCopies(
+          Surface.ARSENAL, bothTenants(), seen + "|" + copyLabel("seen", tenantA));
+      assertThat(exported).containsExactly(copyLabel("seen", tenantA));
+    }
+
+    @Test
+    @DisplayName("given_noVisibleCopy_should_exportNoRowAsTheSearchListsNone")
+    void given_noVisibleCopy_should_exportNoRowAsTheSearchListsNone() throws Exception {
+      // Arrange: two contracts with a copy in each tenant, none of them visible to the caller
+      copiesOf("hidden-1");
+      copiesOf("hidden-2");
+
+      // Act
+      List<String> exported = exportedNames(bothTenants());
+
+      // Assert
+      assertSearchReturnsCopies(Surface.ARSENAL, bothTenants());
+      assertThat(exported).isEmpty();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("given_platformAdministrator_should_exportTheRankedCopyOfEachContractOnce")
+    void given_platformAdministrator_should_exportTheRankedCopyOfEachContractOnce()
+        throws Exception {
+      // Arrange
+      String first = copiesOf("first");
+      String second = copiesOf("second");
+
+      // Act
+      List<String> exported = exportedNames(bothTenants());
+
+      // Assert: the default copy outranks A's for every contract id
+      assertSearchReturnsCopies(
+          Surface.ARSENAL,
+          bothTenants(),
+          contractId + "|" + labelOf(Tenant.DEFAULT_TENANT_UUID),
+          first + "|" + copyLabel("first", Tenant.DEFAULT_TENANT_UUID),
+          second + "|" + copyLabel("second", Tenant.DEFAULT_TENANT_UUID));
+      assertThat(exported)
+          .containsExactlyInAnyOrder(
+              labelOf(Tenant.DEFAULT_TENANT_UUID),
+              copyLabel("first", Tenant.DEFAULT_TENANT_UUID),
+              copyLabel("second", Tenant.DEFAULT_TENANT_UUID));
     }
   }
 }
