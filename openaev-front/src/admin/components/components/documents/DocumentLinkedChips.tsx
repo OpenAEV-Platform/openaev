@@ -24,7 +24,7 @@ export interface LinkedChipItem {
 }
 
 interface Props {
-  // Every linked id of the document, resolved or not: the "+N" counts them all.
+  // Every linked id of the document; only the ones that resolve (the ones the user can see) are shown or counted.
   ids: string[];
   resolve: (id: string) => LinkedChipItem | undefined;
   onOpen: (id: string) => void;
@@ -41,7 +41,8 @@ const DocumentLinkedChips = ({ ids, resolve, onOpen }: Props) => {
     return <span>-</span>;
   }
   const [first] = resolved;
-  const hiddenCount = ids.length - 1;
+  // Counted from the resolved items so the "+N" always matches the names its tooltip lists.
+  const hiddenCount = resolved.length - 1;
   const hiddenNames = resolved.slice(1).map(item => item.name).filter(Boolean).join(', ');
   const open = (event: MouseEvent) => {
     event.stopPropagation();

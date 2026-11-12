@@ -32,15 +32,29 @@ describe('DocumentLinkedChips', () => {
 
   it('shows one chip and counts the others in a +N chip, on a single non-wrapping line', () => {
     const { container } = renderChips(
-      <DocumentLinkedChips ids={['a', 'b', 'c', 'd']} resolve={resolve} onOpen={() => {}} />,
+      <DocumentLinkedChips ids={['a', 'b', 'c']} resolve={resolve} onOpen={() => {}} />,
     );
     expect(screen.getByText('Simulation A')).toBeTruthy();
     expect(screen.queryByText('Simulation B')).toBeNull();
-    expect(screen.getByText('+3')).toBeTruthy();
+    expect(screen.getByText('+2')).toBeTruthy();
     const line = container.querySelector('[data-linked-chip]')?.parentElement as HTMLElement;
     const style = getComputedStyle(line);
     expect(style.flexWrap).toBe('nowrap');
     expect(style.overflow).toBe('hidden');
+  });
+
+  it('counts only the linked entities that resolve, so +N matches the names of its tooltip', () => {
+    renderChips(
+      <DocumentLinkedChips ids={['a', 'x', 'b', 'y', 'c']} resolve={resolve} onOpen={() => {}} />,
+    );
+    expect(screen.getByText('+2')).toBeTruthy();
+    expect(screen.queryByText('+4')).toBeNull();
+  });
+
+  it('shows no +N chip when only one linked entity resolves', () => {
+    renderChips(<DocumentLinkedChips ids={['x', 'b', 'y']} resolve={resolve} onOpen={() => {}} />);
+    expect(screen.getByText('Simulation B')).toBeTruthy();
+    expect(screen.queryByText(/^\+/)).toBeNull();
   });
 
   it('shows no +N chip for a single link', () => {
