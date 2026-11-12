@@ -2,6 +2,7 @@ package io.openaev.rest.exercise;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.Test;
  * route the scope is the {@code X-Tenant-Ids} selector, or the caller's memberships when it names
  * none: a row outside that scope is not found by id.
  */
+@CoversTenantIsolation({"exercises", "scenarios"})
 @WithMockUser(isAdmin = true)
 @DisplayName("Simulation and scenario by-id reads in the request scope, production tables")
 class ByIdRequestScopeTest extends ByIdRequestScopeProductionTablesTestBase {
