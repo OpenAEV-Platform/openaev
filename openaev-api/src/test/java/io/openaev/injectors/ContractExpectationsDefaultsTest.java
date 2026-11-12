@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.expectation.ExpectationBuilderService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
+import io.openaev.expectation.ExpectationType;
 import io.openaev.injector_contract.Contract;
 import io.openaev.injector_contract.fields.ContractExpectations;
 import io.openaev.injectors.challenge.ChallengeContract;
@@ -95,6 +96,23 @@ class ContractExpectationsDefaultsTest {
             assertThat(types(expectationsField.getAvailableExpectations()))
                 .containsExactlyInAnyOrder(MANUAL);
           });
+    }
+  }
+
+  @Nested
+  @DisplayName("Vulnerability expectation default")
+  class VulnerabilityExpectationDefault {
+
+    @Test
+    void given_vulnerabilityExpectation_should_beNamedAfterItsExpectedOutcome() {
+      // Act
+      Expectation expectation = expectationBuilderService.buildVulnerabilityExpectation();
+
+      // Assert: the expectation succeeds when the target is not vulnerable (#6747)
+      assertThat(expectation.getType()).isEqualTo(EXPECTATION_TYPE.VULNERABILITY);
+      assertThat(expectation.getName())
+          .isEqualTo("Not vulnerable")
+          .isEqualTo(ExpectationType.VULNERABILITY.successLabel);
     }
   }
 
