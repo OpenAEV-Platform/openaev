@@ -25,6 +25,11 @@ public class CatalogHistory implements TenantBase {
     UNINSTALL
   }
 
+  public enum Mode {
+    MANUAL,
+    AUTO
+  }
+
   @Id
   @Column(name = "catalog_history_id", updatable = false, nullable = false)
   @GeneratedValue(generator = "UUID")
@@ -61,6 +66,11 @@ public class CatalogHistory implements TenantBase {
   @Enumerated(EnumType.STRING)
   @NotNull
   private Action action;
+
+  @Column(name = "catalog_history_mode", updatable = false)
+  @Enumerated(EnumType.STRING)
+  @NotNull
+  private Mode mode;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "catalog_history_user", updatable = false)

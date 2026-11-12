@@ -159,4 +159,23 @@ public class DetectionRemediationService {
     }
     return detectionRemediation;
   }
+
+  /**
+   * Copies the AI rules of a payload onto another one, flagged outdated until reviewed. Saved as
+   * rules of their own, as an AI rule is: the payload and its content hash stay as they are.
+   */
+  public void copyAiRulesToReview(Payload from, Payload to) {
+    detectionRemediationRepository.saveAll(
+        from.getDetectionRemediations().stream()
+            .filter(rule -> rule.getAuthorRule() != DetectionRemediation.AUTHOR_RULE.HUMAN)
+            .map(
+                rule ->
+                    DetectionRemediation.builder()
+                        .payload(to)
+                        .securityPlatform(rule.getSecurityPlatform())
+                        .values(rule.getValues())
+                        .authorRule(DetectionRemediation.AUTHOR_RULE.AI_OUTDATED)
+                        .build())
+            .toList());
+  }
 }

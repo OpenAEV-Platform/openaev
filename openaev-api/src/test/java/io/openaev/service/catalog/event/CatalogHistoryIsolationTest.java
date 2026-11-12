@@ -79,6 +79,7 @@ class CatalogHistoryIsolationTest extends IntegrationTest {
     history.setExternalId("payload-" + tenantId);
     history.setVersion("1.0.0");
     history.setAction(CatalogHistory.Action.INSTALL);
+    history.setMode(CatalogHistory.Mode.MANUAL);
     return history;
   }
 }
