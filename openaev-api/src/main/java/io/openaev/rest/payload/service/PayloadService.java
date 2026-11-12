@@ -482,13 +482,16 @@ public class PayloadService {
   }
 
   public void deprecateNonProcessedPayloadsByCollector(
-      String collectorId, List<String> processedPayloadExternalIds) {
+      TxCtx ctx, String collectorId, List<String> processedPayloadExternalIds) {
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     List<String> payloadExternalIds =
-        payloadRepository.findAllExternalIdsByCollectorId(collectorId);
+        payloadRepository.findAllExternalIdsByCollectorId(collectorId, writeTenant);
     List<String> payloadExternalIdsToDeprecate =
         getExternalIdsToDeprecate(payloadExternalIds, processedPayloadExternalIds);
     payloadRepository.setPayloadStatusByExternalIds(
-        String.valueOf(Payload.PAYLOAD_STATUS.DEPRECATED), payloadExternalIdsToDeprecate);
+        String.valueOf(Payload.PAYLOAD_STATUS.DEPRECATED),
+        payloadExternalIdsToDeprecate,
+        writeTenant);
     log.info("Number of deprecated Payloads: {}", payloadExternalIdsToDeprecate.size());
   }
 
