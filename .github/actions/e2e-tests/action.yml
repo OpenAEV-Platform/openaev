@@ -303,6 +303,21 @@ runs:
         PROJECT: ${{ inputs.project || inputs.browser }}
         SHARD_INCLUDES: ${{ inputs.includes }}
         SHARD_EXCLUDES: ${{ inputs.excludes }}
+    # A Playwright trace shows what the browser saw, not why the backend, the
+    # integrations manager or a started injector did not act (a chaining step
+    # that never becomes an inject, an injector that never registers). Their
+    # logs go into test-results/ so the report artifact below carries them.
+    - name: Collect container logs on failure
+      if: ${{ failure() }}
+      shell: bash
+      run: |
+        LOG_DIR=openaev-front/test-results/container-logs
+        mkdir -p "$LOG_DIR"
+        docker ps -a --format '{{.Names}}\t{{.Image}}\t{{.Status}}' > "$LOG_DIR/containers.txt" 2>&1 || true
+        for name in $(docker ps -a --format '{{.Names}}'); do
+          docker logs --timestamps "$name" > "$LOG_DIR/$name.log" 2>&1 || true
+        done
+        echo "Collected logs of $(ls "$LOG_DIR" | grep -c '\.log$') container(s) into $LOG_DIR"
     - name: Upload Playwright report (${{ inputs.browser }})
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7
