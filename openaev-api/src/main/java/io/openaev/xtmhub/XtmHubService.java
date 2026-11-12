@@ -88,6 +88,29 @@ public class XtmHubService {
   }
 
   /**
+   * The number of unread news feed items of the current user. Like {@link #searchMyNewsFeedItems},
+   * it is 0 when no tenant in the scope of the request is registered on XTM Hub: the user cannot
+   * see the items there.
+   */
+  public long countMyUnreadNewsFeedItems(TxCtx ctx) {
+    if (!isNewsFeedServed(registrationStatuses(ctx))) {
+      return 0;
+    }
+    return newsFeedItemService.countMyUnreadItems();
+  }
+
+  /**
+   * Marks all the news feed items of the current user as read. Does nothing when no tenant in the
+   * scope of the request is registered on XTM Hub: the user cannot see the items there, so they
+   * must not be read for the tenants that do show them.
+   */
+  public void markMyNewsFeedItemsRead(TxCtx ctx) {
+    if (isNewsFeedServed(registrationStatuses(ctx))) {
+      newsFeedItemService.markMyItemsRead();
+    }
+  }
+
+  /**
    * The news feed settings of the current user: the types they are subscribed to, whether their
    * news feed is served by XTM Hub, and whether XTM Hub is connected.
    */
