@@ -9,6 +9,7 @@ import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
 import io.openaev.utils.TargetType;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -66,26 +67,27 @@ public class FindingMapper {
    * cleartext, so a secret value never leaves the platform.
    */
   public FindingOutput toFindingOutput(Finding finding) {
+    Optional<FindingOccurrence> occurrence = latestOccurrence(finding);
+    Optional<Inject> inject = occurrence.map(FindingOccurrence::getInject);
+    Optional<Exercise> simulation = inject.map(Inject::getExercise);
     return FindingOutput.builder()
         .id(finding.getId())
-        .field(finding.getField())
+        .field(occurrence.map(FindingOccurrence::getField).orElse(null))
         .type(finding.getType())
         .value(finding.getValueDisplay())
         .labels(finding.getLabels())
         .name(finding.getName())
         .tags(finding.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
-        .injectId(Optional.ofNullable(finding.getInject()).map(Inject::getId).orElse(null))
+        .injectId(inject.map(Inject::getId).orElse(null))
         .creationDate(finding.getCreationDate())
         .updateDate(finding.getUpdateDate())
         .assets(finding.getAssets().stream().map(Asset::getId).toList())
         .teams(finding.getTeams().stream().map(Team::getId).toList())
         .users(finding.getUsers().stream().map(User::getId).toList())
-        .simulation(
-            Optional.ofNullable(finding.getSimulation())
-                .map(exerciseMapper::toExerciseSimple)
-                .orElse(null))
+        .simulation(simulation.map(exerciseMapper::toExerciseSimple).orElse(null))
         .scenario(
-            Optional.ofNullable(finding.getScenario())
+            simulation
+                .map(Exercise::getScenario)
                 .map(scenarioMapper::toScenarioSimple)
                 .orElse(null))
         .assetGroups(
@@ -126,6 +128,8 @@ public class FindingMapper {
   }
 
   public RelatedFindingOutput toRelatedFindingOutput(Finding finding) {
+    Optional<Inject> inject = latestOccurrence(finding).map(FindingOccurrence::getInject);
+    Optional<Exercise> simulation = inject.map(Inject::getExercise);
     return RelatedFindingOutput.builder()
         .id(finding.getId())
         .value(finding.getValueDisplay())
@@ -139,13 +143,10 @@ public class FindingMapper {
             finding.getAssetGroups().stream()
                 .map(assetGroup -> assetGroupMapper.toAssetGroupSimple(assetGroup))
                 .collect(Collectors.toSet()))
-        .inject(injectMapper.toInjectSimple(finding.getInject()))
-        .simulation(
-            Optional.ofNullable(finding.getInject().getExercise())
-                .map(exercise -> exerciseMapper.toExerciseSimple(exercise))
-                .orElse(null))
+        .inject(inject.map(injectMapper::toInjectSimple).orElse(null))
+        .simulation(simulation.map(exerciseMapper::toExerciseSimple).orElse(null))
         .scenario(
-            Optional.ofNullable(finding.getInject().getExercise())
+            simulation
                 .map(Exercise::getScenario)
                 .map(scenario -> scenarioMapper.toScenarioSimple(scenario))
                 .orElse(null))
@@ -173,5 +174,11 @@ public class FindingMapper {
                 .collect(Collectors.toSet()))
         .creationDate(finding.getCreationDate())
         .build();
+  }
+
+  private static Optional<FindingOccurrence> latestOccurrence(Finding finding) {
+    return finding.getOccurrences().stream()
+        .filter(occurrence -> occurrence.getInject() != null)
+        .max(Comparator.comparing(FindingOccurrence::getDate));
   }
 }

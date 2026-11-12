@@ -4,6 +4,7 @@ import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.Finding;
+import io.openaev.database.model.FindingOccurrence;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Team;
@@ -95,11 +96,11 @@ public class AttackPathFindingIngestionService {
             if (TransactionSynchronizationManager.isActualTransactionActive()) {
               tenantTx.executeNew(
                   TxCtx.forTenant(tenantId),
-                  () -> copy(stepId, simulationId, tenantId, findingLoader));
+                  () -> copy(injectId, stepId, simulationId, tenantId, findingLoader));
             } else {
               tenantTx.execute(
                   TxCtx.forTenant(tenantId),
-                  () -> copy(stepId, simulationId, tenantId, findingLoader));
+                  () -> copy(injectId, stepId, simulationId, tenantId, findingLoader));
             }
           } catch (Exception e) {
             log.warn(
@@ -206,6 +207,7 @@ public class AttackPathFindingIngestionService {
 
   private void copy(String injectId, String stepId, String simulationId, String tenantId) {
     copy(
+        injectId,
         stepId,
         simulationId,
         tenantId,
@@ -218,7 +220,11 @@ public class AttackPathFindingIngestionService {
    * finding.
    */
   private void copy(
-      String stepId, String simulationId, String tenantId, Supplier<List<Finding>> findingsLoader) {
+      String injectId,
+      String stepId,
+      String simulationId,
+      String tenantId,
+      Supplier<List<Finding>> findingsLoader) {
     List<AttackPathExecution> rows = executionRepository.findByStepIdAndTenantId(stepId, tenantId);
     if (rows.isEmpty()) {
       return; // no frozen endpoint to attribute a finding to yet
@@ -250,7 +256,7 @@ public class AttackPathFindingIngestionService {
 
     for (Finding finding : findings) {
       String type = finding.getType().getLabel();
-      String field = finding.getField();
+      String field = fieldOnInject(finding, injectId);
       String value = finding.getValue();
 
       List<AttackPathExecution> targets =
@@ -324,6 +330,15 @@ public class AttackPathFindingIngestionService {
    * copy runs inside its own transaction, and the platform batch fetch size groups those loads
    * across the inject's findings (two bags cannot be fetch-joined alongside {@code assets}).
    */
+  // Both loaders only return findings with an occurrence on the inject.
+  private static String fieldOnInject(Finding finding, String injectId) {
+    return finding.getOccurrences().stream()
+        .filter(o -> o.getInject() != null && injectId.equals(o.getInject().getId()))
+        .findFirst()
+        .map(FindingOccurrence::getField)
+        .orElseThrow();
+  }
+
   private List<AttackPathExecution> resolveTargets(
       Finding finding,
       Map<String, List<AttackPathExecution>> rowsByAsset,

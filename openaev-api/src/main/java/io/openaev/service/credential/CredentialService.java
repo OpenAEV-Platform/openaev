@@ -493,20 +493,20 @@ public class CredentialService {
       byte[] azureRequestsCertificate) {
     SecretsProvider provider = secretsProviderResolver.resolveLocalProvider(tenantId);
 
-    // Build Credential Reference
-    CredentialSecretReference credential = new CredentialSecretReference();
-    applyCreateInputToCredential(credential, input, provider.getId(), tenantId);
-
-    // Phase 1 — store credential reference with its secret
+    // Phase 1: build the credential reference, whose tags resolve in the scope of the tenant, and
+    // store it with its secret
     CredentialSecretReference persistedCredential =
         tenantTx.execute(
             TxCtx.forTenant(tenantId),
-            () ->
-                (CredentialSecretReference)
-                    provider.store(
-                        credential,
-                        convertCredentialInputToSecretStoreRequest(
-                            input, gcpPrivateKeyJson, azureRequestsCertificate)));
+            () -> {
+              CredentialSecretReference credential = new CredentialSecretReference();
+              applyCreateInputToCredential(credential, input, provider.getId(), tenantId);
+              return (CredentialSecretReference)
+                  provider.store(
+                      credential,
+                      convertCredentialInputToSecretStoreRequest(
+                          input, gcpPrivateKeyJson, azureRequestsCertificate));
+            });
 
     // Phase 2 — validate connectivity after write, in a separate transaction to avoid any rollback
     // of the credential creation
@@ -547,7 +547,7 @@ public class CredentialService {
                   secretsProviderResolver.resolveByConnectorInstanceId(
                       tenantId, credential.getConnectorInstanceId());
 
-              applyMetadataInputToCredential(credential, input);
+              applyMetadataInputToCredential(credential, input, tenantId);
               credential.setStatus(SecretReference.SECRET_STATUS.UNSET);
               credential.setLastVerifiedAt(null);
 
@@ -580,7 +580,7 @@ public class CredentialService {
       CredentialInput input,
       String providerId,
       String tenantId) {
-    applyMetadataInputToCredential(credential, input);
+    applyMetadataInputToCredential(credential, input, tenantId);
     credential.setConnectorInstanceId(providerId);
     credential.setTenant(new Tenant(tenantId));
     credential.setStatus(SecretReference.SECRET_STATUS.UNSET);
@@ -589,12 +589,14 @@ public class CredentialService {
   }
 
   private void applyMetadataInputToCredential(
-      CredentialSecretReference credential, CredentialInput input) {
+      CredentialSecretReference credential, CredentialInput input, String tenantId) {
     credential.setName(Objects.requireNonNull(input.credentialName(), "name must not be null"));
     credential.setDescription(input.credentialDescription());
     List<String> tagIds = Objects.requireNonNullElse(input.credentialTagIds(), List.of());
     credential.setTags(
-        tagIds.isEmpty() ? new HashSet<>() : iterableToSet(tagRepository.findAllById(tagIds)));
+        tagIds.isEmpty()
+            ? new HashSet<>()
+            : iterableToSet(tagRepository.findAllByIdInTenant(tagIds, tenantId)));
     credential.setCredentialAuthMethod(input.credentialAuthMethod());
     credential.setCredentialType(input.credentialType());
   }

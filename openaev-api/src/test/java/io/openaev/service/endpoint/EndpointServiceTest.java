@@ -98,7 +98,8 @@ class EndpointServiceTest {
 
       Tag tag = new Tag();
       tag.setId("tag-1");
-      when(tagRepository.findAllById(List.of("tag-1"))).thenReturn(List.of(tag));
+      when(tagRepository.findAllByIdInTenant(List.of("tag-1"), Tenant.DEFAULT_TENANT_UUID))
+          .thenReturn(List.of(tag));
       when(endpointRepository.save(any(Endpoint.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -109,7 +110,7 @@ class EndpointServiceTest {
       assertNotNull(result);
       assertTrue(result.isEoL());
       assertThat(result.getSeenIp()).isEqualTo("10.0.0.1");
-      verify(tagRepository).findAllById(List.of("tag-1"));
+      verify(tagRepository).findAllByIdInTenant(List.of("tag-1"), Tenant.DEFAULT_TENANT_UUID);
       verify(endpointRepository).save(any(Endpoint.class));
     }
   }

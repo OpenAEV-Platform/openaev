@@ -908,12 +908,12 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
             instance -> {
               assertTrue(
                   instance.has("user_grants"), consumer.name() + " must receive user_grants");
-              Map<String, String> actual =
-                  mapper.convertValue(
-                      instance.path("user_grants"),
-                      mapper
-                          .getTypeFactory()
-                          .constructMapType(LinkedHashMap.class, String.class, String.class));
+              Map<String, String> actual = new LinkedHashMap<>();
+              instance
+                  .path("user_grants")
+                  .properties()
+                  .forEach(
+                      grant -> actual.put(grant.getKey(), grant.getValue().path("grant").asText()));
               assertEquals(expected, actual, consumer.name() + " user_grants");
             });
   }
