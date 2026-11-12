@@ -69,11 +69,15 @@ class NewsFeedItemApiTest extends IntegrationTest {
   }
 
   private void registerTenant(XtmHubRegistrationStatus status) {
+    registerTenant(tenantId, status);
+  }
+
+  private void registerTenant(String id, XtmHubRegistrationStatus status) {
     TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
     registration.setToken("token");
     registration.setRegistrationDate(LocalDateTime.now());
     registration.setRegistrationStatus(status);
-    registration.setTenant(new Tenant(tenantId));
+    registration.setTenant(new Tenant(id));
     registrationRepository.save(registration);
   }
 
@@ -296,6 +300,23 @@ class NewsFeedItemApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName(
+        "Given another tenant registered but not the one of the request, should count none")
+    void given_otherTenantRegistered_should_countNone() throws Exception {
+      // Arrange
+      registerTenant(
+          tenantHelper.createTenant("other-news-feed-tenant").getId(),
+          XtmHubRegistrationStatus.REGISTERED);
+      saveItem(userService.currentUser(), "hub-1", false);
+
+      // Act
+      String response = unreadCount();
+
+      // Assert
+      assertThat(response).isEqualTo("0");
+    }
+
+    @Test
     @DisplayName("Given a tenant that lost its connectivity, should still count the items")
     void given_lostConnectivityTenant_should_stillCountItems() throws Exception {
       // Arrange
@@ -373,6 +394,52 @@ class NewsFeedItemApiTest extends IntegrationTest {
 
       // Assert
       assertThat(isRead(item)).isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "Given another tenant registered but not the one of the request, should leave unread")
+    void given_otherTenantRegistered_should_leaveItemsUnread() throws Exception {
+      // Arrange
+      registerTenant(
+          tenantHelper.createTenant("other-news-feed-tenant").getId(),
+          XtmHubRegistrationStatus.REGISTERED);
+      NewsFeedItem item = saveItem(userService.currentUser(), "hub-1", false);
+
+      // Act
+      markAllRead();
+
+      // Assert
+      assertThat(isRead(item)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Given a tenant that lost its connectivity, should still read the items")
+    void given_lostConnectivityTenant_should_stillReadItems() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+      NewsFeedItem item = saveItem(userService.currentUser(), "hub-1", false);
+
+      // Act
+      markAllRead();
+
+      // Assert
+      assertThat(isRead(item)).isTrue();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = false)
+    @DisplayName("Given a user without any capability, should still read their items")
+    void given_userWithoutCapability_should_readTheirItems() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.REGISTERED);
+      NewsFeedItem item = saveItem(userService.currentUser(), "hub-1", false);
+
+      // Act
+      markAllRead();
+
+      // Assert
+      assertThat(isRead(item)).isTrue();
     }
 
     @Test
