@@ -202,7 +202,7 @@ public class ExerciseApiTest extends IntegrationTest {
   class RetrievingExercises {
     @Test
     @DisplayName("Retrieving players by exercise")
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void retrievingPlayersByExercise() throws Exception {
       // -- PREPARE --
       User userTom = userRepository.save(UserFixture.getUser("Tom", "TEST", "tom-test@fake.email"));
