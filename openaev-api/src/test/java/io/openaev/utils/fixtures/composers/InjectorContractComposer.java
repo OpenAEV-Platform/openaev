@@ -203,16 +203,17 @@ public class InjectorContractComposer extends ComposerBase<InjectorContract> {
 
     @Override
     public Composer delete() {
+      // The contract first: deleting what it references first leaves the session inconsistent.
+      if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
+        injectorContractRepository.delete(injectorContract);
+      }
+      payloadComposer.ifPresent(PayloadComposer.Composer::delete);
       tagComposers.forEach(TagComposer.Composer::delete);
       domainComposers.forEach(DomainComposer.Composer::delete);
-      payloadComposer.ifPresent(PayloadComposer.Composer::delete);
       challengeComposers.forEach(ChallengeComposer.Composer::delete);
       articleComposers.forEach(ArticleComposer.Composer::delete);
       attackPatternComposer.forEach(AttackPatternComposer.Composer::delete);
       vulnerabilityComposer.forEach(VulnerabilityComposer.Composer::delete);
-      if (!WELL_KNOWN_CONTRACT_IDS.contains(injectorContract.getId())) {
-        injectorContractRepository.delete(injectorContract);
-      }
       return this;
     }
 

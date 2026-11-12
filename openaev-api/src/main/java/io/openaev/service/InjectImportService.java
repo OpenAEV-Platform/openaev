@@ -13,17 +13,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.config.TenantWriteScopeResolver;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.FileTooBigException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.scenario.response.ImportMessage;
 import io.openaev.rest.scenario.response.ImportPostSummary;
 import io.openaev.rest.scenario.response.ImportTestSummary;
+import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.InjectImportUtils;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.mapper.InjectMapper;
@@ -73,8 +74,8 @@ public class InjectImportService {
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
 
-  private final ExerciseRepository exerciseRepository;
-  private final ScenarioRepository scenarioRepository;
+  private final ExerciseService exerciseService;
+  private final ScenarioService scenarioService;
   private final ImportService importService;
 
   private final List<String> importReservedField = List.of("description", "title", "trigger_time");
@@ -464,9 +465,9 @@ public class InjectImportService {
                 // We set the exercise or scenario
                 Inject inject = rowSummary.getInject();
                 if (scenario != null && inject != null) {
-                  inject.setScenario(scenario);
+                  InjectUtils.attachToScenario(inject, scenario);
                 } else if (exercise != null && inject != null) {
-                  inject.setExercise(exercise);
+                  InjectUtils.attachToExercise(inject, exercise);
                 }
                 rowSummary.setInject(inject);
 
@@ -649,6 +650,8 @@ public class InjectImportService {
 
     // Creating the inject
     Inject inject = new Inject();
+    // The inject belongs to the import's write tenant, whatever tenant the request runs in.
+    inject.setTenant(new Tenant(writeTenant));
     inject.setDependsDuration(0L);
 
     // Adding the description
@@ -1303,9 +1306,7 @@ public class InjectImportService {
   public void importInjectsForScenario(TxCtx ctx, MultipartFile file, String scenarioId)
       throws Exception {
     Scenario targetScenario =
-        scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
 
     this.importService.handleFileImport(ctx, file, null, targetScenario);
   }
@@ -1313,7 +1314,9 @@ public class InjectImportService {
   public void importInjectsForSimulation(TxCtx ctx, MultipartFile file, String simulationId)
       throws Exception {
     Exercise targetSimulation =
-        exerciseRepository.findById(simulationId).orElseThrow(ElementNotFoundException::new);
+        exerciseService
+            .findByIdInScope(ctx, simulationId)
+            .orElseThrow(ElementNotFoundException::new);
 
     this.importService.handleFileImport(ctx, file, targetSimulation, null);
   }

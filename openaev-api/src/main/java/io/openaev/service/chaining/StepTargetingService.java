@@ -173,11 +173,34 @@ public class StepTargetingService {
     if (data == null) {
       return false;
     }
-    JsonElement allTeams = data.get("inject_all_teams");
-    if (allTeams != null && allTeams.isJsonPrimitive() && allTeams.getAsBoolean()) {
-      return true;
+    return isAllTeams(data) || hasNonEmptyArray(data, "inject_teams");
+  }
+
+  /**
+   * Returns {@code true} when the step data is in all-teams mode. In a chained workflow the inject
+   * then targets the whole scope audience: its valid teams and individual players.
+   */
+  public boolean targetsAllTeams(Step step) {
+    JsonObject data = parseStepData(step);
+    return data != null && isAllTeams(data);
+  }
+
+  /**
+   * Returns the IDs of the teams selected in the Configure-action drawer ({@code inject_teams}), or
+   * an empty set when none is selected.
+   */
+  public Set<String> getExplicitAudienceTeamIds(Step step) {
+    JsonObject data = parseStepData(step);
+    if (data == null || !hasNonEmptyArray(data, "inject_teams")) {
+      return Set.of();
     }
-    return hasNonEmptyArray(data, "inject_teams");
+    Set<String> teamIds = new LinkedHashSet<>();
+    for (JsonElement team : data.getAsJsonArray("inject_teams")) {
+      if (team.isJsonPrimitive()) {
+        teamIds.add(team.getAsString());
+      }
+    }
+    return teamIds;
   }
 
   /**
@@ -357,6 +380,11 @@ public class StepTargetingService {
       log.warn("Failed to parse step data for step ID: {}", step.getId());
       return null;
     }
+  }
+
+  private boolean isAllTeams(JsonObject data) {
+    JsonElement allTeams = data.get("inject_all_teams");
+    return allTeams != null && allTeams.isJsonPrimitive() && allTeams.getAsBoolean();
   }
 
   private boolean hasNonEmptyArray(JsonObject data, String key) {

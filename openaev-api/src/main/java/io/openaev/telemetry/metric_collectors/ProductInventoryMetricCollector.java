@@ -160,8 +160,8 @@ public class ProductInventoryMetricCollector {
               () ->
                   entityManager
                       .createQuery(
-                          "select p.type, p.source, p.status, count(p) from Payload p"
-                              + " group by p.type, p.source, p.status",
+                          "select p.type, p.identity.source, p.status, count(p) from Payload p"
+                              + " group by p.type, p.identity.source, p.status",
                           Object[].class)
                       .getResultList());
       for (Object[] row : rows) {

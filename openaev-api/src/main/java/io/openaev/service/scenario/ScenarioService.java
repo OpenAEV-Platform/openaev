@@ -1,8 +1,6 @@
 package io.openaev.service.scenario;
 
-import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
-import static io.openaev.database.specification.ScenarioSpecification.findGrantedFor;
 import static io.openaev.database.specification.TeamSpecification.fromIds;
 import static io.openaev.database.specification.TeamSpecification.fromScenario;
 import static io.openaev.helper.StreamHelper.fromIterable;
@@ -33,6 +31,7 @@ import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawScenario;
 import io.openaev.database.raw.RawScenarioSimpleIndexing;
+import io.openaev.database.raw.RawScenarioWorkflowFields;
 import io.openaev.database.repository.*;
 import io.openaev.database.specification.ScenarioSpecification;
 import io.openaev.database.specification.SpecificationUtils;
@@ -66,8 +65,10 @@ import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.scenario.response.ScenarioTeamUserOutput;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
+import io.openaev.service.AuthorService;
 import io.openaev.service.account.ReservedKeyValidator;
 import io.openaev.service.chaining.ScopeService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -76,6 +77,7 @@ import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TeamOutputVisibilityUtils;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.ScenarioMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -92,6 +94,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -146,6 +149,7 @@ public class ScenarioService {
   private final TagRuleService tagRuleService;
   private final InjectService injectService;
   private final UserService userService;
+  private final AuthorService authorService;
   private final TenantSettingsService tenantSettingsService;
   private final CustomDashboardService customDashboardService;
 
@@ -157,6 +161,7 @@ public class ScenarioService {
 
   private final ScenarioMapper scenarioMapper;
   private final WorkflowService workflowService;
+  private final WorkflowOwnerScope workflowOwnerScope;
   private final WorkflowExportInitializer workflowExportInitializer;
   private final BulkDeleteExecutor bulkDeleteExecutor;
 
@@ -168,8 +173,14 @@ public class ScenarioService {
           io.openaev.service.autonomous.AutonomousRunService>
       autonomousRunServiceProvider;
 
+  // Lazy for the same cycle: PermissionService reaches AutonomousRunService.
+  private final org.springframework.beans.factory.ObjectProvider<PermissionService>
+      permissionServiceProvider;
+
+  /** Authored by whoever creates it, a person or a service account; no author at startup. */
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
+    authorService.authorByCurrentUser(scenario);
     return computeAndCreateScenario(scenario);
   }
 
@@ -178,6 +189,7 @@ public class ScenarioService {
       throws ChainingException {
 
     computeEmails(scenario);
+    authorService.authorByCurrentUser(scenario);
     this.actionMetricCollector.addScenarioCreatedCount();
     Scenario savedScenario = this.scenarioRepository.save(scenario);
     workflowService.creationWorkflow(savedScenario);
@@ -193,9 +205,14 @@ public class ScenarioService {
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
     Scenario preparedScenario = prepareScenarioFromScenarioInput(tenantId, scenarioInput);
+    authorService.authorByCurrentUser(preparedScenario);
     Scenario scenario = computeAndCreateScenario(preparedScenario);
     this.injectService.createInjectsFromInjectorContractInput(
-        null, new ArrayList<>(List.of(scenario)), injectorContractSearchPaginationInput, locale);
+        ctx,
+        null,
+        new ArrayList<>(List.of(scenario)),
+        injectorContractSearchPaginationInput,
+        locale);
     KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
     return ScenarioSimple.fromScenario(scenario);
   }
@@ -208,7 +225,7 @@ public class ScenarioService {
       @NotBlank final String locale) {
     List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
     this.injectService.createInjectsFromInjectorContractInput(
-        null, scenarios, injectorContractSearchPaginationInput, locale);
+        ctx, null, scenarios, injectorContractSearchPaginationInput, locale);
     scenarios.forEach(
         scenario -> KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects()));
     return scenarios.stream().map(ScenarioSimple::fromScenario).toList();
@@ -226,33 +243,57 @@ public class ScenarioService {
     }
   }
 
-  public List<ScenarioSimple> scenarios() {
-    List<RawScenarioSimpleIndexing> scenarios;
+  /**
+   * The scenarios the caller reads: every scenario of a tenant where it holds the access right, and
+   * the scenarios it holds a grant on.
+   */
+  public List<ScenarioSimple> scenarios(@NotNull final TxCtx ctx) {
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
-      scenarios = fromIterable(this.scenarioRepository.rawAll());
-    } else {
-      scenarios = this.scenarioRepository.rawAllGranted(currentUser().getId());
-    }
-    return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
+    return readableInEachTenant(
+            ctx,
+            currentUser,
+            () -> fromIterable(this.scenarioRepository.rawAll()),
+            () -> this.scenarioRepository.rawAllGranted(currentUser.getId()))
+        .stream()
+        .map(ScenarioSimple::fromRawScenario)
+        .toList();
   }
 
-  public List<ScenarioSimple> scenarios(final List<String> scenarioIds) {
-    List<RawScenarioSimpleIndexing> scenarios;
+  /** The scenarios of {@code scenarioIds} the caller reads, as {@link #scenarios(TxCtx)}. */
+  public List<ScenarioSimple> scenarios(@NotNull final TxCtx ctx, final List<String> scenarioIds) {
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
-      scenarios = fromIterable(this.scenarioRepository.rawByScenarioIds(scenarioIds));
-    } else {
-      scenarios =
-          this.scenarioRepository.rawGrantedByScenarioIds(currentUser().getId(), scenarioIds);
-    }
-    return scenarios.stream().map(ScenarioSimple::fromRawScenario).toList();
+    return readableInEachTenant(
+            ctx,
+            currentUser,
+            () -> fromIterable(this.scenarioRepository.rawByScenarioIds(scenarioIds)),
+            () -> this.scenarioRepository.rawGrantedByScenarioIds(currentUser.getId(), scenarioIds))
+        .stream()
+        .map(ScenarioSimple::fromRawScenario)
+        .toList();
+  }
+
+  private List<RawScenarioSimpleIndexing> readableInEachTenant(
+      TxCtx ctx,
+      User currentUser,
+      Supplier<List<RawScenarioSimpleIndexing>> all,
+      Supplier<List<RawScenarioSimpleIndexing>> granted) {
+    return permissionServiceProvider
+        .getObject()
+        .listInEachTenant(
+            ctx,
+            () -> canAccessEveryScenario(currentUser),
+            all,
+            granted,
+            RawScenarioSimpleIndexing::getTenant_id,
+            RawScenarioSimpleIndexing::getScenario_id);
+  }
+
+  private static boolean canAccessEveryScenario(User user) {
+    return user.isAdminOrBypass() || user.getCapabilities().contains(Capability.ACCESS_ASSESSMENT);
   }
 
   public Page<RawPaginationScenario> scenarios(
-      @NotNull final SearchPaginationInput searchPaginationInput) {
+      @NotNull final TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
 
     // Compute custom filter
@@ -262,7 +303,7 @@ public class ScenarioService {
     // Compute find all method
     TriFunction<
             Specification<Scenario>, Specification<Scenario>, Pageable, Page<RawPaginationScenario>>
-        findAll = getFindAllFunction(deepFilterSpecification, joinMap);
+        findAll = getFindAllFunction(ctx, deepFilterSpecification, joinMap);
 
     // Compute pagination from find all
     return buildPaginationCriteriaBuilder(findAll, searchPaginationInput, Scenario.class, joinMap);
@@ -271,27 +312,25 @@ public class ScenarioService {
   private TriFunction<
           Specification<Scenario>, Specification<Scenario>, Pageable, Page<RawPaginationScenario>>
       getFindAllFunction(
+          TxCtx ctx,
           UnaryOperator<Specification<Scenario>> deepFilterSpecification,
           Map<String, Join<Base, Base>> joinMap) {
     User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
-      return (specification, specificationCount, pageable) ->
-          this.findAllWithCriteriaBuilder(
-              deepFilterSpecification.apply(specification),
-              deepFilterSpecification.apply(specificationCount),
-              pageable,
-              joinMap);
-    } else {
-      return (specification, specificationCount, pageable) ->
-          this.findAllWithCriteriaBuilder(
-              findGrantedFor(currentUser().getId())
-                  .and(deepFilterSpecification.apply(specification)),
-              findGrantedFor(currentUser().getId())
-                  .and(deepFilterSpecification.apply(specificationCount)),
-              pageable,
-              joinMap);
-    }
+    Specification<Scenario> readable =
+        permissionServiceProvider
+            .getObject()
+            .filterInEachTenant(
+                ctx,
+                () -> canAccessEveryScenario(currentUser),
+                accessRight ->
+                    SpecificationUtils.hasGrantAccess(
+                        currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
+    return (specification, specificationCount, pageable) ->
+        this.findAllWithCriteriaBuilder(
+            readable.and(deepFilterSpecification.apply(specification)),
+            readable.and(deepFilterSpecification.apply(specificationCount)),
+            pageable,
+            joinMap);
   }
 
   private Page<RawPaginationScenario> findAllWithCriteriaBuilder(
@@ -478,9 +517,48 @@ public class ScenarioService {
                     .or(ScenarioSpecification.recurrenceStopDateBefore(instant))));
   }
 
+  /**
+   * Loads a scenario in the current tenant. For work that runs without a request scope and sets the
+   * ambient tenant itself; a request uses {@link #scenario(TxCtx, String)}.
+   */
   public Scenario scenario(@NotBlank final String scenarioId) {
     return this.scenarioRepository
         .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+        .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
+  }
+
+  /**
+   * Looks a scenario up by id inside the request's tenant scope: the path tenant on the tenant
+   * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route.
+   * The v1 ambient tenant is set only on the tenant route, so it does not carry the request scope
+   * on the other one.
+   */
+  public Optional<Scenario> findInScope(
+      @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
+    return this.scenarioRepository.findByIdAndTenantIdIn(
+        scenarioId, TxCtxScopeUtils.requestReadScope(ctx));
+  }
+
+  /**
+   * Loads a scenario by primary key and keeps it only when its tenant lies in the request's tenant
+   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
+   * the default one on the non-prefixed route: a member reaches its own scenario in any tenant of
+   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
+   * them refuses only what lies outside the scope. Transactional with the {@link TxCtx}, so the
+   * lookup carries the request scope even from a caller that opens no transaction of its own.
+   */
+  @Transactional(readOnly = true)
+  public Optional<Scenario> findByIdInScope(
+      @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
+    return this.scenarioRepository
+        .findById(scenarioId)
+        .filter(scenario -> scope.contains(scenario.getTenant().getId()));
+  }
+
+  /** Loads a scenario inside the request's tenant scope. Throws if not found there. */
+  public Scenario scenario(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
+    return findInScope(ctx, scenarioId)
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
@@ -503,11 +581,16 @@ public class ScenarioService {
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
   }
 
-  public ScenarioOutput getScenarioById(@NotBlank final String scenarioId) {
-    RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
-    if (rawScenario == null) {
-      throw new ElementNotFoundException("Scenario not found");
-    }
+  /**
+   * Reads a scenario found inside the request's tenant scope. The native read itself keys on the v1
+   * ambient tenant, the default one on the non-prefixed route, so the scope is checked first. The
+   * detail also names the scenario's workflow, read in the scenario's own tenant once access is
+   * granted (WorkflowOwnerScope).
+   */
+  public ScenarioOutput getScenarioById(
+      @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
+    Scenario scenario = this.scenario(ctx, scenarioId);
+    RawScenario rawScenario = rawScenario(scenarioId);
     Set<KillChainPhaseOutput> killChainPhases = new HashSet<>();
     if (rawScenario.getScenario_kill_chain_phases() != null) {
       try {
@@ -527,7 +610,13 @@ public class ScenarioService {
         log.error("Error reading scenarioTeamUsers from scenario id {}", scenarioId, e);
       }
     }
-    return scenarioMapper.toScenarioOutput(rawScenario, killChainPhases, scenarioTeamUsers);
+    RawScenarioWorkflowFields workflowFields = workflowFields(scenario, scenarioId);
+    return scenarioMapper.toScenarioOutput(
+        rawScenario,
+        killChainPhases,
+        scenarioTeamUsers,
+        workflowId(workflowFields),
+        platforms(rawScenario, workflowFields));
   }
 
   /**
@@ -540,15 +629,44 @@ public class ScenarioService {
    * @return the available teams for lessons
    */
   @Transactional(readOnly = true)
-  public List<TeamOutput> getScenarioTeams(@NotBlank final String scenarioId) {
-    RawScenario rawScenario = this.scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
-    if (rawScenario == null) {
-      throw new ElementNotFoundException("Scenario not found");
-    }
-    String workflowId = rawScenario.getScenario_workflow_id();
+  public List<TeamOutput> getScenarioTeams(
+      @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
+    Scenario scenario = this.scenario(ctx, scenarioId);
+    String workflowId = workflowId(workflowFields(scenario, scenarioId));
     return hasText(workflowId)
         ? getWorkflowScenarioTeams(scenarioId, workflowId)
         : getTimeBasedScenarioTeams(scenarioId);
+  }
+
+  // The detail aggregate (kill chain phases, teams, tags and the rest) is read under the request's
+  // own scope, like any other tenant-active data the request's scope resolves: only the workflow
+  // fields below are read in the owner's tenant.
+  private RawScenario rawScenario(final String scenarioId) {
+    RawScenario rawScenario = scenarioRepository.getScenarioByIdAndTenantId(scenarioId);
+    if (rawScenario == null) {
+      throw new ElementNotFoundException("Scenario not found");
+    }
+    return rawScenario;
+  }
+
+  // A workflow inherits its owner's tenant and can never move, so its id and the platforms its
+  // template steps target are read in the scenario's own tenant, whatever the caller's scope.
+  private RawScenarioWorkflowFields workflowFields(Scenario scenario, final String scenarioId) {
+    return workflowOwnerScope.call(
+        scenario, () -> scenarioRepository.getScenarioWorkflowFields(scenarioId));
+  }
+
+  private static String workflowId(RawScenarioWorkflowFields workflowFields) {
+    return workflowFields != null ? workflowFields.getWorkflow_id() : null;
+  }
+
+  // The time-based platforms fall back to the ones derived from the scenario's own injects,
+  // read under the request's scope, when the scenario carries no workflow template step platforms.
+  private static Set<String> platforms(
+      RawScenario rawScenario, RawScenarioWorkflowFields workflowFields) {
+    Set<String> workflowPlatforms =
+        workflowFields != null ? workflowFields.getWorkflow_platforms() : null;
+    return workflowPlatforms != null ? workflowPlatforms : rawScenario.getScenario_platforms();
   }
 
   private List<TeamOutput> getWorkflowScenarioTeams(
@@ -564,9 +682,13 @@ public class ScenarioService {
     return this.teamService.find(fromScenario(scenarioId));
   }
 
-  public Scenario scenarioFromSimulationId(@NotBlank final String simulationId) {
+  /** The scenario of a simulation, provided it lies inside the request's tenant scope. */
+  public Scenario scenarioFromSimulationId(
+      @NotNull final TxCtx ctx, @NotBlank final String simulationId) {
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
     return this.scenarioRepository
         .findByExercises_Id(simulationId)
+        .filter(scenario -> scope.contains(scenario.getTenant().getId()))
         .orElseThrow(
             () ->
                 new ElementNotFoundException("Scenario not found for simulation: " + simulationId));
@@ -631,17 +753,17 @@ public class ScenarioService {
     this.scenarioRepository.saveAll(scenarios);
   }
 
-  /** Validates that the scenario exists for the current tenant. Throws if not found. */
-  public void existsByIdAndTenantId(@NotBlank final String scenarioId) {
-    if (!this.scenarioRepository.existsByIdAndTenantId(
-        scenarioId, TenantContext.getCurrentTenant())) {
+  /** Validates that the scenario exists inside the request's tenant scope. Throws if not. */
+  public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
+    if (!this.scenarioRepository.existsByIdAndTenantIdIn(
+        scenarioId, TxCtxScopeUtils.requestReadScope(ctx))) {
       throw new ElementNotFoundException("Scenario not found");
     }
   }
 
   @Transactional(rollbackFor = Exception.class)
-  public void deleteScenario(@NotBlank final String scenarioId) {
-    existsByIdAndTenantId(scenarioId);
+  public void deleteScenario(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
+    existsInScope(ctx, scenarioId);
     this.scenarioRepository.deleteById(scenarioId);
   }
 
@@ -694,15 +816,25 @@ public class ScenarioService {
                 specification =
                     specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
               }
-              // Restrict to scenarios the user is granted to plan on (no-op for admins and users
-              // with the delete capability)
+              // Restrict to scenarios the user is granted to plan on (no-op in a tenant where the
+              // user is an admin or holds the delete capability)
               specification =
                   specification.and(
-                      SpecificationUtils.hasGrantAccess(
-                          currentUser.getId(),
-                          currentUser.isAdminOrBypass(),
-                          currentUser.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
-                          Grant.GRANT_TYPE.PLANNER));
+                      permissionServiceProvider
+                          .getObject()
+                          .filterInEachTenant(
+                              ctx,
+                              () ->
+                                  currentUser.isAdminOrBypass()
+                                      || currentUser
+                                          .getCapabilities()
+                                          .contains(Capability.DELETE_ASSESSMENT),
+                              deleteRight ->
+                                  SpecificationUtils.hasGrantAccess(
+                                      currentUser.getId(),
+                                      false,
+                                      deleteRight,
+                                      Grant.GRANT_TYPE.PLANNER)));
               return this.scenarioRepository.findAll(specification).stream()
                   .map(Scenario::getId)
                   .toList();
@@ -713,6 +845,9 @@ public class ScenarioService {
             "scenarios",
             scenarioIdsToDelete,
             chunk -> {
+              // The ids were resolved under the v1 ambient tenant, the default one on the
+              // non-prefixed route, so each is checked against the request scope first.
+              chunk.forEach(id -> existsInScope(ctx, id));
               // Tear the autonomous run (simulation + timeline + XTM orchestration) down first,
               // inside the same chunk transaction, so an autonomous scenario is never left with an
               // orphaned autonomous_runs row after a bulk delete. No-op for manual scenarios.
@@ -729,6 +864,7 @@ public class ScenarioService {
 
   @Transactional
   public void exportScenario(
+      @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       final boolean isWithTeams,
       final boolean isWithPlayers,
@@ -736,9 +872,32 @@ public class ScenarioService {
       final boolean isWithScopeDefinition,
       HttpServletResponse response)
       throws IOException {
+    Scenario scenario = this.scenario(ctx, scenarioId);
+    writeScenarioExport(
+        scenario,
+        isWithTeams,
+        isWithPlayers,
+        isWithVariableValues,
+        isWithScopeDefinition,
+        response);
+  }
+
+  private void writeScenarioExport(
+      final Scenario scenario,
+      final boolean isWithTeams,
+      final boolean isWithPlayers,
+      final boolean isWithVariableValues,
+      final boolean isWithScopeDefinition,
+      HttpServletResponse response)
+      throws IOException {
+    String scenarioId = scenario.getId();
     ObjectMapper objectMapper = ObjectMapperHelper.openAEVJsonMapper();
-    Scenario scenario = this.scenario(scenarioId);
-    boolean isChaining = workflowService.isScenarioChaining(scenarioId);
+    // The scenario's workflow is read in the scenario's own tenant whatever the caller's scope, as
+    // a workflow inherits its owner's tenant and can never move. Every other table this export
+    // reads (documents, tags, challenges, channels, variables) stays under the scope the request
+    // resolved, so the owner scope holds only over the chaining reads of this method.
+    boolean isChaining =
+        workflowOwnerScope.call(scenario, () -> workflowService.isScenarioChaining(scenarioId));
     List<Inject> exportedInjects =
         isChaining ? new ArrayList<>() : new ArrayList<>(scenario.getInjects());
 
@@ -893,12 +1052,20 @@ public class ScenarioService {
             .map(Document::getId)
             .toList());
 
-    // Add Workflow (chaining) if present — scope definition is optional
+    // Add Workflow (chaining) if present — scope definition is optional. The whole workflow graph
+    // is loaded inside the owner's tenant, so the serialization below finds it already initialized.
     Optional<Workflow> workflowOpt =
-        workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
+        workflowOwnerScope.call(
+            scenario,
+            () -> {
+              Optional<Workflow> workflow =
+                  workflowService.findWorkflowTemplateByScenarioIdForExport(scenarioId);
+              workflow.ifPresent(
+                  found -> workflowExportInitializer.initialize(found, isWithScopeDefinition));
+              return workflow;
+            });
     workflowOpt.ifPresent(
         workflow -> {
-          workflowExportInitializer.initialize(workflow, isWithScopeDefinition);
           if (isChaining) {
             scenarioTags.addAll(workflowExportInitializer.collectWorkflowTags(workflow));
           }
@@ -1003,7 +1170,11 @@ public class ScenarioService {
 
   @Transactional(rollbackFor = Exception.class)
   public Iterable<TeamOutput> removeTeams(
-      @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
+      @NotNull final TxCtx ctx,
+      @NotBlank final String scenarioId,
+      @NotNull final List<String> teamIds) {
+    // The deletes below key on the scenario id alone
+    existsInScope(ctx, scenarioId);
     // Remove teams from scenario
     this.scenarioRepository.removeTeams(scenarioId, teamIds);
     // Remove only associations for this scenario
@@ -1021,8 +1192,10 @@ public class ScenarioService {
 
   @Transactional(rollbackFor = Exception.class)
   public List<TeamOutput> replaceTeams(
-      @NotBlank final String scenarioId, @NotNull final List<String> teamIds) {
-    Scenario scenario = this.scenario(scenarioId);
+      @NotNull final TxCtx ctx,
+      @NotBlank final String scenarioId,
+      @NotNull final List<String> teamIds) {
+    Scenario scenario = this.scenario(ctx, scenarioId);
     Set<String> previousTeamIds =
         scenario.getTeams().stream().map(Team::getId).collect(Collectors.toSet());
     Set<String> targetTeamIds = new LinkedHashSet<>(teamIds);
@@ -1054,7 +1227,7 @@ public class ScenarioService {
     teamsAdded.forEach(
         team -> {
           List<String> playerIds = team.getUsers().stream().map(User::getId).toList();
-          this.enablePlayers(scenarioId, team, playerIds);
+          this.enablePlayers(scenario, team, playerIds);
         });
 
     // You must return all the modified teams to ensure the frontend store updates correctly
@@ -1078,7 +1251,7 @@ public class ScenarioService {
     team.getUsers().addAll(playersToAdd);
     Team savedTeam = teamRepository.save(team);
     return this.enablePlayers(
-        scenarioId, savedTeam, playersToAdd.stream().map(User::getId).toList());
+        ctx, scenarioId, savedTeam, playersToAdd.stream().map(User::getId).toList());
   }
 
   public Scenario enableAddScenarioTeamPlayer(
@@ -1087,19 +1260,26 @@ public class ScenarioService {
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
     Team team = teamService.teamInScope(ctx, teamId);
-    return this.enablePlayers(scenarioId, team, playerIds);
+    return this.enablePlayers(ctx, scenarioId, team, playerIds);
   }
 
   public Scenario enablePlayers(
+      @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       @NotBlank final Team team,
       @NotNull final List<String> playerIds) {
-    Scenario scenario = this.scenario(scenarioId);
+    return enablePlayers(this.scenario(ctx, scenarioId), team, playerIds);
+  }
+
+  private Scenario enablePlayers(
+      @NotNull final Scenario scenario,
+      @NotNull final Team team,
+      @NotNull final List<String> playerIds) {
     playerIds.forEach(
         playerId -> {
           boolean alreadyLinked =
               this.scenarioTeamUserRepository.existsByScenarioIdAndTeamIdAndUserId(
-                  scenarioId, team.getId(), playerId);
+                  scenario.getId(), team.getId(), playerId);
           if (alreadyLinked) {
             return;
           }
@@ -1113,6 +1293,7 @@ public class ScenarioService {
   }
 
   public Scenario disablePlayers(
+      @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
       @NotBlank final String teamId,
       @NotNull final List<String> playerIds) {
@@ -1124,7 +1305,7 @@ public class ScenarioService {
           scenarioTeamUserId.setUserId(playerId);
           this.scenarioTeamUserRepository.deleteById(scenarioTeamUserId);
         });
-    return this.scenario(scenarioId);
+    return this.scenario(ctx, scenarioId);
   }
 
   /**
@@ -1139,8 +1320,9 @@ public class ScenarioService {
    * @return the persisted duplicate
    */
   @Transactional(rollbackFor = Exception.class)
-  public Scenario duplicateScenario(@NotBlank String scenarioId) throws ChainingException {
-    Scenario duplicate = copyScenarioContent(scenarioId);
+  public Scenario duplicateScenario(@NotNull TxCtx ctx, @NotBlank String scenarioId)
+      throws ChainingException {
+    Scenario duplicate = copyScenarioContent(ctx, scenarioId);
     duplicateChainingWorkflowIfAny(scenarioId, duplicate);
     return duplicate;
   }
@@ -1160,20 +1342,26 @@ public class ScenarioService {
   private void duplicateChainingWorkflowIfAny(
       @NotBlank final String scenarioId, @NotNull final Scenario duplicate)
       throws ChainingException {
-    if (!workflowService.isScenarioChaining(scenarioId)) {
-      return;
-    }
-    if (enterpriseEditionService.isEnterpriseLicenseInactive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
-      throw new EnterpriseEditionException("Enterprise Edition license required");
-    }
-    workflowService.duplicateScenarioWorkflow(scenarioId, duplicate);
+    // The duplicate carries its source's tenant, so the source workflow is read and its copy
+    // written in that one tenant.
+    workflowOwnerScope.run(
+        duplicate,
+        () -> {
+          if (!workflowService.isScenarioChaining(scenarioId)) {
+            return;
+          }
+          if (enterpriseEditionService.isEnterpriseLicenseInactive(
+              licenseCacheManager.getEnterpriseEditionInfo())) {
+            throw new EnterpriseEditionException("Enterprise Edition license required");
+          }
+          workflowService.duplicateScenarioWorkflow(scenarioId, duplicate);
+        });
   }
 
   /**
    * Duplicates a scenario's authored content only, without its chaining logic map. {@code
    * AutonomousRunService.convertToManual} relies on this: it copies the workflow itself afterwards.
-   * Use {@link #duplicateScenario(String)} for the full duplicate.
+   * Use {@link #duplicateScenario(TxCtx, String)} for the full duplicate.
    *
    * @param scenarioId the source scenario
    * @return the persisted duplicate
@@ -1184,30 +1372,42 @@ public class ScenarioService {
   }
 
   /**
-   * The metadata copy itself. Free of {@code @Transactional} so both public entry points can call
-   * it without tripping the Spring self-invocation trap; they are the ones carrying the
-   * transaction. Package-private so it can be stubbed when unit-testing the orchestration.
+   * The metadata copy itself, of a scenario found inside the request's tenant scope. Free of
+   * {@code @Transactional} so both public entry points can call it without tripping the Spring
+   * self-invocation trap; they are the ones carrying the transaction. Package-private so it can be
+   * stubbed when unit-testing the orchestration.
    */
-  Scenario copyScenarioContent(@NotBlank String scenarioId) {
-    if (StringUtils.isNotBlank(scenarioId)) {
-      Scenario scenarioOrigin =
-          scenarioRepository
-              .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-              .orElseThrow();
-      Scenario scenario = copyScenario(scenarioOrigin);
-      Scenario scenarioDuplicate = scenarioRepository.save(scenario);
-      getListOfDuplicatedInjects(scenarioDuplicate, scenarioOrigin);
-      getListOfScenarioTeams(scenarioDuplicate, scenarioOrigin);
-      getListOfArticles(scenarioDuplicate, scenarioOrigin);
-      getListOfVariables(scenarioDuplicate, scenarioOrigin);
-      if (scenarioOrigin.isLessonsEnabled()) {
-        getObjectives(scenarioDuplicate, scenarioOrigin);
-        getLessonsCategories(scenarioDuplicate, scenarioOrigin);
-      }
-      this.actionMetricCollector.addScenarioCreatedCount();
-      return scenarioRepository.save(scenario);
+  Scenario copyScenarioContent(@NotNull TxCtx ctx, @NotBlank String scenarioId) {
+    if (StringUtils.isBlank(scenarioId)) {
+      throw new ElementNotFoundException();
     }
-    throw new ElementNotFoundException();
+    return copyScenarioContent(scenario(ctx, scenarioId));
+  }
+
+  /** The metadata copy of a scenario of the current tenant, for work without a request scope. */
+  Scenario copyScenarioContent(@NotBlank String scenarioId) {
+    if (StringUtils.isBlank(scenarioId)) {
+      throw new ElementNotFoundException();
+    }
+    return copyScenarioContent(
+        scenarioRepository
+            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
+            .orElseThrow());
+  }
+
+  private Scenario copyScenarioContent(@NotNull Scenario scenarioOrigin) {
+    Scenario scenario = copyScenario(scenarioOrigin);
+    Scenario scenarioDuplicate = scenarioRepository.save(scenario);
+    getListOfDuplicatedInjects(scenarioDuplicate, scenarioOrigin);
+    getListOfScenarioTeams(scenarioDuplicate, scenarioOrigin);
+    getListOfArticles(scenarioDuplicate, scenarioOrigin);
+    getListOfVariables(scenarioDuplicate, scenarioOrigin);
+    if (scenarioOrigin.isLessonsEnabled()) {
+      getObjectives(scenarioDuplicate, scenarioOrigin);
+      getLessonsCategories(scenarioDuplicate, scenarioOrigin);
+    }
+    this.actionMetricCollector.addScenarioCreatedCount();
+    return scenarioRepository.save(scenario);
   }
 
   public boolean checkIfTagRulesApplies(
@@ -1256,6 +1456,7 @@ public class ScenarioService {
   private Scenario copyScenario(Scenario scenario) {
     Scenario scenarioDuplicate = new Scenario();
     scenarioDuplicate.setTenant(scenario.getTenant());
+    authorService.authorByCurrentUser(scenarioDuplicate);
     scenarioDuplicate.setName(duplicateString(scenario.getName()));
     scenarioDuplicate.setCategory(scenario.getCategory());
     scenarioDuplicate.setDescription(scenario.getDescription());
@@ -1423,14 +1624,14 @@ public class ScenarioService {
    * @return founded healthcheck list
    */
   @Transactional(readOnly = true)
-  public List<HealthCheck> runChecks(String scenarioId) {
+  public List<HealthCheck> runChecks(TxCtx ctx, String scenarioId) {
     if (scenarioId == null) {
       return null;
     }
 
     List<HealthCheck> healthChecks = new ArrayList<>();
 
-    Scenario scenario = this.scenario(scenarioId);
+    Scenario scenario = this.scenario(ctx, scenarioId);
 
     // get the healthcheck for each injects, remove duplicate from injects HealthCheck results and
     // add them to the result

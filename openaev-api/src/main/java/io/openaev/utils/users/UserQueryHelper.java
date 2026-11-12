@@ -6,7 +6,6 @@ import static io.openaev.utils.JpaUtils.arrayAggOnId;
 import static io.openaev.utils.JpaUtils.createLeftJoin;
 
 import io.openaev.api.users.dto.UserOutput;
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -28,19 +27,28 @@ public class UserQueryHelper {
 
   private static final String QUERY_ALIAS_TENANT_NAMES = "query_tenant_names";
 
-  /** Selects users with the organization they hold in the current tenant (tenant-scoped APIs). */
-  public static void select(CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<User> userRoot) {
-    select(cb, cq, userRoot, false);
+  /**
+   * Selects users with the organization they hold in the given tenant (tenant-scoped APIs): the
+   * tenant the request works on, which is not the ambient one when the request names it in {@code
+   * X-Tenant-Ids}.
+   */
+  public static void select(
+      CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<User> userRoot, String tenantId) {
+    select(cb, cq, userRoot, tenantId, false);
   }
 
   /** Selects users without any organization: organizations are tenant-level (platform APIs). */
   public static void selectForPlatform(
       CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<User> userRoot) {
-    select(cb, cq, userRoot, true);
+    select(cb, cq, userRoot, null, true);
   }
 
   private static void select(
-      CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<User> userRoot, boolean platform) {
+      CriteriaBuilder cb,
+      CriteriaQuery<Tuple> cq,
+      Root<User> userRoot,
+      String tenantId,
+      boolean platform) {
     // Joins
     Join<User, ?> tagJoin = createLeftJoin(userRoot, "tags");
     Join<User, Tenant> tenantJoin = createLeftJoin(userRoot, "tenants");
@@ -71,11 +79,10 @@ public class UserQueryHelper {
       return;
     }
 
-    // A user holds one organization per tenant: the join is restricted to the current tenant, or a
+    // A user holds one organization per tenant: the join is restricted to the given tenant, or a
     // user of several tenants would be returned once per organization.
     Join<User, Organization> organizationJoin = userRoot.join("organizations", JoinType.LEFT);
-    organizationJoin.on(
-        cb.equal(organizationJoin.get("tenant").get("id"), TenantContext.getCurrentTenant()));
+    organizationJoin.on(cb.equal(organizationJoin.get("tenant").get("id"), tenantId));
 
     cq.multiselect(
         userRoot.get("id").alias(ALIAS_ID),

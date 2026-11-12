@@ -4,7 +4,6 @@ import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.Capability;
 import io.openaev.database.model.User;
 import io.openaev.service.UserService;
 import java.util.LinkedHashSet;
@@ -20,7 +19,7 @@ import org.springframework.stereotype.Component;
  * <p>This is the API-side half of {@link MarkingScopeSupplier}: the aspect lives in {@code
  * openaev-model} and cannot reach the security context or the clearance cache, both of which live
  * here. It also supplies the system clearance ({@link #systemClearanceFor}): every marking of a
- * tenant, resolved like a bypassing caller's clearance. It serves:
+ * tenant, resolved like the first admin's clearance. It serves:
  *
  * <ul>
  *   <li>background jobs, through {@code TenantScopedTransaction};
@@ -58,25 +57,8 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
     if (currentUser == null) {
       return MarkingCtx.none();
     }
-    // AGENT_RUNTIME_ACCESS is the well-known capability of the per-tenant agent/implant service
-    // account (AgentServiceAccountPrivilegeService). That account has no group-marking grants of
-    // its own — it exists only to run the agent/implant API surface — so without this it would
-    // lose sight of its own host asset the moment that asset is marked. An agent must always see
-    // the asset it is installed on, independent of what markings are later applied to it.
-    //
-    // MANAGE_STIX_BUNDLE is the same kind of capability (hidden, held by the per-tenant OpenCTI
-    // connector user, which has no group-marking grants either): the security coverage it
-    // processes must build its scenario from every asset of the tenant, not from the unmarked
-    // subset a marking-less user would see. This is the READ clearance of the request only - the
-    // dispatch-time check (InjectService.resolveLaunchedByClearance) deliberately does not use it.
-    Set<Capability> capabilities = currentUser.getCapabilities();
-    boolean bypass =
-        currentUser.isAdminOrBypass()
-            || capabilities.contains(Capability.AGENT_RUNTIME_ACCESS)
-            || capabilities.contains(Capability.MANAGE_STIX_BUNDLE);
-
     String userId = currentUser.getId();
-    return union(restricted, tenantId -> clearanceCache.findClearance(userId, tenantId, bypass));
+    return union(restricted, tenantId -> clearanceCache.findClearance(userId, tenantId));
   }
 
   /**

@@ -19,11 +19,13 @@ import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.injector_contract.InjectorContractContentUtils;
 import io.openaev.utils.mapper.InjectMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
 import jakarta.persistence.criteria.Join;
 import jakarta.validation.constraints.NotNull;
@@ -32,8 +34,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -48,6 +53,7 @@ public class AtomicTestingService {
   @Resource protected ObjectMapper mapper;
   private final InjectMapper injectMapper;
   private final ActionMetricCollector actionMetricCollector;
+  private final CredentialMetricCollector credentialMetricCollector;
 
   private final AssetGroupRepository assetGroupRepository;
   private final AssetRepository assetRepository;
@@ -62,9 +68,10 @@ public class AtomicTestingService {
   private final AssetGroupService assetGroupService;
   private final InjectExpectationService injectExpectationService;
   private final UserService userService;
+  // Lazy: PermissionService is built from the inject services.
+  private final ObjectProvider<PermissionService> permissionServiceProvider;
   private final InjectSearchService injectSearchService;
   private final InjectService injectService;
-  private final GrantService grantService;
   private final InjectDocumentRepository injectDocumentRepository;
   private final InjectUtils injectUtils;
   private final InjectorContractContentUtils injectorContractContentUtils;
@@ -72,6 +79,10 @@ public class AtomicTestingService {
 
   // -- CRUD --
 
+  /**
+   * Loads an atomic testing for work with no request scope (background relaunch): kept on the v1
+   * ambient tenant, set by the caller before entering a per-tenant transaction.
+   */
   private Inject findInject(String injectId) {
     String tenantId = TenantContext.getCurrentTenant();
     return (tenantId != null)
@@ -81,36 +92,43 @@ public class AtomicTestingService {
         : injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
   }
 
-  public InjectResultOverviewOutput findById(String injectId) {
-    String tenantId = TenantContext.getCurrentTenant();
-    Optional<Inject> injectOpt =
-        (tenantId != null)
-            ? injectRepository.findByIdAndTenantId(injectId, tenantId)
-            : injectRepository.findWithStatusById(injectId);
+  /** Loads an atomic testing inside the request's tenant scope. Throws if not found there. */
+  private Inject findInject(TxCtx ctx, String injectId) {
+    return injectService.inject(ctx, injectId);
+  }
 
+  /** Validates that the atomic testing exists inside the request's tenant scope. */
+  public void existsInScope(TxCtx ctx, String injectId) {
+    injectService.existsInScope(ctx, injectId);
+  }
+
+  public InjectResultOverviewOutput findById(TxCtx ctx, String injectId) {
+    Inject inject = injectService.inject(ctx, injectId);
     // Compute dynamic assets for display, in place on the SAME managed AssetGroup instances
     // (AssetGroup.dynamicAssets is @Transient: this mutation is never persisted).
-    injectOpt.ifPresent(
-        inject -> inject.getAssetGroups().forEach(assetGroupService::computeDynamicAssets));
-    return injectOpt
-        .map(injectMapper::toInjectResultOverviewOutput)
-        .orElseThrow(ElementNotFoundException::new);
+    inject.getAssetGroups().forEach(assetGroupService::computeDynamicAssets);
+    return injectMapper.toInjectResultOverviewOutput(inject);
   }
 
-  public StatusPayloadOutput findPayloadOutputByInjectId(String injectId) {
-    String tenantId = TenantContext.getCurrentTenant();
-    Optional<Inject> inject =
-        (tenantId != null)
-            ? injectRepository.findByIdAndTenantId(injectId, tenantId)
-            : injectRepository.findById(injectId);
-    return payloadMapper.getStatusPayloadOutputFromInject(inject);
+  /** Requires the inject inside the request's tenant scope, then maps its payload if it has one. */
+  public StatusPayloadOutput findPayloadOutputByInjectId(TxCtx ctx, String injectId) {
+    Inject inject = injectService.inject(ctx, injectId);
+    return payloadMapper.getStatusPayloadOutputFromInject(Optional.of(inject));
   }
 
+  /**
+   * Creates an atomic testing in {@code tenantId}, or updates the one named by {@code injectId}.
+   *
+   * @param tenantId the tenant a new atomic testing is written in; not read on an update
+   */
   @Transactional
-  public InjectResultOverviewOutput createOrUpdate(AtomicTestingInput input, String injectId) {
+  public InjectResultOverviewOutput createOrUpdate(
+      TxCtx ctx, @Nullable String tenantId, AtomicTestingInput input, String injectId) {
     Inject injectToSave = new Inject();
     if (injectId != null) {
-      injectToSave = findInject(injectId);
+      injectToSave = findInject(ctx, injectId);
+    } else {
+      injectToSave.setTenant(new Tenant(tenantId));
     }
 
     InjectorContract injectorContract =
@@ -141,6 +159,10 @@ public class AtomicTestingService {
     injectToSave.setAssets(fromIterable(this.assetRepository.findAllById(input.getAssets())));
     injectToSave.setAssetGroups(
         fromIterable(this.assetGroupRepository.findAllById(input.getAssetGroups())));
+    Set<String> previousSecretReferenceIds =
+        injectToSave.getSecretReferences().stream()
+            .map(SecretReference::getId)
+            .collect(Collectors.toSet());
     injectToSave.setSecretReferences(
         fromIterable(secretReferenceRepository.findAllById(input.getSecretReferences())));
 
@@ -175,23 +197,25 @@ public class AtomicTestingService {
       actionMetricCollector.addAtomicTestingCreatedCount();
     }
     injectToSave = injectRepository.save(injectToSave);
+    credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(
+        finalInjectToSave, previousSecretReferenceIds);
     return injectMapper.toInjectResultOverviewOutput(injectToSave);
   }
 
   @Transactional
   public InjectResultOverviewOutput updateAtomicTestingTags(
-      String injectId, AtomicTestingUpdateTagsInput input) {
+      TxCtx ctx, String injectId, AtomicTestingUpdateTagsInput input) {
 
-    Inject inject = findInject(injectId);
+    Inject inject = findInject(ctx, injectId);
     inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
 
     Inject saved = injectRepository.save(inject);
     return injectMapper.toInjectResultOverviewOutput(saved);
   }
 
-  public void deleteAtomicTesting(String injectId) {
-    // Verify the inject exists and belongs to the current tenant before deleting
-    findInject(injectId);
+  public void deleteAtomicTesting(TxCtx ctx, String injectId) {
+    // Verify the inject exists inside the request's tenant scope before deleting
+    findInject(ctx, injectId);
     injectService.delete(injectId);
   }
 
@@ -218,7 +242,7 @@ public class AtomicTestingService {
             () -> {
               Specification<Inject> specification =
                   injectService
-                      .getInjectSpecification(input, Grant.GRANT_TYPE.PLANNER)
+                      .getInjectSpecification(ctx, input, Grant.GRANT_TYPE.PLANNER)
                       .and(InjectSpecification.isAtomicTesting());
               return injectRepository.findAll(specification).stream().map(Inject::getId).toList();
             });
@@ -228,14 +252,14 @@ public class AtomicTestingService {
 
   // -- ACTIONS --
 
-  public InjectResultOverviewOutput duplicate(String id) {
-    findInject(id);
+  public InjectResultOverviewOutput duplicate(TxCtx ctx, String id) {
+    findInject(ctx, id);
     this.actionMetricCollector.addAtomicTestingCreatedCount();
     return injectService.duplicate(id);
   }
 
-  public InjectResultOverviewOutput launch(String id) {
-    findInject(id);
+  public InjectResultOverviewOutput launch(TxCtx ctx, String id) {
+    findInject(ctx, id);
     return injectService.launch(id);
   }
 
@@ -247,21 +271,18 @@ public class AtomicTestingService {
   @Transactional
   public InjectResultOverviewOutput relaunch(String id, boolean checkLaunchable) {
     findInject(id);
-    // Relaunching an atomic testing is considered as creating a new one.
-    // Therefore, any grants created on the current atomic testing will have to be updated with the
-    // new ID
-    InjectResultOverviewOutput relaunched = injectService.relaunch(id, checkLaunchable);
-    grantService.updateGrantsForNewResource(
-        id, relaunched.getId(), Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
-    return relaunched;
+    // Relaunching an atomic testing is considered as creating a new one: InjectService moves the
+    // grants of the current atomic testing to the new id before it deletes the old inject, whose
+    // delete would otherwise take them (#8921).
+    return injectService.relaunch(id, checkLaunchable);
   }
 
   /**
    * The Enterprise executor gate of a user relaunch, checked on what the user can see: the targets
    * they are not cleared for will not be executed, so their executors must not block the launch.
    */
-  public void throwIfNotLaunchable(String id) {
-    injectService.throwIfInjectNotLaunchable(findInject(id));
+  public void throwIfNotLaunchable(TxCtx ctx, String id) {
+    injectService.throwIfInjectNotLaunchable(findInject(ctx, id));
   }
 
   /**
@@ -272,12 +293,10 @@ public class AtomicTestingService {
    * @return the id of the relaunched atomic testing
    */
   @Transactional
-  public String relaunchAsCurrentUser(String id) {
-    findInject(id);
-    String relaunchedId = injectService.relaunchAsCurrentUser(id);
-    grantService.updateGrantsForNewResource(
-        id, relaunchedId, Grant.GRANT_RESOURCE_TYPE.ATOMIC_TESTING);
-    return relaunchedId;
+  public String relaunchAsCurrentUser(TxCtx ctx, String id) {
+    findInject(ctx, id);
+    // The grants move with the relaunch, in InjectService, before the old inject is deleted.
+    return injectService.relaunchAsCurrentUser(id);
   }
 
   /** Bulk update used by the recurring atomic testing job to self-clear outdated recurrences. */
@@ -311,8 +330,9 @@ public class AtomicTestingService {
   }
 
   @Transactional
-  public InjectResultOverviewOutput updateRecurrence(String injectId, InjectRecurrenceInput input) {
-    Inject inject = findInject(injectId);
+  public InjectResultOverviewOutput updateRecurrence(
+      TxCtx ctx, String injectId, InjectRecurrenceInput input) {
+    Inject inject = findInject(ctx, injectId);
     // Normalize a blank expression to null so a cleared schedule can never be persisted as an
     // unparseable empty cron that the minutely job would keep selecting (isRecurring checks
     // isNotNull only).
@@ -346,26 +366,37 @@ public class AtomicTestingService {
    * part of any scenario or exercise (both fields are null). The search only fetches data according
    * to user permissions via the grant system.
    *
+   * @param ctx the request scope
    * @param searchPaginationInput Pagination and filtering parameters
    * @return A paginated list of atomic testing results
    */
   public Page<InjectResultOutput> searchAtomicTestingsForCurrentUser(
-      @NotNull final SearchPaginationInput searchPaginationInput) {
+      @NotNull final TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
 
     // Atomic testings are injects where scenario and exercise are null. They are also subject to
-    // the grant system.
+    // the grant system, which the access right bypasses in the tenants where the user holds it.
     User currentUser = userService.currentUser();
 
     Specification<Inject> customSpec =
         Specification.<Inject>unrestricted()
             .and(InjectSpecification.isAtomicTesting())
             .and(
-                SpecificationUtils.hasGrantAccess(
-                    currentUser.getId(),
-                    currentUser.isAdminOrBypass(),
-                    currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
-                    Grant.GRANT_TYPE.OBSERVER));
+                permissionServiceProvider
+                    .getObject()
+                    .filterInEachTenant(
+                        ctx,
+                        () ->
+                            currentUser.isAdminOrBypass()
+                                || currentUser
+                                    .getCapabilities()
+                                    .contains(Capability.ACCESS_ASSESSMENT),
+                        accessRight ->
+                            SpecificationUtils.hasGrantAccess(
+                                currentUser.getId(),
+                                false,
+                                accessRight,
+                                Grant.GRANT_TYPE.OBSERVER)));
 
     return buildPaginationCriteriaBuilder(
         (Specification<Inject> specification,

@@ -11,7 +11,7 @@ import { useLocation } from 'react-router';
 
 import { useFormatter } from '../../../components/i18n';
 import { api } from '../../../network';
-import { computeBannerSettings } from '../../../public/components/systembanners/utils';
+import useBannerSettings from '../../../public/components/systembanners/useBannerSettings';
 import { MESSAGING$ } from '../../../utils/Environment';
 import useAuth from '../../../utils/hooks/useAuth';
 import { toHttpUrl } from '../../../utils/url-helper';
@@ -82,7 +82,7 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   // Sit flush under the app bar, pushed down by any active top banner (EE trial,
   // system messages) so the panel never slides under the header when a banner
   // is shown.
-  const { bannerHeightNumber } = computeBannerSettings(settings);
+  const { bannerHeightNumber } = useBannerSettings(settings);
   const headerHeight = parseFloat(
     getComputedStyle(document.documentElement).getPropertyValue('--fds-header-height'),
   );
@@ -163,8 +163,21 @@ const AskArianePanel: React.FC<AskArianePanelProps> = ({
   useEffect(() => {
     if (container) {
       container.className = isDarkMode ? 'dark' : '';
+      // The design system controls inside the panel (icon highlight, Button,
+      // Chip focus ring) paint from the host's brand family, which is the
+      // OpenAEV blue. Ask Ariane is an AI surface: its brand family is the AI
+      // purple it already passes as accent, as in XTM One mode. Declared on the
+      // portal itself because the `dark` class re-declares the family on this
+      // element. The dark hover step lightens (purple-200) to keep AA (F18).
+      container.style.setProperty('--color-filigran-brand-primary', accentColor);
+      container.style.setProperty('--color-filigran-brand-secondary', 'var(--color-filigran-ia-secondary)');
+      container.style.setProperty(
+        '--color-filigran-brand-tertiary',
+        isDarkMode ? 'var(--purple-200)' : 'var(--color-filigran-ia-tertiary)',
+      );
+      container.style.setProperty('--icon-highlight', accentColor);
     }
-  }, [isDarkMode, container]);
+  }, [isDarkMode, accentColor, container]);
 
   if (!container) {
     return null;

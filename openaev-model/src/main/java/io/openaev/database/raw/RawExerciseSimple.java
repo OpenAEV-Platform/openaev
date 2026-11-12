@@ -12,7 +12,7 @@ import java.util.Set;
  * @see io.openaev.database.model.Exercise
  * @see RawSimulationIndexing
  */
-public interface RawExerciseSimple {
+public interface RawExerciseSimple extends RawTenant {
 
   /**
    * Returns the unique identifier of the exercise.

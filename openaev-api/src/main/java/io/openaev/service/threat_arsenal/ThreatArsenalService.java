@@ -36,6 +36,7 @@ import io.openaev.schema.model.PropertySchemaDTO;
 import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.detection_remediation.DetectionRemediationService;
+import io.openaev.service.payload.PayloadUsageService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
@@ -59,6 +60,7 @@ public class ThreatArsenalService {
   private final PayloadUpdateService payloadUpdateService;
   private final PayloadService payloadService;
   private final InjectorContractService injectorContractService;
+  private final PayloadUsageService payloadUsageService;
   private final ThreatArsenalMapper threatArsenalMapper;
   private final DetectionRemediationService detectionRemediationService;
   private final BulkDeleteExecutor bulkDeleteExecutor;
@@ -544,6 +546,10 @@ public class ThreatArsenalService {
    * ticked on screen.
    */
   private List<String> resolveEligibleIds(InjectorContractSearchPaginationInput input) {
+    return payloadUsageService.notInUse(resolveCandidateIds(input));
+  }
+
+  private List<String> resolveCandidateIds(InjectorContractSearchPaginationInput input) {
     List<String> idsToProcess = input.getInjectorContractIdsToProcess();
     if (idsToProcess != null && !idsToProcess.isEmpty()) {
       return idsToProcess.stream().filter(this::isEligibleForDeletion).toList();

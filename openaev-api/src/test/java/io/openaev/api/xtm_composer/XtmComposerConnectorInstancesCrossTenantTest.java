@@ -14,8 +14,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstancePersisted;
+import io.openaev.database.model.Tenant;
 import io.openaev.service.PlatformSettingsService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
@@ -59,6 +62,7 @@ class XtmComposerConnectorInstancesCrossTenantTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private PlatformSettingsService platformSettingsService;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
   @Autowired private CatalogConnectorComposer catalogConnectorComposer;
   @Autowired private ConnectorInstanceComposer connectorInstanceComposer;
   @Autowired private ConnectorInstanceConfigurationComposer connectorInstanceConfigurationComposer;
@@ -78,6 +82,9 @@ class XtmComposerConnectorInstancesCrossTenantTest extends IntegrationTest {
     Map<String, String> composerSettings = new HashMap<>();
     composerSettings.put(XTM_COMPOSER_ID.key(), COMPOSER_ID);
     composerSettings.put(XTM_COMPOSER_VERSION.key(), "composer-version-test");
+    tenantScopedTransaction.setScopeOnCurrentTransaction(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID));
+    tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
     platformSettingsService.saveSettings(composerSettings);
 
     instanceA = seedManagedInstance(tenantA, "xtm-cross-connector-a");

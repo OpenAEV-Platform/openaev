@@ -26,7 +26,7 @@ import {
   type AutonomousRunStatus,
 } from '../../../actions/autonomous/autonomous-types';
 import { useFormatter } from '../../../components/i18n';
-import { computeBannerSettings } from '../../../public/components/systembanners/utils';
+import useBannerSettings from '../../../public/components/systembanners/useBannerSettings';
 import useAuth from '../../../utils/hooks/useAuth';
 import { useChatbot, useChatbotContentMargin } from '../ariane/useChatbotHooks';
 import {
@@ -257,7 +257,7 @@ const AutonomousReasoningPanel: FunctionComponent<AutonomousReasoningPanelProps>
     document.addEventListener('mouseup', onUp);
   }, [onWidthChange, width]);
 
-  const { bannerHeightNumber } = computeBannerSettings(settings);
+  const { bannerHeightNumber } = useBannerSettings(settings);
   const topOffset = `calc(var(--fds-header-height, 68px) + ${bannerHeightNumber}px)`;
   const accent = theme.palette.ai?.main ?? theme.palette.primary.main;
 

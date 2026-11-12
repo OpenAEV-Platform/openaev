@@ -84,7 +84,8 @@ public interface InjectorContractRepository
    * Retrieves injector contracts that a specific user has been granted access to.
    *
    * <p>Returns only contracts where the user has a THREAT_ARSENAL grant on the injector contract ID
-   * through their group memberships.
+   * or on its payload identity, through a group of the contract's tenant or a platform group: a
+   * grant applies in the tenant of the group that holds it.
    *
    * <p>Same tenant-carrying mapping join as {@link #getAllRawInjectorsContracts()}.
    *
@@ -95,6 +96,7 @@ public interface InjectorContractRepository
     return getAllRawInjectorsContractsGranted(userId, ResourceType.THREAT_ARSENAL.name());
   }
 
+  // Native: array_agg over the attack pattern mapping; a read, no session side effect lost.
   @Query(
       value =
           "SELECT injcon.injector_contract_id, "
@@ -104,6 +106,8 @@ public interface InjectorContractRepository
               + "  ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "  AND injcon.tenant_id = injconatt.tenant_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
+              + "LEFT JOIN payloads p ON p.payload_id = injcon.injector_contract_payload "
+              + "  AND p.tenant_id = injcon.tenant_id "
               + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
               + "AND EXISTS ( "
               + "  SELECT 1 FROM users u "
@@ -111,8 +115,9 @@ public interface InjectorContractRepository
               + "  INNER JOIN groups g ON ug.group_id = g.group_id "
               + "  INNER JOIN grants gr ON g.group_id = gr.grant_group "
               + "  WHERE u.user_id = :userId "
-              + "  AND gr.grant_resource = injcon.injector_contract_id "
+              + "  AND gr.grant_resource IN (injcon.injector_contract_id, p.payload_identity) "
               + "  AND gr.grant_resource_type = :resourceType "
+              + "  AND (g.tenant_id IS NULL OR g.tenant_id = injcon.tenant_id) "
               + ") "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
@@ -125,6 +130,15 @@ public interface InjectorContractRepository
 
   @Query("SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id")
   boolean existsByContractId(@Param("id") @NotNull String id);
+
+  @Query(
+      "SELECT c.compositeId.id FROM InjectorContract c"
+          + " WHERE c.compositeId.id IN :contractIds AND c.payload IS NOT NULL"
+          + " AND EXISTS (SELECT 1 FROM Inject i WHERE i.injectorContract = c)")
+  Set<String> findIdsInUse(@Param("contractIds") Collection<String> contractIds);
+
+  @Query("SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.payload.identity.id = :id")
+  boolean existsByPayloadIdentityId(@Param("id") @NotNull String id);
 
   @Query(
       "SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")

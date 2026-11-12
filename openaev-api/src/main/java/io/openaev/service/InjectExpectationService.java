@@ -765,6 +765,9 @@ public class InjectExpectationService {
             // resolved through the asset lookup.
             case ASSETS, AI_TARGETS ->
                 injectExpectationRepository.findAllByInjectAndAsset(injectId, targetId);
+            // Expectations are created per asset / agent / team / player: a manual target (a raw
+            // IP or hostname from the inject content) never carries any.
+            case MANUAL -> Collections.<BaseInjectExpectation>emptyList();
             default ->
                 throw new RuntimeException(
                     "Target type "
@@ -808,6 +811,8 @@ public class InjectExpectationService {
                 injectId,
                 targetId,
                 injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, targetId));
+        // A manual target (a raw IP or hostname from the inject content) never carries any.
+        case MANUAL -> Collections.<BaseInjectExpectation>emptyList();
         default ->
             throw new RuntimeException(
                 "Target type "
@@ -1309,9 +1314,14 @@ public class InjectExpectationService {
    * expectations are never answered directly: like every parent, they are derived from their assets
    * once the per-asset verdicts land on the leaves.
    *
+   * <p>The verdicts are written through self-invocations, which bypass the Spring proxy: the {@link
+   * WorkflowUpdateEvent} of the update methods never runs for them. This method carries its own
+   * event instead, so the chaining step running the inject is notified of the verdicts.
+   *
    * @param ctx the execution processing context containing the inject and agent information
    * @param jsonNode the JSON node containing the output to check for vulnerabilities
    */
+  @WorkflowUpdateEvent(injectId = "#ctx.inject().getId()")
   public void matchesVulnerabilityExpectations(ExecutionProcessingContext ctx, JsonNode jsonNode) {
     boolean anyVulnerable =
         jsonNode != null
@@ -1371,7 +1381,8 @@ public class InjectExpectationService {
    * security platform (assessment injectors such as Nuclei) or to the generic Expectations
    * Vulnerability Manager collector: the verdict lands on the leaves of the expectation, then the
    * parents are recomputed (see {@link #updateInjectExpectationsFromExternalSource}). The result
-   * label is derived from the success flag.
+   * label is derived from the success flag. No workflow update event is published from here: see
+   * {@link #matchesVulnerabilityExpectations}.
    *
    * @param expectation the vulnerability expectation to conclude
    * @param vulnerable whether the target of this expectation was found vulnerable

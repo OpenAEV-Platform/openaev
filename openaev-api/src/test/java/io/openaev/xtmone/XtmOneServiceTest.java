@@ -6,11 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
@@ -23,6 +26,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,6 +45,7 @@ class XtmOneServiceTest {
   @Mock private XtmOneClient client;
   @Mock private PlatformSettingsService platformSettingsService;
   @Mock private TenantSettingsService tenantSettingsService;
+  @Mock private TenantScopedTransaction tenantTx;
   @Mock private EnterpriseEditionService eeService;
   @Mock private XtmOneEntitlementService entitlementService;
   @Mock private LicenseCacheManager licenseCacheManager;
@@ -58,6 +63,10 @@ class XtmOneServiceTest {
 
   private void arrangeConfigured(String resolvedName) {
     when(config.isConfigured()).thenReturn(true);
+    // The tenant-aware read opens its own default-tenant transaction: run the work inline.
+    lenient()
+        .when(tenantTx.execute(any(TxCtx.class), any(Supplier.class)))
+        .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
     when(platformSettingsService.findSettings()).thenReturn(stubPlatformSettings());
     when(platformSettingsService.getPlatformVersion()).thenReturn("1.0.0");
     when(tenantSettingsService.resolveSettingValue(anyString(), eq(PLATFORM_NAME)))

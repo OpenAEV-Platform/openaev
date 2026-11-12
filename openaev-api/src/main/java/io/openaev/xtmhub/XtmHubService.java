@@ -184,7 +184,7 @@ public class XtmHubService {
               registration.getToken(), tenantSettingsService.buildTenantUrl(tenantId), tenantName));
     }
 
-    Map<String, XtmHubConnectivityStatus> statuses =
+    Map<String, XtmHubConnectivityResult> hubResults =
         xtmHubClient.refreshRegistrationStatusAllTenants(
             settings.getPlatformId(),
             settings.getPlatformVersion(),
@@ -204,10 +204,10 @@ public class XtmHubService {
             return;
           }
 
-          XtmHubConnectivityStatus status =
-              statuses.getOrDefault(tenantId, XtmHubConnectivityStatus.INACTIVE);
+          XtmHubConnectivityResult hubResult =
+              hubResults.getOrDefault(tenantId, XtmHubConnectivityResult.INACTIVE);
 
-          if (status == XtmHubConnectivityStatus.NOT_FOUND) {
+          if (hubResult.status() == XtmHubConnectivityStatus.NOT_FOUND) {
             log.warn("Platform was not found on XTM Hub for tenant {}", tenantId);
             tenantXtmHubRegistrationRepository.deleteByTenantId(tenantId);
             return;
@@ -215,7 +215,10 @@ public class XtmHubService {
 
           ConnectivityCheckResult checkResult =
               new ConnectivityCheckResult(
-                  status, parseLastConnectivityCheck(registration), registration);
+                  hubResult.status(),
+                  hubResult.commercialModel(),
+                  parseLastConnectivityCheck(registration),
+                  registration);
           updateRegistrationStatus(registration, checkResult);
           handleTenantConnectivityLossNotification(checkResult);
           allCheckResults.add(checkResult);
@@ -305,7 +308,7 @@ public class XtmHubService {
     String url = tenantSettingsService.buildTenantUrl(tenantId);
     String tenantName = registration.getTenant().getName();
 
-    XtmHubConnectivityStatus status =
+    XtmHubConnectivityResult hubResult =
         xtmHubClient.refreshRegistrationStatusSingleTenant(
             settings.getPlatformId(),
             settings.getPlatformVersion(),
@@ -317,7 +320,8 @@ public class XtmHubService {
 
     LocalDateTime lastCheck = parseLastConnectivityCheck(registration);
 
-    return new ConnectivityCheckResult(status, lastCheck, registration);
+    return new ConnectivityCheckResult(
+        hubResult.status(), hubResult.commercialModel(), lastCheck, registration);
   }
 
   public Boolean contactUs(String message) {
@@ -363,14 +367,25 @@ public class XtmHubService {
         checkResults.stream().anyMatch(r -> r.status() == XtmHubConnectivityStatus.ACTIVE);
 
     if (connectivityRestored) {
-      platformSettingsService.updateXTMHubEmailNotification(true);
+      updateEmailNotificationFlag(true);
       return;
     }
 
     if (shouldSendConnectivityLossEmail(settings, checkResults)) {
-      platformSettingsService.updateXTMHubEmailNotification(false);
+      updateEmailNotificationFlag(false);
       xtmHubEmailService.sendLostConnectivityEmail();
     }
+  }
+
+  /**
+   * The flag is a platform row of the settings table: the scheduled run has no request and no
+   * transaction around it, so the write opens its own platform-write one, kept apart from the HTTP
+   * and SMTP calls around it.
+   */
+  private void updateEmailNotificationFlag(boolean shouldSendConnectivityEmail) {
+    tenantTx.executeAsPlatformWrite(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> platformSettingsService.updateXTMHubEmailNotification(shouldSendConnectivityEmail));
   }
 
   private void handleTenantConnectivityLossNotification(ConnectivityCheckResult checkResult) {
@@ -429,6 +444,10 @@ public class XtmHubService {
 
     registration.setRegistrationStatus(newStatus);
     registration.setLastConnectivityCheck(updatedLastCheck);
+    // An older or unreachable hub returns no commercial model: keep the last known one.
+    if (checkResult.commercialModel() != null) {
+      registration.setCommercialModel(checkResult.commercialModel());
+    }
 
     return tenantXtmHubRegistrationRepository.save(registration);
   }
@@ -436,6 +455,7 @@ public class XtmHubService {
   /** Encapsulates the result of a connectivity check */
   private record ConnectivityCheckResult(
       XtmHubConnectivityStatus status,
+      XtmHubCommercialModel commercialModel,
       LocalDateTime lastCheck,
       TenantXtmHubRegistration registration) {}
 }
