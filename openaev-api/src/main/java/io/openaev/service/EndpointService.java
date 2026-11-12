@@ -161,7 +161,8 @@ public class EndpointService implements AuditLoggedService {
     endpoint.setIps(ips);
     ensureSeenIp(endpoint);
     endpoint.setMacAddresses(EndpointMapper.setMacAddresses(input.getMacAddresses()));
-    endpoint.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    endpoint.setTags(
+        iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
     endpoint.setEoL(input.isEol());
     return createEndpoint(endpoint, tenantId);
   }
@@ -1115,13 +1116,13 @@ public class EndpointService implements AuditLoggedService {
       Endpoint endpointToUpdate = endpoint.get();
       // Mandatory fields
       endpointToUpdate.setName(input.getName());
-      Iterable<String> tags =
+      List<String> tags =
           Stream.concat(
                   endpointToUpdate.getTags().stream().map(Tag::getId).toList().stream(),
                   input.getTagIds().stream())
               .distinct()
               .toList();
-      endpointToUpdate.setTags(iterableToSet(tagRepository.findAllById(tags)));
+      endpointToUpdate.setTags(iterableToSet(tagRepository.findAllByIdInTenant(tags, tenantId)));
       // Optional fields: only override when provided so category inputs that omit
       // platform/arch (web app, cloud, ...) do not reset existing values to Unknown.
       if (input.getArch() != null) {

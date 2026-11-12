@@ -131,7 +131,8 @@ public class DocumentService {
       }
       // Compute tags
       Set<Tag> tags = new HashSet<>(document.getTags());
-      List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
+      List<Tag> inputTags =
+          fromIterable(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId));
       tags.addAll(inputTags);
       document.setTags(tags);
       return save(document);
@@ -168,7 +169,8 @@ public class DocumentService {
         }
         // Compute tags
         Set<Tag> tags = new HashSet<>(document.getTags());
-        List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
+        List<Tag> inputTags =
+            fromIterable(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId));
         tags.addAll(inputTags);
         document.setTags(tags);
         return save(document);
@@ -188,7 +190,8 @@ public class DocumentService {
           document.setScenarios(
               iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
         }
-        document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+        document.setTags(
+            iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
         document.setType(fileContentType);
         return save(document);
       }
