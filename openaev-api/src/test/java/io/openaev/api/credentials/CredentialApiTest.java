@@ -4,6 +4,7 @@ import static io.openaev.api.credentials.CredentialApi.*;
 import static io.openaev.database.model.AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE.STATIC_ACCESS_KEY;
 import static io.openaev.database.model.SecretReference.SECRET_STATUS.*;
 import static io.openaev.integration.impl.secrets.local.LocalSecretsProviderIntegration.LOCAL_SECRETS_PROVIDER_ID;
+import static io.openaev.service.credential.CredentialService.AWS_ACCOUNT_ID_DESCRIPTION;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.*;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
@@ -213,7 +214,7 @@ class CredentialApiTest extends IntegrationTest {
           JsonPath.read(
               response, "$[*].fields[?(@.field_name == 'aws_account_id')].field_description");
       assertThat(descriptions)
-          .containsExactly(AwsAccountId.FORM_DESCRIPTION, AwsAccountId.FORM_DESCRIPTION);
+          .containsExactly(AWS_ACCOUNT_ID_DESCRIPTION, AWS_ACCOUNT_ID_DESCRIPTION);
     }
   }
 

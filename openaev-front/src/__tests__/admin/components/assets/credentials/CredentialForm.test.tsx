@@ -8,14 +8,15 @@ import DOTS from '../../../../../constants/Strings';
 import { type CredentialContractOutput, type CredentialInput } from '../../../../../utils/api-types';
 import en from '../../../../../utils/lang/en.json';
 
-const optionalField = (field_name: string, field_type: 'text' | 'password' | 'file' = 'text', field_description?: string) => ({
+const optionalField = (field_name: string, field_type: 'text' | 'password' | 'file' = 'text', field_description?: string, accepted_formats?: string[]) => ({
   field_name,
   field_type,
   required: false,
   field_description,
+  accepted_formats,
 });
 
-const CERTIFICATE_ACCEPT = '.pem,.crt,.cer,application/x-x509-ca-cert,application/x-pem-file';
+const CERTIFICATE_FORMATS = ['.pem', '.crt', '.cer', 'application/x-x509-ca-cert', 'application/x-pem-file'];
 
 const contracts: CredentialContractOutput[] = [
   {
@@ -36,7 +37,7 @@ const contracts: CredentialContractOutput[] = [
     credential_auth_method: 'AZURE_SERVICE_PRINCIPAL',
     fields: [
       optionalField('azure_authority_host_uri'),
-      optionalField('azure_requests_certificate', 'file'),
+      optionalField('azure_requests_certificate', 'file', undefined, CERTIFICATE_FORMATS),
     ],
   },
   {
@@ -198,7 +199,7 @@ describe('CredentialForm', () => {
       submit();
 
       // Assert
-      expect(fileInput.getAttribute('accept')).toBe(CERTIFICATE_ACCEPT);
+      expect(fileInput.getAttribute('accept')).toBe(CERTIFICATE_FORMATS.join(','));
       await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
       expect(onSubmit.mock.calls[0][0].get('azure_requests_certificate')).toBeInstanceOf(File);
     });

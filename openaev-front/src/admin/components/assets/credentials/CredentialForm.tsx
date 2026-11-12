@@ -25,11 +25,6 @@ import type {
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
 import { humanizeEnum } from '../asset-categories';
 
-const FILE_FIELD_ACCEPTED_FORMATS: Record<string, string> = {
-  gcp_private_key_json: 'application/json',
-  azure_requests_certificate: '.pem,.crt,.cer,application/x-x509-ca-cert,application/x-pem-file',
-};
-
 interface Props {
   /** Receives the multipart payload: an `input` JSON part plus one part per uploaded file. */
   onSubmit: (formData: FormData, event?: BaseSyntheticEvent) => Promise<unknown> | void;
@@ -409,7 +404,7 @@ const CredentialForm: FunctionComponent<Props> = ({
                   key={field.field_name}
                   name={field.field_name}
                   label={t(field.field_name)}
-                  acceptMimeTypes={FILE_FIELD_ACCEPTED_FORMATS[field.field_name]}
+                  acceptMimeTypes={field.accepted_formats?.join(',')}
                   required={!!field.required}
                   disabled={isSubmitting}
                 />
