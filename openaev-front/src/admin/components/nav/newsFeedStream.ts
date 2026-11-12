@@ -11,7 +11,7 @@ export interface NewsFeedItemStreamEvent<T> {
 }
 
 /** The news feed item event carried by a stream message, `null` for any other message. */
-export const parseNewsFeedItemStreamEvent = <T>(message: MessageEvent): NewsFeedItemStreamEvent<T> | null => {
+export const parseNewsFeedItemStreamEvent = <T = unknown>(message: MessageEvent): NewsFeedItemStreamEvent<T> | null => {
   // Cheap check first: the stream carries every kind of event, and most are not news feed items.
   if (!message.data.includes(`"${NEWS_FEED_ITEM_SCHEMA}"`)) {
     return null;

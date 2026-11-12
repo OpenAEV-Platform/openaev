@@ -127,6 +127,7 @@ describe('NewsFeed page', () => {
       expect(screen.getByTestId('news-feed-list')).toBeInTheDocument();
       expect(refreshCounter).not.toHaveBeenCalled();
       expect(mockNotifyError).not.toHaveBeenCalled();
+      expect(mockNotifyErrorHandler).not.toHaveBeenCalled();
       subscription.unsubscribe();
     });
   });
