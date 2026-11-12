@@ -1,132 +1,134 @@
 package io.openaev.executors;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
+import static io.openaev.executors.BatchExecutorContextService.MAX_ATTEMPTS;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
 import io.openaev.executors.exception.ExecutorBusyException;
-import java.util.ArrayList;
-import java.util.HashMap;
+import io.openaev.executors.exception.ExecutorException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class BatchExecutorContextServiceTest {
 
-  private RecordingService service;
+  private final FakeExecutor executor = new FakeExecutor();
 
-  @BeforeEach
-  void setUp() {
-    service = new RecordingService();
-    service.setScheduler(immediateScheduler());
+  @AfterEach
+  void tearDown() {
+    executor.shutdown();
   }
 
   @Test
-  @DisplayName("a busy agent is retried until the EDR accepts the call")
-  void given_busyAgent_should_retryUntilAccepted() {
-    // Arrange: agent-1 is busy twice, then accepts
-    service.busyCalls.put("agent-1", 2);
-
-    // Act
-    service.dispatchAll(List.of("agent-1", "agent-2"));
-
-    // Assert
-    assertEquals(3, service.attempts("agent-1"));
-    assertEquals(1, service.attempts("agent-2"));
-    assertEquals(List.of("agent-1", "agent-2"), service.sent);
-  }
-
-  @Test
-  @DisplayName("a busy agent is given up after the last attempt, the rest still dispatched")
-  void given_alwaysBusyAgent_should_giveUpAfterLastAttempt() {
-    // Arrange: agent-1 stays busy
-    service.busyCalls.put("agent-1", Integer.MAX_VALUE);
-
-    // Act
-    assertDoesNotThrow(() -> service.dispatchAll(List.of("agent-1", "agent-2")));
-
-    // Assert: 15 attempts in total, then the base class gives up
-    assertEquals(15, service.attempts("agent-1"));
-    assertEquals(List.of("agent-2"), service.sent);
-  }
-
-  @Test
-  @DisplayName("any other failure on one agent is logged and the batch goes on")
-  void given_failingAgent_should_notRetryAndDispatchTheRest() {
+  @DisplayName("Retries a busy device until it is free")
+  void given_busyDevice_should_retryUntilFree() {
     // Arrange
-    service.failing.add("agent-2");
+    executor.busyTimes("device-1", 2);
 
     // Act
-    assertDoesNotThrow(() -> service.dispatchAll(List.of("agent-1", "agent-2", "agent-3")));
+    executor.dispatch(List.of("device-1"));
 
     // Assert
-    assertEquals(1, service.attempts("agent-2"));
-    assertEquals(List.of("agent-1", "agent-3"), service.sent);
+    await().atMost(Duration.ofSeconds(5)).until(() -> executor.sent.contains("device-1"));
+    assertThat(executor.attempts("device-1")).isEqualTo(3);
   }
 
-  private static ScheduledExecutorService immediateScheduler() {
-    ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
-    doAnswer(
-            invocation -> {
-              Runnable runnable = invocation.getArgument(0);
-              runnable.run();
-              return mock(ScheduledFuture.class);
-            })
-        .when(scheduler)
-        .schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
-    return scheduler;
+  @Test
+  @DisplayName("Gives up on a device that stays busy")
+  void given_alwaysBusyDevice_should_giveUp() {
+    // Arrange
+    executor.busyTimes("device-1", Integer.MAX_VALUE);
+
+    // Act
+    executor.dispatch(List.of("device-1"));
+
+    // Assert
+    await()
+        .atMost(Duration.ofSeconds(5))
+        .until(() -> executor.attempts("device-1") == MAX_ATTEMPTS);
+    await()
+        .during(Duration.ofMillis(300))
+        .until(() -> executor.attempts("device-1") == MAX_ATTEMPTS);
+    assertThat(executor.sent).isEmpty();
   }
 
-  private static final class RecordingService extends BatchExecutorContextService<String> {
+  @Test
+  @DisplayName("Sends every batch even when one device fails")
+  void given_failingDevice_should_sendAllOthers() {
+    // Arrange
+    executor.failing("device-2");
 
-    private final Map<String, Integer> busyCalls = new HashMap<>();
-    private final List<String> failing = new ArrayList<>();
-    private final Map<String, Integer> attempts = new HashMap<>();
-    private final List<String> sent = new ArrayList<>();
+    // Act
+    executor.dispatch(List.of("device-1", "device-2", "device-3", "device-4", "device-5"));
 
-    void dispatchAll(List<String> actions) {
-      dispatch(actions);
+    // Assert
+    await().atMost(Duration.ofSeconds(5)).until(() -> executor.sent.size() == 4);
+    assertThat(executor.sent)
+        .containsExactlyInAnyOrder("device-1", "device-3", "device-4", "device-5");
+    assertThat(executor.attempts("device-2")).isEqualTo(1);
+  }
+
+  private static class FakeExecutor extends BatchExecutorContextService<String> {
+
+    private final Map<String, Integer> busyLeft = new ConcurrentHashMap<>();
+    private final Map<String, AtomicInteger> attempts = new ConcurrentHashMap<>();
+    private final Set<String> failing = ConcurrentHashMap.newKeySet();
+    private final Queue<String> sent = new ConcurrentLinkedQueue<>();
+
+    void busyTimes(String device, int times) {
+      busyLeft.put(device, times);
     }
 
-    int attempts(String agent) {
-      return attempts.getOrDefault(agent, 0);
+    void failing(String device) {
+      failing.add(device);
+    }
+
+    int attempts(String device) {
+      return attempts.getOrDefault(device, new AtomicInteger()).get();
     }
 
     @Override
-    protected void send(String action) {
-      attempts.merge(action, 1, Integer::sum);
-      int busy = busyCalls.getOrDefault(action, 0);
-      if (busy > 0) {
-        busyCalls.put(action, busy - 1);
-        throw new ExecutorBusyException("device busy", "test-executor");
+    protected void send(String device) {
+      attempts.computeIfAbsent(device, d -> new AtomicInteger()).incrementAndGet();
+      if (failing.contains(device)) {
+        throw new ExecutorException("failed", "fake");
       }
-      if (failing.contains(action)) {
-        throw new IllegalStateException("vendor unavailable");
+      if (busyLeft.merge(device, -1, Integer::sum) >= 0) {
+        throw new ExecutorBusyException("busy", "fake");
       }
-      sent.add(action);
+      sent.add(device);
     }
 
     @Override
-    protected String agentReference(String action) {
-      return action;
+    protected String agentReference(String device) {
+      return device;
     }
 
     @Override
     protected int batchSize() {
-      return 10;
+      return 2;
+    }
+
+    @Override
+    protected Duration batchInterval() {
+      return Duration.ofMillis(10);
+    }
+
+    @Override
+    protected Duration retryDelay() {
+      return Duration.ofMillis(10);
     }
 
     @Override
