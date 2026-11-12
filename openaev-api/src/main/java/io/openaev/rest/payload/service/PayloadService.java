@@ -10,6 +10,7 @@ import static io.openaev.injector_contract.ContractCardinality.Multiple;
 import static io.openaev.injector_contract.ContractDef.contractBuilder;
 import static io.openaev.injector_contract.fields.ContractAsset.assetField;
 import static io.openaev.injector_contract.fields.ContractAssetGroup.assetGroupField;
+import static io.openaev.injector_contract.fields.ContractDocument.documentField;
 import static io.openaev.injector_contract.fields.ContractExpectations.expectationsField;
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openaev.injector_contract.fields.ContractText.textField;
@@ -257,6 +258,14 @@ public class PayloadService {
                   List<ContractElement> targetedAssetsFields =
                       targetedAssetFields(payloadArgument.getKey(), payloadArgument);
                   targetedAssetsFields.forEach(builder::mandatory);
+                } else if (PrimitiveType.Document == payloadArgument.getType()) {
+                  ContractElement documentField =
+                      documentField(
+                          payloadArgument.getKey(),
+                          payloadArgument.getKey(),
+                          payloadArgument.getDefaultValue());
+                  documentField.setArgumentType(payloadArgument.getType());
+                  builder.mandatory(documentField);
                 } else {
                   ContractElement textField =
                       textField(

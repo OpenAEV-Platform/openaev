@@ -69,6 +69,7 @@ export type ContractType
     | 'ai-target'
     | 'payload'
     | 'targeted-asset'
+    | 'document'
     | 'password'
     | 'credential-reference';
 
