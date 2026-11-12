@@ -13708,7 +13708,7 @@ export interface User {
   user_email: string;
   /** First name of the user */
   user_firstname?: string;
-  user_grants?: Record<string, string>;
+  user_grants?: Record<string, UserGrant>;
   /** Gravatar of the user */
   user_gravatar?: string;
   user_groups?: string[];
@@ -13758,6 +13758,18 @@ export interface User {
    * @format date-time
    */
   user_updated_at: string;
+}
+
+export interface UserGrant {
+  grant: "OBSERVER" | "PLANNER" | "LAUNCHER";
+  type:
+    | "SCENARIO"
+    | "SIMULATION"
+    | "ATOMIC_TESTING"
+    | "AUTONOMOUS_RUN"
+    | "THREAT_ARSENAL"
+    | "PAYLOAD"
+    | "UNKNOWN";
 }
 
 export interface UserInput {
