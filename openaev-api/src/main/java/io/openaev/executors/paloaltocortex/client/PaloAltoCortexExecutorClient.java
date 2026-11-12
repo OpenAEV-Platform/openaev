@@ -137,7 +137,13 @@ public class PaloAltoCortexExecutorClient {
       String jsonResponse = this.post(RUN_SCRIPT_URI, bodyCommand);
       ResponseScriptRun response =
           this.objectMapper.readValue(jsonResponse, new TypeReference<>() {});
-      if (response.getReply().getErr_code() != null) {
+      if (response == null || response.getReply() == null) {
+        log.error(
+            "Palo Alto Cortex API run script returned no reply for script "
+                + scriptId
+                + " and agent "
+                + agentExternalReference);
+      } else if (response.getReply().getErr_code() != null) {
         log.error(
             "Error occurred while executing Palo Alto Cortex API run script for script "
                 + scriptId

@@ -3,6 +3,7 @@ package io.openaev.api.platform.roles;
 import static io.openaev.rest.role.form.RoleMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
+import io.openaev.aop.PlatformWrite;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -38,6 +39,7 @@ public class PlatformRoleApi extends RestBehavior {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional(rollbackFor = Exception.class)
+  @PlatformWrite
   @Operation(summary = "Create a platform role")
   public RoleOutput create(TxCtx ctx, @Valid @RequestBody RoleInput input) {
     return toOutput(
@@ -104,6 +106,7 @@ public class PlatformRoleApi extends RestBehavior {
       isEnterpriseEdition = true)
   @PutMapping("/{platformRoleId}")
   @Transactional(rollbackFor = Exception.class)
+  @PlatformWrite
   @Operation(summary = "Update a platform role")
   public RoleOutput update(
       TxCtx ctx, @PathVariable String platformRoleId, @Valid @RequestBody RoleInput input) {
@@ -122,6 +125,7 @@ public class PlatformRoleApi extends RestBehavior {
   @DeleteMapping("/{platformRoleId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @Transactional(rollbackFor = Exception.class)
+  @PlatformWrite
   @Operation(summary = "Delete a platform role")
   public void delete(TxCtx ctx, @PathVariable String platformRoleId) {
     platformRoleService.delete(platformRoleId);

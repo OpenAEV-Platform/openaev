@@ -8,6 +8,7 @@ import {
   useWatch,
 } from 'react-hook-form';
 
+import DocumentField from '../../../../../components/fields/DocumentField';
 import RichTextField from '../../../../../components/fields/RichTextField';
 import SelectFieldController, { type Item } from '../../../../../components/fields/SelectFieldController';
 import SeparatorFieldController from '../../../../../components/fields/SeparatorFieldController';
@@ -135,6 +136,25 @@ const InjectContentFieldComponent = ({
               errorLabel={error?.message}
             />
           </>
+        );
+      case 'document':
+        return (
+          <Controller
+            name={field.key}
+            control={control}
+            render={({ field: { onChange, value }, fieldState: { error: fieldError } }) => (
+              <DocumentField
+                label={t(label)}
+                fieldValue={(value as string) ?? ''}
+                fieldOnChange={onChange}
+                error={fieldError ?? error}
+                style={{}}
+                placeholder={placeholder}
+                disabled={isSubmitting || readOnly}
+                required={field.settings?.required}
+              />
+            )}
+          />
         );
       case 'ai-target':
         return (
