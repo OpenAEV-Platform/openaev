@@ -114,7 +114,10 @@ public interface PayloadRepository
 
   // -- IDENTITY --
 
-  Optional<Payload> findByIdentityExternalId(@NotNull String externalId);
+  List<Payload> findAllByTenantIdAndIdentityExternalId(
+      @NotNull String tenantId, @NotNull String externalId);
+
+  Optional<Payload> findByIdentityExternalIdAndIdentityRepositoryIsNull(@NotNull String externalId);
 
   List<Payload> findAllByIdentityId(String identityId);
 }
