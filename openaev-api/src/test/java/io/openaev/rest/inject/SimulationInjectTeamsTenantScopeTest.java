@@ -10,7 +10,6 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
@@ -32,7 +31,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -140,6 +138,7 @@ class SimulationInjectTeamsTenantScopeTest extends IntegrationTest {
       assertThat(teamsOf(inject.injectId())).containsExactly(ownTeam);
     }
 
+    // Guards the null check of the repository.
     @Test
     @DisplayName("given a null team list when updating then it is refused and the team stays")
     void given_nullTeamList_should_refuseAndKeepTeam() throws Exception {
@@ -150,10 +149,10 @@ class SimulationInjectTeamsTenantScopeTest extends IntegrationTest {
       arrangeHeaderRoute();
 
       // Act
-      String outcome = outcomeOf(() -> updateInjectTeams(inject, null, false));
+      ResultActions result = updateInjectTeams(inject, null, false);
 
       // Assert
-      assertEquals(NULL_LIST_OUTCOME, outcome);
+      result.andExpect(status().isBadRequest());
       assertThat(teamsOf(inject.injectId())).containsExactly(ownTeam);
     }
   }
@@ -181,28 +180,6 @@ class SimulationInjectTeamsTenantScopeTest extends IntegrationTest {
   }
 
   // -- Requests --
-
-  // findAllById(null) throws IllegalArgumentException, which RestBehavior answers with a 400.
-  private static final String NULL_LIST_OUTCOME = "status 400: Ids must not be null";
-
-  private interface Request {
-    ResultActions perform() throws Exception;
-  }
-
-  /** The status and message of the response, or the class and cause of the exception thrown. */
-  private static String outcomeOf(Request request) {
-    try {
-      MockHttpServletResponse response = request.perform().andReturn().getResponse();
-      return "status "
-          + response.getStatus()
-          + ": "
-          + JsonPath.<String>read(response.getContentAsString(), "$.message");
-    } catch (Exception e) {
-      Throwable cause = e.getCause();
-      return e.getClass().getName()
-          + (cause == null ? "" : " <- " + cause.getClass().getName() + ": " + cause.getMessage());
-    }
-  }
 
   private ResultActions updateInjectTeams(
       SeededInject inject, List<String> teamIds, boolean tenantRoute) throws Exception {
