@@ -7,7 +7,7 @@ import { z } from 'zod';
 import RichTextField from '../../../components/fields/RichTextField';
 import TextFieldController from '../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../components/i18n';
-import { zodImplement } from '../../../utils/Zod';
+import { requiredRichText, zodImplement } from '../../../utils/Zod';
 
 interface SendLessonsFormInputs {
   subject: string;
@@ -33,7 +33,7 @@ const SendLessonsForm: FunctionComponent<Props> = ({
     resolver: zodResolver(
       zodImplement<SendLessonsFormInputs>().with({
         subject: z.string().min(1, { message: t('This field is required.') }),
-        body: z.string().min(1, { message: t('This field is required.') }),
+        body: requiredRichText(t),
       }),
     ),
     defaultValues: {

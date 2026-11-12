@@ -32,6 +32,15 @@ export const optionalText = () => z
   .transform(value => value || undefined)
   .optional() as unknown as z.ZodOptional<z.ZodType<string | undefined, string | undefined>>;
 
+// The rich text editor returns HTML, and an emptied editor still holds markup such as `<p></p>`:
+// require visible text, not just a non-empty string.
+export const requiredRichText = (t: Translate) => z
+  .string()
+  .refine(
+    value => (new DOMParser().parseFromString(value, 'text/html').body.textContent ?? '').trim().length > 0,
+    { error: t('This field is required.') },
+  );
+
 export function zodImplement<Model = never>() {
   return {
     with: <

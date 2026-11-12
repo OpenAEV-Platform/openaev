@@ -81,10 +81,9 @@ class LessonsPage {
   }
 
   async openEvaluations(title: string) {
-    await this.getObjective(title).getByRole('button', {
-      name: title,
-      exact: true,
-    }).click();
+    // The row button's accessible name also holds the description and the score ("<title> 0%"):
+    // match on the title only, the row is already scoped by getObjective.
+    await this.getObjective(title).getByRole('button', { name: title }).click();
     const dialog = this.page.getByRole('dialog', {
       name: 'Objective achievement evaluation',
       exact: true,
