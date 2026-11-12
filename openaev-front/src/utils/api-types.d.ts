@@ -8522,7 +8522,11 @@ export interface NewsFeedItemOutput {
 }
 
 export interface NewsFeedSettingsInput {
-  /** The news feed types the current user wants to receive, and only those. An empty list unsubscribes the user from everything */
+  /**
+   * The news feed types the current user wants to receive, and only those. An empty list unsubscribes the user from everything
+   * @maxItems 50
+   * @minItems 0
+   */
   news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
 }
 
