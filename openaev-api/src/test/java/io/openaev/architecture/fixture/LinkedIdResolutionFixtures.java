@@ -45,6 +45,19 @@ public final class LinkedIdResolutionFixtures {
     List<LinkedItem> findAllByIdInWithin(Collection<String> ids, String tenantId);
   }
 
+  /** A second repository of the same table, so one inherited target has two receivers. */
+  @NoRepositoryBean
+  public interface SiblingLinkedItemRepository extends JpaRepository<LinkedItem, String> {}
+
+  /** Declares the same method name twice: once with a tenant, once without. */
+  @NoRepositoryBean
+  public interface OverloadedItemRepository extends JpaRepository<LinkedItem, String> {
+
+    List<LinkedItem> findAllByIdInWithin(Collection<String> ids);
+
+    List<LinkedItem> findAllByIdInWithin(Collection<String> ids, String tenantId);
+  }
+
   /** Inherits {@code findAllById} from a parent interface of the code base. */
   @NoRepositoryBean
   public interface LinkedItemChildRepository extends LinkedItemRepository {}
@@ -84,6 +97,28 @@ public final class LinkedIdResolutionFixtures {
     public void link(List<String> ids, List<String> others) {
       repository.findAllById(ids);
       repository.findAllById(others);
+    }
+  }
+
+  public static class CallsTwoRepositoriesThroughMethodReferences {
+    private LinkedItemRepository first;
+    private SiblingLinkedItemRepository second;
+
+    public Object link(List<String> ids) {
+      resolve(ids, first::findAllById);
+      return resolve(ids, second::findAllById);
+    }
+
+    private Object resolve(List<String> ids, Function<List<String>, Object> resolver) {
+      return resolver.apply(ids);
+    }
+  }
+
+  public static class CallsTheUnscopedOverload {
+    private OverloadedItemRepository repository;
+
+    public Object link(List<String> ids) {
+      return repository.findAllByIdInWithin(ids);
     }
   }
 
@@ -155,6 +190,14 @@ public final class LinkedIdResolutionFixtures {
       repository.findAllByIdInTenant(ids, tenantId);
       repository.findAllByIdInAndTenantId(ids, tenantId);
       repository.findAllByIdInWithin(ids, tenantId);
+    }
+  }
+
+  public static class CallsTheScopedOverload {
+    private OverloadedItemRepository repository;
+
+    public Object link(List<String> ids, String tenantId) {
+      return repository.findAllByIdInWithin(ids, tenantId);
     }
   }
 

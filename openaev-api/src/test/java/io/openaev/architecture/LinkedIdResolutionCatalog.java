@@ -3,6 +3,7 @@ package io.openaev.architecture;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaCodeUnitAccess;
+import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.domain.JavaMethodReference;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -10,11 +11,11 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import org.springframework.core.GenericTypeResolver;
 import org.springframework.data.repository.query.Param;
 
@@ -103,61 +104,126 @@ final class LinkedIdResolutionCatalog {
       JavaClasses classes, Repositories repositories, Set<String> activeTables) {
     Map<String, Integer> calls = new TreeMap<>();
     for (JavaClass javaClass : classes) {
-      for (JavaCodeUnitAccess<?> access : accessesOf(javaClass)) {
-        for (String receiver : receiversOf(javaClass, access)) {
-          String table = repositories.tables().get(receiver);
-          if (table != null
-              && activeTables.contains(table)
-              && resolvesWithoutTenant(receiver, access.getName())) {
-            String site =
-                javaClass.getName()
-                    + "#"
-                    + access.getOrigin().getName()
-                    + " -> "
-                    + receiver.substring(
-                        Math.max(receiver.lastIndexOf('.'), receiver.lastIndexOf('$')) + 1);
-            calls.merge(site, 1, Integer::sum);
-          }
-        }
+      for (JavaMethodCall call : javaClass.getMethodCallsFromSelf()) {
+        count(
+            calls,
+            javaClass,
+            call.getOrigin().getName(),
+            Map.of(call.getTargetOwner().getName(), 1),
+            List.of(call),
+            repositories,
+            activeTables);
       }
+      referencesOf(javaClass)
+          .forEach(
+              (key, references) ->
+                  count(
+                      calls,
+                      javaClass,
+                      key.origin(),
+                      receiversOf(javaClass, key, references.size()),
+                      references,
+                      repositories,
+                      activeTables));
     }
     return calls;
   }
 
-  private static List<JavaCodeUnitAccess<?>> accessesOf(JavaClass javaClass) {
-    List<JavaCodeUnitAccess<?>> accesses = new ArrayList<>(javaClass.getMethodCallsFromSelf());
-    accesses.addAll(javaClass.getMethodReferencesFromSelf());
-    return accesses;
+  /** Where a method reference is made: the method, and the method it refers to. */
+  private record ReferenceKey(String origin, String owner, String name) {}
+
+  private static Map<ReferenceKey, List<JavaCodeUnitAccess<?>>> referencesOf(JavaClass javaClass) {
+    Map<ReferenceKey, List<JavaCodeUnitAccess<?>>> references =
+        new TreeMap<>(
+            Comparator.comparing(ReferenceKey::origin)
+                .thenComparing(ReferenceKey::owner)
+                .thenComparing(ReferenceKey::name));
+    for (JavaMethodReference reference : javaClass.getMethodReferencesFromSelf()) {
+      references
+          .computeIfAbsent(
+              new ReferenceKey(
+                  reference.getOrigin().getName(),
+                  reference.getTargetOwner().getName(),
+                  reference.getName()),
+              key -> new ArrayList<>())
+          .add(reference);
+    }
+    return references;
   }
 
   /**
-   * The types a call or a method reference is taken on. A call names its receiver's type. A
+   * The type each reference to one method is taken on, with the number of references on it. A
    * reference names the type that declares the method ({@code CrudRepository} for {@code
-   * tagRepository::findAllById}), so the type it is taken on is read from the class file.
+   * tagRepository::findAllById}), so the type it is taken on is read from the class file, one entry
+   * per reference: two references to the same inherited method on two repositories are one each,
+   * never two on both. A reference whose receiver the class file does not give is counted on the
+   * declaring type.
    */
-  private static Set<String> receiversOf(JavaClass javaClass, JavaCodeUnitAccess<?> access) {
-    Set<String> receivers = new TreeSet<>();
-    receivers.add(access.getTargetOwner().getName());
-    if (access instanceof JavaMethodReference) {
-      receivers.addAll(
-          CallSites.receiversOf(
-              javaClass,
-              access.getOrigin().getName(),
-              new CallSites.Target(access.getTargetOwner().getName(), access.getName())));
+  private static Map<String, Integer> receiversOf(
+      JavaClass javaClass, ReferenceKey key, int references) {
+    List<String> receivers =
+        CallSites.receiverList(
+            javaClass, key.origin(), new CallSites.Target(key.owner(), key.name()));
+    if (receivers.isEmpty()) {
+      return Map.of(key.owner(), references);
     }
-    return receivers;
+    Map<String, Integer> counted = new TreeMap<>();
+    receivers.forEach(receiver -> counted.merge(receiver, 1, Integer::sum));
+    return counted;
   }
 
-  private static boolean resolvesWithoutTenant(String repository, String method) {
+  private static void count(
+      Map<String, Integer> calls,
+      JavaClass javaClass,
+      String origin,
+      Map<String, Integer> receivers,
+      List<? extends JavaCodeUnitAccess<?>> accesses,
+      Repositories repositories,
+      Set<String> activeTables) {
+    receivers.forEach(
+        (receiver, times) -> {
+          String table = repositories.tables().get(receiver);
+          if (table != null
+              && activeTables.contains(table)
+              && accesses.stream().anyMatch(access -> resolvesWithoutTenant(receiver, access))) {
+            calls.merge(
+                javaClass.getName()
+                    + "#"
+                    + origin
+                    + " -> "
+                    + receiver.substring(
+                        Math.max(receiver.lastIndexOf('.'), receiver.lastIndexOf('$')) + 1),
+                times,
+                Integer::sum);
+          }
+        });
+  }
+
+  /**
+   * True when the method an access names is one of the bare ones, or a declared {@code
+   * findAllByIdIn*} that takes no tenant. Overloads are told apart by their parameter types: a
+   * method with a tenant next to one without is judged on the one the access names. A method that
+   * no declaration of the repository matches is judged unscoped.
+   */
+  private static boolean resolvesWithoutTenant(String repository, JavaCodeUnitAccess<?> access) {
+    String method = access.getName();
     if (BARE_METHODS.contains(method)) {
       return true;
     }
     if (!method.startsWith(DECLARED_PREFIX) || method.contains("Tenant")) {
       return false;
     }
+    List<String> parameters =
+        access.getTarget().getRawParameterTypes().stream().map(JavaClass::getName).toList();
     List<Method> declared =
         Arrays.stream(load(repository).getMethods())
             .filter(candidate -> candidate.getName().equals(method))
+            .filter(
+                candidate ->
+                    Arrays.stream(candidate.getParameterTypes())
+                        .map(Class::getName)
+                        .toList()
+                        .equals(parameters))
             .toList();
     return declared.isEmpty()
         || declared.stream().anyMatch(candidate -> !takesTheTenant(candidate));

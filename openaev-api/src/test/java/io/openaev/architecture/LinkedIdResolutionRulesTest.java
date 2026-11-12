@@ -15,8 +15,11 @@ import io.openaev.architecture.fixture.LinkedIdResolutionFixtures.CallsGetRefere
 import io.openaev.architecture.fixture.LinkedIdResolutionFixtures.CallsInALambda;
 import io.openaev.architecture.fixture.LinkedIdResolutionFixtures.CallsOnABareRepository;
 import io.openaev.architecture.fixture.LinkedIdResolutionFixtures.CallsOnAnInactiveTable;
+import io.openaev.architecture.fixture.LinkedIdResolutionFixtures.CallsTheScopedOverload;
+import io.openaev.architecture.fixture.LinkedIdResolutionFixtures.CallsTheUnscopedOverload;
 import io.openaev.architecture.fixture.LinkedIdResolutionFixtures.CallsThroughAMethodReference;
 import io.openaev.architecture.fixture.LinkedIdResolutionFixtures.CallsThroughAnUnboundMethodReference;
+import io.openaev.architecture.fixture.LinkedIdResolutionFixtures.CallsTwoRepositoriesThroughMethodReferences;
 import io.openaev.architecture.fixture.LinkedIdResolutionFixtures.CallsWithATenant;
 import java.util.ArrayList;
 import java.util.List;
@@ -131,7 +134,59 @@ class LinkedIdResolutionRulesTest {
               site(CallsAnInheritedMethodOnTheChild.class, "link", "LinkedItemChildRepository"),
               site(CallsADeclaredFindAllByIdIn.class, "link", "LinkedItemRepository"),
               site(CallsGetReferenceById.class, "link", "LinkedItemRepository"),
-              site(CallsOnABareRepository.class, "link", "BareLinkedItemRepository"));
+              site(CallsOnABareRepository.class, "link", "BareLinkedItemRepository"),
+              site(
+                  CallsTwoRepositoriesThroughMethodReferences.class,
+                  "link",
+                  "LinkedItemRepository"),
+              site(
+                  CallsTwoRepositoriesThroughMethodReferences.class,
+                  "link",
+                  "SiblingLinkedItemRepository"),
+              site(CallsTheUnscopedOverload.class, "link", "OverloadedItemRepository"));
+    }
+
+    @Test
+    @DisplayName(
+        "given two repositories sharing an inherited method reference, should count one each")
+    void given_twoRepositoriesSharingAnInheritedMethodReference_should_countOneEach() {
+      // Arrange
+      Scan scan = scanWith(List.of());
+
+      // Act
+      Integer first =
+          scan.sites()
+              .get(
+                  site(
+                      CallsTwoRepositoriesThroughMethodReferences.class,
+                      "link",
+                      "LinkedItemRepository"));
+      Integer second =
+          scan.sites()
+              .get(
+                  site(
+                      CallsTwoRepositoriesThroughMethodReferences.class,
+                      "link",
+                      "SiblingLinkedItemRepository"));
+
+      // Assert
+      assertThat(first).isEqualTo(1);
+      assertThat(second).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given an overload with a tenant next to one without, should find only the second")
+    void given_overloadWithATenantNextToOneWithout_should_findOnlyTheSecond() {
+      // Arrange
+      Scan scan = scanWith(List.of());
+
+      // Act
+      Set<String> sites = scan.sites().keySet();
+
+      // Assert
+      assertThat(sites)
+          .contains(site(CallsTheUnscopedOverload.class, "link", "OverloadedItemRepository"))
+          .noneMatch(site -> site.startsWith(CallsTheScopedOverload.class.getName() + "#"));
     }
 
     @Test
