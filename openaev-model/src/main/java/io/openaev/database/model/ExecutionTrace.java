@@ -195,11 +195,4 @@ public class ExecutionTrace implements Base {
     this.agent = base.agent;
     this.structuredOutput = structuredOutput;
   }
-
-  /** A trace is its agent's output: hidden with the agent's asset. Global traces have no agent. */
-  @Override
-  @JsonIgnore
-  public String[] getStreamMarkings() {
-    return agent == null ? null : agent.getStreamMarkings();
-  }
 }

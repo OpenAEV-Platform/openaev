@@ -1,7 +1,11 @@
 package io.openaev.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.annotation.AllowRawJdbc;
 import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.stream.StreamMarkingRules;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.metamodel.EntityType;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -102,6 +106,18 @@ public class MarkingFilteringConfig {
   @Bean
   public MarkingDimension markingDimension(MarkedTables markedTables) {
     return new MarkingDimension(markedTables);
+  }
+
+  /** The stream's rules, read from the same tables and from the mapping of the entities. */
+  @Bean
+  public StreamMarkingRules streamMarkingRules(
+      MarkedTables markedTables, EntityManagerFactory entityManagerFactory, ObjectMapper mapper) {
+    return new StreamMarkingRules(
+        markedTables,
+        entityManagerFactory.getMetamodel().getEntities().stream()
+            .<Class<?>>map(EntityType::getJavaType)
+            .toList(),
+        mapper);
   }
 
   static MarkedTables deriveFromSchema(DataSource dataSource) {

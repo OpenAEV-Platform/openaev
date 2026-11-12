@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.StreamAssetReference;
 import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
@@ -238,13 +237,6 @@ public class Finding implements TenantBase {
       return Collections.emptySet();
     }
     return getInject().getAssetGroups().stream().collect(Collectors.toSet());
-  }
-
-  /** A finding is about its assets: hidden when they are all hidden, else listed without them. */
-  @Override
-  @JsonIgnore
-  public List<StreamAssetReference> getStreamAssetReferences() {
-    return List.of(StreamAssetReference.about("finding_assets", assets));
   }
 
   // -- TEXT SEARCH ON THE CONTEXT --

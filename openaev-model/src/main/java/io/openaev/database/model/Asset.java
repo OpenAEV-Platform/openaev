@@ -431,12 +431,6 @@ public class Asset implements TenantBase {
     return category == AssetCategory.AI_TARGET ? "aitargets" : null;
   }
 
-  @Override
-  @JsonIgnore
-  public String[] getStreamMarkings() {
-    return markingIds;
-  }
-
   public Asset() {}
 
   public Asset(String id, String type, String name) {

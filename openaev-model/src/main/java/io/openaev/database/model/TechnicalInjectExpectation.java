@@ -108,11 +108,4 @@ public abstract class TechnicalInjectExpectation extends BaseInjectExpectation {
     clone.traces = new ArrayList<>();
     return clone;
   }
-
-  /** An expectation on an asset (or one of its agents) is hidden with the asset. */
-  @Override
-  @JsonIgnore
-  public String[] getStreamMarkings() {
-    return asset == null ? null : asset.getMarkingIds();
-  }
 }

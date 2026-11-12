@@ -17,12 +17,12 @@ import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
-import io.openaev.database.audit.StreamAssetReference;
-import io.openaev.database.audit.StreamEmbeddedElements;
 import io.openaev.database.model.*;
 import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
 import io.openaev.service.stream.StreamClearanceService;
+import io.openaev.service.stream.StreamVisibility;
+import io.openaev.service.stream.StreamVisibilityService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import java.time.Duration;
 import java.time.Instant;
@@ -32,7 +32,6 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -83,6 +82,7 @@ public class StreamService {
   private final UserService userService;
   private final AttackPathAccessControl attackPathAccessControl;
   private final StreamClearanceService streamClearanceService;
+  private final StreamVisibilityService streamVisibilityService;
   private final ObjectMapper mapper;
 
   // Built on the first user event: the stream's own mapper is untouched, REST keeps its output.
@@ -171,55 +171,30 @@ public class StreamService {
   }
 
   /**
+   * Once per event, after commit; on failure, only the readers who see everything get it. With the
+   * MARKING preview feature off, or assets not activated for marking, every event is unfiltered.
+   */
+  private StreamVisibility visibilityOf(BaseEvent event) {
+    if (!streamClearanceService.isFiltering()) {
+      return StreamVisibility.UNFILTERED;
+    }
+    // The entity's tenant, else the one the event was written in (an expectation has no tenant).
+    String rowTenantId = tenantOf(event.getInstance());
+    String tenantId = rowTenantId != null ? rowTenantId : event.getTenantId();
+    try {
+      return streamVisibilityService.visibilityOf(event, tenantId);
+    } catch (RuntimeException e) {
+      log.warn("Cannot read the markings of a {} event", event.getSchema(), e);
+      return StreamVisibility.unresolved();
+    }
+  }
+
+  /**
    * The marking clearance the event is checked against for this consumer. Checked after the READ
    * permission: reading assets does not mean reading every asset.
    */
   private MarkingCtx clearanceOf(StreamConsumer consumer, User user, BaseEvent event) {
-    // Most entities neither carry a marking nor list assets: skip resolving the clearance for them.
-    if (!event.hasMarkingLinks()) {
-      return MarkingCtx.all();
-    }
     return streamClearanceService.clearanceFor(user, checkTenantOf(consumer, event));
-  }
-
-  /**
-   * The payload with the listed assets and the embedded elements the clearance does not allow
-   * removed. An id or element the event did not capture is removed too: its markings are unknown.
-   */
-  private ObjectNode withoutHiddenAssets(BaseEvent event, MarkingCtx clearance) {
-    ObjectNode instanceData = mapper.valueToTree(event.getInstance());
-    for (StreamAssetReference reference : event.getStreamAssetReferences()) {
-      if (instanceData.get(reference.property()) instanceof ArrayNode assetIds) {
-        Set<String> visibleIds = reference.visibleAssetIds(clearance);
-        ArrayNode visible = instanceData.putArray(reference.property());
-        assetIds.forEach(
-            assetId -> {
-              if (visibleIds.contains(assetId.asText())) {
-                visible.add(assetId);
-              }
-            });
-      }
-    }
-    for (StreamEmbeddedElements embedded : event.getStreamEmbeddedElements()) {
-      String[] steps = embedded.path().split("\\.");
-      JsonNode parent = instanceData;
-      for (int i = 0; i < steps.length - 1; i++) {
-        parent = parent.path(steps[i]);
-      }
-      String property = steps[steps.length - 1];
-      if (parent instanceof ObjectNode container
-          && container.get(property) instanceof ArrayNode elements) {
-        Set<String> visibleIds = embedded.visibleIds(clearance);
-        ArrayNode visible = container.putArray(property);
-        elements.forEach(
-            element -> {
-              if (visibleIds.contains(element.path(embedded.idProperty()).asText())) {
-                visible.add(element);
-              }
-            });
-      }
-    }
-    return instanceData;
   }
 
   /**
@@ -288,11 +263,13 @@ public class StreamService {
       UserService userService,
       AttackPathAccessControl attackPathAccessControl,
       StreamClearanceService streamClearanceService,
+      StreamVisibilityService streamVisibilityService,
       ObjectMapper mapper) {
     this.permissionService = permissionService;
     this.userService = userService;
     this.attackPathAccessControl = attackPathAccessControl;
     this.streamClearanceService = streamClearanceService;
+    this.streamVisibilityService = streamVisibilityService;
     this.mapper = mapper;
   }
 
@@ -365,11 +342,12 @@ public class StreamService {
       lastUpdate = Instant.now();
     }
 
+    StreamVisibility visibility = visibilityOf(event);
     consumers.forEach(
         (key, consumer) -> {
           // Isolated per consumer: one failing delivery must not stop the fan-out to the others.
           try {
-            streamDatabaseEvent(consumer, event);
+            streamDatabaseEvent(consumer, event, visibility);
           } catch (Exception e) {
             log.warn(
                 "Failed to stream {} event on {} to user {}",
@@ -381,7 +359,8 @@ public class StreamService {
         });
   }
 
-  private void streamDatabaseEvent(StreamConsumer consumer, BaseEvent event) {
+  private void streamDatabaseEvent(
+      StreamConsumer consumer, BaseEvent event, StreamVisibility visibility) {
     if (!isVisibleForTenant(event, consumer.tenantId())) {
       return;
     }
@@ -437,8 +416,9 @@ public class StreamService {
           log.warn(String.format("Class %s can't be streamed", simpleName), e);
         }
       } else {
-        MarkingCtx clearance = clearanceOf(consumer, user, event);
-        if (!event.isVisibleUnder(clearance)) {
+        MarkingCtx clearance =
+            visibility.isUnfiltered() ? MarkingCtx.all() : clearanceOf(consumer, user, event);
+        if (!visibility.visibleUnder(clearance)) {
           // Above the consumer's clearance: like a READ denial, nothing is sent, not even a
           // tombstone, since the id and timing of a hidden asset are already a disclosure.
           return;
@@ -451,10 +431,8 @@ public class StreamService {
           sendStreamEvent(fluxSink, event.clone(), instanceData);
         } else if (event.getInstance() instanceof User streamedUser) {
           sendStreamEvent(fluxSink, event.clone(), userInTenantOf(consumer, event, streamedUser));
-        } else if ((!event.getStreamAssetReferences().isEmpty()
-                || !event.getStreamEmbeddedElements().isEmpty())
-            && !(clearance instanceof MarkingCtx.All)) {
-          sendStreamEvent(fluxSink, event.clone(), withoutHiddenAssets(event, clearance));
+        } else if (visibility.filtersPayload() && !(clearance instanceof MarkingCtx.All)) {
+          sendStreamEvent(fluxSink, event.clone(), visibility.payloadFor(clearance));
         } else {
           sendStreamEvent(fluxSink, event);
         }

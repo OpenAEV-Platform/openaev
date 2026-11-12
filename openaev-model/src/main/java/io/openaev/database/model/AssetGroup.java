@@ -10,7 +10,6 @@ import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.database.audit.StreamAssetReference;
 import io.openaev.database.model.Filters.FilterGroup;
 import io.openaev.helper.MultiIdListSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
@@ -160,14 +159,5 @@ public class AssetGroup implements TenantBase {
   @Override
   public int hashCode() {
     return Objects.hash(id);
-  }
-
-  /** An asset group stays visible whatever its members: only the hidden ones are not listed. */
-  @Override
-  @JsonIgnore
-  public List<StreamAssetReference> getStreamAssetReferences() {
-    return List.of(
-        StreamAssetReference.listing("asset_group_assets", assets),
-        StreamAssetReference.listing("asset_group_dynamic_assets", dynamicAssets));
   }
 }

@@ -36,15 +36,21 @@ public class StreamClearanceService {
    *     the reader holds no marking and only receives unmarked entities (fail-closed).
    */
   public MarkingCtx clearanceFor(User user, String tenantId) {
-    // Same switches as the SQL filtering: with the MARKING preview feature off, or assets not
-    // activated for marking, nothing is filtered.
-    if (!previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)
-        || markedTables.get(ASSETS_TABLE) == null) {
+    if (!isFiltering()) {
       return MarkingCtx.all();
     }
     if (tenantId == null) {
       return MarkingCtx.none();
     }
     return clearanceCache.findClearance(user.getId(), tenantId);
+  }
+
+  /**
+   * Whether the stream filters by marking: the same switches as the SQL filtering, the MARKING
+   * preview feature and assets activated for marking.
+   */
+  public boolean isFiltering() {
+    return previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)
+        && markedTables.get(ASSETS_TABLE) != null;
   }
 }

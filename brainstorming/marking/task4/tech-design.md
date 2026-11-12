@@ -763,38 +763,79 @@ The autonomous-run endpoints (create, restart, promote) call `toExercise` outsid
 `FaithfulCopyTransaction`: their simulation is built from what the user can see, so it does not
 carry the targets they are not cleared for. Open: route them through `FaithfulCopyTransaction`.
 
-### The SSE stream: the in-memory rule on each streamed entity similar to MarkingDerivedTables to express relationships
+### The SSE stream: rules read from the registry and the JPA mapping
 
-The SSE stream sends the entity loaded by the publisher, so the SQL rewrite does not apply to it. Each
-streamed entity derived from an asset declares, in Java, the rule its table follows in
-`MarkingDerivedTables`. The stream must show a reader what the REST API shows them: the question is
-whether a reader who can see none of the linked assets should see the entity at all.
+The stream sends, after commit, the entity as the publisher loaded it: no query runs for the reader, so the
+SQL rewrite does not apply. The stream applies the same rules in memory, read at startup from the active
+marked tables (registry included) and the JPA and JSON mapping. A table added to the registry, or
+activated for marking, is filtered on the stream too. Behind `MARKING` and `assets` active, like the SQL.
 
-| Kind | Meaning | In SQL (`MarkingDerivedTables`) | Stream method |
+| Rule | Read from | Example | Decision |
 |---|---|---|---|
-| **about** | The entity is a by-product of the assets and is meaningless without them. | The entity's own table is filtered: `throughLinkRows("findings", …)`, so it is hidden when it has assets and none is visible. | `StreamAssetReference.about(...)` |
-| **listing** | The entity exists on its own, and the assets are only configuration (targets, members). | Only the link table is filtered: `linkedTo("injects_assets", …)`, `linkedTo("asset_groups_assets", …)`. The `injects` and `asset_groups` rows stay. | `StreamAssetReference.listing(...)` |
-| **belongs to one asset** | A single foreign key to the asset. | `linkedTo("agents", "agent_asset", …)`, `linkedTo("injects_expectations", "asset_id", …)` | not a reference: override `getStreamMarkings()` to return the asset's markings |
-| **embedded** | The payload carries whole objects of a derived table, not their ids (an inject's expectations and execution traces). | The element's own table is filtered (3), (6)/(7), so the REST API never returns the hidden ones. | `getStreamEmbeddedElements()`: `StreamEmbeddedElements.of(path, idProperty, elements)`; each element's markings come from its own `getStreamMarkings()` |
+| own markings | the `marking_ids` column | an asset | sent when the reader holds the markings |
+| parent row | `linkedTo(table, fk, …)`, the `@JoinColumn(fk)` field | an agent, an expectation, a trace (through its agent) | sent when the parent row is visible; no parent: sent |
+| link rows (*about*) | `throughLinkRows(…)`, the `@JoinTable` field | a finding | sent when it has no link or one visible link |
+| listing | a field serialized as ids of a marked or derived entity | `inject_assets`, `asset_group_dynamic_assets` | hidden ids removed |
+| embedded | a field serialized whole, objects of a marked or derived table | `inject_expectations`, `inject_status.status_traces` | hidden objects removed |
 
-Applied today:
+```mermaid
+classDiagram
+    class StreamService {
+        +listenDatabaseUpdate(BaseEvent)
+    }
+    class StreamClearanceService {
+        +isFiltering() boolean
+        +clearanceFor(User, tenantId) MarkingCtx
+    }
+    class StreamVisibilityService {
+        +visibilityOf(BaseEvent, tenantId) StreamVisibility
+    }
+    class StreamMarkingRules {
+        +forEntity(Class) EntityRule
+        +forTable(table) RowRule
+        +sourceOf(table) RowSource
+    }
+    class StreamVisibility {
+        +visibleUnder(MarkingCtx) boolean
+        +payloadFor(MarkingCtx) ObjectNode
+    }
+    StreamService --> StreamClearanceService : isFiltering() per event, clearanceFor() per reader
+    StreamService --> StreamVisibilityService : once per event
+    StreamService --> StreamVisibility : per reader
+    StreamVisibilityService --> StreamMarkingRules
+    StreamVisibilityService ..> StreamVisibility : builds
+    StreamMarkingRules --> MarkedTables : registry included
+```
 
-| Entity | Kind | Override |
-|---|---|---|
-| `Finding` | about | `getStreamAssetReferences()`: `about("finding_assets", assets)` |
-| `Inject` | listing | `getStreamAssetReferences()`: `listing("inject_assets", assets)` |
-| `AssetGroup` | listing | `getStreamAssetReferences()`: `listing("asset_group_assets", …)`, `listing("asset_group_dynamic_assets", …)` |
-| `Agent` | belongs to one asset | `getStreamMarkings()`: the markings of `asset` |
-| `TechnicalInjectExpectation` | belongs to one asset | `getStreamMarkings()`: the markings of `asset` (null for a team or player expectation) |
-| `ExecutionTrace` | belongs to one asset, through its agent (chain (7) → (6)) | `getStreamMarkings()`: the markings of its agent's asset (null for a global trace, which has no agent) |
-| `Inject` | embedded | `getStreamEmbeddedElements()`: `inject_expectations` (by `inject_expectation_id`) and `inject_status.status_traces` (by `execution_trace_id`) |
+- **`StreamMarkingRules`** (bean of `MarkingFilteringConfig`): the rules of each entity class, computed once
+  and cached, and where to read a table's markings by id.
+- **`StreamVisibilityService`**, once per event: serializes the payload, collects the ids the rules need, and
+  reads their markings by id (one JPQL query per table and hop) at system clearance, in the entity's tenant,
+  else the event's (an expectation has no tenant).
+- **`StreamVisibility`**, per reader: whether their clearance sees the event, and their copy of the payload.
+- **`StreamClearanceService`**: whether the stream filters at all, and the reader's clearance (cached).
 
-- `ExecutionTrace` has no `ModelBaseListener`: a trace never produces an event of its own. It reaches the
-  stream only embedded in its inject, hence its `getStreamMarkings()`, used to filter the embedded traces.
+```mermaid
+sequenceDiagram
+    participant P as Publisher transaction
+    participant S as StreamService (@Async)
+    participant V as StreamVisibilityService
+    actor R as Reader
+    P-->>S: BaseEvent, after commit
+    S->>V: visibilityOf(event, tenant)
+    V-->>S: StreamVisibility (markings read by id)
+    loop each reader
+        S->>S: tenant + READ gates, then clearanceFor(reader)
+        S-->>R: dropped, or the payload without what the clearance hides
+    end
+```
 
-**Why the embedded kind.**  `inject_expectations` and `inject_status.status_traces` those two lists are serialized
-as whole objects (`MultiModelSerializer`, eager collections). The
-stream now removes, per reader, the embedded elements their clearance does not allow;
+- **Fail-closed**: markings that cannot be read (no tenant, parent row gone, read failure) hide the row from
+  every restricted reader.
+- **Cost**: one indexed read per table and hop for an event with rules; none otherwise, none with `MARKING`
+  off.
+- **Known limits**: the payload is the publisher's view, so a reader with more clearance may receive a shorter
+  list until reload; a reader who loses access gets no event. Both go with the signal-only stream
+  (implementation plan, Chunk 5 §3).
 
-`MarkingDerivedTablesStreamTest` checks that the overrides match `MarkingDerivedTables`, embedded objects
-included: CI fails when one side changes without the other.
+Tested by `StreamMarkingRulesTest` (rules per entity, a table out of the registry not filtered).
