@@ -150,12 +150,37 @@ public class AttackPatternService {
 
   // -- GLOBAL MITRE ATT&CK COVERAGE --
 
-  private static final String COVERAGE_PREVENTION_SUCCESS = "PREVENTION_SUCCESS";
-  private static final String COVERAGE_PREVENTION_FAILED = "PREVENTION_FAILED";
-  private static final String COVERAGE_DETECTION_SUCCESS = "DETECTION_SUCCESS";
-  private static final String COVERAGE_DETECTION_FAILED = "DETECTION_FAILED";
-  static final String COVERAGE_LOGGING_SUCCESS = "LOGGING_SUCCESS";
-  static final String COVERAGE_LOGGING_FAILED = "LOGGING_FAILED";
+  /** One coverage series per expectation type and status, named after the constant. */
+  enum CoverageSeries {
+    PREVENTION_SUCCESS(
+        BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+        BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
+    PREVENTION_FAILED(
+        BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
+        BaseInjectExpectation.EXPECTATION_STATUS.FAILED),
+    DETECTION_SUCCESS(
+        BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+        BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
+    DETECTION_FAILED(
+        BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
+        BaseInjectExpectation.EXPECTATION_STATUS.FAILED),
+    LOGGING_SUCCESS(
+        BaseInjectExpectation.EXPECTATION_TYPE.LOGGING,
+        BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS),
+    LOGGING_FAILED(
+        BaseInjectExpectation.EXPECTATION_TYPE.LOGGING,
+        BaseInjectExpectation.EXPECTATION_STATUS.FAILED);
+
+    private final BaseInjectExpectation.EXPECTATION_TYPE type;
+    private final BaseInjectExpectation.EXPECTATION_STATUS status;
+
+    CoverageSeries(
+        BaseInjectExpectation.EXPECTATION_TYPE type,
+        BaseInjectExpectation.EXPECTATION_STATUS status) {
+      this.type = type;
+      this.status = status;
+    }
+  }
 
   /** High terms-bucket cap so every attack pattern is returned (the default cap is only 100). */
   private static final int COVERAGE_BUCKET_CAP = 10_000;
@@ -199,53 +224,24 @@ public class AttackPatternService {
     widget.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
     widget.setLimit(COVERAGE_BUCKET_CAP);
     widget.setSeries(
-        List.of(
-            coverageSeries(
-                COVERAGE_PREVENTION_SUCCESS,
-                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
-                simulationIds),
-            coverageSeries(
-                COVERAGE_PREVENTION_FAILED,
-                BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION,
-                BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
-                simulationIds),
-            coverageSeries(
-                COVERAGE_DETECTION_SUCCESS,
-                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
-                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
-                simulationIds),
-            coverageSeries(
-                COVERAGE_DETECTION_FAILED,
-                BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
-                BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
-                simulationIds),
-            coverageSeries(
-                COVERAGE_LOGGING_SUCCESS,
-                BaseInjectExpectation.EXPECTATION_TYPE.LOGGING,
-                BaseInjectExpectation.EXPECTATION_STATUS.SUCCESS,
-                simulationIds),
-            coverageSeries(
-                COVERAGE_LOGGING_FAILED,
-                BaseInjectExpectation.EXPECTATION_TYPE.LOGGING,
-                BaseInjectExpectation.EXPECTATION_STATUS.FAILED,
-                simulationIds)));
+        Arrays.stream(CoverageSeries.values())
+            .map(definition -> coverageSeries(definition, simulationIds))
+            .toList());
 
     List<EsSeries> series =
         engineService.multiTermHistogram(
             ctx, user, new StructuralHistogramRuntime(widget, Map.of(), Map.of()));
 
-    // attackPatternId -> [preventionSuccess, preventionFailed, detectionSuccess, detectionFailed,
-    // loggingSuccess, loggingFailed]
-    Map<String, long[]> countsByAttackPattern = new HashMap<>();
+    Map<String, Map<CoverageSeries, Long>> countsByAttackPattern = new HashMap<>();
     for (EsSeries serie : series) {
-      int index = seriesIndex(serie.getLabel());
-      if (index < 0) {
+      Optional<CoverageSeries> definition = coverageSeriesOf(serie.getLabel());
+      if (definition.isEmpty()) {
         continue;
       }
       for (EsSeriesData data : serie.getData()) {
-        countsByAttackPattern.computeIfAbsent(data.getKey(), k -> new long[6])[index] +=
-            data.getValue();
+        countsByAttackPattern
+            .computeIfAbsent(data.getKey(), k -> new EnumMap<>(CoverageSeries.class))
+            .merge(definition.get(), data.getValue(), Long::sum);
       }
     }
     if (countsByAttackPattern.isEmpty()) {
@@ -267,12 +263,15 @@ public class AttackPatternService {
           if (attackPattern == null) {
             return;
           }
-          long preventionSuccess = counts[0];
-          long preventionTotal = counts[0] + counts[1];
-          long detectionSuccess = counts[2];
-          long detectionTotal = counts[2] + counts[3];
-          long loggingSuccess = counts[4];
-          long loggingTotal = counts[4] + counts[5];
+          long preventionSuccess = counts.getOrDefault(CoverageSeries.PREVENTION_SUCCESS, 0L);
+          long preventionTotal =
+              preventionSuccess + counts.getOrDefault(CoverageSeries.PREVENTION_FAILED, 0L);
+          long detectionSuccess = counts.getOrDefault(CoverageSeries.DETECTION_SUCCESS, 0L);
+          long detectionTotal =
+              detectionSuccess + counts.getOrDefault(CoverageSeries.DETECTION_FAILED, 0L);
+          long loggingSuccess = counts.getOrDefault(CoverageSeries.LOGGING_SUCCESS, 0L);
+          long loggingTotal =
+              loggingSuccess + counts.getOrDefault(CoverageSeries.LOGGING_FAILED, 0L);
           if (preventionTotal == 0 && detectionTotal == 0 && loggingTotal == 0) {
             return;
           }
@@ -321,27 +320,27 @@ public class AttackPatternService {
   }
 
   private static WidgetConfigurationWithSeries.Series coverageSeries(
-      String name,
-      BaseInjectExpectation.EXPECTATION_TYPE type,
-      BaseInjectExpectation.EXPECTATION_STATUS status,
-      List<String> simulationIds) {
+      CoverageSeries definition, List<String> simulationIds) {
     Filters.FilterGroup filterGroup = new Filters.FilterGroup();
     filterGroup.setMode(Filters.FilterMode.and);
     List<Filters.Filter> filters = new ArrayList<>();
     filters.add(
         coverageFilter("base_entity", Filters.FilterMode.and, List.of("expectation-inject")));
     filters.add(
-        coverageFilter("inject_expectation_type", Filters.FilterMode.and, List.of(type.name())));
+        coverageFilter(
+            "inject_expectation_type", Filters.FilterMode.and, List.of(definition.type.name())));
     filters.add(
         coverageFilter(
-            "inject_expectation_status", Filters.FilterMode.and, List.of(status.name())));
+            "inject_expectation_status",
+            Filters.FilterMode.and,
+            List.of(definition.status.name())));
     if (simulationIds != null && !simulationIds.isEmpty()) {
       filters.add(coverageFilter("base_simulation_side", Filters.FilterMode.or, simulationIds));
     }
     filterGroup.setFilters(filters);
 
     WidgetConfigurationWithSeries.Series serie = new WidgetConfigurationWithSeries.Series();
-    serie.setName(name);
+    serie.setName(definition.name());
     serie.setFilter(filterGroup);
     return serie;
   }
@@ -356,19 +355,10 @@ public class AttackPatternService {
     return filter;
   }
 
-  private static int seriesIndex(String label) {
-    if (label == null) {
-      return -1;
-    }
-    return switch (label) {
-      case COVERAGE_PREVENTION_SUCCESS -> 0;
-      case COVERAGE_PREVENTION_FAILED -> 1;
-      case COVERAGE_DETECTION_SUCCESS -> 2;
-      case COVERAGE_DETECTION_FAILED -> 3;
-      case COVERAGE_LOGGING_SUCCESS -> 4;
-      case COVERAGE_LOGGING_FAILED -> 5;
-      default -> -1;
-    };
+  private static Optional<CoverageSeries> coverageSeriesOf(String label) {
+    return Arrays.stream(CoverageSeries.values())
+        .filter(definition -> definition.name().equals(label))
+        .findFirst();
   }
 
   /**

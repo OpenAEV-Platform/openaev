@@ -1,7 +1,5 @@
 package io.openaev.rest.attack_pattern.service;
 
-import static io.openaev.rest.attack_pattern.service.AttackPatternService.COVERAGE_LOGGING_FAILED;
-import static io.openaev.rest.attack_pattern.service.AttackPatternService.COVERAGE_LOGGING_SUCCESS;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -370,10 +368,10 @@ class AttackPatternServiceTest {
         .thenReturn(
             List.of(
                 new EsSeries(
-                    COVERAGE_LOGGING_SUCCESS,
+                    AttackPatternService.CoverageSeries.LOGGING_SUCCESS.name(),
                     List.of(new EsSeriesData("attack-pattern-id", "T1059", 3))),
                 new EsSeries(
-                    COVERAGE_LOGGING_FAILED,
+                    AttackPatternService.CoverageSeries.LOGGING_FAILED.name(),
                     List.of(new EsSeriesData("attack-pattern-id", "T1059", 1)))));
     when(attackPatternRepository.findAllByIdInWithKillChainPhases(Set.of("attack-pattern-id")))
         .thenReturn(List.of(attackPattern));
