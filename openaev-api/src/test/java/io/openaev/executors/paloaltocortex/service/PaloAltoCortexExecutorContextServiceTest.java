@@ -53,7 +53,7 @@ class PaloAltoCortexExecutorContextServiceTest {
 
   @BeforeEach
   void setUp() {
-    service.scheduledExecutorService = immediateScheduler();
+    service.setScheduler(immediateScheduler());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptUid()).thenReturn("windows-script");
     when(config.getUnixScriptUid()).thenReturn("unix-script");
@@ -287,7 +287,7 @@ class PaloAltoCortexExecutorContextServiceTest {
   void given_runningDispatchWorker_should_shutItDownOnShutdown() {
     // Arrange
     ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
-    service.scheduledExecutorService = worker;
+    service.setScheduler(worker);
 
     // Act
     service.shutdown();

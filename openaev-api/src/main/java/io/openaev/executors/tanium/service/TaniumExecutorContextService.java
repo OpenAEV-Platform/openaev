@@ -8,7 +8,7 @@ import io.openaev.config.OpenAEVConfig;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.database.model.*;
 import io.openaev.ee.EnterpriseEditionService;
-import io.openaev.executors.ExecutorContextService;
+import io.openaev.executors.BatchExecutorContextService;
 import io.openaev.executors.ExecutorHelper;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.tanium.client.TaniumExecutorClient;
@@ -16,19 +16,14 @@ import io.openaev.executors.tanium.config.TaniumExecutorConfig;
 import io.openaev.executors.tanium.model.TaniumAction;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 
-@Slf4j
 @Service(TaniumExecutorContextService.SERVICE_NAME)
 @RequiredArgsConstructor
-public class TaniumExecutorContextService extends ExecutorContextService {
+public class TaniumExecutorContextService extends BatchExecutorContextService<TaniumAction> {
 
   private final EnterpriseEditionService enterpriseEditionService;
   private final LicenseCacheManager licenseCacheManager;
@@ -37,13 +32,6 @@ public class TaniumExecutorContextService extends ExecutorContextService {
   private final ExecutorService executorService;
   private final OpenAEVConfig openAEVConfig;
   public static final String SERVICE_NAME = TANIUM_EXECUTOR_NAME;
-
-  ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-
-  @Override
-  public void shutdown() {
-    scheduledExecutorService.shutdown();
-  }
 
   @Override
   public void launchExecutorSubprocess(
@@ -111,31 +99,26 @@ public class TaniumExecutorContextService extends ExecutorContextService {
     return taniumAgents;
   }
 
+  // Batches of apiBatchExecutionActionPagination calls, one batch every 5 s: each action calls the
+  // Tanium API to execute the implant, and each implant calls the OpenAEV API to set traces.
   public void executeActions(List<TaniumAction> actions) {
-    int paginationLimit = this.taniumExecutorConfig.getApiBatchExecutionActionPagination();
-    int paginationCount = (int) Math.ceil(actions.size() / (double) paginationLimit);
+    dispatch(actions);
+  }
 
-    for (int batchIndex = 0; batchIndex < paginationCount; batchIndex++) {
-      int fromIndex = (batchIndex * paginationLimit);
-      int toIndex = Math.min(fromIndex + paginationLimit, actions.size());
-      List<TaniumAction> batchActions = actions.subList(fromIndex, toIndex);
-      // Pagination of XXX calls (paginationLimit) per batch with 5s waiting
-      // because each action will call the Tanium API to execute the implant
-      // and each implant will call OpenAEV API to set traces
-      scheduledExecutorService.schedule(
-          () ->
-              dispatchEach(
-                  batchActions,
-                  action ->
-                      this.taniumExecutorClient.executeAction(
-                          action.getAgentExternalReference(),
-                          action.getScriptId(),
-                          action.getCommandEncoded()),
-                  TaniumAction::getAgentExternalReference,
-                  SERVICE_NAME),
-          batchIndex * 5L,
-          TimeUnit.SECONDS);
-    }
+  @Override
+  protected void send(TaniumAction action) {
+    this.taniumExecutorClient.executeAction(
+        action.getAgentExternalReference(), action.getScriptId(), action.getCommandEncoded());
+  }
+
+  @Override
+  protected String agentReference(TaniumAction action) {
+    return action.getAgentExternalReference();
+  }
+
+  @Override
+  protected int batchSize() {
+    return this.taniumExecutorConfig.getApiBatchExecutionActionPagination();
   }
 
   private List<TaniumAction> getWindowsActions(
