@@ -11,6 +11,7 @@ import NewsFeedHubBanner, { type NewsFeedHubBannerVariant } from './NewsFeedHubB
 import NewsFeedList from './NewsFeedList';
 import NewsFeedSettings from './NewsFeedSettings';
 import NewsFeedTabs, { type NewsFeedTab } from './NewsFeedTabs';
+import useMarkNewsFeedItemsRead from './useMarkNewsFeedItemsRead';
 import useNewsFeedSettings from './useNewsFeedSettings';
 
 interface Props { tab: NewsFeedTab }
@@ -33,6 +34,8 @@ const NewsFeedPage = ({ tab }: Props) => {
     saving,
     updateSubscribedTypes,
   } = useNewsFeedSettings();
+  // Only the items view marks them read: the settings tab shows none.
+  useMarkNewsFeedItemsRead(tab === 'items');
 
   let bannerVariant: NewsFeedHubBannerVariant | null = null;
   if (isXtmHubUnreachable) {
