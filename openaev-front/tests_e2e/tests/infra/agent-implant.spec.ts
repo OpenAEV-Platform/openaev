@@ -5,7 +5,7 @@ import AtomicTestingFormComponent from '../../model/atomic-testings/AtomicTestin
 import AtomicTestingListPage from '../../model/atomic-testings/AtomicTestingListPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
 import { installAgent, waitForRegisteredAgent } from '../../utils/agent';
-import { AUTH_FILE } from '../../utils/constants';
+import { AUTH_ADMIN } from '../../utils/constants';
 import { tenantUrl } from '../../utils/url';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
@@ -21,7 +21,7 @@ test.describe.serial('Agent implant registration', () => {
 
     // Create an authenticated page to navigate the UI
     const context = await browser.newContext({
-      storageState: AUTH_FILE,
+      storageState: AUTH_ADMIN,
       baseURL: APP_URL,
     });
 

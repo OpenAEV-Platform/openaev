@@ -30,6 +30,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.config.ShutdownService;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Channel;
@@ -455,7 +456,7 @@ class AccessControlAuditLogAspectTest extends IntegrationTest {
       executorComposer.reset();
       executorComposer.forExecutor(executorFixture.getDefaultExecutor()).persist();
       agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
-          io.openaev.context.TenantContext.getCurrentTenant());
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), Tenant.DEFAULT_TENANT_UUID);
       entityManager.flush();
 
       // Register the same agent twice; the second registration is a heartbeat

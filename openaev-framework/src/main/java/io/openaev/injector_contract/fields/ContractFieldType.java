@@ -83,6 +83,10 @@ public enum ContractFieldType {
   @JsonProperty("targeted-asset")
   TargetedAsset("targeted-asset"),
 
+  /** Document selector field (a payload argument of type document), storing the document id. */
+  @JsonProperty("document")
+  Document("document"),
+
   /** Credential reference field. */
   @JsonProperty("credential-reference")
   CredentialReference("credential-reference");

@@ -22,13 +22,17 @@ import java.lang.annotation.Target;
  *       Composer registration, a platform row. They are mounted on the platform route and on the
  *       tenant route (the composer's own identity keeps its access, {@code TODO v2: #7248}), and
  *       are gated by the platform setting write right: the tenant-scoped catalog write that {@code
- *       MANAGE_TENANT_SETTINGS} grants does not reach them on either route.
+ *       MANAGE_TENANT_SETTINGS} grants does not reach them on either route;
+ *   <li>{@code PlatformRoleApi} (create, update and delete), the platform roles being rows with no
+ *       tenant;
+ *   <li>{@code AdminPrivilegeService#ensurePlatformAdminGroup}, which writes the platform {@code
+ *       Admin} role and group at every boot.
  * </ul>
  *
  * <p>Off the request thread the marker is set by the {@code executeAsPlatformWrite}, {@code
  * executeNewAsPlatformWrite} and {@code setPlatformWriteOnCurrentTransaction} methods of {@code
- * TenantScopedTransaction}, which have more callers than the two above. The list of writers and the
- * check that each one sits under one of these markers is the {@code
+ * TenantScopedTransaction}, which have more callers than the ones above. The list of writers and
+ * the check that each one sits under one of these markers is the {@code
  * parameters_platform_row_writers_run_under_platform_write} architecture rule ({@code
  * TenantActiveTableAccessArchTest}); the code does not otherwise stop a new caller from setting the
  * marker, so review it there.

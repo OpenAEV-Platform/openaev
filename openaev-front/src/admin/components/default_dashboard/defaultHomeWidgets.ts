@@ -1,5 +1,6 @@
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import { type Filter, type FilterGroup, type Series, type Widget } from '../../../utils/api-types';
+import { HUMAN_EXPECTATION_TYPES } from '../common/injects/expectations/Expectation';
 
 /**
  * Hardcoded "Platform default" home dashboard definition.
@@ -189,7 +190,6 @@ const attemptedSeries = (): Series[] => [
  * "Human Response" aggregates these - the same MANUAL/ARTICLE/CHALLENGE gate the
  * exposure command center surfaces as its human node.
  */
-export const HUMAN_RESPONSE_EXPECTATION_TYPES = ['MANUAL', 'ARTICLE', 'CHALLENGE'];
 
 /**
  * The exact widget config the "Human Response" gauge queries, reused as a
@@ -200,7 +200,7 @@ export const HUMAN_RESPONSE_EXPECTATION_TYPES = ['MANUAL', 'ARTICLE', 'CHALLENGE
  */
 export const buildHumanResponseProbeConfig = (timeRange: DefaultTimeRange): Widget['widget_config'] =>
   structural('Human Response', 'inject_expectation_status', [
-    series('', ...expectation([filter('inject_expectation_type', HUMAN_RESPONSE_EXPECTATION_TYPES)])),
+    series('', ...expectation([filter('inject_expectation_type', HUMAN_EXPECTATION_TYPES)])),
   ], timeRange, 100);
 
 /**
@@ -251,7 +251,7 @@ export const buildDefaultHomeWidgets = (
     gaugeDefs.push({
       id: 'default-human-response',
       title: 'Human Response',
-      types: HUMAN_RESPONSE_EXPECTATION_TYPES,
+      types: HUMAN_EXPECTATION_TYPES,
     });
   }
   // Evenly divide the 12-column row: 3 gauges -> w=4, 4 gauges -> w=3.

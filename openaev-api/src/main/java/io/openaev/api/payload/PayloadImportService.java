@@ -64,10 +64,12 @@ public class PayloadImportService {
    * synchronization method.
    *
    * @param file the ZIP file containing the JSON:API payload document
+   * @param types the resource types the import may rebuild
    * @return the import result containing the persisted payload and the synchronised injector
    *     contract
    */
-  public PayloadImportResult importPayload(TxCtx ctx, MultipartFile file) throws Exception {
+  public PayloadImportResult importPayload(TxCtx ctx, MultipartFile file, ImportTypes types)
+      throws Exception {
     // A payload bundle can carry documents (file drop, executable). Attribute any imported
     // document to the request's write tenant, so an active documents table gets a valid tenant_id
     // whatever the ambient TenantContext of the import.
@@ -76,13 +78,13 @@ public class PayloadImportService {
     // through the ambient tenant, like the payload itself: keep the whole import in the write
     // tenant, not only the reflective persist.
     return ambientTenantBridge.callInTenantChecked(
-        tenantId, () -> importPayloadInTenant(ctx, file, tenantId));
+        tenantId, () -> importPayloadInTenant(ctx, file, tenantId, types));
   }
 
-  private PayloadImportResult importPayloadInTenant(TxCtx ctx, MultipartFile file, String tenantId)
-      throws Exception {
+  private PayloadImportResult importPayloadInTenant(
+      TxCtx ctx, MultipartFile file, String tenantId, ImportTypes types) throws Exception {
     ZipJsonService.ImportOutput<Payload> response =
-        zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null, tenantId);
+        zipJsonApi.handleImport(file, "payload_name", IMPORT_OPTIONS, null, tenantId, types);
 
     List<AttackPattern> attackPatterns =
         extractRelationshipObjects(

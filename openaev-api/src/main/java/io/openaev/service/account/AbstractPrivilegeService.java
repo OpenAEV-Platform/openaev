@@ -1,7 +1,9 @@
 package io.openaev.service.account;
 
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
@@ -22,6 +24,7 @@ public abstract class AbstractPrivilegeService {
   protected final UserService userService;
   protected final TenantUserService tenantUserService;
   protected final MarkingClearanceCacheManager markingClearanceCacheManager;
+  protected final TenantWriteScopeResolver writeScopeResolver;
 
   protected abstract WellKnownAccess wellKnownAccess();
 
@@ -30,16 +33,22 @@ public abstract class AbstractPrivilegeService {
     return false;
   }
 
-  protected Role ensureWellKnownRole(String tenantId) {
+  /**
+   * Creates or updates the well-known role of {@code tenantId}. The role is written in that tenant
+   * only when the scope {@code ctx} contains it; a missing scope or another tenant's scope is
+   * refused with a {@link io.openaev.rest.exception.TenantWriteScopeException}.
+   */
+  protected Role ensureWellKnownRole(TxCtx ctx, String tenantId) {
+    String roleTenantId = writeScopeResolver.tenantForWrite(ctx, tenantId);
     WellKnownAccess access = wellKnownAccess();
-    String id = getUUIDFromName(access.roleId(), tenantId);
-    Optional<Role> role = tenantRoleService.findByIdAndTenant(id, tenantId);
+    String id = getUUIDFromName(access.roleId(), roleTenantId);
+    Optional<Role> role = tenantRoleService.findByIdAndTenant(id, roleTenantId);
     if (role.isEmpty()) {
       return tenantRoleService.createRoleInternal(
-          id, access.roleName(), access.roleDescription(), access.capabilities(), tenantId);
+          id, access.roleName(), access.roleDescription(), access.capabilities(), roleTenantId);
     }
     return tenantRoleService.updateRoleInternal(
-        id, access.roleName(), access.roleDescription(), access.capabilities(), tenantId);
+        id, access.roleName(), access.roleDescription(), access.capabilities(), roleTenantId);
   }
 
   protected Group ensureWellKnownGroupWithRole(Role role, String tenantId) {

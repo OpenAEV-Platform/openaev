@@ -1,6 +1,10 @@
+import GroupApiHelpers from './api-helpers/GroupApiHelpers';
+import UserApiHelpers from './api-helpers/UserApiHelpers';
 import { test as setup } from './fixtures/baseFixtures';
-import { AUTH_FILE } from './utils/constants';
+import { fetchCsrfCookie, loginWithApi, newRequestContextAs } from './utils/auth';
+import { AUTH_ADMIN } from './utils/constants';
 import login from './utils/login';
+import { PERSONAS } from './utils/personas';
 import { DEFAULT_TENANT_UUID } from './utils/url';
 
 /**
@@ -10,31 +14,59 @@ import { DEFAULT_TENANT_UUID } from './utils/url';
  * suite runs under that late layout shift. Same key as NewsFeedRegisterBannerProvider
  * (useLocalStorage serialises the boolean as JSON).
  */
-const NEWS_FEED_BANNER_DISMISSED_KEYS = [
+const NEWS_FEED_BANNER_DISMISSED = [
   `news-feed-register-banner-dismissed-${DEFAULT_TENANT_UUID}`,
   'news-feed-register-banner-dismissed-default',
 ];
 
-// This a setup function.
+/**
+ * The admin shell sends a browser to Getting Started on its first visit, then stores
+ * `false` under this key. The admin goes through that visit at login; a persona logged
+ * in through the API has not, so its first `goto` would land on Getting Started. Same
+ * key as GETTING_STARTED_LOCAL_STORAGE_KEY.
+ */
+const GETTING_STARTED_SEEN = {
+  name: 'go-to-getting-started',
+  value: 'false',
+};
+
+const LOCAL_STORAGE_INIT = [
+  ...NEWS_FEED_BANNER_DISMISSED.map(name => ({
+    name,
+    value: 'true',
+  })),
+  GETTING_STARTED_SEEN,
+];
+
+// Serial: the manager and observer are provisioned with the admin session saved by the first step.
+setup.describe.configure({ mode: 'serial' });
+
+// These are setup functions.
 // eslint-disable-next-line playwright/expect-expect
-setup('authenticate', async ({ page }) => {
+setup('authenticate admin', async ({ page }) => {
+  // The admin goes through the login form: the only place it is exercised.
   await login(page);
+  // page.request shares the browser context cookies, so the XSRF-TOKEN lands there.
+  await fetchCsrfCookie(page.request);
 
-  // The login endpoint is CSRF-ignored so no XSRF-TOKEN cookie exists yet.
-  // Fire any POST to trigger CsrfFilter — the response (even a 403) sets
-  // the XSRF-TOKEN cookie in the browser, which storageState() will persist.
-  await page.evaluate(async () => {
-    await fetch('/api/scenarios/search', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    }).catch(() => {});
-  });
+  await page.evaluate((entries) => {
+    entries.forEach(({ name, value }) => window.localStorage.setItem(name, value));
+  }, LOCAL_STORAGE_INIT);
 
-  await page.evaluate((keys) => {
-    keys.forEach(key => window.localStorage.setItem(key, 'true'));
-  }, NEWS_FEED_BANNER_DISMISSED_KEYS);
-
-  await page.context().storageState({ path: AUTH_FILE });
+  await page.context().storageState({ path: AUTH_ADMIN });
 });
+
+for (const persona of ['manager', 'observer'] as const) {
+  // eslint-disable-next-line playwright/expect-expect
+  setup(`authenticate ${persona}`, async ({ playwright }) => {
+    const { email, password, firstname, groupName } = PERSONAS[persona];
+    const admin = await newRequestContextAs(playwright, 'admin');
+    try {
+      const user = await new UserApiHelpers(admin).createOrAttachUser(email, password, firstname);
+      await new GroupApiHelpers(admin).addUserToGroup(groupName, user.user_id);
+    } finally {
+      await admin.dispose();
+    }
+    await loginWithApi(playwright, persona, LOCAL_STORAGE_INIT);
+  });
+}

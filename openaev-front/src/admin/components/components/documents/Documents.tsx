@@ -1,5 +1,4 @@
-import { Chip, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
-import { DescriptionOutlined, HelpOutlineOutlined, RowingOutlined } from '@mui/icons-material';
+import { DescriptionOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { type CSSProperties, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -29,6 +28,7 @@ import { Can } from '../../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../../utils/permissions/types';
 import { buildTenantApiPath } from '../../../../utils/url-helper';
 import CreateDocument from './CreateDocument';
+import DocumentLinkedChips from './DocumentLinkedChips';
 import DocumentPopover from './DocumentPopover';
 import DocumentType from './DocumentType';
 
@@ -248,8 +248,6 @@ const Documents = () => {
         {(loadingDocuments || loadingExercisesAndScenarios)
           ? <PaginatedListLoader Icon={HelpOutlineOutlined} headers={headers} headerStyles={inlineStyles} />
           : documents.map((document) => {
-              const displayedExercises = document.document_exercises?.slice(0, 3) ?? [];
-              const displayedScenarios = document.document_scenarios?.slice(0, 3) ?? [];
               return (
                 <ListItem
                   key={document.document_id}
@@ -299,60 +297,38 @@ const Documents = () => {
                             ...inlineStyles.document_exercises,
                           }}
                           >
-                            {displayedExercises.length > 0
-                              ? displayedExercises.map((e) => {
-                                  const exercise = exercisesMap[e];
-                                  if (!exercise) {
-                                    return <span key={e}>-</span>;
-                                  }
-                                  return (
-                                    <Tooltip key={exercise.exercise_id}>
-                                      <TooltipTrigger asChild>
-                                        <Chip
-                                          startIcon={<RowingOutlined style={{ fontSize: 12 }} />}
-                                          label={exercise.exercise_name}
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            event.preventDefault();
-                                            navigate(`/admin/simulations/${exercise.exercise_id}`);
-                                          }}
-                                        />
-                                      </TooltipTrigger>
-                                      {exercise.exercise_name && <TooltipContent>{exercise.exercise_name}</TooltipContent>}
-                                    </Tooltip>
-                                  );
-                                })
-                              : <span>-</span>}
+                            <DocumentLinkedChips
+                              ids={document.document_exercises ?? []}
+                              resolve={(id) => {
+                                const exercise = exercisesMap[id];
+                                return exercise
+                                  ? {
+                                      id: exercise.exercise_id,
+                                      name: exercise.exercise_name,
+                                    }
+                                  : undefined;
+                              }}
+                              onOpen={id => navigate(`/admin/simulations/${id}`)}
+                            />
                           </div>
                           <div style={{
                             ...bodyItemsStyles.bodyItem,
                             ...inlineStyles.document_scenarios,
                           }}
                           >
-                            {displayedScenarios.length > 0
-                              ? displayedScenarios.map((e) => {
-                                  const scenario = scenariosMap[e];
-                                  if (!scenario) {
-                                    return <span key={e}>-</span>;
-                                  }
-                                  return (
-                                    <Tooltip key={scenario.scenario_id}>
-                                      <TooltipTrigger asChild>
-                                        <Chip
-                                          startIcon={<RowingOutlined style={{ fontSize: 12 }} />}
-                                          label={scenario.scenario_name}
-                                          onClick={(event) => {
-                                            event.stopPropagation();
-                                            event.preventDefault();
-                                            navigate(`/admin/scenarios/${scenario.scenario_id}`);
-                                          }}
-                                        />
-                                      </TooltipTrigger>
-                                      {scenario.scenario_name && <TooltipContent>{scenario.scenario_name}</TooltipContent>}
-                                    </Tooltip>
-                                  );
-                                })
-                              : <span>-</span>}
+                            <DocumentLinkedChips
+                              ids={document.document_scenarios ?? []}
+                              resolve={(id) => {
+                                const scenario = scenariosMap[id];
+                                return scenario
+                                  ? {
+                                      id: scenario.scenario_id,
+                                      name: scenario.scenario_name,
+                                    }
+                                  : undefined;
+                              }}
+                              onOpen={id => navigate(`/admin/scenarios/${id}`)}
+                            />
                           </div>
                           <div style={{
                             ...bodyItemsStyles.bodyItem,

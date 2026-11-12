@@ -1,7 +1,6 @@
 package io.openaev.rest.exercise;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -11,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.LessonsCategory;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.database.repository.LessonsCategoryRepository;
 import io.openaev.database.repository.LessonsQuestionRepository;
@@ -56,8 +56,9 @@ class ExerciseLessonsApiTenantIsolationTest extends IntegrationTest {
     templateA = seedTemplate(tenantA, "exercise-template-a");
     templateB = seedTemplate(tenantB, "exercise-template-b");
 
-    when(exerciseRepository.findByIdAndTenantIdIn(anyString(), anyCollection()))
-        .thenReturn(Optional.of(new Exercise()));
+    Exercise exercise = new Exercise();
+    exercise.setTenant(new Tenant(tenantA));
+    when(exerciseRepository.findById(anyString())).thenReturn(Optional.of(exercise));
     when(lessonsCategoryRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
     when(lessonsCategoryRepository.findAll(any(Specification.class)))
         .thenReturn(List.<LessonsCategory>of());
