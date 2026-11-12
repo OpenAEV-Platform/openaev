@@ -168,7 +168,9 @@ public class FindingRecordingService {
         locations.stream()
             .collect(
                 Collectors.toMap(
-                    FindingRecordingService::findingLocationKeyOf, location -> location, (a, b) -> a));
+                    FindingRecordingService::findingLocationKeyOf,
+                    location -> location,
+                    (a, b) -> a));
     List<FindingLocation> existing =
         findingLocationRepository.findByLocationKeyIn(locationByKey.keySet());
     Set<String> existingKeys =
