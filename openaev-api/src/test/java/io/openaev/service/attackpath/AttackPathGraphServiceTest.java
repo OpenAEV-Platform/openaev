@@ -3,6 +3,7 @@ package io.openaev.service.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.AssetCriticality;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
@@ -37,7 +38,6 @@ import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
 import java.time.Instant;
 import java.util.Map;
 import org.hibernate.SessionFactory;
@@ -47,6 +47,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -59,6 +61,12 @@ import org.springframework.transaction.annotation.Transactional;
 class AttackPathGraphServiceTest extends IntegrationTest {
 
   private static final String SIM = "SIM-GRAPH";
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   @Autowired private AttackPathGraphService service;
   @Autowired private AttackPathExecutionRepository executionRepository;
@@ -78,7 +86,8 @@ class AttackPathGraphServiceTest extends IntegrationTest {
 
   @BeforeEach
   void seedGraph() {
-    tenant = tenantRepository.save(TenantFixture.getTenant("ap-graph-tenant"));
+    // The ambient scope is the default tenant's: seed in it so the rows are visible to the reads.
+    tenant = tenantRepository.findById(Tenant.DEFAULT_TENANT_UUID).orElseThrow();
     // NMAP hits CORP-DC-01 twice: one prevented, one detected-but-not-prevented -> ORANGE
     // (worst-case), one grouped edge of count 2.
     exec1Id =
