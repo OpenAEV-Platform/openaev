@@ -29,15 +29,16 @@ import org.springframework.beans.factory.annotation.Autowired;
  * caller scoped to one tenant. A contract id is shared by every tenant, so each tenant holds its
  * own link rows for the same id, and only the tenant column tells them apart.
  *
- * <p>Each case runs on one link table of the production list: the contract's tags, security
- * domains, vulnerabilities and injectors. The queries are plain statements with no tenant predicate
- * of their own, so what keeps tenant B's row out is the statement inspector alone.
+ * <p>Each case runs on one link table of the production list: the contract's tags, attack patterns,
+ * security domains, vulnerabilities and injectors. The queries are plain statements with no tenant
+ * predicate of their own, so what keeps tenant B's row out is the statement inspector alone.
  *
  * <p>Deliberately NOT {@code @Transactional}: the rows of both tenants have to be committed before
  * the scoped transactions read them.
  */
 @CoversTenantIsolation({
   "injector_contract_tags",
+  "injectors_contracts_attack_patterns",
   "injectors_contracts_domains",
   "injectors_contracts_vulnerabilities",
   "injectors_injector_contracts"
@@ -48,6 +49,7 @@ class InjectorContractLinkTableIsolationTest extends ProductionTablesIntegration
 
   enum LinkTable {
     TAGS("injector_contract_tags"),
+    ATTACK_PATTERNS("injectors_contracts_attack_patterns"),
     DOMAINS("injectors_contracts_domains"),
     VULNERABILITIES("injectors_contracts_vulnerabilities"),
     INJECTORS("injectors_injector_contracts");
@@ -174,6 +176,7 @@ class InjectorContractLinkTableIsolationTest extends ProductionTablesIntegration
           String injectorId = injectorRepository.save(injector).getId();
 
           String tagId = UUID.randomUUID().toString();
+          String attackPatternId = UUID.randomUUID().toString();
           String domainId = UUID.randomUUID().toString();
           String vulnerabilityId = UUID.randomUUID().toString();
           execute(
@@ -181,6 +184,15 @@ class InjectorContractLinkTableIsolationTest extends ProductionTablesIntegration
                   + " ?3)",
               tagId,
               "ic-link-tag-" + tagId,
+              tenantId);
+          execute(
+              "INSERT INTO attack_patterns (attack_pattern_id, attack_pattern_stix_id,"
+                  + " attack_pattern_name, attack_pattern_external_id, tenant_id) VALUES (?1, ?2,"
+                  + " ?3, ?4, ?5)",
+              attackPatternId,
+              "attack-pattern--" + attackPatternId,
+              "ic-link-pattern-" + attackPatternId,
+              "T9" + attackPatternId.substring(0, 6),
               tenantId);
           execute(
               "INSERT INTO domains (domain_id, domain_name, tenant_id) VALUES (?1, ?2, ?3)",
@@ -204,6 +216,12 @@ class InjectorContractLinkTableIsolationTest extends ProductionTablesIntegration
                   + " (?1, ?2, ?3)",
               sharedContractId,
               tagId,
+              tenantId);
+          execute(
+              "INSERT INTO injectors_contracts_attack_patterns (injector_contract_id,"
+                  + " attack_pattern_id, tenant_id) VALUES (?1, ?2, ?3)",
+              sharedContractId,
+              attackPatternId,
               tenantId);
           execute(
               "INSERT INTO injectors_contracts_domains (injector_contract_id, domain_id, tenant_id)"
