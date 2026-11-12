@@ -210,6 +210,8 @@ const AssetForm: FunctionComponent<Props> = ({
     asset_markings: [],
     // Values read from the store can carry the stream's nulls: they fall back to these defaults.
     ...withoutNullValues(initialValues),
+    // Except this one: null is "not set" (a switch keeps it until toggled), not the creation default.
+    ...(initialValues.asset_internet_facing === null ? { asset_internet_facing: null } : {}),
     asset_mac_addresses: def.fields.macAddresses !== 'hidden' ? (normalizedMacs ?? []) : undefined,
     asset_category: def.value,
   };
