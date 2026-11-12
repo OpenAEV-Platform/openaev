@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.TenantUriUtils;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
@@ -51,6 +52,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  * {@code @Transactional}: each HTTP call runs in its own transaction with its own tenant scope.
  */
 @DisplayName("A caller of one tenant and a contract held by another tenant")
+@CoversTenantIsolation("injectors_contracts")
 @WithMockUser
 class InjectorContractCrossTenantRefusalTest extends ProductionTablesIntegrationTest {
 

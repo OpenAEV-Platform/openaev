@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -51,6 +52,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>Deliberately NOT {@code @Transactional}: the rows of both tenants have to be committed before
  * the request reads them, and the endpoint opens its own transaction.
  */
+@CoversTenantIsolation("injectors_contracts_attack_patterns")
 @WithMockUser(isAdmin = true)
 @DisplayName("GET /injector_contracts attack pattern aggregation across tenants")
 class InjectorContractRawAttackPatternJoinTest extends ProductionTablesIntegrationTest {
