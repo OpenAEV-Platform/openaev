@@ -15,6 +15,7 @@ import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
+import io.openaev.rest.payload.form.PayloadCreateInput;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PayloadInputFixture;
@@ -185,13 +186,17 @@ class PayloadWriteTenantSelectorTest extends IntegrationTest {
   }
 
   private ResultActions create(String uri, String tenantHeader) throws Exception {
+    return create(uri, tenantHeader, null);
+  }
+
+  private ResultActions create(String uri, String tenantHeader, String name) throws Exception {
+    PayloadCreateInput input =
+        PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of());
+    if (name != null) {
+      input.setName(name);
+    }
     var request =
-        post(uri)
-            .with(csrf())
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(
-                asJsonString(
-                    PayloadInputFixture.createDefaultPayloadCreateInputForCommandLine(List.of())));
+        post(uri).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(asJsonString(input));
     if (tenantHeader != null) {
       request = request.header(TENANT_HEADER, tenantHeader);
     }
@@ -250,8 +255,9 @@ class PayloadWriteTenantSelectorTest extends IntegrationTest {
         .isZero();
   }
 
-  private int payloadCount() {
-    return jdbc.queryForObject("SELECT count(*) FROM payloads", Integer.class);
+  private int payloadsNamed(String name) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM payloads WHERE payload_name = ?", Integer.class, name);
   }
 
   @Nested
@@ -383,7 +389,8 @@ class PayloadWriteTenantSelectorTest extends IntegrationTest {
       SeededCollector collector = seedCollector(tenantB);
       String domainName = "payload-write-domain-" + UUID.randomUUID();
       PayloadUpsertInput input = upsertInput(collector, domainName);
-      int payloadsBefore = payloadCount();
+      String payloadName = "payload-write-refused-" + UUID.randomUUID();
+      input.setName(payloadName);
 
       // Act
       ResultActions result = upsert(PAYLOAD_URI + "/upsert", null, input);
@@ -393,7 +400,7 @@ class PayloadWriteTenantSelectorTest extends IntegrationTest {
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.message").value("TENANT_SELECTOR_REQUIRED"));
       assertNothingCreated(collector, domainName);
-      assertThat(payloadCount()).isEqualTo(payloadsBefore);
+      assertThat(payloadsNamed(payloadName)).isZero();
     }
 
     @Test
@@ -402,16 +409,16 @@ class PayloadWriteTenantSelectorTest extends IntegrationTest {
       // Arrange
       createTenant("payload-create-b");
       createTenant("payload-create-c");
-      int payloadsBefore = payloadCount();
+      String payloadName = "payload-write-refused-" + UUID.randomUUID();
 
       // Act
-      ResultActions result = create(PAYLOAD_URI, null);
+      ResultActions result = create(PAYLOAD_URI, null, payloadName);
 
       // Assert
       result
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.message").value("TENANT_SELECTOR_REQUIRED"));
-      assertThat(payloadCount()).isEqualTo(payloadsBefore);
+      assertThat(payloadsNamed(payloadName)).isZero();
     }
   }
 }

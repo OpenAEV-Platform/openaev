@@ -76,7 +76,8 @@ public class PayloadApi extends RestBehavior {
       // resolves the tenant the new payload is attributed to, and signals the transaction
       // aspect so the read of the v2-scoped `injectors` table inside
       // PayloadService#synchroniseInjectorContractBasedOnPayload (via
-      // InjectorRepository#findAllByPayloads) resolves the caller's tenant scope.
+      // InjectorRepository#findAllByPayloads) resolves the caller's tenant scope. With no selector,
+      // the caller's single tenant, or the default tenant for a caller of several tenants.
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PayloadCreateInput input) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(ctx, input);
@@ -120,6 +121,8 @@ public class PayloadApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
   public Payload upsertPayload(
+      // with no selector (collectors), the caller's single tenant, or the default tenant for a
+      // caller of several tenants
       @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PayloadUpsertInput input) {
     return this.payloadUpsertService.upsertPayload(ctx, input);
   }
