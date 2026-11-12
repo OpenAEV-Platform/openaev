@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
@@ -45,15 +46,18 @@ import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.MarkingDefinitionFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.fixtures.SecurityPlatformFixture;
+import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExecutorComposer;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
+import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.mapper.EndpointMapper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -99,6 +103,8 @@ class EndpointApiTest extends IntegrationTest {
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AgentComposer agentComposer;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
+  @Autowired private TenantGroupComposer tenantGroupComposer;
+  @Autowired private MarkingClearanceCacheManager markingClearanceCacheManager;
 
   @MockitoSpyBean private EndpointService endpointService;
   @MockitoSpyBean private AssetAgentJobRepository assetAgentJobRepository;
@@ -1401,11 +1407,16 @@ class EndpointApiTest extends IntegrationTest {
       @Test
       @DisplayName(
           "Asset agent job created in tenant X should be deletable by a caller who also belongs to"
-              + " tenant Y (no selector, plain TxCtx)")
+              + " tenant Y and holds the right in every tenant it belongs to (no selector, plain"
+              + " TxCtx)")
       void given_callerInTenantXAndY_should_beAbleToDeleteJobInTenantX_noSelector()
           throws Exception {
         // -------- Arrange --------
         Tenant[] tenants = twoTenants();
+        // With no selector the scope is every membership, the default tenant included (see
+        // setup()), and the caller must hold the right in each tenant of its scope.
+        tenantHelper.grantCapabilitiesInTenant(
+            Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.AGENT_RUNTIME_ACCESS));
         AssetAgentJob jobX = createTenantAssetAgentJob(tenants[0].getId());
 
         // -------- Act --------
@@ -1584,11 +1595,14 @@ class EndpointApiTest extends IntegrationTest {
               .withTenantId(Tenant.DEFAULT_TENANT_UUID)
               .persist()
               .get();
-      // MarkingClearanceCacheManager reads marking_definitions through raw JdbcTemplate, bypassing
-      // the Hibernate session - without a flush, the just-saved row is not yet visible on the
-      // connection and the admin bypass clearance silently excludes it, hiding every asset marked
-      // with it.
+      // The caller sees a marked asset only through a group holding its marking.
+      Group group = TenantGroupFixture.getGroup("marking-filters-" + UUID.randomUUID());
+      group.setMarkings(new HashSet<>(Set.of(marking)));
+      group.setUsers(new ArrayList<>(List.of(testUserHolder.get())));
+      tenantGroupComposer.forGroup(group).persist();
+      // The clearance is read through raw JDBC: the rows must be flushed to be seen.
       entityManager.flush();
+      markingClearanceCacheManager.evictForUser(testUserHolder.get().getId());
       return marking;
     }
 

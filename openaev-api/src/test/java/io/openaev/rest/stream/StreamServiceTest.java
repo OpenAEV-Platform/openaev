@@ -230,6 +230,56 @@ public class StreamServiceTest {
     assertEquals(scenario.getId(), ((Scenario) baseEventCaptured.getInstance()).getId());
   }
 
+  private FluxSink<Object> registerConsumerOfTenant(String sessionId, String tenantId)
+      throws Exception {
+    OpenAEVPrincipal principal = mock(OpenAEVPrincipal.class);
+    when(principal.getId()).thenReturn(USER_ID);
+    @SuppressWarnings("unchecked")
+    FluxSink<Object> sink = mock(FluxSink.class);
+    @SuppressWarnings("unchecked")
+    Map<String, Object> consumers =
+        (Map<String, Object>) ReflectionTestUtils.getField(streamService, "consumers");
+    consumers.put(sessionId, buildStreamConsumer(principal, tenantId, sink));
+    return sink;
+  }
+
+  @Test
+  public void given_userEventOfTenantA_should_leaveOutTheOrganizationForConsumersOfTenantB()
+      throws Exception {
+    // Arrange
+    ObjectMapper jsonMapper = useRealMapper();
+    User player = new User();
+    player.setId(RESOURCE_ID);
+    player.setEmail("player@filigran.io");
+    Organization organization = new Organization();
+    organization.setId("organization-a");
+    organization.setTenant(tenant(TENANT_ID));
+    player.setOrganizationForTenant(TENANT_ID, organization);
+    when(permissionService.hasPermissionInTenant(
+            any(), eq(mockUser), any(), any(), eq(Action.READ)))
+        .thenReturn(true);
+    BaseEvent event;
+    TenantContext.setCurrentTenant(TENANT_ID);
+    try {
+      event = new BaseEvent(DATA_UPDATE, player, jsonMapper);
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+    FluxSink<Object> sinkOfTenantA = registerConsumerOfTenant("session-a", TENANT_ID);
+    FluxSink<Object> sinkOfTenantB = registerConsumerOfTenant("session-b", OTHER_TENANT_ID);
+
+    // Act
+    streamService.listenDatabaseUpdate(event);
+
+    // Assert
+    JsonNode wireOfTenantA = captureWireEvent(sinkOfTenantA, jsonMapper);
+    JsonNode wireOfTenantB = captureWireEvent(sinkOfTenantB, jsonMapper);
+    assertEquals(
+        "organization-a", wireOfTenantA.path("instance").path("user_organization").asText());
+    assertFalse(wireOfTenantB.path("instance").has("user_organization"));
+    assertEquals(RESOURCE_ID, wireOfTenantB.path("instance").path("user_id").asText());
+  }
+
   private static Agent restrictedAgent() {
     Agent agent = new Agent();
     agent.setId(RESOURCE_ID);

@@ -187,7 +187,7 @@ public class AssetGroupApi extends RestBehavior {
       @PathVariable @NotBlank final String assetGroupId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return injectSearchService.getPageOfInjectResultsForAssetGroup(
-        assetGroupId, searchPaginationInput);
+        ctx, assetGroupId, searchPaginationInput);
   }
 
   @PostMapping({ASSET_GROUP_URI + "/find", TENANT_ASSET_GROUP_URI + "/find"})
@@ -220,7 +220,10 @@ public class AssetGroupApi extends RestBehavior {
       @Valid @RequestBody final AssetGroupInput input) {
     AssetGroup assetGroup = this.assetGroupService.assetGroup(assetGroupId);
     assetGroup.setUpdateAttributes(input);
-    assetGroup.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    assetGroup.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), assetGroup.getTenant().getId())));
     return withAssetsInitialized(this.assetGroupService.updateAssetGroup(assetGroup));
   }
 

@@ -80,6 +80,25 @@ public class GcpOAuth2Handler implements SecretHandler {
           nativeEncryptionService.encrypt(request.gcpOauthRefreshToken()));
     }
 
+    if (request.gcpCustomTokenUri() != null) {
+      gcpSecret.setCustomTokenUri(SecretHandler.blankToNull(request.gcpCustomTokenUri()));
+    }
+
+    if (request.gcpCustomProjectsUri() != null) {
+      gcpSecret.setCustomProjectsUri(SecretHandler.blankToNull(request.gcpCustomProjectsUri()));
+    }
+
+    if (request.gcpCustomIamUri() != null) {
+      gcpSecret.setCustomIamUri(SecretHandler.blankToNull(request.gcpCustomIamUri()));
+    }
+
+    if (request.gcpCustomOauthAccessToken() != null) {
+      gcpSecret.setCustomOauthAccessToken(
+          request.gcpCustomOauthAccessToken().isBlank()
+              ? null
+              : nativeEncryptionService.encrypt(request.gcpCustomOauthAccessToken()));
+    }
+
     // The FINAL state of the entity is validated, not the incoming request: a PUT that does not
     // resend the write-only fields is legitimate, and checking the request would make client
     // secret and refresh token rotation the only way to ever edit a GCP OAuth2 credential.
@@ -108,7 +127,11 @@ public class GcpOAuth2Handler implements SecretHandler {
           gcpSecret.getProjectId(),
           gcpSecret.getOauthClientId(),
           gcpSecret.getOauthClientSecret() != null,
-          gcpSecret.getOauthRefreshToken() != null);
+          gcpSecret.getOauthRefreshToken() != null,
+          gcpSecret.getCustomTokenUri(),
+          gcpSecret.getCustomProjectsUri(),
+          gcpSecret.getCustomIamUri(),
+          gcpSecret.getCustomOauthAccessToken() != null);
     }
     throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
   }
@@ -116,12 +139,19 @@ public class GcpOAuth2Handler implements SecretHandler {
   @Override
   public SecretResolvedValue toResolvedValue(Secret secret) {
     if (secret instanceof GcpOAuth2Secret gcpSecret) {
+      String customOauthAccessToken =
+          gcpSecret.getCustomOauthAccessToken() == null
+              ? null
+              : nativeEncryptionService.decrypt(gcpSecret.getCustomOauthAccessToken());
       return SecretResolvedValue.forGcpOAuth2(
           gcpSecret.getScope(),
           gcpSecret.getProjectId(),
           gcpSecret.getOauthClientId(),
           nativeEncryptionService.decrypt(gcpSecret.getOauthClientSecret()),
-          nativeEncryptionService.decrypt(gcpSecret.getOauthRefreshToken()));
+          nativeEncryptionService.decrypt(gcpSecret.getOauthRefreshToken()),
+          gcpSecret.getCustomTokenUri(),
+          gcpSecret.getCustomIamUri(),
+          customOauthAccessToken);
     }
     throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
   }

@@ -1,4 +1,4 @@
-import { Groups3Outlined, PersonOutlined, SmartToyOutlined } from '@mui/icons-material';
+import { DnsOutlined, Groups3Outlined, PersonOutlined, SmartToyOutlined } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { SelectGroup } from 'mdi-material-ui';
@@ -50,6 +50,8 @@ const TargetIcon: FunctionComponent<Props> = ({ target, size = 32 }) => {
         return <PersonOutlined sx={{ fontSize: glyphSize }} />;
       case 'AI_TARGETS':
         return <SmartToyOutlined sx={{ fontSize: glyphSize }} />;
+      case 'MANUAL':
+        return <DnsOutlined sx={{ fontSize: glyphSize }} />;
       case 'AGENT':
         return (
           <img

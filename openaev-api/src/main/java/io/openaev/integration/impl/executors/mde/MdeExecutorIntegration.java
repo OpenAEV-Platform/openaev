@@ -175,5 +175,8 @@ public class MdeExecutorIntegration extends Integration {
   protected void innerStop() {
     timers.forEach(timer -> timer.cancel(true));
     timers.clear();
+    if (mdeExecutorContextService != null) {
+      mdeExecutorContextService.shutdown();
+    }
   }
 }

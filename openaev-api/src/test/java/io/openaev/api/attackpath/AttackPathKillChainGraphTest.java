@@ -29,6 +29,7 @@ import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.time.Instant;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
@@ -256,6 +257,7 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   @DisplayName("a delta's consuming execution carries the ids its key matched in earlier bumps")
   void deltaConsumerCarriesMatchedFindingIdsFromEarlierBumps() {
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-delta"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
 
     // Bump 1: the nmap scan and the portscan finding it produced.
     long v1 = versionService.bump(SIM, tenant.getId());
@@ -294,6 +296,7 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   @DisplayName("a delta with no consuming step pays no candidate read")
   void deltaWithoutAConsumerResolvesNothing() {
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-delta-none"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
     long v1 = versionService.bump(SIM, tenant.getId());
     stamp(saveExecution(tenant, "nmap", "no-consumer", Instant.parse("2026-06-18T08:00:00Z")), v1);
     entityManager.flush();

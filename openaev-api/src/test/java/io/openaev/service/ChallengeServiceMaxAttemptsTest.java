@@ -94,7 +94,7 @@ class ChallengeServiceMaxAttemptsTest extends IntegrationTest {
     input.setValue(RIGHT_FLAG);
 
     // -- ACT --
-    challengeService.validateChallenge(exercise.getId(), challenge.getId(), input, player);
+    challengeService.validateChallenge(exercise, challenge.getId(), input, player);
 
     // -- ASSERT --
     assertEquals(expectedScore, readExpectationScore());
@@ -109,7 +109,7 @@ class ChallengeServiceMaxAttemptsTest extends IntegrationTest {
     input.setValue(WRONG_FLAG);
 
     // -- ACT --
-    challengeService.validateChallenge(exercise.getId(), challenge.getId(), input, player);
+    challengeService.validateChallenge(exercise, challenge.getId(), input, player);
 
     // -- ASSERT --
     assertEquals(MAX_ATTEMPTS, readAttempt());

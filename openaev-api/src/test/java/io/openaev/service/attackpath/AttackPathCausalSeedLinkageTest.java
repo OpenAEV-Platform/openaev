@@ -7,6 +7,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.dto.ConsumedFindingKeyDTO;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,7 @@ class AttackPathCausalSeedLinkageTest extends IntegrationTest {
   @DisplayName("buildGraph surfaces (port, EQ, 445) on the execution that ran the conditioned step")
   void execution_step_template_id_resolves_the_step_conditions() {
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-seed-causal-linkage-tenant"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
 
     causalSeedService.seedCausalMinimal(SIM, tenant.getId());
 

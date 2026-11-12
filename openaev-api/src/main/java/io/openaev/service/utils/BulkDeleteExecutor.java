@@ -28,6 +28,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * while chunks run (see {@link BulkOperationContext}) and connected browsers receive aggregated
  * {@code bulk-operation} progress events through the {@link BulkOperationMonitor} instead, so a
  * large deletion no longer forces every open screen to refresh once per deleted entity.
+ *
+ * <p>{@link #processInChunks} is the same machinery generalized to any bulk write, not just deletes
+ * - {@code deleteInChunks} is a thin wrapper over it with {@code action = "delete"}.
  */
 @Component
 @RequiredArgsConstructor
@@ -77,7 +80,7 @@ public class BulkDeleteExecutor {
    */
   public List<String> deleteInChunks(
       String entityLabel, List<String> ids, Consumer<List<String>> chunkDeleter) {
-    return deleteInChunks(null, entityLabel, ids, chunkDeleter);
+    return processInChunks(null, "delete", entityLabel, ids, chunkDeleter);
   }
 
   /**
@@ -86,25 +89,48 @@ public class BulkDeleteExecutor {
    */
   public List<String> deleteInChunks(
       TxCtx ctx, String entityLabel, List<String> ids, Consumer<List<String>> chunkDeleter) {
+    return processInChunks(ctx, "delete", entityLabel, ids, chunkDeleter);
+  }
+
+  /**
+   * Same chunking/retry/monitor machinery as {@link #deleteInChunks(TxCtx, String, List,
+   * Consumer)}, generalized to any bulk write - not just deletes. {@code action} is the
+   * bulk-operation label surfaced by {@link BulkOperationMonitor} (header indicator, history, SSE
+   * events) and the retry log lines, so a non-delete caller (e.g. {@code
+   * AssetMarkingsService.bulkReplaceAssetMarkings} passing {@code "update"}) is not misreported as
+   * a deletion.
+   *
+   * @param action human label for the bulk operation (e.g. "delete", "update")
+   * @param entityLabel human label for logs (e.g. "scenarios")
+   * @param ids ids to process, in any order
+   * @param chunkAction performs the actual write for one chunk of ids
+   * @return the ids submitted for processing, sorted
+   */
+  public List<String> processInChunks(
+      TxCtx ctx,
+      String action,
+      String entityLabel,
+      List<String> ids,
+      Consumer<List<String>> chunkAction) {
     if (ids.isEmpty()) {
       return List.of();
     }
-    // Deterministic deletion order: two concurrent bulk deletions with overlapping scopes acquire
-    // their row locks in the same order instead of deadlocking each other.
+    // Deterministic order: two concurrent bulk operations with overlapping scopes acquire their
+    // row locks in the same order instead of deadlocking each other.
     List<String> sortedIds = ids.stream().sorted().toList();
     if (TransactionSynchronizationManager.isActualTransactionActive()) {
-      chunkDeleter.accept(sortedIds);
+      chunkAction.accept(sortedIds);
       return sortedIds;
     }
-    String operationId = bulkOperationMonitor.start("delete", entityLabel, sortedIds.size());
+    String operationId = bulkOperationMonitor.start(action, entityLabel, sortedIds.size());
     try {
       for (int start = 0; start < sortedIds.size(); start += CHUNK_SIZE) {
         List<String> chunk =
             sortedIds.subList(start, Math.min(start + CHUNK_SIZE, sortedIds.size()));
-        deleteChunkWithRetry(ctx, entityLabel, chunk, chunkDeleter);
+        runChunkWithRetry(ctx, action, entityLabel, chunk, chunkAction);
         // With open-session-in-view the request session outlives each chunk transaction: clear it
-        // so deleted entities (and the related entities touched by @PreRemove hooks) do not
-        // accumulate in the persistence context across a large bulk.
+        // so entities touched by the chunk (and any related entities touched by lifecycle hooks) do
+        // not accumulate in the persistence context across a large bulk.
         entityManager.clear();
         bulkOperationMonitor.progress(operationId, chunk.size());
       }
@@ -116,8 +142,12 @@ public class BulkDeleteExecutor {
     return sortedIds;
   }
 
-  private void deleteChunkWithRetry(
-      TxCtx ctx, String entityLabel, List<String> chunk, Consumer<List<String>> chunkDeleter) {
+  private void runChunkWithRetry(
+      TxCtx ctx,
+      String action,
+      String entityLabel,
+      List<String> chunk,
+      Consumer<List<String>> chunkAction) {
     for (int attempt = 1; ; attempt++) {
       try {
         // The suppression scope wraps the transaction proxy call (not just the work): lifecycle
@@ -127,7 +157,7 @@ public class BulkDeleteExecutor {
             () -> {
               Supplier<Void> work =
                   () -> {
-                    chunkDeleter.accept(chunk);
+                    chunkAction.accept(chunk);
                     return null;
                   };
               if (ctx != null) {
@@ -139,14 +169,16 @@ public class BulkDeleteExecutor {
       } catch (ConcurrencyFailureException e) {
         if (attempt >= MAX_ATTEMPTS) {
           log.error(
-              "Bulk delete of {} {}: still conflicting with concurrent writers after {} attempts, giving up",
+              "Bulk {} of {} {}: still conflicting with concurrent writers after {} attempts, giving up",
+              action,
               chunk.size(),
               entityLabel,
               attempt);
           throw e;
         }
         log.warn(
-            "Bulk delete of {} {}: lost a lock conflict against a concurrent writer (attempt {}/{}), retrying",
+            "Bulk {} of {} {}: lost a lock conflict against a concurrent writer (attempt {}/{}), retrying",
+            action,
             chunk.size(),
             entityLabel,
             attempt,

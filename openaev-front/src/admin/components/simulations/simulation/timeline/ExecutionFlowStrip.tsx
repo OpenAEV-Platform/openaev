@@ -6,6 +6,7 @@ import { type InjectStore } from '../../../../../actions/injects/Inject';
 import { useFormatter } from '../../../../../components/i18n';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import InjectIcon from '../../../common/injects/InjectIcon';
+import { injectIconType } from '../../../common/injects/injectIconType';
 import SamplePreview from '../../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 import { sampleFlowInjects } from './executionSampleData';
 
@@ -129,12 +130,7 @@ const ExecutionFlowStrip: FunctionComponent<Props> = ({ injects }) => {
                 <InjectIcon
                   key={inject.inject_id}
                   isPayload={isNotEmptyField(inject.inject_injector_contract?.injector_contract_payload)}
-                  type={
-                    inject.inject_injector_contract?.injector_contract_payload
-                      ? inject.inject_injector_contract.injector_contract_payload?.payload_collector_type
-                      || inject.inject_injector_contract.injector_contract_payload?.payload_type
-                      : inject.inject_type
-                  }
+                  type={injectIconType(inject)}
                   done={inject.inject_status?.status_name !== 'ERROR'}
                   size="small"
                   variant="timeline"
