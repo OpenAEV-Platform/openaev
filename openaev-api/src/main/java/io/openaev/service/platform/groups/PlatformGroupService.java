@@ -11,9 +11,9 @@ import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
-import io.openaev.database.repository.RoleRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserService;
+import io.openaev.service.platform.roles.PlatformRoleService;
 import io.openaev.utils.ReferenceResolver;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PlatformGroupService {
 
   private final GroupRepository groupRepository;
-  private final RoleRepository roleRepository;
+  private final PlatformRoleService platformRoleService;
   private final UserRepository userRepository;
   private final UserService userService;
   private final ReferenceResolver referenceResolver;
@@ -132,7 +132,7 @@ public class PlatformGroupService {
   public Set<String> updateGroupRoles(@NotBlank final String groupId, List<String> roleIds) {
     Group group = findById(groupId);
     Set<String> uniqueRoleIds = new LinkedHashSet<>(roleIds);
-    List<Role> roles = roleRepository.findAllById(uniqueRoleIds);
+    List<Role> roles = platformRoleService.findByIds(new ArrayList<>(uniqueRoleIds));
     if (roles.size() != uniqueRoleIds.size()) {
       throw new EntityNotFoundException("One or more Role not found in: " + uniqueRoleIds);
     }

@@ -64,6 +64,14 @@ public class AwsAccessKeyHandler implements SecretHandler {
       }
     }
 
+    if (request.awsAccountId() != null) {
+      awsSecret.setAwsAccountId(SecretHandler.blankToNull(request.awsAccountId()));
+    }
+
+    if (request.awsEndpointUrl() != null) {
+      awsSecret.setAwsEndpointUrl(SecretHandler.blankToNull(request.awsEndpointUrl()));
+    }
+
     if (awsSecret.getAwsDefaultRegion() == null
         || awsSecret.getAwsAccessKeyId() == null
         || awsSecret.getAwsSecretAccessKey() == null) {
@@ -81,7 +89,9 @@ public class AwsAccessKeyHandler implements SecretHandler {
           awsAccessKeySecret.getAwsDefaultRegion(),
           awsAccessKeySecret.getAwsAccessKeyId(),
           awsAccessKeySecret.getAwsSessionToken() != null
-              && !awsAccessKeySecret.getAwsSessionToken().isBlank());
+              && !awsAccessKeySecret.getAwsSessionToken().isBlank(),
+          awsAccessKeySecret.getAwsAccountId(),
+          awsAccessKeySecret.getAwsEndpointUrl());
     }
     throw new IllegalArgumentException(
         "Secret type mismatch: expected "
@@ -106,7 +116,9 @@ public class AwsAccessKeyHandler implements SecretHandler {
         awsAccessKeySecret.getAwsDefaultRegion(),
         awsAccessKeySecret.getAwsAccessKeyId(),
         nativeEncryptionService.decrypt(awsAccessKeySecret.getAwsSecretAccessKey()),
-        sessionToken);
+        sessionToken,
+        awsAccessKeySecret.getAwsAccountId(),
+        awsAccessKeySecret.getAwsEndpointUrl());
   }
 
   @Override

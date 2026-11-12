@@ -155,7 +155,10 @@ public class SecurityPlatformApi {
     } else {
       securityPlatform.setLogoLight(null);
     }
-    securityPlatform.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    securityPlatform.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), securityPlatform.getTenant().getId())));
     // Initialized before the link below is written, so the response carries the stored links
     // plus the one this request adds.
     SecurityPlatform saved =
@@ -256,7 +259,10 @@ public class SecurityPlatformApi {
     } else {
       securityPlatform.setLogoLight(null);
     }
-    securityPlatform.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    securityPlatform.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), securityPlatform.getTenant().getId())));
     return withManagerLinksInitialized(this.securityPlatformRepository.save(securityPlatform));
   }
 

@@ -462,12 +462,18 @@ class DocumentNativeQueryTenantScopeTest extends IntegrationTest {
   private String seedPayloadWithFile(String tenantId, String fileDocumentId) {
     String id = UUID.randomUUID().toString();
     jdbc.update(
-        "INSERT INTO payloads (payload_id, payload_type, payload_name, file_drop_file, tenant_id)"
-            + " VALUES (?, 'FileDrop', ?, ?, ?)",
+        "INSERT INTO payload_identities (payload_identity_id, tenant_id, payload_source)"
+            + " VALUES (?, ?, 'MANUAL')",
+        id,
+        tenantId);
+    jdbc.update(
+        "INSERT INTO payloads (payload_id, payload_type, payload_name, file_drop_file, tenant_id,"
+            + " payload_identity, payload_version) VALUES (?, 'FileDrop', ?, ?, ?, ?, '1.0.0')",
         id,
         "payload-" + id,
         fileDocumentId,
-        tenantId);
+        tenantId,
+        id);
     return id;
   }
 

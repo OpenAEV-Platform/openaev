@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { Fragment, type FunctionComponent, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
-import { computeBannerSettings } from '../../../../public/components/systembanners/utils';
+import useBannerSettings from '../../../../public/components/systembanners/useBannerSettings';
 import useAuth from '../../../../utils/hooks/useAuth';
 import { useFdsNavSurface, useFdsTheme } from '../../../../utils/hooks/useFdsThemeScope';
 import { useFormatter } from '../../../i18n';
@@ -48,7 +48,7 @@ const AppNavbar: FunctionComponent<Props> = ({ entries = [], header, headerEleme
   const theme = useTheme();
   const location = useLocation();
   const { settings } = useAuth();
-  const { bannerHeightNumber } = computeBannerSettings(settings);
+  const { bannerHeightNumber } = useBannerSettings(settings);
   const isWhitemarkEnabled = settings.platform_whitemark === 'true'
     && settings.platform_license?.license_is_validated === true;
   const { navOpen, toggleNav } = useNavbarState();

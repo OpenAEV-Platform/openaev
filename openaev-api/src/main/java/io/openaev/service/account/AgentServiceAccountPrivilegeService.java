@@ -92,12 +92,28 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
 
   @Transactional(readOnly = true)
   public String getTokenUserServiceAccountByTenant(String tenantId) {
+    return findToken(tenantId)
+        .orElseThrow(() -> new UnsupportedOperationException("Token not found"));
+  }
 
+  /**
+   * Finds the token of the tenant's agent service account without throwing when it is missing. A
+   * caller already inside a transaction uses it to handle the missing token itself: an exception
+   * thrown through this proxy would mark the caller's transaction rollback-only even if caught.
+   *
+   * @param tenantId the tenant owning the service account
+   * @return the token, or empty if the service account or its token does not exist
+   */
+  @Transactional(readOnly = true)
+  public Optional<String> findTokenUserServiceAccountByTenant(String tenantId) {
+    return findToken(tenantId);
+  }
+
+  private Optional<String> findToken(String tenantId) {
     return getUserServiceAccountByTenant(tenantId)
         .map(User::getTokens)
         .filter(tokens -> !tokens.isEmpty())
-        .map(tokens -> tokens.getFirst().getValue())
-        .orElseThrow(() -> new UnsupportedOperationException("Token not found"));
+        .map(tokens -> tokens.getFirst().getValue());
   }
 
   /**

@@ -385,7 +385,8 @@ public class EndpointService implements AuditLoggedService {
     toUpdate.setUpdateAttributes(input);
     ensureSeenIp(toUpdate);
     toUpdate.setEoL(input.isEol());
-    toUpdate.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    toUpdate.setTags(
+        iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
     return updateEndpoint(toUpdate);
   }
 

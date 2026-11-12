@@ -29,10 +29,16 @@ export const MAX_PENDING_ENTITIES = 1000;
  * of DISTINCT entities touched (not by event volume), and drains it in a
  * constant number of Redux dispatches.
  *
- * SSE payloads are full entity snapshots, so last-write-wins coalescing is
- * lossless: a newer snapshot supersedes older snapshots of the same entity,
- * a delete supersedes pending snapshots, and a snapshot arriving after a
- * pending delete (entity re-created) supersedes the delete.
+ * A snapshot may leave out keys, so two pending snapshots of the same entity
+ * are coalesced the way the store merges them: `{ ...older, ...newer }` on the
+ * entity object, shallow, so a key absent from the newer snapshot keeps its
+ * older value and a present key (including `null`, `false` or `[]`) replaces
+ * it whole. The drained batch therefore equals the snapshots applied in
+ * order. The other parts of the payload (nested entities, `result`) and the
+ * event type come from the newer snapshot. A delete supersedes pending
+ * snapshots, and a snapshot arriving after a pending delete (entity
+ * re-created) supersedes the delete without emitting it: the store keeps the
+ * cached fields the snapshot leaves out.
  */
 export class SseActionBatcher {
   private upserts = new Map<string, {
@@ -48,7 +54,30 @@ export class SseActionBatcher {
 
   addUpsert(eventType: string, schemaName: string, entityId: string, payload: NormalizedSsePayload): void {
     const key = `${schemaName}:${entityId}`;
+    // A pending delete is dropped, not emitted: only the pending upserts of
+    // the entity are merged below, so a re-create holds the new fields only.
     this.deletes.delete(key);
+    const pendingEntity = this.upserts.get(key)?.payload.entities?.[schemaName]?.[entityId];
+    const newEntity = payload.entities?.[schemaName]?.[entityId];
+    if (pendingEntity && newEntity) {
+      this.upserts.set(key, {
+        eventType,
+        payload: {
+          ...payload,
+          entities: {
+            ...payload.entities,
+            [schemaName]: {
+              ...payload.entities?.[schemaName],
+              [entityId]: {
+                ...pendingEntity,
+                ...newEntity,
+              },
+            },
+          },
+        },
+      });
+      return;
+    }
     this.upserts.set(key, {
       eventType,
       payload,

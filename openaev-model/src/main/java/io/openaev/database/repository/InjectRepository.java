@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawInject;
@@ -89,6 +90,21 @@ public interface InjectRepository
   @Query("UPDATE Inject i SET i.updatedAt = :updatedAt WHERE i.id = :id")
   @Transactional
   int updateUpdatedAt(@Param("id") @NotNull String id, @Param("updatedAt") Instant updatedAt);
+
+  /**
+   * Updates only an inject's content and {@code updated_at}, through Hibernate like {@link
+   * #updateUpdatedAt} so the tenant statement inspector covers it. Unlike a save of the detached
+   * entity, it never merges the inject's associations (asset groups, teams, tags...): a dangling
+   * association row cannot fail a content-only change such as an expectations realignment (#8645).
+   * Returns the number of rows updated.
+   */
+  @Modifying
+  @Query("UPDATE Inject i SET i.content = :content, i.updatedAt = :updatedAt WHERE i.id = :id")
+  @Transactional
+  int updateContent(
+      @Param("id") @NotNull String id,
+      @Param("content") ObjectNode content,
+      @Param("updatedAt") Instant updatedAt);
 
   /**
    * Resolves the owning tenant of each given inject in one native, filter-exempt query, for
