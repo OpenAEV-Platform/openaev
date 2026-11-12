@@ -77,7 +77,7 @@ public class TenantScopedTransaction {
               + " primitive call is an explicit scope boundary. Use executeNew() for deliberate"
               + " nesting.");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, false, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, false, false, work);
   }
 
   /** Same as {@link #execute(TxCtx, Supplier)} for work that returns nothing. */
@@ -88,6 +88,22 @@ public class TenantScopedTransaction {
           work.run();
           return null;
         });
+  }
+
+  /**
+   * Same as {@link #execute(TxCtx, Supplier)}, in a read-only transaction: the session's flush mode
+   * is MANUAL for its duration, so a managed entity of a session that outlives the transaction (the
+   * request's, under open-in-view) is never written by it. For a load that must not write what the
+   * caller left pending, as a repository's own {@code findById} does not.
+   */
+  public <T> T executeReadOnly(TxCtx ctx, Supplier<T> work) {
+    if (TransactionSynchronizationManager.isActualTransactionActive()) {
+      throw new IllegalStateException(
+          "TenantScopedTransaction.executeReadOnly() refuses to open inside an active"
+              + " transaction: a primitive call is an explicit scope boundary. Use executeNew() for"
+              + " deliberate nesting.");
+    }
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, false, true, work);
   }
 
   /**
@@ -102,7 +118,7 @@ public class TenantScopedTransaction {
           "TenantScopedTransaction.executeNew() is for deliberate nesting inside an active"
               + " transaction. At the top level, open through execute().");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, false, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, false, false, work);
   }
 
   /** Same as {@link #executeNew(TxCtx, Supplier)} for work that returns nothing. */
@@ -134,7 +150,7 @@ public class TenantScopedTransaction {
               + " transaction: a primitive call is an explicit scope boundary. Use"
               + " executeNewAsPlatformWrite() for deliberate nesting.");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, true, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRED, true, false, work);
   }
 
   /** Same as {@link #executeAsPlatformWrite(TxCtx, Supplier)} for work that returns nothing. */
@@ -159,7 +175,7 @@ public class TenantScopedTransaction {
           "TenantScopedTransaction.executeNewAsPlatformWrite() is for deliberate nesting inside an"
               + " active transaction. At the top level, open through executeAsPlatformWrite().");
     }
-    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, true, work);
+    return run(ctx, TransactionDefinition.PROPAGATION_REQUIRES_NEW, true, false, work);
   }
 
   /** Same as {@link #executeNewAsPlatformWrite(TxCtx, Supplier)} for work that returns nothing. */
@@ -490,10 +506,12 @@ public class TenantScopedTransaction {
     }
   }
 
-  private <T> T run(TxCtx ctx, int propagation, boolean platformWrite, Supplier<T> work) {
+  private <T> T run(
+      TxCtx ctx, int propagation, boolean platformWrite, boolean readOnly, Supplier<T> work) {
     requireScope(ctx);
     TransactionTemplate transaction = new TransactionTemplate(transactionManager);
     transaction.setPropagationBehavior(propagation);
+    transaction.setReadOnly(readOnly);
     return transaction.execute(
         status -> {
           // Resolved inside the transaction: an intention is re-resolved at every short

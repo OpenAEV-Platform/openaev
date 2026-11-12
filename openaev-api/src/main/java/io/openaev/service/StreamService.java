@@ -216,7 +216,7 @@ public class StreamService {
     }
     // Not cached / stale: a handful of concurrent stream threads may refresh the same
     // principal at TTL expiry, which is bounded and far cheaper than one query per event.
-    User user = userService.user(principalId);
+    User user = userService.userWithRoles(principalId);
     userCache.put(principalId, new CachedUser(user, Instant.now()));
     return user;
   }

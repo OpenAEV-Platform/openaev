@@ -29,6 +29,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -264,6 +265,37 @@ class TenantScopedTransactionIntegrationTest extends IntegrationTest {
             IllegalArgumentException.class, () -> tenantTx.execute(TxCtx.missing(), () -> "no"));
     assertTrue(
         refusal.getMessage().contains("Missing"),
+        "the refusal must name the reason: " + refusal.getMessage());
+  }
+
+  @Test
+  @DisplayName("executeReadOnly() carries the scope in a read-only transaction")
+  void executeReadOnlyCarriesTheScopeInAReadOnlyTransaction() {
+    List<Object> inside =
+        tenantTx.executeReadOnly(
+            TxCtx.forTenant(tenantA),
+            () ->
+                List.of(
+                    TransactionSynchronizationManager.isCurrentTransactionReadOnly(),
+                    currentScopeInCurrentTransaction()));
+
+    assertEquals(List.of(true, tenantA), inside);
+  }
+
+  @Test
+  @DisplayName("executeReadOnly() refuses to open inside an already active transaction")
+  void executeReadOnlyRefusesActiveTransaction() {
+    IllegalStateException refusal =
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                rawTransaction(TransactionDefinition.PROPAGATION_REQUIRED)
+                    .execute(
+                        status ->
+                            tenantTx.executeReadOnly(
+                                TxCtx.forTenant(tenantA), () -> "should not run")));
+    assertTrue(
+        refusal.getMessage().contains("active transaction"),
         "the refusal must name the reason: " + refusal.getMessage());
   }
 

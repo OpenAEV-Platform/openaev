@@ -191,6 +191,7 @@ final class PlatformRowWriters {
           Set.of("setScopeOnCurrentTransaction"),
           Set.of(
               "execute",
+              "executeReadOnly",
               "executeNew",
               "executeAsPlatformWrite",
               "executeNewAsPlatformWrite",
