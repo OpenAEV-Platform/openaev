@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { patchRowsFromStore, withoutNullValues } from '../../../../admin/components/assets/asset-stream-values';
+import { keepStreamedChanges, patchRowsFromStore, withoutNullValues } from '../../../../admin/components/assets/asset-stream-values';
+import { type Page } from '../../../../components/common/queryable/Page';
+import { type SearchPaginationInput } from '../../../../utils/api-types';
 
 describe('withoutNullValues', () => {
   it('given_nullFields_should_dropThemSoTheFormDefaultsApply', () => {
@@ -82,5 +84,48 @@ describe('patchRowsFromStore', () => {
 
     // Assert
     expect(patched).toBe(rows);
+  });
+});
+
+describe('keepStreamedChanges', () => {
+  type Row = {
+    asset_id: string;
+    asset_name: string;
+  };
+  const pageOf = (content: Row[]) => ({ data: { content } as Page<Row> });
+
+  it('given_aRenameStreamedBeforeTheSearchResponse_should_keepTheNewName', async () => {
+    // Arrange: the search reads the old name, the stream renames the row before the response
+    let store: Record<string, Record<string, unknown>> = { e1: { asset_name: 'old' } };
+    let answer: (page: { data: Page<Row> }) => void = () => {};
+    const search = () => new Promise<{ data: Page<Row> }>((resolve) => {
+      answer = resolve;
+    });
+    const response = keepStreamedChanges(search, () => store)({} as SearchPaginationInput);
+
+    // Act
+    store = { e1: { asset_name: 'new' } };
+    answer(pageOf([{
+      asset_id: 'e1',
+      asset_name: 'old',
+    }]));
+
+    // Assert
+    expect((await response).data.content[0].asset_name).toBe('new');
+  });
+
+  it('given_noStreamedChangeDuringTheSearch_should_keepTheSearchedRows', async () => {
+    // Arrange: the store copy is older than the search, and did not change while it ran
+    const store = { e1: { asset_name: 'old' } };
+    const searched = [{
+      asset_id: 'e1',
+      asset_name: 'searched',
+    }];
+
+    // Act
+    const response = await keepStreamedChanges(() => Promise.resolve(pageOf(searched)), () => store)({} as SearchPaginationInput);
+
+    // Assert
+    expect(response.data.content).toBe(searched);
   });
 });

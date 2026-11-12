@@ -1,3 +1,6 @@
+import { type Page } from '../../../components/common/queryable/Page';
+import { type SearchPaginationInput } from '../../../utils/api-types';
+
 // The store holds what the stream sends: the JPA entity, with every empty field as null and nested
 // objects (agents) shaped differently from the REST outputs the screens are typed on.
 
@@ -39,4 +42,22 @@ export const patchRowsFromStore = <Row extends { asset_id: string }>(
     };
   });
   return patched ? result : rows;
+};
+
+/**
+ * Wraps a search so its response keeps what the stream changed while it ran: a row read before a
+ * streamed rename, and answered after it, would otherwise bring the old name back.
+ */
+export const keepStreamedChanges = <Row extends { asset_id: string }>(
+  search: (input: SearchPaginationInput) => Promise<{ data: Page<Row> }>,
+  storedEntities: () => StoredEntities,
+) => (input: SearchPaginationInput) => {
+  const atRequest = storedEntities();
+  return search(input).then(response => ({
+    ...response,
+    data: {
+      ...response.data,
+      content: patchRowsFromStore(response.data.content, atRequest, storedEntities()),
+    },
+  }));
 };

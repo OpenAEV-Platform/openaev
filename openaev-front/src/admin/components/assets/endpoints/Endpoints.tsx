@@ -1,7 +1,7 @@
 import { Checkbox } from '@filigran/design-system';
 import { CenterFocusStrongOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
@@ -37,7 +37,7 @@ import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFr
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
 import ToolBar from '../../common/ToolBar';
 import { humanizeEnum } from '../asset-categories';
-import { patchRowsFromStore } from '../asset-stream-values';
+import { keepStreamedChanges, patchRowsFromStore } from '../asset-stream-values';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import PostureScoreCell from '../PostureScoreCell';
 import usePostureScores from '../usePostureScores';
@@ -119,6 +119,11 @@ const Endpoints = () => {
     setPreviousEndpointsMap(endpointsMap);
     setEndpoints(rows => patchRowsFromStore(rows, previousEndpointsMap, endpointsMap));
   }
+  // Read when a search answers, to keep what the stream changed while it ran.
+  const storedEndpoints = useRef(endpointsMap);
+  useEffect(() => {
+    storedEndpoints.current = endpointsMap;
+  }, [endpointsMap]);
 
   // Export
   const exportProps = {
@@ -133,7 +138,8 @@ const Endpoints = () => {
 
   const searchEndpointsToLoad = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchAssets(input).finally(() => setLoading(false));
+    return keepStreamedChanges<EndpointOutput>(searchAssets, () => storedEndpoints.current)(input)
+      .finally(() => setLoading(false));
   };
 
   // Bulk selection
