@@ -1,8 +1,11 @@
 package io.openaev.config;
 
 import com.rabbitmq.client.ConnectionFactory;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.security.KeyStore;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
@@ -32,7 +35,7 @@ public class RabbitMQSslConfiguration {
       throws Exception {
     boolean customTrustStore = hasCustomTrustStore(rabbitmqConfig);
     SSLContext sslContext = SSLContext.getInstance(customTrustStore ? "TLSv1.3" : "TLS");
-    sslContext.init(null, trustManagers(rabbitmqConfig), null);
+    sslContext.init(defaultKeyManagers(), trustManagers(rabbitmqConfig), null);
     factory.useSslProtocol(sslContext);
     log.debug("SSL configured for RabbitMQ connection");
   }
@@ -59,6 +62,47 @@ public class RabbitMQSslConfiguration {
         TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
     trustManagerFactory.init(trustStore);
     return trustManagerFactory.getTrustManagers();
+  }
+
+  /**
+   * The key managers of the JVM default SSL context, read from the standard {@code
+   * javax.net.ssl.keyStore} system properties, so the client certificate a broker may require is
+   * still presented, as it was with the JVM default context.
+   */
+  private static KeyManager[] defaultKeyManagers() throws Exception {
+    return keyManagers(
+        System.getProperty("javax.net.ssl.keyStore"),
+        System.getProperty("javax.net.ssl.keyStoreType", KeyStore.getDefaultType()),
+        System.getProperty("javax.net.ssl.keyStorePassword"));
+  }
+
+  /**
+   * The key managers of a client key store.
+   *
+   * @param keyStorePath the key store path, {@code NONE} for a key store with no file
+   * @param keyStoreType the key store type
+   * @param keyStorePassword the key store password, may be null
+   * @return the key managers, or null when no key store is set (no client certificate)
+   * @throws Exception if the key store cannot be read
+   */
+  public static KeyManager[] keyManagers(
+      String keyStorePath, String keyStoreType, String keyStorePassword) throws Exception {
+    if (keyStorePath == null || keyStorePath.isBlank()) {
+      return null;
+    }
+    char[] password = keyStorePassword != null ? keyStorePassword.toCharArray() : null;
+    KeyStore keyStore = KeyStore.getInstance(keyStoreType);
+    if ("NONE".equals(keyStorePath)) {
+      keyStore.load(null, password);
+    } else {
+      try (InputStream keyStoreStream = new FileInputStream(keyStorePath)) {
+        keyStore.load(keyStoreStream, password);
+      }
+    }
+    KeyManagerFactory keyManagerFactory =
+        KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+    keyManagerFactory.init(keyStore, password);
+    return keyManagerFactory.getKeyManagers();
   }
 
   private static boolean hasCustomTrustStore(RabbitmqConfig rabbitmqConfig) {
