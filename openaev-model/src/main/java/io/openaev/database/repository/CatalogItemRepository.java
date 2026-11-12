@@ -21,6 +21,9 @@ public interface CatalogItemRepository extends JpaRepository<CatalogItem, String
   Optional<CatalogItem> findByTypeAndExternalIdAndVersion(
       ContentType type, String externalId, String version);
 
+  @Query("SELECT i FROM CatalogItem i WHERE TYPE(i) = :type")
+  <T extends CatalogItem> List<T> findAllOfType(@Param("type") Class<T> type);
+
   @Query(
       "SELECT i FROM CatalogItem i WHERE TYPE(i) = :type"
           + " AND i.externalId = :externalId AND i.version = :version")
