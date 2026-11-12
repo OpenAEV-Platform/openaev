@@ -1,25 +1,26 @@
 package io.openaev.service.threat_arsenal;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static io.openaev.jsonapi.GenericJsonApiIUtils.resolveType;
+
 import io.openaev.api.payload.PayloadImportService;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.InjectorContract;
-import io.openaev.database.model.Tenant;
+import io.openaev.database.model.*;
 import io.openaev.database.repository.InjectorRepository;
-import io.openaev.jsonapi.JsonApiDocument;
-import io.openaev.jsonapi.ResourceObject;
+import io.openaev.jsonapi.GenericJsonApiIUtils;
+import io.openaev.jsonapi.ImportTypes;
 import io.openaev.jsonapi.ZipJsonApi;
 import io.openaev.service.ZipJsonService;
 import io.openaev.utils.injector_contract.InjectorContractMigrationUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import jakarta.validation.constraints.NotNull;
-import java.io.ByteArrayInputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,17 +29,65 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class ThreatArsenalImportService {
 
-  private static final String INJECTOR_CONTRACTS_TYPE = "injectors_contracts";
+  private static final String INJECTOR_CONTRACTS_TYPE = resolveType(InjectorContract.class);
+
+  /** The root types of a legacy payload export. */
+  private static final Set<String> PAYLOAD_ROOT_TYPES =
+      typesOf(
+          Command.class,
+          Executable.class,
+          FileDrop.class,
+          DnsResolution.class,
+          NetworkTraffic.class,
+          AiAttack.class);
+
+  /**
+   * The resource types of the threat arsenal export format: the types an exported action (injector
+   * contract export or legacy payload export) carries as its root or in {@code included}. An import
+   * rebuilds these types only.
+   */
+  public static final Set<String> EXPORT_FORMAT_TYPES =
+      Stream.concat(
+              Stream.concat(Stream.of(INJECTOR_CONTRACTS_TYPE), PAYLOAD_ROOT_TYPES.stream()),
+              typesOf(
+                  // related resources of an action ("payloads" is the base type of a payload
+                  // referenced by id, which still goes through the write tenant check)
+                  Payload.class,
+                  Document.class,
+                  Domain.class,
+                  Tag.class,
+                  AttackPattern.class,
+                  KillChainPhase.class,
+                  Vulnerability.class,
+                  Cwe.class,
+                  OutputParser.class,
+                  ContractOutputElement.class,
+                  RegexGroup.class,
+                  DetectionRemediation.class,
+                  SecurityPlatform.class)
+                  .stream())
+          .collect(Collectors.toUnmodifiableSet());
+
+  public static final ImportTypes CONTRACT_IMPORT =
+      ImportTypes.only(Set.of(INJECTOR_CONTRACTS_TYPE), EXPORT_FORMAT_TYPES);
+
+  private static final ImportTypes PAYLOAD_IMPORT =
+      ImportTypes.only(PAYLOAD_ROOT_TYPES, EXPORT_FORMAT_TYPES);
+
+  private static Set<String> typesOf(Class<?>... classes) {
+    return Arrays.stream(classes)
+        .map(GenericJsonApiIUtils::resolveType)
+        .collect(Collectors.toUnmodifiableSet());
+  }
 
   private final ZipJsonApi<InjectorContract> injectorContractZipJsonApi;
   private final PayloadImportService payloadImportService;
   private final ThreatArsenalMapper threatArsenalMapper;
-  private final ObjectMapper objectMapper;
   private final InjectorRepository injectorRepository;
 
   public ThreatArsenalAction importThreatArsenalAction(
       @NotNull TxCtx ctx, @NotNull MultipartFile file, @NotNull String tenantId) throws Exception {
-    if (isInjectorContractExport(file)) {
+    if (INJECTOR_CONTRACTS_TYPE.equals(injectorContractZipJsonApi.readRootType(file))) {
       return importFromInjectorContract(file, tenantId);
     }
     return importFromPayload(ctx, file);
@@ -73,7 +122,8 @@ public class ThreatArsenalImportService {
               InjectorContractMigrationUtils.migratePredefinedExpectations(contract);
               return contract;
             },
-            tenantId);
+            tenantId,
+            CONTRACT_IMPORT);
     return threatArsenalMapper.toThreatArsenalAction(response.persistedData());
   }
 
@@ -85,32 +135,8 @@ public class ThreatArsenalImportService {
    * soon.
    */
   private ThreatArsenalAction importFromPayload(TxCtx ctx, MultipartFile file) throws Exception {
-    PayloadImportService.PayloadImportResult result = payloadImportService.importPayload(ctx, file);
+    PayloadImportService.PayloadImportResult result =
+        payloadImportService.importPayload(ctx, file, PAYLOAD_IMPORT);
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
-  }
-
-  /**
-   * Peeks into the ZIP to detect if the JSON:API document represents an injector contract export by
-   * checking the {@code data.type} field. Any other type (e.g. payloads, commands, file_drops) is
-   * treated as a legacy payload export.
-   */
-  private boolean isInjectorContractExport(MultipartFile file) throws Exception {
-    try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(file.getBytes()))) {
-      ZipEntry entry;
-      while ((entry = zis.getNextEntry()) != null) {
-        if (entry.getName().endsWith(".json") && !"meta.json".equals(entry.getName())) {
-          byte[] content = zis.readAllBytes();
-          JsonApiDocument<ResourceObject> doc =
-              objectMapper.readValue(
-                  content,
-                  objectMapper
-                      .getTypeFactory()
-                      .constructParametricType(JsonApiDocument.class, ResourceObject.class));
-          return doc.data() != null && INJECTOR_CONTRACTS_TYPE.equals(doc.data().type());
-        }
-        zis.closeEntry();
-      }
-    }
-    return false;
   }
 }
