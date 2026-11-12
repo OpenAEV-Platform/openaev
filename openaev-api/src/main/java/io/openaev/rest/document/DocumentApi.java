@@ -147,7 +147,8 @@ public class DocumentApi extends RestBehavior {
       }
       // Compute tags
       Set<Tag> tags = new HashSet<>(document.getTags());
-      List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
+      List<Tag> inputTags =
+          fromIterable(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId));
       tags.addAll(inputTags);
       document.setTags(tags);
       return documentService.save(document);
@@ -169,7 +170,8 @@ public class DocumentApi extends RestBehavior {
         document.setScenarios(
             iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
       }
-      document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+      document.setTags(
+          iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
       document.setType(file.getContentType());
       return documentService.save(document);
     }
