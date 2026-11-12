@@ -83,7 +83,9 @@ public class ChallengeApi extends RestBehavior {
     challengeService.validateFlags(input.flags());
     Challenge challenge =
         challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
-    challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
+    challenge.setTags(
+        iterableToSet(
+            tagRepository.findAllByIdInTenant(input.tagIds(), challenge.getTenant().getId())));
     challenge.setDocuments(fromIterable(documentRepository.findAllById(input.documentIds())));
     challenge.setUpdateAttributes(input);
     challenge.setUpdatedAt(Instant.now());

@@ -56,6 +56,7 @@ import io.openaev.service.*;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowEndService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -66,6 +67,7 @@ import io.openaev.utils.InjectExpectationResultUtils.ExpectationResultsByType;
 import io.openaev.utils.ResultUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TeamOutputVisibilityUtils;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
@@ -81,12 +83,14 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -150,6 +154,7 @@ public class ExerciseService {
   private final WorkflowService workflowService;
   private final WorkflowEndService workflowEndService;
   private final WorkflowPauseService workflowPauseService;
+  private final WorkflowOwnerScope workflowOwnerScope;
 
   private final PauseExerciseService pauseExerciseService;
   private final FileService fileService;
@@ -162,6 +167,9 @@ public class ExerciseService {
 
   private final io.openaev.database.repository.autonomous.AutonomousRunRepository
       autonomousRunRepository;
+
+  // Lazy: PermissionService reaches the services this one is built from.
+  private final ObjectProvider<PermissionService> permissionServiceProvider;
 
   // region properties
   @Resource private PlatformMailSender platformMailSender;
@@ -206,7 +214,11 @@ public class ExerciseService {
 
   // -- READ --
 
-  /** Validates that the exercise exists for the current tenant. Throws if not found. */
+  /**
+   * Validates that the exercise exists for the current tenant. Throws if not found. For work that
+   * runs without a request scope and sets the ambient tenant itself; a request uses {@link
+   * #existsInScope(TxCtx, String)}.
+   */
   public void existsByIdAndTenantId(@NotBlank final String exerciseId) {
     if (!this.exerciseRepository.existsByIdAndTenantId(
         exerciseId, TenantContext.getCurrentTenant())) {
@@ -214,10 +226,57 @@ public class ExerciseService {
     }
   }
 
+  /**
+   * Loads an exercise in the current tenant. For work that runs without a request scope and sets
+   * the ambient tenant itself; a request uses {@link #exercise(TxCtx, String)}.
+   */
   public Exercise exercise(@NotBlank final String exerciseId) {
     return this.exerciseRepository
         .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
+  }
+
+  /**
+   * Looks an exercise up by id inside the request's tenant scope: the path tenant on the tenant
+   * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route.
+   * The v1 ambient tenant is set only on the tenant route, so it does not carry the request scope
+   * on the other one.
+   */
+  public Optional<Exercise> findInScope(
+      @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    return this.exerciseRepository.findByIdAndTenantIdIn(
+        exerciseId, TxCtxScopeUtils.requestReadScope(ctx));
+  }
+
+  /**
+   * Loads an exercise by primary key and keeps it only when its tenant lies in the request's tenant
+   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
+   * the default one on the non-prefixed route: a member reaches its own exercise in any tenant of
+   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
+   * them refuses only what lies outside the scope. Transactional with the {@link TxCtx}, so the
+   * lookup carries the request scope even from a caller that opens no transaction of its own.
+   */
+  @Transactional(readOnly = true)
+  public Optional<Exercise> findByIdInScope(
+      @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    Set<String> scope = TxCtxScopeUtils.requestReadScope(ctx);
+    return this.exerciseRepository
+        .findById(exerciseId)
+        .filter(exercise -> scope.contains(exercise.getTenant().getId()));
+  }
+
+  /** Loads an exercise inside the request's tenant scope. Throws if not found there. */
+  public Exercise exercise(@NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    return findInScope(ctx, exerciseId)
+        .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
+  }
+
+  /** Validates that the exercise exists inside the request's tenant scope. Throws if not. */
+  public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    if (!this.exerciseRepository.existsByIdAndTenantIdIn(
+        exerciseId, TxCtxScopeUtils.requestReadScope(ctx))) {
+      throw new ElementNotFoundException("Exercise not found");
+    }
   }
 
   /**
@@ -232,28 +291,38 @@ public class ExerciseService {
     return exercise;
   }
 
-  public RawSimulationIndexing rawSimulation(@NotBlank final String simulationId) {
-    RawSimulationIndexing rawSimulation = exerciseRepository.rawDetailsById(simulationId);
+  /**
+   * Reads the details of a simulation found inside the request's tenant scope. The native read
+   * itself keys on the v1 ambient tenant, the default one on the non-prefixed route, so the scope
+   * is checked first. The detail also names the simulation's workflow, read in the simulation's own
+   * tenant once access is granted (WorkflowOwnerScope).
+   */
+  public RawSimulationIndexing rawSimulation(
+      @NotNull final TxCtx ctx, @NotBlank final String simulationId) {
+    RawSimulationIndexing rawSimulation =
+        workflowOwnerScope.call(
+            exercise(ctx, simulationId), () -> exerciseRepository.rawDetailsById(simulationId));
     if (rawSimulation == null) {
       throw new ElementNotFoundException("Simulation not found");
     }
     return rawSimulation;
   }
 
-  public List<ExerciseSimple> exercises(final List<String> exerciseIds) {
-
+  /** The simulations of {@code exerciseIds} the caller reads, as {@link #exercises(TxCtx)}. */
+  public List<ExerciseSimple> exercises(@NotNull final TxCtx ctx, final List<String> exerciseIds) {
     User currentUser = userService.currentUser();
-    List<RawExerciseSimple> exercises =
-        currentUser.isAdminOrBypass()
-                || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
-            ? exerciseRepository.rawByExerciseIds(exerciseIds)
-            : exerciseRepository.rawGrantedByExerciseIds(currentUser().getId(), exerciseIds);
-    return exerciseMapper.getExerciseSimples(exercises);
+    return exerciseMapper.getExerciseSimples(
+        readableInEachTenant(
+            ctx,
+            currentUser,
+            () -> exerciseRepository.rawByExerciseIds(exerciseIds),
+            () -> exerciseRepository.rawGrantedByExerciseIds(currentUser.getId(), exerciseIds)));
   }
 
   @Transactional(readOnly = true)
-  public List<TeamOutput> getExerciseTeams(@NotBlank final String exerciseId) {
-    String workflowId = rawSimulation(exerciseId).getExercise_workflow_id();
+  public List<TeamOutput> getExerciseTeams(
+      @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    String workflowId = rawSimulation(ctx, exerciseId).getExercise_workflow_id();
     return StringUtils.hasText(workflowId)
         ? getWorkflowExerciseTeams(exerciseId, workflowId)
         : getTimeBasedExerciseTeams(exerciseId);
@@ -290,8 +359,8 @@ public class ExerciseService {
    * @return the persisted duplicate
    */
   @Transactional
-  public Exercise duplicateExercise(@NotBlank String exerciseId) {
-    Exercise duplicate = copyExerciseContent(exerciseId);
+  public Exercise duplicateExercise(@NotNull TxCtx ctx, @NotBlank String exerciseId) {
+    Exercise duplicate = copyExerciseContent(ctx, exerciseId);
     duplicateChainingWorkflowIfAny(exerciseId, duplicate);
     return duplicate;
   }
@@ -310,19 +379,25 @@ public class ExerciseService {
    */
   private void duplicateChainingWorkflowIfAny(
       @NotBlank final String exerciseId, final Exercise duplicate) {
-    if (!workflowService.isSimulationChaining(exerciseId)) {
-      return;
-    }
-    if (enterpriseEditionService.isEnterpriseLicenseInactive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
-      throw new EnterpriseEditionException("Enterprise Edition license required");
-    }
-    workflowService.duplicateSimulationWorkflow(exerciseId, duplicate);
+    // The duplicate carries its source's tenant (copyExercise), so the source workflow is read and
+    // its copy written in that one tenant.
+    workflowOwnerScope.run(
+        duplicate,
+        () -> {
+          if (!workflowService.isSimulationChaining(exerciseId)) {
+            return;
+          }
+          if (enterpriseEditionService.isEnterpriseLicenseInactive(
+              licenseCacheManager.getEnterpriseEditionInfo())) {
+            throw new EnterpriseEditionException("Enterprise Edition license required");
+          }
+          workflowService.duplicateSimulationWorkflow(exerciseId, duplicate);
+        });
   }
 
   /**
    * Duplicates a simulation's authored content only, without its chaining logic map. Use {@link
-   * #duplicateExercise(String)} for the full duplicate.
+   * #duplicateExercise(TxCtx, String)} for the full duplicate.
    *
    * @param exerciseId the source simulation
    * @return the persisted duplicate
@@ -333,12 +408,21 @@ public class ExerciseService {
   }
 
   /**
-   * The metadata copy itself, shared by both public entry points. Free of {@code @Transactional} so
-   * neither trips the Spring self-invocation trap. Package-private so it can be stubbed when
-   * unit-testing the orchestration.
+   * The metadata copy itself, of a simulation found inside the request's tenant scope. Free of
+   * {@code @Transactional} so both public entry points can call it without tripping the Spring
+   * self-invocation trap. Package-private so it can be stubbed when unit-testing the orchestration.
    */
+  Exercise copyExerciseContent(@NotNull TxCtx ctx, @NotBlank String exerciseId) {
+    return copyExerciseContent(exercise(ctx, exerciseId));
+  }
+
+  /** The metadata copy of a simulation of the current tenant, for work without a request scope. */
   Exercise copyExerciseContent(@NotBlank String exerciseId) {
-    Exercise exerciseOrigin = exercise(exerciseId);
+    return copyExerciseContent(exercise(exerciseId));
+  }
+
+  private Exercise copyExerciseContent(@NotNull Exercise exerciseOrigin) {
+    String exerciseId = exerciseOrigin.getId();
     Exercise exercise = copyExercise(exerciseOrigin);
     Exercise exerciseDuplicate = exerciseRepository.save(exercise);
     actionMetricCollector.addSimulationCreatedCount();
@@ -347,7 +431,8 @@ public class ExerciseService {
     // by the chaining engine from the step templates. Cloning them would copy execution artefacts
     // into a brand-new, never-run duplicate. Its authored content is the workflow, duplicated by
     // duplicateChainingWorkflowIfAny.
-    if (!workflowService.isSimulationChaining(exerciseId)) {
+    if (!workflowOwnerScope.call(
+        exerciseOrigin, () -> workflowService.isSimulationChaining(exerciseId))) {
       getListOfDuplicatedInjects(exerciseDuplicate, exerciseOrigin);
     }
     Map<String, Team> contextualTeams = getListOfExerciseTeams(exerciseDuplicate, exerciseOrigin);
@@ -589,15 +674,54 @@ public class ExerciseService {
   }
 
   // -- EXERCISES --
-  public List<ExerciseSimple> exercises() {
-    // We get the exercises depending on whether or not we are granted or have the capa
+  /**
+   * The simulations the caller reads: every simulation of a tenant where it holds the access right,
+   * and the simulations it holds a grant on.
+   */
+  public List<ExerciseSimple> exercises(@NotNull final TxCtx ctx) {
     User currentUser = userService.currentUser();
-    List<RawExerciseSimple> exercises =
-        currentUser.isAdminOrBypass()
-                || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)
-            ? exerciseRepository.rawAll()
-            : exerciseRepository.rawAllGranted(currentUser().getId());
-    return exerciseMapper.getExerciseSimples(exercises);
+    return exerciseMapper.getExerciseSimples(
+        readableInEachTenant(
+            ctx,
+            currentUser,
+            exerciseRepository::rawAll,
+            () -> exerciseRepository.rawAllGranted(currentUser.getId())));
+  }
+
+  private List<RawExerciseSimple> readableInEachTenant(
+      TxCtx ctx,
+      User currentUser,
+      Supplier<List<RawExerciseSimple>> all,
+      Supplier<List<RawExerciseSimple>> granted) {
+    return permissionServiceProvider
+        .getObject()
+        .listInEachTenant(
+            ctx,
+            () -> canAccessEverySimulation(currentUser),
+            all,
+            granted,
+            RawExerciseSimple::getTenant_id,
+            RawExerciseSimple::getExercise_id);
+  }
+
+  private static boolean canAccessEverySimulation(User user) {
+    return user.isAdminOrBypass() || user.getCapabilities().contains(Capability.ACCESS_ASSESSMENT);
+  }
+
+  /**
+   * The simulations the caller reads in a search: every simulation of a tenant where it holds the
+   * access right, and the simulations it holds a grant on.
+   */
+  public Specification<Exercise> readableInEachTenant(
+      @NotNull final TxCtx ctx, @NotNull final User currentUser) {
+    return permissionServiceProvider
+        .getObject()
+        .filterInEachTenant(
+            ctx,
+            () -> canAccessEverySimulation(currentUser),
+            accessRight ->
+                SpecificationUtils.hasGrantAccess(
+                    currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
   }
 
   public Page<ExerciseSimple> exercises(
@@ -656,18 +780,39 @@ public class ExerciseService {
   }
 
   /**
-   * Delete a simulation
+   * Delete a simulation found inside the request's tenant scope
+   *
+   * @param ctx the request's tenant scope
+   * @param simulationId ID of the simulation to delete
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void deleteById(TxCtx ctx, String simulationId) {
+    delete(exercise(ctx, simulationId));
+  }
+
+  /**
+   * Delete a simulation of the current tenant, for work that runs without a request scope.
    *
    * @param simulationId ID of the simulation to delete
    */
   @Transactional(rollbackFor = Exception.class)
   public void deleteById(String simulationId) {
-    existsByIdAndTenantId(simulationId);
+    delete(exercise(simulationId));
+  }
 
-    if (workflowService.isSimulationChaining(simulationId)) {
-      workflowService.deleteSimulationDeleteWorkflows(simulationId);
-      log.info("[Chaining] Workflow TEMPLATE will be deleted for simulation {}", simulationId);
-    }
+  // The simulation is loaded by the caller, in the request scope or in the current tenant, so the
+  // tenant check and the workflow sweep's tenant come from the same row.
+  private void delete(Exercise simulation) {
+    String simulationId = simulation.getId();
+    workflowOwnerScope.run(
+        simulation,
+        () -> {
+          if (workflowService.isSimulationChaining(simulationId)) {
+            workflowService.deleteSimulationDeleteWorkflows(simulationId);
+            log.info(
+                "[Chaining] Workflow TEMPLATE will be deleted for simulation {}", simulationId);
+          }
+        });
 
     exerciseRepository.deleteById(simulationId);
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
@@ -720,28 +865,54 @@ public class ExerciseService {
                 specification =
                     specification.and((root, query, cb) -> cb.not(root.get("id").in(idsToIgnore)));
               }
-              // Restrict to simulations the user is granted to plan on (no-op for admins and users
-              // with the delete capability)
+              // Restrict to simulations the user is granted to plan on (no-op in a tenant where
+              // the user is an admin or holds the delete capability)
               specification =
                   specification.and(
-                      SpecificationUtils.hasGrantAccess(
-                          user.getId(),
-                          user.isAdminOrBypass(),
-                          user.getCapabilities().contains(Capability.DELETE_ASSESSMENT),
-                          Grant.GRANT_TYPE.PLANNER));
+                      permissionServiceProvider
+                          .getObject()
+                          .filterInEachTenant(
+                              ctx,
+                              () ->
+                                  user.isAdminOrBypass()
+                                      || user.getCapabilities()
+                                          .contains(Capability.DELETE_ASSESSMENT),
+                              deleteRight ->
+                                  SpecificationUtils.hasGrantAccess(
+                                      user.getId(), false, deleteRight, Grant.GRANT_TYPE.PLANNER)));
               return exerciseRepository.findAll(specification).stream()
                   .map(Exercise::getId)
                   .toList();
             });
     return bulkDeleteExecutor.deleteInChunks(
-        ctx, "simulations", exerciseIdsToDelete, chunk -> chunk.forEach(this::deleteById));
+        ctx,
+        "simulations",
+        exerciseIdsToDelete,
+        chunk -> chunk.forEach(id -> delete(exercise(ctx, id))));
   }
 
+  /** Changes the status of an exercise found inside the request's tenant scope. */
   // Still declares ChainingException: startWorkflowBySimulationId (chaining engine start)
+  @Transactional(rollbackFor = Exception.class)
+  public Exercise changeExerciseStatus(TxCtx ctx, ExerciseStatus status, String exerciseId)
+      throws ChainingException {
+    return changeExerciseStatus(status, exerciseId, id -> this.exercise(ctx, id));
+  }
+
+  /**
+   * Changes the status of an exercise of the current tenant, for work that runs without a request
+   * scope.
+   */
   @Transactional(rollbackFor = Exception.class)
   public Exercise changeExerciseStatus(ExerciseStatus status, String exerciseId)
       throws ChainingException {
-    Exercise exercise = this.exercise(exerciseId);
+    return changeExerciseStatus(status, exerciseId, this::exercise);
+  }
+
+  private Exercise changeExerciseStatus(
+      ExerciseStatus status, String exerciseId, Function<String, Exercise> loadExercise)
+      throws ChainingException {
+    Exercise exercise = loadExercise.apply(exerciseId);
     // Check if next status is possible
     List<ExerciseStatus> nextPossibleStatus = exercise.nextPossibleStatus();
     if (!nextPossibleStatus.contains(status)) {
@@ -752,11 +923,15 @@ public class ExerciseService {
     boolean isCloseState =
         ExerciseStatus.CANCELED.equals(exercise.getStatus())
             || ExerciseStatus.FINISHED.equals(exercise.getStatus());
-    if (workflowService.isSimulationChaining(exercise.getId())) {
-      if (ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
-          && ExerciseStatus.RUNNING.equals(status)) {
-        workflowService.startWorkflowBySimulationId(exercise.getId());
-      }
+    // The workflow is read and written in the simulation's own tenant, whatever the caller's scope
+    // (WorkflowOwnerScope): access to the simulation was granted, its workflow follows it.
+    boolean chained =
+        workflowOwnerScope.call(exercise, () -> workflowService.isSimulationChaining(exerciseId));
+    if (chained
+        && ExerciseStatus.SCHEDULED.equals(exercise.getStatus())
+        && ExerciseStatus.RUNNING.equals(status)) {
+      workflowOwnerScope.run(
+          exercise, () -> workflowService.startWorkflowBySimulationId(exerciseId));
     }
     if (isCloseState && ExerciseStatus.SCHEDULED.equals(status)) {
       // Reset pauses
@@ -775,7 +950,7 @@ public class ExerciseService {
       entityManager.clear();
       // Reload exercise after clearing entity manager to avoid detached entity issues and to ensure
       // the reset values are re-applied on a fresh managed instance before the final save.
-      exercise = this.exercise(exerciseId);
+      exercise = loadExercise.apply(exerciseId);
       exercise.setStart(null);
       exercise.setEnd(null);
       exercise.setCurrentPause(null);
@@ -796,10 +971,12 @@ public class ExerciseService {
               }
             }
           });
-      if (workflowService.isSimulationChaining(exercise.getId())) {
+      if (chained) {
         // DELETE workflow execution
-        workflowService.resetSimulationDeleteWorkflowExecution(exercise.getId());
-        // DELETE injects
+        workflowOwnerScope.run(
+            exercise, () -> workflowService.resetSimulationDeleteWorkflowExecution(exerciseId));
+        // DELETE injects, outside the scoped work: its flush must not write these deletes before
+        // the final save below, which would then merge a stale injects collection.
         List<Inject> injects = this.injectRepository.findByExerciseId(exerciseId);
         this.injectRepository.deleteAll(injects);
       }
@@ -827,10 +1004,12 @@ public class ExerciseService {
       pause.setExercise(exercise);
       pause.setDuration(between(lastPause, now()).getSeconds());
       pauseRepository.save(pause);
-      if (workflowService.isSimulationChaining(exercise.getId())) {
-        boolean isEnded = workflowPauseService.resumeSimulationWorkflowRuns(exercise.getId());
+      if (chained) {
+        boolean isEnded =
+            workflowOwnerScope.call(
+                exercise, () -> workflowPauseService.resumeSimulationWorkflowRuns(exerciseId));
         if (isEnded) {
-          return this.exercise(
+          return loadExercise.apply(
               exerciseId); // Reload the exercise to get the updated status after the workflow has
           // ended
         }
@@ -840,8 +1019,9 @@ public class ExerciseService {
     if (ExerciseStatus.RUNNING.equals(exercise.getStatus())
         && ExerciseStatus.PAUSED.equals(status)) {
       exercise.setCurrentPause(Instant.now());
-      if (workflowService.isSimulationChaining(exercise.getId())) {
-        workflowPauseService.pauseSimulationWorkflowRuns(exercise.getId());
+      if (chained) {
+        workflowOwnerScope.run(
+            exercise, () -> workflowPauseService.pauseSimulationWorkflowRuns(exerciseId));
       }
     }
     // Cancelation, from a running or a paused simulation
@@ -851,10 +1031,22 @@ public class ExerciseService {
       exercise.setEnd(now());
       // End WORKFLOW + STEP + delete workflow states. A paused run is STOP, not RUN: it must be
       // ended too, or the simulation is CANCELED while its workflow stays parked forever.
-      List<Workflow> run = workflowService.findActiveWorkflowBySimulationId(exercise.getId());
-      if (!run.isEmpty()) {
-        workflowService.cancelSimulationEndWorkflowRun(run);
-
+      // Empty when the simulation has no live run; otherwise whether the run is autonomous.
+      Optional<Boolean> endedRunIsAutonomous =
+          workflowOwnerScope.call(
+              exercise,
+              () -> {
+                List<Workflow> run = workflowService.findActiveWorkflowBySimulationId(exerciseId);
+                if (run.isEmpty()) {
+                  return Optional.<Boolean>empty();
+                }
+                workflowService.cancelSimulationEndWorkflowRun(run);
+                return Optional.of(autonomousRunRepository.existsBySimulationId(exerciseId));
+              });
+      if (endedRunIsAutonomous.isEmpty()) {
+        workflowEndService.stopActiveInjects(
+            exercise.getId(), WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+      } else if (endedRunIsAutonomous.get()) {
         // Stopping is not resetting: it ends the run and keeps its record. A manual chained
         // simulation used to drop ALL its injects here, which emptied the Execution screen while
         // the attack path (whose rows are only cleared on reset) still showed the same run - the
@@ -864,15 +1056,10 @@ public class ExerciseService {
         // An autonomous (AI-driven) run additionally drops the injects the orchestrator had
         // queued but never started: they are where the duplicate-inject storms pile up, and a
         // never-started inject is not part of the deliverable.
-        if (autonomousRunRepository.existsBySimulationId(exercise.getId())) {
-          this.injectRepository.deleteAll(
-              this.injectRepository.findByExerciseId(exerciseId).stream()
-                  .filter(Inject::isNotExecuted)
-                  .toList());
-        }
-      } else {
-        workflowEndService.stopActiveInjects(
-            exercise.getId(), WorkflowEndService.WORKFLOW_END_CAUSE.CANCELED);
+        this.injectRepository.deleteAll(
+            this.injectRepository.findByExerciseId(exerciseId).stream()
+                .filter(Inject::isNotExecuted)
+                .toList());
       }
     }
     exercise.setUpdatedAt(now());
@@ -964,8 +1151,8 @@ public class ExerciseService {
   }
 
   public List<InjectExpectationResultsByAttackPattern> extractExpectationResultsByAttackPattern(
-      String exerciseId) {
-    Exercise exercise = exercise(exerciseId);
+      @NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    Exercise exercise = exercise(ctx, exerciseId);
     return resultUtils.computeInjectExpectationResults(exercise.getInjects());
   }
 
@@ -1201,7 +1388,11 @@ public class ExerciseService {
   // -- TEAMS --
   @Transactional(rollbackFor = Exception.class)
   public Iterable<TeamOutput> removeTeams(
-      @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
+      @NotNull final TxCtx ctx,
+      @NotBlank final String exerciseId,
+      @NotNull final List<String> teamIds) {
+    // The deletes below key on the exercise id alone
+    existsInScope(ctx, exerciseId);
     // Remove teams from exercise
     this.exerciseRepository.removeTeams(exerciseId, teamIds);
     // Remove only associations for this exercise
@@ -1219,8 +1410,10 @@ public class ExerciseService {
 
   @Transactional(rollbackFor = Exception.class)
   public List<TeamOutput> replaceTeams(
-      @NotBlank final String exerciseId, @NotNull final List<String> teamIds) {
-    Exercise exercise = this.exercise(exerciseId);
+      @NotNull final TxCtx ctx,
+      @NotBlank final String exerciseId,
+      @NotNull final List<String> teamIds) {
+    Exercise exercise = this.exercise(ctx, exerciseId);
     Set<String> previousTeamIds =
         exercise.getTeams().stream().map(Team::getId).collect(Collectors.toSet());
     Set<String> targetTeamIds = new LinkedHashSet<>(teamIds);
@@ -1252,7 +1445,7 @@ public class ExerciseService {
     teamsAdded.forEach(
         team -> {
           List<String> playerIds = team.getUsers().stream().map(User::getId).toList();
-          this.enablePlayers(exerciseId, team, playerIds);
+          this.enablePlayers(exercise, team, playerIds);
         });
 
     // You must return all the modified teams to ensure the frontend store updates correctly
@@ -1263,16 +1456,35 @@ public class ExerciseService {
     return teamService.find(fromIds(modifiedTeamIds));
   }
 
+  /** Enables players of a team on an exercise found inside the request's tenant scope. */
+  public Exercise enablePlayers(
+      @NotNull final TxCtx ctx,
+      @NotBlank final String exerciseId,
+      @NotNull final Team team,
+      @NotNull final List<String> playerIds) {
+    return enablePlayers(this.exercise(ctx, exerciseId), team, playerIds);
+  }
+
+  /**
+   * Enables players of a team on an exercise of the current tenant, for work that runs without a
+   * request scope.
+   */
   public Exercise enablePlayers(
       @NotBlank final String exerciseId,
       @NotNull final Team team,
       @NotNull final List<String> playerIds) {
-    Exercise exercise = this.exercise(exerciseId);
+    return enablePlayers(this.exercise(exerciseId), team, playerIds);
+  }
+
+  private Exercise enablePlayers(
+      @NotNull final Exercise exercise,
+      @NotNull final Team team,
+      @NotNull final List<String> playerIds) {
     playerIds.forEach(
         playerId -> {
           boolean alreadyLinked =
               this.exerciseTeamUserRepository.existsByExerciseIdAndTeamIdAndUserId(
-                  exerciseId, team.getId(), playerId);
+                  exercise.getId(), team.getId(), playerId);
           if (alreadyLinked) {
             return;
           }

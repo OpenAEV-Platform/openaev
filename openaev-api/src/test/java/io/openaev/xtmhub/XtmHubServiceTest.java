@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
-import static org.mockserver.model.StringBody.subString;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import ch.qos.logback.classic.Level;
@@ -130,6 +129,15 @@ class XtmHubServiceTest {
     lenient()
         .when(tenantTx.execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Object>>any()))
         .thenAnswer(inv -> inv.<Supplier<Object>>getArgument(1).get());
+    // The notification flag is written in a platform-write transaction: run its work inline.
+    lenient()
+        .doAnswer(
+            inv -> {
+              inv.<Runnable>getArgument(1).run();
+              return null;
+            })
+        .when(tenantTx)
+        .executeAsPlatformWrite(any(TxCtx.class), ArgumentMatchers.<Runnable>any());
     // forEachTenant simulates the real per-tenant loop: derive tenant ids from
     // findAllByTenantNotDeleted(), then re-stub findByTenantId(tenantId) with doReturn (not
     // when(...).thenReturn(...), which would re-invoke and recurse into this very stub) so the
@@ -953,37 +961,6 @@ class XtmHubServiceTest {
   @DisplayName("platformContract")
   class PlatformEdition {
 
-    private static final String SINGLE_TENANT_INPUT =
-        "RefreshPlatformRegistrationConnectivityStatusSingleTenantInput";
-    private static final String ALL_TENANTS_INPUT =
-        "RefreshPlatformRegistrationConnectivityStatusAllTenantsInput";
-    private static final String ECHOED_INPUT =
-        "Variable \"$input\" got invalid value { platformId: \"platform-123\", platformContract: \"EE\" }; ";
-    private static final String FALLBACK_LOG = "XTM Hub does not accept the platform edition yet";
-
-    private Logger clientLogger;
-    private ListAppender<ILoggingEvent> clientLogs;
-    private Level originalClientLogLevel;
-
-    @BeforeEach
-    void captureClientLogs() {
-      clientLogger = (Logger) LoggerFactory.getLogger(XtmHubClient.class);
-      // The test logging config caps io.openaev at ERROR once a Spring context has started in the
-      // same JVM: force the level so the fallback warning reaches the appender.
-      originalClientLogLevel = clientLogger.getLevel();
-      clientLogger.setLevel(Level.WARN);
-      clientLogs = new ListAppender<>();
-      clientLogs.start();
-      clientLogger.addAppender(clientLogs);
-    }
-
-    @AfterEach
-    void releaseClientLogs() {
-      clientLogger.detachAppender(clientLogs);
-      clientLogs.stop();
-      clientLogger.setLevel(originalClientLogLevel);
-    }
-
     private License buildLicense(boolean enterprise, boolean validated) {
       License license = new License();
       license.setLicenseEnterprise(enterprise);
@@ -1009,36 +986,6 @@ class XtmHubServiceTest {
       givenPlatformSettings(license);
     }
 
-    private String hubErrors(String message) {
-      JsonObject error = new JsonObject();
-      error.addProperty("message", message);
-      JsonArray errors = new JsonArray();
-      errors.add(error);
-      JsonObject body = new JsonObject();
-      body.add("errors", errors);
-      return body.toString();
-    }
-
-    /** Stubs MockServer like a hub without the edition refresh: it rejects the unknown field. */
-    private void whenHubRejectsPlatformContract(int statusCode, String inputType) {
-      mockServer
-          .when(
-              request()
-                  .withMethod("POST")
-                  .withPath(GRAPHQL_PATH)
-                  .withBody(subString("platformContract")))
-          .respond(
-              response()
-                  .withStatusCode(statusCode)
-                  .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
-                  .withBody(
-                      hubErrors(
-                          ECHOED_INPUT
-                              + "Field \"platformContract\" is not defined by type \""
-                              + inputType
-                              + "\".")));
-    }
-
     private List<JsonObject> recordedRefreshInputs() {
       return Arrays.stream(
               mockServer.retrieveRecordedRequests(
@@ -1050,13 +997,6 @@ class XtmHubServiceTest {
                       .getAsJsonObject("variables")
                       .getAsJsonObject("input"))
           .toList();
-    }
-
-    private long fallbackLogCount() {
-      return clientLogs.list.stream()
-          .filter(event -> event.getLevel() == Level.WARN)
-          .filter(event -> event.getFormattedMessage().contains(FALLBACK_LOG))
-          .count();
     }
 
     @ParameterizedTest(name = "enterprise={0}, validated={1} -> {2}")
@@ -1119,112 +1059,6 @@ class XtmHubServiceTest {
               input -> assertThat(input.get("platformContract").getAsString()).isEqualTo("EE"));
     }
 
-    @ParameterizedTest(name = "HTTP {0}")
-    @ValueSource(ints = {400, 200})
-    @DisplayName("Should refresh again without the edition when XTM Hub rejects the field")
-    void whenHubRejectsPlatformContract_ShouldRetryWithoutIt(int statusCode) {
-      // Given
-      givenDefaultTenantRegistration(buildLicense(true, true));
-      whenHubRejectsPlatformContract(statusCode, SINGLE_TENANT_INPUT);
-      whenHubReturnsConnectivityStatus("active");
-
-      // When
-      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
-
-      // Then
-      List<JsonObject> inputs = recordedRefreshInputs();
-      assertThat(inputs).hasSize(2);
-      assertThat(inputs.get(0).get("platformContract").getAsString()).isEqualTo("EE");
-      assertThat(inputs.get(1).has("platformContract")).isFalse();
-      assertThat(inputs.get(1).get("token").getAsString()).isEqualTo("valid-token");
-      assertThat(result.getRegistrationStatus()).isEqualTo(XtmHubRegistrationStatus.REGISTERED);
-    }
-
-    @Test
-    @DisplayName(
-        "Should refresh all tenants again without the edition when XTM Hub rejects the field")
-    void whenHubRejectsPlatformContractForAllTenants_ShouldRetryWithoutIt() {
-      // Given
-      TenantXtmHubRegistration registration =
-          buildRegistration("tenant-1", "token-1", now.minusHours(1));
-      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
-          .thenReturn(List.of(registration));
-      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-      givenPlatformSettings(buildLicense(true, true));
-      whenHubRejectsPlatformContract(400, ALL_TENANTS_INPUT);
-      whenHubReturnsAllTenantsConnectivityStatuses(Map.of("tenant-1", "active"));
-
-      // When
-      xtmHubService.refreshConnectivityAllTenants();
-
-      // Then
-      List<JsonObject> inputs = recordedRefreshInputs();
-      assertThat(inputs).hasSize(2);
-      assertThat(inputs.get(1).has("platformContract")).isFalse();
-      assertThat(inputs.get(1).getAsJsonArray("tenants")).hasSize(1);
-
-      ArgumentCaptor<TenantXtmHubRegistration> captor =
-          ArgumentCaptor.forClass(TenantXtmHubRegistration.class);
-      verify(tenantXtmHubRegistrationRepository).save(captor.capture());
-      assertThat(captor.getValue().getRegistrationStatus())
-          .isEqualTo(XtmHubRegistrationStatus.REGISTERED);
-    }
-
-    @Test
-    @DisplayName("Should not refresh again when XTM Hub rejects another input field")
-    void whenHubRejectsAnotherField_ShouldNotRetry() {
-      // Given
-      givenDefaultTenantRegistration(buildLicense(true, true));
-      mockServer
-          .when(request().withMethod("POST").withPath(GRAPHQL_PATH))
-          .respond(
-              response()
-                  .withStatusCode(400)
-                  .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
-                  .withBody(
-                      hubErrors(
-                          ECHOED_INPUT
-                              + "Field \"platformVersion\" of required type \"String!\" was not provided.")));
-
-      // When
-      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
-
-      // Then
-      assertThat(recordedRefreshInputs()).hasSize(1);
-      assertThat(result.getRegistrationStatus())
-          .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
-      assertThat(fallbackLogCount()).isZero();
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @ValueSource(
-        strings = {
-          "Variable \"$input\" got invalid value \"EE\" at \"input.platformContract\"; Value \"EE\" does not exist in \"PlatformContract\" enum.",
-          "Invalid \"platformContract\": the contract of a trial platform cannot change."
-        })
-    @DisplayName(
-        "Should not refresh again when XTM Hub knows the edition field but rejects its value")
-    void whenHubRejectsThePlatformContractValue_ShouldNotRetry(String errorMessage) {
-      // Given
-      givenDefaultTenantRegistration(buildLicense(true, true));
-      mockServer
-          .when(request().withMethod("POST").withPath(GRAPHQL_PATH))
-          .respond(
-              response()
-                  .withStatusCode(400)
-                  .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
-                  .withBody(hubErrors(errorMessage)));
-
-      // When
-      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
-
-      // Then
-      assertThat(recordedRefreshInputs()).hasSize(1);
-      assertThat(result.getRegistrationStatus())
-          .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
-      assertThat(fallbackLogCount()).isZero();
-    }
-
     @ParameterizedTest(name = "body: {0}")
     @ValueSource(
         strings = {
@@ -1233,10 +1067,12 @@ class XtmHubServiceTest {
           "[]",
           "{\"errors\":\"unavailable\"}",
           "{\"errors\":[\"unavailable\"]}",
-          "{\"errors\":[{\"extensions\":{\"code\":\"BAD_GATEWAY\"}}]}"
+          "{\"errors\":[{\"extensions\":{\"code\":\"BAD_GATEWAY\"}}]}",
+          "{\"errors\":[{\"message\":\"Field \\\"platformContract\\\" is not defined by type \\\"RefreshPlatformRegistrationConnectivityStatusSingleTenantInput\\\".\"}]}"
         })
-    @DisplayName("Should not refresh again when the error body is not a GraphQL field rejection")
-    void whenHubErrorIsNotAFieldRejection_ShouldNotRetry(String errorBody) {
+    @DisplayName(
+        "Should lose the connectivity without refreshing again when XTM Hub answers an error")
+    void given_hubAnswersAnError_should_loseConnectivityWithoutRetry(String errorBody) {
       // Given
       givenDefaultTenantRegistration(buildLicense(true, true));
       mockServer
@@ -1250,26 +1086,6 @@ class XtmHubServiceTest {
       assertThat(recordedRefreshInputs()).hasSize(1);
       assertThat(result.getRegistrationStatus())
           .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
-      assertThat(fallbackLogCount()).isZero();
-    }
-
-    @Test
-    @DisplayName("Should log the edition fallback only once across refreshes")
-    void whenHubRejectsPlatformContractTwice_ShouldLogFallbackOnce() {
-      // Given
-      // each refresh closes its HTTP client, so the second one needs a new client
-      when(httpClientFactory.httpClientCustom()).thenAnswer(inv -> HttpClients.createDefault());
-      givenDefaultTenantRegistration(buildLicense(true, true));
-      whenHubRejectsPlatformContract(400, SINGLE_TENANT_INPUT);
-      whenHubReturnsConnectivityStatus("active");
-
-      // When
-      xtmHubService.refreshConnectivity(defaultTenantScope());
-      xtmHubService.refreshConnectivity(defaultTenantScope());
-
-      // Then
-      assertThat(recordedRefreshInputs()).hasSize(4);
-      assertThat(fallbackLogCount()).isEqualTo(1);
     }
   }
 
@@ -2048,6 +1864,141 @@ class XtmHubServiceTest {
 
       // Act & Assert
       assertDoesNotThrow(() -> xtmHubService.syncNewsFeed());
+    }
+  }
+
+  @Nested
+  @DisplayName("commercialModel")
+  class CommercialModel {
+
+    private TenantXtmHubRegistration givenDefaultTenantRegistration(
+        XtmHubCommercialModel storedModel) {
+      TenantXtmHubRegistration registration =
+          buildRegistration(Tenant.DEFAULT_TENANT_UUID, "valid-token", now.minusHours(1));
+      registration.setCommercialModel(storedModel);
+      when(tenantXtmHubRegistrationRepository.findByTenantId(any()))
+          .thenReturn(Optional.of(registration));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      return registration;
+    }
+
+    /** Stubs MockServer with a single-tenant refresh answer carrying a raw commercialModel. */
+    private void whenHubReturnsCommercialModel(String commercialModelJson) {
+      mockServer
+          .when(request().withMethod("POST").withPath(GRAPHQL_PATH))
+          .respond(
+              response()
+                  .withStatusCode(200)
+                  .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+                  .withBody(
+                      "{\"data\":{\"refreshPlatformRegistrationConnectivityStatusSingleTenant\":{\"status\":\"active\",\"commercialModel\":%s}}}"
+                          .formatted(commercialModelJson)));
+    }
+
+    private List<String> recordedRefreshQueries() {
+      return Arrays.stream(
+              mockServer.retrieveRecordedRequests(
+                  request().withMethod("POST").withPath(GRAPHQL_PATH)))
+          .map(
+              recorded ->
+                  JsonParser.parseString(recorded.getBodyAsString())
+                      .getAsJsonObject()
+                      .get("query")
+                      .getAsString())
+          .toList();
+    }
+
+    @Test
+    @DisplayName("Should store the commercial model returned by the single-tenant refresh")
+    void given_hubReturnsSaas_should_storeCommercialModel() {
+      // Arrange
+      givenDefaultTenantRegistration(null);
+      whenHubReturnsCommercialModel("\"SAAS\"");
+
+      // Act
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
+
+      // Assert
+      assertThat(recordedRefreshQueries())
+          .singleElement()
+          .satisfies(query -> assertThat(query).contains("status commercialModel"));
+      assertThat(result.getCommercialModel()).isEqualTo(XtmHubCommercialModel.SAAS);
+      assertThat(result.getRegistrationStatus()).isEqualTo(XtmHubRegistrationStatus.REGISTERED);
+    }
+
+    @ParameterizedTest(name = "commercialModel: {0}")
+    @ValueSource(strings = {"null", "\"ON_PREMISE\""})
+    @DisplayName(
+        "Should keep the stored commercial model when the hub returns none or an unknown one")
+    void given_hubReturnsNoKnownModel_should_keepStoredCommercialModel(String commercialModelJson) {
+      // Arrange
+      givenDefaultTenantRegistration(XtmHubCommercialModel.SAAS);
+      whenHubReturnsCommercialModel(commercialModelJson);
+
+      // Act
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
+
+      // Assert
+      assertThat(result.getCommercialModel()).isEqualTo(XtmHubCommercialModel.SAAS);
+      assertThat(result.getRegistrationStatus()).isEqualTo(XtmHubRegistrationStatus.REGISTERED);
+    }
+
+    @Test
+    @DisplayName("Should keep the stored commercial model when the hub is unreachable")
+    void given_hubUnreachable_should_keepStoredCommercialModel() {
+      // Arrange
+      givenDefaultTenantRegistration(XtmHubCommercialModel.SAAS);
+      mockServer
+          .when(request().withMethod("POST").withPath(GRAPHQL_PATH))
+          .respond(response().withStatusCode(502));
+
+      // Act
+      TenantXtmHubRegistration result = xtmHubService.refreshConnectivity(defaultTenantScope());
+
+      // Assert
+      assertThat(result.getCommercialModel()).isEqualTo(XtmHubCommercialModel.SAAS);
+      assertThat(result.getRegistrationStatus())
+          .isEqualTo(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+    }
+
+    @Test
+    @DisplayName("Should store the commercial model of each tenant on the all-tenants refresh")
+    void given_allTenantsRefresh_should_storeEachCommercialModel() {
+      // Arrange
+      TenantXtmHubRegistration saasReg =
+          buildRegistration("tenant-saas", "token-1", now.minusHours(1));
+      TenantXtmHubRegistration otherReg =
+          buildRegistration("tenant-other", "token-2", now.minusHours(1));
+      when(tenantXtmHubRegistrationRepository.findAllByTenantNotDeleted())
+          .thenReturn(List.of(saasReg, otherReg));
+      when(tenantXtmHubRegistrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+      mockSettings.setPlatformId("platform-123");
+      mockSettings.setPlatformVersion("1.0.0");
+      when(platformSettingsService.findSettings()).thenReturn(mockSettings);
+      mockServer
+          .when(request().withMethod("POST").withPath(GRAPHQL_PATH))
+          .respond(
+              response()
+                  .withStatusCode(200)
+                  .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+                  .withBody(
+                      "{\"data\":{\"refreshPlatformRegistrationConnectivityStatusAllTenants\":{\"statuses\":["
+                          + "{\"tenantId\":\"tenant-saas\",\"status\":\"active\",\"commercialModel\":\"SAAS\"},"
+                          + "{\"tenantId\":\"tenant-other\",\"status\":\"active\",\"commercialModel\":\"OTHER\"}"
+                          + "]}}}"));
+
+      // Act
+      xtmHubService.refreshConnectivityAllTenants();
+
+      // Assert
+      assertThat(recordedRefreshQueries())
+          .singleElement()
+          .satisfies(query -> assertThat(query).contains("tenantId status commercialModel"));
+      assertThat(saasReg.getCommercialModel()).isEqualTo(XtmHubCommercialModel.SAAS);
+      assertThat(otherReg.getCommercialModel()).isEqualTo(XtmHubCommercialModel.OTHER);
     }
   }
 }

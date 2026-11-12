@@ -5,6 +5,13 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 
 # Testing Conventions
 
+## How Many Tests
+
+- **The fewest tests that cover all the new code**: one integration test per flow, parameterized tests
+  for the list of refusal or error cases
+- No test that restates configuration (one test per enum value, per mapping entry)
+- Delete the tests of removed code in the same PR
+
 ## Integration Tests (API)
 
 - Extend `IntegrationTest`

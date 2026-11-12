@@ -385,7 +385,8 @@ public class EndpointService implements AuditLoggedService {
     toUpdate.setUpdateAttributes(input);
     ensureSeenIp(toUpdate);
     toUpdate.setEoL(input.isEol());
-    toUpdate.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    toUpdate.setTags(
+        iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
     return updateEndpoint(toUpdate);
   }
 
@@ -770,6 +771,7 @@ public class EndpointService implements AuditLoggedService {
     Agent agent = new Agent();
     setNewAgentAttributes(input, agent);
     setUpdatedAgentAttributes(agent, input, endpoint);
+    agent = agentService.createOrUpdateAgent(agent);
     endpoint.getAgents().add(agent);
     updateEndpoint(endpoint);
     return agent;
@@ -796,6 +798,7 @@ public class EndpointService implements AuditLoggedService {
     }
     setUpdatedAgentAttributes(agent, input, endpoint);
     if (!endpoint.getAgents().contains(agent)) {
+      agent = agentService.createOrUpdateAgent(agent);
       endpoint.getAgents().add(agent);
     }
     return agent;

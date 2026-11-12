@@ -238,4 +238,31 @@ public class Finding implements TenantBase {
     }
     return getInject().getAssetGroups().stream().collect(Collectors.toSet());
   }
+
+  // -- TEXT SEARCH ON THE CONTEXT --
+  // The occurrences of one finding all share its type, field, value and name, so a text search on
+  // the finding detail page could only match everything or nothing (#8176). These search-only
+  // properties let the search box also match the inject, simulation and scenario an occurrence
+  // comes from. They are private, never serialized, never filterable nor sortable: they only add
+  // ILIKE predicates on many-to-one paths, which never multiply the rows.
+
+  @JsonIgnore
+  @Queryable(searchable = true, path = "inject.title")
+  private String getSearchInjectTitle() {
+    return getInject() == null ? null : getInject().getTitle();
+  }
+
+  @JsonIgnore
+  @Queryable(searchable = true, path = "inject.exercise.name")
+  private String getSearchSimulationName() {
+    return Optional.ofNullable(getSimulation()).map(Exercise::getName).orElse(null);
+  }
+
+  @JsonIgnore
+  @Queryable(searchable = true, path = "inject.scenario.name")
+  private String getSearchScenarioName() {
+    return getInject() == null
+        ? null
+        : Optional.ofNullable(getInject().getScenario()).map(Scenario::getName).orElse(null);
+  }
 }

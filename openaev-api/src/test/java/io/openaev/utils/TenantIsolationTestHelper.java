@@ -96,8 +96,39 @@ public class TenantIsolationTestHelper {
    */
   @Transactional
   public void attachCurrentUserToTenant(String tenantId) {
-    String userId = testUserHolder.get().getId();
+    attachUserToTenant(testUserHolder.get().getId(), tenantId);
+  }
+
+  /**
+   * Same as {@link #attachCurrentUserToTenant} for a user the test composed itself rather than the
+   * current mock user.
+   *
+   * @param userId the persisted user to attach
+   * @param tenantId the existing tenant to attach it to
+   */
+  @Transactional
+  public void attachUserToTenant(String userId, String tenantId) {
     tenantRepository.addUserToTenant(userId, tenantId);
+    tenantMembershipCacheManager.evict(userId, tenantId);
+    entityManager.flush();
+    entityManager.clear();
+  }
+
+  /**
+   * Detaches the current mock user from an EXISTING tenant, membership only.
+   *
+   * <p>{@link #createTenant} runs the production dependency managers, and one of them attaches the
+   * CREATING user to the tenant it just made ({@code TenantUserService#createDependencyForTenant}).
+   * A class whose premise is a caller outside that tenant therefore has to undo that membership:
+   * otherwise whichever test method happens to create the tenant runs as one of its members, and
+   * the case passes for a reason it does not state.
+   *
+   * @param tenantId the existing tenant to detach the current mock user from
+   */
+  @Transactional
+  public void detachCurrentUserFromTenant(String tenantId) {
+    String userId = testUserHolder.get().getId();
+    tenantRepository.removeUserFromTenant(userId, tenantId);
     tenantMembershipCacheManager.evict(userId, tenantId);
     entityManager.flush();
     entityManager.clear();
@@ -171,6 +202,14 @@ public class TenantIsolationTestHelper {
    *
    * <p>Note: uses service layer directly because {@code POST /api/tenants} requires Enterprise
    * Edition license.
+   *
+   * <p><strong>This ENROLS the current mock user in the new tenant.</strong> Creation runs the
+   * production dependency managers and one of them attaches the creating user ({@code
+   * TenantUserService#createDependencyForTenant}), so the caller is a member of every tenant this
+   * method makes. A test whose premise is a caller outside the tenant must call {@link
+   * #detachCurrentUserFromTenant} on it, and assert the refusal it means to exercise rather than
+   * the status alone: a member who merely lacks the capability is refused with the same 403, with
+   * an empty body instead of {@code TENANT_ACCESS_DENIED}.
    *
    * <p>Onboarding self-scopes the ambient transaction to this tenant ({@code
    * ManagerFactory#createDependencyForTenant} -> {@code ManagerCreator#createManager}, see its

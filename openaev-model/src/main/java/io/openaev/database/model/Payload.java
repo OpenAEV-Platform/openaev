@@ -12,13 +12,21 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.ControlledUuidGeneration;
 import io.openaev.annotation.Queryable;
+import io.openaev.database.audit.Auditable;
+import io.openaev.database.audit.AuditableListener;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.model.BaseInjectExpectation.EXPECTATION_TYPE;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
-import io.openaev.helper.CollectorTypeNameSerializer;
+import io.openaev.database.model.author.Authored;
+import io.openaev.database.model.author.Authorship;
+import io.openaev.database.model.hash.ContentHashed;
+import io.openaev.database.model.hash.Hashed;
+import io.openaev.database.model.hash.NotHashed;
+import io.openaev.database.model.payload.HasPayloadIdentity;
+import io.openaev.database.model.payload.PayloadDeleteGuard;
+import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.helper.MonoIdDeserializerHelper;
 import io.openaev.helper.MonoIdSerializer;
-import io.openaev.jsonapi.IncludeOption;
 import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -40,7 +48,7 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "payloads")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "payload_type", discriminatorType = STRING)
-@EntityListeners(ModelBaseListener.class)
+@EntityListeners({ModelBaseListener.class, AuditableListener.class, PayloadDeleteGuard.class})
 // payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
 // TenantBaseListener (#6437, #6430). A create path that forgets to stamp the tenant fails loudly
 // on the NOT NULL constraint instead of being silently defaulted to the ambient tenant.
@@ -67,7 +75,8 @@ import org.hibernate.type.SqlTypes;
       @DiscriminatorMapping(value = AiAttack.AI_ATTACK_TYPE, schema = AiAttack.class)
     })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.PAYLOAD)
-public class Payload implements GrantableBase, TenantBase {
+public class Payload
+    implements GrantableBase, TenantBase, Authored, HasPayloadIdentity, Auditable, ContentHashed {
 
   private static final int DEFAULT_NUMBER_OF_ACTIONS_FOR_PAYLOAD = 1;
 
@@ -89,6 +98,7 @@ public class Payload implements GrantableBase, TenantBase {
     ALL_ARCHITECTURES,
   }
 
+  @NotHashed
   @Id
   @ControlledUuidGeneration
   @Column(name = "payload_id")
@@ -96,22 +106,26 @@ public class Payload implements GrantableBase, TenantBase {
   @NotBlank
   private String id;
 
+  @NotHashed
   @Column(name = "payload_type", insertable = false, updatable = false)
   @JsonProperty("payload_type")
   @Setter(NONE)
   private String type;
 
+  @Hashed
   @Queryable(filterable = true, searchable = true, sortable = true)
   @Column(name = "payload_name")
   @JsonProperty("payload_name")
   @NotBlank
   private String name;
 
+  @Hashed
   @Queryable(filterable = true, sortable = true)
   @Column(name = "payload_description")
   @JsonProperty("payload_description")
   private String description;
 
+  @Hashed(order = Hashed.Order.SET)
   @Queryable(filterable = true, searchable = true)
   @Type(StringArrayType.class)
   @Column(name = "payload_platforms", columnDefinition = "text[]")
@@ -119,44 +133,37 @@ public class Payload implements GrantableBase, TenantBase {
   @NotEmpty
   private PLATFORM_TYPE[] platforms = new PLATFORM_TYPE[0];
 
+  @Hashed
   @Setter
   @Column(name = "payload_cleanup_executor")
   @JsonProperty("payload_cleanup_executor")
   private String cleanupExecutor;
 
+  @Hashed
   @Setter
   @Column(name = "payload_cleanup_command")
   @JsonProperty("payload_cleanup_command")
   private String cleanupCommand;
 
+  @Hashed
   @Getter
   @Column(name = "payload_elevation_required")
   @JsonProperty("payload_elevation_required")
   private boolean elevationRequired;
 
+  @Hashed(order = Hashed.Order.LIST)
   @Type(JsonType.class)
   @Column(name = "payload_arguments", nullable = false)
   @JsonProperty("payload_arguments")
   private List<PayloadArgument> arguments = new ArrayList<>();
 
+  @Hashed(order = Hashed.Order.LIST)
   @Type(JsonType.class)
   @Column(name = "payload_prerequisites", nullable = false)
   @JsonProperty("payload_prerequisites")
   private List<PayloadPrerequisite> prerequisites = new ArrayList<>();
 
-  @Setter
-  @Column(name = "payload_external_id")
-  @JsonProperty("payload_external_id")
-  private String externalId;
-
-  @Setter
-  @Queryable(filterable = true, sortable = true)
-  @Column(name = "payload_source")
-  @Enumerated(EnumType.STRING)
-  @JsonProperty("payload_source")
-  @NotNull
-  private PAYLOAD_SOURCE source;
-
+  @Hashed(order = Hashed.Order.SET)
   @Queryable(filterable = true, searchable = true)
   @Type(StringArrayType.class)
   @Column(name = "payload_expectations", columnDefinition = "text[]")
@@ -169,6 +176,7 @@ public class Payload implements GrantableBase, TenantBase {
    * means "any security platform" (legacy behaviour). Used to pre-seed only the relevant collectors
    * when this payload's predefined expectations are instantiated on an inject.
    */
+  @Hashed(order = Hashed.Order.SET)
   @Setter
   @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "payload_expected_security_platforms", columnDefinition = "jsonb")
@@ -176,6 +184,7 @@ public class Payload implements GrantableBase, TenantBase {
   private Map<EXPECTATION_TYPE, List<SecurityPlatform.SECURITY_PLATFORM_TYPE>>
       expectedSecurityPlatforms = new HashMap<>();
 
+  @NotHashed
   @Setter
   @Queryable(filterable = true)
   @Column(name = "payload_status")
@@ -184,6 +193,7 @@ public class Payload implements GrantableBase, TenantBase {
   @NotNull
   private PAYLOAD_STATUS status;
 
+  @Hashed
   @Queryable(filterable = true, searchable = true)
   @Column(name = "payload_execution_arch", nullable = false)
   @JsonProperty("payload_execution_arch")
@@ -191,63 +201,82 @@ public class Payload implements GrantableBase, TenantBase {
   @NotNull
   private PAYLOAD_EXECUTION_ARCH executionArch = Payload.PAYLOAD_EXECUTION_ARCH.ALL_ARCHITECTURES;
 
+  @NotHashed
   @ManyToOne
   @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
   @JsonIgnore
   private Tenant tenant;
 
-  // -- COLLECTOR TYPE --
+  public void setTenant(Tenant tenant) {
+    this.tenant = tenant;
+    identity.setTenant(tenant);
+  }
 
-  // EAGER on purpose: the name is serialized with every payload, after the controller's
-  // transaction and tenant scope have closed. A lazy load at that point fails closed on the
-  // v2-active collector_types table and cuts the already-committed response mid-stream.
-  @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "payload_collector_type")
-  @JsonSerialize(using = CollectorTypeNameSerializer.class)
-  @JsonProperty("payload_collector_type")
-  @IncludeOption(key = "exclude from payload export")
-  @Schema(implementation = String.class)
-  private CollectorType collectorType;
+  // -- IDENTITY --
 
-  // -- AUTHOR (polymorphic: a payload is authored by a user, a team OR an
-  // organization). The three FKs are mutually exclusive; collector-created
-  // payloads are authored by the collector's organization, manually created
-  // ones by the creating user. --
+  // EAGER: read after the transaction closes. The database deletes it with its last version.
+  @NotHashed
+  @ManyToOne(
+      fetch = FetchType.EAGER,
+      cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+  @JoinColumn(name = "payload_identity", nullable = false)
+  @JsonIgnore
+  private PayloadIdentity identity = new PayloadIdentity();
 
-  // The author must never travel with payload/action exports: the JSON:API
-  // exporter would embed the full user/team/organization resource and the
-  // import would then re-create it (duplicate email/name in the target
-  // environment). Authorship is environment-local by design.
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "payload_author_user")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
+  public static final String FIRST_VERSION = "1.0.0";
+
+  @NotHashed
+  @Column(name = "payload_version", nullable = false)
+  @JsonIgnore
+  private String version = FIRST_VERSION;
+
+  // SHA-256 of the canonical content: same content, same hash, on any platform.
+  @NotHashed
+  @Column(name = "payload_content_hash")
+  @JsonIgnore
+  private String contentHash;
+
+  // The filter schema reads the JSON name on the same method as @Queryable.
+  @Override
+  @JsonProperty("payload_source")
+  @Queryable(filterable = true, path = "identity.source")
+  public PAYLOAD_SOURCE getSource() {
+    return HasPayloadIdentity.super.getSource();
+  }
+
+  // -- AUTHOR --
+  @NotHashed
+  @Embedded
+  @AssociationOverride(name = "user", joinColumns = @JoinColumn(name = "payload_author_user"))
+  @AssociationOverride(
+      name = "organization",
+      joinColumns = @JoinColumn(name = "payload_author_organization"))
+  @JsonIgnore
+  private Authorship author;
+
+  @Override
+  @JsonIgnore(false)
   @JsonProperty("payload_author_user")
-  @IncludeOption(key = "exclude from payload export")
-  @Queryable(dynamicValues = true, filterable = true, path = "authorUser.id")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
+  @Queryable(dynamicValues = true, filterable = true, path = "author.user.id")
   @Schema(description = "User author of the payload", type = "string")
-  private User authorUser;
+  public User getAuthorUser() {
+    return Authored.super.getAuthorUser();
+  }
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "payload_author_team")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
-  @JsonProperty("payload_author_team")
-  @IncludeOption(key = "exclude from payload export")
-  @Queryable(dynamicValues = true, filterable = true, path = "authorTeam.id")
-  @Schema(description = "Team author of the payload", type = "string")
-  private Team authorTeam;
-
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "payload_author_organization")
-  @JsonSerialize(using = MonoIdSerializer.class)
-  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
+  @Override
+  @JsonIgnore(false)
   @JsonProperty("payload_author_organization")
-  @IncludeOption(key = "exclude from payload export")
-  @Queryable(dynamicValues = true, filterable = true, path = "authorOrganization.id")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonDeserialize(using = MonoIdDeserializerHelper.class)
+  @Queryable(dynamicValues = true, filterable = true, path = "author.organization.id")
   @Schema(description = "Organization author of the payload", type = "string")
-  private Organization authorOrganization;
+  public Organization getAuthorOrganization() {
+    return Authored.super.getAuthorOrganization();
+  }
 
+  @Hashed(order = Hashed.Order.OBJECTS)
   @OneToMany(
       mappedBy = "payload",
       cascade = CascadeType.ALL,
@@ -258,6 +287,7 @@ public class Payload implements GrantableBase, TenantBase {
 
   // -- OUTPUT PARSERS
 
+  @Hashed(order = Hashed.Order.OBJECTS)
   @OneToMany(
       mappedBy = "payload",
       fetch = FetchType.EAGER,
@@ -266,6 +296,7 @@ public class Payload implements GrantableBase, TenantBase {
   @JsonProperty("payload_output_parsers")
   private Set<OutputParser> outputParsers = new HashSet<>();
 
+  @NotHashed
   @Getter
   @OneToMany
   @JoinColumn(
@@ -279,13 +310,13 @@ public class Payload implements GrantableBase, TenantBase {
 
   // -- AUDIT --
 
-  @CreationTimestamp
-  @Column(name = "payload_created_at")
+  @NotHashed
+  @Column(name = "payload_created_at", updatable = false)
   @JsonProperty("payload_created_at")
   @NotNull
   private Instant createdAt = now();
 
-  @UpdateTimestamp
+  @NotHashed
   @Queryable(filterable = true, sortable = true)
   @Column(name = "payload_updated_at")
   @JsonProperty("payload_updated_at")
@@ -294,7 +325,8 @@ public class Payload implements GrantableBase, TenantBase {
 
   @JsonIgnore
   public String getCollectorTypeValue() {
-    return this.collectorType != null ? this.collectorType.getName() : null;
+    CollectorType collectorType = getCollectorType();
+    return collectorType != null ? collectorType.getName() : null;
   }
 
   @Transient

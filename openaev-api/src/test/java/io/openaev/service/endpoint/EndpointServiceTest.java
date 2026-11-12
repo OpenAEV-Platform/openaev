@@ -405,7 +405,8 @@ class EndpointServiceTest {
       input.setIps(new String[] {"10.0.0.1"});
       input.setEol(false);
       input.setTagIds(List.of());
-      when(tagRepository.findAllById(List.of())).thenReturn(Collections.emptyList());
+      when(tagRepository.findAllByIdInTenant(List.of(), "tenant1"))
+          .thenReturn(Collections.emptyList());
       when(endpointRepository.save(any(Endpoint.class)))
           .thenAnswer(invocation -> invocation.getArgument(0));
 

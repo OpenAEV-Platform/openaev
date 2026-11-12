@@ -43,6 +43,11 @@ public class MdeExecutorContextService extends ExecutorContextService {
   ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 
   @Override
+  public void shutdown() {
+    scheduledExecutorService.shutdown();
+  }
+
+  @Override
   public void launchExecutorSubprocess(
       @NotNull final Inject inject,
       @NotNull final Endpoint assetEndpoint,
