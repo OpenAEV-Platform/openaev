@@ -118,6 +118,11 @@ public class XtmComposerApi extends RestBehavior {
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful retrieval")})
   public List<XtmComposerInstanceOutput> getAllConnectorInstances(
       TxCtx ctx, @PathVariable @NotBlank final String xtmComposerId) {
+    // The WRITE action gates this read (PLATFORM_SETTING READ is an open resource), but it also
+    // makes
+    // the audit aspect log the whole response, which carries the connector-instance configuration.
+    // Disable audit logging here, as the other composer callbacks do.
+    AuditLogContext.setEnabled(false);
     return orchestrationService.findConnectorInstancesManagedByComposer(xtmComposerId);
   }
 
@@ -137,6 +142,8 @@ public class XtmComposerApi extends RestBehavior {
       @PathVariable @NotBlank final String xtmComposerId,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody XtmComposerUpdateStatusInput input) {
+    // WRITE on PLATFORM_SETTING: keep the connector-instance configuration out of the audit log.
+    AuditLogContext.setEnabled(false);
     return orchestrationService.updateConnectorInstanceStatus(
         xtmComposerId, connectorInstanceId, input.getCurrentStatus());
   }
@@ -183,6 +190,8 @@ public class XtmComposerApi extends RestBehavior {
       @PathVariable @NotBlank final String xtmComposerId,
       @PathVariable @NotBlank final String connectorInstanceId,
       @Valid @RequestBody ConnectorInstanceHealthInput input) {
+    // WRITE on PLATFORM_SETTING: keep the connector-instance configuration out of the audit log.
+    AuditLogContext.setEnabled(false);
     return orchestrationService.patchConnectorInstanceHealthCheck(
         xtmComposerId, connectorInstanceId, input);
   }
