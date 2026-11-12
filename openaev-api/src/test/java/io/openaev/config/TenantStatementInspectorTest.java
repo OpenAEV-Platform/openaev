@@ -1265,15 +1265,12 @@ class TenantStatementInspectorTest {
         new String[] {
           "f.finding_id",
           "f.finding_value",
+          "f.finding_value_display",
           "f.finding_type",
-          "f.finding_field",
           "f.finding_inject_id",
           "f.finding_created_at",
           "f.finding_updated_at",
-          "f.tenant_id",
-          // Projected and non-aggregated like the rest, and absent from this list until the
-          // ORDER BY hole above was closed.
-          "i.inject_exercise"
+          "f.tenant_id"
         }) {
       assertTrue(
           groupBy.contains(projected),

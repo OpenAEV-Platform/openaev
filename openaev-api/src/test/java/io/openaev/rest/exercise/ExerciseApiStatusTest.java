@@ -30,6 +30,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
+import io.openaev.utils.fixtures.composers.FindingComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectStatusComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
@@ -121,6 +122,9 @@ public class ExerciseApiStatusTest extends IntegrationTest {
   @Autowired private ExerciseService exerciseService;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectComposer injectComposer;
+  @Autowired private FindingComposer findingComposer;
+  @Autowired private FindingRepository findingRepository;
+  @Autowired private FindingOccurrenceRepository findingOccurrenceRepository;
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private WorkflowComposer workflowComposer;
   @Autowired private OpenAEVConfig openAEVConfig;
@@ -572,6 +576,49 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     List<Inject> resetInjects =
         exerciseService.exercise(exerciseWrapper.get().getId()).getInjects();
     assertThat(resetInjects).allSatisfy(inject -> assertThat(inject.getStatus()).isEmpty());
+  }
+
+  @DisplayName("Reset of a finished exercise deletes the findings its injects wrote")
+  @Test
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void given_finishedExerciseWithFindings_should_deleteThemOnReset() throws Exception {
+    // Arrange
+    findingComposer.reset();
+    FindingComposer.Composer findingWrapper =
+        findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue());
+    InjectComposer.Composer injectWrapper =
+        injectComposer.forInject(InjectFixture.getDefaultInject()).withFinding(findingWrapper);
+    ExerciseComposer.Composer exerciseWrapper =
+        exerciseComposer
+            .forExercise(ExerciseFixture.createFinishedAttackExercise())
+            .withInject(injectWrapper)
+            .persist();
+    String findingId = findingWrapper.get().getId();
+    String injectId = injectWrapper.get().getId();
+    ExerciseUpdateStatusInput input = new ExerciseUpdateStatusInput();
+    input.setStatus(ExerciseStatus.SCHEDULED);
+    entityManager.flush();
+    entityManager.clear();
+    // withFinding recorded the finding's occurrence on the inject
+    assertThat(findingRepository.findById(findingId)).isPresent();
+    assertThat(findingOccurrenceRepository.findByFindingIdAndInjectId(findingId, injectId))
+        .isPresent();
+
+    // Act
+    mvc.perform(
+            put(EXERCISE_URI + "/" + exerciseWrapper.get().getId() + "/status")
+                .content(asJsonString(input))
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .with(csrf()))
+        .andExpect(status().is2xxSuccessful());
+
+    // Assert
+    entityManager.flush();
+    entityManager.clear();
+    assertThat(findingRepository.findById(findingId)).isEmpty();
+    assertThat(findingOccurrenceRepository.findByFindingIdAndInjectId(findingId, injectId))
+        .isEmpty();
   }
 
   @DisplayName("Check an exercise from finished to scheduled")
