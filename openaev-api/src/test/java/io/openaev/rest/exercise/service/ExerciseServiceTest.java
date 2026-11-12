@@ -16,9 +16,11 @@ import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.*;
 import io.openaev.service.FileService;
 import io.openaev.service.LessonsService;
+import io.openaev.service.PermissionService;
 import io.openaev.service.attackpath.ingestion.AttackPathExecutionIngestionService;
 import io.openaev.service.chaining.ScopeService;
 import io.openaev.service.chaining.WorkflowEndService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowPauseService;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioRecurrenceService;
@@ -43,6 +45,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +54,7 @@ import org.springframework.transaction.annotation.Transactional;
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceTest extends IntegrationTest {
 
+  @Autowired private WorkflowOwnerScope workflowOwnerScope;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private EntityManager entityManager;
@@ -100,6 +104,7 @@ class ExerciseServiceTest extends IntegrationTest {
   @Mock private AttackPathExecutionIngestionService attackPathExecutionService;
   @Mock private AutonomousRunRepository autonomousRunRepository;
   @Autowired private BulkDeleteExecutor bulkDeleteExecutor;
+  @Autowired private ObjectProvider<PermissionService> permissionServiceProvider;
   @Autowired private WorkflowEndService workflowEndService;
 
   @BeforeEach
@@ -140,12 +145,14 @@ class ExerciseServiceTest extends IntegrationTest {
         workflowService,
         workflowEndService,
         workflowPauseService,
+        workflowOwnerScope,
         pauseExerciseService,
         fileService,
         healthCheckUtils,
         eventPublisher,
         attackPathExecutionService,
-        autonomousRunRepository);
+        autonomousRunRepository,
+        permissionServiceProvider);
 
     scenarioComposer.reset();
     exerciseComposer.reset();

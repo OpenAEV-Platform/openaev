@@ -7,7 +7,6 @@ import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.EvaluationRepository;
@@ -20,6 +19,7 @@ import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.objective.form.EvaluationInput;
 import io.openaev.rest.objective.form.ObjectiveInput;
+import io.openaev.service.scenario.ScenarioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 public class ScenarioObjectiveApi extends RestBehavior {
 
   private final ScenarioRepository scenarioRepository;
+  private final ScenarioService scenarioService;
   private final ObjectiveRepository objectiveRepository;
   private final EvaluationRepository evaluationRepository;
   private final UserRepository userRepository;
@@ -60,9 +61,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
   public Objective createObjective(
       TxCtx ctx, @PathVariable String scenarioId, @Valid @RequestBody ObjectiveInput input) {
     Scenario scenario =
-        scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
     Objective objective = new Objective();
     objective.setUpdateAttributes(input);
     objective.setScenario(scenario);
@@ -160,9 +159,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     objective.setUpdatedAt(now());
     objectiveRepository.save(objective);
     Scenario scenario =
-        scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
     scenario.setUpdatedAt(now());
     scenarioRepository.save(scenario);
     return result;
@@ -192,9 +189,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
     objective.setUpdatedAt(now());
     objectiveRepository.save(objective);
     Scenario scenario =
-        scenarioRepository
-            .findByIdAndTenantId(scenarioId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
     scenario.setUpdatedAt(now());
     scenarioRepository.save(scenario);
     return result;

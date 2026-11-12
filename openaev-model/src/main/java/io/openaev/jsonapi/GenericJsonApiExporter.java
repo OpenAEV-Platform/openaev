@@ -52,6 +52,9 @@ public class GenericJsonApiExporter {
     String id = readId(entity);
 
     Map<String, Object> attrs = computeAllFieldValues(entity);
+    if (entity instanceof JsonApiExtraAttributes extra) {
+      attrs.putAll(extra.extraAttributes());
+    }
     Map<String, Relationship> rels =
         computeAllRelationshipsValues(entity, includeOptions, visited, included);
 

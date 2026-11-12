@@ -944,10 +944,12 @@ class ImportBundleAttributionTest extends IntegrationTest {
 
     private String seedCommandRow(String tenantId) {
       String id = UUID.randomUUID().toString();
+      seedIdentityRow(id, tenantId);
       entityManager
           .createNativeQuery(
-              "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id)"
-                  + " VALUES (:id, 'Command', :name, :tenant)")
+              "INSERT INTO payloads (payload_id, payload_type, payload_name, tenant_id,"
+                  + " payload_identity, payload_version)"
+                  + " VALUES (:id, 'Command', :name, :tenant, :id, '1.0.0')")
           .setParameter("id", id)
           .setParameter("name", "import-bundle-ref-command-" + id)
           .setParameter("tenant", tenantId)
@@ -969,12 +971,24 @@ class ImportBundleAttributionTest extends IntegrationTest {
       return id;
     }
 
+    private void seedIdentityRow(String id, String tenantId) {
+      entityManager
+          .createNativeQuery(
+              "INSERT INTO payload_identities (payload_identity_id, tenant_id, payload_source)"
+                  + " VALUES (:id, :tenant, 'MANUAL')")
+          .setParameter("id", id)
+          .setParameter("tenant", tenantId)
+          .executeUpdate();
+    }
+
     private String seedFileDropRow(String tenantId, String documentId) {
       String id = UUID.randomUUID().toString();
+      seedIdentityRow(id, tenantId);
       entityManager
           .createNativeQuery(
               "INSERT INTO payloads (payload_id, payload_type, payload_name, file_drop_file,"
-                  + " tenant_id) VALUES (:id, 'FileDrop', :name, :document, :tenant)")
+                  + " tenant_id, payload_identity, payload_version)"
+                  + " VALUES (:id, 'FileDrop', :name, :document, :tenant, :id, '1.0.0')")
           .setParameter("id", id)
           .setParameter("name", "import-bundle-ref-payload-" + id)
           .setParameter("document", documentId)

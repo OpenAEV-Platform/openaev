@@ -1,0 +1,63 @@
+# Every statement that reads or writes grants. Read by GrantReaderAllowlistArchTest.
+#
+# A grant applies in the tenant of the group that holds it, and in every tenant when that group is a
+# platform group. grants has no tenant column, so each reader carries the rule itself, or says why it
+# does not need to.
+#
+# Format, one statement per line:
+#   <Class>#<method>  # <classification> : <reason>
+#
+# The reason must BEGIN with one of these classifications:
+#
+#   group-tenant : the statement restricts the grant's group to the request's tenant or to a platform
+#                  group. Checked: the statement must carry "x.tenant IS NULL OR x.tenant.id =" (or
+#                  the tenant_id form), or call SpecificationUtils.groupCountsInTenant. Required for
+#                  any reader that can match a resource id repeating across tenants, which today
+#                  means THREAT_ARSENAL grants on injector contract ids.
+#   unique-id    : the ids the grants are matched against are single-column primary keys (scenario,
+#                  simulation, inject, autonomous run), so a grant names one row in one tenant and
+#                  the group's tenant is that row's. Say what the ids are matched against.
+#   write        : the statement changes grants. Say what keys it.
+#   dead-code    : the method has no caller. Say how that was established.
+#
+# The size of this list is frozen in the test: removing a reader takes its line out and the constant
+# down in the same change.
+#
+# Lines starting with # and blank lines are ignored.
+
+# ---------------------------------------------------------------------------------------------
+# Restricted to the group's tenant.
+# ---------------------------------------------------------------------------------------------
+GrantRepository#existsByUserIdAndGroupTenantAndResourceIdAndNameIn  # group-tenant : the access check behind every grant-managed resource; the caller passes User.scopedTenantId(), the tenant capabilities and user_grants resolve against.
+SpecificationUtils#accessibleResourcesSubquery  # group-tenant : the search subquery behind the contract search and the inject grant filter; the caller passes User.scopedTenantId().
+InjectorContractRepository#getAllRawInjectorsContractsGranted  # group-tenant : the granted contract list; the group is correlated to the contract's own tenant, which the statement pins to the current one.
+
+# ---------------------------------------------------------------------------------------------
+# Matched against single-column ids.
+# ---------------------------------------------------------------------------------------------
+SpecificationUtils#hasGrantAccess  # unique-id : the root is a @Grantable entity (exercise, scenario, inject, payload, autonomous run), each keyed by a single-column id, and the resource types are taken from that entity.
+ExerciseSpecification#findGrantedFor  # unique-id : the grants of the exercise root, joined through Exercise.grants on exercise_id.
+ScenarioSpecification#findGrantedFor  # unique-id : the grants of the scenario root, joined through Scenario.grants on scenario_id.
+DocumentSpecification#findGrantedFor  # unique-id : the grants of the document's exercises and scenarios, joined through their grants collections.
+ExerciseRepository#rawAllGranted  # unique-id : SIMULATION grants matched to exercise_id.
+ExerciseRepository#rawGrantedByExerciseIds  # unique-id : SIMULATION grants matched to exercise_id.
+ExerciseRepository#userCount  # unique-id : counts exercises through Exercise.grants.
+ScenarioRepository#rawAllGranted  # unique-id : SCENARIO grants matched to scenario_id.
+ScenarioRepository#rawGrantedByScenarioIds  # unique-id : SCENARIO grants matched to scenario_id.
+ScenarioRepository#userCount  # unique-id : counts users through Scenario.grants.
+InjectRepository#userCount  # unique-id : counts injects through their exercise's grants.
+SecurityPlatformRepository#userCount  # unique-id : counts assets through their inject's exercise grants.
+UserRepository#userCount  # unique-id : counts users through their teams' exercise grants.
+GrantRepository#rawByExerciseIds  # unique-id : SIMULATION grants on the given exercise ids.
+GrantRepository#resourceIdsByUserIdAndNameIn  # unique-id : the ids are matched against the scenario and simulation a reporting template is built around, never against a contract.
+UserRepository#getUserWithAuth  # unique-id : the ids are matched against the search index restrictions, which carry scenario, simulation, inject and other single-column ids, never a contract id.
+
+# ---------------------------------------------------------------------------------------------
+# Writes.
+# ---------------------------------------------------------------------------------------------
+GrantRepository#updateGrantResourceIdAndType  # write : moves the grants of one resource id and type to a new id, keyed on the unique id of an atomic testing.
+
+# ---------------------------------------------------------------------------------------------
+# No caller.
+# ---------------------------------------------------------------------------------------------
+GrantSpecification#fromName  # dead-code : no reference to GrantSpecification anywhere in the main or test sources (grep on the class name).

@@ -86,8 +86,8 @@ class XtmHubBackgroundIsolationTest extends IntegrationTest {
             anyString(), anyString(), anyString(), any()))
         .thenReturn(
             Map.of(
-                tenantA, XtmHubConnectivityStatus.INACTIVE,
-                tenantB, XtmHubConnectivityStatus.INACTIVE));
+                tenantA, XtmHubConnectivityResult.INACTIVE,
+                tenantB, XtmHubConnectivityResult.INACTIVE));
     doThrow(new IllegalStateException("boom for tenant B"))
         .when(xtmHubEmailService)
         .sendTenantLostConnectivityEmail(tenantB, "http://localhost/" + tenantB);

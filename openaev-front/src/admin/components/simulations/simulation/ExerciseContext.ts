@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import { fetchExercise, fetchExerciseTeams } from '../../../../actions/Exercise';
-import { dryImportXlsForExercise, importXlsForExercise } from '../../../../actions/exercises/exercise-action';
+import { dryImportXlsForExercise, importXlsForExercise, storeXlsForExercise } from '../../../../actions/exercises/exercise-action';
 import {
   addInjectForExercise,
   deleteInjectForExercise,
@@ -17,6 +17,7 @@ import { bulkDeleteInjectsForSimulation, bulkUpdateInjectForSimulation, createIn
 import { type Page } from '../../../../components/common/queryable/Page';
 import {
   type Exercise,
+  type ImportPostSummary,
   type ImportTestSummary,
   type Inject,
   type InjectBulkProcessingInput,
@@ -88,6 +89,9 @@ const injectContextForExercise = (exercise: Exercise) => {
         dispatch(fetchExerciseTeams(exercise.exercise_id));
         resolve(response.data);
       }));
+    },
+    onStoreXlsFile(file: File): Promise<ImportPostSummary> {
+      return storeXlsForExercise(exercise.exercise_id, file).then(result => result.data);
     },
     onImportInjectFromXls(importId: string, input: InjectsImportInput): Promise<ImportTestSummary> {
       return importXlsForExercise(exercise.exercise_id, importId, input).then(response => new Promise((resolve, _reject) => {

@@ -54,4 +54,21 @@ public class GcpOAuth2Secret extends Secret {
   @Column(name = "secret_gcp_project_id")
   @JsonProperty("secret_gcp_project_id")
   private String projectId;
+
+  @Column(name = "secret_gcp_custom_token_uri")
+  @JsonProperty("secret_gcp_custom_token_uri")
+  private String customTokenUri;
+
+  @Column(name = "secret_gcp_custom_projects_uri")
+  @JsonProperty("secret_gcp_custom_projects_uri")
+  private String customProjectsUri;
+
+  @Column(name = "secret_gcp_custom_iam_uri")
+  @JsonProperty("secret_gcp_custom_iam_uri")
+  private String customIamUri;
+
+  /** Encrypted custom OAuth access token, handed to the injectors only. */
+  @Column(name = "secret_gcp_custom_oauth_access_token")
+  @JsonIgnore
+  private String customOauthAccessToken;
 }

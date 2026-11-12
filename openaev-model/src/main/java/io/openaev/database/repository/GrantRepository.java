@@ -29,16 +29,23 @@ public interface GrantRepository
       nativeQuery = true)
   List<RawGrant> rawByExerciseIds(@Param("ids") List<String> ids);
 
+  /**
+   * Whether the user holds one of the grant types on the resource through a group that counts in
+   * the tenant: a group of that tenant, or a platform group. A grant applies in the tenant of the
+   * group that holds it.
+   */
   @Query(
       "SELECT CASE WHEN COUNT(g) > 0 THEN true ELSE false END "
           + "FROM Grant g "
           + "JOIN g.group gr "
           + "JOIN gr.users u "
           + "WHERE u.id = :userId "
+          + "AND (gr.tenant IS NULL OR gr.tenant.id = :tenantId) "
           + "AND g.resourceId = :resourceId "
           + "AND g.name IN :grantTypes")
-  boolean existsByUserIdAndResourceIdAndNameIn(
+  boolean existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
       @Param("userId") String userId,
+      @Param("tenantId") String tenantId,
       @Param("resourceId") String resourceId,
       @Param("grantTypes") List<Grant.GRANT_TYPE> grantTypes);
 

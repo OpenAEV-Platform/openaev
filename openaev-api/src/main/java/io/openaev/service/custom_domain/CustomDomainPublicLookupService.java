@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
  * TenantScopedTransaction} is a background-only primitive (enforced by {@code
  * TenantBackgroundTransactionRules.NO_PRIMITIVE_ON_HTTP_PATH}); {@code
  * CustomDomainService.isHostnameVerified} calls this bean instead of opening the scope itself, same
- * shape as {@code CredentialService#globalCount}.
+ * shape as {@code CredentialMetricCollector#countCredentials}.
  */
 @Service
 @RequiredArgsConstructor

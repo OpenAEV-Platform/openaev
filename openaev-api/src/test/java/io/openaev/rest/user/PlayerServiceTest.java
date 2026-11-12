@@ -3,6 +3,8 @@ package io.openaev.rest.user;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.User;
@@ -23,6 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 class PlayerServiceTest extends IntegrationTest {
+
+  /** The write scope of a request addressed to the ambient tenant. */
+  private static TxCtx ctx() {
+    return TxCtx.forTenant(TenantContext.getCurrentTenant());
+  }
 
   @Autowired private PlayerService playerService;
   @Autowired private UserComposer userComposer;
@@ -53,7 +60,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setEmail(existingUser.getEmail());
 
       // Act
-      User result = playerService.upsertPlayer(playerInput);
+      User result = playerService.upsertPlayer(ctx(), playerInput);
 
       // Assert
       assertThat(result.getId()).isEqualTo(existingUser.getId());
@@ -73,7 +80,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setEmail(existingUser.getEmail());
 
       // Act
-      User result = playerService.upsertPlayer(playerInput);
+      User result = playerService.upsertPlayer(ctx(), playerInput);
 
       // Assert
       assertThat(result.getFirstname()).isEqualTo("newName");
@@ -94,7 +101,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setTagIds(List.of(tag.getId()));
 
       // Act
-      User result = playerService.upsertPlayer(playerInput);
+      User result = playerService.upsertPlayer(ctx(), playerInput);
 
       // Assert
       assertThat(result.getTags()).extracting(Tag::getId).contains(tag.getId());
@@ -115,7 +122,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setTagIds(List.of(tag.getId()));
 
       // Act
-      User result = playerService.upsertPlayer(playerInput);
+      User result = playerService.upsertPlayer(ctx(), playerInput);
 
       // Assert
       assertThat(result.getId()).isEqualTo(existingUser.getId());
@@ -132,15 +139,14 @@ class PlayerServiceTest extends IntegrationTest {
       organizationComposer.forOrganization(newOrg).persist();
 
       User existingUser = UserFixture.getUserWithDefaultEmail();
-      existingUser.setOrganization(oldOrg);
-      userComposer.forUser(existingUser).persist();
+      userComposer.forUser(existingUser).withOrganization(oldOrg).persist();
 
       PlayerInput playerInput = new PlayerInput();
       playerInput.setEmail(existingUser.getEmail());
       playerInput.setOrganizationId(newOrg.getId());
 
       // Act
-      User result = playerService.upsertPlayer(playerInput);
+      User result = playerService.upsertPlayer(ctx(), playerInput);
 
       // Assert
       assertThat(result.getOrganization().getId()).isEqualTo(newOrg.getId());
@@ -164,7 +170,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setFirstname("ExistingPlayer");
 
       // Act
-      User result = playerService.createPlayer(playerInput);
+      User result = playerService.createPlayer(ctx(), playerInput);
 
       // Assert
       assertThat(result.getId()).isEqualTo(existingUser.getId());
@@ -181,7 +187,7 @@ class PlayerServiceTest extends IntegrationTest {
       playerInput.setLastname("Test");
 
       // Act
-      User result = playerService.createPlayer(playerInput);
+      User result = playerService.createPlayer(ctx(), playerInput);
 
       // Assert
       assertThat(result).isNotNull();

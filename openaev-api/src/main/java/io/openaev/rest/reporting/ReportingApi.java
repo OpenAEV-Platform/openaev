@@ -65,7 +65,7 @@ public class ReportingApi extends RestBehavior {
   @Operation(summary = "Search reporting templates with pagination")
   public ResponseEntity<Page<Reporting>> reportings(
       TxCtx ctx, @RequestBody @Valid @NotNull final SearchPaginationInput searchPaginationInput) {
-    return ResponseEntity.ok(this.reportingService.reportings(searchPaginationInput));
+    return ResponseEntity.ok(this.reportingService.reportings(ctx, searchPaginationInput));
   }
 
   @GetMapping("/{reportingId}")
@@ -88,7 +88,8 @@ public class ReportingApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotNull final ReportingContextType contextType,
       @PathVariable(required = false) final String contextId) {
-    return ResponseEntity.ok(this.reportingService.reportingsByContext(contextType, contextId));
+    return ResponseEntity.ok(
+        this.reportingService.reportingsByContext(ctx, contextType, contextId));
   }
 
   // -- UPDATE --

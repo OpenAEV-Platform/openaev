@@ -89,8 +89,8 @@ public class TenantRoleService {
   }
 
   @Transactional(readOnly = true)
-  public List<Role> findAllByIdInTenant(@NotNull final Collection<String> roleIds) {
-    String tenantId = TenantContext.getCurrentTenant();
+  public List<Role> findAllByIdInTenant(
+      @NotBlank final String tenantId, @NotNull final Collection<String> roleIds) {
     return roleRepository.findAllByIdInAndTenantId(roleIds, tenantId);
   }
 
