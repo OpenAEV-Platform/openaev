@@ -96,12 +96,13 @@ public class MdeExecutorContextService extends BatchExecutorContextService<MdeAc
   }
 
   @Override
-  protected int batchSize() {
-    Integer configured = mdeExecutorConfig.getApiBatchExecutionActionPagination();
-    // An absent connector config key is deserialized as null and overrides the field default.
-    return configured != null && configured > 0
-        ? configured
-        : MdeExecutorConfig.DEFAULT_API_BATCH_EXECUTION_ACTION_PAGINATION;
+  protected Integer batchSize() {
+    return mdeExecutorConfig.getApiBatchExecutionActionPagination();
+  }
+
+  @Override
+  protected int defaultBatchSize() {
+    return MdeExecutorConfig.DEFAULT_API_BATCH_EXECUTION_ACTION_PAGINATION;
   }
 
   @Override

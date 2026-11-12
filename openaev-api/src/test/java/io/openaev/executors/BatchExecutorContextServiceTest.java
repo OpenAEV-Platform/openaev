@@ -1,5 +1,6 @@
 package io.openaev.executors;
 
+import static io.openaev.executors.BatchExecutorContextService.DEFAULT_BATCH_SIZE;
 import static io.openaev.executors.BatchExecutorContextService.MAX_ATTEMPTS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -80,7 +81,35 @@ class BatchExecutorContextServiceTest {
     assertThat(executor.attempts("device-2")).isEqualTo(1);
   }
 
+  @Test
+  @DisplayName("Falls back to the default batch size when the configured one is null or under 1")
+  void given_missingOrInvalidBatchSize_should_useDefault() {
+    executor.configuredBatchSize = null;
+    assertThat(executor.effectiveBatchSize()).isEqualTo(DEFAULT_BATCH_SIZE);
+    executor.configuredBatchSize = 0;
+    assertThat(executor.effectiveBatchSize()).isEqualTo(DEFAULT_BATCH_SIZE);
+    executor.configuredBatchSize = -5;
+    assertThat(executor.effectiveBatchSize()).isEqualTo(DEFAULT_BATCH_SIZE);
+    executor.configuredBatchSize = 7;
+    assertThat(executor.effectiveBatchSize()).isEqualTo(7);
+  }
+
+  @Test
+  @DisplayName("Still dispatches every action when the configured batch size is null")
+  void given_nullBatchSize_should_sendAll() {
+    // Arrange
+    executor.configuredBatchSize = null;
+
+    // Act
+    executor.dispatch(List.of("device-1", "device-2", "device-3"));
+
+    // Assert
+    await().atMost(Duration.ofSeconds(5)).until(() -> executor.sent.size() == 3);
+  }
+
   private static class FakeExecutor extends BatchExecutorContextService<String> {
+
+    private Integer configuredBatchSize = 2;
 
     private final Map<String, Integer> busyLeft = new ConcurrentHashMap<>();
     private final Map<String, AtomicInteger> attempts = new ConcurrentHashMap<>();
@@ -117,8 +146,8 @@ class BatchExecutorContextServiceTest {
     }
 
     @Override
-    protected int batchSize() {
-      return 2;
+    protected Integer batchSize() {
+      return configuredBatchSize;
     }
 
     @Override

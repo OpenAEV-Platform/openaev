@@ -21,6 +21,7 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
   private static final Duration RETRY_DELAY = Duration.ofSeconds(30);
   // 14 retries of 30 s stay under the 10 minutes after which an agent that never started times out.
   static final int MAX_ATTEMPTS = 15;
+  static final int DEFAULT_BATCH_SIZE = 100;
 
   private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -28,7 +29,16 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
 
   protected abstract String agentReference(A action);
 
-  protected abstract int batchSize();
+  /**
+   * The configured number of actions per batch. {@code null} or a value under 1 falls back to
+   * {@link #defaultBatchSize()}: an absent connector config key is deserialized as {@code null} and
+   * overrides the field default.
+   */
+  protected abstract Integer batchSize();
+
+  protected int defaultBatchSize() {
+    return DEFAULT_BATCH_SIZE;
+  }
 
   protected Duration batchInterval() {
     return DEFAULT_BATCH_INTERVAL;
@@ -38,8 +48,13 @@ public abstract class BatchExecutorContextService<A> extends ExecutorContextServ
     return RETRY_DELAY;
   }
 
+  final int effectiveBatchSize() {
+    Integer configured = batchSize();
+    return configured != null && configured > 0 ? configured : defaultBatchSize();
+  }
+
   protected final void dispatch(List<A> actions) {
-    int size = batchSize();
+    int size = effectiveBatchSize();
     for (int from = 0; from < actions.size(); from += size) {
       List<A> batch = actions.subList(from, Math.min(from + size, actions.size()));
       schedule(
