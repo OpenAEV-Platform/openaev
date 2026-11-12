@@ -77,7 +77,7 @@ public class PayloadApi extends RestBehavior {
       // aspect so the read of the v2-scoped `injectors` table inside
       // PayloadService#synchroniseInjectorContractBasedOnPayload (via
       // InjectorRepository#findAllByPayloads) resolves the caller's tenant scope.
-      TxCtx ctx, @Valid @RequestBody PayloadCreateInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PayloadCreateInput input) {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(ctx, input);
     return payloadService.convertPayloadInjectorContractCreationToPayloadOutput(result);
@@ -119,7 +119,8 @@ public class PayloadApi extends RestBehavior {
   @PostMapping({PAYLOAD_URI + "/upsert", TENANT_PAYLOAD_URI + "/upsert"})
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
-  public Payload upsertPayload(TxCtx ctx, @Valid @RequestBody PayloadUpsertInput input) {
+  public Payload upsertPayload(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PayloadUpsertInput input) {
     return this.payloadUpsertService.upsertPayload(ctx, input);
   }
 
