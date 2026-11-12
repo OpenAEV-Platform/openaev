@@ -369,10 +369,8 @@ public class PhishingLandingPageService {
                 () -> {
                   InjectorContract created = new InjectorContract();
                   created.setId(landingPage.getId());
-                  // Explicit, not left to InjectorContract's own v1 TenantBaseListener: that
-                  // listener reads TenantContext.getCurrentTenant(), which onboarding never
-                  // updates (it sets the v2 scope only), so it would stamp the ambient/default
-                  // tenant here while every other write in this method already uses tenantId.
+                  // A contract lives in the tenant of its landing page: InjectorContract has no
+                  // tenant listener, so the write names tenantId like every other write here.
                   created.setTenant(new Tenant(tenantId));
                   return created;
                 });

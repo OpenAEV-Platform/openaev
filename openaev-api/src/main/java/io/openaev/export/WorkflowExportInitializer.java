@@ -110,8 +110,15 @@ public class WorkflowExportInitializer {
     condition.getConditionChildren().forEach(child -> collectConditionsFlat(child, collector));
   }
 
+  /**
+   * Expands the contract snapshots of the exported steps and restores the fields a chained import
+   * needs.
+   *
+   * @param tenantId the tenant of the exported scenario or simulation, the one the contracts of its
+   *     steps are resolved in: a built-in contract id repeats across tenants
+   */
   public void enrichWorkflowDataForExport(
-      ObjectNode exportNode, String workflowKey, ObjectMapper objectMapper) {
+      ObjectNode exportNode, String workflowKey, ObjectMapper objectMapper, String tenantId) {
     JsonNode workflowNode = exportNode.get(workflowKey);
     if (!(workflowNode instanceof ObjectNode workflowObject)) {
       return;
@@ -122,14 +129,16 @@ public class WorkflowExportInitializer {
     if (!(stepsNode instanceof ArrayNode stepsArray)) {
       return;
     }
-    stepsArray.forEach(stepNode -> enrichStepData(workflowObject, stepNode, objectMapper));
+    stepsArray.forEach(
+        stepNode -> enrichStepData(workflowObject, stepNode, objectMapper, tenantId));
   }
 
   /**
    * Collects the tags referenced by every workflow step's injector contract and nested output
-   * parsers so the export keeps the full chaining metadata in one payload.
+   * parsers so the export keeps the full chaining metadata in one payload. The contracts are
+   * resolved in {@code tenantId}, the tenant of the exported scenario or simulation.
    */
-  public Set<Tag> collectWorkflowTags(Workflow workflow) {
+  public Set<Tag> collectWorkflowTags(Workflow workflow, String tenantId) {
     Set<Tag> tags = new HashSet<>();
     if (workflow == null || workflow.getSteps() == null) {
       return tags;
@@ -150,7 +159,7 @@ public class WorkflowExportInitializer {
           continue;
         }
         injectorContractRepository
-            .findById(injectorContractId)
+            .findByContractIdAndTenant(injectorContractId, tenantId)
             .ifPresent(
                 injectorContract -> {
                   tags.addAll(injectorContract.getTags());
@@ -198,7 +207,7 @@ public class WorkflowExportInitializer {
    * and copying workflow-scope teams when the step expects an audience target.
    */
   private void enrichStepData(
-      ObjectNode workflowObject, JsonNode stepNode, ObjectMapper objectMapper) {
+      ObjectNode workflowObject, JsonNode stepNode, ObjectMapper objectMapper, String tenantId) {
     if (!(stepNode instanceof ObjectNode stepObject)) {
       return;
     }
@@ -219,7 +228,9 @@ public class WorkflowExportInitializer {
           extractInjectorContractId(stepDataObject.get(INJECT_INJECTOR_CONTRACT));
       if (StringUtils.hasText(injectorContractId)) {
         InjectorContract injectorContract =
-            injectorContractRepository.findById(injectorContractId).orElse(null);
+            injectorContractRepository
+                .findByContractIdAndTenant(injectorContractId, tenantId)
+                .orElse(null);
         if (injectorContract != null) {
           initializeInjectorContractForExport(injectorContract);
           ObjectNode enrichedContractNode = objectMapper.valueToTree(injectorContract);

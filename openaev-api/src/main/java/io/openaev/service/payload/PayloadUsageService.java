@@ -17,11 +17,14 @@ public class PayloadUsageService {
 
   private final InjectorContractRepository injectorContractRepository;
 
-  /** The contracts among these that can be deleted: their payload, if any, runs no inject. */
-  public List<String> notInUse(List<String> contractIds) {
+  /**
+   * The contracts among these, held by {@code tenantId}, that can be deleted: their payload, if
+   * any, runs no inject. A contract id repeats across tenants, so the tenant is named.
+   */
+  public List<String> notInUse(List<String> contractIds, String tenantId) {
     Set<String> inUse = new HashSet<>();
     ListUtils.partition(contractIds, BATCH_SIZE)
-        .forEach(batch -> inUse.addAll(injectorContractRepository.findIdsInUse(batch)));
+        .forEach(batch -> inUse.addAll(injectorContractRepository.findIdsInUse(batch, tenantId)));
     return contractIds.stream().filter(id -> !inUse.contains(id)).toList();
   }
 }

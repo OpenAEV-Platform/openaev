@@ -1,5 +1,7 @@
 package io.openaev.service.autonomous;
 
+import static io.openaev.helper.StreamHelper.fromIterable;
+
 import io.openaev.api.autonomous.dto.CapabilityQueryInput;
 import io.openaev.api.autonomous.dto.CapabilityReport;
 import io.openaev.api.autonomous.dto.CapabilityReport.ArsenalInventory;
@@ -18,9 +20,11 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.CatalogConnectorRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.InjectorRepository;
+import io.openaev.database.specification.CopyRanking;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -115,20 +119,20 @@ public class CapabilityResolverService {
   @Transactional(readOnly = true)
   public CapabilityReport resolve(CapabilityQueryInput input) {
 
-    ContractIndex index = buildIndex();
     Set<Endpoint.PLATFORM_TYPE> platformFilter = parsePlatforms(input.getPlatforms());
+    ContractIndex index = buildIndex(platformFilter);
 
     List<CapabilityResolution> resolutions = new ArrayList<>();
     for (String technique : nonNull(input.getTechniques())) {
       String token = technique.trim();
       if (!token.isEmpty()) {
-        resolutions.add(resolveTechnique(token, index, platformFilter));
+        resolutions.add(resolveTechnique(token, index));
       }
     }
     for (String outputType : nonNull(input.getOutputTypes())) {
       String token = outputType.trim();
       if (!token.isEmpty()) {
-        resolutions.add(resolveOutputType(token, index, platformFilter));
+        resolutions.add(resolveOutputType(token, index));
       }
     }
 
@@ -152,7 +156,7 @@ public class CapabilityResolverService {
     long now = Instant.now().toEpochMilli();
     List<InstalledInjector> installed = new ArrayList<>();
     boolean httpDelivery = false;
-    for (Injector injector : injectorRepository.findAll()) {
+    for (Injector injector : onePerId(fromIterable(injectorRepository.findAll()))) {
       boolean active = isInjectorActive(injector, now);
       installed.add(
           new InstalledInjector(
@@ -171,6 +175,15 @@ public class CapabilityResolverService {
         commandDelivery,
         activeAgents,
         buildDeliveryAdvice(httpDelivery, commandDelivery, activeAgents));
+  }
+
+  /** An injector id repeats in every tenant of the scope: the best-ranked copy stands for it. */
+  private static List<Injector> onePerId(List<Injector> injectors) {
+    Map<String, Injector> ranked = new LinkedHashMap<>();
+    injectors.stream()
+        .sorted(Comparator.comparing(Injector::getTenantId, CopyRanking.BY_TENANT_ID))
+        .forEach(injector -> ranked.putIfAbsent(injector.getId(), injector));
+    return new ArrayList<>(ranked.values());
   }
 
   private boolean isInjectorActive(Injector injector, long now) {
@@ -212,20 +225,21 @@ public class CapabilityResolverService {
 
   // endregion
 
-  private CapabilityResolution resolveTechnique(
-      String externalId, ContractIndex index, Set<Endpoint.PLATFORM_TYPE> platformFilter) {
+  private static List<ResolvedContract> candidates(
+      Map<String, Map<String, ResolvedContract>> index, String key) {
+    return new ArrayList<>(index.getOrDefault(key, Map.of()).values());
+  }
+
+  private CapabilityResolution resolveTechnique(String externalId, ContractIndex index) {
     String key = externalId.toUpperCase(Locale.ROOT);
-    List<ResolvedContract> matches =
-        applyPlatformFilter(index.byTechnique.getOrDefault(key, List.of()), platformFilter);
+    List<ResolvedContract> matches = candidates(index.byTechnique, key);
     String label = index.techniqueNames.getOrDefault(key, externalId);
     return finalize(CapabilityResolution.Kind.TECHNIQUE, externalId, label, matches);
   }
 
-  private CapabilityResolution resolveOutputType(
-      String label, ContractIndex index, Set<Endpoint.PLATFORM_TYPE> platformFilter) {
+  private CapabilityResolution resolveOutputType(String label, ContractIndex index) {
     String key = label.toLowerCase(Locale.ROOT);
-    List<ResolvedContract> matches =
-        applyPlatformFilter(index.byOutputType.getOrDefault(key, List.of()), platformFilter);
+    List<ResolvedContract> matches = candidates(index.byOutputType, key);
     return finalize(CapabilityResolution.Kind.OUTPUT_TYPE, key, key, matches);
   }
 
@@ -238,25 +252,42 @@ public class CapabilityResolverService {
 
   // region indexing
 
-  private ContractIndex buildIndex() {
+  /**
+   * A built-in contract id repeats in every tenant of the request's scope, so the index keeps one
+   * candidate per contract id for each technique and output type: the best-ranked copy that carries
+   * the technique or the output type and runs on a requested platform ({@link CopyRanking}).
+   */
+  private ContractIndex buildIndex(Set<Endpoint.PLATFORM_TYPE> platformFilter) {
     ContractIndex index = new ContractIndex();
-    for (InjectorContract contract : injectorContractRepository.findAll()) {
+    List<InjectorContract> ranked = fromIterable(injectorContractRepository.findAll());
+    ranked.sort(Comparator.comparing(c -> c.getTenant().getId(), CopyRanking.BY_TENANT_ID));
+    for (InjectorContract contract : ranked) {
       ResolvedContract resolved = toResolved(contract);
+      boolean onARequestedPlatform = runsOnARequestedPlatform(resolved, platformFilter);
+      String id = contract.getId();
       for (AttackPattern pattern : contract.getAttackPatterns()) {
         String extId = pattern.getExternalId();
         if (extId == null || extId.isBlank()) {
           continue;
         }
         String key = extId.toUpperCase(Locale.ROOT);
-        index.byTechnique.computeIfAbsent(key, k -> new ArrayList<>()).add(resolved);
         index.techniqueNames.putIfAbsent(
             key, pattern.getName() != null ? pattern.getName() : extId);
+        if (onARequestedPlatform) {
+          index
+              .byTechnique
+              .computeIfAbsent(key, k -> new LinkedHashMap<>())
+              .putIfAbsent(id, resolved);
+        }
+      }
+      if (!onARequestedPlatform) {
+        continue;
       }
       for (ContractOutputType type : contract.getProviding()) {
         index
             .byOutputType
-            .computeIfAbsent(type.getLabel().toLowerCase(Locale.ROOT), k -> new ArrayList<>())
-            .add(resolved);
+            .computeIfAbsent(type.getLabel().toLowerCase(Locale.ROOT), k -> new LinkedHashMap<>())
+            .putIfAbsent(id, resolved);
       }
     }
     return index;
@@ -365,19 +396,12 @@ public class CapabilityResolverService {
     }
   }
 
-  private List<ResolvedContract> applyPlatformFilter(
-      List<ResolvedContract> contracts, Set<Endpoint.PLATFORM_TYPE> platformFilter) {
-    if (platformFilter.isEmpty()) {
-      return contracts;
+  private static boolean runsOnARequestedPlatform(
+      ResolvedContract contract, Set<Endpoint.PLATFORM_TYPE> platformFilter) {
+    if (platformFilter.isEmpty() || contract.getPlatforms().isEmpty()) {
+      return true;
     }
-    Set<String> wanted = platformFilter.stream().map(Enum::name).collect(Collectors.toSet());
-    return contracts.stream()
-        .filter(
-            c ->
-                c.getPlatforms() == null
-                    || c.getPlatforms().isEmpty()
-                    || c.getPlatforms().stream().anyMatch(wanted::contains))
-        .collect(Collectors.toList());
+    return platformFilter.stream().map(Enum::name).anyMatch(contract.getPlatforms()::contains);
   }
 
   private static <T> List<T> nonNull(List<T> list) {
@@ -386,8 +410,8 @@ public class CapabilityResolverService {
 
   /** In-memory indexes over the tenant's installed contracts, built once per resolve call. */
   private static final class ContractIndex {
-    private final Map<String, List<ResolvedContract>> byTechnique = new LinkedHashMap<>();
-    private final Map<String, List<ResolvedContract>> byOutputType = new LinkedHashMap<>();
+    private final Map<String, Map<String, ResolvedContract>> byTechnique = new LinkedHashMap<>();
+    private final Map<String, Map<String, ResolvedContract>> byOutputType = new LinkedHashMap<>();
     private final Map<String, String> techniqueNames = new LinkedHashMap<>();
   }
 

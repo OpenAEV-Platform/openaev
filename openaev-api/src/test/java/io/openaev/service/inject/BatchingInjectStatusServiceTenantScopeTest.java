@@ -21,6 +21,7 @@ import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectStatusComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
@@ -54,6 +55,7 @@ class BatchingInjectStatusServiceTenantScopeTest extends IntegrationTest {
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private InjectRepository injectRepository;
   @Autowired private EntityManager entityManager;
+  @Autowired private RowTenantScope rowTenantScope;
 
   private String tenantA;
   private String tenantB;
@@ -67,15 +69,13 @@ class BatchingInjectStatusServiceTenantScopeTest extends IntegrationTest {
   @DisplayName(
       "each tenant's PENDING inject transitions, proving it was found and processed in scope")
   void crossTenantBatchScopedPerTenant() throws Exception {
-    // Resolve the shared contract once: getWellKnownSingleEmailContract find-or-creates, and
-    // calling
-    // it per tenant in this committed (non-transactional) test would leave duplicates behind.
-    InjectorContract contract = injectorContractFixture.getWellKnownSingleEmailContract();
     tenantA = tenantHelper.createTenantWithCurrentUser("cb-scope-a").getId();
     tenantB = tenantHelper.createTenantWithCurrentUser("cb-scope-b").getId();
 
-    String injectA = seedPendingInject(tenantA, contract);
-    String injectB = seedPendingInject(tenantB, contract);
+    // injectors_contracts is tenant-active: the built-in email contract is per-tenant now, so each
+    // tenant resolves (find-or-creates) its own row rather than sharing one.
+    String injectA = seedPendingInject(tenantA);
+    String injectB = seedPendingInject(tenantB);
 
     // No ambient scope, like the batch worker: the service must resolve and scope each callback by
     // its inject's tenant on its own.
@@ -101,19 +101,26 @@ class BatchingInjectStatusServiceTenantScopeTest extends IntegrationTest {
         .orElseThrow();
   }
 
-  private String seedPendingInject(String tenantId, InjectorContract contract) {
+  private String seedPendingInject(String tenantId) {
     TenantContext.setCurrentTenant(tenantId);
-    InjectComposer.Composer injectC =
-        injectComposer
-            .forInject(InjectFixture.createInject(contract, "cb-scope-probe"))
-            .withInjectStatus(
-                injectStatusComposer.forInjectStatus(
-                    InjectStatusFixture.createPendingInjectStatus()));
-    exerciseComposer
-        .forExercise(ExerciseFixture.createDefaultExercise())
-        .withInjects(List.of(injectC))
-        .persist();
-    return injectC.get().getId();
+    String[] injectId = new String[1];
+    rowTenantScope.write(
+        tenantId,
+        () -> {
+          InjectorContract contract = injectorContractFixture.getWellKnownSingleEmailContract();
+          InjectComposer.Composer injectC =
+              injectComposer
+                  .forInject(InjectFixture.createInject(contract, "cb-scope-probe"))
+                  .withInjectStatus(
+                      injectStatusComposer.forInjectStatus(
+                          InjectStatusFixture.createPendingInjectStatus()));
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInjects(List.of(injectC))
+              .persist();
+          injectId[0] = injectC.get().getId();
+        });
+    return injectId[0];
   }
 
   private InjectExecutionCallback completeCallback(String injectId) {

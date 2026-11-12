@@ -17,6 +17,7 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
@@ -60,7 +61,7 @@ public class AtomicTestingService {
   private final SecretReferenceRepository secretReferenceRepository;
   private final PayloadMapper payloadMapper;
   private final InjectRepository injectRepository;
-  private final InjectorContractRepository injectorContractRepository;
+  private final InjectorContractService injectorContractService;
   private final UserRepository userRepository;
   private final TeamRepository teamRepository;
   private final TagRepository tagRepository;
@@ -125,19 +126,25 @@ public class AtomicTestingService {
   public InjectResultOverviewOutput createOrUpdate(
       TxCtx ctx, @Nullable String tenantId, AtomicTestingInput input, String injectId) {
     Inject injectToSave = new Inject();
-    if (injectId != null) {
+    boolean isCreate = injectId == null;
+    if (!isCreate) {
       injectToSave = findInject(ctx, injectId);
     } else {
       injectToSave.setTenant(new Tenant(tenantId));
     }
 
+    // injectors_contracts is tenant-active and a built-in contract id repeats across tenants
+    // (#8485): resolve it in the tenant the inject being written here belongs to, never the ambient
+    // one (the default tenant on the non-prefixed route). On a create that is the write tenant the
+    // API resolved from the request's scope, on an update the tenant of the loaded inject.
+    String contractTenantId = isCreate ? tenantId : injectToSave.getTenant().getId();
     InjectorContract injectorContract =
-        injectorContractRepository
-            .findById(input.getInjectorContract())
+        injectorContractService
+            .injectorContractByIdInTenant(input.getInjectorContract(), contractTenantId)
             .orElseThrow(ElementNotFoundException::new);
     ObjectNode finalContent = input.getContent();
     // Set expectations
-    if (injectId == null) {
+    if (isCreate) {
       finalContent = injectorContractContentUtils.setExpectations(injectorContract, finalContent);
     }
     injectToSave.setTitle(input.getTitle());
