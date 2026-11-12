@@ -101,7 +101,7 @@ const legacyRamdaFiles = [
   'src/utils/utils.ts',
 ];
 
-const restrictedImports = ({ allowRamda }) => [
+const restrictedImports = ({ allowRamda, extraPaths = [] }) => [
   'error', {
     patterns: [
       {
@@ -124,6 +124,7 @@ const restrictedImports = ({ allowRamda }) => [
             name: 'ramda',
             message: 'Ramda is being removed: use native JavaScript instead.',
           }]),
+      ...extraPaths,
     ],
   },
 ];
@@ -270,6 +271,22 @@ export default [
     files: ['tests_e2e/**/*'],
     // rules recommended by eslint-plugin-playwright
     ...playwright.configs['flat/recommended'],
+  },
+
+  // e2e specs log in through the persona fixture; no project sets storageState, so a spec on the
+  // base `test` would run logged out (a later config replaces the rule's options, it does not merge them)
+  {
+    files: ['tests_e2e/tests/**/*'],
+    rules: {
+      'no-restricted-imports': restrictedImports({
+        allowRamda: false,
+        extraPaths: [{
+          name: '@playwright/test',
+          importNames: ['test'],
+          message: 'Import `test` from tests_e2e/fixtures: its persona fixture logs the test in (admin by default).',
+        }],
+      }),
+    },
   },
 
   // ignores patterns

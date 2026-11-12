@@ -11,5 +11,3 @@ export const test = mergeTests(
   scenarioFixture,
   credentialFixture,
 );
-
-export { expect } from '@playwright/test';

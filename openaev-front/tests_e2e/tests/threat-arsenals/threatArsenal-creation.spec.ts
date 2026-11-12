@@ -1,5 +1,6 @@
-import { expect, type Locator, test } from '@playwright/test';
+import { expect, type Locator } from '@playwright/test';
 
+import { test } from '../../fixtures';
 import LeftMenuComponent from '../../model/LeftMenuComponent';
 import ThreatArsenalFormComponent from '../../model/threat-arsenals/ThreatArsenalFormComponent';
 import ThreatArsenalListPage from '../../model/threat-arsenals/ThreatArsenalListPage';

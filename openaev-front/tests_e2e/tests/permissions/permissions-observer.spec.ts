@@ -1,15 +1,12 @@
-import { expect, test } from '../../fixtures';
+import { expect } from '@playwright/test';
+
+import { test } from '../../fixtures';
 import LeftMenuComponent from '../../model/LeftMenuComponent';
 import ThreatArsenalListPage from '../../model/threat-arsenals/ThreatArsenalListPage';
+import { MARKING_DEFINITIONS_URL } from '../../utils/markingDefinitions.constants';
 import { PERSONAS } from '../../utils/personas';
 import { tenantApiPath, tenantUrl } from '../../utils/url';
 
-const MARKING_DEFINITIONS_URL = tenantUrl('/admin/settings/security/marking_definitions');
-
-/**
- * The Observer group grants ACCESS_THREAT_ARSENALS without MANAGE_THREAT_ARSENALS:
- * the observer reads the threat arsenal but cannot create one.
- */
 test.describe('Observer persona', () => {
   test.use({ persona: 'observer' });
 
@@ -36,24 +33,5 @@ test.describe('Observer persona', () => {
     await page.goto(MARKING_DEFINITIONS_URL);
 
     await expect(page.getByRole('alert')).toContainText('You dont have the right access');
-  });
-});
-
-/**
- * Control for the observer refusals above: the same pages load for the admin, so a
- * refusal comes from the observer's capabilities, not from a disabled preview feature
- * (with MARKING off, the marking definitions route answers no access to everyone).
- */
-test.describe('Admin persona', () => {
-  test.use({ persona: 'admin' });
-
-  test('the marking definitions page loads', async ({ page }) => {
-    await page.goto(MARKING_DEFINITIONS_URL);
-
-    await expect(page.getByRole('button', {
-      name: 'Add a marking definition',
-      exact: true,
-    })).toBeVisible();
-    await expect(page.getByRole('alert')).toHaveCount(0);
   });
 });

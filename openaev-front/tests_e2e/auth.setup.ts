@@ -38,7 +38,7 @@ const LOCAL_STORAGE_INIT = [
   GETTING_STARTED_SEEN,
 ];
 
-// Serial: the observer is provisioned with the admin session saved by the first step.
+// Serial: the manager and observer are provisioned with the admin session saved by the first step.
 setup.describe.configure({ mode: 'serial' });
 
 // These are setup functions.
@@ -56,28 +56,17 @@ setup('authenticate admin', async ({ page }) => {
   await page.context().storageState({ path: AUTH_ADMIN });
 });
 
-// eslint-disable-next-line playwright/expect-expect
-setup('authenticate manager', async ({ playwright }) => {
-  const { email, password, firstname, groupName } = PERSONAS.manager;
-  const admin = await newRequestContextAs(playwright, 'admin');
-  try {
-    const user = await new UserApiHelpers(admin).createOrAttachUser(email, password, firstname);
-    await new GroupApiHelpers(admin).addUserToGroup(groupName, user.user_id);
-  } finally {
-    await admin.dispose();
-  }
-  await loginWithApi(playwright, 'manager', LOCAL_STORAGE_INIT);
-});
-
-// eslint-disable-next-line playwright/expect-expect
-setup('authenticate observer', async ({ playwright }) => {
-  const { email, password, firstname, groupName } = PERSONAS.observer;
-  const admin = await newRequestContextAs(playwright, 'admin');
-  try {
-    const user = await new UserApiHelpers(admin).createOrAttachUser(email, password, firstname);
-    await new GroupApiHelpers(admin).addUserToGroup(groupName, user.user_id);
-  } finally {
-    await admin.dispose();
-  }
-  await loginWithApi(playwright, 'observer', LOCAL_STORAGE_INIT);
-});
+for (const persona of ['manager', 'observer'] as const) {
+  // eslint-disable-next-line playwright/expect-expect
+  setup(`authenticate ${persona}`, async ({ playwright }) => {
+    const { email, password, firstname, groupName } = PERSONAS[persona];
+    const admin = await newRequestContextAs(playwright, 'admin');
+    try {
+      const user = await new UserApiHelpers(admin).createOrAttachUser(email, password, firstname);
+      await new GroupApiHelpers(admin).addUserToGroup(groupName, user.user_id);
+    } finally {
+      await admin.dispose();
+    }
+    await loginWithApi(playwright, persona, LOCAL_STORAGE_INIT);
+  });
+}
