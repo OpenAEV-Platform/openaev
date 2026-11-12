@@ -2,6 +2,7 @@ package io.openaev.integration.migration;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
@@ -15,6 +16,7 @@ import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utils.fixtures.CatalogConnectorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.mockConfig.executors.WithMockCrowdstrikeConfig;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +24,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +35,7 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
   @SpringBootTest
   @Transactional
   @TestExecutionListeners(
-      value = {RabbitMQTestListener.class},
+      value = {DefaultTenantScopeTestListener.class, RabbitMQTestListener.class},
       mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
   @WithMockCrowdstrikeConfig(
       enable = true,
@@ -44,6 +48,12 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
       windowsScriptName = "cs_windows_script_name")
   @DisplayName("With enabled configuration")
   public class WithEnabledConfiguration {
+
+    @DynamicPropertySource
+    static void productionActiveTables(DynamicPropertyRegistry registry) {
+      registry.add(
+          "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+    }
 
     @Autowired
     private CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
@@ -128,7 +138,7 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
   @SpringBootTest
   @Transactional
   @TestExecutionListeners(
-      value = {RabbitMQTestListener.class},
+      value = {DefaultTenantScopeTestListener.class, RabbitMQTestListener.class},
       mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
   @WithMockCrowdstrikeConfig(
       enable = false,
@@ -141,6 +151,12 @@ public class CrowdStrikeExecutorConfigurationMigrationTest {
       windowsScriptName = "cs_windows_script_name")
   @DisplayName("With disabled configuration")
   public class WithDisabledConfiguration {
+
+    @DynamicPropertySource
+    static void productionActiveTables(DynamicPropertyRegistry registry) {
+      registry.add(
+          "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+    }
 
     @Autowired
     private CrowdStrikeExecutorConfigurationMigration crowdStrikeExecutorConfigurationMigration;
