@@ -363,8 +363,7 @@ class StepServiceTest {
         assertThrows(
             ChainingException.class,
             () ->
-                stepService.createReadySteps(
-                    nextStepTemplateToExecute, workflowRun, "{\"a\":1}"));
+                stepService.createReadySteps(nextStepTemplateToExecute, workflowRun, "{\"a\":1}"));
 
         verify(stepRepository, never()).save(any());
         verify(conditionService, never()).checkCondition(any(), any(), any());
