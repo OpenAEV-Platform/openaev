@@ -35,7 +35,7 @@ jobs:
           fi
       - name: "Validate PR title and create check"
         if: steps.related.outputs.private != 'true'
-        uses: FiligranHQ/filigran-ci-tools/actions/pr-title-check@main
+        uses: FiligranHQ/filigran-ci-tools/actions/pr-title-check@56eae5a1f6a69ffb895f9b260745583f05a0bade # main
         with:
           token: ${{ steps.generate-token.outputs.token }}
       - name: "Validate PR title for a private issue"

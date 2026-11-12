@@ -33,7 +33,7 @@ jobs:
           private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
 
       - name: Sync status
-        uses: FiligranHQ/filigran-ci-tools/actions/sync-status-on-merge@main
+        uses: FiligranHQ/filigran-ci-tools/actions/sync-status-on-merge@56eae5a1f6a69ffb895f9b260745583f05a0bade # main
         with:
           token: ${{ steps.generate-token.outputs.token }}
           pr-number: ${{ github.event.inputs.pr_number || '' }}
