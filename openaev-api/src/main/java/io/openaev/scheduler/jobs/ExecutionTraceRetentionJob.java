@@ -1,5 +1,7 @@
 package io.openaev.scheduler.jobs;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.repository.ExecutionTraceRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -16,7 +18,7 @@ import org.springframework.stereotype.Component;
  * Retention job for execution_traces, the fastest-growing table of the platform (one row per agent
  * execution message). Disabled by default; enable by setting a positive {@code
  * openaev.retention.execution-traces.retention-days}. Deletion is batched in short independent
- * transactions to avoid long locks on this hot-write table.
+ * transactions to avoid long locks on this hot-write table, each under the all-tenants scope.
  */
 @Component
 @DisallowConcurrentExecution
@@ -31,6 +33,7 @@ public class ExecutionTraceRetentionJob implements Job {
   private static final int MAX_BATCHES_PER_RUN = 1_000;
 
   private final ExecutionTraceRepository executionTraceRepository;
+  private final TenantScopedTransaction tenantTx;
 
   @Value("${openaev.retention.execution-traces.retention-days:0}")
   private int retentionDays;
@@ -43,7 +46,13 @@ public class ExecutionTraceRetentionJob implements Job {
     Instant threshold = Instant.now().minus(retentionDays, ChronoUnit.DAYS);
     long totalDeleted = 0;
     for (int i = 0; i < MAX_BATCHES_PER_RUN; i++) {
-      int deleted = executionTraceRepository.deleteBatchOlderThan(threshold, BATCH_SIZE);
+      // Retention spans every tenant by design: each batch is its own short transaction under the
+      // all-tenants scope, so the delete reaches the old traces of every tenant and none is
+      // skipped for lack of a scope
+      int deleted =
+          tenantTx.execute(
+              TxCtx.allTenants(),
+              () -> executionTraceRepository.deleteBatchOlderThan(threshold, BATCH_SIZE));
       totalDeleted += deleted;
       if (deleted < BATCH_SIZE) {
         break;
