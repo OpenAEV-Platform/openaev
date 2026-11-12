@@ -46,19 +46,17 @@ final class LinkedIdResolutionCatalog {
   private static final Set<String> BARE_METHODS = Set.of("findAllById", "getReferenceById");
   private static final String DECLARED_PREFIX = "findAllByIdIn";
 
-  private static JavaClasses production;
-
   private LinkedIdResolutionCatalog() {}
 
-  /** The production classes of the API and of the model, imported once. */
-  static synchronized JavaClasses productionClasses() {
-    if (production == null) {
-      production =
-          new ClassFileImporter()
-              .withImportOption(new ImportOption.DoNotIncludeTests())
-              .importPackages("io.openaev");
-    }
-    return production;
+  /**
+   * The production classes of the API and of the model. Each call imports them again and the result
+   * is not kept in a static field, so the import leaves the heap once the guard has run, as the
+   * other architecture tests that share its test JVM expect.
+   */
+  static JavaClasses productionClasses() {
+    return new ClassFileImporter()
+        .withImportOption(new ImportOption.DoNotIncludeTests())
+        .importPackages("io.openaev");
   }
 
   /**
