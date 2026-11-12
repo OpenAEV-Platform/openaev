@@ -83,23 +83,6 @@ public class FindingApi extends RestBehavior {
                 ctx, input.toFinding(new Finding()), input.getInjectId())));
   }
 
-  @PutMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
-  @Transactional
-  @AccessControl(
-      resourceId = "#id",
-      actionPerformed = Action.WRITE,
-      resourceType = ResourceType.FINDING)
-  public ResponseEntity<FindingOutput> updateFinding(
-      TxCtx ctx,
-      @PathVariable @NotNull final String id,
-      @RequestBody @Valid @NotNull final FindingInput input) {
-    Finding existingFinding = this.findingService.finding(id);
-    Finding updatedFinding = input.toFinding(existingFinding);
-    return ResponseEntity.ok(
-        this.findingMapper.toFindingOutput(
-            this.findingService.updateFinding(updatedFinding, input.getInjectId())));
-  }
-
   @DeleteMapping({FINDING_URI + "/{id}", TENANT_FINDING_URI + "/{id}"})
   @Transactional
   @AccessControl(

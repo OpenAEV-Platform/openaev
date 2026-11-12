@@ -5295,15 +5295,19 @@ export interface EsFinding {
   base_endpoint_side?: string[];
   base_entity?: string;
   base_id?: string;
-  base_inject_side?: string;
+  /** @uniqueItems true */
+  base_inject_side?: string[];
   base_representative?: string;
   base_restrictions?: string[];
-  base_scenario_side?: string;
-  base_simulation_side?: string;
+  /** @uniqueItems true */
+  base_scenario_side?: string[];
+  /** @uniqueItems true */
+  base_simulation_side?: string[];
   base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
-  finding_field?: string;
+  /** @uniqueItems true */
+  finding_field?: string[];
   /** @format int64 */
   finding_masking_version?: number;
   finding_type?: string;
@@ -13708,7 +13712,7 @@ export interface User {
   user_email: string;
   /** First name of the user */
   user_firstname?: string;
-  user_grants?: Record<string, string>;
+  user_grants?: Record<string, UserGrant>;
   /** Gravatar of the user */
   user_gravatar?: string;
   user_groups?: string[];
@@ -13758,6 +13762,18 @@ export interface User {
    * @format date-time
    */
   user_updated_at: string;
+}
+
+export interface UserGrant {
+  grant: "OBSERVER" | "PLANNER" | "LAUNCHER";
+  type:
+    | "SCENARIO"
+    | "SIMULATION"
+    | "ATOMIC_TESTING"
+    | "AUTONOMOUS_RUN"
+    | "THREAT_ARSENAL"
+    | "PAYLOAD"
+    | "UNKNOWN";
 }
 
 export interface UserInput {

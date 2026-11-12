@@ -31,24 +31,20 @@ class FindingSearchablePropertiesTest {
   void searchMatchesOccurrenceContext() {
     Map<String, PropertySchema> searchable = searchableByName();
 
-    assertThat(searchable.get("getSearchInjectTitle").getPath()).isEqualTo("inject.title");
-    assertThat(searchable.get("getSearchSimulationName").getPath())
-        .isEqualTo("inject.exercise.name");
-    assertThat(searchable.get("getSearchScenarioName").getPath()).isEqualTo("inject.scenario.name");
+    assertThat(searchable.get("occurrences").getPaths())
+        .containsExactlyInAnyOrder(
+            "occurrences.inject.title",
+            "occurrences.inject.exercise.name",
+            "occurrences.inject.exercise.scenario.name");
   }
 
   @Test
-  @DisplayName("The context properties are search-only: never filterable nor sortable")
-  void contextPropertiesAreSearchOnly() {
-    Map<String, PropertySchema> searchable = searchableByName();
+  @DisplayName("The occurrence context is search-only: never filterable nor sortable")
+  void occurrenceContextIsSearchOnly() {
+    PropertySchema occurrences = searchableByName().get("occurrences");
 
-    List.of("getSearchInjectTitle", "getSearchSimulationName", "getSearchScenarioName")
-        .forEach(
-            name -> {
-              PropertySchema property = searchable.get(name);
-              assertThat(property.isFilterable()).as(name).isFalse();
-              assertThat(property.isSortable()).as(name).isFalse();
-            });
+    assertThat(occurrences.isFilterable()).isFalse();
+    assertThat(occurrences.isSortable()).isFalse();
   }
 
   @Test
@@ -56,7 +52,8 @@ class FindingSearchablePropertiesTest {
   void searchKeepsExistingFieldsAndNeverTheCleartextValue() {
     Map<String, PropertySchema> searchable = searchableByName();
 
-    assertThat(searchable).containsKeys("field", "valueDisplay", "name");
+    assertThat(searchable).containsKeys("getFields", "valueDisplay", "name");
+    assertThat(searchable.get("getFields").getPath()).isEqualTo("occurrences.field");
     // ADR-017: the cleartext value is never searchable.
     assertThat(searchable).doesNotContainKey("value");
   }
