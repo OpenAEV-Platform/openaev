@@ -1,15 +1,18 @@
 package io.openaev.service;
 
-import static io.openaev.service.ImportService.EXPORT_ENTRY_ATTACHMENT;
-import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.service.ImportService.EntryKind;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("ImportService entry type of an archive entry without comment (#3686)")
+@DisplayName("ImportService kind of an archive entry, told from the entry itself (#3686)")
 class ImportServiceEntryTypeTest {
 
   private final ObjectMapper mapper = new ObjectMapper();
@@ -18,59 +21,88 @@ class ImportServiceEntryTypeTest {
     return content.getBytes(StandardCharsets.UTF_8);
   }
 
+  private static byte[] zipWith(String entryName) throws IOException {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    try (ZipOutputStream zip = new ZipOutputStream(out)) {
+      zip.putNextEntry(new ZipEntry(entryName));
+      zip.write(bytes("{}"));
+      zip.closeEntry();
+    }
+    return out.toByteArray();
+  }
+
   @Test
-  @DisplayName("A re-zipped export JSON is read as the exported object")
-  void exportJsonIsTheExportedObject() {
-    String type =
-        ImportService.inferEntryType(
+  @DisplayName("An export JSON is the exported object")
+  void exportJsonIsTheExport() {
+    EntryKind kind =
+        ImportService.inferEntryKind(
             "My scenario.json", bytes("{\"export_version\": 1, \"scenario_name\": \"x\"}"), mapper);
 
-    assertThat(type).isEqualTo(EXPORT_ENTRY_SCENARIO);
+    assertThat(kind).isEqualTo(EntryKind.EXPORT);
   }
 
   @Test
   @DisplayName("The JSON extension is matched whatever its case")
   void jsonExtensionIsCaseInsensitive() {
-    String type =
-        ImportService.inferEntryType("injects.JSON", bytes("{\"export_version\": 1}"), mapper);
+    EntryKind kind =
+        ImportService.inferEntryKind("injects.JSON", bytes("{\"export_version\": 1}"), mapper);
 
-    assertThat(type).isEqualTo(EXPORT_ENTRY_SCENARIO);
+    assertThat(kind).isEqualTo(EntryKind.EXPORT);
   }
 
   @Test
   @DisplayName("A JSON document without export_version stays an attachment")
   void jsonWithoutExportVersionIsAnAttachment() {
-    String type =
-        ImportService.inferEntryType(
+    EntryKind kind =
+        ImportService.inferEntryKind(
             "documents/config.json", bytes("{\"key\": \"value\"}"), mapper);
 
-    assertThat(type).isEqualTo(EXPORT_ENTRY_ATTACHMENT);
+    assertThat(kind).isEqualTo(EntryKind.ATTACHMENT);
   }
 
   @Test
   @DisplayName("A JSON array or invalid JSON stays an attachment")
   void jsonArrayOrInvalidJsonIsAnAttachment() {
-    assertThat(ImportService.inferEntryType("list.json", bytes("[1, 2]"), mapper))
-        .isEqualTo(EXPORT_ENTRY_ATTACHMENT);
-    assertThat(ImportService.inferEntryType("broken.json", bytes("{not json"), mapper))
-        .isEqualTo(EXPORT_ENTRY_ATTACHMENT);
+    assertThat(ImportService.inferEntryKind("list.json", bytes("[1, 2]"), mapper))
+        .isEqualTo(EntryKind.ATTACHMENT);
+    assertThat(ImportService.inferEntryKind("broken.json", bytes("{not json"), mapper))
+        .isEqualTo(EntryKind.ATTACHMENT);
   }
 
   @Test
   @DisplayName("A non-JSON file is an attachment")
   void nonJsonIsAnAttachment() {
-    String type = ImportService.inferEntryType("documents/report.pdf", bytes("%PDF-1.7"), mapper);
+    EntryKind kind =
+        ImportService.inferEntryKind("documents/report.pdf", bytes("%PDF-1.7"), mapper);
 
-    assertThat(type).isEqualTo(EXPORT_ENTRY_ATTACHMENT);
+    assertThat(kind).isEqualTo(EntryKind.ATTACHMENT);
   }
 
   @Test
   @DisplayName("macOS archive metadata is never read as the exported object")
   void macOsMetadataIsAnAttachment() {
-    String type =
-        ImportService.inferEntryType(
+    EntryKind kind =
+        ImportService.inferEntryKind(
             "__MACOSX/._My scenario.json", bytes("{\"export_version\": 1}"), mapper);
 
-    assertThat(type).isEqualTo(EXPORT_ENTRY_ATTACHMENT);
+    assertThat(kind).isEqualTo(EntryKind.ATTACHMENT);
+  }
+
+  @Test
+  @DisplayName("A nested zip holding a payload.json is a payload archive")
+  void nestedPayloadZipIsAPayloadArchive() throws IOException {
+    EntryKind kind =
+        ImportService.inferEntryKind("My payload.zip", zipWith("payload.json"), mapper);
+
+    assertThat(kind).isEqualTo(EntryKind.PAYLOAD_ARCHIVE);
+  }
+
+  @Test
+  @DisplayName("A zip without payload.json, or an unreadable zip, stays an attachment")
+  void otherZipIsAnAttachment() throws IOException {
+    assertThat(ImportService.inferEntryKind("documents/logs.zip", zipWith("log.txt"), mapper))
+        .isEqualTo(EntryKind.ATTACHMENT);
+    assertThat(ImportService.inferEntryKind("documents/broken.zip", bytes("not a zip"), mapper))
+        .isEqualTo(EntryKind.ATTACHMENT);
   }
 }

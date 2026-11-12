@@ -41,7 +41,6 @@ public class ImportService {
   public static final String EXPORT_ENTRY_EXERCISE = "Exercise";
   public static final String EXPORT_ENTRY_SCENARIO = "Scenario";
   public static final String EXPORT_ENTRY_ATTACHMENT = "Attachment";
-  public static final String EXPORT_ENTRY_PAYLOAD_ARCHIVE = "PayloadArchive";
 
   private final Map<Integer, Importer> dataImporters = new HashMap<>();
 
@@ -76,25 +75,53 @@ public class ImportService {
     }
   }
 
-  // Tells the type of an archive entry that carries no entry comment, which is the case of an
-  // export unzipped and zipped again with a standard tool: a JSON file holding an export_version
-  // is the exported exercise or scenario, anything else is an attachment, looked up by its entry
-  // name as before.
-  static String inferEntryType(String entryName, byte[] content, ObjectMapper objectMapper) {
-    boolean macOsMetadata = entryName.startsWith("__MACOSX/");
-    if (!macOsMetadata && entryName.toLowerCase(Locale.ROOT).endsWith(".json")) {
+  // Kinds of archive entry the importer handles, told from the entry itself (#3686).
+  enum EntryKind {
+    // The exported exercise or scenario (the importer reads which one from the JSON).
+    EXPORT,
+    // A payload export archive: a nested zip carrying a payload.json, as payload exports wrote
+    // before the JSON payload export.
+    PAYLOAD_ARCHIVE,
+    // Anything else: an attachment, looked up by its entry name.
+    ATTACHMENT
+  }
+
+  // Tells the kind of an archive entry from its name and content, never from the zip entry
+  // comment: standard zip tools drop entry comments, so an export unzipped and zipped again would
+  // otherwise not import. A JSON object holding an export_version is the export, a nested zip
+  // holding a payload.json is a payload archive, anything else is an attachment.
+  static EntryKind inferEntryKind(String entryName, byte[] content, ObjectMapper objectMapper) {
+    if (entryName.startsWith("__MACOSX/")) {
+      return EntryKind.ATTACHMENT;
+    }
+    String lowerName = entryName.toLowerCase(Locale.ROOT);
+    if (lowerName.endsWith(".json")) {
       try {
         JsonNode node = objectMapper.readTree(content);
         if (node != null && node.isObject() && node.has("export_version")) {
-          // Exercise and scenario entries are imported the same way: the importer reads the
-          // type from the JSON itself.
-          return EXPORT_ENTRY_SCENARIO;
+          return EntryKind.EXPORT;
         }
       } catch (IOException e) {
         // Not a JSON export file: keep it as an attachment.
       }
+    } else if (lowerName.endsWith(".zip") && holdsPayloadJson(content)) {
+      return EntryKind.PAYLOAD_ARCHIVE;
     }
-    return EXPORT_ENTRY_ATTACHMENT;
+    return EntryKind.ATTACHMENT;
+  }
+
+  private static boolean holdsPayloadJson(byte[] content) {
+    try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(content))) {
+      ZipEntry nested;
+      while ((nested = zip.getNextEntry()) != null) {
+        if ("payload.json".equals(nested.getName())) {
+          return true;
+        }
+      }
+    } catch (IOException e) {
+      // Not a readable zip: an attachment.
+    }
+    return false;
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -140,11 +167,10 @@ public class ImportService {
       List<InputStream> dataImports = new ArrayList<>();
       Map<String, ImportEntry> docReferences = new HashMap<>();
       Enumeration<? extends ZipEntry> entries = parentZip.entries();
-      boolean untaggedEntries = false;
 
       while (entries.hasMoreElements()) {
         ZipEntry entry = entries.nextElement();
-        String entryType = entry.getComment();
+        boolean directImport = false;
         String entryName = entry.getName();
         ByteArrayOutputStream encryptedAttachmentsBuffer = null;
         ByteArrayOutputStream encryptedArgumentsAttachmentsBuffer = null;
@@ -157,36 +183,32 @@ public class ImportService {
             ByteArrayOutputStream jsonBuffer = new ByteArrayOutputStream();
             IOUtils.copy(dataStream, jsonBuffer);
             dataImports.add(new ByteArrayInputStream(jsonBuffer.toByteArray()));
-            entryType = "DIRECT_IMPORT";
+            directImport = true;
           }
         } else if (entryName.contains("attachments.zip")) {
           try (InputStream dataStream = parentZip.getInputStream(entry)) {
             encryptedAttachmentsBuffer = new ByteArrayOutputStream();
             IOUtils.copy(dataStream, encryptedAttachmentsBuffer);
-            entryType = "DIRECT_IMPORT";
+            directImport = true;
           }
         } else if (entryName.contains("arguments_attachments.zip")) {
           try (InputStream dataStream = parentZip.getInputStream(entry)) {
             encryptedArgumentsAttachmentsBuffer = new ByteArrayOutputStream();
             IOUtils.copy(dataStream, encryptedArgumentsAttachmentsBuffer);
-            entryType = "DIRECT_IMPORT";
+            directImport = true;
           }
         }
 
-        if (entryType == null) {
-          // An archive unzipped and zipped again with a standard tool loses the entry comments
-          // the export writes: tell the entry type from the entry itself instead (#3686).
-          try (InputStream untaggedStream = parentZip.getInputStream(entry)) {
-            entryType = inferEntryType(entryName, IOUtils.toByteArray(untaggedStream), mapper);
+        if (!directImport) {
+          // Every other entry is typed from its name and content (#3686).
+          byte[] content;
+          try (InputStream entryStream = parentZip.getInputStream(entry)) {
+            content = IOUtils.toByteArray(entryStream);
           }
-          untaggedEntries = true;
-        }
-
-        if (EXPORT_ENTRY_PAYLOAD_ARCHIVE.equals(entryType)) {
-          try (InputStream payloadZipStream = parentZip.getInputStream(entry)) {
-            byte[] payloadZipBytes = IOUtils.toByteArray(payloadZipStream);
+          EntryKind kind = inferEntryKind(entryName, content, mapper);
+          if (kind == EntryKind.PAYLOAD_ARCHIVE) {
             try (ZipInputStream payloadZipInputStream =
-                new ZipInputStream(new ByteArrayInputStream(payloadZipBytes))) {
+                new ZipInputStream(new ByteArrayInputStream(content))) {
               ZipEntry payloadEntry;
               while ((payloadEntry = payloadZipInputStream.getNextEntry()) != null) {
                 String payloadEntryName = payloadEntry.getName();
@@ -204,24 +226,12 @@ public class ImportService {
                 payloadZipInputStream.closeEntry();
               }
             }
-          }
-        } else if (EXPORT_ENTRY_ATTACHMENT.equals(entryType)) {
-          try (InputStream attStream = parentZip.getInputStream(entry)) {
-            ByteArrayOutputStream attachmentBuffer = new ByteArrayOutputStream();
-            IOUtils.copy(attStream, attachmentBuffer);
+          } else if (kind == EntryKind.EXPORT) {
+            dataImports.add(new ByteArrayInputStream(content));
+          } else {
             docReferences.put(
                 entryName,
-                new ImportEntry(
-                    entry,
-                    new ByteArrayInputStream(attachmentBuffer.toByteArray()),
-                    attachmentBuffer.toByteArray().length));
-          }
-        } else if (EXPORT_ENTRY_EXERCISE.equals(entryType)
-            || EXPORT_ENTRY_SCENARIO.equals(entryType)) {
-          try (InputStream dataStream = parentZip.getInputStream(entry)) {
-            ByteArrayOutputStream dataBuffer = new ByteArrayOutputStream();
-            IOUtils.copy(dataStream, dataBuffer);
-            dataImports.add(new ByteArrayInputStream(dataBuffer.toByteArray()));
+                new ImportEntry(entry, new ByteArrayInputStream(content), content.length));
           }
         }
 
@@ -279,7 +289,7 @@ public class ImportService {
         }
       }
 
-      if (untaggedEntries && dataImports.isEmpty()) {
+      if (dataImports.isEmpty()) {
         throw new UnsupportedMediaTypeException(
             "Import file is using an incorrect format (no exercise, scenario or payload found)");
       }
