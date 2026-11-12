@@ -156,6 +156,12 @@ export interface AgentTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -404,6 +410,12 @@ export interface AiTargetTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -755,6 +767,12 @@ export interface AssetGroupTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -2100,6 +2118,12 @@ interface BaseInjectTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_prevention_status?:
     | "FAILED"
     | "PENDING"
@@ -5002,6 +5026,12 @@ export interface EndpointTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -8226,6 +8256,12 @@ export interface ManualTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -10558,6 +10594,12 @@ export interface PlayerTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -12860,6 +12902,12 @@ export interface TeamTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -13557,7 +13605,6 @@ export interface User {
   user_phone2?: string;
   listened?: boolean;
   team_exercises_users?: string[];
-  unscopedGroups?: Group[];
   /** True if the user is admin */
   user_admin?: boolean;
   /** @uniqueItems true */

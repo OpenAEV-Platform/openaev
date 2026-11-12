@@ -12,7 +12,6 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
-import io.openaev.rest.role.TenantRoleApi;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
@@ -34,9 +33,10 @@ import org.springframework.transaction.annotation.Transactional;
  * Proof for the write-attribution detector. The detector must record a signature for every
  * INSERT/UPDATE that stamps a {@code tenant_id} outside the transaction's v2 scope, and stay silent
  * when the write is correctly attributed. This class proves it on a real statement, the
- * header-route tenant role create, which stamps the row with the default tenant through the ambient
- * {@code TenantContext} while the request scope is tenant B. The scenario creates take their tenant
- * from the request scope on both routes, so they are silent controls here.
+ * header-route create of {@link AmbientTenantRoleWriter}, which stamps the row with the default
+ * tenant through the ambient {@code TenantContext} while the request scope is tenant B. The
+ * scenario creates take their tenant from the request scope on both routes, so they are silent
+ * controls here.
  *
  * <p>It wires the detector for this context only ({@link WriteAttrDetectorTestConfig}) and installs
  * the trigger in a rolled-back transaction, so nothing here changes the shared schema. The
@@ -44,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
  * datasource-proxy listener into {@link WriteAttrDetectorRecorder}.
  */
 @Transactional
-@Import(WriteAttrDetectorTestConfig.class)
+@Import({WriteAttrDetectorTestConfig.class, AmbientTenantRoleWriter.Config.class})
 @WithMockUser(isAdmin = true)
 @DisplayName("Write-attribution detector fires on a wrong-tenant write, is silent on a correct one")
 class WriteAttributionDetectorSpikeTest extends IntegrationTest {
@@ -222,19 +222,12 @@ class WriteAttributionDetectorSpikeTest extends IntegrationTest {
   }
 
   private String postRole() throws Exception {
-    String response =
-        mvc.perform(
-                post(TenantRoleApi.ROLE_URI)
-                    .header("X-Tenant-Ids", tenantB)
-                    .with(csrf())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        "{\"role_name\":\"wattr-role\",\"role_description\":\"wattr-role\",\"role_capabilities\":[]}"))
-            .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    return JsonPath.read(response, "$.role_id");
+    return mvc.perform(
+            post(AmbientTenantRoleWriter.URI).header("X-Tenant-Ids", tenantB).with(csrf()))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
   }
 
   /** Reads through JDBC, which the statement inspector does not rewrite. */

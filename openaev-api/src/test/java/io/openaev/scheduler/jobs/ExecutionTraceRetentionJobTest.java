@@ -99,7 +99,8 @@ class ExecutionTraceRetentionJobTest extends IntegrationTest {
                   execution_status,
                   execution_time,
                   execution_created_at,
-                  execution_updated_at
+                  execution_updated_at,
+                  tenant_id
                 ) VALUES (
                   :id,
                   :injectStatusId,
@@ -108,7 +109,10 @@ class ExecutionTraceRetentionJobTest extends IntegrationTest {
                   'EXECUTED',
                   now() - make_interval(days => :ageInDays),
                   now() - make_interval(days => :ageInDays),
-                  now() - make_interval(days => :ageInDays)
+                  now() - make_interval(days => :ageInDays),
+                  (SELECT i.tenant_id FROM injects_statuses s
+                     JOIN injects i ON i.inject_id = s.status_inject
+                     WHERE s.status_id = :injectStatusId)
                 )
             """)
         .setParameter("id", id)

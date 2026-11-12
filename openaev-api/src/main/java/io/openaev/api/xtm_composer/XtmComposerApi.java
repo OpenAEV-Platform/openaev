@@ -110,7 +110,11 @@ public class XtmComposerApi extends RestBehavior {
       summary = "Get all connector instances managed by xtm-composer",
       description = "Retrieve all connector instances managed by xtm-composer")
   @Transactional
-  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.CATALOG)
+  // Platform-scoped like the composer's other callbacks: this read returns the connector instances
+  // of every tenant the composer manages, so it needs the platform setting write right the composer
+  // holds, not the tenant-scoped catalog right. READ on PLATFORM_SETTING is an open resource (the
+  // login reads settings), so the write right is what actually gates this read. TODO v2: #7248.
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful retrieval")})
   public List<XtmComposerInstanceOutput> getAllConnectorInstances(
       TxCtx ctx, @PathVariable @NotBlank final String xtmComposerId) {
@@ -126,7 +130,7 @@ public class XtmComposerApi extends RestBehavior {
   @Operation(
       summary = "Update connector instance status",
       description = "Update the status of a specific connector instance")
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful update")})
   public XtmComposerInstanceOutput updateConnectorInstanceStatus(
       TxCtx ctx,
@@ -146,7 +150,7 @@ public class XtmComposerApi extends RestBehavior {
   @Operation(
       summary = "Received connector instance logs",
       description = "Receive logs from connector instances")
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Successful reception")})
   public void receiveConnectorInstanceLogs(
       TxCtx ctx,
@@ -169,7 +173,7 @@ public class XtmComposerApi extends RestBehavior {
   @Operation(
       summary = "Health check of connector instance",
       description = "Receive health check of connector instances from xtm composer")
-  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.CATALOG)
+  @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PLATFORM_SETTING)
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Successful health check reception")

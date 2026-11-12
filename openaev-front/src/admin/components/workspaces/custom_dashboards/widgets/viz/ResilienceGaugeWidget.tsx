@@ -7,6 +7,7 @@ import { useFormatter } from '../../../../../../components/i18n';
 import { type StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import useCountUp from '../../../../../../utils/hooks/useCountUp';
 import { computeResilience } from '../../../../../../utils/resilience';
+import { HUMAN_EXPECTATION_TYPES } from '../../../../common/injects/expectations/Expectation';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 import { type SerieData } from '../WidgetViz';
 import SamplePreview from './sample/SamplePreview';
@@ -76,7 +77,7 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetId, widgetConfi
     if (type.includes('PREVENTION')) return <GppGoodOutlined sx={{ fontSize: 14 }} />;
     if (type.includes('DETECTION')) return <VisibilityOutlined sx={{ fontSize: 14 }} />;
     if (type.includes('VULNERABILITY')) return <BugReportOutlined sx={{ fontSize: 14 }} />;
-    if (['MANUAL', 'ARTICLE', 'CHALLENGE'].some(humanType => type.includes(humanType))) {
+    if (HUMAN_EXPECTATION_TYPES.some(humanType => type.includes(humanType))) {
       return <SupportAgentOutlined sx={{ fontSize: 14 }} />;
     }
     return <CrisisAlertOutlined sx={{ fontSize: 14 }} />;

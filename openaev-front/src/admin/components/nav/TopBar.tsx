@@ -22,7 +22,7 @@ import { logout } from '../../../actions/Application';
 import { NAV_COLLAPSED_WIDTH, NAV_OPEN_WIDTH, TOP_BAR_SEARCH_MAX_WIDTH, TOP_BAR_SEARCH_MIN_WIDTH } from '../../../components/common/menu/navbar/navbarConstants';
 import { readNavOpen } from '../../../components/common/menu/navbar/useNavbarState';
 import { useFormatter } from '../../../components/i18n';
-import { computeBannerSettings } from '../../../public/components/systembanners/utils';
+import useBannerSettings from '../../../public/components/systembanners/useBannerSettings';
 import { MESSAGING$ } from '../../../utils/Environment';
 import { useAppDispatch } from '../../../utils/hooks';
 import useAuth from '../../../utils/hooks/useAuth';
@@ -49,7 +49,7 @@ const TopBar: FunctionComponent = () => {
   const navigate = useNavigate();
   const { t } = useFormatter();
   const { settings } = useAuth();
-  const { bannerHeightNumber } = computeBannerSettings(settings);
+  const { bannerHeightNumber } = useBannerSettings(settings);
   const { holdsCapability } = useCapabilityGrants();
   const dispatch = useAppDispatch();
   // Same resolution helper as the navigation itself: with a viewport-based

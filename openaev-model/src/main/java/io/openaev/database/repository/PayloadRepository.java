@@ -57,20 +57,23 @@ public interface PayloadRepository
       value =
           "SELECT pi.payload_external_id FROM payload_identities pi"
               + " JOIN collectors c ON c.collector_type_id = pi.payload_collector_type"
-              + " WHERE c.collector_id = :collectorId",
+              + " WHERE c.collector_id = :collectorId"
+              + " AND pi.tenant_id = :tenantId AND c.tenant_id = :tenantId",
       nativeQuery = true)
-  List<String> findAllExternalIdsByCollectorId(@NotNull @Param("collectorId") String collectorId);
+  List<String> findAllExternalIdsByCollectorId(
+      @NotNull @Param("collectorId") String collectorId, @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
       value =
           "UPDATE payloads p SET payload_status = :payloadStatus FROM payload_identities pi"
               + " WHERE pi.payload_identity_id = p.payload_identity AND pi.payload_external_id IN :payloadExternalIds"
-              + " AND p.tenant_id = :#{#tenantContext.currentTenant}",
+              + " AND p.tenant_id = :tenantId AND pi.tenant_id = :tenantId",
       nativeQuery = true)
   void setPayloadStatusByExternalIds(
       @Param("payloadStatus") String payloadStatus,
-      @Param("payloadExternalIds") List<String> payloadExternalIds);
+      @Param("payloadExternalIds") List<String> payloadExternalIds,
+      @Param("tenantId") String tenantId);
 
   @Query(
       """

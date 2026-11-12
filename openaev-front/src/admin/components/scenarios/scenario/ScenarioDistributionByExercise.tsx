@@ -9,16 +9,10 @@ import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type GlobalScoreBySimulationEndDate, type ScenarioStatistic } from '../../../../utils/api-types';
 import { expectationTypeColor, expectationTypeIcon } from '../../common/ExpectationIconByType';
+import { expectationResultTypes, expectationTypeLabelKey } from '../../common/injects/expectations/Expectation';
 import SamplePreview from '../../workspaces/custom_dashboards/widgets/viz/sample/SamplePreview';
 
 interface Props { scenarioId: string }
-
-const EXPECTATION_TYPES = [
-  ['PREVENTION', 'Prevention'],
-  ['DETECTION', 'Detection'],
-  ['VULNERABILITY', 'Vulnerability'],
-  ['HUMAN_RESPONSE', 'Human Response'],
-] as const;
 
 function generateFakeDataFromDates(dates: string[], values: number[]): GlobalScoreBySimulationEndDate[] {
   return dates.map((date, index) => ({
@@ -250,11 +244,11 @@ const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }
   }, [scenarioId]);
 
   const rawScores = statistic?.simulations_results_latest.global_scores_by_expectation_type || {};
-  const hasRealData = EXPECTATION_TYPES.some(([type]) => Array.isArray(rawScores[type]) && rawScores[type].length > 0);
+  const hasRealData = expectationResultTypes.some(type => Array.isArray(rawScores[type]) && rawScores[type].length > 0);
   const scores = hasRealData ? rawScores : generateFakeData();
   const isFakeData = !hasRealData;
 
-  const presentTypes = EXPECTATION_TYPES.filter(([type]) => scores[type]?.length > 0);
+  const presentTypes = expectationResultTypes.filter(type => scores[type]?.length > 0);
 
   if (loadingScenarioStatistics) {
     return <Loader variant="inElement" />;
@@ -271,11 +265,11 @@ const ScenarioDistributionByExercise: FunctionComponent<Props> = ({ scenarioId }
       gap: 1.5,
     }}
     >
-      {presentTypes.map(([type, label]) => (
+      {presentTypes.map(type => (
         <TrendTile
           key={type}
           type={type}
-          label={label}
+          label={expectationTypeLabelKey(type) ?? type}
           scores={scores[type]}
         />
       ))}

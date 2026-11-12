@@ -57,3 +57,30 @@ export type ExpectationResultType = 'PREVENTION' | 'DETECTION' | 'LOGGING' | 'VU
 export const expectationResultTypes: ExpectationResultType [] = ['PREVENTION', 'DETECTION', 'LOGGING', 'VULNERABILITY', 'HUMAN_RESPONSE'];
 
 export const mitreMatrixExpectationTypes: ExpectationResultType [] = ['PREVENTION', 'DETECTION', 'VULNERABILITY'];
+
+// Answered by security platforms, and scoped per security platform type. Display order.
+export const TECHNICAL_EXPECTATION_TYPES: string[] = [ExpectationType.PREVENTION, ExpectationType.DETECTION, ExpectationType.VULNERABILITY];
+
+// Validated by people. Display order.
+export const HUMAN_EXPECTATION_TYPES: string[] = [ExpectationType.MANUAL, ExpectationType.ARTICLE, ExpectationType.CHALLENGE];
+
+// The expectation types a posture (assets, security platforms, reports) is broken down by.
+export const POSTURE_EXPECTATION_TYPES: string[] = [...TECHNICAL_EXPECTATION_TYPES, ...HUMAN_EXPECTATION_TYPES];
+
+// i18n key of each expectation type label, the HUMAN_RESPONSE result type included.
+const EXPECTATION_TYPE_LABELS: Record<string, string> = {
+  PREVENTION: 'Prevention',
+  DETECTION: 'Detection',
+  LOGGING: 'Logging',
+  VULNERABILITY: 'Vulnerability',
+  HUMAN_RESPONSE: 'Human Response',
+  MANUAL: 'Manual',
+  ARTICLE: 'Article',
+  CHALLENGE: 'Challenge',
+};
+
+// Case-insensitive: the dashboards hand over lowercase keys. Undefined for an unknown type, so
+// each caller keeps its own fallback.
+export const expectationTypeLabelKey = (type: string | undefined): string | undefined => {
+  return EXPECTATION_TYPE_LABELS[(type ?? '').toUpperCase()];
+};

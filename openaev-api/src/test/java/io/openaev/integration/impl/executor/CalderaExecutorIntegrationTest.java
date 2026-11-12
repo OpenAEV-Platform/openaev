@@ -12,6 +12,7 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import io.openaev.authorisation.HttpClientFactory;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -38,6 +39,7 @@ import io.openaev.service.connector_instances.ConnectorInstanceService;
 import io.openaev.service.connector_instances.EncryptionFactory;
 import io.openaev.utils.mockConfig.executors.WithMockCalderaConfig;
 import io.openaev.utils.reflection.FieldUtils;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,13 +49,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
 @TestExecutionListeners(
-    value = {RabbitMQTestListener.class},
+    value = {DefaultTenantScopeTestListener.class, RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 // The legacy properties migration only seeds an instance when the legacy config is enabled;
 // these tests exercise the factory around that migrated instance.
@@ -63,6 +67,13 @@ import org.springframework.transaction.annotation.Transactional;
     publicUrl = "caldera_public_url",
     apiKey = "caldera_api_key")
 public class CalderaExecutorIntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
+
   @Autowired private CalderaExecutorClient client;
   @Autowired private EndpointService endpointService;
   @Autowired private AgentService agentService;

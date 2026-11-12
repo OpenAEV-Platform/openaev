@@ -1,26 +1,36 @@
 package io.openaev.rest.user;
 
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
+import static io.openaev.rest.user.TenantUserApi.USER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Capability;
+import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
 import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.PlayerFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.TeamFixture;
@@ -32,13 +42,16 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -52,10 +65,14 @@ import org.springframework.transaction.annotation.Transactional;
  * each. With no selector the request is narrowed to the default tenant
  * ({@code @RequireTenantSelector}), and with {@code X-Tenant-Ids: B} to B: either way the links of
  * the other tenant have to survive.
+ *
+ * <p>The same holds for the updates of a user and of a player that replace the tags from the
+ * request: the tags of the tenant the request works on are replaced, the ones of the other tenant
+ * stay.
  */
 @TestInstance(PER_CLASS)
 @Transactional
-@DisplayName("Player upsert keeps the links of the tenants it does not work on")
+@DisplayName("Player and user writes keep the links of the tenants they do not work on")
 public class PlayerUpsertKeepsOtherTenantLinksTest extends IntegrationTest {
 
   @DynamicPropertySource
@@ -66,11 +83,13 @@ public class PlayerUpsertKeepsOtherTenantLinksTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
 
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private UserComposer userComposer;
   @Autowired private TagRepository tagRepository;
   @Autowired private TeamRepository teamRepository;
+  @Autowired private OrganizationRepository organizationRepository;
 
   private String tenantB;
   private User player;
@@ -229,5 +248,401 @@ public class PlayerUpsertKeepsOtherTenantLinksTest extends IntegrationTest {
     assertEquals(
         sorted(teamOfDefault.getId(), teamOfB.getId(), addedTeam.getId()),
         linksOf("users_teams", "team_id"));
+  }
+
+  private UserInput userInputReplacingTagsWith(Tag tag) {
+    return userInputWithTags(List.of(tag.getId()));
+  }
+
+  private UserInput userInputWithTags(List<String> tagIds) {
+    return userInputWithTags(tagIds, List.of());
+  }
+
+  private UserInput userInputWithTags(List<String> tagIds, List<String> tenantIds) {
+    return new UserInput(
+        player.getEmail(),
+        "Changed",
+        "User",
+        UserFixture.RAW_PASSWORD,
+        null,
+        null,
+        null,
+        null,
+        tagIds,
+        false,
+        tenantIds);
+  }
+
+  private PlayerInput playerInputReplacingTagsWith(Tag tag) {
+    return playerInputWithTags(List.of(tag.getId()));
+  }
+
+  private PlayerInput playerInputWithTags(List<String> tagIds) {
+    PlayerInput input = PlayerFixture.createPlayerInput();
+    input.setEmail(player.getEmail());
+    input.setTagIds(tagIds);
+    input.setTeamIds(List.of());
+    return input;
+  }
+
+  private Tag addedTagIn(String tenantId) {
+    Tag tag = tagIn(tenantId);
+    entityManager.flush();
+    entityManager.clear();
+    TenantContext.clearCurrentTenant();
+    return tag;
+  }
+
+  /** The first and last name the database holds for the player, whatever the session saw. */
+  private List<String> namesOfPlayer() {
+    entityManager.flush();
+    Object[] row =
+        (Object[])
+            entityManager
+                .createNativeQuery(
+                    "SELECT user_firstname, user_lastname FROM users WHERE user_id = :id")
+                .setParameter("id", player.getId())
+                .getSingleResult();
+    return List.of((String) row[0], (String) row[1]);
+  }
+
+  @Nested
+  @DisplayName("Updating the tags of a user")
+  class TagReplacement {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, a player update saves its profile and its tags")
+    void given_headerNamingTenantB_should_saveTheProfileWithTheTagsOfAPlayer() throws Exception {
+      // -- PREPARE --
+      Tag replacement = addedTagIn(tenantB);
+      PlayerInput input = playerInputReplacingTagsWith(replacement);
+      input.setFirstname("Renamed-" + UUID.randomUUID());
+      input.setLastname("Surname-" + UUID.randomUUID());
+
+      // -- EXECUTE --
+      mvc.perform(
+              put(PLAYER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(input))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(List.of(input.getFirstname(), input.getLastname()), namesOfPlayer());
+      assertEquals(
+          sorted(tagOfDefault.getId(), replacement.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, a user update saves its profile and its tags")
+    void given_headerNamingTenantB_should_saveTheProfileWithTheTagsOfAUser() throws Exception {
+      // -- PREPARE --
+      Tag replacement = addedTagIn(tenantB);
+
+      // -- EXECUTE --
+      mvc.perform(
+              put(USER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(userInputReplacingTagsWith(replacement)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(List.of("Changed", "User"), namesOfPlayer());
+      assertEquals(
+          sorted(tagOfDefault.getId(), replacement.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With no selector, a user update replaces the tags of the default tenant only")
+    void given_noSelectorOnDefaultTenant_should_keepTheTagsOfBOnUserUpdate() throws Exception {
+      // -- PREPARE --
+      Tag replacement = addedTagIn(Tenant.DEFAULT_TENANT_UUID);
+
+      // -- EXECUTE --
+      mvc.perform(
+              put(USER_URI + "/" + player.getId())
+                  .content(asJsonString(userInputReplacingTagsWith(replacement)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(sorted(tagOfB.getId(), replacement.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, a user update replaces the tags of B only")
+    void given_headerNamingTenantB_should_keepTheTagsOfTheDefaultTenantOnUserUpdate()
+        throws Exception {
+      // -- PREPARE --
+      Tag replacement = addedTagIn(tenantB);
+
+      // -- EXECUTE --
+      mvc.perform(
+              put(USER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(userInputReplacingTagsWith(replacement)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(
+          sorted(tagOfDefault.getId(), replacement.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, a player update replaces the tags of B only")
+    void given_headerNamingTenantB_should_keepTheTagsOfTheDefaultTenantOnPlayerUpdate()
+        throws Exception {
+      // -- PREPARE --
+      Tag replacement = addedTagIn(tenantB);
+
+      // -- EXECUTE --
+      mvc.perform(
+              put(PLAYER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(playerInputReplacingTagsWith(replacement)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(
+          sorted(tagOfDefault.getId(), replacement.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With no selector, clearing the tags of a user keeps the ones of B")
+    void given_noSelectorOnDefaultTenant_should_keepTheTagsOfBWhenClearingTheTagsOfAUser()
+        throws Exception {
+      // -- EXECUTE --
+      mvc.perform(
+              put(USER_URI + "/" + player.getId())
+                  .content(asJsonString(userInputWithTags(List.of())))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(sorted(tagOfB.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, clearing the tags of a user keeps the default ones")
+    void given_headerNamingTenantB_should_keepTheTagsOfTheDefaultTenantWhenClearingTheTagsOfAUser()
+        throws Exception {
+      // -- EXECUTE --
+      mvc.perform(
+              put(USER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(userInputWithTags(List.of())))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(sorted(tagOfDefault.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, clearing the tags of a player keeps the default ones")
+    void
+        given_headerNamingTenantB_should_keepTheTagsOfTheDefaultTenantWhenClearingTheTagsOfAPlayer()
+            throws Exception {
+      // -- EXECUTE --
+      mvc.perform(
+              put(PLAYER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(playerInputWithTags(List.of())))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(sorted(tagOfDefault.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("Sending a tag the user already holds changes nothing and does not fail")
+    void given_aTagAlreadyLinked_should_leaveTheLinksAsTheyAre() throws Exception {
+      // -- EXECUTE --
+      mvc.perform(
+              put(PLAYER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(playerInputReplacingTagsWith(tagOfB)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.user_tags").value(containsInAnyOrder(tagOfB.getId())));
+      assertEquals(sorted(tagOfDefault.getId(), tagOfB.getId()), linksOf("users_tags", "tag_id"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Updating the organization of a player")
+  class OrganizationAssignment {
+
+    private Organization organizationOfDefault;
+    private Organization organizationOfB;
+
+    @BeforeEach
+    void playerHoldingAnOrganizationInEachTenant() {
+      organizationOfDefault = organizationIn(Tenant.DEFAULT_TENANT_UUID);
+      organizationOfB = organizationIn(tenantB);
+      link("users_organizations", "organization_id", organizationOfDefault.getId());
+      link("users_organizations", "organization_id", organizationOfB.getId());
+      entityManager.flush();
+      entityManager.clear();
+      TenantContext.clearCurrentTenant();
+    }
+
+    private Organization organizationIn(String tenantId) {
+      Organization organization = OrganizationFixture.createDefaultOrganisation();
+      organization.setTenant(new Tenant(tenantId));
+      return organizationRepository.save(organization);
+    }
+
+    private PlayerInput playerInputWithOrganization(String organizationId) {
+      PlayerInput input = playerInputWithTags(List.of());
+      input.setOrganizationId(organizationId);
+      return input;
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, clearing the organization keeps the default one")
+    void given_headerNamingTenantB_should_keepTheOrganizationOfTheDefaultTenantWhenClearing()
+        throws Exception {
+      // -- EXECUTE --
+      mvc.perform(
+              put(PLAYER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(playerInputWithOrganization(null)))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(
+          sorted(organizationOfDefault.getId()), linksOf("users_organizations", "organization_id"));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("With X-Tenant-Ids naming B, an organization of B replaces the one of B only")
+    void given_headerNamingTenantB_should_replaceTheOrganizationOfBOnly() throws Exception {
+      // -- PREPARE --
+      Organization replacement = organizationIn(tenantB);
+      entityManager.flush();
+      entityManager.clear();
+      TenantContext.clearCurrentTenant();
+
+      // -- EXECUTE --
+      mvc.perform(
+              put(PLAYER_URI + "/" + player.getId())
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(playerInputWithOrganization(replacement.getId())))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.user_organization").value(replacement.getId()));
+      assertEquals(
+          sorted(organizationOfDefault.getId(), replacement.getId()),
+          linksOf("users_organizations", "organization_id"));
+    }
+  }
+
+  @Nested
+  @DisplayName("Updating the tags of a user from the platform")
+  class PlatformUpdate {
+
+    private static final String PLATFORM_USER_URI = "/api/platform-users";
+
+    private Tag tagOfOutsider;
+
+    @BeforeEach
+    void playerHoldingATagOfATenantTheCallerIsNotMemberOf() throws Exception {
+      when(enterpriseEditionService.isEnterpriseLicenseInactive(any())).thenReturn(false);
+      String outsider = tenantIsolationHelper.createTenant("links-outsider").getId();
+      tagOfOutsider = tagIn(outsider);
+      link("users_tags", "tag_id", tagOfOutsider.getId());
+      entityManager.flush();
+      entityManager.clear();
+      TenantContext.clearCurrentTenant();
+    }
+
+    private void updateTagsFromThePlatform(List<String> tagIds) throws Exception {
+      updateTagsFromThePlatform(tagIds, null);
+    }
+
+    /** With a header, the scope of the request is the tenants it names. */
+    private void updateTagsFromThePlatform(List<String> tagIds, String tenantHeader)
+        throws Exception {
+      MockHttpServletRequestBuilder request =
+          put(PLATFORM_USER_URI + "/" + player.getId())
+              .content(
+                  asJsonString(
+                      userInputWithTags(tagIds, List.of(Tenant.DEFAULT_TENANT_UUID, tenantB))))
+              .contentType(MediaType.APPLICATION_JSON)
+              .accept(MediaType.APPLICATION_JSON)
+              .with(csrf());
+      if (tenantHeader != null) {
+        request.header(TENANT_HEADER, tenantHeader);
+      }
+      mvc.perform(request).andExpect(status().isOk());
+    }
+
+    // This caller's scope covers every tenant, so the tags it asks for and the ones it drops are
+    // all in scope and the whole set is replaced.
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Clearing the tags removes the links to the tags of every tenant")
+    void given_platformUpdateClearingTheTags_should_removeTheTagsOfEveryTenant() throws Exception {
+      // -- EXECUTE --
+      updateTagsFromThePlatform(List.of());
+
+      // -- ASSERT --
+      assertEquals(List.of(), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Replacing the tags makes them the whole set, whatever their tenant")
+    void given_platformUpdateReplacingTheTags_should_leaveOnlyTheWantedTags() throws Exception {
+      // -- EXECUTE --
+      updateTagsFromThePlatform(List.of(tagOfDefault.getId()));
+
+      // -- ASSERT --
+      assertEquals(sorted(tagOfDefault.getId()), linksOf("users_tags", "tag_id"));
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES})
+    @DisplayName("A scope of the default tenant only keeps the links to the tags of the others")
+    void given_platformUpdateWithAScopeOfTheDefaultTenant_should_keepTheTagsOutOfScope()
+        throws Exception {
+      // -- EXECUTE --
+      updateTagsFromThePlatform(List.of(), Tenant.DEFAULT_TENANT_UUID);
+
+      // -- ASSERT --
+      assertEquals(sorted(tagOfB.getId(), tagOfOutsider.getId()), linksOf("users_tags", "tag_id"));
+    }
   }
 }
