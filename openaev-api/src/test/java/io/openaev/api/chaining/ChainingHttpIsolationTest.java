@@ -95,8 +95,8 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  * only and addresses tenant A's rows through tenant B's path. Every read, update and delete below
  * resolves the row by its id alone, and the chaining tables carry no Hibernate filter, so nothing
  * but the statement inspector stands between the caller and tenant A's rows: registering the
- * production list without a chaining table turns the cross-tenant assertions on that table red
- * while the same-tenant ones stay green.
+ * production list without {@code workflows} turns the cross-tenant assertions that reach a workflow
+ * red while the same-tenant ones stay green.
  *
  * <p>The admin caller bypasses the parent-permission resolution of the access control aspect and
  * reaches the handlers' own reads; the non-admin caller is stopped by that resolution, which reads
