@@ -1,5 +1,6 @@
 package io.openaev.injectors.email.service;
 
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.utils.base.ExternalServiceBase;
 import jakarta.annotation.PostConstruct;
@@ -24,6 +25,7 @@ public class SmtpService extends ExternalServiceBase {
 
   private final JavaMailSender mailSender;
   private final SettingRepository settingRepository;
+  private final TenantScopedTransaction tenantScopedTransaction;
 
   @PostConstruct
   private void init() {
@@ -63,5 +65,10 @@ public class SmtpService extends ExternalServiceBase {
   @Override
   public SettingRepository getSettingRepository() {
     return settingRepository;
+  }
+
+  @Override
+  public TenantScopedTransaction getTenantScopedTransaction() {
+    return tenantScopedTransaction;
   }
 }

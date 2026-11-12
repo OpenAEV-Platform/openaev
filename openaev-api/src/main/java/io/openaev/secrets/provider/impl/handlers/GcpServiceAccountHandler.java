@@ -71,6 +71,15 @@ public class GcpServiceAccountHandler implements SecretHandler {
       gcpSecret.setPrivateKeyJson(nativeEncryptionService.encrypt(request.gcpPrivateKeyJson()));
     }
 
+    if (request.gcpCustomResourceManagerUri() != null) {
+      gcpSecret.setCustomResourceManagerUri(
+          SecretHandler.blankToNull(request.gcpCustomResourceManagerUri()));
+    }
+
+    if (request.gcpCustomProjectsUri() != null) {
+      gcpSecret.setCustomProjectsUri(SecretHandler.blankToNull(request.gcpCustomProjectsUri()));
+    }
+
     // The FINAL state of the entity is validated, not the incoming request: an update that does
     // not resend the key file is legitimate, and checking the request would make key rotation the
     // only way to ever edit a GCP credential.
@@ -91,7 +100,11 @@ public class GcpServiceAccountHandler implements SecretHandler {
   public SecretMetadata toMetadata(Secret secret) {
     if (secret instanceof GcpServiceAccountSecret gcpSecret) {
       return SecretMetadata.forGcpServiceAccount(
-          gcpSecret.getScope(), gcpSecret.getProjectId(), gcpSecret.getPrivateKeyJson() != null);
+          gcpSecret.getScope(),
+          gcpSecret.getProjectId(),
+          gcpSecret.getPrivateKeyJson() != null,
+          gcpSecret.getCustomResourceManagerUri(),
+          gcpSecret.getCustomProjectsUri());
     }
     throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
   }
@@ -102,7 +115,8 @@ public class GcpServiceAccountHandler implements SecretHandler {
       return SecretResolvedValue.forGcpServiceAccount(
           gcpSecret.getScope(),
           gcpSecret.getProjectId(),
-          nativeEncryptionService.decrypt(gcpSecret.getPrivateKeyJson()));
+          nativeEncryptionService.decrypt(gcpSecret.getPrivateKeyJson()),
+          gcpSecret.getCustomResourceManagerUri());
     }
     throw new IllegalArgumentException(TYPE_MISMATCH_MESSAGE);
   }

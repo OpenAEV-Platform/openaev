@@ -181,5 +181,8 @@ public class CrowdStrikeExecutorIntegration extends Integration {
   protected void innerStop() {
     timers.forEach(timer -> timer.cancel(true));
     timers.clear();
+    if (crowdStrikeExecutorContextService != null) {
+      crowdStrikeExecutorContextService.shutdown();
+    }
   }
 }

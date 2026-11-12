@@ -40,8 +40,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.collections4.map.PassiveExpiringMap;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -159,12 +161,15 @@ public class UserService {
     User user = new User();
     user.setUpdateAttributes(input);
     user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
     user.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(tenantIds, Tenant.class, tenantRepository::countByIdIn)));
     String password = input.plainPassword();
     User createdUser = createUser(user, password, UUID.randomUUID().toString(), scope);
+    // A tenant creator sets the organization itself, once it knows its tenant.
+    if (scope == UserCreationScope.PLATFORM) {
+      applyPlatformOrganization(createdUser, input.organizationId());
+    }
     if (!CollectionUtils.isEmpty(tenantIds)) {
       tenantMembershipCacheManager.evictForUser(createdUser.getId(), tenantIds);
     }
@@ -247,7 +252,7 @@ public class UserService {
                 spec,
                 specCount,
                 pageable,
-                (cq, root) -> UserQueryHelper.select(cb, cq, root),
+                (cq, root) -> UserQueryHelper.selectForPlatform(cb, cq, root),
                 UserQueryHelper::executionWithTenants),
         searchPaginationInput,
         User.class);
@@ -269,6 +274,7 @@ public class UserService {
             : List.of();
     PrivilegeEscalationValidator.assertAdminFlagUnchanged(input.admin(), existing.isAdmin());
     applyProfile(existing, input);
+    applyPlatformOrganization(existing, input.organizationId());
     existing.setTenants(
         new ArrayList<>(
             referenceResolver.resolve(
@@ -304,8 +310,76 @@ public class UserService {
     user.setPhone(input.phone());
     user.setPhone2(input.phone2());
     user.setPgpKey(input.pgpKey());
-    user.setTags(referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
-    user.setOrganization(referenceResolver.resolve(input.organizationId(), Organization.class));
+    replaceTags(
+        user, referenceResolver.resolve(input.tagIds(), Tag.class, tagRepository::countByIdIn));
+  }
+
+  /**
+   * Makes the tags of a saved user the given ones among the ones the transaction's scope sees. A
+   * user is platform-level and its tags may belong to several tenants, so the links to the tags out
+   * of scope are left alone: the ones to drop are deleted and the missing ones inserted, each in
+   * one statement, where replacing the collection would delete every row of the user as soon as it
+   * is empty. A caller whose scope does not cover every tenant therefore keeps the links to the
+   * tags of the tenants it does not see, on the platform route too. The row of the user is locked
+   * first and the links it holds are read once the lock is held, never from the collection loaded
+   * earlier in the request: two concurrent replacements would otherwise both compute their
+   * differences from the same set and leave the union of what they asked for. The changes the
+   * caller made to the user are written, and the user is reloaded in every case, the one where the
+   * links already are the wanted ones included, so that it answers with the links the database
+   * holds after the lock.
+   *
+   * @param user the saved user
+   * @param wanted the tags the user must hold among the ones in scope
+   */
+  public void replaceTags(User user, Set<Tag> wanted) {
+    Set<String> wantedIds = wanted.stream().map(Tag::getId).collect(Collectors.toSet());
+    userRepository.lockRow(user.getId());
+    Set<String> heldIds = new HashSet<>(userRepository.tagIdsInScope(user.getId()));
+    Set<String> toRemove = new HashSet<>(heldIds);
+    toRemove.removeAll(wantedIds);
+    Set<String> toAdd = new HashSet<>(wantedIds);
+    toAdd.removeAll(heldIds);
+    if (!toRemove.isEmpty() || !toAdd.isEmpty()) {
+      // The join table is written in SQL, so the user row would stay untouched and no update event
+      // would reach the connected clients: marking the user updated makes Hibernate publish it.
+      user.setUpdatedAt(Instant.now());
+      if (!toRemove.isEmpty()) {
+        userRepository.removeTags(user.getId(), toRemove);
+      }
+      if (!toAdd.isEmpty()) {
+        userRepository.addTags(user.getId(), toAdd);
+      }
+    }
+    // Written before the reload: a refresh drops what the user holds in memory and unflushed.
+    entityManager.flush();
+    entityManager.refresh(user);
+    loadStreamedAssociations(user);
+  }
+
+  /**
+   * Loads the associations the activity stream serializes from the user. The update event holds
+   * this very instance and the stream reads it after the session is closed, so a collection the
+   * refresh leaves unloaded fails there and drops the update for every consumer.
+   */
+  private void loadStreamedAssociations(User user) {
+    Hibernate.initialize(user.getTeams());
+    Hibernate.initialize(user.getTags());
+    Hibernate.initialize(user.getCommunications());
+    Hibernate.initialize(user.getExerciseTeamUsers());
+    user.loadOrganizations();
+  }
+
+  /**
+   * Links the user to an organization from the platform level, in the tenant that organization
+   * belongs to: organizations are tenant-level, so a user keeps the ones it holds in other tenants.
+   * An empty value changes nothing, since the platform level has no tenant whose organization it
+   * could clear.
+   */
+  private void applyPlatformOrganization(User user, String organizationId) {
+    Organization organization = referenceResolver.resolve(organizationId, Organization.class);
+    if (organization != null) {
+      userRepository.assignOrganization(user, organization.getTenant().getId(), organization);
+    }
   }
 
   /**

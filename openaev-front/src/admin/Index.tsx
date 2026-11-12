@@ -14,7 +14,7 @@ import { fetchTags } from '../actions/tags/tag-action';
 import { errorWrapper } from '../components/Error';
 import Loader from '../components/Loader';
 import NotFound from '../components/NotFound';
-import { computeBannerSettings } from '../public/components/systembanners/utils';
+import useBannerSettings from '../public/components/systembanners/useBannerSettings';
 import { useHelper } from '../store';
 import { useAppDispatch } from '../utils/hooks';
 import useAuth from '../utils/hooks/useAuth';
@@ -28,6 +28,7 @@ import { GETTING_STARTED_LOCAL_STORAGE_KEY } from './components/getting_started/
 import GettingStartedRoutes, { GETTING_STARTED_URI } from './components/getting_started/GettingStartedRoutes';
 import { SETTINGS_ACCESS_CHECKS } from './components/nav/config/settings.config';
 import LeftBar from './components/nav/LeftBar';
+import NewsFeedToastManager from './components/nav/NewsFeedToastManager';
 import TopBar from './components/nav/TopBar';
 import DeployScenario from './components/scenarios/DeployScenario';
 
@@ -37,6 +38,7 @@ const InjectIndex = lazy(() => import('./components/simulations/simulation/injec
 const IndexProfile = lazy(() => import('./components/profile/Index'));
 const ProfileNotifications = lazy(() => import('./components/profile/notifications/Notifications'));
 const ProfileTriggers = lazy(() => import('./components/profile/triggers/Triggers'));
+const ProfileNewsFeed = lazy(() => import('./components/profile/news_feed/NewsFeed'));
 const FullTextSearch = lazy(() => import('./components/search/FullTextSearch'));
 const Findings = lazy(() => import('./components/findings/Findings'));
 const FindingOverview = lazy(() => import('./components/findings/FindingOverview'));
@@ -142,7 +144,7 @@ const Index = () => {
     dispatch(fetchTags());
     dispatch(fetchDomains());
   }, [currentUserTenant?.tenant_id]);
-  const { bannerHeight, bannerHeightNumber } = computeBannerSettings(settings);
+  const { bannerHeight, bannerHeightNumber } = useBannerSettings(settings);
   const [goToGettingStarted, setGoToGettingStarted] = useLocalStorage<boolean>(GETTING_STARTED_LOCAL_STORAGE_KEY, true);
   useEffect(() => {
     if (goToGettingStarted) {
@@ -167,6 +169,7 @@ const Index = () => {
       }}
     >
       <TopBar />
+      <NewsFeedToastManager />
       <LeftBar />
       <Box component="main" sx={boxSx}>
         <div className={classes.toolbar} />
@@ -175,6 +178,7 @@ const Index = () => {
             {/* Static segments rank above the profile wildcard in React Router */}
             <Route path="profile/notifications" element={errorWrapper(ProfileNotifications)()} />
             <Route path="profile/triggers" element={errorWrapper(ProfileTriggers)()} />
+            <Route path="profile/news-feed" element={errorWrapper(ProfileNewsFeed)()} />
             <Route path="profile/*" element={errorWrapper(IndexProfile)()} />
             <Route path="" element={errorWrapper(Home)()} />
             <Route path="results" element={errorWrapper(DashboardResults)()} />

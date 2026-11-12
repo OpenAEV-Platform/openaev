@@ -2,7 +2,6 @@ package io.openaev.rest.exercise;
 
 import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.database.specification.ExerciseSpecification.findGrantedFor;
 import static io.openaev.healthcheck.utils.HealthCheckUtils.READINESS_CHECK_TIMEOUT_SECONDS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
@@ -50,6 +49,7 @@ import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -125,12 +125,19 @@ public class ExerciseApi extends RestBehavior {
   private final UserService userService;
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
+  private final WorkflowOwnerScope workflowOwnerScope;
   private final ExpectationsDriftService expectationsDriftService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final LicenseCacheManager licenseCacheManager;
+  private final FaithfulCopyTransaction faithfulCopy;
 
   // endregion
+
+  /** Resolves the simulation inside the request's tenant scope, or answers not found. */
+  private void requireSimulationInScope(final TxCtx ctx, final String exerciseId) {
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+  }
 
   // region healthchecks
   @GetMapping({
@@ -143,9 +150,8 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<HealthCheck> streamHealthChecks(
-      // The TxCtx parameter is not used directly; it signals the transaction aspect to set
-      // the tenant scope in the DB session so the v2 inspector can resolve can_access_tenant.
       TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
+    requireSimulationInScope(ctx, exerciseId);
     return exerciseService.runChecks(exerciseId);
   }
 
@@ -168,6 +174,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public ExpectationsDriftOutput exerciseExpectationsDrift(
       TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
+    requireSimulationInScope(ctx, exerciseId);
     return expectationsDriftService.exerciseDrift(exerciseId);
   }
 
@@ -190,6 +197,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public ExpectationsRealignOutput realignExerciseExpectations(
       TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
+    requireSimulationInScope(ctx, exerciseId);
     return expectationsDriftService.realignExercise(ctx, exerciseId);
   }
 
@@ -212,6 +220,7 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestBody final ExpectationsDriftDismissInput input) {
+    requireSimulationInScope(ctx, exerciseId);
     return expectationsDriftService.dismissExerciseDrift(exerciseId, input.dismissed());
   }
 
@@ -225,6 +234,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Iterable<Log> logs(TxCtx ctx, @PathVariable String exercise) {
+    requireSimulationInScope(ctx, exercise);
     List<Log> logs = exerciseLogRepository.findAll(ExerciseLogSpecification.fromExercise(exercise));
     // log_tags is serialized open-in-view after the commit, when a lazy load on the v2-active tags
     // table fails closed to an empty array: the log edit form, filled from this response, then
@@ -241,7 +251,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Log createLog(
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody LogCreateInput input) {
-    Exercise exercise = exerciseService.exercise(exerciseId);
+    Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     Log log = new Log();
     log.setUpdateAttributes(input);
     log.setExercise(exercise);
@@ -267,6 +277,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String logId,
       @Valid @RequestBody LogCreateInput input) {
+    requireSimulationInScope(ctx, exerciseId);
     Log log = logRepository.findById(logId).orElseThrow(ElementNotFoundException::new);
     log.setUpdateAttributes(input);
     log.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
@@ -283,6 +294,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void deleteLog(TxCtx ctx, @PathVariable String exerciseId, @PathVariable String logId) {
+    requireSimulationInScope(ctx, exerciseId);
     logRepository.deleteById(logId);
   }
 
@@ -299,6 +311,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Iterable<Comcheck> comchecks(TxCtx ctx, @PathVariable String exercise) {
+    requireSimulationInScope(ctx, exercise);
     return comcheckRepository.findAll(ComcheckSpecification.fromExercise(exercise));
   }
 
@@ -313,6 +326,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public Comcheck comcheck(
       TxCtx ctx, @PathVariable String exercise, @PathVariable String comcheck) {
+    requireSimulationInScope(ctx, exercise);
     return findComcheck(exercise, comcheck);
   }
 
@@ -333,6 +347,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public List<ComcheckStatus> comcheckStatuses(
       TxCtx ctx, @PathVariable String exercise, @PathVariable String comcheck) {
+    requireSimulationInScope(ctx, exercise);
     return findComcheck(exercise, comcheck).getComcheckStatus();
   }
 
@@ -347,7 +362,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public List<TeamOutput> getExerciseTeams(TxCtx ctx, @PathVariable String exerciseId) {
-    return this.exerciseService.getExerciseTeams(exerciseId);
+    return this.exerciseService.getExerciseTeams(ctx, exerciseId);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -363,7 +378,7 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String exerciseId,
       @Valid @RequestBody ExerciseUpdateTeamsInput input) {
-    return this.exerciseService.removeTeams(exerciseId, input.getTeamIds());
+    return this.exerciseService.removeTeams(ctx, exerciseId, input.getTeamIds());
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -379,7 +394,7 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String exerciseId,
       @Valid @RequestBody ExerciseUpdateTeamsInput input) {
-    return this.exerciseService.replaceTeams(exerciseId, input.getTeamIds());
+    return this.exerciseService.replaceTeams(ctx, exerciseId, input.getTeamIds());
   }
 
   @GetMapping({
@@ -392,6 +407,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public Iterable<RawPlayer> getPlayersByExercise(TxCtx ctx, @PathVariable String exerciseId) {
+    requireSimulationInScope(ctx, exerciseId);
     return userRepository.rawPlayersByExerciseId(exerciseId);
   }
 
@@ -411,7 +427,7 @@ public class ExerciseApi extends RestBehavior {
       @Valid @RequestBody ExerciseTeamPlayersEnableInput input) {
     Team team = teamService.teamInScope(ctx, teamId);
     return hydrateForResponse(
-        exerciseService.enablePlayers(exerciseId, team, input.getPlayersIds()));
+        exerciseService.enablePlayers(ctx, exerciseId, team, input.getPlayersIds()));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -438,7 +454,7 @@ public class ExerciseApi extends RestBehavior {
               exerciseTeamUserId.setUserId(playerId);
               exerciseTeamUserRepository.deleteById(exerciseTeamUserId);
             });
-    return hydrateForResponse(exerciseService.exercise(exerciseId));
+    return hydrateForResponse(exerciseService.exercise(ctx, exerciseId));
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -464,7 +480,7 @@ public class ExerciseApi extends RestBehavior {
     teamRepository.save(team);
     return hydrateForResponse(
         exerciseService.enablePlayers(
-            exerciseId, team, playersToAdd.stream().map(User::getId).toList()));
+            ctx, exerciseId, team, playersToAdd.stream().map(User::getId).toList()));
   }
 
   @PutMapping({
@@ -495,7 +511,7 @@ public class ExerciseApi extends RestBehavior {
               exerciseTeamUserId.setUserId(playerId);
               exerciseTeamUserRepository.deleteById(exerciseTeamUserId);
             });
-    return hydrateForResponse(exerciseService.exercise(exerciseId));
+    return hydrateForResponse(exerciseService.exercise(ctx, exerciseId));
   }
 
   // endregion
@@ -508,14 +524,15 @@ public class ExerciseApi extends RestBehavior {
     if (input == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exercise input cannot be null");
     }
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     Exercise exercise = new Exercise();
     exercise.setUpdateAttributes(input);
+    exercise.setTenant(new Tenant(tenantId));
     exercise.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     if (hasText(input.getCustomDashboard())) {
       exercise.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
     } else {
-      String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
       exercise.setCustomDashboard(
           this.tenantSettingsService
               .findSetting(tenantId, TenantSettingKeys.TENANT_SIMULATION_DASHBOARD.key())
@@ -551,7 +568,12 @@ public class ExerciseApi extends RestBehavior {
       description =
           "Duplicates a simulation's authored content. A chained simulation also gets a copy of its logic map (workflow, steps and conditions); execution artefacts - including its runtime-generated injects - are never copied. Requires an Enterprise Edition license when the simulation is chained.")
   public Exercise duplicateExercise(TxCtx ctx, @PathVariable @NotBlank final String exerciseId) {
-    return hydrateForResponse(exerciseService.duplicateExercise(exerciseId));
+    // A faithful copy keeps the targets the user is not cleared for; the response is read back
+    // under their clearance. The copy starts from a cleared persistence context, so the simulation
+    // is resolved in the request scope by id inside it.
+    String duplicateId =
+        faithfulCopy.execute(ctx, () -> exerciseService.duplicateExercise(ctx, exerciseId).getId());
+    return hydrateForResponse(exerciseService.exercise(duplicateId));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})
@@ -562,7 +584,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseInformation(
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody UpdateExerciseInput input) {
-    Exercise exercise = exerciseService.exercise(exerciseId);
+    Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
     exercise.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     exercise.setUpdateAttributes(input);
@@ -587,7 +609,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   @Deprecated(since = "1.16.0")
   public Exercise deprecatedUpdateExerciseStart(
-      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // ctx scopes the simulation read and, through the aspect, this transaction against the
       // v2-active executors table (throwIfExerciseNotLaunchable's Enterprise gate reads each
       // targeted agent's executor).
       TxCtx ctx,
@@ -597,7 +619,7 @@ public class ExerciseApi extends RestBehavior {
     // Calls the shared, non-@Transactional helper directly rather than the sibling endpoint
     // method: an intra-class call to a @Transactional method would bypass the Spring proxy
     // (self-invocation), silently losing this transaction/scope.
-    return doUpdateExerciseStart(exerciseId, input);
+    return doUpdateExerciseStart(ctx, exerciseId, input);
   }
 
   @PutMapping({
@@ -610,19 +632,20 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseStart(
-      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // ctx scopes the simulation read and, through the aspect, this transaction against the
       // v2-active executors table (throwIfExerciseNotLaunchable's Enterprise gate reads each
       // targeted agent's executor).
       TxCtx ctx,
       @PathVariable String exerciseId,
       @Valid @RequestBody ExerciseUpdateStartDateInput input)
       throws InputValidationException {
-    return doUpdateExerciseStart(exerciseId, input);
+    return doUpdateExerciseStart(ctx, exerciseId, input);
   }
 
-  private Exercise doUpdateExerciseStart(String exerciseId, ExerciseUpdateStartDateInput input)
+  private Exercise doUpdateExerciseStart(
+      TxCtx ctx, String exerciseId, ExerciseUpdateStartDateInput input)
       throws InputValidationException {
-    Exercise exercise = exerciseService.exercise(exerciseId);
+    Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     if (!exercise.getStatus().equals(ExerciseStatus.SCHEDULED)) {
       String message = "Change date is only possible in scheduling state";
       throw new InputValidationException("exercise_start_date", message);
@@ -643,7 +666,7 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String exerciseId,
       @Valid @RequestBody ExerciseUpdateTagsInput input) {
-    Exercise exercise = exerciseService.exercise(exerciseId);
+    Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     Set<Tag> currentTagList = exercise.getTags();
     exercise.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return hydrateForResponse(
@@ -660,7 +683,7 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable String exerciseId,
       @Valid @RequestBody ExerciseUpdateLogoInput input) {
-    Exercise exercise = exerciseService.exercise(exerciseId);
+    Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     exercise.setLogoDark(documentRepository.findById(input.getLogoDark()).orElse(null));
     exercise.setLogoLight(documentRepository.findById(input.getLogoLight()).orElse(null));
     return hydrateForResponse(
@@ -701,7 +724,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Exercise updateExerciseLessons(
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody LessonsInput input) {
-    Exercise exercise = exerciseService.exercise(exerciseId);
+    Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     // Partial update: absent fields keep their current value (older API consumers
     // only send lessons_anonymized and must not reset the enabled flag).
     if (input.getLessonsAnonymized() != null) {
@@ -720,7 +743,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional
   public void deleteExercise(TxCtx ctx, @PathVariable String exerciseId) {
-    exerciseService.deleteById(exerciseId);
+    exerciseService.deleteById(ctx, exerciseId);
   }
 
   @Operation(
@@ -746,7 +769,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(readOnly = true)
   public SimulationDetails exercise(TxCtx ctx, @PathVariable String exerciseId) {
     // We get the raw exercise
-    RawSimulationIndexing rawSimulation = exerciseService.rawSimulation(exerciseId);
+    RawSimulationIndexing rawSimulation = exerciseService.rawSimulation(ctx, exerciseId);
     // We get aggregated inject metadata: platforms, comms count, kill chain phases
     long communicationsNumber = communicationRepository.countByExerciseId(exerciseId);
     List<KillChainPhase> killChainPhases =
@@ -833,7 +856,7 @@ public class ExerciseApi extends RestBehavior {
   public List<ExpectationResultsByType> globalResults(
       TxCtx ctx, @NotBlank @PathVariable String exerciseId) {
     // Validate tenant isolation before querying cross-tenant-safe repository method
-    exerciseService.existsByIdAndTenantId(exerciseId);
+    exerciseService.existsInScope(ctx, exerciseId);
     return exerciseService.getGlobalResults(exerciseId);
   }
 
@@ -858,7 +881,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public List<InjectExpectationResultsByAttackPattern> injectResults(
       TxCtx ctx, @NotBlank final @PathVariable String exerciseId) {
-    return exerciseService.extractExpectationResultsByAttackPattern(exerciseId);
+    return exerciseService.extractExpectationResultsByAttackPattern(ctx, exerciseId);
   }
 
   @DeleteMapping({
@@ -872,7 +895,7 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Exercise deleteDocument(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String documentId) {
-    Exercise exercise = exerciseService.exercise(exerciseId);
+    Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     exercise.setUpdatedAt(now());
     Document doc =
         documentRepository.findById(documentId).orElseThrow(ElementNotFoundException::new);
@@ -905,7 +928,7 @@ public class ExerciseApi extends RestBehavior {
       actionPerformed = Action.LAUNCH,
       resourceType = ResourceType.SIMULATION)
   public Exercise changeExerciseStatus(
-      // ctx is unused directly: the aspect reads it to scope this transaction against the
+      // ctx scopes the simulation read and, through the aspect, this transaction against the
       // v2-active executors table (throwIfExerciseNotLaunchable's Enterprise gate reads each
       // targeted agent's executor).
       TxCtx ctx,
@@ -913,7 +936,7 @@ public class ExerciseApi extends RestBehavior {
       @Valid @RequestBody ExerciseUpdateStatusInput input)
       throws ChainingException {
     ExerciseStatus status = input.getStatus();
-    return hydrateForResponse(exerciseService.changeExerciseStatus(status, exerciseId));
+    return hydrateForResponse(exerciseService.changeExerciseStatus(ctx, status, exerciseId));
   }
 
   @LogExecutionTime
@@ -921,7 +944,7 @@ public class ExerciseApi extends RestBehavior {
   @GetMapping({EXERCISE_URI, TENANT_EXERCISE_URI})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.SIMULATION)
   public List<ExerciseSimple> exercises(TxCtx ctx) {
-    return exerciseService.exercises();
+    return exerciseService.exercises(ctx);
   }
 
   @LogExecutionTime
@@ -933,7 +956,7 @@ public class ExerciseApi extends RestBehavior {
       description = "Get the simulations with the specified ids if you have the right to see them")
   public List<ExerciseSimple> simulationsById(
       TxCtx ctx, @RequestBody final GetExercisesInput getExercisesInput) {
-    return exerciseService.exercises(getExercisesInput.getExerciseIds());
+    return exerciseService.exercises(ctx, getExercisesInput.getExerciseIds());
   }
 
   @LogExecutionTime
@@ -943,32 +966,17 @@ public class ExerciseApi extends RestBehavior {
   public Page<ExerciseSimple> exercises(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     Map<String, Join<Base, Base>> joinMap = new HashMap<>();
-    User currentUser = userService.currentUser();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_ASSESSMENT)) {
-      return buildPaginationCriteriaBuilder(
-          (Specification<Exercise> specification,
-              Specification<Exercise> specificationCount,
-              Pageable pageable) ->
-              this.exerciseService.exercises(specification, specificationCount, pageable, joinMap),
-          searchPaginationInput,
-          Exercise.class,
-          joinMap);
-
-    } else {
-      return buildPaginationCriteriaBuilder(
-          (Specification<Exercise> specification,
-              Specification<Exercise> specificationCount,
-              Pageable pageable) ->
-              this.exerciseService.exercises(
-                  findGrantedFor(currentUser().getId()).and(specification),
-                  findGrantedFor(currentUser().getId()).and(specificationCount),
-                  pageable,
-                  joinMap),
-          searchPaginationInput,
-          Exercise.class,
-          joinMap);
-    }
+    Specification<Exercise> readable =
+        exerciseService.readableInEachTenant(ctx, userService.currentUser());
+    return buildPaginationCriteriaBuilder(
+        (Specification<Exercise> specification,
+            Specification<Exercise> specificationCount,
+            Pageable pageable) ->
+            this.exerciseService.exercises(
+                readable.and(specification), readable.and(specificationCount), pageable, joinMap),
+        searchPaginationInput,
+        Exercise.class,
+        joinMap);
   }
 
   // endregion
@@ -985,7 +993,7 @@ public class ExerciseApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public Iterable<Communication> exerciseCommunications(
       TxCtx ctx, @PathVariable String exerciseId) {
-    Exercise exercise = exerciseService.exercise(exerciseId);
+    Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     List<Communication> communications = new ArrayList<>();
     exercise
         .getInjects()
@@ -1026,9 +1034,13 @@ public class ExerciseApi extends RestBehavior {
       @RequestParam(required = false, defaultValue = "true") final boolean isWithScopeDefinition,
       HttpServletResponse response)
       throws IOException {
-    Exercise exercise = exerciseService.exercise(exerciseId);
+    Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     int exportOptionsMask = ExportOptions.mask(isWithPlayers, isWithTeams, isWithVariableValues);
-    boolean isChaining = workflowService.isSimulationChaining(exerciseId);
+    // The file name says whether the simulation is chained, read in the simulation's own tenant
+    // whatever the caller's scope. The export reads its workflow in that tenant too, and every
+    // other table it serialises under the request's scope, see ExportService#exportExerciseToZip.
+    boolean isChaining =
+        workflowOwnerScope.call(exercise, () -> workflowService.isSimulationChaining(exerciseId));
 
     byte[] zippedExport =
         exportService.exportExerciseToZip(exercise, exportOptionsMask, isWithScopeDefinition);
@@ -1072,7 +1084,7 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @Valid @RequestBody final CheckExerciseRulesInput input) {
-    Exercise exercise = this.exerciseService.exercise(exerciseId);
+    Exercise exercise = this.exerciseService.exercise(ctx, exerciseId);
     return CheckExerciseRulesOutput.builder()
         .rulesFound(this.exerciseService.checkIfTagRulesApplies(exercise, input.getNewTags()))
         .build();
@@ -1211,7 +1223,7 @@ public class ExerciseApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the simulation")
           final String simulationId) {
-    Scenario scenario = scenarioService.scenarioFromSimulationId(simulationId);
+    Scenario scenario = scenarioService.scenarioFromSimulationId(ctx, simulationId);
     KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
     // Same open-in-view reason as hydrateForResponse: scenario_teams would serialize empty.
     Hibernate.initialize(scenario.getTeams());

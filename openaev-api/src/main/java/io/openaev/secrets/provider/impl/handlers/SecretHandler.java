@@ -34,4 +34,15 @@ public interface SecretHandler {
   default SecretConnectionResult validateConnection(Secret secret) {
     return SecretConnectionResult.unsupported();
   }
+
+  /**
+   * Applies the "null = untouched, blank = clear" rule of the optional text fields: a blank value
+   * removes the stored one, so a user can drop an override and fall back to the official endpoint.
+   *
+   * @param value the value of the request, null when the client left the field untouched
+   * @return {@code null} for a blank value, the value itself otherwise
+   */
+  static String blankToNull(String value) {
+    return value == null || value.isBlank() ? null : value;
+  }
 }

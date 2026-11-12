@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.model.hash.Hashed;
 import io.openaev.helper.MonoIdSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -21,9 +22,11 @@ public class Executable extends Payload {
 
   public static final String EXECUTABLE_TYPE = "Executable";
 
+  @Hashed
   @JsonProperty("payload_type")
   private String type = EXECUTABLE_TYPE;
 
+  @Hashed
   @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "executable_file")
   @JsonSerialize(using = MonoIdSerializer.class)

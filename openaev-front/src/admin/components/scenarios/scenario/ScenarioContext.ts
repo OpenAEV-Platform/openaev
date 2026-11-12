@@ -3,10 +3,10 @@ import { useMemo, useState } from 'react';
 import { addInjectForScenario, deleteInjectScenario, fetchScenarioInjects, updateInjectActivationForScenario, updateInjectForScenario } from '../../../../actions/Inject';
 import { bulkTestInjects } from '../../../../actions/inject_test/scenario-inject-test-actions';
 import { type InjectOutputType, type InjectStore } from '../../../../actions/injects/Inject';
-import { dryImportXlsForScenario, fetchScenario, fetchScenarioTeams, importXlsForScenario } from '../../../../actions/scenarios/scenario-actions';
+import { dryImportXlsForScenario, fetchScenario, fetchScenarioTeams, importXlsForScenario, storeXlsForScenario } from '../../../../actions/scenarios/scenario-actions';
 import { bulkDeleteInjectsForScenario, bulkUpdateInjectForScenario, createInjectsForScenario, importInjectsForScenario, searchScenarioInjectsSimple } from '../../../../actions/scenarios/scenario-inject-actions';
 import { type Page } from '../../../../components/common/queryable/Page';
-import { type ImportTestSummary, type Inject, type InjectBulkProcessingInput, type InjectBulkUpdateInputs, type InjectInput, type InjectsImportInput, type InjectTestStatusOutput, type Scenario, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type ImportPostSummary, type ImportTestSummary, type Inject, type InjectBulkProcessingInput, type InjectBulkUpdateInputs, type InjectInput, type InjectsImportInput, type InjectTestStatusOutput, type Scenario, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 
 const injectContextForScenario = (scenario: Scenario) => {
@@ -59,6 +59,9 @@ const injectContextForScenario = (scenario: Scenario) => {
         dispatch(fetchScenarioTeams(scenario.scenario_id));
         resolve(response.data);
       }));
+    },
+    onStoreXlsFile(file: File): Promise<ImportPostSummary> {
+      return storeXlsForScenario(scenario.scenario_id, file).then(result => result.data);
     },
     onImportInjectFromXls(importId: string, input: InjectsImportInput): Promise<ImportTestSummary> {
       return importXlsForScenario(scenario.scenario_id, importId, input).then(response => new Promise((resolve, _reject) => {

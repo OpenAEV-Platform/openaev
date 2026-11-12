@@ -1423,7 +1423,14 @@ class FindingApiTest extends IntegrationTest {
       private static final String SECRET_CREDENTIALS = "admin:motdepasse";
       private static final String DISPLAYED_CREDENTIALS = "admin:mo" + MASK;
 
+      // Text search also reads the inject title, and the default fixture titles an inject
+      // "inject-<random UUID>": a UUID holds the hex pair "ab" about one run in nine, which made
+      // the "bob:abc" / "ab" case match through the title instead of the value (main red on
+      // 3838cec2). A fixed title that shares no searched fragment keeps every case about the value.
+      private static final String INJECT_TITLE = "Sensitive finding inject";
+
       private Finding persistFinding(Finding finding) {
+        injectWrapper.get().setTitle(INJECT_TITLE);
         return findingComposer
             .forFinding(finding)
             .withEndpoint(endpointComposer.forEndpoint(savedEndpoint))

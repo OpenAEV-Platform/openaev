@@ -2,7 +2,9 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -11,6 +13,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ConditionRepository extends JpaRepository<Condition, String> {
+
+  Optional<Condition> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   /**
    * Retrieves all {@link Condition} entities associated with the specified step ID through the link

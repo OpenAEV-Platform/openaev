@@ -1,6 +1,8 @@
 package io.openaev.architecture;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
@@ -20,7 +22,6 @@ import io.openaev.api.notification_trigger.NotificationTriggerMapper;
 import io.openaev.api.notifier.NotifierApi;
 import io.openaev.api.payload.PayloadApiExporter;
 import io.openaev.api.xtmhub.XtmHubApi;
-import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.model.Article;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.CatalogConnector;
@@ -31,18 +32,25 @@ import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTrigger;
+import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Vulnerability;
 import io.openaev.database.model.Widget;
 import io.openaev.database.model.attackpath.AttackPathExecution;
+import io.openaev.database.model.payload.HasPayloadIdentity;
+import io.openaev.database.model.payload.PayloadDeleteGuard;
+import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.AssetAgentJobRepository;
 import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.CatalogItemRepository;
+import io.openaev.database.repository.CatalogReleaseRepository;
 import io.openaev.database.repository.ChallengeRepository;
 import io.openaev.database.repository.ChannelRepository;
 import io.openaev.database.repository.CollectorRepository;
 import io.openaev.database.repository.CollectorTypeRepository;
+import io.openaev.database.repository.ConditionRepository;
 import io.openaev.database.repository.ConnectorInstanceRepository;
 import io.openaev.database.repository.CustomDashboardRepository;
 import io.openaev.database.repository.CustomDomainRepository;
@@ -69,13 +77,19 @@ import io.openaev.database.repository.PhishingResultRepository;
 import io.openaev.database.repository.ReportingGenerationRepository;
 import io.openaev.database.repository.ReportingRepository;
 import io.openaev.database.repository.ReportingScheduleRepository;
+import io.openaev.database.repository.ScopeVariableRepository;
 import io.openaev.database.repository.SecurityCoverageRepository;
+import io.openaev.database.repository.StepDelayQueueRepository;
+import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.TagRuleRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
 import io.openaev.database.repository.VulnerabilityRepository;
 import io.openaev.database.repository.WidgetRepository;
+import io.openaev.database.repository.WorkflowRepository;
+import io.openaev.database.repository.WorkflowScopeRuleRepository;
+import io.openaev.database.repository.WorkflowStateRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionCollectorRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRemediationRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
@@ -236,6 +250,8 @@ import io.openaev.service.autonomous.AutonomousRunReconciliationWriter;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.AutonomousTimeoutService;
 import io.openaev.service.autonomous.CapabilityResolverService;
+import io.openaev.service.catalog.CatalogListService;
+import io.openaev.service.catalog.CatalogService;
 import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.chaining.WorkflowEndService;
 import io.openaev.service.connector_instances.ConnectorInstanceService;
@@ -254,6 +270,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.stix.SecurityCoverageService;
 import io.openaev.service.targets.search.AgentTargetSearchAdaptor;
 import io.openaev.service.threat_arsenal.ThreatArsenalImportService;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.telemetry.metric_collectors.InventoryMetricCollector;
 import io.openaev.telemetry.metric_collectors.PlatformAdoptionMetricCollector;
 import io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector;
@@ -273,6 +290,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -356,7 +374,18 @@ class TenantActiveTableAccessArchTest {
           "teams",
           "attack_patterns",
           "agents",
-          "autonomous_objective_templates");
+          "autonomous_objective_templates",
+          "catalog_items",
+          "catalog_releases",
+          "parameters",
+          "payload_identities",
+          "workflows",
+          "steps",
+          "conditions",
+          "scope_variables",
+          "steps_delay_queue",
+          "workflow_scope_rules",
+          "workflow_states");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -389,16 +418,85 @@ class TenantActiveTableAccessArchTest {
             .map(java.lang.reflect.Field::getName)
             .collect(Collectors.toSet());
     Set<String> missingRule =
-        active.stream()
-            .filter(t -> !TABLES_OWING_AN_ACCESSOR_RULE.contains(t))
-            .filter(t -> declaredRules.stream().noneMatch(r -> r.startsWith(t + "_")))
-            .collect(Collectors.toSet());
+        tablesWithoutAccessorRule(
+            active, declaredRules, TABLES_OWING_AN_ACCESSOR_RULE, TABLES_GUARDED_BY_OTHER_RULES);
     assertTrue(
         missingRule.isEmpty(),
         "these active tables have no accessor rule in this class, so nothing constrains who reads"
             + " them: "
             + missingRule
             + ". Add a <table>_repository_access_is_reviewed rule with an explicit allowlist.");
+  }
+
+  /**
+   * The active tables that have no {@code <table>_repository_access_is_reviewed} rule among {@code
+   * declaredRules} and are not in {@code owing}. The rule name is matched in full: a table name is
+   * often the prefix of another one ({@code steps} and {@code steps_delay_queue}), and a prefix
+   * match would let the longer table's rule stand in for the shorter table's missing one. A table
+   * of {@code guardedByOtherRules} counts as guarded only when every rule named for it is declared.
+   */
+  static Set<String> tablesWithoutAccessorRule(
+      Set<String> active,
+      Set<String> declaredRules,
+      Set<String> owing,
+      Map<String, Set<String>> guardedByOtherRules) {
+    return active.stream()
+        .filter(t -> !owing.contains(t))
+        .filter(t -> !declaredRules.contains(t + "_repository_access_is_reviewed"))
+        .filter(
+            t ->
+                !guardedByOtherRules.containsKey(t)
+                    || !declaredRules.containsAll(guardedByOtherRules.get(t)))
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * Active tables guarded by rules other than a repository access rule, with those rules. {@code
+   * parameters} is dual-scope: a platform row is readable under any scope, so its guard follows its
+   * writers and the readers of its tenant rows instead of its repository.
+   */
+  private static final Map<String, Set<String>> TABLES_GUARDED_BY_OTHER_RULES =
+      Map.of(
+          "parameters",
+          Set.of(
+              "parameters_platform_row_writers_run_under_platform_write",
+              "parameters_tenant_row_readers_off_the_request_thread"));
+
+  @ArchTest
+  static void the_accessor_rule_of_a_table_is_matched_by_its_full_name(JavaClasses classes) {
+    // Each active table below is the prefix of another one whose rule exists; neither borrowed
+    // rule may count as its own.
+    assertEquals(
+        Set.of("steps", "attackpath_execution"),
+        tablesWithoutAccessorRule(
+            Set.of(
+                "steps",
+                "steps_delay_queue",
+                "attackpath_execution",
+                "attackpath_execution_collector"),
+            Set.of(
+                "steps_delay_queue_repository_access_is_reviewed",
+                "attackpath_execution_collector_repository_access_is_reviewed"),
+            Set.of(),
+            Map.of()));
+  }
+
+  @ArchTest
+  static void a_table_guarded_by_other_rules_counts_only_when_each_of_them_exists(
+      JavaClasses classes) {
+    Map<String, Set<String>> guardedByOtherRules =
+        Map.of("parameters", Set.of("parameters_writers", "parameters_readers"));
+    assertEquals(
+        Set.of(),
+        tablesWithoutAccessorRule(
+            Set.of("parameters"),
+            Set.of("parameters_writers", "parameters_readers"),
+            Set.of(),
+            guardedByOtherRules));
+    assertEquals(
+        Set.of("parameters"),
+        tablesWithoutAccessorRule(
+            Set.of("parameters"), Set.of("parameters_writers"), Set.of(), guardedByOtherRules));
   }
 
   /**
@@ -559,31 +657,20 @@ class TenantActiveTableAccessArchTest {
               // as the two datapacks above (MigrationProcessor -> tenantTx.execute/
               // setScopeOnCurrentTransaction with TxCtx.forTenant(...)), so it needs no waiver.
               V20261002_Default_group_markings.class,
-              // Background primitive: reads the tenant's markings to assign the system clearance a
-              // background transaction runs at (all markings of the tenants in scope — a scheduler
-              // is not a user). Scoped, and in the strongest sense the rule asks for: the read
-              // happens INSIDE the transaction and AFTER setScope() has written
-              // app.current_tenants, so the inspector rewrites it with can_access_tenant, and the
-              // query additionally binds the same tenant ids explicitly. Cannot deadlock against
-              // its own dimension either: marking_definitions is deliberately NOT on
-              // openaev.marking.active-tables (design Q13 — the clearance source must not itself
-              // require a clearance), so no marking predicate applies to this read while the
-              // marking scope is still being computed. Pinned by
-              // TenantScopedTransactionMarkingScopeTest:
-              TenantScopedTransaction.class,
               // Resolves the markings a group is being told to grant. Runs on the HTTP path inside
               // a @Transactional method that takes a TxCtx, so app.current_tenants is already set
               // and the inspector rewrites the read with can_access_tenant: a marking id belonging
               // to another tenant does not come back, and the size mismatch becomes a 404 rather
               // than a silent partial assignment.
               //
-              // 🔴 The inspector is NOT relied on alone here, and the reason is worth knowing: it
-              // can only rewrite a query that is actually issued, so an entity already in the
-              // persistence context is served from Hibernate's first-level cache and never
-              // filtered (TenantGroupMarkingsApiTest demonstrates exactly this). The independent
-              // guarantee is MarkingEscalationValidator — a clearance is per tenant, so nobody
-              // holds another tenant's marking and the assignment is refused regardless. Pinned by
-              // TenantGroupMarkingsApiTest:
+              // 🔴 The inspector is NOT relied on alone here. In the configuration
+              // TenantGroupMarkingsApiTest actually exercises, marking_definitions is left ungated
+              // and the escalation guard alone refuses the foreign marking; under the table's real,
+              // unconditionally-active configuration the inspector also rewrites this same
+              // findAllById, and the foreign row never comes back before the escalation guard is
+              // reached. Either way the assignment is refused, since a clearance is per tenant. See
+              // that test's own comment for the confirmed behavior under both configurations.
+              // Pinned by TenantGroupMarkingsApiTest:
               TenantGroupService.class,
               // Resolves the markings an asset is being labelled with. Same shape as
               // TenantGroupService above: HTTP path, inside a @Transactional method taking a TxCtx,
@@ -1249,6 +1336,11 @@ class TenantActiveTableAccessArchTest {
               // (setScopeOnCurrentTransaction(forTenant(...))) before reading getInjector(), so the
               // lazy load resolves under a real scope instead of fail-closing to null:
               ScenarioToExerciseService.class,
+              // Reads the injector type of an inject a user just created, updated or duplicated.
+              // Every caller runs under its HTTP entrypoint's TxCtx-scoped transaction (inject,
+              // atomic testing, simulation, scenario and autonomous run APIs), so the lazy load
+              // resolves; a miss would only export "unknown":
+              CredentialMetricCollector.class,
               // --- PRE_EXISTING_UNVERIFIED_CALLERS (tracked follow-up, see comment above) ---
               InjectExecutionStep.class,
               AttackPathExecution.class,
@@ -2108,6 +2200,12 @@ class TenantActiveTableAccessArchTest {
               PayloadService.class,
               PayloadUpdateService.class,
               PayloadUpsertService.class,
+              // Delete guard, run by Hibernate inside the payload, contract and threat arsenal
+              // deletes, all TxCtx-carrying:
+              PayloadDeleteGuard.class,
+              // Hashes legacy payloads on import, inside the scoped import transaction and with an
+              // explicit tenantId:
+              io.openaev.service.payload.PayloadContentHashService.class,
               // Reads the payload behind an inject's detection remediations; scoped by
               // InjectApi#getPayloadDetectionRemediations, which carries TxCtx:
               InjectService.class,
@@ -2190,6 +2288,34 @@ class TenantActiveTableAccessArchTest {
           .because(
               "reportings is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule catalog_items_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Called by the catalogue API and sync, inside their scoped transactions:
+              CatalogService.class, CatalogListService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(CatalogItemRepository.class)
+          .because(
+              "catalog_items is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule catalog_releases_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Same, for the releases received:
+              CatalogService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(CatalogReleaseRepository.class)
+          .because(
+              "catalog_releases is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 
   @ArchTest
   static final ArchRule reporting_generations_repository_access_is_reviewed =
@@ -2309,4 +2435,261 @@ class TenantActiveTableAccessArchTest {
               "autonomous_objective_templates is tenant-active: an accessor without a tenant scope"
                   + " silently reads zero rows, and the seed it drives would attribute its rows to"
                   + " the wrong tenant. New accessors must carry a scope and be allowlisted here");
+
+  /**
+   * {@code parameters} (entity {@code Setting}) is dual-scope, not strict: a platform row ({@code
+   * tenant_id IS NULL}) is readable under any scope, the empty one included, so reads need no
+   * review here. What a tenant must never do is WRITE it: only a platform-write transaction ({@code
+   * io.openaev.aop.PlatformWrite}, {@code TenantScopedTransaction#executeAsPlatformWrite}/{@code
+   * executeNewAsPlatformWrite}) may, and a refused write raises. So the guard follows the writers:
+   * every method that modifies a {@code Setting} (see {@link PlatformRowWriters}), directly or
+   * through {@code SettingService} and {@code PlatformSettingsService}, is reached only through
+   * such a marker. The methods of {@link PlatformRowWriters#TENANT_ROW_WRITERS} write tenant rows
+   * only, each with its reason. A tenant row read with no scope still comes back empty; the readers
+   * of tenant rows are covered by {@link #parameters_tenant_row_readers_off_the_request_thread}.
+   *
+   * <p>Covered, as a call or as a method reference: the settings repository writes (saveAll
+   * included), a setter of a {@code Setting} (dirty checking), an {@code EntityManager} / {@code
+   * Session} write of a {@code Setting}, a query {@code executeUpdate} and a JDBC statement whose
+   * text names the table, a {@code @Modifying} query of another repository naming it. Not covered:
+   * Flyway migrations, a statement assembled at run time, a {@code Setting} handled as {@code
+   * Object}, reflection, a write reached only through an interface call or an event dispatch, and
+   * which lambda or method reference is the one handed to the primitive (its creator method
+   * decides). At run time the database refuses a platform row written outside a platform-write
+   * transaction: {@code require_tenant_write} for what goes through Hibernate and a row trigger on
+   * {@code parameters} for raw JDBC (both pinned by {@code PlatformSettingsUnscopedAccessTest}).
+   * The full list is in {@link PlatformRowWriters}.
+   */
+  @ArchTest
+  static final ArchRule parameters_platform_row_writers_run_under_platform_write =
+      methods()
+          .that(PlatformRowWriters.writeASetting(PlatformRowWriters.TENANT_ROW_WRITERS))
+          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite())
+          .because(
+              "parameters is dual-scope: a write of a platform row outside a platform-write"
+                  + " transaction is refused with an error. Every writer the rule can see (settings"
+                  + " repository writes, Setting setters, EntityManager/Session writes, statements"
+                  + " naming the table, as a call or a method reference) must sit under"
+                  + " @PlatformWrite or executeAsPlatformWrite/executeNewAsPlatformWrite. Not seen"
+                  + " here: migrations, run-time-built statements, a Setting handled as Object,"
+                  + " reflection, a write reached only through an interface call or an event"
+                  + " dispatch, and which lambda or method reference is the one handed to the"
+                  + " primitive (the creator method is what counts). The database refusal covers"
+                  + " what the rule misses only when it goes through Hibernate");
+
+  /**
+   * Each tenant-row-only exemption is still a method that modifies a {@code Setting}, and still
+   * touches tenant rows only ({@link PlatformRowWriters#tenantRowOnlyViolations}): an entry for a
+   * method that no longer writes, or that gained a path to a platform row, would stay behind as an
+   * unexplained hole in the guard above.
+   */
+  @ArchTest
+  static void parameters_tenant_row_writer_exemptions_are_live(JavaClasses classes) {
+    for (PlatformRowWriters.TenantRowWriter exemption : PlatformRowWriters.TENANT_ROW_WRITERS) {
+      java.util.List<com.tngtech.archunit.core.domain.JavaMethod> exempted =
+          classes.stream()
+              .filter(c -> c.isAssignableTo(exemption.owner()))
+              .flatMap(c -> c.getMethods().stream())
+              .filter(m -> PlatformRowWriters.isTenantRowWriter(m, java.util.List.of(exemption)))
+              .toList();
+      assertTrue(
+          exempted.stream().anyMatch(PlatformRowWriters::writesASetting),
+          () ->
+              exemption.owner().getSimpleName()
+                  + "#"
+                  + exemption.method()
+                  + exemption.parameterTypes().stream().map(Class::getSimpleName).toList()
+                  + " is exempted as a tenant-row-only writer but no longer modifies a Setting:"
+                  + " remove the entry");
+      for (com.tngtech.archunit.core.domain.JavaMethod method : exempted) {
+        java.util.List<String> violations = PlatformRowWriters.tenantRowOnlyViolations(method);
+        assertTrue(
+            violations.isEmpty(),
+            () ->
+                "an exempted tenant-row-only writer reaches more than tenant rows: "
+                    + violations
+                    + ". Mark its callers with the platform-write marker and remove the entry");
+      }
+    }
+  }
+
+  /**
+   * A tenant row of {@code parameters} read with no tenant scope comes back empty, silently: the
+   * platform rows are readable under any scope, the tenant rows are not. Every method that reads
+   * one (any repository read not named for the platform row) must be reached on every path through
+   * a tenant scope: a {@code @Transactional} method with a {@code TxCtx} parameter (HTTP and
+   * request-bound services), a {@code TenantScopedTransaction} primitive around the work (jobs,
+   * startup, consumers) or {@code setScopeOnCurrentTransaction} before the read. A reader reached
+   * from a root that sets none is a defect, not a baseline entry.
+   */
+  @ArchTest
+  static final ArchRule parameters_tenant_row_readers_off_the_request_thread =
+      methods()
+          .that(PlatformRowWriters.readATenantRowOfSettings())
+          .should(PlatformRowWriters.beReachedOnlyUnderATenantScope())
+          .because(
+              "a tenant row of the dual-scope parameters table read with no scope comes back empty"
+                  + " instead of failing");
+
+  /**
+   * {@code @PlatformWrite} is read by {@code TenantScopeTransactionAspect} only on a method
+   * annotated {@code @Transactional} that takes a {@code TxCtx}; anywhere else it marks nothing
+   * while looking like it does.
+   */
+  @ArchTest
+  static final ArchRule platform_write_is_honoured_only_on_a_transactional_method_with_a_tx_ctx =
+      methods()
+          .that()
+          .areAnnotatedWith(io.openaev.aop.PlatformWrite.class)
+          .should(PlatformRowWriters.beHonouredByTheAspect())
+          .because(
+              "the aspect sets app.platform_write only for a @Transactional method with a TxCtx"
+                  + " parameter");
+
+  @ArchTest
+  static final ArchRule payload_identities_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // No repository: an identity is only read and written through its payload.
+              Payload.class, HasPayloadIdentity.class, InjectorContract.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(PayloadIdentity.class)
+          .because(
+              "payload_identities is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule workflows_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Chaining engine services. HTTP reach is through the TxCtx-carrying chaining and
+              // simulation entrypoints, pinned by TenantScopedEntrypointsTxCtxArchTest; background
+              // reach is through QueueChainingJob (allTenants() poll, forTenant per entry),
+              // WorkflowTimeoutJob (allTenants() poll, forTenant per run), the step event consumers
+              // (forTenant of the event) and InjectsFinalizationJob (per-tenant block):
+              io.openaev.service.chaining.WorkflowService.class,
+              io.openaev.service.chaining.WorkflowEndService.class,
+              io.openaev.service.chaining.WorkflowResumeService.class,
+              io.openaev.service.chaining.ConditionService.class,
+              // Reads a run's own tenant_id by primary key to stamp its ready events; like its
+              // other reads, it sees the run only when the caller's scope includes its tenant:
+              io.openaev.service.chaining.QueueChainingService.class,
+              // Attack-path seeding, reached only from the TxCtx-carrying AttackPathApi:
+              io.openaev.service.attackpath.AttackPathCausalSeedService.class,
+              // Background telemetry: counts across all tenants explicitly (countAcrossAllTenants):
+              io.openaev.telemetry.metric_collectors.ProductInventoryMetricCollector.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(WorkflowRepository.class)
+          .because(
+              "workflows is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule steps_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Chaining engine services, reached as described on the workflows rule:
+              io.openaev.service.chaining.StepService.class,
+              io.openaev.service.chaining.StepEventService.class,
+              io.openaev.service.chaining.ConditionService.class,
+              io.openaev.service.chaining.ChainingStepCleanupService.class,
+              io.openaev.service.chaining.QueueChainingService.class,
+              // Attack-path graph and seeding, reached only from the TxCtx-carrying AttackPathApi:
+              io.openaev.service.attackpath.AttackPathGraphService.class,
+              io.openaev.service.attackpath.AttackPathCausalSeedService.class,
+              // Takes a reference by id to link a phishing result to its step, no read:
+              io.openaev.injectors.phishing.service.PhishingTrackingService.class,
+              // Existence check inside the TxCtx-carrying injector contract entrypoints:
+              io.openaev.rest.injector_contract.InjectorContractService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(StepRepository.class)
+          .because(
+              "steps is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule conditions_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Chaining engine services, reached as described on the workflows rule:
+              io.openaev.service.chaining.ConditionService.class,
+              io.openaev.service.chaining.WorkflowStateService.class,
+              // Attack-path graph and seeding, reached only from the TxCtx-carrying AttackPathApi:
+              io.openaev.service.attackpath.AttackPathGraphService.class,
+              io.openaev.service.attackpath.AttackPathCausalSeedService.class,
+              // Export path, reached from the TxCtx-carrying simulation and scenario exports:
+              io.openaev.export.WorkflowExportInitializer.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ConditionRepository.class)
+          .because(
+              "conditions is tenant-active: an accessor without a tenant scope silently reads zero"
+                  + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule scope_variables_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Sole accessor, keyed by workflow, inside the engine's scoped transaction:
+              io.openaev.service.chaining.WorkflowService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(ScopeVariableRepository.class)
+          .because(
+              "scope_variables is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule steps_delay_queue_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Sole accessor. The due-entry poll runs under QueueChainingJob's allTenants()
+              // scope, each popped entry under forTenant of its run:
+              io.openaev.service.chaining.StepDelayQueueService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(StepDelayQueueRepository.class)
+          .because(
+              "steps_delay_queue is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule workflow_scope_rules_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Chaining engine services, reached as described on the workflows rule:
+              io.openaev.service.chaining.WorkflowService.class,
+              io.openaev.service.chaining.ScopeService.class,
+              // BEFORE_COMMIT listener, runs in the deleting request's scoped transaction:
+              io.openaev.service.chaining.WorkflowScopeRuleCascadeListener.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(WorkflowScopeRuleRepository.class)
+          .because(
+              "workflow_scope_rules is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule workflow_states_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Sole accessor, keyed by run, inside the step event consumers' forTenant scope:
+              io.openaev.service.chaining.WorkflowStateStore.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(WorkflowStateRepository.class)
+          .because(
+              "workflow_states is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
 }

@@ -22,8 +22,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.Hibernate;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.Immutable;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -34,7 +36,7 @@ import org.hibernate.annotations.UuidGenerator;
 @NamedEntityGraphs({
   @NamedEntityGraph(
       name = "Player.tags-organization",
-      attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("organization")})
+      attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("organizations")})
 })
 public class User implements Base {
 
@@ -178,14 +180,88 @@ public class User implements Base {
   @Schema(description = "Update date of the user", accessMode = Schema.AccessMode.READ_ONLY)
   private Instant updatedAt = now();
 
-  @Setter
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "user_organization")
-  @JsonSerialize(using = MonoIdSerializer.class)
+  /**
+   * A user is platform-level while an organization belongs to one tenant, so a user holds at most
+   * one organization per tenant.
+   *
+   * <p>Inverse side of {@code users_organizations}: Hibernate never writes it, this set is only a
+   * read view. A flush of the owning collection would delete every row of the user as soon as the
+   * organizations in scope are all removed, wiping the ones of the tenants out of scope. The table
+   * is written by {@link io.openaev.database.repository.UserRepository#assignOrganization}.
+   */
+  @ManyToMany(mappedBy = "users", fetch = FetchType.LAZY)
+  @Fetch(FetchMode.SUBSELECT)
+  @JsonIgnore
+  @Getter(NONE)
+  private Set<Organization> organizations = new HashSet<>();
+
+  /**
+   * Serialized as {@code user_organization}: the single organization of the user in the current
+   * tenant, or {@code null} when the user has none there (or when the organization is out of the
+   * caller's tenant scope).
+   */
   @JsonProperty("user_organization")
-  @Queryable(dynamicValues = true, filterable = true, sortable = true, path = "organization.id")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @Queryable(dynamicValues = true, filterable = true, path = "organizations.id")
   @Schema(description = "Organization ID of the user", type = "string")
-  private Organization organization;
+  public Organization getOrganization() {
+    return organizationOfTenant(
+        organizationTenantId != null ? organizationTenantId : TenantContext.getCurrentTenant());
+  }
+
+  /**
+   * The tenant whose organization {@link #getOrganization()} answers for, when it is not the
+   * ambient one. Only ever set on a response view built by {@code UserMapper#toResponseView}, never
+   * on an entity the persistence context or a lifecycle event holds. Never persisted, never
+   * serialized.
+   */
+  @Transient
+  @JsonIgnore
+  @Getter(NONE)
+  private String organizationTenantId;
+
+  /**
+   * Loads the organizations of the user. Call it inside the scoped transaction of an endpoint that
+   * returns the raw user: {@code user_organization} is otherwise read after the commit, where the
+   * tenant scope is gone and a lazy load of the v2-active {@code organizations} fails closed to
+   * nothing.
+   */
+  public void loadOrganizations() {
+    Hibernate.initialize(organizations);
+  }
+
+  /**
+   * Returns the organization the user holds in the given tenant, or {@code null}.
+   *
+   * @param tenantId the tenant the organization must belong to
+   */
+  public Organization organizationOfTenant(final String tenantId) {
+    if (tenantId == null) {
+      return null;
+    }
+    return organizations.stream()
+        .filter(org -> org.getTenant() != null && tenantId.equals(org.getTenant().getId()))
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * Updates the in-memory view of the organization of the user in the given tenant, so the entity
+   * answers {@link #getOrganization()} correctly for the rest of the request. It does not persist
+   * anything: use {@link io.openaev.database.repository.UserRepository#assignOrganization}, which
+   * calls it. Organizations of the other tenants are left untouched.
+   *
+   * @param tenantId the tenant whose organization is replaced
+   * @param organization the new organization of that tenant, or {@code null} to clear it
+   */
+  public void setOrganizationForTenant(final String tenantId, final Organization organization) {
+    Objects.requireNonNull(tenantId, "tenantId must not be null");
+    organizations.removeIf(
+        org -> org.getTenant() != null && tenantId.equals(org.getTenant().getId()));
+    if (organization != null) {
+      organizations.add(organization);
+    }
+  }
 
   @Setter
   @Column(name = "user_admin")
@@ -224,6 +300,7 @@ public class User implements Base {
    * cleanup before delete). Never serialize this — use {@link #getScopedGroups()} for API
    * responses.
    */
+  @JsonIgnore
   public List<Group> getUnscopedGroups() {
     return groups;
   }
@@ -253,8 +330,19 @@ public class User implements Base {
   @Queryable(dynamicValues = true, filterable = true, path = "teams.id")
   private List<Team> teams = new ArrayList<>();
 
+  /**
+   * Owning side of {@code users_tags}, but a user is platform-level and its tags may belong to
+   * several tenants, so the collection only holds the ones in the scope of the transaction. The
+   * tags of an existing user are never written through it: a flush of this collection deletes every
+   * row of the user as soon as it is empty, the links to the tags out of scope included. The links
+   * of an existing user are written by {@code UserService#replaceTags}; {@link #setTags} is for a
+   * user that is not saved yet and refuses a saved one. {@link Immutable} makes a change of the
+   * loaded collection in place ({@code clear}, {@code add}, {@code remove}) fail at flush instead
+   * of deleting links; Hibernate does not check a collection that is replaced, which is why the
+   * setter does.
+   */
   @ArraySchema(schema = @Schema(description = "Tag IDs of the user", implementation = String.class))
-  @Setter
+  @Immutable
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "users_tags",
@@ -264,6 +352,20 @@ public class User implements Base {
   @JsonProperty("user_tags")
   @Queryable(dynamicValues = true, filterable = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
+
+  /**
+   * @throws IllegalStateException when the user is saved: replacing its collection deletes every
+   *     link of the user, the ones to the tags out of the scope of the transaction included
+   */
+  public void setTags(Set<Tag> tags) {
+    if (id != null) {
+      throw new IllegalStateException(
+          "The tags of the saved user "
+              + id
+              + " are changed with UserService#replaceTags, never by replacing the collection");
+    }
+    this.tags = tags;
+  }
 
   @ArraySchema(
       schema =
@@ -431,13 +533,23 @@ public class User implements Base {
    * them with 403 (issues #6331 / #6332).
    */
   private List<Group> scopedGroups() {
-    String currentTenant = TenantContext.getCurrentTenant();
+    String currentTenant = scopedTenantId();
     return getUnscopedGroups().stream()
         .filter(
             group ->
                 group.getTenant() == null
                     || (currentTenant != null && currentTenant.equals(group.getTenant().getId())))
         .toList();
+  }
+
+  /**
+   * The tenant whose groups count for this user in the current request, next to platform groups.
+   * Capabilities, {@code user_grants} and the grant checks of the backend all resolve against it,
+   * so a grant applies in the tenant of the group that holds it, and everywhere for a platform
+   * group. Falls back to the default tenant, see {@link #scopedGroups()}.
+   */
+  public String scopedTenantId() {
+    return TenantContext.getCurrentTenant();
   }
 
   @JsonProperty("user_capabilities")

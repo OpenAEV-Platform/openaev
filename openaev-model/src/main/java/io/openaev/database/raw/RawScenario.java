@@ -221,13 +221,6 @@ public interface RawScenario {
   Long getScenario_all_users_number();
 
   /**
-   * Returns the workflow ID associated with this scenario, if any.
-   *
-   * @return the workflow ID, or {@code null} if no workflow is linked
-   */
-  String getScenario_workflow_id();
-
-  /**
    * Returns whether this scenario is an autonomous (AI-driven) attack-path scenario.
    *
    * @return {@code true} if the scenario is autonomous
