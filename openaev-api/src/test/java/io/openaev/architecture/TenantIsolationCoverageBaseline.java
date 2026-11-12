@@ -18,8 +18,9 @@ import java.util.regex.Pattern;
  * existing tests lack, then why the table is on the list. The reason has at least {@value
  * PinnedActiveTablesBaseline#MIN_WORDS} words, the bar {@link PinnedActiveTablesBaseline} sets.
  *
- * <p>The list only shrinks. A line whose table becomes covered or inactive fails the gate, and the
- * number of lines is frozen, so a line is never added.
+ * <p>A line whose table becomes covered or inactive fails the gate, and the number of lines is
+ * frozen. An activation never adds a line; a review adds one only when it removes the marker of a
+ * class that does not assert the refusal on the table itself.
  */
 final class TenantIsolationCoverageBaseline {
 

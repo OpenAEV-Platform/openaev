@@ -41,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
  * PlaywrightReportingRenderer}) is never exercised here: generations and schedules are seeded
  * directly, and only endpoints that do not dispatch a render are called.
  */
-@CoversTenantIsolation({"reporting_generations", "reportings"})
+@CoversTenantIsolation("reportings")
 @Transactional
 @TestPropertySource(
     properties =

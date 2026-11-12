@@ -6,7 +6,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
-import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.Capability;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -31,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
  * tenant itself. See that class's javadoc for why the activation has nothing observable behind it
  * on this table.
  */
-@CoversTenantIsolation("tenant_xtmhub_registrations")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=tenant_xtmhub_registrations")
 @WithMockUser(isAdmin = false)

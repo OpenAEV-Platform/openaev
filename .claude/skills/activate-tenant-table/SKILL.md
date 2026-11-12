@@ -1759,7 +1759,7 @@ Before marking the issue done, write down:
       activation list (a registration of `ProductionActiveTables.names()`, or a pin that is a
       `probe` line of `pinned-active-tables-baseline.txt`: a `drifts` or `control` line does not
       count), so `TenantIsolationCoverageArchTest` counts it; the table has no line in
-      `tenant-isolation-coverage-baseline.txt`, which never grows
+      `tenant-isolation-coverage-baseline.txt`, which an activation never grows
 - [ ] API v2/integration tests added or modified in this activation do not use
       `TenantContext.getCurrentTenant()`, `TenantContext.setCurrentTenant(...)`,
       or `enableFilter("tenantFilter")`; tenant scope is expressed via explicit

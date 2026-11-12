@@ -13,7 +13,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Widget;
@@ -40,7 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
  * isolation proof for {@code widgets} is {@code WidgetTenantScopeTest}, on the by-widget-id read
  * behind the dashboard count route.
  */
-@CoversTenantIsolation("widgets")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=custom_dashboards,widgets")
 @WithMockUser(isAdmin = true)

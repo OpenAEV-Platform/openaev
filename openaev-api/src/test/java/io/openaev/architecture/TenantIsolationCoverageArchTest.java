@@ -59,17 +59,18 @@ import org.springframework.test.context.TestContextAnnotationUtils;
  * makes its assertions weaker than production's.
  *
  * <p>The tables that no class covers yet are named, with what is missing and why, in {@code
- * tenant-isolation-coverage-baseline.txt}. That list only shrinks: a line whose table becomes
- * covered or inactive fails, and its size is frozen by {@link #BASELINE_SIZE}.
+ * tenant-isolation-coverage-baseline.txt}. A line whose table becomes covered or inactive fails,
+ * and its size is frozen by {@link #BASELINE_SIZE}.
  */
 @DisplayName("Every active table has a class marked as its isolation test")
 class TenantIsolationCoverageArchTest {
 
   /**
-   * How many tables the baseline names. Lower it when a line goes, never raise it: the baseline
-   * never grows, enforced by review of this constant's diff.
+   * How many tables the baseline names. Lower it when a line goes. Raise it only in a change that
+   * removes the marker of a class found not to assert the refusal on the table itself, and say why
+   * in that change: a new activation never adds a line.
    */
-  static final int BASELINE_SIZE = 36;
+  static final int BASELINE_SIZE = 38;
 
   @TestFactory
   @DisplayName("given the test tree, should pass every check of the gate")

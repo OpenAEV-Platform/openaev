@@ -6,9 +6,11 @@
 # cross-tenant refusal on the table itself: a read, write or delete of the other tenant's row is refused, not
 # reached through a parent row. A table that no class meets that bar yet is named here.
 #
-# This list only shrinks. A line whose table becomes covered, or stops being active, fails the gate and
+# A line whose table becomes covered, or stops being active, fails the gate and
 # is removed in the same change, and the line count is frozen by TenantIsolationCoverageArchTest.BASELINE_SIZE.
-# A line is never added: an activation brings its isolation test with it.
+# A line is added only when a review finds that the class marked for a table does not assert the refusal on
+# the table itself, and that class loses its marker in the same change. An activation brings its isolation test
+# with it.
 #
 # Format: <table> | <what the existing tests lack> | <why the table is on the list>
 #   Most gaps below are one gap: the only class that asserts the table's cross-tenant refusal is a
@@ -50,3 +52,5 @@ autonomous_events | no class asserts a cross-tenant refusal on autonomous_events
 autonomous_directives | no class asserts a cross-tenant refusal on autonomous_directives itself | the run classes get a 404 from the run lookup on autonomous_runs before any directive row is read
 reporting_schedules | no class asserts a cross-tenant refusal on reporting_schedules itself | the only cross-tenant case is a create against another tenant's reporting, the other classes read all tenants or compare a parent within one tenant
 findings | no class asserts a cross-tenant refusal on findings itself | the probe class asserts an indexing horizon value, and the occurrence isolation test refuses a finding_occurrences row, not a findings row
+tenant_xtmhub_registrations | no class asserts a cross-tenant refusal on tenant_xtmhub_registrations itself | every per-tenant path on the table addresses it by tenant id (findByTenantId, deleteByTenantId), so a cross-tenant read or delete matches nothing whether the table is active or not, and the classes on it assert registration reads and write attribution
+reporting_generations | no class asserts a cross-tenant refusal on reporting_generations itself | the HTTP isolation class gets its 404 on another tenant's generation through the parent reportings row it arms with it, and the render and download classes assert lifecycle and ownership, not a refused read of a generation row
