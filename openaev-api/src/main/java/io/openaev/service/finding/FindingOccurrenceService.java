@@ -1,5 +1,7 @@
 package io.openaev.service.finding;
 
+import static io.openaev.helper.StreamHelper.fromIterable;
+
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.FindingOccurrence;
 import io.openaev.database.model.Inject;
@@ -9,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +24,33 @@ public class FindingOccurrenceService {
 
   private final FindingOccurrenceRepository findingOccurrenceRepository;
 
+  /** When the inject was sent, now when it was not. */
+  public static Instant occurrenceDate(Inject inject) {
+    return Optional.ofNullable(inject.getSentAt()).orElseGet(Instant::now);
+  }
+
   // -- CREATE --
+
+  /**
+   * Records the occurrence of each finding on the inject. A finding that already has one on this
+   * inject keeps it, with its field: a repeated detection adds nothing.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public List<FindingOccurrence> recordOccurrences(
+      Inject inject, Instant date, List<Finding> findings, Map<String, String> fieldByFindingId) {
+    Set<String> findingIdsWithOccurrence =
+        new HashSet<>(
+            findingOccurrenceRepository.findFindingIdsWithOccurrenceOnInject(
+                inject.getId(), findings.stream().map(Finding::getId).toList()));
+    List<FindingOccurrence> occurrences =
+        findings.stream()
+            .filter(finding -> !findingIdsWithOccurrence.contains(finding.getId()))
+            .map(
+                finding ->
+                    newOccurrence(finding, inject, date, fieldByFindingId.get(finding.getId())))
+            .toList();
+    return fromIterable(findingOccurrenceRepository.saveAll(occurrences));
+  }
 
   /**
    * Records the occurrence of each finding on the inject that detected it, dated when the inject
@@ -38,12 +67,12 @@ public class FindingOccurrenceService {
         new HashSet<>(
             findingOccurrenceRepository.findFindingIdsWithOccurrenceOnInject(
                 inject.getId(), findingIds));
-    Instant date = Optional.ofNullable(inject.getSentAt()).orElseGet(Instant::now);
+    Instant date = occurrenceDate(inject);
     List<FindingOccurrence> occurrences = new ArrayList<>();
     for (Finding finding : findings) {
       if (!findingIdsWithOccurrence.contains(finding.getId())) {
         findingIdsWithOccurrence.add(finding.getId());
-        FindingOccurrence occurrence = newOccurrence(finding, inject, date);
+        FindingOccurrence occurrence = newOccurrence(finding, inject, date, finding.getField());
         // Kept in sync so readers in the same session see it without a reload
         finding.getOccurrences().add(occurrence);
         occurrences.add(occurrence);
@@ -62,11 +91,12 @@ public class FindingOccurrenceService {
 
   // -- PRIVATE --
 
-  private static FindingOccurrence newOccurrence(Finding finding, Inject inject, Instant date) {
+  private static FindingOccurrence newOccurrence(
+      Finding finding, Inject inject, Instant date, String field) {
     FindingOccurrence occurrence = new FindingOccurrence();
     occurrence.setFinding(finding);
     occurrence.setInject(inject);
-    occurrence.setField(finding.getField());
+    occurrence.setField(field);
     occurrence.setDate(date);
     return occurrence;
   }
