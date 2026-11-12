@@ -72,27 +72,26 @@ const PhishingPage = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Loading the page is not a click: mail scanners render it too. The click is confirmed on the
-  // visitor's first interaction (mouse, touch, keyboard or scroll), sent no sooner than
-  // MIN_DWELL_MS after the page rendered. Only the benign route confirms; the legacy one has no
-  // confirm endpoint and keeps counting the click on load.
+  // visitor's first interaction (mouse, touch, keyboard, scroll, or a click from assistive
+  // technology) at least MIN_DWELL_MS after the page rendered; earlier ones are ignored and the
+  // page keeps listening. A beacon is used because the interaction may navigate away (a link in
+  // the landing page), which would cancel an ordinary request. Only the benign route confirms; the
+  // legacy one has no confirm endpoint and keeps counting the click on load.
   useEffect(() => {
     if (!page || tenantId) return undefined;
     const renderedAt = Date.now();
     const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const interactionEvents = ['pointermove', 'pointerdown', 'touchstart', 'keydown', 'scroll'];
+    const interactionEvents = ['pointermove', 'pointerdown', 'touchstart', 'keydown', 'scroll', 'click'];
 
     const onInteraction = () => {
+      const dwellMs = Date.now() - renderedAt;
+      if (dwellMs < MIN_DWELL_MS) return;
       controller.abort();
-      const wait = Math.max(0, MIN_DWELL_MS - (Date.now() - renderedAt));
-      timer = setTimeout(() => {
-        api().post(confirmUrl, {
-          dwell_ms: Date.now() - renderedAt,
-          webdriver: navigator.webdriver === true,
-        }).catch(() => {
-          // Silently ignore: the visitor should never see an application error.
-        });
-      }, wait);
+      const body = JSON.stringify({
+        dwell_ms: dwellMs,
+        webdriver: navigator.webdriver === true,
+      });
+      navigator.sendBeacon(confirmUrl, new Blob([body], { type: 'application/json' }));
     };
 
     interactionEvents.forEach(name => window.addEventListener(name, onInteraction, {
@@ -100,10 +99,7 @@ const PhishingPage = () => {
       passive: true,
       signal: controller.signal,
     }));
-    return () => {
-      controller.abort();
-      clearTimeout(timer);
-    };
+    return () => controller.abort();
   }, [page]);
 
   useEffect(() => {
