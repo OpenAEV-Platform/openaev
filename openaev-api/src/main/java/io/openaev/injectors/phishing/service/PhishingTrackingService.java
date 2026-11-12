@@ -75,6 +75,12 @@ import org.springframework.transaction.annotation.Transactional;
  * delay and an automation hint (see {@link #buildSourceMetadata}) so an analyst can always audit
  * WHERE a verdict came from.
  *
+ * <p><b>Only a person interacting with the landing page scores.</b> Scanners that hide behind a
+ * browser user agent and arrive later still load the tracking image, and an email cannot run code
+ * to prove a person is reading it. So the image load never flips "email opened" (see {@link
+ * #markOpened}): both "email opened" and "link clicked" flip on the landing page's interaction
+ * confirmation.
+ *
  * <p>All methods are tenant-scoped: the executor runs inside the inject execution job (tenant
  * filter set), and the public endpoints set the tenant before calling in - {@code HostedPublicApi}
  * resolves it from the token, while the legacy {@code PhishingPublicApi} routes take it from the
@@ -212,6 +218,13 @@ public class PhishingTrackingService {
    */
   private static final String SCANNER_IGNORED_MESSAGE =
       "Automated scanner activity detected and ignored";
+
+  /**
+   * Result message stamped on the "email opened" step when the tracking image loaded without being
+   * flagged as automated. The step stays green: an image load is not proof that a person read the
+   * email (see {@link #markOpened}).
+   */
+  public static final String UNCONFIRMED_OPEN_MESSAGE = "Email image loaded, open not confirmed";
 
   /** Result message stamped on a team step whose recomputed verdict is RED ("fell for it"). */
   private static final String TEAM_COMPROMISED_MESSAGE = "A team member fell for the phishing";
@@ -484,31 +497,29 @@ public class PhishingTrackingService {
   }
 
   /**
-   * Marks the email as opened (first open wins) and flips the "email opened" step to compromised.
-   *
-   * <p>A hit identified as an automated probe (scanner user agent, or landing within seconds of
-   * delivery) is NOT scored: it neither sets the timestamp nor flips the step - it only annotates
-   * the still-green step so the analyst can see the lure was scanned. The recipient's own open
-   * later still wins the "first open" transition with a truthful timestamp.
+   * Records the tracking image of the lure email being loaded. This is NOT an open: mail security
+   * scanners and privacy proxies (Defender, Apple Mail Privacy Protection...) load remote images
+   * with no person reading the email, and an email cannot run code to tell them apart. The "email
+   * opened" step only flips with an interaction on the landing page (see {@link #markClicked}); the
+   * image load only annotates the still-green step with its origin, so the analyst can see it.
    */
   public Optional<PhishingResult> markOpened(
       @NotBlank final String token, final String ip, final String userAgent) {
     Optional<PhishingResult> optResult = resolveAndBackfillByToken(token);
-    return optResult.map(
+    optResult.ifPresent(
         result -> {
-          if (isAutomatedProbe(result, userAgent)) {
-            annotateResistedSteps(result, Set.of(STEP_OPENED), ip, userAgent);
+          boolean automated = isAutomatedProbe(result, userAgent);
+          annotateResistedSteps(
+              result,
+              Set.of(STEP_OPENED),
+              automated ? SCANNER_IGNORED_MESSAGE : UNCONFIRMED_OPEN_MESSAGE,
+              ip,
+              userAgent);
+          if (automated) {
             recordBotActivity(result, false);
-            return result;
           }
-          if (result.getOpenedAt() == null) {
-            result.setOpenedAt(now());
-          }
-          applyRequestMetadata(result, ip, userAgent);
-          PhishingResult saved = phishingResultRepository.save(result);
-          compromiseSteps(saved, Set.of(STEP_OPENED), "Opened the phishing email", ip, userAgent);
-          return saved;
         });
+    return optResult;
   }
 
   /**
@@ -706,6 +717,19 @@ public class PhishingTrackingService {
       final Set<String> stepNames,
       final String ip,
       final String userAgent) {
+    annotateResistedSteps(result, stepNames, SCANNER_IGNORED_MESSAGE, ip, userAgent);
+  }
+
+  /**
+   * Same annotation with a caller-chosen message: an unscored tracking image load is not always a
+   * scanner (see {@link #markOpened}).
+   */
+  private void annotateResistedSteps(
+      final PhishingResult result,
+      final Set<String> stepNames,
+      final String message,
+      final String ip,
+      final String userAgent) {
     User user = result.getUser();
     Inject inject = result.getInject();
     if (user == null || inject == null) {
@@ -723,8 +747,7 @@ public class PhishingTrackingService {
         .forEach(
             expectation -> {
               InjectExpectationResult annotation =
-                  buildForPlayerManualValidation(
-                      SCANNER_IGNORED_MESSAGE, expectation.getExpectedScore());
+                  buildForPlayerManualValidation(message, expectation.getExpectedScore());
               if (!sourceMetadata.isEmpty()) {
                 annotation.setMetadata(sourceMetadata);
               }

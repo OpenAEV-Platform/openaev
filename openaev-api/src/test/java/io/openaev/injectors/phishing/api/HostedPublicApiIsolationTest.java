@@ -158,21 +158,14 @@ class HostedPublicApiIsolationTest extends IntegrationTest {
   class Open {
 
     @Test
-    @DisplayName(
-        "given a valid token for tenant B, should attribute the open to that token's tenant")
-    void given_validTokenForTenantB_should_attributeTheOpenToThatTokensTenant() throws Exception {
-      // This is a write-attribution assertion, not an isolation one: the token is globally unique
-      // and the route recovers its owning tenant from the token before any scoped work, so it holds
-      // whether phishing_results is tenant-active or not. The isolation case, a scope naming a
-      // different tenant than the token's, is in PhishingResultTenantScopeTest.
+    @DisplayName("given a valid token, should return the pixel and not mark the email opened")
+    void given_validToken_should_returnPixelAndNotMarkOpened() throws Exception {
+      // A loaded image is not an open: mail scanners load it too. Only the landing page's
+      // interaction confirmation marks the email opened.
       mvc.perform(get(HOSTED_URI + "/o/{token}", tokenB)).andExpect(status().isOk());
 
-      assertThat(openedAt(tokenB))
-          .as("the tracking write must land on the token's own tenant row")
-          .isNotNull();
-      assertThat(openedAt(tokenA))
-          .as("an anonymous open on B's token must never mark A's row")
-          .isNull();
+      assertThat(openedAt(tokenB)).isNull();
+      assertThat(openedAt(tokenA)).isNull();
     }
 
     @Test
@@ -182,6 +175,33 @@ class HostedPublicApiIsolationTest extends IntegrationTest {
 
       assertThat(openedAt(tokenA)).isNull();
       assertThat(openedAt(tokenB)).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("POST /api/hosted/confirm/{token}")
+  class Confirm {
+
+    @Test
+    @DisplayName(
+        "given a valid token for tenant B, should attribute the open to that token's tenant")
+    void given_validTokenForTenantB_should_attributeTheOpenToThatTokensTenant() throws Exception {
+      // This is a write-attribution assertion, not an isolation one: the token is globally unique
+      // and the route recovers its owning tenant from the token before any scoped work, so it holds
+      // whether phishing_results is tenant-active or not. The isolation case, a scope naming a
+      // different tenant than the token's, is in PhishingResultTenantScopeTest.
+      mvc.perform(
+              post(HOSTED_URI + "/confirm/{token}", tokenB)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content("{\"dwell_ms\":2300,\"webdriver\":false}"))
+          .andExpect(status().isNoContent());
+
+      assertThat(openedAt(tokenB))
+          .as("the tracking write must land on the token's own tenant row")
+          .isNotNull();
+      assertThat(openedAt(tokenA))
+          .as("an anonymous confirmation on B's token must never mark A's row")
+          .isNull();
     }
   }
 

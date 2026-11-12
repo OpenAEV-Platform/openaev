@@ -82,17 +82,13 @@ public class PhishingPublicApi extends RestBehavior {
   @Transactional
   @AccessControl(skipRBAC = true)
   public PhishingLandingPageReader page(
-      TxCtx ctx,
-      @PathVariable String tenantId,
-      @PathVariable String token,
-      HttpServletRequest request) {
+      TxCtx ctx, @PathVariable String tenantId, @PathVariable String token) {
     TenantContext.setCurrentTenant(tenantId);
     PhishingResult result = phishingTrackingService.resolveAndBackfillByToken(token).orElse(null);
     if (result == null || result.getLandingPage() == null) {
       return null;
     }
-    // A rendered page is also an open signal (the pixel may be blocked by the mail client).
-    phishingTrackingService.markOpened(token, clientIp(request), request.getHeader("User-Agent"));
+    // The click route that led here already scored the open and the click.
     PhishingLandingPage landingPage = result.getLandingPage();
     return new PhishingLandingPageReader(landingPage);
   }

@@ -120,24 +120,24 @@ class PhishingResultTenantScopeTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("Marking a token as opened")
-  class MarkOpened {
+  @DisplayName("Marking a token as clicked")
+  class MarkClicked {
 
     @Test
     @DisplayName("scoped to tenant A: marking tenant B's token writes nothing")
-    void given_tenantAScope_should_notMarkTenantBResultAsOpened() {
+    void given_tenantAScope_should_notMarkTenantBResultAsClicked() {
       // Arrange & Act - the positive case first, under the token's own tenant.
-      phishingTrackingService.markOpened(TxCtx.forTenant(tenantA), tokenA, "10.0.0.1", "agent");
+      phishingTrackingService.markClicked(TxCtx.forTenant(tenantA), tokenA, "10.0.0.1", "agent");
 
       // Assert
-      assertThat(openedAt(tokenA)).as("A's own row must be marked under A's scope").isNotNull();
+      assertThat(clickedAt(tokenA)).as("A's own row must be marked under A's scope").isNotNull();
 
       // Act - the same write, scoped to the wrong tenant.
-      phishingTrackingService.markOpened(TxCtx.forTenant(tenantA), tokenB, "10.0.0.1", "agent");
+      phishingTrackingService.markClicked(TxCtx.forTenant(tenantA), tokenB, "10.0.0.1", "agent");
 
       // Assert - ground truth through raw JDBC, never the entity manager, whose SQL the inspector
       // rewrites.
-      assertThat(openedAt(tokenB))
+      assertThat(clickedAt(tokenB))
           .as("tenant B's row must not be marked by a write scoped to tenant A")
           .isNull();
     }
@@ -182,9 +182,9 @@ class PhishingResultTenantScopeTest extends IntegrationTest {
         Timestamp.from(Instant.now()));
   }
 
-  private Timestamp openedAt(String token) {
+  private Timestamp clickedAt(String token) {
     return jdbc.queryForObject(
-        "SELECT phishing_result_opened_at FROM phishing_results WHERE phishing_result_token = ?",
+        "SELECT phishing_result_clicked_at FROM phishing_results WHERE phishing_result_token = ?",
         Timestamp.class,
         token);
   }

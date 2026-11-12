@@ -7,7 +7,7 @@ what the platform recorded on each tracking row:
 
   bot      scanner user agent hits the pixel and the page, never confirms
   human    browser user agent, pixel + page, then a confirmation with a realistic dwell
-  unknown  browser user agent loads the page but never interacts
+  unknown  browser user agent loads the email image and the page but never interacts
 
 Needs the backend (dev profile, SMTP pointed at Mailpit) and the dev containers running. See
 openaev-dev/README.md, "Testing the phishing bot detection locally".
@@ -136,7 +136,9 @@ def main():
     hit(f"page/{tokens['human']}", BROWSER_UA)
     time.sleep(2.3)
     hit(f"confirm/{tokens['human']}", BROWSER_UA, {"dwell_ms": 2300, "webdriver": False})
-    # unknown: page loaded by a browser-looking client that never interacts
+    # unknown: email image and page loaded by a browser-looking client that never interacts.
+    # The image alone is not an open: only an interaction on the page proves a person.
+    hit(f"o/{tokens['unknown']}", BROWSER_UA)
     hit(f"page/{tokens['unknown']}", BROWSER_UA)
 
     print("== What the platform recorded (phishing_results)")
