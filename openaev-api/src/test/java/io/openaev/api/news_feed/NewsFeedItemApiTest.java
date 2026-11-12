@@ -369,6 +369,26 @@ class NewsFeedItemApiTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Given a hundred and fifty unread items, should read them all")
+    void given_manyUnreadItems_should_readThemAll() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.REGISTERED);
+      User me = userService.currentUser();
+      String myId = me.getId();
+      for (int i = 0; i < 150; i++) {
+        saveItem(me, "hub-" + i, false);
+      }
+      assertThat(unreadCount()).isEqualTo("150");
+
+      // Act
+      markAllRead();
+
+      // Assert
+      assertThat(newsFeedItemRepository.countByUserIdAndReadFalse(myId)).isZero();
+      assertThat(unreadCount()).isEqualTo("0");
+    }
+
+    @Test
     @DisplayName("Given the items already read, should stay read when called again")
     void given_itemsAlreadyRead_should_beIdempotent() throws Exception {
       // Arrange
