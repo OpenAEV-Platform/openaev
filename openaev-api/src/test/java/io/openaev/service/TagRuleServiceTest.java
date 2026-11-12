@@ -87,7 +87,7 @@ class TagRuleServiceTest {
   void testCreateTagRule() {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
     when(tagRuleRepository.save(any())).thenReturn(expected);
-    when(tagRepository.findByName(expected.getTag().getName()))
+    when(tagRepository.findByNameAndTenantId(expected.getTag().getName(), TENANT_ID))
         .thenReturn(Optional.of(TagFixture.getTag()));
     expected
         .getAssetGroups()
@@ -111,7 +111,8 @@ class TagRuleServiceTest {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
     expected.setTag(octiTag);
     when(tagRuleRepository.save(any())).thenReturn(expected);
-    when(tagRepository.findByName(expected.getTag().getName())).thenReturn(Optional.of(octiTag));
+    when(tagRepository.findByNameAndTenantId(expected.getTag().getName(), TENANT_ID))
+        .thenReturn(Optional.of(octiTag));
     expected
         .getAssetGroups()
         .forEach(
@@ -134,7 +135,8 @@ class TagRuleServiceTest {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
     Tag tag = TagFixture.getTag();
     when(tagRuleRepository.save(any())).thenReturn(expected);
-    when(tagRepository.findByName(expected.getTag().getName())).thenReturn(Optional.empty());
+    when(tagRepository.findByNameAndTenantId(expected.getTag().getName(), TENANT_ID))
+        .thenReturn(Optional.empty());
     when(tagRepository.save(any())).thenReturn(tag);
     expected
         .getAssetGroups()
@@ -157,7 +159,7 @@ class TagRuleServiceTest {
   void testCreateTagRule_WITH_non_existing_asset() {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
     when(tagRuleRepository.save(any())).thenReturn(expected);
-    when(tagRepository.findByName(expected.getTag().getName()))
+    when(tagRepository.findByNameAndTenantId(expected.getTag().getName(), TENANT_ID))
         .thenReturn(Optional.of(TagFixture.getTag()));
     expected
         .getAssetGroups()
@@ -186,7 +188,8 @@ class TagRuleServiceTest {
 
     when(tagRuleRepository.existsById(TAG_RULE_ID)).thenReturn(true);
     when(tagRuleRepository.save(any())).thenReturn(expected);
-    when(tagRepository.findByName(expected.getTag().getName()))
+    when(tagRepository.findByNameAndTenantId(
+            expected.getTag().getName(), Tenant.DEFAULT_TENANT_UUID))
         .thenReturn(Optional.of(TagFixture.getTag()));
     when(tagRuleRepository.findById(TAG_RULE_ID)).thenReturn(Optional.of(beforeUpdate));
     expected
@@ -215,7 +218,8 @@ class TagRuleServiceTest {
 
     when(tagRuleRepository.existsById(TAG_RULE_ID)).thenReturn(true);
     when(tagRuleRepository.save(any())).thenReturn(expected);
-    when(tagRepository.findByName(expected.getTag().getName()))
+    when(tagRepository.findByNameAndTenantId(
+            expected.getTag().getName(), Tenant.DEFAULT_TENANT_UUID))
         .thenReturn(Optional.of(TagFixture.getTag()));
     when(tagRuleRepository.findById(TAG_RULE_ID)).thenReturn(Optional.of(beforeUpdate));
     expected
@@ -247,8 +251,10 @@ class TagRuleServiceTest {
     tagRule.setTag(unreservedTag);
 
     when(tagRuleRepository.save(any())).thenReturn(tagRule);
-    when(tagRepository.findByName(unreservedTag.getName())).thenReturn(Optional.of(unreservedTag));
-    when(tagRepository.findByName(reservedTag.getName())).thenReturn(Optional.of(reservedTag));
+    when(tagRepository.findByNameAndTenantId(unreservedTag.getName(), Tenant.DEFAULT_TENANT_UUID))
+        .thenReturn(Optional.of(unreservedTag));
+    when(tagRepository.findByNameAndTenantId(reservedTag.getName(), Tenant.DEFAULT_TENANT_UUID))
+        .thenReturn(Optional.of(reservedTag));
     when(tagRuleRepository.existsById(TAG_RULE_ID)).thenReturn(true);
     when(tagRuleRepository.findById(TAG_RULE_ID)).thenReturn(Optional.of(tagRule));
     tagRule
@@ -274,7 +280,9 @@ class TagRuleServiceTest {
     Tag tag = TagFixture.getTag();
     when(tagRuleRepository.existsById(TAG_RULE_ID)).thenReturn(true);
     when(tagRuleRepository.save(any())).thenReturn(expected);
-    when(tagRepository.findByName(expected.getTag().getName())).thenReturn(Optional.empty());
+    when(tagRepository.findByNameAndTenantId(
+            expected.getTag().getName(), Tenant.DEFAULT_TENANT_UUID))
+        .thenReturn(Optional.empty());
     when(tagRepository.save(any())).thenReturn(tag);
     when(tagRuleRepository.findById(TAG_RULE_ID)).thenReturn(Optional.of(expected));
     expected
@@ -299,7 +307,8 @@ class TagRuleServiceTest {
     TagRule expected = TagRuleFixture.createTagRule(TAG_RULE_ID);
     when(tagRuleRepository.existsById(TAG_RULE_ID)).thenReturn(true);
     when(tagRuleRepository.save(any())).thenReturn(expected);
-    when(tagRepository.findByName(expected.getTag().getName()))
+    when(tagRepository.findByNameAndTenantId(
+            expected.getTag().getName(), Tenant.DEFAULT_TENANT_UUID))
         .thenReturn(Optional.of(TagFixture.getTag()));
     when(tagRuleRepository.findById(TAG_RULE_ID)).thenReturn(Optional.of(expected));
     expected

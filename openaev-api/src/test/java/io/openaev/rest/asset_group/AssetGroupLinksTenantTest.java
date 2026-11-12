@@ -72,6 +72,7 @@ class AssetGroupLinksTenantTest extends IntegrationTest {
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String TAG_RULE_GROUPS =
       "SELECT asset_group_id FROM tag_rule_asset_groups WHERE tag_rule_id = ?";
+  private static final String TAG_RULE_TAG = "SELECT tag_id FROM tag_rules WHERE tag_rule_id = ?";
   private static final String GROUP_ASSETS =
       "SELECT asset_id FROM asset_groups_assets WHERE asset_group_id = ?";
 
@@ -234,6 +235,87 @@ class AssetGroupLinksTenantTest extends IntegrationTest {
           .as("groups linked to the tag rule of B")
           .containsExactly(groupInB);
     }
+
+    @Test
+    @DisplayName(
+        "given a tag rule of B when the body names a tag that exists only in the default tenant then"
+            + " the update is refused as an unknown tag and the rule keeps its tag")
+    void given_tagRuleOfB_should_refuseTagOfDefaultTenant() throws Exception {
+      // -- Arrange --
+      Tag tag0 = saveTag(tenantB);
+      Tag tagInDefault = saveTag(Tenant.DEFAULT_TENANT_UUID);
+      String rule = saveTagRule(tenantB, tag0, List.of());
+      armTagRule(rule, tenantB, tag0);
+      assertThat(tenantOf("tags", "tag_id", tagInDefault.getId()))
+          .containsExactly(Tenant.DEFAULT_TENANT_UUID);
+
+      // -- Act --
+      int status =
+          statusOf(
+              putOnHeaderRoute(TAG_RULE_URI + "/" + rule, tagRuleBody(tagInDefault, List.of())));
+
+      // -- Assert --
+      assertThat(status)
+          .as("status of a tag rule update naming the tag %s (default)", tagInDefault.getName())
+          .isEqualTo(404);
+      assertThat(column(entityManager, TAG_RULE_TAG, rule))
+          .as("tag of the tag rule of B")
+          .containsExactly(tag0.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "given a tag rule of B when the body names a tag name held by both tenants then the rule"
+            + " links the tag of B")
+    void given_tagRuleOfB_should_linkTagOfBWhenBothTenantsHoldTheName() throws Exception {
+      // -- Arrange --
+      Tag tag0 = saveTag(tenantB);
+      Tag tagInDefault = saveTag(Tenant.DEFAULT_TENANT_UUID);
+      Tag sameNameInB = saveTagNamed(tagInDefault.getName(), tenantB);
+      String rule = saveTagRule(tenantB, tag0, List.of());
+      armTagRule(rule, tenantB, tag0);
+      assertThat(tenantOf("tags", "tag_id", tagInDefault.getId()))
+          .containsExactly(Tenant.DEFAULT_TENANT_UUID);
+      assertThat(tenantOf("tags", "tag_id", sameNameInB.getId())).containsExactly(tenantB);
+
+      // -- Act --
+      int status =
+          statusOf(
+              putOnHeaderRoute(TAG_RULE_URI + "/" + rule, tagRuleBody(tagInDefault, List.of())));
+
+      // -- Assert --
+      assertThat(status)
+          .as("status of a tag rule update naming a tag name held by both tenants")
+          .isEqualTo(200);
+      assertThat(column(entityManager, TAG_RULE_TAG, rule))
+          .as(
+              "tag of the tag rule of B: expected %s (B), not %s (default)",
+              sameNameInB.getId(), tagInDefault.getId())
+          .containsExactly(sameNameInB.getId());
+    }
+
+    @Test
+    @DisplayName(
+        "given a tag rule of B when the body names another tag of B then the rule links that tag")
+    void given_tagRuleOfB_should_linkAnotherTagOfB() throws Exception {
+      // -- Arrange --
+      Tag tag0 = saveTag(tenantB);
+      Tag otherTagOfB = saveTag(tenantB);
+      String rule = saveTagRule(tenantB, tag0, List.of());
+      armTagRule(rule, tenantB, tag0);
+      assertThat(tenantOf("tags", "tag_id", otherTagOfB.getId())).containsExactly(tenantB);
+
+      // -- Act --
+      int status =
+          statusOf(
+              putOnHeaderRoute(TAG_RULE_URI + "/" + rule, tagRuleBody(otherTagOfB, List.of())));
+
+      // -- Assert --
+      assertThat(status).as("status of a tag rule update naming another tag of B").isEqualTo(200);
+      assertThat(column(entityManager, TAG_RULE_TAG, rule))
+          .as("tag of the tag rule of B")
+          .containsExactly(otherTagOfB.getId());
+    }
   }
 
   @Nested
@@ -261,6 +343,58 @@ class AssetGroupLinksTenantTest extends IntegrationTest {
                   entityManager, "SELECT tag_rule_id FROM tag_rules WHERE tag_id = ?", tag.getId()))
           .as("tag rules created for the tag of B")
           .isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "given a tag of B when a rule is created under the path of B naming a group of the default"
+            + " tenant then the request is refused as an unknown group and no rule is created")
+    void given_prefixedRouteOfB_should_refuseGroupOfDefaultTenant() throws Exception {
+      // -- Arrange --
+      Tag tag = saveTag(tenantB);
+      armTagRule(null, tenantB, tag);
+
+      // -- Act --
+      ResultActions result = postOnPrefixedRouteOfB(tagRuleBody(tag, List.of(groupInDefault)));
+
+      // -- Assert --
+      assertThat(statusOf(result))
+          .as(
+              "status of a tag rule creation under the path of B naming %s (default)",
+              groupInDefault)
+          .isEqualTo(404);
+      assertThat(result.andReturn().getResponse().getContentAsString())
+          .as("body of the refusal")
+          .contains("Asset Group not found");
+      assertThat(
+              column(
+                  entityManager, "SELECT tag_rule_id FROM tag_rules WHERE tag_id = ?", tag.getId()))
+          .as("tag rules created for the tag of B")
+          .isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "given a tag of B when a rule is created under the path of B naming a group of B then the"
+            + " group is linked")
+    void given_prefixedRouteOfB_should_createRuleLinkingGroupOfB() throws Exception {
+      // -- Arrange --
+      Tag tag = saveTag(tenantB);
+      armTagRule(null, tenantB, tag);
+
+      // -- Act --
+      int status = statusOf(postOnPrefixedRouteOfB(tagRuleBody(tag, List.of(groupInB))));
+
+      // -- Assert --
+      assertThat(status)
+          .as("status of a tag rule creation under the path of B naming %s (B)", groupInB)
+          .isEqualTo(200);
+      List<String> rules =
+          column(entityManager, "SELECT tag_rule_id FROM tag_rules WHERE tag_id = ?", tag.getId());
+      assertThat(rules).as("tag rules created for the tag of B").hasSize(1);
+      assertThat(column(entityManager, TAG_RULE_GROUPS, rules.get(0)))
+          .as("groups linked to the new tag rule")
+          .containsExactly(groupInB);
     }
   }
 
@@ -387,6 +521,14 @@ class AssetGroupLinksTenantTest extends IntegrationTest {
             .with(csrf()));
   }
 
+  private ResultActions postOnPrefixedRouteOfB(Map<String, Object> body) throws Exception {
+    return mvc.perform(
+        post(TENANT_PREFIX + "/tag-rules", tenantB)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(body))
+            .with(csrf()));
+  }
+
   private Map<String, Object> tagRuleBody(Tag tag, List<String> assetGroups) {
     Map<String, Object> body = new HashMap<>();
     body.put("tag_name", tag.getName());
@@ -402,7 +544,11 @@ class AssetGroupLinksTenantTest extends IntegrationTest {
 
   /** A tag of the tenant under a lowercase name that neither tenant holds. */
   private Tag saveTag(String tenantId) {
-    Tag tag = TagFixture.getTagWithText("asset-group-links-" + UUID.randomUUID());
+    return saveTagNamed("asset-group-links-" + UUID.randomUUID(), tenantId);
+  }
+
+  private Tag saveTagNamed(String name, String tenantId) {
+    Tag tag = TagFixture.getTagWithText(name);
     tag.setTenant(new Tenant(tenantId));
     Tag saved = tagRepository.save(tag);
     entityManager.flush();

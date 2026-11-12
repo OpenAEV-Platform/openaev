@@ -54,7 +54,7 @@ public class TagRuleService {
       final List<String> assetGroupIds,
       final boolean allowCreatingReserved,
       @NotBlank final String tenantId) {
-    return createTagRule(getTag(tagName), assetGroupIds, allowCreatingReserved, tenantId);
+    return createTagRule(getTag(tagName, tenantId), assetGroupIds, allowCreatingReserved, tenantId);
   }
 
   public TagRule createTagRule(
@@ -87,7 +87,7 @@ public class TagRuleService {
             .orElseThrow(
                 () -> new ElementNotFoundException("TagRule not found with id: " + tagRuleId));
 
-    Tag newTag = getTag(tagName);
+    Tag newTag = getTag(tagName, tagRule.getTenant().getId());
 
     // if one of the asset groups doesn't exist throw a ResourceNotFoundException
     List<AssetGroup> assetGroups = getAssetGroups(assetGroupIds, tagRule.getTenant().getId());
@@ -147,10 +147,10 @@ public class TagRuleService {
   }
 
   @VisibleForTesting
-  protected Tag getTag(@NotBlank final String tagName) {
+  protected Tag getTag(@NotBlank final String tagName, @NotBlank final String tenantId) {
     // TODO: tag name normalization needs to be implemented in a reusable method
     return tagRepository
-        .findByName(tagName.toLowerCase())
+        .findByNameAndTenantId(tagName.toLowerCase(), tenantId)
         .orElseThrow(() -> new ElementNotFoundException("Tag not found with name: " + tagName));
   }
 
