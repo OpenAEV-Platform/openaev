@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.Capability;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -15,7 +16,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,12 +29,17 @@ import org.springframework.transaction.annotation.Transactional;
  * scope, set from the request and never from the isAdmin flag, is what isolates a non-admin too.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=executors")
 @WithMockUser(isAdmin = false)
 @DisplayName("executors isolation holds for a non-admin spanning two tenants")
 class ExecutorNonAdminIsolationTest extends IntegrationTest {
 
   private static final Set<Capability> READ_EXECUTORS = Set.of(Capability.ACCESS_ASSETS);
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
