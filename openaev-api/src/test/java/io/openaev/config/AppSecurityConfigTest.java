@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
@@ -330,7 +331,8 @@ public class AppSecurityConfigTest extends IntegrationTest {
     // holds the soon-to-be-rotated token - the thing the admin rotation remediation must revoke,
     // regardless of how the session came to exist (token authentications are themselves stateless
     // post-fix: see AppSecurityConfig#hasTokenCredential).
-    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(Tenant.DEFAULT_TENANT_UUID);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), Tenant.DEFAULT_TENANT_UUID);
     entityManager.flush();
     entityManager.clear();
     User serviceAccount =

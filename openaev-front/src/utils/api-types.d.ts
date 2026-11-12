@@ -156,6 +156,12 @@ export interface AgentTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -404,6 +410,12 @@ export interface AiTargetTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -668,6 +680,13 @@ export interface AssetBulkProcessingInput {
   search_pagination_input?: SearchPaginationInput;
 }
 
+export interface AssetBulkReplaceMarkingsInput {
+  asset_ids_to_ignore?: string[];
+  asset_ids_to_process?: string[];
+  marking_ids: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface AssetGroup {
   asset_group_assets?: string[];
   /** @format date-time */
@@ -748,6 +767,12 @@ export interface AssetGroupTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -1945,6 +1970,7 @@ export type AverageConfiguration = UtilRequiredKeys<
 
 export type AwsAccessKey = Value & {
   aws_access_key_id?: string;
+  aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
     | "us-east-1"
@@ -1982,11 +2008,13 @@ export type AwsAccessKey = Value & {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  aws_endpoint_url?: string;
   aws_secret_access_key?: string;
   aws_session_token?: string;
 };
 
 export type AwsAssumeRole = Value & {
+  aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
     | "us-east-1"
@@ -2024,6 +2052,7 @@ export type AwsAssumeRole = Value & {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  aws_endpoint_url?: string;
   aws_external_id?: string;
   aws_role_arn?: string;
   aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
@@ -2032,15 +2061,21 @@ export type AwsAssumeRole = Value & {
 };
 
 export type AzureManagedIdentity = Value & {
+  azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_environment?: string;
+  /** @format byte */
+  azure_requests_certificate?: Blob;
   azure_subscription_id?: string;
 };
 
 export type AzureServicePrincipal = Value & {
+  azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_client_secret?: string;
   azure_environment?: string;
+  /** @format byte */
+  azure_requests_certificate?: Blob;
   azure_subscription_id?: string;
   azure_tenant_id?: string;
 };
@@ -2083,6 +2118,12 @@ interface BaseInjectTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_prevention_status?:
     | "FAILED"
     | "PENDING"
@@ -3417,6 +3458,8 @@ export interface CredentialFullOutput {
     | "GCP_OAUTH2";
   /** AWS access key ID */
   credential_aws_access_key_id?: string;
+  /** AWS account id */
+  credential_aws_account_id?: string;
   /** Secret AWS default region */
   credential_aws_default_region?:
     | "us-east-2"
@@ -3455,6 +3498,8 @@ export interface CredentialFullOutput {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  /** AWS endpoint URL override */
+  credential_aws_endpoint_url?: string;
   /** AWS role ARN */
   credential_aws_role_arn?: string;
   /** AWS session token present */
@@ -3465,10 +3510,14 @@ export interface CredentialFullOutput {
     | "INSTANCE_DEFAULT";
   /** AWS source profile access key id */
   credential_aws_source_profile_access_key_id?: string;
+  /** Azure authority host URI */
+  credential_azure_authority_host_uri?: string;
   /** Azure client id */
   credential_azure_client_id?: string;
   /** Azure environment */
   credential_azure_environment?: string;
+  /** Whether an Azure requests certificate is stored; the certificate itself is never returned */
+  credential_azure_requests_certificate_defined?: boolean;
   /** Azure subscription id */
   credential_azure_subscription_id?: string;
   /** Azure tenant id */
@@ -3482,6 +3531,16 @@ export interface CredentialFullOutput {
   credential_created_by: CredentialCreatedByOutput;
   /** Credential description */
   credential_description?: string;
+  /** GCP custom IAM URI */
+  credential_gcp_custom_iam_uri?: string;
+  /** Whether a GCP custom OAuth access token is stored; the token itself is never returned */
+  credential_gcp_custom_oauth_access_token_defined?: boolean;
+  /** GCP custom projects URI */
+  credential_gcp_custom_projects_uri?: string;
+  /** GCP custom resource manager URI */
+  credential_gcp_custom_resource_manager_uri?: string;
+  /** GCP custom token URI */
+  credential_gcp_custom_token_uri?: string;
   /** GCP OAuth client id */
   credential_gcp_oauth_client_id?: string;
   /** Whether a GCP OAuth client secret is stored; the secret itself is never returned */
@@ -3529,6 +3588,11 @@ export interface CredentialFullOutput {
 
 export interface CredentialInput {
   aws_access_key_id?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
     | "us-east-1"
@@ -3566,6 +3630,11 @@ export interface CredentialInput {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  aws_endpoint_url?: string;
   aws_external_id?: string;
   aws_role_arn?: string;
   aws_secret_access_key?: string;
@@ -3573,6 +3642,11 @@ export interface CredentialInput {
   aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
   aws_source_profile_access_key_id?: string;
   aws_source_profile_secret_access_key?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_client_secret?: string;
   azure_environment?: string;
@@ -3596,6 +3670,27 @@ export interface CredentialInput {
   credential_tags?: string[];
   credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   credential_username?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  gcp_custom_iam_uri?: string;
+  gcp_custom_oauth_access_token?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  gcp_custom_projects_uri?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  gcp_custom_resource_manager_uri?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  gcp_custom_token_uri?: string;
   gcp_oauth_client_id?: string;
   gcp_oauth_client_secret?: string;
   gcp_oauth_refresh_token?: string;
@@ -4931,6 +5026,12 @@ export interface EndpointTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -6310,6 +6411,9 @@ export interface FullTextSearchResult {
 }
 
 export type GcpOAuth2 = Value & {
+  gcp_custom_iam_uri?: string;
+  gcp_custom_oauth_access_token?: string;
+  gcp_custom_token_uri?: string;
   gcp_oauth_client_id?: string;
   gcp_oauth_client_secret?: string;
   gcp_oauth_refresh_token?: string;
@@ -6318,6 +6422,7 @@ export type GcpOAuth2 = Value & {
 };
 
 export type GcpServiceAccount = Value & {
+  gcp_custom_resource_manager_uri?: string;
   /** @format byte */
   gcp_private_key_json?: Blob;
   gcp_project_id?: string;
@@ -8151,6 +8256,12 @@ export interface ManualTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -10469,6 +10580,12 @@ export interface PlayerTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -11160,8 +11277,7 @@ export interface RoleInput {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
+    | "MANAGE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -11247,8 +11363,7 @@ export interface RoleOutput {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
+    | "MANAGE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -12773,6 +12888,12 @@ export interface TeamTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -12956,6 +13077,11 @@ export interface ThreatArsenalAction {
    * @uniqueItems true
    */
   action_domains_ids: string[];
+  /**
+   * Id the action's grants target: its payload identity, else the contract
+   * @minLength 1
+   */
+  action_grant_resource_id: string;
   /** Injector type */
   action_injector_type?: string;
   /** Labels */
@@ -13465,7 +13591,6 @@ export interface User {
   user_phone2?: string;
   listened?: boolean;
   team_exercises_users?: string[];
-  unscopedGroups?: Group[];
   /** True if the user is admin */
   user_admin?: boolean;
   /** @uniqueItems true */
@@ -13537,8 +13662,7 @@ export interface User {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
+    | "MANAGE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
@@ -14380,6 +14504,7 @@ export interface XtmHubRegisterInput {
 }
 
 export interface XtmHubRegistrationOutput {
+  tenant_xtmhub_registration_commercial_model?: "SAAS" | "OTHER";
   /** @format date-time */
   tenant_xtmhub_registration_date?: string;
   tenant_xtmhub_registration_id?: string;

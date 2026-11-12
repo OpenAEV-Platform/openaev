@@ -61,12 +61,17 @@ public class ScenarioMapper {
    * @param rawScenario the raw scenario data
    * @param killChainPhases the resolved kill chain phases
    * @param scenarioTeamUsers the resolved team users
+   * @param workflowId the scenario's workflow id, read in the scenario's own tenant
+   * @param platforms the scenario's platforms, read in the scenario's own tenant when it carries a
+   *     workflow template, in the request's scope otherwise
    * @return the full scenario output DTO
    */
   public ScenarioOutput toScenarioOutput(
       RawScenario rawScenario,
       Set<KillChainPhaseOutput> killChainPhases,
-      Set<ScenarioTeamUserOutput> scenarioTeamUsers) {
+      Set<ScenarioTeamUserOutput> scenarioTeamUsers,
+      String workflowId,
+      Set<String> platforms) {
 
     return ScenarioOutput.builder()
         .id(rawScenario.getScenario_id())
@@ -97,7 +102,7 @@ public class ScenarioMapper {
         .typeAffinity(rawScenario.getScenario_type_affinity())
         .exercises(rawScenario.getScenario_exercises())
         .killChainPhases(killChainPhases)
-        .platforms(rawScenario.getScenario_platforms())
+        .platforms(platforms)
         .tags(rawScenario.getScenario_tags())
         .teamUsers(scenarioTeamUsers)
         .scenarioUsersNumber(
@@ -108,7 +113,7 @@ public class ScenarioMapper {
             rawScenario.getScenario_all_users_number() != null
                 ? rawScenario.getScenario_all_users_number()
                 : 0)
-        .workflowId(rawScenario.getScenario_workflow_id())
+        .workflowId(workflowId)
         .autonomous(rawScenario.getScenario_autonomous())
         .build();
   }

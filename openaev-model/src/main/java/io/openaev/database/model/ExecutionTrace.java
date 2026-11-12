@@ -17,6 +17,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -25,7 +27,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Data
 @Entity
 @Table(name = "execution_traces")
-public class ExecutionTrace implements Base {
+public class ExecutionTrace implements TenantBase {
 
   @Id
   @Column(name = "execution_trace_id")
@@ -34,6 +36,13 @@ public class ExecutionTrace implements Base {
   @UuidGenerator
   @NotNull
   private String id;
+
+  @JsonIgnore
+  @ToString.Exclude
+  @EqualsAndHashCode.Exclude
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "tenant_id", updatable = false, nullable = false)
+  private Tenant tenant;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "execution_inject_status_id")
@@ -107,6 +116,38 @@ public class ExecutionTrace implements Base {
   @Override
   public int hashCode() {
     return Objects.hash(id);
+  }
+
+  /**
+   * Sets and returns the tenant of the inject this trace reports on, read from its inject status,
+   * else from its inject test status. Never taken from the request or job thread. Refuses a trace
+   * whose parent gives no tenant, and one whose two statuses belong to different tenants. Called on
+   * every write path: the JPA persist and the raw JDBC insert.
+   */
+  public Tenant attributeTenant() {
+    Tenant statusTenant = injectTenantOf(injectStatus);
+    Tenant testStatusTenant = injectTenantOf(injectTestStatus);
+    if (statusTenant != null
+        && testStatusTenant != null
+        && !statusTenant.getId().equals(testStatusTenant.getId())) {
+      throw new IllegalStateException(
+          "cross-tenant write: ExecutionTrace has an inject status and an inject test status of"
+              + " different tenants");
+    }
+    Tenant parent = statusTenant != null ? statusTenant : testStatusTenant;
+    // With no parent tenant a tenant already set is not an answer: pass none so the write is
+    // refused
+    tenant = ParentTenant.inherit(this, parent == null ? null : tenant, parent);
+    return tenant;
+  }
+
+  private static Tenant injectTenantOf(BaseInjectStatus status) {
+    return status == null || status.getInject() == null ? null : status.getInject().getTenant();
+  }
+
+  @PrePersist
+  void attributeTenantOnPersist() {
+    attributeTenant();
   }
 
   public static ExecutionTrace getNewErrorTrace(String message, ExecutionTraceAction action) {

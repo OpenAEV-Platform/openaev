@@ -652,6 +652,26 @@ jobs:
             Docker Build (${{ matrix.variant }} amd64)
             Docker Build (${{ matrix.variant }} arm64)
 
+  # Aikido scan of both amd64 images, on main and on every pull request, with Aikido's PR gate on
+  # pull requests and its release gate on pushes. Issues post an "Aikido Image Scan (advisory)"
+  # check and leave the job green; the gate treats the job as advisory for now. Details in the
+  # aikido-image-scan action.
+  aikido-image-scan:
+    name: "🔍 Aikido Image Scan"
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/aikido-image-scan
+        with:
+          api-key: ${{ secrets.AIKIDO_TOKEN }}
+          app-id: ${{ secrets.OPENAEV_PR_CHECKS_APP_ID }}
+          private-key: ${{ secrets.OPENAEV_PR_CHECKS_PRIVATE_KEY }}
+
   # ════════════════════════════════════════════════════════════════════
   # Pipeline gate
   #
@@ -684,6 +704,7 @@ jobs:
       - backend-package-musl
       - docker-build
       - docker-merge
+      - aikido-image-scan
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -711,7 +732,7 @@ jobs:
             case "$job" in
               # A new check lands here first so a false positive cannot block a merge. Take the job
               # out of this list to make it blocking.
-              bom-override-guard|coverage-backend-gate)
+              bom-override-guard|coverage-backend-gate|aikido-image-scan)
                 advisory=1
                 ;;
             esac

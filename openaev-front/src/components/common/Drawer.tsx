@@ -4,7 +4,7 @@ import { Drawer as DrawerMUI, type PaperProps, Typography } from '@mui/material'
 import { cloneElement, type CSSProperties, type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-import { computeBannerSettings } from '../../public/components/systembanners/utils';
+import useBannerSettings from '../../public/components/systembanners/useBannerSettings';
 import { CVSS_SEVERITY, getSeverityAndColor } from '../../utils/Colors';
 import { fdsLayerClass, layerInputVars, SURFACE_LAYER } from '../../utils/fdsLayer';
 import useAuth from '../../utils/hooks/useAuth';
@@ -101,7 +101,7 @@ const Drawer: FunctionComponent<DrawerProps> = ({
 }) => {
   const { t } = useFormatter();
   const { settings } = useAuth();
-  const { bannerHeightNumber } = computeBannerSettings(settings);
+  const { bannerHeightNumber } = useBannerSettings(settings);
 
   const { classes } = useStyles();
   let component;

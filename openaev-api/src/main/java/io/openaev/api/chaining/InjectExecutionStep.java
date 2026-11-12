@@ -23,7 +23,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
-import io.openaev.execution.ExecutionExecutorException;
+import io.openaev.execution.UnexecutableInjectException;
 import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
@@ -199,8 +199,9 @@ public class InjectExecutionStep implements ActionStep {
    * Executor}, and updates the step data with inject ID.
    *
    * @param readyStep the step currently in READY status
-   * @return the updated step with execution info, or an empty Optional if no agent could run the
-   *     inject: the inject is set to ERROR and the caller ends the step without retry
+   * @return the updated step with execution info, or an empty Optional if the inject cannot be
+   *     executed (see {@link UnexecutableInjectException}): the inject is set to ERROR and the
+   *     caller ends the step without retry
    * @throws ChainingException on any other failure: the transaction is rolled back and the event is
    *     retried
    */
@@ -212,20 +213,19 @@ public class InjectExecutionStep implements ActionStep {
     // CREATE & SAVE INJECT
     inject = injectService.createInject(inject);
     String injectId = inject.getId();
-    InjectorContract injectorContract =
-        inject
-            .getInjectorContract()
-            .orElseThrow(
-                () ->
-                    new ChainingException(
-                        "Injector contract missing on inject during run, step ID: "
-                            + readyStep.getId()));
-    prepareGetStatusPayloadFromInject(injectorContract);
+    readyStep.setData(setInjectId(injectId, readyStep.getData()));
+    Optional<InjectorContract> injectorContract = inject.getInjectorContract();
+    if (injectorContract.isEmpty()) {
+      return failUnexecutableInject(
+          inject,
+          new UnexecutableInjectException(
+              "Injector contract missing on inject during run, step ID: " + readyStep.getId()));
+    }
+    prepareGetStatusPayloadFromInject(injectorContract.get());
 
     recordAttackPathExecution(readyStep, inject);
 
     try {
-      readyStep.setData(setInjectId(injectId, readyStep.getData()));
       // Resolve the audience recipients (email/SMS players) from the inject's targeted teams and
       // the workflow scope's players. The standard queue path does this via InjectHelper; the
       // chaining path must do it here or the executor sees zero users and fails with "Email needs
@@ -251,23 +251,30 @@ public class InjectExecutionStep implements ActionStep {
       executor.directExecute(executableInject);
 
       return Optional.of(readyStep);
-    } catch (ExecutionExecutorException e) {
-      // No agent could run the inject (all inactive, agentless, or every executor call failed).
-      // That outcome is final, not transient: record it on the inject and end the step. Rolling
-      // back instead drops the inject with its traces and makes StepEventService re-publish the
-      // same event, which is what leaves RabbitMQ deliveries unacknowledged. The exception is
-      // thrown by the non-transactional ExecutionExecutorService, so the transaction is still
-      // sound, unless an inner transactional call failed earlier: keep the rollback then.
-      if (TransactionAspectSupport.currentTransactionStatus().isRollbackOnly()) {
-        throw new ChainingException(
-            "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
-      }
-      injectStatusService.failInjectStatus(inject, e.getMessage());
-      return Optional.empty();
+    } catch (UnexecutableInjectException e) {
+      return failUnexecutableInject(inject, e);
     } catch (Exception e) {
       throw new ChainingException(
           "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
     }
+  }
+
+  /**
+   * Records a final execution failure on the inject so the caller ends the step. Rolling back
+   * instead drops the inject with its traces and makes StepEventService re-publish the same event,
+   * only to fail the same way on every retry. The exception is thrown outside any transactional
+   * proxy, so the transaction is still sound, unless an inner transactional call failed earlier:
+   * keep the rollback then.
+   */
+  private Optional<Step> failUnexecutableInject(Inject inject, UnexecutableInjectException e)
+      throws ChainingException {
+    if (TransactionAspectSupport.currentTransactionStatus().isRollbackOnly()) {
+      throw new ChainingException(
+          "Inject execution failed. Inject ID: " + inject.getId() + " (transaction rolled back)",
+          e);
+    }
+    injectStatusService.failInjectStatus(inject, e.getMessage());
+    return Optional.empty();
   }
 
   /**
@@ -1594,15 +1601,13 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   private static boolean isTechnicalExpectation(BaseInjectExpectation expectation) {
-    return expectation instanceof PreventionInjectExpectation
-        || expectation instanceof DetectionInjectExpectation
-        || expectation instanceof VulnerabilityInjectExpectation;
+    return expectation instanceof TechnicalInjectExpectation;
   }
 
   /**
    * Enriches an output map entry with endpoint context (agent_id, asset_id, asset_group_id, plus
    * normalised target_type / target_id) when the expectation is a {@link
-   * TechnicalInjectExpectation} (i.e. PREVENTION or DETECTION).
+   * TechnicalInjectExpectation} (PREVENTION, DETECTION, LOGGING or VULNERABILITY).
    *
    * <p>Granularity priority:
    *

@@ -28,11 +28,13 @@ import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.MarkingDefinitionFixture;
+import io.openaev.utils.fixtures.PlatformRoleFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.TenantRoleFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
+import io.openaev.utils.fixtures.composers.PlatformRoleComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.TenantRoleComposer;
@@ -42,6 +44,7 @@ import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.*;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -60,6 +63,7 @@ public class TenantGroupApiTest extends IntegrationTest {
   @Autowired private GrantRepository grantRepository;
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private TenantRoleComposer tenantRoleComposer;
+  @Autowired private PlatformRoleComposer platformRoleComposer;
   @Autowired private UserComposer userComposer;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private PlatformGroupComposer platformGroupComposer;
@@ -457,6 +461,85 @@ public class TenantGroupApiTest extends IntegrationTest {
                   .accept(MediaType.APPLICATION_JSON)
                   .with(csrf()))
           .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(withCapabilities = {Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES})
+    @DisplayName("Given a platform role, should answer not found and link nothing")
+    void given_platformRole_should_answerNotFoundOnGroupRoles() throws Exception {
+      // -------- Arrange --------
+      Group group =
+          tenantGroupComposer
+              .forGroup(TenantGroupFixture.getGroup("GroupWithPlatformRole"))
+              .persist()
+              .get();
+      // No capability: the capability check has nothing to refuse, only the scope of the role does
+      Role platformRole =
+          platformRoleComposer
+              .forPlatformRole(
+                  PlatformRoleFixture.getPlatformRole("PlatformRoleOnTenantGroup", Set.of()))
+              .persist()
+              .get();
+
+      // -------- Act & Assert --------
+      assertGroupRolesRefused(group.getId(), platformRole.getId());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("Given a role of another tenant, should answer not found and link nothing")
+    void given_roleOfAnotherTenant_should_answerNotFoundOnGroupRoles() throws Exception {
+      // -------- Arrange --------
+      Group group =
+          tenantGroupComposer
+              .forGroup(TenantGroupFixture.getGroup("GroupWithOtherTenantRole"))
+              .persist()
+              .get();
+      String defaultTenantId = TenantContext.getCurrentTenant();
+      tenantIsolationHelper.grantCapabilitiesInTenant(
+          defaultTenantId, Set.of(Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES));
+      // The caller stays a member of the default tenant only
+      String otherTenantId = tenantIsolationHelper.createTenant("group-roles-other").getId();
+      // createTenant enrols the creating user in the new tenant
+      tenantIsolationHelper.detachCurrentUserFromTenant(otherTenantId);
+      tenantIsolationHelper.switchToTenant(otherTenantId, entityManager);
+      Role role =
+          tenantRoleComposer
+              .forRole(TenantRoleFixture.getRole("RoleOfAnotherTenant", Set.of()))
+              .persist()
+              .get();
+      tenantIsolationHelper.switchToTenant(defaultTenantId, entityManager);
+
+      // -------- Act & Assert --------
+      assertEquals(
+          Set.of(defaultTenantId),
+          testUserHolder.get().getTenants().stream().map(Tenant::getId).collect(Collectors.toSet()),
+          "the caller is a member of the default tenant only");
+      assertTrue(
+          tenantUri(TENANT_GROUP_URI).contains(defaultTenantId),
+          "the request targets the group's tenant");
+      assertGroupRolesRefused(group.getId(), role.getId());
+    }
+
+    private void assertGroupRolesRefused(String groupId, String roleId) throws Exception {
+      mvc.perform(
+              put(tenantUri(TENANT_GROUP_URI) + "/" + groupId + "/roles")
+                  .content(
+                      asJsonString(
+                          GroupUpdateRolesInput.builder().roleIds(List.of(roleId)).build()))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+      entityManager.flush();
+      assertEquals(
+          0,
+          ((Number)
+                  entityManager
+                      .createNativeQuery("SELECT count(*) FROM groups_roles WHERE group_id = :id")
+                      .setParameter("id", groupId)
+                      .getSingleResult())
+              .intValue());
     }
 
     @Test
@@ -936,7 +1019,7 @@ public class TenantGroupApiTest extends IntegrationTest {
       // -------- Arrange --------
       String defaultTenantId = TenantContext.getCurrentTenant();
       tenantIsolationHelper.grantCapabilitiesInTenant(
-          defaultTenantId, Set.of(Capability.ASSIGN_MARKING));
+          defaultTenantId, Set.of(Capability.MANAGE_MARKING_ASSIGNMENT));
       String otherTenantId =
           tenantIsolationHelper
               .createTenantWithCapabilities(
@@ -966,7 +1049,7 @@ public class TenantGroupApiTest extends IntegrationTest {
     @WithMockUser(
         withCapabilities = {
           Capability.MANAGE_TENANT_USERS_GROUPS_AND_ROLES,
-          Capability.ASSIGN_MARKING
+          Capability.MANAGE_MARKING_ASSIGNMENT
         })
     @DisplayName("Given ASSIGN_MARKING but not every marking, should forbid turning it on")
     void given_notEveryMarkingHeld_should_forbidTurningItOn() throws Exception {

@@ -8,7 +8,9 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import io.openaev.config.SessionManager;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Token;
@@ -24,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,6 +39,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
   @Mock private TenantUserService tenantUserService;
   @Mock private SessionManager sessionManager;
   @Mock private MarkingClearanceCacheManager markingClearanceCacheManager;
+  @Spy private TenantWriteScopeResolver writeScopeResolver = new TenantWriteScopeResolver();
 
   @InjectMocks private AgentServiceAccountPrivilegeService privilegeService;
 
@@ -81,7 +85,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
         .thenReturn(mockUser);
 
     // act
-    privilegeService.ensurePrivilegedUserExists(TENANT_ID);
+    privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
     // assert
     verify(userService)
@@ -110,7 +114,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
     when(userService.userHasToken(any())).thenReturn(false);
 
     // act
-    privilegeService.ensurePrivilegedUserExists(TENANT_ID);
+    privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
     // assert
     verify(userService, never()).createInternalUser(any(), any(), any(), anyBoolean(), any());
@@ -139,7 +143,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
     when(userService.userHasToken(any())).thenReturn(true);
 
     // act
-    privilegeService.ensurePrivilegedUserExists(TENANT_ID);
+    privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
     // assert
     verify(userService, never()).createInternalUser(any(), any(), any(), anyBoolean(), any());
@@ -170,7 +174,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
         .thenReturn(mockUser);
 
     // act
-    privilegeService.ensurePrivilegedUserExists(TENANT_ID);
+    privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
     // assert
     verify(tenantGroupService)
@@ -196,7 +200,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
         .thenReturn(mockUser);
 
     // act
-    privilegeService.ensurePrivilegedUserExists(TENANT_ID);
+    privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
     // assert
     verify(tenantGroupService).updateInternalGroupWithRoles(eq(mockGroup), any(), any());
@@ -224,7 +228,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
         .thenReturn(mockUser);
 
     // act
-    privilegeService.ensurePrivilegedUserExists(TENANT_ID);
+    privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
     // assert
     verify(tenantRoleService)
@@ -255,7 +259,7 @@ public class AgentServiceAccountPrivilegeServiceTest {
         .thenReturn(mockUser);
 
     // act
-    privilegeService.ensurePrivilegedUserExists(TENANT_ID);
+    privilegeService.ensurePrivilegedUserExists(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
     // assert
     verify(tenantRoleService, never()).createRoleInternal(any(), any(), any(), any(), any());
@@ -371,6 +375,53 @@ public class AgentServiceAccountPrivilegeServiceTest {
     assertThatThrownBy(() -> privilegeService.getTokenUserServiceAccountByTenant(TENANT_ID))
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessage("Token not found");
+  }
+
+  // endregion
+
+  // region findTokenUserServiceAccountByTenant
+
+  @Test
+  @DisplayName("Should find the token value when the service account has one")
+  void given_serviceAccountWithToken_should_findTokenValue() {
+    // prepare
+    Token token = new Token();
+    token.setValue("test-token-value");
+    mockUser.setTokens(new ArrayList<>(List.of(token)));
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
+
+    // act
+    Optional<String> result = privilegeService.findTokenUserServiceAccountByTenant(TENANT_ID);
+
+    // assert
+    assertThat(result).contains("test-token-value");
+  }
+
+  @Test
+  @DisplayName("Should find no token, without throwing, when no service account exists")
+  void given_noServiceAccount_should_findNoTokenWithoutThrowing() {
+    // prepare
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.empty());
+
+    // act
+    Optional<String> result = privilegeService.findTokenUserServiceAccountByTenant(TENANT_ID);
+
+    // assert
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("Should find no token, without throwing, when the service account has no token")
+  void given_serviceAccountWithoutToken_should_findNoTokenWithoutThrowing() {
+    // prepare
+    mockUser.setTokens(new ArrayList<>());
+    when(userService.findByEmailIgnoreCase(SERVICE_EMAIL)).thenReturn(Optional.of(mockUser));
+
+    // act
+    Optional<String> result = privilegeService.findTokenUserServiceAccountByTenant(TENANT_ID);
+
+    // assert
+    assertThat(result).isEmpty();
   }
 
   // endregion

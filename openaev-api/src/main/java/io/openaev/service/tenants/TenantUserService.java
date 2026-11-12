@@ -13,6 +13,7 @@ import io.openaev.api.users.dto.UserOutput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -66,6 +67,7 @@ public class TenantUserService implements DependenciesManager {
    */
   public UserOutput createOrAttach(TxCtx ctx, UserInput input) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    BaseEvent.attributeRequestEventsTo(tenantId, User.class);
     var existingUser = userRepository.findByEmailIgnoreCase(input.email());
     if (existingUser.isPresent()) {
       String userId = existingUser.get().getId();
@@ -135,7 +137,7 @@ public class TenantUserService implements DependenciesManager {
                 tenantSpec.and(spec).and(organizationsOfTenant),
                 tenantSpec.and(specCount).and(organizationsOfTenant),
                 pageable,
-                (cq, root) -> UserQueryHelper.select(cb, cq, root),
+                (cq, root) -> UserQueryHelper.select(cb, cq, root, tenantId),
                 UserQueryHelper::execution),
         searchPaginationInput,
         User.class);
@@ -150,6 +152,7 @@ public class TenantUserService implements DependenciesManager {
   public UserOutput update(TxCtx ctx, @NotBlank String userId, UserInput input) {
     ReservedKeyValidator.validateUserEmailPattern(input.email());
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    BaseEvent.attributeRequestEventsTo(tenantId, User.class);
     Specification<User> spec = inTenant(tenantId).and(UserSpecification.byId(userId));
     User existing =
         userRepository

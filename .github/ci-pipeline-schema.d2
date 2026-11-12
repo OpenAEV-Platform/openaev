@@ -90,6 +90,7 @@ docker: "DOCKER" {
 class: lane
 db: "🐳 Docker Build  ×4\nstd / ubi9  ×  amd64 / arm64\ntimeout 25 min · fail-fast: false\nbundled assets prepared inline" {class: docker}
 dm: "🐳 Merge Platforms  ×2\ntimeout 45 min · registry or artifact fallback" {class: docker}
+aikido: "🔍 Aikido Image Scan\ntimeout 25 min · Aikido gate, high/critical → red\n\"Aikido Image Scan (advisory)\" check\nadvisory in the Gate" {class: docker}
 }
 
 tests: "TESTS" {
@@ -144,6 +145,7 @@ gate -> retry: "on failure" {class: loop}
 wave0.build.bc -> wave0.tests.at: "POLLS backend artifacts\nevery 15s · poll cap 10 min\nterminal producer failure aborts" {class: poll}
 wave0.docker.db -> wave0.tests.e2e: "POLLS marker / artifact\nGHCR touched after marker\npoll cap 15 min" {class: poll}
 wave0.docker.db -> wave0.docker.dm: "POLLS architecture markers / artifacts\npoll cap 15 min" {class: poll}
+wave0.docker.db -> wave0.docker.aikido: "POLLS amd64 markers / artifacts\npoll cap 15 min" {class: poll}
 gated.bp -> wave0.tests.atc: "POLLS artifact openaev-api-jar\nevery 15s · poll cap 15 min\nterminal producer failure aborts" {class: poll}
 
 # ═══ Legend ══════════════════════════════════════════════════════════════════

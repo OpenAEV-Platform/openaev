@@ -220,7 +220,10 @@ public class AssetGroupApi extends RestBehavior {
       @Valid @RequestBody final AssetGroupInput input) {
     AssetGroup assetGroup = this.assetGroupService.assetGroup(assetGroupId);
     assetGroup.setUpdateAttributes(input);
-    assetGroup.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    assetGroup.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), assetGroup.getTenant().getId())));
     return withAssetsInitialized(this.assetGroupService.updateAssetGroup(assetGroup));
   }
 

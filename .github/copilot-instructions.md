@@ -68,6 +68,8 @@ CI runs on GitHub Actions (see `.github/workflows/`):
 - **nightly-ci.yml**: Nightly extended test suite
 - **deploy-feature-branch.yml**: Feature branch build for staging deploys (promoted from the release repository)
 - **codeql.yml**: Security scanning (weekly + main push)
+- **snyk-rolling-image-scan.yml**: Daily (03:30 UTC) and manual Snyk scan of the published `openaev/platform` images. High and critical findings are uploaded as job artifacts, kept for the repository's artifact retention (7 days). Findings do not fail the run, a scanner error does. Aikido scans the published images on its own, as a public image
+- **Aikido image scan** (`.github/actions/aikido-image-scan`): Core CI runs it with Aikido's gates on the images it builds, on `main` and on every pull request: a high or critical issue that Aikido counts (open on `main`, added by a pull request, not ignored in Aikido) posts a red "Aikido Image Scan (advisory)" check that explains it, which does not block for now (see `.github/ci-pipeline-schema.md`)
 - **openaev-validate-pr-title.yml**: Conventional Commits validation
 
 ## Project Structure
@@ -148,6 +150,7 @@ Rules:
 - **Never tick a checklist item.** Leave every box as `[ ]` — ticking them is the human author's responsibility, after their own review.
 - The PR title still follows Conventional Commits and ends with the issue reference: `type(scope?): description (#issue)`.
 - When the related issue is in a private repository, omit its reference from the PR title and description, use `* N/A` under `### Related issues`, and link the public PR from the private issue instead.
+- Agents use the private-issue exception (`* N/A`, no `(#issue)` in the title) only when the user explicitly says the related issue is in a private repository. Never assume it, and never use it because no issue is known: ask the user for the issue instead. If the user says there is no issue, do not work around the checks: no `* N/A`, no invented or unrelated issue number, no placeholder. Leave `### Related issues` empty, keep `(#issue)` out of the title, and let the title check fail so a maintainer sees it.
 
 ### Conventional Comments (for code reviews)
 

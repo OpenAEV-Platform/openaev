@@ -161,7 +161,8 @@ public class AttackPatternApi extends RestBehavior {
             .orElseThrow(ElementNotFoundException::new);
     attackPattern.setUpdateAttributes(input);
     attackPattern.setKillChainPhases(
-        fromIterable(this.killChainPhaseRepository.findAllById(input.getKillChainPhasesIds())));
+        killChainPhaseRepository.findAllByIdInTenant(
+            input.getKillChainPhasesIds(), attackPattern.getTenant().getId()));
     attackPattern.setUpdatedAt(Instant.now());
     return attackPatternRepository.save(attackPattern);
   }

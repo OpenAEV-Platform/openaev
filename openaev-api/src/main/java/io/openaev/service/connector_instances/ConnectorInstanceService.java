@@ -219,24 +219,6 @@ public class ConnectorInstanceService implements AuditLoggedService {
   }
 
   /**
-   * Resolves the {@link ConnectorInstancePersisted} that owns the given executor entity, scoped to
-   * the executor's tenant.
-   *
-   * @param executorId the executor entity ID
-   * @param tenantId the tenant owning the executor
-   * @return the owning connector instance
-   * @throws EntityNotFoundException if no connector instance is found for the executor ID
-   */
-  @Transactional(readOnly = true)
-  public ConnectorInstancePersisted findByExecutorId(String executorId, String tenantId) {
-    return findPersistedByConnectorId(ConnectorType.EXECUTOR, executorId, tenantId)
-        .orElseThrow(
-            () ->
-                new EntityNotFoundException(
-                    "No connector instance found for executor ID: " + executorId));
-  }
-
-  /**
    * Retrieves all connector instances.
    *
    * @return the list of connector instances
@@ -665,8 +647,8 @@ public class ConnectorInstanceService implements AuditLoggedService {
   }
 
   private ConnectorInstanceConfiguration createTokenConfiguration(
-      ConnectorInstancePersisted instance, String tenantId) {
-    String token = catalogConnectorPrivilegeService.getOrCreateToken(tenantId);
+      TxCtx ctx, ConnectorInstancePersisted instance, String tenantId) {
+    String token = catalogConnectorPrivilegeService.getOrCreateToken(ctx, tenantId);
     return createConfiguration(
         OPENAEV_KEY_TOKEN, objectMapper.getNodeFactory().textNode(token), false, instance);
   }
@@ -689,11 +671,13 @@ public class ConnectorInstanceService implements AuditLoggedService {
   /**
    * Creates a connector instance from a catalog connector.
    *
+   * @param ctx the scope of the request; it must contain {@code tenantId}
    * @param catalogConnectorWithConfigMap the catalog connector with its configurations map
    * @param input the input data for creating the connector instance
    * @return the created connector instance
    */
   public ConnectorInstancePersisted createConnectorInstance(
+      TxCtx ctx,
       ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
       CreateConnectorInstanceInput input,
       String tenantId) {
@@ -710,7 +694,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
             catalogConnectorWithConfigMap.configurationsMap(), newInstance, input);
 
     // Add OpenAEV token
-    configurations.add(createTokenConfiguration(newInstance, tenantId));
+    configurations.add(createTokenConfiguration(ctx, newInstance, tenantId));
     configurations.add(createTenantIdConfiguration(newInstance, tenantId));
     // Add container ID if not already present (in case of a migration)
     if (input.getConfigurations().stream()
