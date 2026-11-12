@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
@@ -50,6 +51,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Each test stays on a single tenant path so the per-request scope is set once: re-applying the
  * same scope inside the test transaction is tolerated, changing it would hit the nesting guard.
  */
+@CoversTenantIsolation("connector_instances")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=connector_instances")
 @WithMockUser(isAdmin = true)

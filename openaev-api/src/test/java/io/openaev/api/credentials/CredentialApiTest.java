@@ -20,6 +20,7 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.credentials.form.CredentialBulkProcessingInput;
 import io.openaev.api.credentials.form.CredentialInput;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tag;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
@@ -52,6 +53,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
+@CoversTenantIsolation({"secret_references", "secrets"})
 @TestInstance(PER_CLASS)
 @Transactional
 @WithMockUser(isAdmin = true)

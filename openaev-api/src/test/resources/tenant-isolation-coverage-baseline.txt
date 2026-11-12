@@ -1,0 +1,43 @@
+# Active tables with no test class marked @CoversTenantIsolation, read by TenantIsolationCoverageArchTest.
+#
+# The gate requires every table of the production openaev.tenant.active-tables list to be covered by a
+# class that runs on the real stack, holds the table in its effective activation list (the production
+# list, or a probe pin of pinned-active-tables-baseline.txt that includes it), seeds two tenants and
+# asserts a cross-tenant refusal. A table that no class meets that bar yet is named here.
+#
+# This list only shrinks. A line whose table becomes covered, or stops being active, fails the gate and
+# is removed in the same change, and the line count is frozen by TenantIsolationCoverageArchTest.BASELINE_SIZE.
+# A new line is a review call: an activation brings its isolation test with it instead.
+#
+# Format: <table> | <what the existing tests lack> | <why the table is on the list>
+#   Most gaps below are one gap: the only class that asserts the table's cross-tenant refusal is a
+#   drifts line of pinned-active-tables-baseline.txt, because its flow reads tables the class does not
+#   arm. Converting that class to follow the production list, and marking it, removes the line here.
+mitigations | no class on the production list or a probe pin asserts a cross-tenant refusal on mitigations | MitigationHttpIsolationTest and MitigationNonAdminIsolationTest are drifts lines, their reads hydrate the lazy attack_patterns association that those classes leave disarmed
+cwes | no class on the production list or a probe pin asserts a cross-tenant refusal on cwes | CweHttpIsolationTest is a drifts line, its cross-tenant read expects 200 where production, with vulnerabilities armed, answers 404
+collectors | no class on the production list or a probe pin asserts a cross-tenant refusal on collectors | CollectorHttpIsolationTest and CollectorNonAdminIsolationTest are drifts lines, their outputs read connector_instances and collector_types that those classes leave disarmed
+executors | no class on the production list or a probe pin asserts a cross-tenant refusal on executors | ExecutorHttpIsolationTest and ExecutorNonAdminIsolationTest are drifts lines, their reads touch connector_instances that those classes leave disarmed
+injectors | no class on the production list or a probe pin asserts a cross-tenant refusal on injectors | InjectorHttpIsolationTest and InjectorNonAdminIsolationTest are drifts lines, their reads touch connector_instances that those classes leave disarmed
+tag_rules | no class on the production list or a probe pin asserts a cross-tenant refusal on tag_rules | TagRuleHttpIsolationTest and TagRuleNonAdminIsolationTest are drifts lines, the response maps asset groups that those classes leave disarmed
+attackpath_execution | no class on the production list or a probe pin asserts a cross-tenant refusal on attackpath_execution | AttackPathHttpIsolationTest is a drifts line, building the graph reads assets that the class leaves disarmed
+attackpath_finding | no class on the production list or a probe pin asserts a cross-tenant refusal on attackpath_finding | AttackPathHttpIsolationTest is a drifts line, building the graph reads assets that the class leaves disarmed
+assets | no class on the production list or a probe pin asserts a cross-tenant refusal on assets | AssetHttpIsolationTest and AssetNonAdminIsolationTest are drifts lines, endpoint loads read agents, asset groups and tags that those classes leave disarmed
+notification_events | no class on the production list or a probe pin asserts a cross-tenant refusal on notification_events | the probe classes on this table assert reach across every tenant or fail-closed reads, not that a scoped caller is refused another tenant's event
+phishing_email_templates | no class on the production list or a probe pin asserts a cross-tenant refusal on phishing_email_templates | PhishingEmailTemplateHttpIsolationTest is a drifts line, every create resyncs landing page contracts that the class leaves disarmed
+phishing_landing_pages | no class on the production list or a probe pin asserts a cross-tenant refusal on phishing_landing_pages | PhishingLandingPageHttpIsolationTest is a drifts line, its upsert synchronises the injector contract and reads injectors that the class leaves disarmed
+asset_agent_jobs | no class on the production list or a probe pin asserts a cross-tenant refusal on asset_agent_jobs | AssetAgentJobDeletionScopeTest and EndpointApiTest are drifts lines, they join agents and read assets, executors, teams and asset groups that they leave disarmed
+payloads | no class on the production list or a probe pin asserts a cross-tenant refusal on payloads | PayloadHttpIsolationTest and PayloadApiNonAdminIsolationTest are drifts lines, payload reads load collector_types and the create path saves payloads rows that those classes leave disarmed
+vulnerabilities | no class on the production list or a probe pin asserts a cross-tenant refusal on vulnerabilities | VulnerabilityHttpIsolationTest is a drifts line, the by-id read maps cwes that the class leaves disarmed
+teams | no class on the production list or a probe pin asserts a cross-tenant refusal on teams | TeamHttpIsolationTest and TeamNonAdminIsolationTest are drifts lines, find and search join organizations that those classes leave disarmed
+organizations | no class on the production list or a probe pin asserts a cross-tenant refusal on organizations | its current classes are drifts lines, and the change that owns the table's activation is the one to convert and mark them
+agents | no class on the production list or a probe pin asserts a cross-tenant refusal on agents | AgentHttpIsolationTest is a drifts line, endpoint search reads assets and the capability report reads injectors that the class leaves disarmed
+catalog_items | no test seeds two tenants and asserts a cross-tenant refusal on catalog_items | the catalog is read through the connector catalog endpoints, whose isolation test arms connector_instances only
+catalog_releases | no test seeds two tenants and asserts a cross-tenant refusal on catalog_releases | the sync endpoint test runs in the default tenant only and asserts release content rules
+payload_identities | no test seeds two tenants and asserts a cross-tenant refusal on payload_identities | the classes naming it test grants, id joins and inventories around the table, and none asserts a refusal on the table itself
+workflows | no class on the production list or a probe pin asserts a cross-tenant refusal on workflows | ChainingHttpIsolationTest is a drifts line, its scope reads touch assets, teams and asset groups that the class leaves disarmed
+steps | no class on the production list or a probe pin asserts a cross-tenant refusal on steps | ChainingHttpIsolationTest is a drifts line, its scope reads touch assets, teams and asset groups that the class leaves disarmed
+conditions | no class on the production list or a probe pin asserts a cross-tenant refusal on conditions | ChainingHttpIsolationTest is a drifts line, its scope reads touch assets, teams and asset groups that the class leaves disarmed
+scope_variables | no class on the production list or a probe pin asserts a cross-tenant refusal on scope_variables | ChainingHttpIsolationTest is a drifts line, its scope reads touch assets, teams and asset groups that the class leaves disarmed
+steps_delay_queue | no class on the production list or a probe pin asserts a cross-tenant refusal on steps_delay_queue | ChainingHttpIsolationTest is a drifts line, its scope reads touch assets, teams and asset groups that the class leaves disarmed
+workflow_scope_rules | no class on the production list or a probe pin asserts a cross-tenant refusal on workflow_scope_rules | ChainingHttpIsolationTest is a drifts line, its scope reads touch assets, teams and asset groups that the class leaves disarmed
+workflow_states | no class on the production list or a probe pin asserts a cross-tenant refusal on workflow_states | ChainingHttpIsolationTest is a drifts line, its scope reads touch assets, teams and asset groups that the class leaves disarmed

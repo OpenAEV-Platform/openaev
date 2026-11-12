@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationTrigger;
@@ -37,6 +38,7 @@ import org.springframework.test.context.TestPropertySource;
  * <p>Notifier ids are left empty on purpose: the mapper short-circuits an empty id list, so this
  * test says nothing about notifier resolution, which is still v1 and is corrected by #7864.
  */
+@CoversTenantIsolation("notification_triggers")
 @TestPropertySource(properties = "openaev.tenant.active-tables=notification_triggers")
 @WithMockUser(isAdmin = true)
 @DisplayName("child triggers resolve in the write tenant, not across the whole read scope")

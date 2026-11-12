@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -54,6 +55,7 @@ import org.springframework.transaction.annotation.Transactional;
  * created or deleted under one route must land on that route's tenant and on no other. That is the
  * part the scope decides, and it is the part that can regress.
  */
+@CoversTenantIsolation("tenant_xtmhub_registrations")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=tenant_xtmhub_registrations")
 @WithMockUser(isAdmin = true)
