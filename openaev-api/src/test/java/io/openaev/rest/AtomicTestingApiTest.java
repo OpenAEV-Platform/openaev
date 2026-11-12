@@ -159,7 +159,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Create and upadte an atomic testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createAndUpdateAnAtomicTesting() throws Exception {
     String response =
         mvc.perform(
@@ -291,6 +291,10 @@ public class AtomicTestingApiTest extends IntegrationTest {
             .getContentAsString();
 
     String relaunchedInjectId = JsonPath.read(relaunchedInject, "$.inject_id");
+    // The relaunch deletes the original row with a native query, which leaves it in the
+    // persistence context: clear it so the next by-id read goes back to the database.
+    entityManager.flush();
+    entityManager.clear();
     mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId()).with(csrf()))
         .andExpect(status().is4xxClientError());
     mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + relaunchedInjectId).with(csrf()))

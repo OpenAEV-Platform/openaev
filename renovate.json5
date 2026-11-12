@@ -175,6 +175,35 @@
             ],
             allowedVersions: '<1.0.1',
         },
+        {
+            description: '@uiw/react-md-editor 4.2.x marks esm/ as an ES module but keeps imports without .js, so Node and the front tests fail to load it, until uiwjs/react-md-editor#730 is fixed',
+            matchDepNames: [
+                '@uiw/react-md-editor',
+            ],
+            allowedVersions: '<4.2.0',
+        },
+        // docker.elastic.co publishes no release timestamp, and with minimumReleaseAge set Renovate holds
+        // a release without one as pending for good (minimumReleaseAgeBehaviour: timestamp-required).
+        // No elasticsearch or kibana image PR was opened from 2026-06-03, when minimumReleaseAge came in,
+        // until this rule (#8899).
+        {
+            description: 'docker.elastic.co publishes no release timestamp, so minimumReleaseAge would hold every update as pending',
+            matchPackageNames: [
+                'docker.elastic.co/**',
+            ],
+            minimumReleaseAge: null,
+        },
+        {
+            description: 'openaev-es8-client holds the Elasticsearch 8 client next to the 9 one in openaev-es9-client, so it stays on 8.x (#8900)',
+            matchFileNames: [
+                'openaev-es8-client/pom.xml',
+            ],
+            matchPackageNames: [
+                'co.elastic.clients:elasticsearch-java',
+                'org.elasticsearch.client:elasticsearch-rest-client',
+            ],
+            allowedVersions: '<9',
+        },
         // group non-major devDependencies once a week to avoid Renovate noise
         {
             groupName: 'devDependencies (non-major)',
@@ -206,6 +235,22 @@
                 'major',
             ],
             dependencyDashboardApproval: true,
+        },
+        // react-final-form 7 needs final-form 5, and react-final-form-arrays 5 needs both, so these majors
+        // cannot land one at a time: on their own, #4565, #4567 and #5758 either failed CI or left the
+        // peer dependencies inconsistent (#8900). Minors still go to the front batch.
+        {
+            description: 'The final-form majors move in one PR',
+            matchDepNames: [
+                'final-form',
+                'final-form-arrays',
+                'react-final-form',
+                'react-final-form-arrays',
+            ],
+            matchUpdateTypes: [
+                'major',
+            ],
+            groupName: 'final-form',
         },
 
         // ── Weekly batches, continued ────────────────────────────────────────────────────────

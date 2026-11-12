@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import static io.openaev.database.model.DnsResolution.DNS_RESOLUTION_TYPE;
 import static io.openaev.database.model.FileDrop.FILE_DROP_TYPE;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.raw.RawInject;
@@ -89,6 +90,21 @@ public interface InjectRepository
   @Query("UPDATE Inject i SET i.updatedAt = :updatedAt WHERE i.id = :id")
   @Transactional
   int updateUpdatedAt(@Param("id") @NotNull String id, @Param("updatedAt") Instant updatedAt);
+
+  /**
+   * Updates only an inject's content and {@code updated_at}, through Hibernate like {@link
+   * #updateUpdatedAt} so the tenant statement inspector covers it. Unlike a save of the detached
+   * entity, it never merges the inject's associations (asset groups, teams, tags...): a dangling
+   * association row cannot fail a content-only change such as an expectations realignment (#8645).
+   * Returns the number of rows updated.
+   */
+  @Modifying
+  @Query("UPDATE Inject i SET i.content = :content, i.updatedAt = :updatedAt WHERE i.id = :id")
+  @Transactional
+  int updateContent(
+      @Param("id") @NotNull String id,
+      @Param("content") ObjectNode content,
+      @Param("updatedAt") Instant updatedAt);
 
   /**
    * Resolves the owning tenant of each given inject in one native, filter-exempt query, for
@@ -243,11 +259,20 @@ public interface InjectRepository
       nativeQuery = true)
   List<RawInjectIndexing> findForIndexing(@Param("from") Instant from, @Param("limit") int limit);
 
+  /**
+   * Contract id of the challenge publication inject (ChallengeContract.CHALLENGE_PUBLISH in
+   * openaev-api). inject_injector_contract holds a contract id, never an injector id: filtering on
+   * the challenge injector id matched no inject at all (#8060).
+   */
+  String CHALLENGE_PUBLISH_CONTRACT_ID = "f8e70b27-a69c-4b9f-a2df-e217c36b3981";
+
   // Ids only: Hibernate 7 cannot map Inject from a native result set, its tenant-scoped
   // @JoinFormula associations need generated column aliases a plain select i.* does not carry.
   @Query(
       value =
-          "select i.inject_id from injects i where i.inject_injector_contract = '49229430-b5b5-431f-ba5b-f36f599b0233'"
+          "select i.inject_id from injects i where i.inject_injector_contract = '"
+              + CHALLENGE_PUBLISH_CONTRACT_ID
+              + "'"
               + " and i.inject_content like :challengeId"
               + " and i.tenant_id = :#{#tenantContext.currentTenant}",
       nativeQuery = true)

@@ -1,7 +1,6 @@
 package io.openaev.service.stream;
 
 import io.openaev.config.MarkedTables;
-import io.openaev.config.MarkingBypass;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.MarkingCtx;
 import io.openaev.database.model.User;
@@ -40,13 +39,12 @@ public class StreamClearanceService {
     // Same switches as the SQL filtering: with the MARKING preview feature off, or assets not
     // activated for marking, nothing is filtered.
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)
-        || markedTables.get(ASSETS_TABLE) == null
-        || MarkingBypass.bypassesMarkings(user)) {
+        || markedTables.get(ASSETS_TABLE) == null) {
       return MarkingCtx.all();
     }
     if (tenantId == null) {
       return MarkingCtx.none();
     }
-    return clearanceCache.findClearance(user.getId(), tenantId, false);
+    return clearanceCache.findClearance(user.getId(), tenantId);
   }
 }

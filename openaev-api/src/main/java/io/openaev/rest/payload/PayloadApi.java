@@ -4,6 +4,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.api.asset.dto.SecurityPlatformSimpleOutput;
+import io.openaev.config.RequireTenantSelector;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawDocument;
@@ -49,7 +50,7 @@ public class PayloadApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.PAYLOAD)
   public Page<Payload> payloads(
       TxCtx ctx, @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return this.payloadService.searchPayloads(searchPaginationInput);
+    return this.payloadService.searchPayloads(ctx, searchPaginationInput);
   }
 
   @GetMapping({PAYLOAD_URI + "/{payloadId}", TENANT_PAYLOAD_URI + "/{payloadId}"})
@@ -132,13 +133,15 @@ public class PayloadApi extends RestBehavior {
     payloadService.delete(payloadId);
   }
 
+  // Without a selector, the caller's single tenant, or the default tenant for a caller of several
+  // tenants that include it.
   @PostMapping({PAYLOAD_URI + "/deprecate", TENANT_PAYLOAD_URI + "/deprecate"})
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.PAYLOAD)
   @Transactional(rollbackFor = Exception.class)
   public void deprecateNonProcessedPayloadsByCollector(
-      TxCtx ctx, @Valid @RequestBody PayloadsDeprecateInput input) {
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody PayloadsDeprecateInput input) {
     this.payloadService.deprecateNonProcessedPayloadsByCollector(
-        input.collectorId(), input.processedPayloadExternalIds());
+        ctx, input.collectorId(), input.processedPayloadExternalIds());
   }
 
   @GetMapping({

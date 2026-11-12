@@ -1,5 +1,6 @@
 package io.openaev.engine.impl.opensearch.os3;
 
+import static io.openaev.engine.EsUtils.toEngineDate;
 import static io.openaev.engine.impl.opensearch.os3.OpenSearchUtils.*;
 import static io.openaev.utils.CustomDashboardQueryUtils.*;
 import static io.openaev.utils.CustomDashboardTimeRange.ALL_TIME;
@@ -1217,14 +1218,8 @@ public class OpenSearchService implements EngineService {
   }
 
   public EsEntities entities(TxCtx ctx, RawUserAuth user, ListRuntime runtime) {
+    String entityName = commonSearchService.getListEntityName(runtime.getWidget());
     Filters.FilterGroup searchFilters = runtime.getWidget().getPerspective().getFilter();
-    String entityName =
-        searchFilters.getFilters().stream()
-            .filter(filter -> "base_entity".equals(filter.getKey()))
-            .findAny()
-            .orElseThrow()
-            .getValues()
-            .getFirst();
     List<EngineSortField> sorts = runtime.getWidget().getSorts();
 
     List<SortOptions> engineSorts;
@@ -1285,7 +1280,7 @@ public class OpenSearchService implements EngineService {
                       // By default the engine stops counting at 10,000 and reports it as a lower
                       // bound, which froze the pagination total of large result sets at "10000".
                       .trackTotalHits(tth -> tth.enabled(true)),
-              getClassForEntity(entityName));
+              commonSearchService.getModelClass(entityName));
       long total = response.hits().total() != null ? response.hits().total().value() : 0;
       return new EsEntities(
           response.hits().hits().stream()
@@ -1301,20 +1296,6 @@ public class OpenSearchService implements EngineService {
       log.error("query exception: {}", e.getMessage(), e);
     }
     return new EsEntities(new ArrayList<>(), 0, 0, 0, 0);
-  }
-
-  /**
-   * Return the class for the entity
-   *
-   * @param entityName the name of the entity
-   * @return the class itself
-   */
-  private Class<?> getClassForEntity(String entityName) {
-    Optional<EsModel<EsBase>> model =
-        searchEngine.getModels().stream()
-            .filter(esBaseEsModel -> entityName.equals(esBaseEsModel.getName()))
-            .findAny();
-    return model.get().getModel();
   }
 
   @Override
@@ -1337,6 +1318,8 @@ public class OpenSearchService implements EngineService {
 
     // Every Instant bound is truncated here, once, so the query cannot disagree with the
     // millisecond resolution of the engine's `date` field (base_updated_at is not date_nanos).
+    // Each bound is sent through toEngineDate, fraction always written: Instant.toString drops a
+    // zero fraction, and the engine rounds a whole-second lte bound up to .999 (issue/9095).
     Instant windowEnd = query.windowEnd().truncatedTo(ChronoUnit.MILLIS);
     Instant since = query.since() != null ? query.since().truncatedTo(ChronoUnit.MILLIS) : null;
     CursorPageQuery.Keyset after = query.after();
@@ -1350,9 +1333,12 @@ public class OpenSearchService implements EngineService {
                     t.field("base_tenant_side.keyword").value(v -> v.stringValue(query.tenantId())))
             .toQuery());
     filters.add(
-        RangeQuery.of(d -> d.field("base_updated_at").lte(JsonData.of(windowEnd))).toQuery());
+        RangeQuery.of(d -> d.field("base_updated_at").lte(JsonData.of(toEngineDate(windowEnd))))
+            .toQuery());
     if (since != null) {
-      filters.add(RangeQuery.of(d -> d.field("base_updated_at").gte(JsonData.of(since))).toQuery());
+      filters.add(
+          RangeQuery.of(d -> d.field("base_updated_at").gte(JsonData.of(toEngineDate(since))))
+              .toQuery());
     }
     if (after != null) {
       Instant afterTs = after.ts().truncatedTo(ChronoUnit.MILLIS);

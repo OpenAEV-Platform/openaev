@@ -314,7 +314,7 @@ public class XtmOneChatApi extends RestBehavior {
   // skipRBAC: see listSessions — per-user scoping is enforced upstream by the minted JWT.
   @AccessControl(skipRBAC = true, isEnterpriseEdition = true)
   public ResponseEntity<StreamingResponseBody> sendMessage(
-      TxCtx ctx, @RequestBody Map<String, Object> body) {
+      TxCtx ctx, @RequestBody Map<String, Object> body, HttpServletResponse response) {
     if (!config.isConfigured()) {
       return ResponseEntity.badRequest().build();
     }
@@ -348,8 +348,9 @@ public class XtmOneChatApi extends RestBehavior {
                   byte[] buf = new byte[4096];
                   int n;
                   while ((n = sseStream.read(buf)) != -1) {
+                    // Spring 7 makes outputStream.flush() a no-op: flush the response itself.
                     outputStream.write(buf, 0, n);
-                    outputStream.flush();
+                    response.flushBuffer();
                   }
                 });
           } catch (ResponseStatusException e) {
@@ -364,7 +365,7 @@ public class XtmOneChatApi extends RestBehavior {
             outputStream.write(
                 ("data: {\"type\":\"error\",\"content\":\"" + errorContent + "\"}\n\n")
                     .getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            outputStream.flush();
+            response.flushBuffer();
           } catch (Exception e) {
             log.warn("[XTM One Chat] Stream error, agent={}.", agentSlug, e);
             outputStream.write(
@@ -372,7 +373,7 @@ public class XtmOneChatApi extends RestBehavior {
                         + "{\"type\":\"error\",\"content\":\"Unable to connect to the AI assistant. Please try again.\"}"
                         + "\n\n")
                     .getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            outputStream.flush();
+            response.flushBuffer();
           }
         };
 

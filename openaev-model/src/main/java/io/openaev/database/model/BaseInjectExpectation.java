@@ -150,12 +150,15 @@ public class BaseInjectExpectation implements Base, Cloneable {
   @JsonProperty("inject_expectation_description")
   private String description;
 
+  // Batch fetching instead of @Fetch(SUBSELECT): same Hibernate SubselectFetch bug as on
+  // Inject.expectations, this time with BaseInjectExpectation (a SINGLE_TABLE inheritance root)
+  // as the collection owner rather than its element type.
   @OneToMany(
       mappedBy = "injectExpectation",
       cascade = CascadeType.ALL,
       fetch = FetchType.EAGER,
       orphanRemoval = true)
-  @Fetch(FetchMode.SUBSELECT)
+  @BatchSize(size = 1000)
   @JsonProperty("inject_expectation_results")
   private List<InjectExpectationResult> results = new ArrayList<>();
 

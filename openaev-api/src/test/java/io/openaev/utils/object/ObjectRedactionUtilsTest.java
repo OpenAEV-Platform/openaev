@@ -12,6 +12,8 @@ import java.util.Base64;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @DisplayName("Object redaction tests")
 class ObjectRedactionUtilsTest {
@@ -137,6 +139,21 @@ class ObjectRedactionUtilsTest {
       assertThat(redacted.get("gcp_oauth_refresh_token").asText()).isEqualTo(redactionMarker());
       assertThat(redacted.get("gcp_oauth_refresh_token").asText())
           .isNotEqualTo(hashWithSHA256(SENSITIVE_VALUE));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"gcp_custom_oauth_access_token", "azure_requests_certificate"})
+    @DisplayName("given_sovereignCloudSensitiveField_should_beRedactedAndNotHashed")
+    void given_sovereignCloudSensitiveField_should_beRedactedAndNotHashed(String field) {
+      // Arrange
+      ObjectNode payload = MAPPER.createObjectNode();
+      payload.put(field, SENSITIVE_VALUE);
+
+      // Act
+      JsonNode redacted = ObjectRedactionUtils.redact(payload, ResourceType.CREDENTIAL);
+
+      // Assert
+      assertThat(redacted.get(field).asText()).isEqualTo(redactionMarker());
     }
 
     @Test

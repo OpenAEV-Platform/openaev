@@ -1,0 +1,927 @@
+{
+  "description": "Shared test vectors of the canonical payload hash, which the repository, the release builder and the platform compute the same way.",
+  "format": {
+    "payload": "The payload as the platform exports it inside a scenario (the injector contract's injector_contract_payload).",
+    "attack_patterns": "The external IDs (attack_pattern_external_id) of the techniques the payload's contract holds (injector_contract_attack_patterns), in the order given.",
+    "files": "The SHA-256 of each attached document's bytes, by document ID.",
+    "canonical": "The canonical JSON text (RFC 8785), in UTF-8.",
+    "sha256": "The SHA-256 of the canonical text: the payload's hash.",
+    "refused": "The JSON pointer of the field this repository's canonical form refuses to hash without guessing: in the payload, or in its contract for a technique (/injector_contract_attack_patterns). A refusal is a limit of the repository's form, never a claim that the platform cannot hash the payload."
+  },
+  "rules": [
+    "The canonical form keeps the payload's fields under their exported names, as each type defines them; a field of another type, a field the form does not know or a value of an unexpected type is refused.",
+    "Left out by name, at their level only: payload_id, payload_external_id, payload_source, payload_status, payload_collector_type, payload_author_user, payload_author_team, payload_author_organization, payload_tags, payload_created_at, payload_updated_at, listened; in an output parser output_parser_id and its dates; in an output element contract_output_element_id, contract_output_element_tags and its dates; in a regex group regex_group_id and its dates.",
+    "A field whose value is null, an empty string, an empty list or an empty object is left out, at every depth, and so is an object in a list whose fields are all left out; false and 0 are kept. An item of a list of texts that is null or empty is refused, never dropped.",
+    "Sets, sorted and holding no item twice: payload_platforms, payload_expectations, each list of payload_expected_security_platforms, payload_output_parsers, their output_parser_contract_output_elements and contract_output_element_regex_groups, and the techniques. Texts sort by their UTF-16 code units; objects by their canonical text, compared in UTF-16 code units.",
+    "Ordered lists keep their order and may repeat an item: payload_arguments, payload_prerequisites, ai_attack_converters.",
+    "An attached file (executable_file, file_drop_file, the default_value of a document argument) enters by the SHA-256 of its bytes, in lower-case hexadecimal; its name does not enter.",
+    "The techniques enter as payload_attack_patterns.",
+    "Refused: a detection remediation (the export names its security platform by an identifier) and a free-form AI object (ai_attack_multi_turn, ai_attack_success_detector), when not empty.",
+    "Numbers are integers within the safe range of RFC 8785 (2^53 - 1)."
+  ],
+  "vectors": [
+    {
+      "name": "Command payload with every field filled, as exported (IDs, dates and authors left out)",
+      "payload": {
+        "listened": true,
+        "payload_id": "e5c843a8-06ff-4d85-9f36-3cc8182ddacb",
+        "payload_type": "Command",
+        "payload_name": "Sample payload - Command",
+        "payload_description": "Every field filled, to read their exported shapes.",
+        "payload_platforms": [
+          "Windows",
+          "Linux"
+        ],
+        "payload_cleanup_executor": "psh",
+        "payload_cleanup_command": "Write-Output cleanup",
+        "payload_elevation_required": true,
+        "payload_arguments": [
+          {
+            "type": "text",
+            "key": "target",
+            "default_value": "host.example.com",
+            "description": "A host",
+            "separator": ","
+          },
+          {
+            "type": "document",
+            "key": "tool",
+            "default_value": "10955664-c5d6-4cc9-8a50-deeb2d967969",
+            "description": null,
+            "separator": null
+          }
+        ],
+        "payload_prerequisites": [
+          {
+            "executor": "psh",
+            "get_command": "Write-Output get",
+            "check_command": "Write-Output check",
+            "description": "First"
+          },
+          {
+            "executor": "cmd",
+            "get_command": "echo get",
+            "check_command": null,
+            "description": null
+          }
+        ],
+        "payload_external_id": null,
+        "payload_source": "MANUAL",
+        "payload_expectations": [
+          "PREVENTION",
+          "DETECTION"
+        ],
+        "payload_expected_security_platforms": {
+          "DETECTION": [
+            "SIEM",
+            "EDR"
+          ],
+          "PREVENTION": [
+            "EDR",
+            "XDR"
+          ]
+        },
+        "payload_status": "VERIFIED",
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_collector_type": null,
+        "payload_author_user": "89206193-dbfb-4513-a186-d72c037dda4c",
+        "payload_author_team": null,
+        "payload_author_organization": null,
+        "payload_detection_remediations": [],
+        "payload_output_parsers": [
+          {
+            "listened": true,
+            "output_parser_id": "881e4f72-a865-4a9c-8379-538305598364",
+            "output_parser_mode": "STDOUT",
+            "output_parser_type": "REGEX",
+            "output_parser_contract_output_elements": [
+              {
+                "listened": true,
+                "contract_output_element_id": "1201a82b-faef-49b8-a789-8d12b71892ff",
+                "contract_output_element_is_finding": true,
+                "contract_output_element_rule": "(\\w+):(\\d+)",
+                "contract_output_element_name": "Open ports",
+                "contract_output_element_regex_groups": [
+                  {
+                    "listened": true,
+                    "regex_group_id": "569400aa-ed02-4e25-aae2-9406638ee709",
+                    "regex_group_field": "host",
+                    "regex_group_index_values": "$1",
+                    "regex_group_created_at": "2026-10-13T20:18:22.022667Z",
+                    "regex_group_updated_at": "2026-10-13T20:18:22.022673Z"
+                  },
+                  {
+                    "listened": true,
+                    "regex_group_id": "f2415163-c612-4874-ad85-0fa8a7aebf98",
+                    "regex_group_field": "port",
+                    "regex_group_index_values": "$2",
+                    "regex_group_created_at": "2026-10-13T20:18:22.023506Z",
+                    "regex_group_updated_at": "2026-10-13T20:18:22.023511Z"
+                  }
+                ],
+                "contract_output_element_key": "ports",
+                "contract_output_element_type": "port",
+                "contract_output_element_tags": [],
+                "contract_output_element_created_at": "2026-10-13T20:18:22Z",
+                "contract_output_element_updated_at": "2026-10-13T20:18:22Z"
+              }
+            ],
+            "output_parser_created_at": "2026-10-13T20:18:22.017557Z",
+            "output_parser_updated_at": "2026-10-13T20:18:22.017566Z"
+          }
+        ],
+        "payload_created_at": "2026-10-13T20:18:22.015238Z",
+        "payload_updated_at": "2026-10-13T20:18:22.015248Z",
+        "command_executor": "psh",
+        "command_content": "Write-Output #{target}"
+      },
+      "attack_patterns": [
+        "T1082",
+        "T1059.001"
+      ],
+      "files": {
+        "10955664-c5d6-4cc9-8a50-deeb2d967969": "f4e16ee63844ece8ff5f335e71482784049fd1af4ff0e6d771321bed24a65b6a"
+      },
+      "canonical": "{\"command_content\":\"Write-Output #{target}\",\"command_executor\":\"psh\",\"payload_arguments\":[{\"default_value\":\"host.example.com\",\"description\":\"A host\",\"key\":\"target\",\"separator\":\",\",\"type\":\"text\"},{\"default_value\":\"f4e16ee63844ece8ff5f335e71482784049fd1af4ff0e6d771321bed24a65b6a\",\"key\":\"tool\",\"type\":\"document\"}],\"payload_attack_patterns\":[\"T1059.001\",\"T1082\"],\"payload_cleanup_command\":\"Write-Output cleanup\",\"payload_cleanup_executor\":\"psh\",\"payload_description\":\"Every field filled, to read their exported shapes.\",\"payload_elevation_required\":true,\"payload_execution_arch\":\"ALL_ARCHITECTURES\",\"payload_expectations\":[\"DETECTION\",\"PREVENTION\"],\"payload_expected_security_platforms\":{\"DETECTION\":[\"EDR\",\"SIEM\"],\"PREVENTION\":[\"EDR\",\"XDR\"]},\"payload_name\":\"Sample payload - Command\",\"payload_output_parsers\":[{\"output_parser_contract_output_elements\":[{\"contract_output_element_is_finding\":true,\"contract_output_element_key\":\"ports\",\"contract_output_element_name\":\"Open ports\",\"contract_output_element_regex_groups\":[{\"regex_group_field\":\"host\",\"regex_group_index_values\":\"$1\"},{\"regex_group_field\":\"port\",\"regex_group_index_values\":\"$2\"}],\"contract_output_element_rule\":\"(\\\\w+):(\\\\d+)\",\"contract_output_element_type\":\"port\"}],\"output_parser_mode\":\"STDOUT\",\"output_parser_type\":\"REGEX\"}],\"payload_platforms\":[\"Linux\",\"Windows\"],\"payload_prerequisites\":[{\"check_command\":\"Write-Output check\",\"description\":\"First\",\"executor\":\"psh\",\"get_command\":\"Write-Output get\"},{\"executor\":\"cmd\",\"get_command\":\"echo get\"}],\"payload_type\":\"Command\"}",
+      "sha256": "40709891a49172deefc6663b548bd3d6a46871f861ed36dbb5dacf97545e9e69"
+    },
+    {
+      "name": "Command payload of a starter-pack scenario, as the repository stores it",
+      "payload": {
+        "command_content": "sc create Crowdoor binPath= \"C:\\windows\\system32\\cmd.exe\" start= auto",
+        "command_executor": "cmd",
+        "payload_arguments": [],
+        "payload_cleanup_command": "sc.exe delete Crowdoor",
+        "payload_cleanup_executor": "cmd",
+        "payload_description": "",
+        "payload_detection_remediations": [],
+        "payload_elevation_required": false,
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_expectations": [
+          "DETECTION",
+          "PREVENTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_external_id": null,
+        "payload_id": "6dfb6d0a-ef00-5362-809d-ddae4ee53a8c",
+        "payload_name": "Create a New Service \"Crowdoor\" - Salt Typhoon",
+        "payload_output_parsers": [],
+        "payload_platforms": [
+          "Windows"
+        ],
+        "payload_prerequisites": [],
+        "payload_source": "MANUAL",
+        "payload_status": "VERIFIED",
+        "payload_type": "Command"
+      },
+      "attack_patterns": [
+        "T1543.003"
+      ],
+      "files": {},
+      "canonical": "{\"command_content\":\"sc create Crowdoor binPath= \\\"C:\\\\windows\\\\system32\\\\cmd.exe\\\" start= auto\",\"command_executor\":\"cmd\",\"payload_attack_patterns\":[\"T1543.003\"],\"payload_cleanup_command\":\"sc.exe delete Crowdoor\",\"payload_cleanup_executor\":\"cmd\",\"payload_elevation_required\":false,\"payload_execution_arch\":\"ALL_ARCHITECTURES\",\"payload_expectations\":[\"DETECTION\",\"PREVENTION\"],\"payload_name\":\"Create a New Service \\\"Crowdoor\\\" - Salt Typhoon\",\"payload_platforms\":[\"Windows\"],\"payload_type\":\"Command\"}",
+      "sha256": "1feb1db059ca689505ecf8a410dfa6c2413994dc91327b7d5ec4dffb60691cfd"
+    },
+    {
+      "name": "Sets of objects sorted by the canonical text of each item: parsers, elements and regex groups given in reverse",
+      "payload": {
+        "payload_type": "Command",
+        "payload_name": "Reversed sets",
+        "command_executor": "sh",
+        "command_content": "id",
+        "payload_output_parsers": [
+          {
+            "output_parser_mode": "STDERR",
+            "output_parser_type": "REGEX"
+          },
+          {
+            "output_parser_mode": "STDOUT",
+            "output_parser_type": "REGEX",
+            "output_parser_contract_output_elements": [
+              {
+                "contract_output_element_key": "beta",
+                "contract_output_element_is_finding": false,
+                "contract_output_element_regex_groups": [
+                  {
+                    "regex_group_field": "port",
+                    "regex_group_index_values": "$2"
+                  },
+                  {
+                    "regex_group_field": "host",
+                    "regex_group_index_values": "$1"
+                  }
+                ]
+              },
+              {
+                "contract_output_element_key": "alpha",
+                "contract_output_element_is_finding": true
+              }
+            ]
+          }
+        ]
+      },
+      "attack_patterns": [],
+      "files": {},
+      "canonical": "{\"command_content\":\"id\",\"command_executor\":\"sh\",\"payload_name\":\"Reversed sets\",\"payload_output_parsers\":[{\"output_parser_contract_output_elements\":[{\"contract_output_element_is_finding\":false,\"contract_output_element_key\":\"beta\",\"contract_output_element_regex_groups\":[{\"regex_group_field\":\"host\",\"regex_group_index_values\":\"$1\"},{\"regex_group_field\":\"port\",\"regex_group_index_values\":\"$2\"}]},{\"contract_output_element_is_finding\":true,\"contract_output_element_key\":\"alpha\"}],\"output_parser_mode\":\"STDOUT\",\"output_parser_type\":\"REGEX\"},{\"output_parser_mode\":\"STDERR\",\"output_parser_type\":\"REGEX\"}],\"payload_type\":\"Command\"}",
+      "sha256": "4b1dedb891f8d5e2391592eff21b919883b70fa8af4f5601cdd29b6578550883"
+    },
+    {
+      "name": "Text outside ASCII is written as UTF-8; sets are ordered by UTF-16 code units",
+      "payload": {
+        "payload_type": "Command",
+        "payload_name": "Café",
+        "command_executor": "sh",
+        "command_content": "echo café",
+        "payload_output_parsers": [
+          {
+            "output_parser_mode": "STDOUT",
+            "output_parser_type": "REGEX",
+            "output_parser_contract_output_elements": [
+              {
+                "contract_output_element_key": "k",
+                "contract_output_element_is_finding": false,
+                "contract_output_element_regex_groups": [
+                  {
+                    "regex_group_field": "￿",
+                    "regex_group_index_values": "$1"
+                  },
+                  {
+                    "regex_group_field": "😀",
+                    "regex_group_index_values": "$2"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "attack_patterns": [],
+      "files": {},
+      "canonical": "{\"command_content\":\"echo café\",\"command_executor\":\"sh\",\"payload_name\":\"Café\",\"payload_output_parsers\":[{\"output_parser_contract_output_elements\":[{\"contract_output_element_is_finding\":false,\"contract_output_element_key\":\"k\",\"contract_output_element_regex_groups\":[{\"regex_group_field\":\"😀\",\"regex_group_index_values\":\"$2\"},{\"regex_group_field\":\"￿\",\"regex_group_index_values\":\"$1\"}]}],\"output_parser_mode\":\"STDOUT\",\"output_parser_type\":\"REGEX\"}],\"payload_type\":\"Command\"}",
+      "sha256": "b17da9dbb83a1656f409ff0d58f65ff72c7860d7c596bcc3d84da1630d8ad835"
+    },
+    {
+      "name": "Executable payload: the file enters by the SHA-256 of its bytes",
+      "payload": {
+        "listened": true,
+        "payload_id": "3562d66e-f380-410b-acb2-bbd4d20deb51",
+        "payload_type": "Executable",
+        "payload_name": "Sample payload - Executable",
+        "payload_description": null,
+        "payload_platforms": [
+          "Windows"
+        ],
+        "payload_cleanup_executor": null,
+        "payload_cleanup_command": null,
+        "payload_elevation_required": false,
+        "payload_arguments": [],
+        "payload_prerequisites": [],
+        "payload_external_id": null,
+        "payload_source": "MANUAL",
+        "payload_expectations": [
+          "PREVENTION",
+          "DETECTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_status": "VERIFIED",
+        "payload_execution_arch": "x86_64",
+        "payload_collector_type": null,
+        "payload_author_user": "89206193-dbfb-4513-a186-d72c037dda4c",
+        "payload_author_team": null,
+        "payload_author_organization": null,
+        "payload_detection_remediations": [],
+        "payload_output_parsers": [],
+        "payload_created_at": "2026-10-13T20:18:33.273118Z",
+        "payload_updated_at": "2026-10-13T20:18:33.273125Z",
+        "executable_file": "10955664-c5d6-4cc9-8a50-deeb2d967969"
+      },
+      "attack_patterns": [],
+      "files": {
+        "10955664-c5d6-4cc9-8a50-deeb2d967969": "f4e16ee63844ece8ff5f335e71482784049fd1af4ff0e6d771321bed24a65b6a"
+      },
+      "canonical": "{\"executable_file\":\"f4e16ee63844ece8ff5f335e71482784049fd1af4ff0e6d771321bed24a65b6a\",\"payload_elevation_required\":false,\"payload_execution_arch\":\"x86_64\",\"payload_expectations\":[\"DETECTION\",\"PREVENTION\"],\"payload_name\":\"Sample payload - Executable\",\"payload_platforms\":[\"Windows\"],\"payload_type\":\"Executable\"}",
+      "sha256": "298c0b1fd4dc103b769d4c167e9cee29190ed764835253bea6ae9b9011505cb5"
+    },
+    {
+      "name": "FileDrop payload: the file enters by the SHA-256 of its bytes",
+      "payload": {
+        "listened": true,
+        "payload_id": "d4d46557-5eea-4130-ac24-c18d9c048493",
+        "payload_type": "FileDrop",
+        "payload_name": "Sample payload - FileDrop",
+        "payload_description": null,
+        "payload_platforms": [
+          "Windows"
+        ],
+        "payload_cleanup_executor": null,
+        "payload_cleanup_command": null,
+        "payload_elevation_required": false,
+        "payload_arguments": [],
+        "payload_prerequisites": [],
+        "payload_external_id": null,
+        "payload_source": "MANUAL",
+        "payload_expectations": [
+          "PREVENTION",
+          "DETECTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_status": "VERIFIED",
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_collector_type": null,
+        "payload_author_user": "89206193-dbfb-4513-a186-d72c037dda4c",
+        "payload_author_team": null,
+        "payload_author_organization": null,
+        "payload_detection_remediations": [],
+        "payload_output_parsers": [],
+        "payload_created_at": "2026-10-13T20:18:22.139093Z",
+        "payload_updated_at": "2026-10-13T20:18:22.139100Z",
+        "file_drop_file": "10955664-c5d6-4cc9-8a50-deeb2d967969"
+      },
+      "attack_patterns": [],
+      "files": {
+        "10955664-c5d6-4cc9-8a50-deeb2d967969": "f4e16ee63844ece8ff5f335e71482784049fd1af4ff0e6d771321bed24a65b6a"
+      },
+      "canonical": "{\"file_drop_file\":\"f4e16ee63844ece8ff5f335e71482784049fd1af4ff0e6d771321bed24a65b6a\",\"payload_elevation_required\":false,\"payload_execution_arch\":\"ALL_ARCHITECTURES\",\"payload_expectations\":[\"DETECTION\",\"PREVENTION\"],\"payload_name\":\"Sample payload - FileDrop\",\"payload_platforms\":[\"Windows\"],\"payload_type\":\"FileDrop\"}",
+      "sha256": "452ee6c8b74d89698aeb79dc3c1ac419ed6bb962210186d233d7f771bbfc35b2"
+    },
+    {
+      "name": "DnsResolution payload",
+      "payload": {
+        "listened": true,
+        "payload_id": "08644401-7358-451b-aa7a-b8d39d3a2817",
+        "payload_type": "DnsResolution",
+        "payload_name": "Sample payload - DnsResolution",
+        "payload_description": null,
+        "payload_platforms": [
+          "Windows"
+        ],
+        "payload_cleanup_executor": null,
+        "payload_cleanup_command": null,
+        "payload_elevation_required": false,
+        "payload_arguments": [],
+        "payload_prerequisites": [],
+        "payload_external_id": null,
+        "payload_source": "MANUAL",
+        "payload_expectations": [
+          "PREVENTION",
+          "DETECTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_status": "VERIFIED",
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_collector_type": null,
+        "payload_author_user": "89206193-dbfb-4513-a186-d72c037dda4c",
+        "payload_author_team": null,
+        "payload_author_organization": null,
+        "payload_detection_remediations": [],
+        "payload_output_parsers": [],
+        "payload_created_at": "2026-10-13T20:18:22.232484Z",
+        "payload_updated_at": "2026-10-13T20:18:22.232496Z",
+        "dns_resolution_hostname": "host.example.com"
+      },
+      "attack_patterns": [],
+      "files": {},
+      "canonical": "{\"dns_resolution_hostname\":\"host.example.com\",\"payload_elevation_required\":false,\"payload_execution_arch\":\"ALL_ARCHITECTURES\",\"payload_expectations\":[\"DETECTION\",\"PREVENTION\"],\"payload_name\":\"Sample payload - DnsResolution\",\"payload_platforms\":[\"Windows\"],\"payload_type\":\"DnsResolution\"}",
+      "sha256": "3d39d509abd40328b462ee45d95726246c4f8a04932e29fcf9d804858fd2616f"
+    },
+    {
+      "name": "NetworkTraffic payload, from the platform's API schema: ports stay integers",
+      "payload": {
+        "listened": true,
+        "payload_id": "08644401-7358-451b-aa7a-b8d39d3a2817",
+        "payload_type": "NetworkTraffic",
+        "payload_name": "Sample payload - NetworkTraffic",
+        "payload_description": null,
+        "payload_platforms": [
+          "Linux"
+        ],
+        "payload_cleanup_executor": null,
+        "payload_cleanup_command": null,
+        "payload_elevation_required": false,
+        "payload_arguments": [],
+        "payload_prerequisites": [],
+        "payload_external_id": null,
+        "payload_source": "MANUAL",
+        "payload_expectations": [
+          "PREVENTION",
+          "DETECTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_status": "VERIFIED",
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_collector_type": null,
+        "payload_author_user": "89206193-dbfb-4513-a186-d72c037dda4c",
+        "payload_author_team": null,
+        "payload_author_organization": null,
+        "payload_detection_remediations": [],
+        "payload_output_parsers": [],
+        "payload_created_at": "2026-10-13T20:18:22.232484Z",
+        "payload_updated_at": "2026-10-13T20:18:22.232496Z",
+        "network_traffic_ip_src": "192.0.2.1",
+        "network_traffic_ip_dst": "192.0.2.2",
+        "network_traffic_port_src": 4444,
+        "network_traffic_port_dst": 443,
+        "network_traffic_protocol": "TCP"
+      },
+      "attack_patterns": [],
+      "files": {},
+      "canonical": "{\"network_traffic_ip_dst\":\"192.0.2.2\",\"network_traffic_ip_src\":\"192.0.2.1\",\"network_traffic_port_dst\":443,\"network_traffic_port_src\":4444,\"network_traffic_protocol\":\"TCP\",\"payload_elevation_required\":false,\"payload_execution_arch\":\"ALL_ARCHITECTURES\",\"payload_expectations\":[\"DETECTION\",\"PREVENTION\"],\"payload_name\":\"Sample payload - NetworkTraffic\",\"payload_platforms\":[\"Linux\"],\"payload_type\":\"NetworkTraffic\"}",
+      "sha256": "e084ffd34841ff54838299e23c175739ffcc723a02ecb3b37da9e2408f6d90e7"
+    },
+    {
+      "name": "AiAttack payload: the converters keep their order",
+      "payload": {
+        "listened": true,
+        "payload_id": "63a11ded-3d83-44eb-9d2d-b89bdd5a7eba",
+        "payload_type": "AiAttack",
+        "payload_name": "Sample payload - AiAttack",
+        "payload_description": null,
+        "payload_platforms": [
+          "Generic"
+        ],
+        "payload_cleanup_executor": null,
+        "payload_cleanup_command": null,
+        "payload_elevation_required": false,
+        "payload_arguments": [],
+        "payload_prerequisites": [],
+        "payload_external_id": null,
+        "payload_source": "MANUAL",
+        "payload_expectations": [
+          "PREVENTION",
+          "DETECTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_status": "VERIFIED",
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_collector_type": null,
+        "payload_author_user": "89206193-dbfb-4513-a186-d72c037dda4c",
+        "payload_author_team": null,
+        "payload_author_organization": null,
+        "payload_detection_remediations": [],
+        "payload_output_parsers": [],
+        "payload_created_at": "2026-10-13T20:18:22.467696Z",
+        "payload_updated_at": "2026-10-13T20:18:22.467705Z",
+        "ai_attack_engine": "native",
+        "ai_attack_category": "jailbreak",
+        "ai_attack_content": "Say hello",
+        "ai_attack_multi_turn": {},
+        "ai_attack_converters": [
+          "leetspeak",
+          "base64"
+        ],
+        "ai_attack_success_detector": {}
+      },
+      "attack_patterns": [],
+      "files": {},
+      "canonical": "{\"ai_attack_category\":\"jailbreak\",\"ai_attack_content\":\"Say hello\",\"ai_attack_converters\":[\"leetspeak\",\"base64\"],\"ai_attack_engine\":\"native\",\"payload_elevation_required\":false,\"payload_execution_arch\":\"ALL_ARCHITECTURES\",\"payload_expectations\":[\"DETECTION\",\"PREVENTION\"],\"payload_name\":\"Sample payload - AiAttack\",\"payload_platforms\":[\"Generic\"],\"payload_type\":\"AiAttack\"}",
+      "sha256": "41659c89d4ba315ea2a2f893bebcec971bbe6d05dfa14dcdd8145f95de1b287a"
+    },
+    {
+      "name": "A detection remediation names its security platform by an ID, not by its type",
+      "payload": {
+        "command_content": "sc create Crowdoor binPath= \"C:\\windows\\system32\\cmd.exe\" start= auto",
+        "command_executor": "cmd",
+        "payload_arguments": [],
+        "payload_cleanup_command": "sc.exe delete Crowdoor",
+        "payload_cleanup_executor": "cmd",
+        "payload_description": "",
+        "payload_detection_remediations": [
+          {
+            "detection_remediation_id": "4f8b8c1e-0000-4000-8000-000000000001",
+            "detection_remediation_security_platform": "4f8b8c1e-0000-4000-8000-000000000002",
+            "detection_remediation_values": "rule one",
+            "author_rule": "HUMAN"
+          }
+        ],
+        "payload_elevation_required": false,
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_expectations": [
+          "DETECTION",
+          "PREVENTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_external_id": null,
+        "payload_id": "6dfb6d0a-ef00-5362-809d-ddae4ee53a8c",
+        "payload_name": "Create a New Service \"Crowdoor\" - Salt Typhoon",
+        "payload_output_parsers": [],
+        "payload_platforms": [
+          "Windows"
+        ],
+        "payload_prerequisites": [],
+        "payload_source": "MANUAL",
+        "payload_status": "VERIFIED",
+        "payload_type": "Command"
+      },
+      "attack_patterns": [],
+      "files": {},
+      "refused": "/payload_detection_remediations"
+    },
+    {
+      "name": "A free-form AI multi-turn object",
+      "payload": {
+        "listened": true,
+        "payload_id": "63a11ded-3d83-44eb-9d2d-b89bdd5a7eba",
+        "payload_type": "AiAttack",
+        "payload_name": "Sample payload - AiAttack",
+        "payload_description": null,
+        "payload_platforms": [
+          "Generic"
+        ],
+        "payload_cleanup_executor": null,
+        "payload_cleanup_command": null,
+        "payload_elevation_required": false,
+        "payload_arguments": [],
+        "payload_prerequisites": [],
+        "payload_external_id": null,
+        "payload_source": "MANUAL",
+        "payload_expectations": [
+          "PREVENTION",
+          "DETECTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_status": "VERIFIED",
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_collector_type": null,
+        "payload_author_user": "89206193-dbfb-4513-a186-d72c037dda4c",
+        "payload_author_team": null,
+        "payload_author_organization": null,
+        "payload_detection_remediations": [],
+        "payload_output_parsers": [],
+        "payload_created_at": "2026-10-13T20:18:22.467696Z",
+        "payload_updated_at": "2026-10-13T20:18:22.467705Z",
+        "ai_attack_engine": "native",
+        "ai_attack_category": null,
+        "ai_attack_content": null,
+        "ai_attack_multi_turn": {
+          "turns": 2
+        },
+        "ai_attack_converters": [],
+        "ai_attack_success_detector": {}
+      },
+      "attack_patterns": [],
+      "files": {},
+      "refused": "/ai_attack_multi_turn"
+    },
+    {
+      "name": "An attached file whose bytes are not given",
+      "payload": {
+        "listened": true,
+        "payload_id": "3562d66e-f380-410b-acb2-bbd4d20deb51",
+        "payload_type": "Executable",
+        "payload_name": "Sample payload - Executable",
+        "payload_description": null,
+        "payload_platforms": [
+          "Windows"
+        ],
+        "payload_cleanup_executor": null,
+        "payload_cleanup_command": null,
+        "payload_elevation_required": false,
+        "payload_arguments": [],
+        "payload_prerequisites": [],
+        "payload_external_id": null,
+        "payload_source": "MANUAL",
+        "payload_expectations": [
+          "PREVENTION",
+          "DETECTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_status": "VERIFIED",
+        "payload_execution_arch": "x86_64",
+        "payload_collector_type": null,
+        "payload_author_user": "89206193-dbfb-4513-a186-d72c037dda4c",
+        "payload_author_team": null,
+        "payload_author_organization": null,
+        "payload_detection_remediations": [],
+        "payload_output_parsers": [],
+        "payload_created_at": "2026-10-13T20:18:33.273118Z",
+        "payload_updated_at": "2026-10-13T20:18:33.273125Z",
+        "executable_file": "10955664-c5d6-4cc9-8a50-deeb2d967969"
+      },
+      "attack_patterns": [],
+      "files": {},
+      "refused": "/executable_file"
+    },
+    {
+      "name": "A document argument whose file's bytes are not given",
+      "payload": {
+        "listened": true,
+        "payload_id": "e5c843a8-06ff-4d85-9f36-3cc8182ddacb",
+        "payload_type": "Command",
+        "payload_name": "Sample payload - Command",
+        "payload_description": "Every field filled, to read their exported shapes.",
+        "payload_platforms": [
+          "Windows",
+          "Linux"
+        ],
+        "payload_cleanup_executor": "psh",
+        "payload_cleanup_command": "Write-Output cleanup",
+        "payload_elevation_required": true,
+        "payload_arguments": [
+          {
+            "type": "text",
+            "key": "target",
+            "default_value": "host.example.com",
+            "description": "A host",
+            "separator": ","
+          },
+          {
+            "type": "document",
+            "key": "tool",
+            "default_value": "10955664-c5d6-4cc9-8a50-deeb2d967969",
+            "description": null,
+            "separator": null
+          }
+        ],
+        "payload_prerequisites": [
+          {
+            "executor": "psh",
+            "get_command": "Write-Output get",
+            "check_command": "Write-Output check",
+            "description": "First"
+          },
+          {
+            "executor": "cmd",
+            "get_command": "echo get",
+            "check_command": null,
+            "description": null
+          }
+        ],
+        "payload_external_id": null,
+        "payload_source": "MANUAL",
+        "payload_expectations": [
+          "PREVENTION",
+          "DETECTION"
+        ],
+        "payload_expected_security_platforms": {
+          "DETECTION": [
+            "SIEM",
+            "EDR"
+          ],
+          "PREVENTION": [
+            "EDR",
+            "XDR"
+          ]
+        },
+        "payload_status": "VERIFIED",
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_collector_type": null,
+        "payload_author_user": "89206193-dbfb-4513-a186-d72c037dda4c",
+        "payload_author_team": null,
+        "payload_author_organization": null,
+        "payload_detection_remediations": [],
+        "payload_output_parsers": [
+          {
+            "listened": true,
+            "output_parser_id": "881e4f72-a865-4a9c-8379-538305598364",
+            "output_parser_mode": "STDOUT",
+            "output_parser_type": "REGEX",
+            "output_parser_contract_output_elements": [
+              {
+                "listened": true,
+                "contract_output_element_id": "1201a82b-faef-49b8-a789-8d12b71892ff",
+                "contract_output_element_is_finding": true,
+                "contract_output_element_rule": "(\\w+):(\\d+)",
+                "contract_output_element_name": "Open ports",
+                "contract_output_element_regex_groups": [
+                  {
+                    "listened": true,
+                    "regex_group_id": "569400aa-ed02-4e25-aae2-9406638ee709",
+                    "regex_group_field": "host",
+                    "regex_group_index_values": "$1",
+                    "regex_group_created_at": "2026-10-13T20:18:22.022667Z",
+                    "regex_group_updated_at": "2026-10-13T20:18:22.022673Z"
+                  },
+                  {
+                    "listened": true,
+                    "regex_group_id": "f2415163-c612-4874-ad85-0fa8a7aebf98",
+                    "regex_group_field": "port",
+                    "regex_group_index_values": "$2",
+                    "regex_group_created_at": "2026-10-13T20:18:22.023506Z",
+                    "regex_group_updated_at": "2026-10-13T20:18:22.023511Z"
+                  }
+                ],
+                "contract_output_element_key": "ports",
+                "contract_output_element_type": "port",
+                "contract_output_element_tags": [],
+                "contract_output_element_created_at": "2026-10-13T20:18:22Z",
+                "contract_output_element_updated_at": "2026-10-13T20:18:22Z"
+              }
+            ],
+            "output_parser_created_at": "2026-10-13T20:18:22.017557Z",
+            "output_parser_updated_at": "2026-10-13T20:18:22.017566Z"
+          }
+        ],
+        "payload_created_at": "2026-10-13T20:18:22.015238Z",
+        "payload_updated_at": "2026-10-13T20:18:22.015248Z",
+        "command_executor": "psh",
+        "command_content": "Write-Output #{target}"
+      },
+      "attack_patterns": [],
+      "files": {},
+      "refused": "/payload_arguments/1/default_value"
+    },
+    {
+      "name": "A field the canonical form does not know",
+      "payload": {
+        "command_content": "sc create Crowdoor binPath= \"C:\\windows\\system32\\cmd.exe\" start= auto",
+        "command_executor": "cmd",
+        "payload_arguments": [],
+        "payload_cleanup_command": "sc.exe delete Crowdoor",
+        "payload_cleanup_executor": "cmd",
+        "payload_description": "",
+        "payload_detection_remediations": [],
+        "payload_elevation_required": false,
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_expectations": [
+          "DETECTION",
+          "PREVENTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_external_id": null,
+        "payload_id": "6dfb6d0a-ef00-5362-809d-ddae4ee53a8c",
+        "payload_name": "Create a New Service \"Crowdoor\" - Salt Typhoon",
+        "payload_output_parsers": [],
+        "payload_platforms": [
+          "Windows"
+        ],
+        "payload_prerequisites": [],
+        "payload_source": "MANUAL",
+        "payload_status": "VERIFIED",
+        "payload_type": "Command",
+        "payload_new_field": "x"
+      },
+      "attack_patterns": [],
+      "files": {},
+      "refused": "/payload_new_field"
+    },
+    {
+      "name": "A field of another payload type",
+      "payload": {
+        "command_content": "sc create Crowdoor binPath= \"C:\\windows\\system32\\cmd.exe\" start= auto",
+        "command_executor": "cmd",
+        "payload_arguments": [],
+        "payload_cleanup_command": "sc.exe delete Crowdoor",
+        "payload_cleanup_executor": "cmd",
+        "payload_description": "",
+        "payload_detection_remediations": [],
+        "payload_elevation_required": false,
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_expectations": [
+          "DETECTION",
+          "PREVENTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_external_id": null,
+        "payload_id": "6dfb6d0a-ef00-5362-809d-ddae4ee53a8c",
+        "payload_name": "Create a New Service \"Crowdoor\" - Salt Typhoon",
+        "payload_output_parsers": [],
+        "payload_platforms": [
+          "Windows"
+        ],
+        "payload_prerequisites": [],
+        "payload_source": "MANUAL",
+        "payload_status": "VERIFIED",
+        "payload_type": "Command",
+        "dns_resolution_hostname": "host.example.com"
+      },
+      "attack_patterns": [],
+      "files": {},
+      "refused": "/dns_resolution_hostname"
+    },
+    {
+      "name": "An unknown payload type",
+      "payload": {
+        "command_content": "sc create Crowdoor binPath= \"C:\\windows\\system32\\cmd.exe\" start= auto",
+        "command_executor": "cmd",
+        "payload_arguments": [],
+        "payload_cleanup_command": "sc.exe delete Crowdoor",
+        "payload_cleanup_executor": "cmd",
+        "payload_description": "",
+        "payload_detection_remediations": [],
+        "payload_elevation_required": false,
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_expectations": [
+          "DETECTION",
+          "PREVENTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_external_id": null,
+        "payload_id": "6dfb6d0a-ef00-5362-809d-ddae4ee53a8c",
+        "payload_name": "Create a New Service \"Crowdoor\" - Salt Typhoon",
+        "payload_output_parsers": [],
+        "payload_platforms": [
+          "Windows"
+        ],
+        "payload_prerequisites": [],
+        "payload_source": "MANUAL",
+        "payload_status": "VERIFIED",
+        "payload_type": "Teleport"
+      },
+      "attack_patterns": [],
+      "files": {},
+      "refused": "/payload_type"
+    },
+    {
+      "name": "A technique of the contract without an external ID (reported on the contract)",
+      "payload": {
+        "command_content": "sc create Crowdoor binPath= \"C:\\windows\\system32\\cmd.exe\" start= auto",
+        "command_executor": "cmd",
+        "payload_arguments": [],
+        "payload_cleanup_command": "sc.exe delete Crowdoor",
+        "payload_cleanup_executor": "cmd",
+        "payload_description": "",
+        "payload_detection_remediations": [],
+        "payload_elevation_required": false,
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_expectations": [
+          "DETECTION",
+          "PREVENTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_external_id": null,
+        "payload_id": "6dfb6d0a-ef00-5362-809d-ddae4ee53a8c",
+        "payload_name": "Create a New Service \"Crowdoor\" - Salt Typhoon",
+        "payload_output_parsers": [],
+        "payload_platforms": [
+          "Windows"
+        ],
+        "payload_prerequisites": [],
+        "payload_source": "MANUAL",
+        "payload_status": "VERIFIED",
+        "payload_type": "Command"
+      },
+      "attack_patterns": [
+        null
+      ],
+      "files": {},
+      "refused": "/injector_contract_attack_patterns"
+    },
+    {
+      "name": "A set that holds the same item twice",
+      "payload": {
+        "command_content": "sc create Crowdoor binPath= \"C:\\windows\\system32\\cmd.exe\" start= auto",
+        "command_executor": "cmd",
+        "payload_arguments": [],
+        "payload_cleanup_command": "sc.exe delete Crowdoor",
+        "payload_cleanup_executor": "cmd",
+        "payload_description": "",
+        "payload_detection_remediations": [],
+        "payload_elevation_required": false,
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_expectations": [
+          "DETECTION",
+          "PREVENTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_external_id": null,
+        "payload_id": "6dfb6d0a-ef00-5362-809d-ddae4ee53a8c",
+        "payload_name": "Create a New Service \"Crowdoor\" - Salt Typhoon",
+        "payload_output_parsers": [],
+        "payload_platforms": [
+          "Windows",
+          "Windows"
+        ],
+        "payload_prerequisites": [],
+        "payload_source": "MANUAL",
+        "payload_status": "VERIFIED",
+        "payload_type": "Command"
+      },
+      "attack_patterns": [],
+      "files": {},
+      "refused": "/payload_platforms"
+    },
+    {
+      "name": "A field ending in _id that is not an instance field",
+      "payload": {
+        "command_content": "sc create Crowdoor binPath= \"C:\\windows\\system32\\cmd.exe\" start= auto",
+        "command_executor": "cmd",
+        "payload_arguments": [],
+        "payload_cleanup_command": "sc.exe delete Crowdoor",
+        "payload_cleanup_executor": "cmd",
+        "payload_description": "",
+        "payload_detection_remediations": [],
+        "payload_elevation_required": false,
+        "payload_execution_arch": "ALL_ARCHITECTURES",
+        "payload_expectations": [
+          "DETECTION",
+          "PREVENTION"
+        ],
+        "payload_expected_security_platforms": {},
+        "payload_external_id": null,
+        "payload_id": "6dfb6d0a-ef00-5362-809d-ddae4ee53a8c",
+        "payload_name": "Create a New Service \"Crowdoor\" - Salt Typhoon",
+        "payload_output_parsers": [],
+        "payload_platforms": [
+          "Windows"
+        ],
+        "payload_prerequisites": [],
+        "payload_source": "MANUAL",
+        "payload_status": "VERIFIED",
+        "payload_type": "Command",
+        "command_id": "curl example"
+      },
+      "attack_patterns": [],
+      "files": {},
+      "refused": "/command_id"
+    }
+  ]
+}

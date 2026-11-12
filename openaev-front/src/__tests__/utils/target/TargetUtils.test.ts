@@ -38,6 +38,16 @@ describe('TargetUtils', () => {
       // Assert
       expect(result).toBeNull();
     });
+
+    it('given MANUAL target should return null', () => {
+      // A manual target is a raw IP or hostname typed in the inject content,
+      // not an entity, so there is no overview page to pivot to.
+      // Act
+      const result = getTargetOverviewUrl(buildTarget('MANUAL'));
+
+      // Assert
+      expect(result).toBeNull();
+    });
   });
 
   // -- getTargetOverviewLabel --

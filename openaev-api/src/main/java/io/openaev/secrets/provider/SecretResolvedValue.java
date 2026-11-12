@@ -15,6 +15,10 @@ import io.openaev.database.model.Secret;
  * <p>The top-level contract carries only the resolved secret kind and the matching value payload,
  * so callers never receive a flat object full of null fields and cannot infer unrelated supported
  * secret shapes from the response schema.
+ *
+ * <p>The sovereign or mocked cloud overrides are optional and omitted when absent. {@code
+ * gcp_custom_projects_uri} is deliberately not part of any payload: only the platform connectivity
+ * check uses it.
  */
 @JsonInclude(NON_NULL)
 public record SecretResolvedValue(
@@ -34,11 +38,18 @@ public record SecretResolvedValue(
       AwsRegion awsDefaultRegion,
       String awsAccessKeyId,
       String awsSecretAccessKey,
-      String awsSessionToken) {
+      String awsSessionToken,
+      String awsAccountId,
+      String awsEndpointUrl) {
     return new SecretResolvedValue(
         Secret.SECRET_TYPE.AWS_ACCESS_KEY,
         new Value.AwsAccessKey(
-            awsDefaultRegion, awsAccessKeyId, awsSecretAccessKey, awsSessionToken));
+            awsDefaultRegion,
+            awsAccessKeyId,
+            awsSecretAccessKey,
+            awsSessionToken,
+            awsAccountId,
+            awsEndpointUrl));
   }
 
   public static SecretResolvedValue forAwsAssumeRole(
@@ -47,7 +58,9 @@ public record SecretResolvedValue(
       AwsAssumeRoleSecret.AWS_SOURCE_IDENTITY_TYPE awsSourceIdentityType,
       String awsExternalId,
       String awsSourceProfileAccessKeyId,
-      String awsSourceProfileSecretAccessKey) {
+      String awsSourceProfileSecretAccessKey,
+      String awsAccountId,
+      String awsEndpointUrl) {
     return new SecretResolvedValue(
         Secret.SECRET_TYPE.AWS_ASSUME_ROLE,
         new Value.AwsAssumeRole(
@@ -56,7 +69,9 @@ public record SecretResolvedValue(
             awsSourceIdentityType,
             awsExternalId,
             awsSourceProfileAccessKeyId,
-            awsSourceProfileSecretAccessKey));
+            awsSourceProfileSecretAccessKey,
+            awsAccountId,
+            awsEndpointUrl));
   }
 
   public static SecretResolvedValue forAzureServicePrincipal(
@@ -64,7 +79,9 @@ public record SecretResolvedValue(
       String azureClientId,
       String azureClientSecret,
       String azureTenantId,
-      String azureSubscriptionId) {
+      String azureSubscriptionId,
+      String azureAuthorityHostUri,
+      byte[] azureRequestsCertificate) {
     return new SecretResolvedValue(
         Secret.SECRET_TYPE.AZURE_SERVICE_PRINCIPAL,
         new Value.AzureServicePrincipal(
@@ -72,21 +89,36 @@ public record SecretResolvedValue(
             azureClientId,
             azureClientSecret,
             azureTenantId,
-            azureSubscriptionId));
+            azureSubscriptionId,
+            azureAuthorityHostUri,
+            azureRequestsCertificate));
   }
 
   public static SecretResolvedValue forAzureManagedIdentity(
-      String azureEnvironment, String azureClientId, String azureSubscriptionId) {
+      String azureEnvironment,
+      String azureClientId,
+      String azureSubscriptionId,
+      String azureAuthorityHostUri,
+      byte[] azureRequestsCertificate) {
     return new SecretResolvedValue(
         Secret.SECRET_TYPE.AZURE_MANAGED_IDENTITY,
-        new Value.AzureManagedIdentity(azureEnvironment, azureClientId, azureSubscriptionId));
+        new Value.AzureManagedIdentity(
+            azureEnvironment,
+            azureClientId,
+            azureSubscriptionId,
+            azureAuthorityHostUri,
+            azureRequestsCertificate));
   }
 
   public static SecretResolvedValue forGcpServiceAccount(
-      String gcpScope, String gcpProjectId, byte[] gcpPrivateKeyJson) {
+      String gcpScope,
+      String gcpProjectId,
+      byte[] gcpPrivateKeyJson,
+      String gcpCustomResourceManagerUri) {
     return new SecretResolvedValue(
         Secret.SECRET_TYPE.GCP_SERVICE_ACCOUNT,
-        new Value.GcpServiceAccount(gcpScope, gcpProjectId, gcpPrivateKeyJson));
+        new Value.GcpServiceAccount(
+            gcpScope, gcpProjectId, gcpPrivateKeyJson, gcpCustomResourceManagerUri));
   }
 
   public static SecretResolvedValue forGcpOAuth2(
@@ -94,11 +126,21 @@ public record SecretResolvedValue(
       String gcpProjectId,
       String gcpOauthClientId,
       String gcpOauthClientSecret,
-      String gcpOauthRefreshToken) {
+      String gcpOauthRefreshToken,
+      String gcpCustomTokenUri,
+      String gcpCustomIamUri,
+      String gcpCustomOauthAccessToken) {
     return new SecretResolvedValue(
         Secret.SECRET_TYPE.GCP_OAUTH2,
         new Value.GcpOAuth2(
-            gcpScope, gcpProjectId, gcpOauthClientId, gcpOauthClientSecret, gcpOauthRefreshToken));
+            gcpScope,
+            gcpProjectId,
+            gcpOauthClientId,
+            gcpOauthClientSecret,
+            gcpOauthRefreshToken,
+            gcpCustomTokenUri,
+            gcpCustomIamUri,
+            gcpCustomOauthAccessToken));
   }
 
   public sealed interface Value
@@ -128,7 +170,9 @@ public record SecretResolvedValue(
         @JsonProperty("aws_default_region") AwsRegion awsDefaultRegion,
         @JsonProperty("aws_access_key_id") String awsAccessKeyId,
         @JsonProperty("aws_secret_access_key") String awsSecretAccessKey,
-        @JsonProperty("aws_session_token") String awsSessionToken)
+        @JsonProperty("aws_session_token") String awsSessionToken,
+        @JsonProperty("aws_account_id") String awsAccountId,
+        @JsonProperty("aws_endpoint_url") String awsEndpointUrl)
         implements Value {}
 
     @JsonInclude(NON_NULL)
@@ -140,7 +184,9 @@ public record SecretResolvedValue(
         @JsonProperty("aws_external_id") String awsExternalId,
         @JsonProperty("aws_source_profile_access_key_id") String awsSourceProfileAccessKeyId,
         @JsonProperty("aws_source_profile_secret_access_key")
-            String awsSourceProfileSecretAccessKey)
+            String awsSourceProfileSecretAccessKey,
+        @JsonProperty("aws_account_id") String awsAccountId,
+        @JsonProperty("aws_endpoint_url") String awsEndpointUrl)
         implements Value {}
 
     @JsonInclude(NON_NULL)
@@ -149,21 +195,26 @@ public record SecretResolvedValue(
         @JsonProperty("azure_client_id") String azureClientId,
         @JsonProperty("azure_client_secret") String azureClientSecret,
         @JsonProperty("azure_tenant_id") String azureTenantId,
-        @JsonProperty("azure_subscription_id") String azureSubscriptionId)
+        @JsonProperty("azure_subscription_id") String azureSubscriptionId,
+        @JsonProperty("azure_authority_host_uri") String azureAuthorityHostUri,
+        @JsonProperty("azure_requests_certificate") byte[] azureRequestsCertificate)
         implements Value {}
 
     @JsonInclude(NON_NULL)
     record AzureManagedIdentity(
         @JsonProperty("azure_environment") String azureEnvironment,
         @JsonProperty("azure_client_id") String azureClientId,
-        @JsonProperty("azure_subscription_id") String azureSubscriptionId)
+        @JsonProperty("azure_subscription_id") String azureSubscriptionId,
+        @JsonProperty("azure_authority_host_uri") String azureAuthorityHostUri,
+        @JsonProperty("azure_requests_certificate") byte[] azureRequestsCertificate)
         implements Value {}
 
     @JsonInclude(NON_NULL)
     record GcpServiceAccount(
         @JsonProperty("gcp_scope") String gcpScope,
         @JsonProperty("gcp_project_id") String gcpProjectId,
-        @JsonProperty("gcp_private_key_json") byte[] gcpPrivateKeyJson)
+        @JsonProperty("gcp_private_key_json") byte[] gcpPrivateKeyJson,
+        @JsonProperty("gcp_custom_resource_manager_uri") String gcpCustomResourceManagerUri)
         implements Value {}
 
     @JsonInclude(NON_NULL)
@@ -172,7 +223,10 @@ public record SecretResolvedValue(
         @JsonProperty("gcp_project_id") String gcpProjectId,
         @JsonProperty("gcp_oauth_client_id") String gcpOauthClientId,
         @JsonProperty("gcp_oauth_client_secret") String gcpOauthClientSecret,
-        @JsonProperty("gcp_oauth_refresh_token") String gcpOauthRefreshToken)
+        @JsonProperty("gcp_oauth_refresh_token") String gcpOauthRefreshToken,
+        @JsonProperty("gcp_custom_token_uri") String gcpCustomTokenUri,
+        @JsonProperty("gcp_custom_iam_uri") String gcpCustomIamUri,
+        @JsonProperty("gcp_custom_oauth_access_token") String gcpCustomOauthAccessToken)
         implements Value {}
   }
 }

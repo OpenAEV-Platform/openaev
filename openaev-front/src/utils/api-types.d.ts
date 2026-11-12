@@ -156,6 +156,12 @@ export interface AgentTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -248,8 +254,6 @@ export interface AiAttack {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -406,6 +410,12 @@ export interface AiTargetTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -670,6 +680,13 @@ export interface AssetBulkProcessingInput {
   search_pagination_input?: SearchPaginationInput;
 }
 
+export interface AssetBulkReplaceMarkingsInput {
+  asset_ids_to_ignore?: string[];
+  asset_ids_to_process?: string[];
+  marking_ids: string[];
+  search_pagination_input?: SearchPaginationInput;
+}
+
 export interface AssetGroup {
   asset_group_assets?: string[];
   /** @format date-time */
@@ -750,6 +767,12 @@ export interface AssetGroupTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -1947,6 +1970,7 @@ export type AverageConfiguration = UtilRequiredKeys<
 
 export type AwsAccessKey = Value & {
   aws_access_key_id?: string;
+  aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
     | "us-east-1"
@@ -1984,11 +2008,13 @@ export type AwsAccessKey = Value & {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  aws_endpoint_url?: string;
   aws_secret_access_key?: string;
   aws_session_token?: string;
 };
 
 export type AwsAssumeRole = Value & {
+  aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
     | "us-east-1"
@@ -2026,6 +2052,7 @@ export type AwsAssumeRole = Value & {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  aws_endpoint_url?: string;
   aws_external_id?: string;
   aws_role_arn?: string;
   aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
@@ -2034,15 +2061,21 @@ export type AwsAssumeRole = Value & {
 };
 
 export type AzureManagedIdentity = Value & {
+  azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_environment?: string;
+  /** @format byte */
+  azure_requests_certificate?: Blob;
   azure_subscription_id?: string;
 };
 
 export type AzureServicePrincipal = Value & {
+  azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_client_secret?: string;
   azure_environment?: string;
+  /** @format byte */
+  azure_requests_certificate?: Blob;
   azure_subscription_id?: string;
   azure_tenant_id?: string;
 };
@@ -2085,6 +2118,12 @@ interface BaseInjectTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_prevention_status?:
     | "FAILED"
     | "PENDING"
@@ -2135,8 +2174,6 @@ interface BasePayload {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -2534,6 +2571,33 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface CatalogPayloadOutput {
+  /** @minLength 1 */
+  catalog_payload_external_id: string;
+  catalog_payload_name?: string;
+  /** @minLength 1 */
+  catalog_payload_version: string;
+}
+
+export interface CatalogScenarioOutput {
+  /** @minLength 1 */
+  catalog_scenario_external_id: string;
+  catalog_scenario_name?: string;
+  /** @minLength 1 */
+  catalog_scenario_version: string;
+}
+
+export interface CatalogSyncOutput {
+  /** @format int32 */
+  added?: number;
+  applied?: boolean;
+  refused?: Refusal[];
+  release?: string;
+  release_approver?: string;
+  /** @format int32 */
+  unchanged?: number;
+}
+
 export interface Challenge {
   challenge_category?: string;
   challenge_content?: string;
@@ -2714,6 +2778,15 @@ export interface Collector {
   collector_period?: number;
   collector_security_platform?: SecurityPlatform;
   collector_state?: object;
+  collector_supported_expectation_types?: (
+    | "ARTICLE"
+    | "CHALLENGE"
+    | "MANUAL"
+    | "PREVENTION"
+    | "DETECTION"
+    | "LOGGING"
+    | "VULNERABILITY"
+  )[];
   /** @minLength 1 */
   collector_type: string;
   /** @format date-time */
@@ -2730,6 +2803,7 @@ export interface CollectorCreateInput {
   /** @format int32 */
   collector_period?: number;
   collector_security_platform?: string;
+  collector_supported_expectation_types?: string[];
   /** @minLength 1 */
   collector_type: string;
 }
@@ -2809,8 +2883,6 @@ export interface Command {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -3386,6 +3458,8 @@ export interface CredentialFullOutput {
     | "GCP_OAUTH2";
   /** AWS access key ID */
   credential_aws_access_key_id?: string;
+  /** AWS account id */
+  credential_aws_account_id?: string;
   /** Secret AWS default region */
   credential_aws_default_region?:
     | "us-east-2"
@@ -3424,6 +3498,8 @@ export interface CredentialFullOutput {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  /** AWS endpoint URL override */
+  credential_aws_endpoint_url?: string;
   /** AWS role ARN */
   credential_aws_role_arn?: string;
   /** AWS session token present */
@@ -3434,10 +3510,14 @@ export interface CredentialFullOutput {
     | "INSTANCE_DEFAULT";
   /** AWS source profile access key id */
   credential_aws_source_profile_access_key_id?: string;
+  /** Azure authority host URI */
+  credential_azure_authority_host_uri?: string;
   /** Azure client id */
   credential_azure_client_id?: string;
   /** Azure environment */
   credential_azure_environment?: string;
+  /** Whether an Azure requests certificate is stored; the certificate itself is never returned */
+  credential_azure_requests_certificate_defined?: boolean;
   /** Azure subscription id */
   credential_azure_subscription_id?: string;
   /** Azure tenant id */
@@ -3451,6 +3531,16 @@ export interface CredentialFullOutput {
   credential_created_by: CredentialCreatedByOutput;
   /** Credential description */
   credential_description?: string;
+  /** GCP custom IAM URI */
+  credential_gcp_custom_iam_uri?: string;
+  /** Whether a GCP custom OAuth access token is stored; the token itself is never returned */
+  credential_gcp_custom_oauth_access_token_defined?: boolean;
+  /** GCP custom projects URI */
+  credential_gcp_custom_projects_uri?: string;
+  /** GCP custom resource manager URI */
+  credential_gcp_custom_resource_manager_uri?: string;
+  /** GCP custom token URI */
+  credential_gcp_custom_token_uri?: string;
   /** GCP OAuth client id */
   credential_gcp_oauth_client_id?: string;
   /** Whether a GCP OAuth client secret is stored; the secret itself is never returned */
@@ -3498,6 +3588,11 @@ export interface CredentialFullOutput {
 
 export interface CredentialInput {
   aws_access_key_id?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  aws_account_id?: string;
   aws_default_region?:
     | "us-east-2"
     | "us-east-1"
@@ -3535,6 +3630,11 @@ export interface CredentialInput {
     | "sa-east-1"
     | "us-gov-east-1"
     | "us-gov-west-1";
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  aws_endpoint_url?: string;
   aws_external_id?: string;
   aws_role_arn?: string;
   aws_secret_access_key?: string;
@@ -3542,6 +3642,11 @@ export interface CredentialInput {
   aws_source_identity_type?: "STATIC_ACCESS_KEY" | "INSTANCE_DEFAULT";
   aws_source_profile_access_key_id?: string;
   aws_source_profile_secret_access_key?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  azure_authority_host_uri?: string;
   azure_client_id?: string;
   azure_client_secret?: string;
   azure_environment?: string;
@@ -3565,6 +3670,27 @@ export interface CredentialInput {
   credential_tags?: string[];
   credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
   credential_username?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  gcp_custom_iam_uri?: string;
+  gcp_custom_oauth_access_token?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  gcp_custom_projects_uri?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  gcp_custom_resource_manager_uri?: string;
+  /**
+   * @minLength 0
+   * @maxLength 255
+   */
+  gcp_custom_token_uri?: string;
   gcp_oauth_client_id?: string;
   gcp_oauth_client_secret?: string;
   gcp_oauth_refresh_token?: string;
@@ -3892,8 +4018,6 @@ export interface DnsResolution {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -4902,6 +5026,12 @@ export interface EndpointTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -5507,8 +5637,6 @@ export interface Executable {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -5966,8 +6094,6 @@ export interface FileDrop {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -6285,6 +6411,9 @@ export interface FullTextSearchResult {
 }
 
 export type GcpOAuth2 = Value & {
+  gcp_custom_iam_uri?: string;
+  gcp_custom_oauth_access_token?: string;
+  gcp_custom_token_uri?: string;
   gcp_oauth_client_id?: string;
   gcp_oauth_client_secret?: string;
   gcp_oauth_refresh_token?: string;
@@ -6293,6 +6422,7 @@ export type GcpOAuth2 = Value & {
 };
 
 export type GcpServiceAccount = Value & {
+  gcp_custom_resource_manager_uri?: string;
   /** @format byte */
   gcp_private_key_json?: Blob;
   gcp_project_id?: string;
@@ -6332,6 +6462,7 @@ export interface Grant {
 }
 
 export interface Group {
+  group_auto_new_marking?: boolean;
   group_default_user_assign?: boolean;
   group_description?: string;
   group_grants?: Grant[];
@@ -6359,6 +6490,7 @@ export interface GroupGrantInput {
 }
 
 export interface GroupUpdateMarkingsInput {
+  group_auto_new_marking?: boolean;
   group_markings: string[];
 }
 
@@ -6889,6 +7021,7 @@ export interface InjectExpectationTrace {
   inject_expectation_trace_expectation?: string;
   /** @minLength 1 */
   inject_expectation_trace_id: string;
+  inject_expectation_trace_match_type?: "MARKER" | "SOURCE_IP" | "TARGET_IP";
   inject_expectation_trace_source_id?: string;
   /** @format date-time */
   inject_expectation_trace_updated_at: string;
@@ -6908,6 +7041,7 @@ export interface InjectExpectationTraceInput {
   inject_expectation_trace_date: string;
   /** @minLength 1 */
   inject_expectation_trace_expectation: string;
+  inject_expectation_trace_match_type?: "marker" | "source_ip" | "target_ip";
   /** @minLength 1 */
   inject_expectation_trace_source_id: string;
 }
@@ -7258,6 +7392,7 @@ export type InjectTarget = BaseInjectTarget &
     | BaseInjectTargetTargetTypeMapping<"PLAYERS", PlayerTarget>
     | BaseInjectTargetTargetTypeMapping<"AGENT", AgentTarget>
     | BaseInjectTargetTargetTypeMapping<"AI_TARGETS", AiTargetTarget>
+    | BaseInjectTargetTargetTypeMapping<"MANUAL", ManualTarget>
   );
 
 export interface InjectTeamsInput {
@@ -7341,7 +7476,6 @@ export interface InjectorContract {
   injector_contract_payload?: Payload;
   injector_contract_payload_author?: string;
   injector_contract_payload_author_organization?: Organization;
-  injector_contract_payload_author_team?: Team;
   injector_contract_payload_author_user?: User;
   injector_contract_payload_status?: "UNVERIFIED" | "VERIFIED" | "DEPRECATED";
   injector_contract_platforms?: (
@@ -8100,6 +8234,53 @@ export interface LoginUserInput {
   tenantId?: string;
 }
 
+export interface ManualTarget {
+  target_category?: string;
+  target_detection_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_execution_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_human_response_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  /** @minLength 1 */
+  target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_name?: string;
+  target_prevention_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+  target_subtype?: string;
+  /** @uniqueItems true */
+  target_tags?: string[];
+  target_type?: string;
+  target_vulnerability_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
+}
+
 export interface MapperConditionOutput {
   condition_key?: string;
   condition_key_types?: (
@@ -8239,8 +8420,6 @@ export interface NetworkTraffic {
   payload_arguments?: PayloadArgument[];
   /** Organization author of the payload */
   payload_author_organization?: string;
-  /** Team author of the payload */
-  payload_author_team?: string;
   /** User author of the payload */
   payload_author_user?: string;
   payload_cleanup_command?: string;
@@ -8311,6 +8490,37 @@ export interface NetworkTraffic {
     | "AI_ATTACK";
 }
 
+export interface NewsFeedItemOutput {
+  /**
+   * Creation date of the item
+   * @format date-time
+   */
+  news_feed_item_creation_date: string;
+  /**
+   * ID of the item in XTM Hub
+   * @minLength 1
+   */
+  news_feed_item_hub_id: string;
+  /**
+   * ID of the news feed item
+   * @minLength 1
+   */
+  news_feed_item_id: string;
+  /** Whether the item was read */
+  news_feed_item_is_read: boolean;
+  /** Tags of the item */
+  news_feed_item_tags: string[];
+  /**
+   * Title of the item
+   * @minLength 1
+   */
+  news_feed_item_title: string;
+  /** Type of the item, absent when OpenAEV no longer knows its type */
+  news_feed_item_type?: "RESOURCE_SCENARIO";
+  /** Path of the item in XTM Hub, to append to the XTM Hub URL, absent when XTM Hub sent none */
+  news_feed_item_url_path?: string;
+}
+
 export interface NotificationBulkProcessingInput {
   /** Ids excluded from the select-all scope */
   notification_ids_to_ignore?: string[];
@@ -8349,6 +8559,7 @@ export interface NotificationTriggerInput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8419,6 +8630,7 @@ export interface NotificationTriggerInput {
     | "OBJECTIVE"
     | "EVALUATION"
     | "CATALOG"
+    | "CATALOG_SYNC"
     | "CONNECTOR_INSTANCE_LOG"
     | "SECRET_PROVIDER"
     | "TENANT"
@@ -8461,6 +8673,7 @@ export interface NotificationTriggerOutput {
     | "UPDATE"
     | "DELETE"
     | "SCORE_DEGRADATION"
+    | "SYNC_BLOCKED"
   )[];
   /** Filter group applied to matching entities */
   notification_trigger_filters?: FilterGroup;
@@ -8532,6 +8745,7 @@ export interface NotificationTriggerOutput {
     | "OBJECTIVE"
     | "EVALUATION"
     | "CATALOG"
+    | "CATALOG_SYNC"
     | "CONNECTOR_INSTANCE_LOG"
     | "SECRET_PROVIDER"
     | "TENANT"
@@ -9117,6 +9331,25 @@ export interface PageMarkingDefinitionOutput {
 
 export interface PageMitigation {
   content?: Mitigation[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageNewsFeedItemOutput {
+  content?: NewsFeedItemOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -10145,6 +10378,7 @@ export interface PlatformSettings {
     | "BULK_SNAPSHOT_EXPORT"
     | "XTM_HUB_NEWS_FEED"
     | "LOGGING_EXPECTATION"
+    | "CATALOG"
   )[];
   /** True if the Tanium Executor is enabled */
   executor_tanium_enable?: boolean;
@@ -10346,6 +10580,12 @@ export interface PlayerTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -10539,6 +10779,7 @@ export interface PublicPlatformSettings {
     | "BULK_SNAPSHOT_EXPORT"
     | "XTM_HUB_NEWS_FEED"
     | "LOGGING_EXPECTATION"
+    | "CATALOG"
   )[];
   /** Map of the messages to display on the screen by their level (the level available are DEBUG, INFO, WARN, ERROR, FATAL) */
   platform_banner_by_level?: Record<string, string[]>;
@@ -10650,6 +10891,13 @@ export interface RawUser {
   user_phone?: string;
   user_tags?: string[];
   user_teams?: string[];
+}
+
+export interface Refusal {
+  external_id?: string;
+  /** @minLength 1 */
+  reason: string;
+  version?: string;
 }
 
 export interface RegexGroup {
@@ -11029,13 +11277,13 @@ export interface RoleInput {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
+    | "MANAGE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -11115,13 +11363,13 @@ export interface RoleOutput {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
+    | "MANAGE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -12640,6 +12888,12 @@ export interface TeamTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -12681,6 +12935,7 @@ export interface TenantGroupCreateInput {
 }
 
 export interface TenantGroupMarkingsOutput {
+  group_auto_new_marking?: boolean;
   /**
    * Group Id
    * @minLength 1
@@ -12822,6 +13077,11 @@ export interface ThreatArsenalAction {
    * @uniqueItems true
    */
   action_domains_ids: string[];
+  /**
+   * Id the action's grants target: its payload identity, else the contract
+   * @minLength 1
+   */
+  action_grant_resource_id: string;
   /** Injector type */
   action_injector_type?: string;
   /** Labels */
@@ -13331,7 +13591,6 @@ export interface User {
   user_phone2?: string;
   listened?: boolean;
   team_exercises_users?: string[];
-  unscopedGroups?: Group[];
   /** True if the user is admin */
   user_admin?: boolean;
   /** @uniqueItems true */
@@ -13403,13 +13662,13 @@ export interface User {
     | "ACCESS_MARKING_DEFINITION"
     | "MANAGE_MARKING_DEFINITION"
     | "DELETE_MARKING_DEFINITION"
-    | "ASSIGN_MARKING"
-    | "DELETE_MARKING_ASSIGNMENT"
+    | "MANAGE_MARKING_ASSIGNMENT"
     | "ACCESS_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "DELETE_PLATFORM_USERS_GROUPS_AND_ROLES"
     | "MANAGE_PLATFORM_SESSIONS"
     | "INSTALL_AGENT"
+    | "SYNC_CATALOG"
     | "MANAGE_STIX_BUNDLE"
     | "AGENT_RUNTIME_ACCESS"
     | "AGENT_DOCUMENT_ACCESS"
@@ -14245,6 +14504,7 @@ export interface XtmHubRegisterInput {
 }
 
 export interface XtmHubRegistrationOutput {
+  tenant_xtmhub_registration_commercial_model?: "SAAS" | "OTHER";
   /** @format date-time */
   tenant_xtmhub_registration_date?: string;
   tenant_xtmhub_registration_id?: string;

@@ -318,6 +318,28 @@ public class InjectUtils {
   private static final ObjectMapper STATIC_MAPPER = ObjectMapperHelper.openAEVJsonMapper();
 
   /**
+   * Gives an inject to a scenario, and to no simulation, and stamps it with the scenario's tenant:
+   * the owner of an inject decides its tenant, whatever tenant the request or the job that creates
+   * it runs in.
+   */
+  public static void attachToScenario(@NotNull Inject inject, @NotNull Scenario scenario) {
+    inject.setScenario(scenario);
+    inject.setExercise(null);
+    inject.setTenant(scenario.getTenant());
+  }
+
+  /**
+   * Gives an inject to a simulation, and to no scenario, and stamps it with the simulation's
+   * tenant: the owner of an inject decides its tenant, whatever tenant the request or the job that
+   * creates it runs in.
+   */
+  public static void attachToExercise(@NotNull Inject inject, @NotNull Exercise exercise) {
+    inject.setExercise(exercise);
+    inject.setScenario(null);
+    inject.setTenant(exercise.getTenant());
+  }
+
+  /**
    * Creates a deep copy of an inject.
    *
    * <p>Duplicates all properties of the source inject including content, teams, assets, asset

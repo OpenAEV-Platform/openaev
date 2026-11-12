@@ -44,13 +44,11 @@ public final class ReservedKeyValidator {
     return Pattern.compile("^" + quoted + "$", Pattern.CASE_INSENSITIVE);
   }
 
-  /** Throws BadRequestException if the group id is reserved for system use. */
-  public static void validateGroupId(String uuid) {
+  /** Throws BadRequestException if the group id is reserved for system use in this tenant. */
+  public static void validateGroupId(String uuid, String tenantId) {
     List<String> idsReserved =
         RESERVED_GROUP_ID.stream()
-            .map(
-                id ->
-                    AbstractPrivilegeService.getUUIDFromName(id, TenantContext.getCurrentTenant()))
+            .map(id -> AbstractPrivilegeService.getUUIDFromName(id, tenantId))
             .toList();
 
     if (uuid != null && idsReserved.contains(uuid)) {
@@ -58,13 +56,16 @@ public final class ReservedKeyValidator {
     }
   }
 
-  /** Throws BadRequestException if the group id is reserved for system use. */
+  /** Throws BadRequestException if the role id is reserved for system use. */
   public static void validateRoleId(String uuid) {
+    validateRoleId(uuid, TenantContext.getCurrentTenant());
+  }
+
+  /** Same, for the given tenant rather than the thread-local one. */
+  public static void validateRoleId(String uuid, String tenantId) {
     List<String> idsReserved =
         RESERVED_ROLE_ID.stream()
-            .map(
-                id ->
-                    AbstractPrivilegeService.getUUIDFromName(id, TenantContext.getCurrentTenant()))
+            .map(id -> AbstractPrivilegeService.getUUIDFromName(id, tenantId))
             .toList();
 
     if (uuid != null && idsReserved.contains(uuid)) {

@@ -8,6 +8,7 @@ import io.openaev.database.model.User;
 import io.openaev.service.UserService;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
@@ -17,7 +18,14 @@ import org.springframework.stereotype.Component;
  *
  * <p>This is the API-side half of {@link MarkingScopeSupplier}: the aspect lives in {@code
  * openaev-model} and cannot reach the security context or the clearance cache, both of which live
- * here.
+ * here. It also supplies the system clearance ({@link #systemClearanceFor}): every marking of a
+ * tenant, resolved like the first admin's clearance. It serves:
+ *
+ * <ul>
+ *   <li>background jobs, through {@code TenantScopedTransaction};
+ *   <li>faithful copies (duplicate, relaunch, scenario launch), through {@code
+ *       withSystemClearance}.
+ * </ul>
  *
  * <p><b>Fail-closed, and note what that means for marking.</b> No principal, an anonymous caller,
  * or a tenant scope that grants nothing all yield {@link MarkingCtx#none()} — which still admits
@@ -49,14 +57,28 @@ public class HttpMarkingScopeSupplier implements MarkingScopeSupplier {
     if (currentUser == null) {
       return MarkingCtx.none();
     }
-    boolean bypass = MarkingBypass.bypassesMarkings(currentUser);
+    String userId = currentUser.getId();
+    return union(restricted, tenantId -> clearanceCache.findClearance(userId, tenantId));
+  }
 
-    // A marking definition belongs to exactly one tenant, so ids cannot collide across them and the
-    // union is unambiguous: acting on N tenants means holding each one's clearance in that tenant.
+  /**
+   * Every marking of the tenants in scope, read fresh (never from the cache) in one query for all
+   * of them. No principal is involved: a scheduler is not a user.
+   */
+  @Override
+  public MarkingCtx systemClearanceFor(TxCtx.Restricted tenantScope) {
+    return clearanceCache.findSystemClearance(tenantScope.tenantIds());
+  }
+
+  /**
+   * A marking definition belongs to exactly one tenant, so ids cannot collide across them and the
+   * union is unambiguous: acting on N tenants means holding each one's clearance in that tenant.
+   */
+  private static MarkingCtx union(
+      TxCtx.Restricted tenantScope, Function<String, MarkingCtx> perTenant) {
     Set<String> markingIds = new LinkedHashSet<>();
-    for (String tenantId : restricted.tenantIds()) {
-      MarkingCtx perTenant = clearanceCache.findClearance(currentUser.getId(), tenantId, bypass);
-      if (perTenant instanceof MarkingCtx.Restricted granted) {
+    for (String tenantId : tenantScope.tenantIds()) {
+      if (perTenant.apply(tenantId) instanceof MarkingCtx.Restricted granted) {
         markingIds.addAll(granted.markingIds());
       }
     }

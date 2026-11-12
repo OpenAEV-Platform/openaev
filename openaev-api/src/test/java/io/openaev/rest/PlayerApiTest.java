@@ -19,6 +19,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.OrganizationRepository;
 import io.openaev.database.repository.TagRepository;
@@ -809,7 +810,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player input, should create a player successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validPlayerInput_should_createPlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
@@ -877,7 +878,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player input, should upsert player successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validPlayerInput_should_upsertPlayerSuccessfully() throws Exception {
     // --PREPARE--
     PlayerInput playerInput = buildPlayerInput();
@@ -906,7 +907,7 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given non-existing player input, should upsert successfully")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_nonExistingPlayerInput_should_upsertSuccessfully() throws Exception {
     // --PREPARE--
     PlayerInput playerInput = buildPlayerInput();
@@ -930,13 +931,15 @@ class PlayerApiTest extends IntegrationTest {
 
   @DisplayName("Given valid player ID and input, should update player but never its address")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void given_validPlayerIdAndInput_should_updatePlayerSuccessfully() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
     User user = new User();
     user.setUpdateAttributes(playerInput);
     userRepository.save(user);
+    // A player is updated in the tenant of the request, which it must belong to.
+    tenantRepository.addUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
     String originalEmail = user.getEmail();
     String newFirstname = "updatedFirstname";
     playerInput.setFirstname(newFirstname);
@@ -978,15 +981,17 @@ class PlayerApiTest extends IntegrationTest {
         .andExpect(status().isForbidden());
   }
 
-  @DisplayName("Given valid player ID, should delete player successfully")
+  @DisplayName("Given a player of that tenant only, should delete it")
   @Test
-  @WithMockUser(isAdmin = true)
-  void given_validPlayerId_should_deletePlayerSuccessfully() throws Exception {
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  void given_playerOfTheTenantOnly_should_deleteIt() throws Exception {
     // -- PREPARE --
     PlayerInput playerInput = buildPlayerInput();
     User user = new User();
     user.setUpdateAttributes(playerInput);
     user = userRepository.save(user);
+    // A player is deleted in the tenant of the request, which it must belong to.
+    tenantRepository.addUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
 
     // -- EXECUTE --
     mvc.perform(
@@ -994,18 +999,16 @@ class PlayerApiTest extends IntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .with(csrf()))
-        .andExpect(status().is2xxSuccessful())
-        .andReturn()
-        .getResponse()
-        .getContentAsString();
+        .andExpect(status().is2xxSuccessful());
 
     // -- ASSERT --
     assertTrue(this.userRepository.findById(user.getId()).isEmpty());
+    assertTrue(this.userRepository.findTenantIdsByUserId(user.getId()).isEmpty());
   }
 
   @DisplayName("Given non-existing player ID, when deleting, then return 400")
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void givenNonExistingPlayerId_whenDelete_thenReturnNoContent() throws Exception {
     // -- PREPARE --
     String nonExistingPlayerId = "nonexistent-id";

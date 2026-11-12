@@ -360,7 +360,9 @@
         "openaev-front/src/components/fields/AddressesFieldComponent.tsx",
         "openaev-front/src/components/fields/AutocompleteField.tsx",
         "openaev-front/src/components/fields/CodeEditor.tsx",
-        "openaev-front/src/components/items/ItemTenants.tsx"
+        "openaev-front/src/components/items/ItemTenants.tsx",
+        "openaev-front/src/admin/components/nav/NewsFeedToastManager.tsx",
+        "openaev-front/src/admin/components/nav/NewsFeedToastItem.tsx"
       ]
     },
     {
@@ -480,7 +482,9 @@
         "openaev-front/src/components/common/terminal/Terminal.tsx",
         "openaev-front/src/components/fields/TagFieldSingle.tsx",
         "openaev-front/src/private/components/nav/TopBar.tsx",
-        "openaev-front/src/utils/ai/ResponseDialog.tsx"
+        "openaev-front/src/utils/ai/ResponseDialog.tsx",
+        "openaev-front/src/admin/components/nav/NewsFeedToastManager.tsx",
+        "openaev-front/src/admin/components/nav/NewsFeedToastItem.tsx"
       ]
     },
     {
@@ -912,6 +916,18 @@
       "files": [
         "openaev-front/src/components/ColorPickerField.tsx",
         "openaev-front/src/components/DeprecatedColorPickerField.jsx"
+      ]
+    },
+    {
+      "component": "Thumbnail",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library",
+        "no-hardcoded-padding"
+      ],
+      "reason": "The type icon tile of the XTM Hub news feed toasts, tinted from the theme primary colour as on the OpenCTI news feed toasts.",
+      "files": [
+        "openaev-front/src/admin/components/nav/NewsFeedToastItem.tsx"
       ]
     }
   ],

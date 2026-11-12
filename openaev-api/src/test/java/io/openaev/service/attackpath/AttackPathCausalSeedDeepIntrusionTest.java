@@ -6,6 +6,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,7 @@ class AttackPathCausalSeedDeepIntrusionTest extends IntegrationTest {
   @DisplayName("every host-to-host hop resolves the prior host's finding")
   void deep_intrusion_pivots_host_to_host() {
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-intrusion-tenant"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
 
     String sim = causalSeedService.seedDeepIntrusion(tenant.getId(), HOPS);
 

@@ -323,12 +323,15 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @Schema(implementation = String[].class)
   @Getter
+  // Batch fetching instead of @Fetch(SUBSELECT): same Hibernate SubselectFetch bug as on
+  // Inject.expectations, this time with Asset (a SINGLE_TABLE inheritance root) as the element
+  // type.
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
       name = "injects_assets",
       joinColumns = @JoinColumn(name = "inject_id"),
       inverseJoinColumns = @JoinColumn(name = "asset_id"))
-  @Fetch(FetchMode.SUBSELECT)
+  @BatchSize(size = 1000)
   @JsonSerialize(using = MultiIdListSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   @JsonProperty("inject_assets")
@@ -363,8 +366,11 @@ public class Inject implements GrantableBase, Injection, TenantBase {
 
   @Schema(implementation = String[].class)
   @Getter
+  // Batch fetching instead of @Fetch(SUBSELECT): same Hibernate SubselectFetch bug as on
+  // Inject.expectations, this time with SecretReference (a SINGLE_TABLE inheritance root) as the
+  // element type.
   @ManyToMany(fetch = FetchType.EAGER)
-  @Fetch(FetchMode.SUBSELECT)
+  @BatchSize(size = 1000)
   @JoinTable(
       name = "injects_secret_references",
       joinColumns = @JoinColumn(name = "inject_id"),
@@ -411,6 +417,9 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   private List<Communication> communications = new ArrayList<>();
 
   // CascadeType.ALL is required here because expectations are embedded
+  // Batch fetching instead of @Fetch(SUBSELECT): subselect-fetching a collection of an inherited
+  // entity (BaseInjectExpectation is a SINGLE_TABLE root) throws a null-collection assertion in
+  // Hibernate's SubselectFetch on EntityManager.refresh(); no upstream ticket confirmed yet.
   @Schema(implementation = String[].class)
   @Getter
   @OneToMany(
@@ -418,7 +427,7 @@ public class Inject implements GrantableBase, Injection, TenantBase {
       fetch = FetchType.EAGER,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
-  @Fetch(FetchMode.SUBSELECT)
+  @BatchSize(size = 1000)
   @JsonProperty("inject_expectations")
   @JsonSerialize(using = MultiModelSerializer.class)
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)

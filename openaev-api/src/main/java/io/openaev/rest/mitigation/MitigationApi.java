@@ -142,7 +142,8 @@ public class MitigationApi extends RestBehavior {
         this.mitigationRepository.findById(mitigationId).orElseThrow(ElementNotFoundException::new);
     mitigation.setUpdateAttributes(input);
     mitigation.setAttackPatterns(
-        fromIterable(this.attackPatternRepository.findAllById(input.getAttackPatternsIds())));
+        attackPatternRepository.findAllByIdInTenant(
+            input.getAttackPatternsIds(), mitigation.getTenant().getId()));
     mitigation.setUpdatedAt(Instant.now());
     return hydrated(mitigationRepository.save(mitigation));
   }

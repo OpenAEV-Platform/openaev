@@ -52,9 +52,38 @@ public interface ScopeDimension {
 
   /**
    * Predicate asserting that the value about to be written into {@link #writeAttributionColumn()}
-   * is in scope. Only called when the column is non-null.
+   * of {@code table} is in scope, for an {@code INSERT ... SELECT}. Only called when the column is
+   * non-null.
    */
-  default String writeAttributionPredicate(String valueExpression) {
+  default String writeAttributionPredicate(String table, String valueExpression) {
     return null;
+  }
+
+  /**
+   * The expression that replaces a value about to be written into {@link #writeAttributionColumn()}
+   * of {@code table} by a plain {@code INSERT ... VALUES}, an {@code UPDATE ... SET} or an {@code
+   * ON CONFLICT DO UPDATE SET}: the same value, passed through a function that returns it when the
+   * write is in scope and raises when it is not. Returning {@code null} means this dimension does
+   * not guard those writes of this table (every table outside the platform-write rule): the value
+   * is written as it is. Only called when {@link #writeAttributionColumn()} is non-null.
+   *
+   * <p>The value is wrapped where it stands, never copied, so the statement keeps its placeholder
+   * count and order, and a {@code VALUES} insert keeps its shape: PostgreSQL then types a {@code
+   * NULL} literal or a bind parameter in the other columns by the target column, which a
+   * derived-table rewrite of the tuple does not.
+   */
+  default String guardedWrittenValue(String table, String valueExpression) {
+    return null;
+  }
+
+  /**
+   * Whether a plain {@code INSERT} into {@code table} must name {@link #writeAttributionColumn()}
+   * and carry its values in a {@code VALUES} list, because this dimension validates that column by
+   * wrapping the written value. An insert that omits the column, or has no column list or no {@code
+   * VALUES} source, writes an unvalidated value and is refused. Only called when the column is
+   * non-null.
+   */
+  default boolean guardsWrittenValue(String table) {
+    return false;
   }
 }

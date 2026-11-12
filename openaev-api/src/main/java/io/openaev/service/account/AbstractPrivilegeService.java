@@ -1,6 +1,7 @@
 package io.openaev.service.account;
 
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
@@ -20,10 +21,16 @@ public abstract class AbstractPrivilegeService {
   protected final TenantGroupService tenantGroupService;
   protected final UserService userService;
   protected final TenantUserService tenantUserService;
+  protected final MarkingClearanceCacheManager markingClearanceCacheManager;
 
   protected abstract WellKnownAccess wellKnownAccess();
 
-  protected Role createWellKnownRole(String tenantId) {
+  /** Whether the group receives every marking of its tenant, existing and future. */
+  protected boolean receivesEveryMarking() {
+    return false;
+  }
+
+  protected Role ensureWellKnownRole(String tenantId) {
     WellKnownAccess access = wellKnownAccess();
     String id = getUUIDFromName(access.roleId(), tenantId);
     Optional<Role> role = tenantRoleService.findByIdAndTenant(id, tenantId);
@@ -35,7 +42,7 @@ public abstract class AbstractPrivilegeService {
         id, access.roleName(), access.roleDescription(), access.capabilities(), tenantId);
   }
 
-  protected Group createWellKnownGroupWithRole(Role role, String tenantId) {
+  protected Group ensureWellKnownGroupWithRole(Role role, String tenantId) {
     WellKnownAccess access = wellKnownAccess();
     String groupId = getUUIDFromName(access.groupId(), tenantId);
     Optional<Group> group = tenantGroupService.findByIdAndTenant(groupId, tenantId);
@@ -46,22 +53,35 @@ public abstract class AbstractPrivilegeService {
     input.setDefaultUserAssignation(false);
 
     List<Role> roles = new ArrayList<>(List.of(role));
-    if (group.isPresent()) {
-      return tenantGroupService.updateInternalGroupWithRoles(group.get(), input, roles);
+    Group saved =
+        group.isPresent()
+            ? tenantGroupService.updateInternalGroupWithRoles(group.get(), input, roles)
+            : tenantGroupService.createInternalGroupWithRole(tenantId, groupId, input, roles);
+    if (receivesEveryMarking()) {
+      tenantGroupService.receiveEveryMarking(tenantId, saved);
     }
-    return tenantGroupService.createInternalGroupWithRole(groupId, input, roles, tenantId);
+    return saved;
   }
 
   public static String getUUIDFromName(String name, String tenantId) {
     return UUID.nameUUIDFromBytes((UUID.fromString(name) + ":" + tenantId).getBytes()).toString();
   }
 
-  public static void applyUserServiceAttributes(
+  protected void applyUserServiceAttributes(
       User user, String firstname, String lastname, String email, Group group) {
+    boolean groupsChanged =
+        !user.getUnscopedGroups().stream()
+            .map(Group::getId)
+            .toList()
+            .equals(List.of(group.getId()));
     user.setFirstname(firstname);
     user.setLastname(lastname);
     user.setEmail(email);
     user.setAdmin(false);
     user.setGroups(new ArrayList<>(List.of(group)));
+    // The markings a user sees are cached from their groups: refresh them when the groups change.
+    if (groupsChanged) {
+      markingClearanceCacheManager.evictForUser(user.getId());
+    }
   }
 }

@@ -480,14 +480,14 @@ already uses:
 
 | Reader | Clearance |
 |---|---|
-| `MARKING` off, `assets` not active, admin, `BYPASS`, agent or OpenCTI service account | `MarkingCtx.all()` |
+| `MARKING` off, or `assets` not active | `MarkingCtx.all()` |
 | no tenant to read the clearance in | `MarkingCtx.none()`: only unmarked entities (fail-closed) |
-| otherwise | `clearanceCache.findClearance(userId, tenantId, false)`, already cached: no query per event |
+| otherwise | `clearanceCache.findClearance(userId, tenantId)`, already cached: no query per event |
 
 - The tenant is the row's, else the consumer's (`checkTenantOf`, as for the READ check): a marking
   belongs to one tenant.
-- "Who skips markings" is shared with the HTTP path: `MarkingBypass.bypassesMarkings(user)`, extracted
-  from `HttpMarkingScopeSupplier`.
+- Same clearance as the HTTP path: only the first admin holds every marking, everyone else (admin,
+  `BYPASS` and service accounts included) holds what their groups grant (#8562).
 - The rule is `MarkingCtx.allows(markings)`: every marking must be held, and no marking means visible to
   everyone (same as `is_marking_set_allowed`). `InjectService` uses it too for the dispatch.
 
@@ -565,7 +565,7 @@ Tenant with assets A (`TLP:GREEN`) and R (`TLP:RED`).
 
 #### 4. Tests
 
-- `MarkingCtxTest` (`allows`), `StreamClearanceServiceTest` (switches, bypass, clearance, no tenant).
+- `MarkingCtxTest` (`allows`), `StreamClearanceServiceTest` (switches, admin, clearance, no tenant).
 - `BaseEventTest`: markings, links and embedded elements captured per entity, kept as they were when the
   event was built, not serialized, `UNRESOLVED_MARKING` fallback, `isVisibleUnder`.
 - `StreamServiceTest`: each row of the worked example, each reader served by their own clearance, the

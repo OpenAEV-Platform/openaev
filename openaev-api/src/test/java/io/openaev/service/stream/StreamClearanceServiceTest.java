@@ -2,7 +2,6 @@ package io.openaev.service.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -14,20 +13,16 @@ import io.openaev.config.MarkedTable;
 import io.openaev.config.MarkedTables;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.MarkingCtx;
-import io.openaev.database.model.Capability;
 import io.openaev.database.model.User;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -49,8 +44,6 @@ class StreamClearanceServiceTest {
     // Lenient: not every path reads them (feature off, no tenant).
     user = mock(User.class);
     lenient().when(user.getId()).thenReturn(USER_ID);
-    lenient().when(user.isAdminOrBypass()).thenReturn(false);
-    lenient().when(user.getCapabilities()).thenReturn(Set.of(Capability.ACCESS_ASSETS));
   }
 
   private StreamClearanceService service(MarkedTables markedTables) {
@@ -76,7 +69,7 @@ class StreamClearanceServiceTest {
 
       // Assert
       assertThat(clearance).isEqualTo(MarkingCtx.all());
-      verify(clearanceCache, never()).findClearance(anyString(), anyString(), anyBoolean());
+      verify(clearanceCache, never()).findClearance(anyString(), anyString());
     }
 
     @Test
@@ -90,7 +83,7 @@ class StreamClearanceServiceTest {
 
       // Assert
       assertThat(clearance).isEqualTo(MarkingCtx.all());
-      verify(clearanceCache, never()).findClearance(anyString(), anyString(), anyBoolean());
+      verify(clearanceCache, never()).findClearance(anyString(), anyString());
     }
   }
 
@@ -104,40 +97,25 @@ class StreamClearanceServiceTest {
     }
 
     @Test
-    @DisplayName("an admin or a BYPASS holder sees everything")
-    void given_adminOrBypass_should_seeEverything() {
-      // Arrange
-      when(user.isAdminOrBypass()).thenReturn(true);
+    @DisplayName("an admin or a BYPASS holder gets the clearance of their groups, like everyone")
+    void given_adminOrBypass_should_getClearanceOfTheirGroups() {
+      // Arrange: lenient, the flag must not be read at all
+      lenient().when(user.isAdminOrBypass()).thenReturn(true);
+      when(clearanceCache.findClearance(USER_ID, TENANT_ID))
+          .thenReturn(MarkingCtx.forMarkings(List.of("tlp-clear")));
 
       // Act
       MarkingCtx clearance = service(ASSETS_MARKED).clearanceFor(user, TENANT_ID);
 
       // Assert
-      assertThat(clearance).isEqualTo(MarkingCtx.all());
-      verify(clearanceCache, never()).findClearance(anyString(), anyString(), anyBoolean());
-    }
-
-    @ParameterizedTest
-    @EnumSource(
-        value = Capability.class,
-        names = {"AGENT_RUNTIME_ACCESS", "MANAGE_STIX_BUNDLE"})
-    @DisplayName("a service account that bypasses markings over HTTP sees everything")
-    void given_markingBypassCapability_should_seeEverything(Capability capability) {
-      // Arrange
-      when(user.getCapabilities()).thenReturn(Set.of(capability));
-
-      // Act
-      MarkingCtx clearance = service(ASSETS_MARKED).clearanceFor(user, TENANT_ID);
-
-      // Assert
-      assertThat(clearance).isEqualTo(MarkingCtx.all());
+      assertThat(clearance).isEqualTo(MarkingCtx.forMarkings(List.of("tlp-clear")));
     }
 
     @Test
     @DisplayName("a reader gets their clearance in the tenant")
     void given_clearance_should_returnIt() {
       // Arrange
-      when(clearanceCache.findClearance(USER_ID, TENANT_ID, false))
+      when(clearanceCache.findClearance(USER_ID, TENANT_ID))
           .thenReturn(MarkingCtx.forMarkings(List.of("tlp-clear", "tlp-green")));
 
       // Act
@@ -151,7 +129,7 @@ class StreamClearanceServiceTest {
     @DisplayName("a reader with no clearance holds no marking")
     void given_noClearance_should_holdNoMarking() {
       // Arrange
-      when(clearanceCache.findClearance(USER_ID, TENANT_ID, false)).thenReturn(MarkingCtx.none());
+      when(clearanceCache.findClearance(USER_ID, TENANT_ID)).thenReturn(MarkingCtx.none());
 
       // Act
       MarkingCtx clearance = service(ASSETS_MARKED).clearanceFor(user, TENANT_ID);
@@ -168,7 +146,7 @@ class StreamClearanceServiceTest {
 
       // Assert
       assertThat(clearance).isEqualTo(MarkingCtx.none());
-      verify(clearanceCache, never()).findClearance(any(), any(), anyBoolean());
+      verify(clearanceCache, never()).findClearance(any(), any());
     }
   }
 }

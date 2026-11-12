@@ -5,6 +5,7 @@ import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.model.hash.Hashed;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
@@ -49,9 +50,11 @@ public class AiAttack extends Payload {
     PROMPTFOO,
   }
 
+  @Hashed
   @JsonProperty("payload_type")
   private String type = AI_ATTACK_TYPE;
 
+  @Hashed
   @Queryable(filterable = true, sortable = true)
   @Column(name = "ai_attack_engine")
   @JsonProperty("ai_attack_engine")
@@ -65,6 +68,7 @@ public class AiAttack extends Payload {
    * {@code UNBOUNDED_CONSUMPTION}. Kept as a free string so the curated pack can evolve without a
    * schema change.
    */
+  @Hashed
   @Queryable(filterable = true, searchable = true, sortable = true)
   @Column(name = "ai_attack_category")
   @JsonProperty("ai_attack_category")
@@ -74,6 +78,7 @@ public class AiAttack extends Payload {
    * The attack content: a prompt / template for the native engine, a probe/plugin selector for
    * Garak / Promptfoo, or a seed prompt for a PyRIT orchestrator.
    */
+  @Hashed
   @Column(name = "ai_attack_content")
   @JsonProperty("ai_attack_content")
   private String content;
@@ -81,6 +86,7 @@ public class AiAttack extends Payload {
   /**
    * Optional multi-turn orchestration strategy configuration (e.g. PyRIT Crescendo / TAP / PAIR).
    */
+  @Hashed
   @Type(JsonType.class)
   @Column(name = "ai_attack_multi_turn", columnDefinition = "jsonb")
   @JsonProperty("ai_attack_multi_turn")
@@ -89,6 +95,7 @@ public class AiAttack extends Payload {
   /**
    * Obfuscation / evasion converters applied to the attack content (e.g. base64, rot13, leetspeak).
    */
+  @Hashed
   @Type(StringArrayType.class)
   @Column(name = "ai_attack_converters", columnDefinition = "text[]")
   @JsonProperty("ai_attack_converters")
@@ -98,6 +105,7 @@ public class AiAttack extends Payload {
    * Success-detection configuration used to decide whether the attack succeeded (the target is
    * vulnerable): refusal detection, canary/marker leakage, regex, or LLM-as-judge.
    */
+  @Hashed
   @Type(JsonType.class)
   @Column(name = "ai_attack_success_detector", columnDefinition = "jsonb")
   @JsonProperty("ai_attack_success_detector")
