@@ -412,18 +412,27 @@ public class MeApiTest extends IntegrationTest {
       verify(mockMailingService, atLeastOnce())
           .sendEmail(anyString(), bodyCaptor.capture(), recipientsCaptor.capture());
 
-      // The message carrying the confirmation link must be delivered to the new address, so the
-      // change only applies once the holder of that address confirms it.
+      // The confirmation link must reach the new address and only the new address: the holder of
+      // the
+      // current address must never receive it, otherwise they could confirm a change to an address
+      // they do not control. Assert exactly one link-bearing mail, to the new address, and no
+      // link-bearing mail addressed to the current address.
       List<String> bodies = bodyCaptor.getAllValues();
       List<List<User>> recipients = recipientsCaptor.getAllValues();
-      String confirmRecipient = null;
+      int linkMails = 0;
+      boolean newAddressGotLink = false;
       for (int i = 0; i < bodies.size(); i++) {
         if (bodies.get(i).contains("/api/me/confirm-email-change/")) {
-          confirmRecipient = recipients.get(i).get(0).getEmail();
+          linkMails++;
+          List<String> addresses = recipients.get(i).stream().map(User::getEmail).toList();
+          assertThat(addresses).doesNotContain(currentEmail);
+          if (addresses.contains(newEmail)) {
+            newAddressGotLink = true;
+          }
         }
       }
-      assertThat(confirmRecipient).isEqualTo(newEmail);
-      assertThat(confirmRecipient).isNotEqualTo(currentEmail);
+      assertThat(linkMails).isEqualTo(1);
+      assertThat(newAddressGotLink).isTrue();
     }
 
     @Test

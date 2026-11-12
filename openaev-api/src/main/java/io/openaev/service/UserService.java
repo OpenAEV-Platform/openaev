@@ -448,6 +448,9 @@ public class UserService {
     // who controls that address confirms it. The recipient carries only the new address and has no
     // platform account, which the email injector already supports for non-platform recipients.
     User newAddressRecipient = new User();
+    // Give the transient recipient an id so the email injector's execution traces can reference it,
+    // as EmailExecutor.buildSyntheticRecipient does; it is never persisted.
+    newAddressRecipient.setId(UUID.randomUUID().toString());
     newAddressRecipient.setEmail(newEmail);
     String confirmSubject = "OpenAEV email change to " + newEmail + " requested";
     String confirmBody =
