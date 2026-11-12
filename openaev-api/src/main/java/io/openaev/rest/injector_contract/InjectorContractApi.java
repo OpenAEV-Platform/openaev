@@ -1,7 +1,6 @@
 package io.openaev.rest.injector_contract;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.database.specification.InjectorContractSpecification.hasRegisteredInjector;
 import static io.openaev.utils.ArchitectureFilterUtils.handleArchitectureFilter;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 
@@ -91,8 +90,8 @@ public class InjectorContractApi extends RestBehavior {
     return buildPaginationCriteriaBuilder(
         (spec, specCount, pageable) ->
             this.injectorContractService.getSinglePage(
-                spec.and(hasRegisteredInjector()),
-                specCount.and(hasRegisteredInjector()),
+                spec,
+                specCount,
                 pageable,
                 input.isIncludeFullDetails()
                     ? InjectorContractService.OutputMode.FULL
@@ -112,7 +111,7 @@ public class InjectorContractApi extends RestBehavior {
   public List<InjectorContractDomainCountOutput> getDomainCounts(
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
-    return injectorContractService.getDomainCounts(filtered, hasRegisteredInjector());
+    return injectorContractService.getDomainCounts(filtered);
   }
 
   /**
@@ -131,9 +130,9 @@ public class InjectorContractApi extends RestBehavior {
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
     return new InjectorContractFacetCountsOutput(
-        injectorContractService.getPlatformCounts(filtered, hasRegisteredInjector()),
-        injectorContractService.getKillChainPhaseCounts(filtered, hasRegisteredInjector()),
-        injectorContractService.getStatusCounts(filtered, hasRegisteredInjector()));
+        injectorContractService.getPlatformCounts(filtered),
+        injectorContractService.getKillChainPhaseCounts(filtered),
+        injectorContractService.getStatusCounts(filtered));
   }
 
   /**
@@ -150,7 +149,7 @@ public class InjectorContractApi extends RestBehavior {
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(
       TxCtx ctx, @RequestBody @Valid final InjectorContractSearchPaginationInput input) {
     SearchPaginationInput filtered = handleArchitectureFilter(input);
-    return injectorContractService.getAuthorCounts(filtered, hasRegisteredInjector());
+    return injectorContractService.getAuthorCounts(filtered);
   }
 
   /**

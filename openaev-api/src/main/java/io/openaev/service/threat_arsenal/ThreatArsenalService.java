@@ -160,7 +160,7 @@ public class ThreatArsenalService {
   public List<InjectorContractDomainCountOutput> getDomainCounts(SearchPaginationInput input) {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
-    return injectorContractService.getDomainCounts(filtered, Specification.unrestricted());
+    return injectorContractService.getDomainCounts(filtered);
   }
 
   /**
@@ -171,7 +171,7 @@ public class ThreatArsenalService {
   public List<InjectorContractAuthorCountOutput> getAuthorCounts(SearchPaginationInput input) {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
-    return injectorContractService.getAuthorCounts(filtered, Specification.unrestricted());
+    return injectorContractService.getAuthorCounts(filtered);
   }
 
   /**
@@ -183,8 +183,8 @@ public class ThreatArsenalService {
     SearchPaginationInput filtered =
         handleArchitectureFilter(ThreatArsenalFilterUtils.translateSearchInput(input));
     return new ThreatArsenalFacetCountsOutput(
-        injectorContractService.getPlatformCounts(filtered, Specification.unrestricted()),
-        injectorContractService.getStatusCounts(filtered, Specification.unrestricted()));
+        injectorContractService.getPlatformCounts(filtered),
+        injectorContractService.getStatusCounts(filtered));
   }
 
   /**

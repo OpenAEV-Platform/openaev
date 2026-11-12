@@ -73,26 +73,6 @@ public class InjectorContractSpecification {
   }
 
   /**
-   * Keeps only the contracts an injector of their own tenant is registered for. Executing an inject
-   * resolves its injector within the inject's tenant, so a contract with no such link would fail at
-   * launch with no injector to run it.
-   */
-  public static Specification<InjectorContract> hasRegisteredInjector() {
-    return (root, query, cb) -> {
-      Subquery<Integer> link = query.subquery(Integer.class);
-      Root<InjectorInjectorContract> linkRoot = link.from(InjectorInjectorContract.class);
-      Path<Object> contractId = root.get(InjectorContract.COMPOSITE_ID_FIELD_NAME);
-      link.select(cb.literal(1))
-          .where(
-              cb.equal(
-                  linkRoot.get("injectorContractId"),
-                  contractId.get(InjectorContract.ID_FIELD_NAME)),
-              cb.equal(linkRoot.get("tenantId"), contractId.get("tenantId")));
-      return cb.exists(link);
-    };
-  }
-
-  /**
    * Specification to filter InjectorContracts on the caller's rights in the tenant of each row. A
    * contract id repeats across tenants, so a copy is visible on rights held in its own tenant:
    *

@@ -54,7 +54,6 @@ class PayloadIdentityGrantTest extends IntegrationTest {
   private Tenant tenant;
   private final String identityId = UUID.randomUUID().toString();
   private final String contractId = UUID.randomUUID().toString();
-  private final String injectorId = UUID.randomUUID().toString();
 
   @BeforeEach
   void setup() throws Exception {
@@ -76,20 +75,6 @@ class PayloadIdentityGrantTest extends IntegrationTest {
             + " injector_contract_payload, tenant_id) VALUES (?1, '{}', ?2, ?3)",
         contractId,
         identityId,
-        tenant.getId());
-    // The search only offers contracts an injector is registered for
-    execute(
-        "INSERT INTO injectors (injector_id, tenant_id, injector_name, injector_type,"
-            + " injector_external, injector_custom_contracts, injector_payloads,"
-            + " injector_created_at, injector_updated_at)"
-            + " VALUES (?1, ?2, 'Implant', 'openaev_implant', false, false, true, now(), now())",
-        injectorId,
-        tenant.getId());
-    execute(
-        "INSERT INTO injectors_injector_contracts (injector_id, injector_contract_id, tenant_id)"
-            + " VALUES (?1, ?2, ?3)",
-        injectorId,
-        contractId,
         tenant.getId());
     grantOnIdentity();
   }
