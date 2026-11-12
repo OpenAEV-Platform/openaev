@@ -3430,6 +3430,7 @@ export interface CredentialBulkProcessingInput {
 }
 
 export interface CredentialContractField {
+  accepted_formats?: string[];
   choices?: string[];
   default_value?: string;
   field_description?: string;

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.CredentialSecretReference;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import lombok.Builder;
 
 public record CredentialContractOutput(
     @JsonProperty("credential_type") @NotNull
@@ -25,6 +26,7 @@ public record CredentialContractOutput(
     file,
   }
 
+  @Builder
   public record CredentialContractField(
       @JsonProperty("field_name") @NotNull String fieldName,
       @JsonProperty("field_type") CredentialContractFieldType fieldType,
@@ -35,32 +37,6 @@ public record CredentialContractOutput(
       @JsonProperty("visible_condition_field") String visibleConditionField,
       @JsonProperty("visible_condition_value") String visibleConditionValue,
       @JsonProperty("default_value") String defaultValue,
-      @JsonProperty("field_description") String fieldDescription) {
-
-    /**
-     * Convenience constructor for the fields carrying no default value and no description, so
-     * contracts declared before {@code default_value} existed stay untouched.
-     */
-    public CredentialContractField(
-        String fieldName,
-        CredentialContractFieldType fieldType,
-        boolean required,
-        List<String> choices,
-        String mandatoryConditionField,
-        String mandatoryConditionValue,
-        String visibleConditionField,
-        String visibleConditionValue) {
-      this(
-          fieldName,
-          fieldType,
-          required,
-          choices,
-          mandatoryConditionField,
-          mandatoryConditionValue,
-          visibleConditionField,
-          visibleConditionValue,
-          null,
-          null);
-    }
-  }
+      @JsonProperty("field_description") String fieldDescription,
+      @JsonProperty("accepted_formats") List<String> acceptedFormats) {}
 }
