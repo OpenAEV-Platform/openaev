@@ -496,7 +496,9 @@ class PayloadApiTest extends IntegrationTest {
               PayloadFixture.createPayloadArgument(
                   "arg_username", PrimitiveType.Username, "admin", null),
               PayloadFixture.createPayloadArgument(
-                  "arg_targeted_asset", PrimitiveType.TargetedAsset, "hostname", "-u")));
+                  "arg_targeted_asset", PrimitiveType.TargetedAsset, "hostname", "-u"),
+              PayloadFixture.createPayloadArgument(
+                  "arg_document", PrimitiveType.Document, "document-id", null)));
 
       String response =
           mvc.perform(
@@ -518,7 +520,8 @@ class PayloadApiTest extends IntegrationTest {
               "arg_text", "text",
               "arg_port", "port",
               "arg_username", "username",
-              "arg_targeted_asset", "targeted-asset");
+              "arg_targeted_asset", "targeted-asset",
+              "arg_document", "document");
 
       Map<String, String> actualArgumentTypes = new HashMap<>();
       ArrayNode contractFields = (ArrayNode) injectorContract.getConvertedContent().get("fields");
@@ -527,6 +530,11 @@ class PayloadApiTest extends IntegrationTest {
             String key = f.get("key").asText();
             if (expectedArgumentTypes.containsKey(key) && f.has("argumentType")) {
               actualArgumentTypes.put(key, f.get("argumentType").asText());
+            }
+            // #6973: a document argument gets its own field type, rendered as a document picker.
+            if ("arg_document".equals(key)) {
+              assertEquals("document", f.get("type").asText());
+              assertEquals("document-id", f.get("defaultValue").asText());
             }
           });
 

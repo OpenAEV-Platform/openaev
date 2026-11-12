@@ -19,7 +19,6 @@ import { useFormatter } from '../../../../../components/i18n';
 import { type ChoiceItem, type EnhancedContractElement } from '../../../../../utils/api-types-custom';
 import AiTargetAutocompleteField from '../../../assets/ai_targets/AiTargetAutocompleteField';
 import InjectEndpointsList from './endpoints/InjectEndpointsList';
-import { resolveInjectFieldType } from './injectFieldType';
 
 interface Props {
   field: EnhancedContractElement;
@@ -42,7 +41,10 @@ const InjectContentFieldComponent = ({
     name: field.key,
   });
   const [informationToDisplay, setInformationToDisplay] = useState<string>('');
-  const fieldType = resolveInjectFieldType(field);
+  let fieldType: EnhancedContractElement['type'] | 'richText' = field.type;
+  if (field.type === 'textarea' && field.richText) {
+    fieldType = 'richText';
+  }
 
   useEffect(() => {
     const findInformation = (value: string) => (field.choices as ChoiceItem[]).find(c => c.value === value)?.information ?? '';

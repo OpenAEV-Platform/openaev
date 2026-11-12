@@ -36,9 +36,10 @@ public class InjectModelHelper {
     // Utility class - prevent instantiation
   }
 
-  private static boolean isTextOrTextarea(JsonNode jsonField) {
+  /** Fields whose contract default value stands in for an empty inject content value. */
+  private static boolean hasDefaultValueFallback(JsonNode jsonField) {
     String type = jsonField.get("type").asText();
-    return "text".equals(type) || "textarea".equals(type);
+    return "text".equals(type) || "textarea".equals(type) || "document".equals(type);
   }
 
   private static boolean isFieldValid(
@@ -210,7 +211,7 @@ public class InjectModelHelper {
           isSet = false;
           break;
         }
-        if (isTextOrTextarea(jsonField)) {
+        if (hasDefaultValueFallback(jsonField)) {
           isSet = isFieldValid(content, injectContractFields, key);
         } else if (content.get(key) == null
             || (content.get(key).isArray() && content.get(key).isEmpty())
