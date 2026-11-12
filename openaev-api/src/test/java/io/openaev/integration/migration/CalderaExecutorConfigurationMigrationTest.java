@@ -5,6 +5,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
@@ -20,6 +21,7 @@ import io.openaev.service.connector_instances.EncryptionService;
 import io.openaev.utils.fixtures.CatalogConnectorFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.mockConfig.executors.WithMockCalderaConfig;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.util.Optional;
 import org.bouncycastle.openssl.EncryptionException;
@@ -29,6 +31,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +41,7 @@ public class CalderaExecutorConfigurationMigrationTest {
   @Nested
   @SpringBootTest
   @TestExecutionListeners(
-      value = {RabbitMQTestListener.class},
+      value = {DefaultTenantScopeTestListener.class, RabbitMQTestListener.class},
       mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
   @Transactional
   @WithMockCalderaConfig(
@@ -47,6 +51,12 @@ public class CalderaExecutorConfigurationMigrationTest {
       apiKey = "caldera_api_key")
   @DisplayName("With enabled configuration")
   public class WithEnabledConfiguration {
+
+    @DynamicPropertySource
+    static void productionActiveTables(DynamicPropertyRegistry registry) {
+      registry.add(
+          "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+    }
 
     @Autowired private CalderaExecutorConfigurationMigration calderaExecutorConfigurationMigration;
 
@@ -152,7 +162,7 @@ public class CalderaExecutorConfigurationMigrationTest {
   @SpringBootTest
   @Transactional
   @TestExecutionListeners(
-      value = {RabbitMQTestListener.class},
+      value = {DefaultTenantScopeTestListener.class, RabbitMQTestListener.class},
       mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
   @WithMockCalderaConfig(
       enable = false,
@@ -161,6 +171,12 @@ public class CalderaExecutorConfigurationMigrationTest {
       apiKey = "caldera_api_key")
   @DisplayName("With disabled configuration")
   public class WithDisabledConfiguration {
+
+    @DynamicPropertySource
+    static void productionActiveTables(DynamicPropertyRegistry registry) {
+      registry.add(
+          "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+    }
 
     @Autowired private CalderaExecutorConfigurationMigration calderaExecutorConfigurationMigration;
 
