@@ -224,42 +224,6 @@ public class InjectModelHelper {
   }
 
   /**
-   * Checks if the inject content includes detection or prevention expectations.
-   *
-   * <p>This is used to determine if an inject requires security tool validation (e.g., EDR
-   * detection, firewall blocking) rather than just execution completion.
-   *
-   * @param content the inject content JSON
-   * @return {@code true} if the inject has DETECTION or PREVENTION expectations
-   */
-  public static boolean isDetectionOrPrevention(final ObjectNode content) {
-    if (content == null
-        || content.get("expectations") == null
-        || content.get("expectations").isNull()) {
-      return false;
-    }
-
-    JsonNode valueNode = content.get("expectations");
-
-    if (valueNode.isArray()) {
-      for (JsonNode node : valueNode) {
-        if (!node.isNull()
-            && node.get("expectation_type") != null
-            && !node.get("expectation_type").isNull()) {
-          BaseInjectExpectation.EXPECTATION_TYPE type =
-              BaseInjectExpectation.EXPECTATION_TYPE.valueOf(node.get("expectation_type").asText());
-          if (BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.equals(type)
-              || BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(type)) {
-            return true;
-          }
-        }
-      }
-    }
-
-    return false;
-  }
-
-  /**
    * Extracts the value(s) for a specific field from inject content.
    *
    * <p>For target-type fields (team, asset, asset_group), returns the corresponding ID list. For

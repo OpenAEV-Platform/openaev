@@ -1601,15 +1601,13 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   private static boolean isTechnicalExpectation(BaseInjectExpectation expectation) {
-    return expectation instanceof PreventionInjectExpectation
-        || expectation instanceof DetectionInjectExpectation
-        || expectation instanceof VulnerabilityInjectExpectation;
+    return expectation instanceof TechnicalInjectExpectation;
   }
 
   /**
    * Enriches an output map entry with endpoint context (agent_id, asset_id, asset_group_id, plus
    * normalised target_type / target_id) when the expectation is a {@link
-   * TechnicalInjectExpectation} (i.e. PREVENTION or DETECTION).
+   * TechnicalInjectExpectation} (PREVENTION, DETECTION, LOGGING or VULNERABILITY).
    *
    * <p>Granularity priority:
    *

@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.Channel;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
@@ -9,6 +10,13 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ChannelRepository
     extends CrudRepository<Channel, String>, JpaSpecificationExecutor<Channel> {
+
+  /**
+   * Primary-key lookup confined to one tenant: a channel id taken from a request body is resolved
+   * in the tenant of the row that links it, so it cannot match a channel of a foreign tenant of the
+   * request scope.
+   */
+  Optional<Channel> findByIdAndTenantId(String id, String tenantId);
 
   List<Channel> findByNameIgnoreCase(String name);
 

@@ -48,9 +48,11 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AuthorService;
 import io.openaev.service.PermissionService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.payload.PayloadContentHashService;
@@ -103,6 +105,7 @@ public class PayloadService {
   private final ChainingStepCleanupService chainingStepCleanupService;
   private final InjectorContractService injectorContractService;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final PreviewFeatureService previewFeatureService;
 
   private final PayloadMapper payloadMapper;
 
@@ -293,6 +296,11 @@ public class PayloadService {
             this.expectationBuilderService.buildDetectionExpectation(),
             BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
             expectedSecurityPlatforms);
+    Expectation loggingExpectation =
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildLoggingExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.LOGGING,
+            expectedSecurityPlatforms);
     Expectation vulnerableExpectation =
         withExpectedSecurityPlatforms(
             this.expectationBuilderService.buildVulnerabilityExpectation(),
@@ -304,14 +312,22 @@ public class PayloadService {
         switch (type) {
           case DETECTION -> detectionExpectation.setPredefined(true);
           case PREVENTION -> preventionExpectation.setPredefined(true);
+          case LOGGING -> loggingExpectation.setPredefined(true);
           case VULNERABILITY -> vulnerableExpectation.setPredefined(true);
           default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
         }
       }
     }
 
-    return expectationsField(
-        List.of(detectionExpectation, preventionExpectation, vulnerableExpectation));
+    List<Expectation> expectations =
+        new ArrayList<>(List.of(detectionExpectation, preventionExpectation));
+    // The contract is stored at payload synchronisation: a contract built while the preview feature
+    // is off only offers LOGGING at its next synchronisation.
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION)) {
+      expectations.add(loggingExpectation);
+    }
+    expectations.add(vulnerableExpectation);
+    return expectationsField(expectations);
   }
 
   public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
@@ -466,13 +482,16 @@ public class PayloadService {
   }
 
   public void deprecateNonProcessedPayloadsByCollector(
-      String collectorId, List<String> processedPayloadExternalIds) {
+      TxCtx ctx, String collectorId, List<String> processedPayloadExternalIds) {
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     List<String> payloadExternalIds =
-        payloadRepository.findAllExternalIdsByCollectorId(collectorId);
+        payloadRepository.findAllExternalIdsByCollectorId(collectorId, writeTenant);
     List<String> payloadExternalIdsToDeprecate =
         getExternalIdsToDeprecate(payloadExternalIds, processedPayloadExternalIds);
     payloadRepository.setPayloadStatusByExternalIds(
-        String.valueOf(Payload.PAYLOAD_STATUS.DEPRECATED), payloadExternalIdsToDeprecate);
+        String.valueOf(Payload.PAYLOAD_STATUS.DEPRECATED),
+        payloadExternalIdsToDeprecate,
+        writeTenant);
     log.info("Number of deprecated Payloads: {}", payloadExternalIdsToDeprecate.size());
   }
 

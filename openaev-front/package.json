@@ -36,12 +36,12 @@
     "node": ">= 24.11.0"
   },
   "dependencies": {
-    "@casl/ability": "7.1.0",
+    "@casl/ability": "7.1.1",
     "@casl/react": "7.1.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@filigran/chatbot": "3.28.0",
-    "@filigran/design-system": "1.5.0",
+    "@filigran/chatbot": "3.29.1",
+    "@filigran/design-system": "1.5.1",
     "@filigran/rich-text-editor": "npm:@filigran/rich-text-editor@1.2.2",
     "@fontsource/geologica": "5.3.0",
     "@fontsource/ibm-plex-sans": "5.3.0",
@@ -51,9 +51,9 @@
     "@mui/icons-material": "9.5.0",
     "@mui/material": "9.5.0",
     "@redux-devtools/extension": "4.0.0",
-    "@tanstack/react-virtual": "3.14.24",
+    "@tanstack/react-virtual": "3.14.26",
     "@uiw/react-md-editor": "4.1.6",
-    "@xyflow/react": "12.12.0",
+    "@xyflow/react": "12.12.1",
     "apexcharts": "4.7.0",
     "axios": "1.21.0",
     "cronstrue": "3.38.0",
@@ -82,7 +82,7 @@
     "react-final-form-arrays": "4.0.0",
     "react-grid-layout": "2.3.0",
     "react-hook-form": "7.91.0",
-    "react-intl": "12.1.6",
+    "react-intl": "12.1.7",
     "react-markdown": "10.1.0",
     "react-redux": "9.3.1",
     "react-router": "8.5.1",
@@ -98,7 +98,7 @@
     "usehooks-ts": "3.1.1",
     "uuid": "14.0.3",
     "zod": "4.6.7",
-    "zustand": "5.0.16"
+    "zustand": "5.1.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
