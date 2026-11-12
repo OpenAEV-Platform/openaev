@@ -11,7 +11,6 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.ResourceType;
-import io.openaev.database.model.User;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.service.UserService;
 import io.openaev.service.marking_definition.MarkingDefinitionService;
@@ -80,10 +79,7 @@ public class MarkingDefinitionApi extends RestBehavior {
     // request scope to exactly one tenant or refuse an ambiguous one - is exactly what a clearance
     // lookup needs too; this endpoint doesn't write anything.
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    User currentUser = userService.currentUser();
-    return service
-        .listAssignable(ctx, tenantId, currentUser.getId(), currentUser.isAdminOrBypass())
-        .stream()
+    return service.listAssignable(ctx, tenantId, userService.currentUser().getId()).stream()
         .map(MarkingDefinitionMapper::toOutput)
         .toList();
   }

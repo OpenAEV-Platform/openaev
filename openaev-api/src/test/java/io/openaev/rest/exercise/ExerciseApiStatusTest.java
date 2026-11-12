@@ -52,7 +52,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Propagation;
@@ -63,14 +62,14 @@ import org.springframework.transaction.annotation.Transactional;
 // default tenant, where its simulation lives. The membership is granted on each method, never on
 // the class.
 @SpringBootTest
-// Disable Quartz's live cron triggers for this class only: three tests below now commit real rows
+// Relies on Quartz's live cron triggers being off in the test configuration: three tests below
+// commit real rows
 // (see the @Transactional(propagation = NOT_SUPPORTED) tests) so that
 // InjectHelper.getInjectsToRun()
 // - which opens its own TenantScopedTransaction - can see them. Without this, the real
 // InjectsExecutionJob (cron "every minute on the clock", see PlatformTriggers) can concurrently
 // pick up and execute the very same fixtures the assertions below count, causing intermittent
 // off-by-one failures depending on wall-clock timing.
-@TestPropertySource(properties = "spring.quartz.auto-startup=false")
 @TestInstance(PER_CLASS)
 @Transactional
 public class ExerciseApiStatusTest extends IntegrationTest {

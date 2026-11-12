@@ -12,7 +12,8 @@ import java.util.List;
  * grant?" depend on request ordering, which is the wrong property for a security boundary.
  */
 public record GroupUpdateMarkingsInput(
-    @JsonProperty("group_markings") @NotNull List<String> markingIds) {
+    @JsonProperty("group_markings") @NotNull List<String> markingIds,
+    @JsonProperty("group_auto_new_marking") Boolean autoNewMarking) {
 
   public GroupUpdateMarkingsInput {
     markingIds = markingIds == null ? null : List.copyOf(markingIds);

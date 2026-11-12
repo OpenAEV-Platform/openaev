@@ -79,6 +79,10 @@ OPENAEV_PROVIDER_{registrationId}_ROLES_PATH=http://schemas.microsoft.com/ws/200
 OPENAEV_PROVIDER_{registrationId}_ROLES_ADMIN=
 ```
 
+A user with one of these roles joins the "Admin" group of the provider's Tenant (the default Tenant when
+`OPENAEV_PROVIDER_{registrationId}_TENANT_ID` is unset), and leaves it when the role is removed. These users administer
+that Tenant, not the whole platform.
+
 If you manage administrators in OpenAEV itself, leave them unset.
 
 ### Map users to groups automatically (OpenID and SAML2)
@@ -108,6 +112,11 @@ The value must be a **JSON array** of mapping rules. Each rule maps an IdP group
 | `idpGroup` | string | ✅ | The group name as it appears in the IdP token or assertion |
 | `userGroup` | string | ✅ | The OpenAEV group to assign the user to |
 | `autoCreate` | boolean | ✅ | If `true`, the OpenAEV group is created automatically if it does not exist. If `false`, the mapping is silently skipped when the group does not exist. |
+| `tenantId` | string | ❌ | The tenant the group belongs to. The user is also added to this tenant. Without it, the group is a platform group. |
+
+!!! warning "Tenant groups need a `tenantId`"
+
+    A rule without `tenantId` only matches platform groups. To map users to a group of a tenant, set that tenant's ID in the rule.
 
 #### Example — Azure AD with SAML2
 

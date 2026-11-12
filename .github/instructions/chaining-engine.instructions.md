@@ -263,7 +263,7 @@ io.openaev.service.chaining/          ← Business logic layer
   ├── ExternalUpdateEventHandler.java ← Interface: handleExternalUpdateEvent()
   ├── StepEvent.java                  ← Queue message for ready steps (Queueable)
   ├── ExternalUpdateEvent.java        ← Queue message for external updates (Queueable)
-  ├── WorkflowUpdateEventPublisher.java ← Looks the steps up in the caller's scope, sends update events, retries refused ones
+  ├── WorkflowUpdateEventPublisher.java ← Looks the steps up in the owning tenant, sends update events, retries refused ones
   ├── ScopeService.java               ← Asset scope resolution (allowlist/denylist)
   ├── StepDelayQueueService.java      ← DB-persisted delay queue for time conditions
   └── WorkflowEndService.java     ← Finds expired workflows, force-completes them
@@ -421,7 +421,7 @@ openaev-front/src/components/common/chaining/
 
 - `@WorkflowUpdateEvent` annotation on inject-related methods triggers the `WorkflowUpdateEventAspect`.
 - The aspect extracts inject/expectation IDs via SpEL expressions and hands them to `WorkflowUpdateEventPublisher`, which publishes `ExternalUpdateEvent` to the update queue and keeps the events the queue refused for a later retry.
-- The step lookup and each event's tenant are read in the caller's transaction, so the annotation only works on a method that runs inside a scoped transaction. A method with no transaction of its own (such as the batched callback handler, `NOT_SUPPORTED`) must not carry the annotation: it calls `WorkflowUpdateEventPublisher` from a transaction scoped to the injects' tenant, after its own writes are committed.
+- The step lookup and each event's tenant are read on the caller's transaction, moved to the tenant that owns each inject (`WorkflowOwnerScope`), so the engine is reached whatever the caller's scope. The annotation therefore only works on a method that runs inside a transaction. A method with no transaction of its own (such as the batched callback handler, `NOT_SUPPORTED`) must not carry the annotation: it calls `WorkflowUpdateEventPublisher` from a transaction scoped to the injects' tenant, after its own writes are committed.
 - This is how inject status changes (from executors or human validation) flow back into the chaining engine.
 
 ### Scope

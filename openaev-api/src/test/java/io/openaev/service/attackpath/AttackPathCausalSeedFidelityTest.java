@@ -7,6 +7,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.util.List;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +36,7 @@ class AttackPathCausalSeedFidelityTest extends IntegrationTest {
   void seeded_execution_matches_the_engine_column_shape() {
     Tenant tenant =
         tenantRepository.save(TenantFixture.getTenant("ap-seed-causal-fidelity-tenant"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
 
     causalSeedService.seedFaithfulExecution(SIM, tenant.getId());
 

@@ -41,6 +41,17 @@ When the Collector answers an Asset or an asset group expectation, OpenAEV appli
     }
     ```
 
+{% if feature_visible("LOGGING_EXPECTATION") %}
+## Logging expectations
+
+A logging expectation checks that the attack left raw events in the product, whatever its alerts say. A Collector answers it only if it declares it:
+
+1. **Declare the type.** Send `collector_supported_expectation_types` at registration, for example `["DETECTION", "PREVENTION", "LOGGING"]`. OpenAEV replaces the list at each registration. Without the field, the Collector answers detection and prevention expectations only, and OpenAEV never waits for it on a logging expectation.
+2. **Read the expectations.** Fetch them through `GET /api/injects/expectations/logging/{collector_id}`. The other expectation routes never return logging expectations. The route returns only the expectations still waiting for this Collector, and an empty list when the preview feature is disabled.
+3. **Report a match only.** Answer with `is_success: true` as in [Report a result](#report-a-result): OpenAEV derives **Logged** from the expectation type. Never send `is_success: false`: when nothing is found, send nothing, and the expectation comes back at the next run until it expires to **Not Logged**.
+4. **Send the trace.** With `POST /api/inject-expectations-traces/bulk`, send the link to the search, the time of the first matching event, and how it matched in `inject_expectation_trace_match_type`: `marker` (the implant name), `source_ip` or `target_ip`.
+{% endif %}
+
 ## Signatures
 
 A signature is a way to find an attack in an alert. The main ones are:
@@ -54,6 +65,9 @@ A signature is a way to find an attack in an alert. The main ones are:
 ![Collector diagram](assets/collector-diagram.png)
 
 For reference implementations, see the [CrowdStrike](https://github.com/OpenAEV-Platform/collectors/tree/main/crowdstrike), [Microsoft Defender](https://github.com/OpenAEV-Platform/collectors/tree/main/microsoft-defender) and [Microsoft Sentinel](https://github.com/OpenAEV-Platform/collectors/tree/main/microsoft-sentinel) Collectors.
+{% if feature_visible("LOGGING_EXPECTATION") %}
+For logging expectations, see the [Splunk Enterprise Security](https://github.com/OpenAEV-Platform/collectors/tree/main/splunk-es) Collector.
+{% endif %}
 
 ## What's next?
 

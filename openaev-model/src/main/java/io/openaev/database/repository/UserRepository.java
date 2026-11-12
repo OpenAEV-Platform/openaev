@@ -1,5 +1,6 @@
 package io.openaev.database.repository;
 
+import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.raw.RawPlayer;
@@ -76,7 +77,13 @@ public interface UserRepository
 
   @Query(
       value =
-          "select us.*, "
+          "select us.user_id, us.user_firstname, us.user_lastname, us.user_email, us.user_phone, "
+              // The organization of the tenant, read from the join table: the legacy column of "us"
+              // is no longer maintained.
+              + "       (select uo.organization_id from users_organizations uo "
+              + "         join organizations org on org.organization_id = uo.organization_id "
+              + "         where uo.user_id = us.user_id and org.tenant_id = :tenantId "
+              + "         order by uo.organization_id limit 1) as user_organization, "
               + "       array_remove(array_agg(tg.tag_id), null) as user_tags,"
               + "       array_remove(array_agg(grp.group_id), null) as user_groups,"
               + "       array_remove(array_agg(tm.team_id), null) as user_teams from users us"
@@ -155,7 +162,14 @@ public interface UserRepository
       value =
           "select us.user_id, us.user_email, "
               + "us.user_firstname, us.user_lastname, "
-              + "us.user_country, us.user_phone, us.user_admin, us.user_organization,"
+              + "us.user_country, us.user_phone, us.user_admin, "
+              // A user holds one organization per tenant: a correlated sub-query keeps the current
+              // tenant's one only, without a join that would split a multi-tenant user in groups.
+              + "(select uo.organization_id from users_organizations uo "
+              + "  join organizations org on org.organization_id = uo.organization_id "
+              + "  where uo.user_id = us.user_id "
+              + "  and org.tenant_id = :#{#tenantContext.currentTenant} "
+              + "  order by uo.organization_id limit 1) as user_organization, "
               + "array_remove(array_agg(tg.tag_id), null) as user_tags "
               + "from users us "
               + "left join users_tags usr_tg on us.user_id = usr_tg.user_id "
@@ -243,6 +257,171 @@ public interface UserRepository
 
   @Query("SELECT u FROM User u JOIN Token t ON u.id = t.user.id WHERE t.value = :token")
   Optional<User> findByToken(@Param("token") String token);
+
+  // -- ORGANIZATIONS --
+
+  /**
+   * Sets the organization of a user in a tenant, leaving the ones it holds in other tenants
+   * untouched, and keeps the in-memory view of {@code user} in sync. Must run in the caller's
+   * transaction, and the user must already be saved.
+   *
+   * <p>It is a SQL write rather than a change of {@code User#organizations}: Hibernate only knows
+   * the organizations in the scope of the transaction, so clearing the last one would delete every
+   * row of the user, the ones of the tenants out of scope included. The row of the user is locked
+   * first, so two concurrent assignments in a tenant cannot both insert a different organization.
+   *
+   * @param user the saved user
+   * @param tenantId the tenant whose organization is replaced
+   * @param organization the new organization of that tenant, or {@code null} to clear it
+   */
+  default void assignOrganization(User user, String tenantId, Organization organization) {
+    Organization previous = user.organizationOfTenant(tenantId);
+    boolean changed =
+        !Objects.equals(
+            previous == null ? null : previous.getId(),
+            organization == null ? null : organization.getId());
+    // In-memory view first: the queries below flush the pending profile changes of the user, and
+    // the update event published by that flush serializes the user as it is at that moment.
+    user.setOrganizationForTenant(tenantId, organization);
+    if (changed) {
+      // The join table is written in SQL, so the user row would stay untouched and no update event
+      // would reach the connected clients: marking the user updated makes Hibernate publish it.
+      user.setUpdatedAt(Instant.now());
+    }
+    lockRow(user.getId());
+    removeOrganizationsOfTenant(user.getId(), tenantId);
+    if (organization != null) {
+      addOrganization(user.getId(), organization.getId());
+    }
+  }
+
+  // Native: JPA only exposes FOR UPDATE (PESSIMISTIC_WRITE), which would block the inserts of rows
+  // referencing the user (tags, tokens...); FOR NO KEY UPDATE does not. Unlike a no-op UPDATE it
+  // writes no tuple and fires no UPDATE trigger. No entity is read or changed, so no listener,
+  // index or audit side effect is lost. Enough for the writers that only replace rows of their own
+  // join table and never delete the account: nothing they decide on can be overtaken by an insert.
+  @Query(
+      value = "SELECT us.user_id FROM users us WHERE us.user_id = :userId FOR NO KEY UPDATE",
+      nativeQuery = true)
+  List<String> lockRow(@Param("userId") String userId);
+
+  // Native: JPA only exposes FOR UPDATE through a lock mode on a loaded entity, and no entity is
+  // read or changed here, so no listener, index or audit side effect is lost. Unlike lockRow, this
+  // lock conflicts with the FOR KEY SHARE that an insert into users_tenants takes. The delete of a
+  // player holds it, so a membership cannot be added after the check that decides the deletion.
+  @Query(
+      value = "SELECT us.user_id FROM users us WHERE us.user_id = :userId FOR UPDATE",
+      nativeQuery = true)
+  List<String> lockRowAgainstNewLinks(@Param("userId") String userId);
+
+  // Native: a set-based delete scoped by tenant through a sub-query. It touches a join table that
+  // is not indexed, audited nor streamed, so no session side effect is lost.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM users_organizations WHERE user_id = :userId AND organization_id IN ("
+              + "SELECT organization_id FROM organizations WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeOrganizationsOfTenant(
+      @Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  // Native: set-based deletes of the links a user holds in one tenant, each scoped by tenant
+  // through a sub-query. They touch join tables that are not indexed, audited nor streamed, and a
+  // link table row cannot be removed through the loaded collections without reading every team,
+  // simulation and scenario of the tenant.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM users_teams WHERE user_id = :userId AND team_id IN ("
+              + "SELECT team_id FROM teams WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeTeamsOfTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM users_tags WHERE user_id = :userId AND tag_id IN ("
+              + "SELECT tag_id FROM tags WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeTagsOfTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM exercises_teams_users WHERE user_id = :userId AND exercise_id IN ("
+              + "SELECT exercise_id FROM exercises WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeSimulationTeamUsersOfTenant(
+      @Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM scenarios_teams_users WHERE user_id = :userId AND scenario_id IN ("
+              + "SELECT scenario_id FROM scenarios WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeScenarioTeamUsersOfTenant(
+      @Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  // Native: atomic upsert (ON CONFLICT) on a join table that is not indexed, audited nor streamed.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "INSERT INTO users_organizations (user_id, organization_id)"
+              + " VALUES (:userId, :organizationId) ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addOrganization(
+      @Param("userId") String userId, @Param("organizationId") String organizationId);
+
+  // Native: atomic upsert (ON CONFLICT) on a join table that is not indexed, audited nor streamed.
+  // It adds one link without rewriting the association: Hibernate only knows the tags in the scope
+  // of the transaction, so replacing the collection would delete the links to the ones out of it.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "INSERT INTO users_tags (user_id, tag_id) VALUES (:userId, :tagId)"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addTag(@Param("userId") String userId, @Param("tagId") String tagId);
+
+  // Native: one set-based insert with ON CONFLICT on a join table that is not indexed, audited nor
+  // streamed. The tags are read from the tags table, so only the ones in the scope of the
+  // transaction are linked, and a link that already exists is left as it is.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "INSERT INTO users_tags (user_id, tag_id)"
+              + " SELECT :userId, t.tag_id FROM tags t WHERE t.tag_id IN :tagIds"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addTags(@Param("userId") String userId, @Param("tagIds") Collection<String> tagIds);
+
+  // JPQL, not the loaded collection: the collection may have been read before the row of the user
+  // was locked, while this reads the links as committed once the lock is held. Rooted on Tag, since
+  // selecting the id through the join table alone never reads the tags table: only the tags in the
+  // scope of the transaction come back.
+  @Query(
+      "SELECT t.id FROM Tag t WHERE t.id IN"
+          + " (SELECT linked.id FROM User u JOIN u.tags linked WHERE u.id = :userId)")
+  List<String> tagIdsInScope(@Param("userId") String userId);
+
+  // Native: a set-based delete of the listed links only, on a join table that is not indexed,
+  // audited nor streamed. Replacing the collection would delete every row of the user, the links
+  // to the tags the transaction's scope cannot see included.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value = "DELETE FROM users_tags WHERE user_id = :userId AND tag_id IN :tagIds",
+      nativeQuery = true)
+  void removeTags(@Param("userId") String userId, @Param("tagIds") Collection<String> tagIds);
+
+  // Native: same rationale as addTag, for the teams of the user.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "INSERT INTO users_teams (user_id, team_id) VALUES (:userId, :teamId)"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addTeam(@Param("userId") String userId, @Param("teamId") String teamId);
 
   // -- DELETE --
 

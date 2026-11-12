@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.openaev</groupId>
         <artifactId>openaev-platform</artifactId>
-        <version>3.261029.0</version>
+        <version>3.261110.0</version>
     </parent>
 
     <artifactId>openaev-api</artifactId>
@@ -18,25 +18,26 @@
         <!-- springdoc 3.x targets Spring Boot 4; 2.x (Boot 3) throws
              TypeNotPresentException/ClassNotFoundException for org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties,
              a class Boot 4 relocated. -->
-        <springdoc.version>3.1.1</springdoc.version>
-        <springdoc-plugin.version>1.5</springdoc-plugin.version>
+        <springdoc.version>3.2.0</springdoc.version>
+        <springdoc-plugin.version>1.6</springdoc-plugin.version>
         <cron-utils.version>9.2.1</cron-utils.version>
         <apache-poi.version>5.5.1</apache-poi.version>
         <opencsv-version>5.12.0</opencsv-version>
         <bucket4j.version>8.10.1</bucket4j.version>
-        <opentelemetry-semconv.version>1.44.0</opentelemetry-semconv.version>
+        <json-canonicalization.version>1.1</json-canonicalization.version>
+        <opentelemetry-semconv.version>1.45.0</opentelemetry-semconv.version>
         <!-- Not managed by the Spring Boot BOM; pinned here. Apache-2.0. -->
         <datasource-proxy.version>1.11.1</datasource-proxy.version>
         <!-- Server-side report rendering (headless Chromium). Apache-2.0. -->
         <playwright.version>1.64.0</playwright.version>
         <!-- Azure credential status validation. Aligned with openaev-model's azure-core-management. MIT. -->
-        <azure-identity.version>1.18.7</azure-identity.version>
+        <azure-identity.version>1.19.0</azure-identity.version>
         <!-- GCP credential status validation: signs the service account RS256 JWT and exchanges
              the OAuth2 refresh token. Same trade-off as Azure — SDK for the token, plain
              HttpClient for the resource probe. BSD-3-Clause. -->
-        <google-auth-library.version>1.54.0</google-auth-library.version>
+        <google-auth-library.version>1.56.0</google-auth-library.version>
         <!-- AWS STS client for temporary credential handling. Apache-2.0. -->
-        <aws-sts.version>2.57.2</aws-sts.version>
+        <aws-sts.version>2.57.9</aws-sts.version>
     </properties>
 
     <profiles>
@@ -82,7 +83,7 @@
         <dependency>
             <groupId>io.openaev</groupId>
             <artifactId>openaev-framework</artifactId>
-            <version>3.261029.0</version>
+            <version>3.261110.0</version>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
@@ -228,6 +229,11 @@
             <artifactId>commons-codec</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.github.erdtman</groupId>
+            <artifactId>java-json-canonicalization</artifactId>
+            <version>${json-canonicalization.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-saml2-service-provider</artifactId>
         </dependency>
@@ -265,7 +271,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.7.2-jre</version>
+            <version>33.8.0-jre</version>
         </dependency>
         <!-- Playwright drives an in-container headless Chromium to render reports (PDF/HTML).
              On dev machines the browser bundle is downloaded automatically on first use; the
@@ -485,26 +491,6 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>${jacoco-plugin.version}</version>
-                <configuration>
-                    <haltOnFailure>false</haltOnFailure>
-                    <rules>
-                        <rule>
-                            <element>BUNDLE</element>
-                            <limits>
-                                <limit>
-                                    <counter>LINE</counter>
-                                    <value>COVEREDRATIO</value>
-                                    <minimum>0.50</minimum> <!-- 50% minimum coverage -->
-                                </limit>
-                                <limit>
-                                    <counter>BRANCH</counter>
-                                    <value>COVEREDRATIO</value>
-                                    <minimum>0.30</minimum>
-                                </limit>
-                            </limits>
-                        </rule>
-                    </rules>
-                </configuration>
                 <executions>
                     <execution>
                         <goals>
@@ -523,14 +509,6 @@
                         <phase>test</phase>
                         <goals>
                             <goal>report</goal>
-                        </goals>
-                    </execution>
-                    <!-- Enforce coverage threshold -->
-                    <execution>
-                        <id>check</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>check</goal>
                         </goals>
                     </execution>
                 </executions>

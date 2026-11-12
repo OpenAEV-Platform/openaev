@@ -51,7 +51,19 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     await tenantsPage.openCreateDrawer();
     const tenantName = `Tenant Agent E2E ${Date.now()}`;
     await tenantsPage.fillTenantName(tenantName);
-    await tenantsPage.submitCreate();
+    // Tenant creation cascades through every onboarding dependency manager before the UI
+    // reloads GET /api/me/tenants, and the switcher only renders once that list holds more than
+    // one tenant. Wait for that refresh (listener attached before the click) instead of racing
+    // the switcher's fixed TIMEOUT, as tenant-management.spec.ts does.
+    await Promise.all([
+      page.waitForResponse(
+        response => response.url().includes('/api/me/tenants')
+          && response.request().method() === 'GET'
+          && response.ok(),
+        { timeout: 3 * TIMEOUT },
+      ),
+      tenantsPage.submitCreate(),
+    ]);
 
     const tenantSwitcher = new TenantSwitcherComponent(page);
     await tenantSwitcher.openSwitcher('Default');

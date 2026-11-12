@@ -6,9 +6,13 @@ import static io.openaev.database.audit.ModelBaseListener.DATA_UPDATE;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
+import io.openaev.database.model.Finding;
+import io.openaev.database.model.Inject;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.FindingRepository.UpsertedFinding;
+import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.utils.SensitiveValueMaskingUtils;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -38,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class FindingWriter {
 
   private final FindingRepository findingRepository;
+  private final FindingOccurrenceService findingOccurrenceService;
   private final ApplicationEventPublisher eventPublisher;
   private final ObjectMapper mapper;
 
@@ -56,7 +61,7 @@ public class FindingWriter {
       String findingType,
       String findingValue,
       String[] findingLabels,
-      String injectId,
+      Inject inject,
       String name,
       String assetId,
       String[] tagIds) {
@@ -71,7 +76,7 @@ public class FindingWriter {
           default ->
               throw new IllegalStateException(
                   "Cannot write a finding for inject "
-                      + injectId
+                      + inject.getId()
                       + " without a single-tenant scope: findings.tenant_id is NOT NULL and the row"
                       + " would be unattributed. The caller must resolve the tenant from the"
                       + " inject.");
@@ -87,7 +92,7 @@ public class FindingWriter {
             findingValue,
             findingValueDisplay,
             findingLabels,
-            injectId,
+            inject.getId(),
             name,
             tenantId);
     if (upserted == null) {
@@ -99,7 +104,7 @@ public class FindingWriter {
       // findings_assets and the failure surfaces as a NOT NULL violation on a different table.
       throw new IllegalStateException(
           "Finding upsert returned no id for inject "
-              + injectId
+              + inject.getId()
               + " in tenant "
               + tenantId
               + ": the conflicting row is outside the current tenant scope, or no scope is set on"
@@ -109,20 +114,19 @@ public class FindingWriter {
     String findingId = upserted.getId();
     boolean assetLinked = findingRepository.insertFindingAsset(findingId, assetId) > 0;
     findingRepository.insertFindingTags(findingId, tagIds);
+    // Loaded after the links are written: the event carries the serialized finding to the stream,
+    // so it must hold its full asset and tag lists. Listeners consume it after this commit.
+    Finding finding = findingRepository.findById(findingId).orElseThrow();
+    findingOccurrenceService.recordOccurrencesByInject(inject, List.of(finding));
 
     if (upserted.getInserted()) {
-      publishLifecycleEvent(DATA_PERSIST, findingId);
+      publishLifecycleEvent(DATA_PERSIST, finding);
     } else if (assetLinked) {
-      publishLifecycleEvent(DATA_UPDATE, findingId);
+      publishLifecycleEvent(DATA_UPDATE, finding);
     }
   }
 
-  // Loaded after the links are written: the event carries the serialized finding to the stream,
-  // so it must hold its full asset and tag lists. Listeners consume it after this commit.
-  private void publishLifecycleEvent(String eventType, String findingId) {
-    findingRepository
-        .findById(findingId)
-        .ifPresent(
-            finding -> eventPublisher.publishEvent(new BaseEvent(eventType, finding, mapper)));
+  private void publishLifecycleEvent(String eventType, Finding finding) {
+    eventPublisher.publishEvent(new BaseEvent(eventType, finding, mapper));
   }
 }

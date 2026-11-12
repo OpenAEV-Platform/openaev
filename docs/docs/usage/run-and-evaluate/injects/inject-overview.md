@@ -48,7 +48,11 @@ Select an Inject type on the left. The right panel loads a form with a default t
 | **Targets** | [Endpoints and Asset groups](../../build/assets.md) or [Players and Teams](../../build/people.md) |
 | **Expectations** | [Expected outcomes](../expectations/expectations.md): prevention, detection, human response |
 | **Attachments** | Supporting documents or resources |
+{%- if feature_visible("CREDENTIAL_ASSET") %}
+| **Inject-specific fields** | Email subject/body, obfuscation options, channel pressure, etc., and a [Credential](../../build/credentials.md) for Inject types that declare one |
+{%- else %}
 | **Inject-specific fields** | Email subject/body, obfuscation options, channel pressure, etc. |
+{%- endif %}
 
 ### In practice
 

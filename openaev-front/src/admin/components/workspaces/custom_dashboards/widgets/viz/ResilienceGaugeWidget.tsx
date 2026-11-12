@@ -6,6 +6,7 @@ import { type FunctionComponent, memo, type ReactElement, useContext, useMemo } 
 import { useFormatter } from '../../../../../../components/i18n';
 import { type StructuralHistogramWidget } from '../../../../../../utils/api-types';
 import useCountUp from '../../../../../../utils/hooks/useCountUp';
+import { computeResilience } from '../../../../../../utils/resilience';
 import { CustomDashboardContext } from '../../CustomDashboardContext';
 import { type SerieData } from '../WidgetViz';
 import SamplePreview from './sample/SamplePreview';
@@ -22,9 +23,10 @@ interface Props {
  * list in agreement (#7079). UNKNOWN is deliberately absent: computeStatus only
  * returns it for a null expected score, which the schema forbids since migration
  * V3_36 made inject_expectation_expected_score NOT NULL, so drilling it widened
- * the query for a status that cannot exist.
+ * the query for a status that cannot exist. PARTIAL is charted as its own arc,
+ * like the simulation Results gauges (#8810).
  */
-const RING_STATUSES = ['SUCCESS', 'FAILED', 'PENDING'];
+const RING_STATUSES = ['SUCCESS', 'PARTIAL', 'FAILED', 'PENDING'];
 
 const SAMPLE = [
   {
@@ -46,7 +48,7 @@ const SAMPLE = [
 
 /**
  * Thin, modern resilience ring for status breakdowns. A single hairline track
- * with a gradient progress arc (successes over resolved), a large light-weight
+ * with a gradient progress arc (successes over every expectation), a large light-weight
  * number, a domain glyph, and a compact legend. Strokes over fills - designed
  * to feel like a precision instrument, not a chunky gauge.
  */
@@ -84,26 +86,30 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetId, widgetConfi
     const get = (needle: string) => rows
       .filter(d => (d.x ?? '').toUpperCase().includes(needle))
       .reduce((acc, d) => acc + Number(d.y ?? 0), 0);
-    const success = get('SUCCESS');
-    const failed = get('FAIL');
-    const pending = get('PENDING');
-    const resolved = success + failed;
+    const buckets = {
+      success: get('SUCCESS'),
+      partial: get('PARTIAL'),
+      failed: get('FAIL'),
+      pending: get('PENDING'),
+    };
+    // Same definition as the simulation Results gauges: pending counts in the
+    // total, so the number matches the green arc of the ring (#8810).
     return {
-      success,
-      failed,
-      pending,
-      resilience: resolved > 0 ? Math.round((success / resolved) * 100) : 0,
+      ...buckets,
+      ...computeResilience(buckets),
     };
   }, [rows]);
 
   const accent = useMemo(() => {
+    // No result yet (every expectation pending): grey, not a red failure (#8809).
+    if (counts.resolved === 0) return theme.palette.text.disabled;
     if (counts.resilience >= 75) return theme.palette.success.main;
     if (counts.resilience >= 50) return theme.palette.warning.main;
     // The other three rungs read the theme; this one held a literal. `warn` is
     // the palette entry carrying --color-feedback-warning-primary.
     if (counts.resilience >= 25) return theme.palette.warn.main;
     return theme.palette.error.main;
-  }, [counts.resilience, theme]);
+  }, [counts.resolved, counts.resilience, theme]);
 
   const animated = useCountUp(counts.resilience, 1200);
 
@@ -115,8 +121,8 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetId, widgetConfi
   const circumference = 2 * Math.PI * radius;
   const dark = theme.palette.mode === 'dark';
 
-  // Segmented composition: success / failed / pending arcs around the ring.
-  const total = counts.success + counts.failed + counts.pending;
+  // Segmented composition: success / partial / failed / pending arcs around the ring.
+  const { total } = counts;
   const gapDeg = total > 0 ? 3 : 0;
   const segments = useMemo(() => {
     if (total === 0) return [];
@@ -124,6 +130,10 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetId, widgetConfi
       {
         value: counts.success,
         color: theme.palette.success.main,
+      },
+      {
+        value: counts.partial,
+        color: theme.palette.warning.main,
       },
       {
         value: counts.failed,
@@ -304,6 +314,7 @@ const ResilienceGaugeWidget: FunctionComponent<Props> = ({ widgetId, widgetConfi
         }}
         >
           {dot('SUCCESS', counts.success, theme.palette.success.main)}
+          {counts.partial > 0 && dot('PARTIAL', counts.partial, theme.palette.warning.main)}
           {dot('FAILED', counts.failed, theme.palette.error.main)}
           {counts.pending > 0 && dot('PENDING', counts.pending, theme.palette.text.disabled)}
         </div>
