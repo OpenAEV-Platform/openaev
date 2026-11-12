@@ -421,8 +421,9 @@ Behind `MARKING` and `assets` in `openaev.marking.active-tables`; otherwise ever
 Design and diagrams: `tech-design.md`, "The SSE stream: rules read from the registry and the JPA mapping".
 
 - **Rules** (`StreamMarkingRules`): read at startup from the active marked tables, registry included, and the
-  JPA mapping: own markings, parent row (with chains), link rows (*about*), listed ids, embedded objects. A
-  table added to `MarkingDerivedTables` is filtered on the stream too.
+  JPA mapping: own markings, parent row (with chains), link rows (*about*), listed ids (at any depth, e.g. the
+  assets of a finding's groups), embedded objects. A list whose rows can never be hidden gets no rule (a team's
+  table-top expectations). A table added to `MarkingDerivedTables` is filtered on the stream too.
 - **Per event** (`StreamVisibilityService`, after commit): the markings of the rows the payload points to,
   read by id at system clearance, in the entity's tenant (else the event's).
 - **Per reader** (`StreamClearanceService`): the reader's clearance, cached. `StreamService` drops the event
@@ -434,6 +435,8 @@ Worked example, amber holding `{CLEAR, GREEN, AMBER}`, assets A (`TLP:GREEN`) an
 |---|---|
 | endpoint R, its agent, an expectation on R, a finding on R only | nothing |
 | finding on A and R | the finding, `finding_assets = [A]` |
+| finding on group G holding A and R | the finding, G with `asset_group_assets = [A]` |
+| team with expectations | as before |
 | inject targeting A and R | the inject, `inject_assets = [A]` |
 | inject run on R | the inject, no expectation, only the global trace |
 | endpoint A | as before |

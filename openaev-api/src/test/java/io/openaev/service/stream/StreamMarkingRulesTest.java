@@ -14,6 +14,7 @@ import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Team;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.service.stream.StreamMarkingRules.EmbeddedRule;
 import io.openaev.service.stream.StreamMarkingRules.ListingRule;
@@ -86,10 +87,24 @@ class StreamMarkingRulesTest {
         .containsExactlyInAnyOrder(
             new ListingRule("asset_group_assets", "assets"),
             new ListingRule("asset_group_dynamic_assets", "assets"));
+    // The groups of a finding are serialized whole: their asset lists are listings too
     assertThat(rules.forEntity(Finding.class).listings())
-        .containsExactly(new ListingRule("finding_assets", "assets"));
+        .containsExactlyInAnyOrder(
+            new ListingRule("finding_assets", "assets"),
+            new ListingRule("finding_asset_groups.asset_group_assets", "assets"),
+            new ListingRule("finding_asset_groups.asset_group_dynamic_assets", "assets"));
     assertThat(rules.forEntity(Finding.class).row())
         .isEqualTo(RowRule.about("findings", "finding_assets", "assets"));
+  }
+
+  @Test
+  @DisplayName("ids of rows that can never point to a hidden row are not filtered")
+  void given_listedRowsWithoutTheParentLink_should_notBeFiltered() {
+    // Act
+    StreamMarkingRules rules = rules(ASSETS_ACTIVE);
+
+    // Assert: a team lists table-top expectations, which never have an asset (like a NULL asset_id)
+    assertThat(rules.forEntity(Team.class).isEmpty()).isTrue();
   }
 
   @Test

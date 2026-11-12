@@ -36,8 +36,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * <ul>
  *   <li><b>Row</b>: whether the entity is sent, by its own markings (an asset), the row it points
  *       to (an agent, a trace), or its link rows (a finding, hidden when all its assets are).
- *   <li><b>Listings</b>: the ids of marked or derived rows in the payload keep only the visible
- *       ones (an inject's targets).
+ *   <li><b>Listings</b>: the ids of marked or derived rows in the payload, at any depth, keep only
+ *       the visible ones (an inject's targets, a finding's groups' assets).
  *   <li><b>Embedded</b>: the objects of a marked or derived table in the payload keep only the
  *       visible ones (an inject's expectations and traces).
  * </ul>
@@ -78,8 +78,14 @@ public class StreamMarkingRules {
     }
   }
 
-  /** A payload property listing ids of a marked or derived table. */
-  public record ListingRule(String property, String table) {}
+  /**
+   * Ids of a marked or derived table listed in a payload.
+   *
+   * @param path the JSON path of the list, dot-separated, through nested objects and arrays (e.g.
+   *     {@code finding_asset_groups.asset_group_assets})
+   * @param table the table of the listed rows
+   */
+  public record ListingRule(String path, String table) {}
 
   /**
    * An array of objects of a marked or derived table embedded whole in a payload.
@@ -195,16 +201,7 @@ public class StreamMarkingRules {
     RowRule row = rowRuleOf(entity);
     List<ListingRule> listings = new ArrayList<>();
     List<EmbeddedRule> embedded = new ArrayList<>();
-    for (BeanPropertyDefinition property : propertiesOf(entity)) {
-      String table = tableOfContent(property);
-      if (table == null) {
-        continue;
-      }
-      if (isIdList(property)) {
-        listings.add(new ListingRule(property.getName(), table));
-      }
-    }
-    collectEmbedded(entity, "", new HashSet<>(), embedded);
+    collectNested(entity, "", new HashSet<>(), listings, embedded);
     if (row == null && listings.isEmpty() && embedded.isEmpty()) {
       return EntityRule.NONE;
     }
@@ -235,28 +232,57 @@ public class StreamMarkingRules {
         link == null ? null : link.linkedTable());
   }
 
-  /** The objects of a marked or derived table embedded whole, walking into other objects. */
-  private void collectEmbedded(
-      Class<?> type, String prefix, Set<Class<?>> walked, List<EmbeddedRule> embedded) {
+  /**
+   * The ids of marked or derived rows the payload lists, and the objects of a marked or derived
+   * table it embeds whole, at any depth: an object serialized whole (a finding's groups) is walked
+   * into.
+   */
+  private void collectNested(
+      Class<?> type,
+      String prefix,
+      Set<Class<?>> walked,
+      List<ListingRule> listings,
+      List<EmbeddedRule> embedded) {
     if (!walked.add(type)) {
       return;
     }
     for (BeanPropertyDefinition property : propertiesOf(type)) {
+      String path = prefix + property.getName();
+      String table = tableOfContent(property);
+      if (table != null && isIdList(property)) {
+        if (canBeHidden(contentClassOf(property), table)) {
+          listings.add(new ListingRule(path, table));
+        }
+        continue;
+      }
       Class<?> content = contentClassOf(property);
       if (content == null || !content.isAnnotationPresent(Entity.class) || !isWhole(property)) {
         continue;
       }
-      String path = prefix + property.getName();
-      String table = tableOf(content);
-      if (table != null && markedTables.get(table) != null) {
+      if (table != null) {
         if (property.getPrimaryType().isCollectionLikeType()) {
           embedded.add(new EmbeddedRule(path, idPropertyOf(content), table));
         }
       } else {
-        collectEmbedded(content, path + ".", walked, embedded);
+        collectNested(content, path + ".", walked, listings, embedded);
       }
     }
     walked.remove(type);
+  }
+
+  /**
+   * Whether a row of this class can be hidden: a row of a table derived through a parent is visible
+   * when its class has no field for the parent link (a table-top expectation has no asset).
+   */
+  private boolean canBeHidden(Class<?> listed, String table) {
+    MarkedTable marked = markedTables.get(table);
+    if (marked.parent() == null) {
+      return true;
+    }
+    String foreignKey = marked.parent().foreignKeyColumn();
+    return entitiesByTable.getOrDefault(table, List.of()).stream()
+        .filter(listed::isAssignableFrom)
+        .anyMatch(entity -> fieldWith(entity, JoinColumn.class, foreignKey).isPresent());
   }
 
   // -- JSON mapping --

@@ -8,10 +8,13 @@ import io.openaev.service.stream.StreamMarkingRules.EmbeddedRule;
 import io.openaev.service.stream.StreamMarkingRules.EntityRule;
 import io.openaev.service.stream.StreamMarkingRules.ListingRule;
 import io.openaev.service.stream.StreamMarkingRules.RowRule;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.StreamSupport;
 
 /**
@@ -71,29 +74,14 @@ public final class StreamVisibility {
   public ObjectNode payloadFor(MarkingCtx clearance) {
     ObjectNode filtered = payload.deepCopy();
     for (ListingRule listing : rule.listings()) {
-      if (filtered.get(listing.property()) instanceof ArrayNode ids) {
-        ArrayNode visible = filtered.putArray(listing.property());
-        ids.forEach(
-            id -> {
-              if (allows(clearance, markingsOf(listing.table(), id.asText()))) {
-                visible.add(id);
-              }
-            });
-      }
+      keepOnly(
+          filtered,
+          listing.path(),
+          id -> allows(clearance, markingsOf(listing.table(), id.asText())));
     }
     for (EmbeddedRule embedded : rule.embedded()) {
       RowRule elementRule = rules.forTable(embedded.table());
-      arrayAt(filtered, embedded.path())
-          .ifPresent(
-              (container, property, elements) -> {
-                ArrayNode visible = container.putArray(property);
-                elements.forEach(
-                    element -> {
-                      if (rowVisible(elementRule, element, clearance)) {
-                        visible.add(element);
-                      }
-                    });
-              });
+      keepOnly(filtered, embedded.path(), element -> rowVisible(elementRule, element, clearance));
     }
     return filtered;
   }
@@ -103,17 +91,13 @@ public final class StreamVisibility {
     Map<String, Set<String>> ids = new HashMap<>();
     collect(rule.row(), payload, ids);
     for (ListingRule listing : rule.listings()) {
-      payload
-          .path(listing.property())
+      elementsAt(payload, listing.path())
           .forEach(
               id -> ids.computeIfAbsent(listing.table(), t -> new HashSet<>()).add(id.asText()));
     }
     for (EmbeddedRule embedded : rule.embedded()) {
       RowRule elementRule = rules.forTable(embedded.table());
-      arrayAt(payload, embedded.path())
-          .ifPresent(
-              (container, property, elements) ->
-                  elements.forEach(element -> collect(elementRule, element, ids)));
+      elementsAt(payload, embedded.path()).forEach(element -> collect(elementRule, element, ids));
     }
     return ids;
   }
@@ -123,7 +107,7 @@ public final class StreamVisibility {
       return;
     }
     JsonNode parent = node.path(row.parentProperty());
-    Iterable<JsonNode> parentIds = parent.isArray() ? parent : java.util.List.of(parent);
+    Iterable<JsonNode> parentIds = parent.isArray() ? parent : List.of(parent);
     for (JsonNode id : parentIds) {
       if (id.isTextual()) {
         ids.computeIfAbsent(row.parentTable(), t -> new HashSet<>()).add(id.asText());
@@ -166,30 +150,53 @@ public final class StreamVisibility {
     return texts;
   }
 
-  /** The array at a dot-separated path, with the object holding it. */
-  private static ArrayAt arrayAt(ObjectNode root, String path) {
+  /**
+   * The objects holding the last step of a dot-separated path, through nested objects and arrays:
+   * {@code finding_asset_groups.asset_group_assets} reaches each group of the finding.
+   */
+  private static List<ObjectNode> holdersOf(JsonNode root, String path) {
     String[] steps = path.split("\\.");
-    JsonNode container = root;
+    List<JsonNode> nodes = List.of(root);
     for (int i = 0; i < steps.length - 1; i++) {
-      container = container.path(steps[i]);
+      List<JsonNode> next = new ArrayList<>();
+      for (JsonNode node : nodes) {
+        JsonNode child = node.path(steps[i]);
+        if (child.isArray()) {
+          child.forEach(next::add);
+        } else if (child.isObject()) {
+          next.add(child);
+        }
+      }
+      nodes = next;
     }
-    String property = steps[steps.length - 1];
-    return container instanceof ObjectNode object && object.get(property) instanceof ArrayNode array
-        ? new ArrayAt(object, property, array)
-        : new ArrayAt(null, property, null);
+    return nodes.stream().filter(ObjectNode.class::isInstance).map(ObjectNode.class::cast).toList();
   }
 
-  private record ArrayAt(ObjectNode container, String property, ArrayNode elements) {
+  private static String lastStep(String path) {
+    return path.substring(path.lastIndexOf('.') + 1);
+  }
 
-    void ifPresent(ArrayConsumer consumer) {
-      if (container != null) {
-        consumer.accept(container, property, elements);
+  private static List<JsonNode> elementsAt(JsonNode root, String path) {
+    List<JsonNode> elements = new ArrayList<>();
+    for (ObjectNode holder : holdersOf(root, path)) {
+      holder.path(lastStep(path)).forEach(elements::add);
+    }
+    return elements;
+  }
+
+  /** Keeps, in every array the path reaches, only the elements {@code visible} accepts. */
+  private static void keepOnly(ObjectNode root, String path, Predicate<JsonNode> visible) {
+    String property = lastStep(path);
+    for (ObjectNode holder : holdersOf(root, path)) {
+      if (holder.get(property) instanceof ArrayNode elements) {
+        ArrayNode kept = holder.putArray(property);
+        elements.forEach(
+            element -> {
+              if (visible.test(element)) {
+                kept.add(element);
+              }
+            });
       }
     }
-  }
-
-  @FunctionalInterface
-  private interface ArrayConsumer {
-    void accept(ObjectNode container, String property, ArrayNode elements);
   }
 }

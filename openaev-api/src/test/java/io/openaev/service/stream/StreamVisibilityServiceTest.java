@@ -20,6 +20,7 @@ import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.Agent;
+import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.ExecutionTrace;
@@ -30,6 +31,7 @@ import io.openaev.database.model.ManualInjectExpectation;
 import io.openaev.database.model.PreventionInjectExpectation;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.utils.fixtures.AgentFixture;
+import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.FindingFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
@@ -248,6 +250,31 @@ class StreamVisibilityServiceTest {
   @Nested
   @DisplayName("The rows the payload lists or embeds")
   class Payload {
+
+    @Test
+    @DisplayName("a finding's groups, serialized whole, keep only the visible assets")
+    void given_findingOnAGroupWithAHiddenAsset_should_keepTheVisibleOnesInTheGroup() {
+      // Arrange
+      AssetGroup group = AssetGroupFixture.createDefaultAssetGroup("group");
+      group.setId("group-id");
+      group.setAssets(List.of(endpoint("g"), endpoint("r")));
+      Inject inject = InjectFixture.getDefaultInject();
+      inject.setId("inject-id");
+      inject.setAssetGroups(List.of(group));
+      Finding finding = FindingFixture.createDefaultTextFinding();
+      finding.setId("finding-id");
+      finding.setInject(inject);
+      finding.setAssets(List.of(endpoint("g")));
+
+      // Act
+      StreamVisibility visibility = visibilityOf(finding);
+
+      // Assert
+      JsonNode amber = visibility.payloadFor(AMBER).path("finding_asset_groups").path(0);
+      assertThat(idsAt(amber, "asset_group_assets", null)).containsExactly("g");
+      JsonNode red = visibility.payloadFor(RED).path("finding_asset_groups").path(0);
+      assertThat(idsAt(red, "asset_group_assets", null)).containsExactly("g", "r");
+    }
 
     @Test
     @DisplayName("an inject keeps the visible targets, expectations and traces")
