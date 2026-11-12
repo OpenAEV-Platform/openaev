@@ -963,6 +963,40 @@ class PayloadApiTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("Upsert leaves a catalogue version of the same external ID alone")
+  @WithMockUser(
+      withCapabilities = {Capability.MANAGE_PAYLOADS},
+      autoJoinDefaultTenant = true)
+  void given_catalogueVersionWithSameExternalId_should_upsertAPayloadOfItsOwn() throws Exception {
+    // Arrange
+    Domain domain = domainComposer.forDomain(DomainFixture.getRandomDomain()).persist().get();
+    Payload catalogueVersion = PayloadFixture.createDefaultCommand();
+    catalogueVersion.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    catalogueVersion.setExternalId("shared-external-id");
+    catalogueVersion.setVersion(Payload.FIRST_VERSION);
+    catalogueVersion.getIdentity().setRepository("filigran/openaev-payloads");
+    catalogueVersion = payloadRepository.save(catalogueVersion);
+    PayloadUpsertInput upsertInput =
+        PayloadInputFixture.getDefaultCommandPayloadUpsertInput(Set.of(domain));
+    upsertInput.setExternalId("shared-external-id");
+
+    // Act
+    String response =
+        mvc.perform(
+                post(PAYLOAD_URI + "/upsert")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(upsertInput))
+                    .with(csrf()))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    // Assert
+    assertNotEquals(catalogueVersion.getId(), JsonPath.read(response, "$.payload_id"));
+  }
+
+  @Test
   @DisplayName("Upsert Payload with output parser")
   @WithMockUser(
       withCapabilities = {Capability.MANAGE_PAYLOADS},
