@@ -1,5 +1,6 @@
 package io.openaev.opencti.connectors.service;
 
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -37,6 +38,7 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
       UserService userService,
       TenantUserService tenantUserService,
       MarkingClearanceCacheManager markingClearanceCacheManager,
+      TenantWriteScopeResolver writeScopeResolver,
       LegacyOpenCTIConnectorMigration legacyOpenCTIConnectorMigration,
       TenantScopedTransaction tenantTx) {
     super(
@@ -44,7 +46,8 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
         tenantGroupService,
         userService,
         tenantUserService,
-        markingClearanceCacheManager);
+        markingClearanceCacheManager,
+        writeScopeResolver);
     this.legacyOpenCTIConnectorMigration = legacyOpenCTIConnectorMigration;
     this.tenantTx = tenantTx;
   }
@@ -73,7 +76,8 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
     // setScopeOnCurrentTransaction rather than execute(): this method is @Transactional, the
     // transaction is already open and is the unit of work the register/ping flow commits, while
     // the OpenCTI HTTP calls deliberately happen after it, outside any transaction.
-    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(connector.getTenantId()));
+    TxCtx ctx = TxCtx.forTenant(connector.getTenantId());
+    tenantTx.setScopeOnCurrentTransaction(ctx);
 
     String email =
         ReservedServiceAccount.OPENCTI_CONNECTOR.emailPattern().formatted(connector.getId());
@@ -83,7 +87,7 @@ public class OpenCTIConnectorPrivilegeService extends AbstractPrivilegeService {
 
     Group group =
         ensureWellKnownGroupWithRole(
-            ensureWellKnownRole(connector.getTenantId()), connector.getTenantId());
+            ensureWellKnownRole(ctx, connector.getTenantId()), connector.getTenantId());
     Optional<User> connectorUser =
         userService.findByTokenAndTenantId(connector.getToken(), connector.getTenantId());
     Optional<User> existingEmailUser = userService.findByEmailIgnoreCase(email);

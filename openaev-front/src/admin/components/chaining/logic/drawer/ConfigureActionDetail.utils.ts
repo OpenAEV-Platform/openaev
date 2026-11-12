@@ -152,10 +152,10 @@ export const getContractFieldDefaultValue = (field: ContractElement): unknown =>
   return undefined;
 };
 
-const PLACEHOLDER_DEFAULT_TYPES = new Set<ContractType>(['text', 'number']);
+const PLACEHOLDER_DEFAULT_TYPES = new Set<ContractType>(['text', 'number', 'document']);
 
 /**
- * Contract default of a text/number field, to display as a faded placeholder instead of writing it
+ * Contract default of a text/number/document field, to display as a faded placeholder instead of writing it
  * into the action content: the content must only hold defined values, so a default can never be
  * mistaken for one. The backend applies it as a last resort, when the field has neither a defined
  * value nor a pool value. Undefined when the field has no usable default.

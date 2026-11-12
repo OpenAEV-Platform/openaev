@@ -4,8 +4,11 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -20,6 +23,7 @@ import io.openaev.service.utils.BulkOperationMonitor;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Objects;
@@ -27,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.scheduling.annotation.Async;
@@ -73,6 +78,9 @@ public class StreamService {
   private final UserService userService;
   private final AttackPathAccessControl attackPathAccessControl;
   private final ObjectMapper mapper;
+
+  // Built on the first user event: the stream's own mapper is untouched, REST keeps its output.
+  private volatile ObjectMapper userStreamMapper;
 
   private Instant lastUpdate = Instant.now();
 
@@ -237,6 +245,35 @@ public class StreamService {
   }
 
   private static final String USER_ORGANIZATION_FIELD = "user_organization";
+  private static final String USER_TEAMS_FIELD = "user_teams";
+  private static final String USER_TAGS_FIELD = "user_tags";
+  private static final String USER_COMMUNICATIONS_FIELD = "user_communications";
+  private static final String USER_EXERCISE_TEAM_USERS_FIELD = "team_exercises_users";
+  private static final String USER_IS_PLAYER_FIELD = "user_is_player";
+  private static final String USER_GRANTS_FIELD = "user_grants";
+  private static final String USER_HOME_DASHBOARD_FIELD = "user_home_dashboard";
+
+  /**
+   * The user as the stream serializes it: the fields that read a lazy collection are not
+   * serialized, so the serializer never touches {@code teams}, {@code tags}, {@code communications}
+   * nor {@code exerciseTeamUsers}, and a collection that was not loaded is never initialized from
+   * the stream thread. {@code user_teams} and {@code user_tags} are rebuilt from the collections
+   * when they are loaded, {@code user_is_player} from them, and the other two are never sent: their
+   * ids carry no tenant and no screen reads them from the stream. {@code unscopedGroups} is not
+   * serialized either.
+   *
+   * <p>That guarantee stops there: {@code user_organization} is still serialized, and reads {@code
+   * organizations}, which the writer of the event loads ({@code User#loadOrganizations}).
+   */
+  @JsonIgnoreProperties({
+    USER_TEAMS_FIELD,
+    USER_TAGS_FIELD,
+    USER_COMMUNICATIONS_FIELD,
+    USER_EXERCISE_TEAM_USERS_FIELD,
+    USER_IS_PLAYER_FIELD,
+    "unscopedGroups"
+  })
+  private abstract static class UserStreamMixIn {}
 
   private static final EnumSet<ResourceType> RESOURCES_STREAM_EXCLUSION =
       EnumSet.of(
@@ -340,16 +377,8 @@ public class StreamService {
         ObjectNode instanceData = mapper.valueToTree(event.getInstance());
         instanceData.putNull("notifier_configuration");
         sendStreamEvent(fluxSink, event.clone(), instanceData);
-      } else if (event.getInstance() instanceof User
-          && event.getInstanceData() instanceof ObjectNode serializedUser
-          && !Objects.equals(event.getTenantId(), consumer.tenantId())) {
-        // A user is platform-level, so its events reach every tenant, but user_organization is the
-        // one of the tenant the change was made in: the user is only loaded with the organizations
-        // of that scope, so it would serialize as null here and overwrite the one the consumer
-        // holds. The field is left out, the consumer keeps its cached value.
-        ObjectNode instanceData = mapper.valueToTree(event.getInstance());
-        instanceData.remove(USER_ORGANIZATION_FIELD);
-        sendStreamEvent(fluxSink, event.clone(), instanceData);
+      } else if (event.getInstance() instanceof User streamedUser) {
+        sendStreamEvent(fluxSink, event.clone(), userInTenantOf(consumer, event, streamedUser));
       } else {
         sendStreamEvent(fluxSink, event);
       }
@@ -357,6 +386,99 @@ public class StreamService {
       // Reset tenant context unconditionally to avoid leaking into other
       // consumers in the loop or into later tasks on this pooled thread
       TenantContext.clearCurrentTenant();
+    }
+  }
+
+  /**
+   * The user as the consumer's tenant holds it, in a tree of its own: a user is platform-level, so
+   * its event is delivered to the consumers of each tenant, and the instance it holds was loaded in
+   * the scope of the write.
+   *
+   * <ul>
+   *   <li>{@code user_teams} and {@code user_tags} keep the ids of the consumer's tenant, read from
+   *       the entities already loaded, nothing is initialized. The field is left out, so the
+   *       consumer keeps what it holds, when a collection or one of its links was not loaded, or
+   *       when nothing of its tenant was loaded and the write was made in another tenant.
+   *   <li>{@code user_is_player} is true for an admin, a planner or an observer, as serialized for
+   *       the consumer's tenant, and otherwise follows the {@code user_teams} sent: true when it
+   *       holds an id, false when it is sent empty, left out when {@code user_teams} is.
+   *   <li>{@code user_organization} is left out when the write was made in another tenant, as the
+   *       user is only loaded with the organizations of the write.
+   *   <li>{@code user_communications}, {@code team_exercises_users} and {@code unscopedGroups} are
+   *       never sent.
+   *   <li>{@code user_grants} and {@code user_home_dashboard} hold ids of the tenant that set them,
+   *       and only the user reads them: they go to the consumer of that user.
+   * </ul>
+   *
+   * The groups, capabilities and the other flags are derived from the tenant context of the
+   * consumer, set by the caller, and need no trim.
+   *
+   * <p>When the consumer's tenant is null, the write is never in the consumer's tenant: no id is of
+   * its tenant, and {@code user_teams} and {@code user_tags} are left out, not sent empty.
+   *
+   * <p>A field added to {@code User} is ruled on here, and added to {@code STREAMED_USER_FIELDS} in
+   * {@code UserStreamEventConsumerTenantTest}.
+   */
+  private ObjectNode userInTenantOf(StreamConsumer consumer, BaseEvent event, User user) {
+    String consumerTenantId = consumer.tenantId();
+    boolean writtenInConsumerTenant =
+        consumerTenantId != null && consumerTenantId.equals(event.getTenantId());
+    ObjectNode data = userStreamMapper().valueToTree(user);
+    putIdsOfTenant(
+        data, USER_TEAMS_FIELD, user.getTeams(), consumerTenantId, writtenInConsumerTenant);
+    putIdsOfTenant(
+        data, USER_TAGS_FIELD, user.getTags(), consumerTenantId, writtenInConsumerTenant);
+    putIsPlayer(data);
+    if (!writtenInConsumerTenant) {
+      data.remove(USER_ORGANIZATION_FIELD);
+    }
+    if (!consumer.principal().getId().equals(user.getId())) {
+      data.remove(USER_GRANTS_FIELD);
+      data.remove(USER_HOME_DASHBOARD_FIELD);
+    }
+    return data;
+  }
+
+  private ObjectMapper userStreamMapper() {
+    ObjectMapper userMapper = userStreamMapper;
+    if (userMapper == null) {
+      userMapper = mapper.copy().addMixIn(User.class, UserStreamMixIn.class);
+      userStreamMapper = userMapper;
+    }
+    return userMapper;
+  }
+
+  private void putIdsOfTenant(
+      ObjectNode data,
+      String field,
+      Collection<? extends Base> links,
+      String tenantId,
+      boolean writtenInConsumerTenant) {
+    if (!Hibernate.isInitialized(links)) {
+      return;
+    }
+    ArrayNode ids = mapper.createArrayNode();
+    for (Base link : links) {
+      if (!Hibernate.isInitialized(link)) {
+        return;
+      }
+      if (tenantId != null && tenantId.equals(tenantOf(link))) {
+        ids.add(link.getId());
+      }
+    }
+    if (!ids.isEmpty() || writtenInConsumerTenant) {
+      data.set(field, ids);
+    }
+  }
+
+  /** The rule of {@code User#isPlayer}, over the flags and the teams as sent to the consumer. */
+  private void putIsPlayer(ObjectNode data) {
+    if (data.path("user_admin").asBoolean()
+        || data.path("user_is_planner").asBoolean()
+        || data.path("user_is_observer").asBoolean()) {
+      data.set(USER_IS_PLAYER_FIELD, BooleanNode.TRUE);
+    } else if (data.has(USER_TEAMS_FIELD)) {
+      data.set(USER_IS_PLAYER_FIELD, BooleanNode.valueOf(!data.path(USER_TEAMS_FIELD).isEmpty()));
     }
   }
 

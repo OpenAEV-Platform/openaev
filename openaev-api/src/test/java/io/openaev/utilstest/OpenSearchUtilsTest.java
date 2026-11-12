@@ -87,4 +87,22 @@ class OpenSearchUtilsTest {
     assertEquals("base_id.keyword", must.get(1).range().field());
     assertEquals("abc123", must.get(1).range().gt().toString());
   }
+
+  @Test
+  @DisplayName("buildKeysetPredicate should keep the millisecond fraction of a whole-second ts")
+  void buildKeysetPredicate_whenTsOnWholeSecond_thenWritesTheFraction() {
+    // -- PREPARE --
+    Instant ts = Instant.parse("2025-01-15T10:00:00Z");
+
+    // -- EXECUTE --
+    Query query =
+        OpenSearchUtils.buildKeysetPredicate("base_updated_at", "base_id.keyword", ts, "abc123");
+
+    // -- ASSERT --
+    // Without the fraction the engine rounds a gt bound up to .999 and skips that second.
+    assertEquals("2025-01-15T10:00:00.000Z", query.bool().should().get(0).range().gt().toString());
+    Query eqTs = query.bool().should().get(1).bool().must().get(0);
+    assertEquals("2025-01-15T10:00:00.000Z", eqTs.range().gte().toString());
+    assertEquals("2025-01-15T10:00:00.000Z", eqTs.range().lte().toString());
+  }
 }

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -35,6 +36,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+@CoversTenantIsolation("challenges")
 @TestPropertySource(properties = "openaev.tenant.active-tables=security_coverages,challenges")
 @WithMockUser(isAdmin = true)
 @DisplayName("ChallengeApi tenant isolation when security_coverages is v2-active")

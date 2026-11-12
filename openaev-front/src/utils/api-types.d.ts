@@ -156,6 +156,12 @@ export interface AgentTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -404,6 +410,12 @@ export interface AiTargetTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -755,6 +767,12 @@ export interface AssetGroupTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -2100,6 +2118,12 @@ interface BaseInjectTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_prevention_status?:
     | "FAILED"
     | "PENDING"
@@ -5002,6 +5026,12 @@ export interface EndpointTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -8226,6 +8256,12 @@ export interface ManualTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -8483,6 +8519,24 @@ export interface NewsFeedItemOutput {
   news_feed_item_type?: "RESOURCE_SCENARIO";
   /** Path of the item in XTM Hub, to append to the XTM Hub URL, absent when XTM Hub sent none */
   news_feed_item_url_path?: string;
+}
+
+export interface NewsFeedSettingsInput {
+  /**
+   * The news feed types the current user wants to receive, and only those. An empty list unsubscribes the user from everything
+   * @maxItems 50
+   * @minItems 0
+   */
+  news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
+}
+
+export interface NewsFeedSettingsOutput {
+  /** Whether a tenant in scope is registered on XTM Hub and has not lost its connectivity. A registered tenant that lost it still gets its news feed, but should be invited to reconnect */
+  news_feed_settings_hub_connected: boolean;
+  /** Whether the news feed is served by XTM Hub, that is a tenant in scope is registered. The preferences can only be changed when it is */
+  news_feed_settings_hub_registered: boolean;
+  /** The news feed types the current user is subscribed to */
+  news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
 }
 
 export interface NotificationBulkProcessingInput {
@@ -10544,6 +10598,12 @@ export interface PlayerTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -12846,6 +12906,12 @@ export interface TeamTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -13543,7 +13609,6 @@ export interface User {
   user_phone2?: string;
   listened?: boolean;
   team_exercises_users?: string[];
-  unscopedGroups?: Group[];
   /** True if the user is admin */
   user_admin?: boolean;
   /** @uniqueItems true */

@@ -73,6 +73,27 @@ public class NewsFeedItemService {
         NewsFeedItem.class);
   }
 
+  /** The news feed types the current user is subscribed to. */
+  public List<NewsFeedType> getMySubscribedTypes() {
+    return NewsFeedUtils.subscribedTypes(
+        userService.findNewsFeedUnsubscribedTypes(userService.currentUser().getId()));
+  }
+
+  // -- UPDATE --
+
+  /**
+   * Subscribes the current user to the given news feed types and only those. Subscribing to none
+   * unsubscribes the user from everything.
+   *
+   * @return the types the user is now subscribed to
+   */
+  public List<NewsFeedType> updateMySubscribedTypes(
+      @NotNull final Collection<NewsFeedType> subscribedTypes) {
+    userService.updateNewsFeedUnsubscribedTypes(
+        userService.currentUser().getId(), NewsFeedUtils.toUnsubscribedTypes(subscribedTypes));
+    return getMySubscribedTypes();
+  }
+
   // -- CREATE --
 
   /**

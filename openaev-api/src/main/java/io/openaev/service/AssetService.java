@@ -190,8 +190,9 @@ public class AssetService {
     return securityPlatformRepository.findAllByIds(ids);
   }
 
-  public Iterable<Asset> assetFromIds(@NotNull final List<String> assetIds) {
-    return this.assetRepository.findAllById(assetIds);
+  public Iterable<Asset> assetFromIds(
+      @NotNull final List<String> assetIds, @NotBlank final String ownerTenantId) {
+    return this.assetRepository.findAllByIdInTenant(assetIds, ownerTenantId);
   }
 
   // -- OPTIONS --

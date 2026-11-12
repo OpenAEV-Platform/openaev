@@ -647,8 +647,8 @@ public class ConnectorInstanceService implements AuditLoggedService {
   }
 
   private ConnectorInstanceConfiguration createTokenConfiguration(
-      ConnectorInstancePersisted instance, String tenantId) {
-    String token = catalogConnectorPrivilegeService.getOrCreateToken(tenantId);
+      TxCtx ctx, ConnectorInstancePersisted instance, String tenantId) {
+    String token = catalogConnectorPrivilegeService.getOrCreateToken(ctx, tenantId);
     return createConfiguration(
         OPENAEV_KEY_TOKEN, objectMapper.getNodeFactory().textNode(token), false, instance);
   }
@@ -671,11 +671,13 @@ public class ConnectorInstanceService implements AuditLoggedService {
   /**
    * Creates a connector instance from a catalog connector.
    *
+   * @param ctx the scope of the request; it must contain {@code tenantId}
    * @param catalogConnectorWithConfigMap the catalog connector with its configurations map
    * @param input the input data for creating the connector instance
    * @return the created connector instance
    */
   public ConnectorInstancePersisted createConnectorInstance(
+      TxCtx ctx,
       ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
       CreateConnectorInstanceInput input,
       String tenantId) {
@@ -692,7 +694,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
             catalogConnectorWithConfigMap.configurationsMap(), newInstance, input);
 
     // Add OpenAEV token
-    configurations.add(createTokenConfiguration(newInstance, tenantId));
+    configurations.add(createTokenConfiguration(ctx, newInstance, tenantId));
     configurations.add(createTenantIdConfiguration(newInstance, tenantId));
     // Add container ID if not already present (in case of a migration)
     if (input.getConfigurations().stream()

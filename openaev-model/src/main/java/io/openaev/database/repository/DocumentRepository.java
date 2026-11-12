@@ -14,6 +14,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 @Repository
 public interface DocumentRepository
@@ -31,6 +32,17 @@ public interface DocumentRepository
    */
   @NotNull
   Optional<Document> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /**
+   * Null-safe form of {@link #findByIdAndTenantId}: a null id is refused with an {@link
+   * IllegalArgumentException} (answered 400), as {@code findById(null)} does, where the tenant
+   * query alone would match nothing and let the caller carry on.
+   */
+  @NotNull
+  default Optional<Document> findByIdInTenant(String id, @NotNull String tenantId) {
+    Assert.notNull(id, "The given id must not be null");
+    return findByIdAndTenantId(id, tenantId);
+  }
 
   List<Document> removeById(@NotNull String id);
 

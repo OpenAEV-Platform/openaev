@@ -24,6 +24,7 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Condition;
@@ -75,7 +76,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -92,8 +94,9 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  * manual injector contract, and a condition linked to that step. The caller belongs to tenant B
  * only and addresses tenant A's rows through tenant B's path. Every read, update and delete below
  * resolves the row by its id alone, and the chaining tables carry no Hibernate filter, so nothing
- * but the statement inspector stands between the caller and tenant A's rows: emptying the armed
- * list below turns every cross-tenant assertion red while the same-tenant ones stay green.
+ * but the statement inspector stands between the caller and tenant A's rows: registering the
+ * production list without {@code workflows} turns the cross-tenant assertions that reach a workflow
+ * red while the same-tenant ones stay green.
  *
  * <p>The admin caller bypasses the parent-permission resolution of the access control aspect and
  * reaches the handlers' own reads; the non-admin caller is stopped by that resolution, which reads
@@ -104,10 +107,6 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  * header route to cover; a header naming another tenant is ignored on the prefixed route.
  */
 @Transactional
-@TestPropertySource(
-    properties =
-        "openaev.tenant.active-tables=workflows,steps,conditions,scope_variables,steps_delay_queue,"
-            + "workflow_scope_rules,workflow_states")
 @WithMockUser(isAdmin = true)
 @DisplayName("Chaining workflow, step and condition isolation through the real HTTP endpoints")
 class ChainingHttpIsolationTest extends IntegrationTest {
@@ -121,6 +120,12 @@ class ChainingHttpIsolationTest extends IntegrationTest {
   private static final String WORKFLOW_ID_PARAM = "workflow_id";
   private static final String TENANT_IDS_HEADER = "X-Tenant-Ids";
   private static final String CONDITION_NAME = "chaining-iso-condition";
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

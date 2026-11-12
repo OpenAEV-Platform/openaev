@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.User;
@@ -42,6 +44,7 @@ abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeTestBase
   @Autowired private GrantComposer grantComposer;
   @Autowired private EntityManager entityManager;
   @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
 
   /**
    * Attaches the current caller to a new tenant with a role carrying every tenant-scoped capability
@@ -72,6 +75,8 @@ abstract class ByIdRequestScopeNonAdminTestBase extends ByIdRequestScopeTestBase
       new TransactionTemplate(transactionManager)
           .executeWithoutResult(
               status -> {
+                // The role of the tenant is a row of an active table: written in its scope only
+                tenantScopedTransaction.setScopeOnCurrentTransaction(TxCtx.forTenant(tenantId));
                 User user = testUserHolder.get();
                 TenantRoleComposer.Composer roleComposer =
                     tenantRoleComposer.forRole(TenantRoleFixture.getRole(Set.of()));

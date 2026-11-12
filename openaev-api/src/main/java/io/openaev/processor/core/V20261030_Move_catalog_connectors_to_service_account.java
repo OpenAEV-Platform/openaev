@@ -1,5 +1,6 @@
 package io.openaev.processor.core;
 
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ConnectorInstanceConfiguration;
 import io.openaev.database.model.Tenant;
 import io.openaev.service.DataPackService;
@@ -34,7 +35,9 @@ public class V20261030_Move_catalog_connectors_to_service_account extends Runtim
     if (tokenConfigurations.isEmpty()) {
       return true; // nothing to migrate: the account is created at the first deployment
     }
-    String token = catalogConnectorPrivilegeService.getOrCreateToken(tenant.getId());
+    String token =
+        catalogConnectorPrivilegeService.getOrCreateToken(
+            TxCtx.forTenant(tenant.getId()), tenant.getId());
     connectorInstanceService.rotateOpenAevToken(tokenConfigurations, token);
     return true;
   }

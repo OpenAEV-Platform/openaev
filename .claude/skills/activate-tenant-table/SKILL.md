@@ -1724,6 +1724,10 @@ Before marking the issue done, write down:
 - [ ] writes: attribution asserted at the SQL level, no selector → 400;
       upsert of the same business key from two tenants yields two rows
 - [ ] other APIs from the inventory wired and tested
+- [ ] every call that resolves ids on the activated table's repository without a tenant
+      (`findAllById`, `getReferenceById`, a `findAllByIdIn*` with no tenant) is either converted
+      to `findAllByIdInTenant(ids, tenantId)` or declared as `other` with its reason in
+      `linked-id-resolution-baseline.txt`; no `link` line is added (`LinkedIdResolutionArchTest`)
 - [ ] every association (direct or indirect, lazy or eager) pointing at the
       entity from ANY other aggregate found (Phase 3b); every lazy accessor
       reached through serialization (custom serializer, DTO mapper) force-
@@ -1754,6 +1758,12 @@ Before marking the issue done, write down:
       table-function FROM item (`jsonb_array_elements`, `unnest`, ...) carries
       `LATERAL`; a regression test pins the real production SQL (#7007)
 - [ ] non-admin variant green
+- [ ] the isolation test carries `@CoversTenantIsolation("{table}")`, asserts a cross-tenant
+      refusal on `{table}` itself (not through a parent row), and declares the table in its
+      activation list (a registration of `ProductionActiveTables.names()`, or a pin that is a
+      `probe` line of `pinned-active-tables-baseline.txt`: a `drifts` or `control` line does not
+      count), so `TenantIsolationCoverageArchTest` counts it; the table has no line in
+      `tenant-isolation-coverage-baseline.txt`, which an activation never grows
 - [ ] API v2/integration tests added or modified in this activation do not use
       `TenantContext.getCurrentTenant()`, `TenantContext.setCurrentTenant(...)`,
       or `enableFilter("tenantFilter")`; tenant scope is expressed via explicit

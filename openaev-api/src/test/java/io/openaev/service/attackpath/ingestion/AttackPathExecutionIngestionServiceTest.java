@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -54,6 +55,7 @@ import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -65,6 +67,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -79,6 +83,12 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @DisplayName("attack path Phase A: create EXECUTION rows")
 @Import(AttackPathExecutionIngestionServiceTest.NudgeRecorder.class)
 class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   /**
    * The simulation the verdict tests share; each uses its own tenant, so their counters are too.
@@ -135,14 +145,23 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     endpoint.setPlatform(Endpoint.PLATFORM_TYPE.Windows);
     endpoint.setTenant(tenant);
 
+    // The test runs outside any transaction, so its committed fixtures are written inside the scope
+    // of the tenant they belong to.
+    TxCtx scope = TxCtx.forTenant(tenant.getId());
+
     // executors' PK is composite (executor_id, tenant_id): the executor must be attached to this
     // test's own tenant, not the default one, or the agent's FK to it fails to resolve.
-    Agent agent =
-        AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor(tenant.getId()));
-    agent.setId("agt-rem-1");
-    agent.setAsset(endpoint);
-    agent.setExecutedByUser("agent-rem-1");
-    endpointComposer.forEndpoint(endpoint).withAgent(agentComposer.forAgent(agent)).persist();
+    tenantTx.execute(
+        scope,
+        () -> {
+          Agent agent =
+              AgentFixture.createDefaultAgentSession(
+                  executorFixture.getDefaultExecutor(tenant.getId()));
+          agent.setId("agt-rem-1");
+          agent.setAsset(endpoint);
+          agent.setExecutedByUser("agent-rem-1");
+          endpointComposer.forEndpoint(endpoint).withAgent(agentComposer.forAgent(agent)).persist();
+        });
 
     var remediationPlain = DetectionRemediationFixture.createDefaultDetectionRemediation();
     remediationPlain.setValues("plain text remediation");
@@ -150,22 +169,27 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     remediationHtml.setValues("<p>test remed echo</p>");
 
     Payload payload =
-        payloadComposer
-            .forPayload(PayloadFixture.createDefaultCommand())
-            .withDetectionRemediation(
-                detectionRemediationComposer
-                    .forDetectionRemediation(remediationPlain)
-                    .withSecurityPlatform(
-                        securityPlatformComposer.forSecurityPlatform(
-                            SecurityPlatformFixture.createDefault("CrowdStrike Falcon", "EDR"))))
-            .withDetectionRemediation(
-                detectionRemediationComposer
-                    .forDetectionRemediation(remediationHtml)
-                    .withSecurityPlatform(
-                        securityPlatformComposer.forSecurityPlatform(
-                            SecurityPlatformFixture.createDefault("Microsoft Defender", "EDR"))))
-            .persist()
-            .get();
+        tenantTx.execute(
+            scope,
+            () ->
+                payloadComposer
+                    .forPayload(PayloadFixture.createDefaultCommand())
+                    .withDetectionRemediation(
+                        detectionRemediationComposer
+                            .forDetectionRemediation(remediationPlain)
+                            .withSecurityPlatform(
+                                securityPlatformComposer.forSecurityPlatform(
+                                    SecurityPlatformFixture.createDefault(
+                                        "CrowdStrike Falcon", "EDR"))))
+                    .withDetectionRemediation(
+                        detectionRemediationComposer
+                            .forDetectionRemediation(remediationHtml)
+                            .withSecurityPlatform(
+                                securityPlatformComposer.forSecurityPlatform(
+                                    SecurityPlatformFixture.createDefault(
+                                        "Microsoft Defender", "EDR"))))
+                    .persist()
+                    .get());
 
     Exercise exercise = new Exercise();
     exercise.setId("SIM-REMEDIATION");
@@ -188,12 +212,16 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     StepComposer.Composer templateComposer =
         stepComposer.forStep(StepFixture.getDefaultStepTemplate());
     Step step = StepFixture.getDefaultStepExecution(StepStatus.RUN);
-    workflowComposer
-        .forWorkflow(WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN))
-        .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
-        .withStep(templateComposer)
-        .withStep(stepComposer.forStep(step).withStepTemplate(templateComposer))
-        .persist();
+    tenantTx.execute(
+        scope,
+        () ->
+            workflowComposer
+                .forWorkflow(WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN))
+                .withSimulation(
+                    exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+                .withStep(templateComposer)
+                .withStep(stepComposer.forStep(step).withStepTemplate(templateComposer))
+                .persist());
 
     // Act / Assert
     // onRun nests a REQUIRES_NEW transaction via tenantTx.executeNew, which requires an active
@@ -207,7 +235,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
         .doesNotThrowAnyException();
 
     List<AttackPathExecutionRemediation> snapshots =
-        executionRemediationRepository.findByStepId(step.getId());
+        tenantTx.execute(scope, () -> executionRemediationRepository.findByStepId(step.getId()));
     assertThat(snapshots).hasSize(2);
     assertThat(snapshots)
         .extracting(AttackPathExecutionRemediation::getValues)
@@ -543,6 +571,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     // Arrange
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-cmd-targeted-asset"));
     TenantContext.setCurrentTenant(tenant.getId());
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
 
     Command command =
         (Command)
@@ -627,6 +656,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     // Arrange
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-ingest-idem"));
     TenantContext.setCurrentTenant(tenant.getId());
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
 
     Endpoint endpoint = EndpointFixture.createEndpoint("corp-dc");
     endpoint.setHostname("corp-dc");
@@ -792,7 +822,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     // Arrange
     Tenant tenant = verdictTenant("ap-expectation-priority");
     String executionId = "exec-priority-1";
-    executionRepository.save(createExecutionRow(executionId, tenant));
+    saveExecutionRow(tenant, executionId);
 
     // Act
     updateExpectations(
@@ -811,7 +841,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
             List.of(expectationResult("Vulnerable"), expectationResult("Pending"))));
 
     // Assert
-    AttackPathExecution updated = executionRepository.findById(executionId).orElseThrow();
+    AttackPathExecution updated = findExecutionRow(tenant, executionId);
     assertThat(updated.getPreventionStatus()).isEqualTo("Prevented");
     assertThat(updated.getDetectionStatus()).isEqualTo("Partially Detected");
     assertThat(updated.getVulnerabilityStatus()).isEqualTo("Pending");
@@ -827,14 +857,14 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   void replayingTheSameResultIsANoOp() {
     Tenant tenant = verdictTenant("ap-expectation-replay");
     String executionId = "exec-replay-1";
-    executionRepository.save(createExecutionRow(executionId, tenant));
+    saveExecutionRow(tenant, executionId);
 
     updateExpectations(tenant, executionId, prevention("Prevented"));
-    long stampedVersion = executionRepository.findById(executionId).orElseThrow().getRowVersion();
+    long stampedVersion = findExecutionRow(tenant, executionId).getRowVersion();
 
     updateExpectations(tenant, executionId, prevention("Prevented"));
 
-    AttackPathExecution replayed = executionRepository.findById(executionId).orElseThrow();
+    AttackPathExecution replayed = findExecutionRow(tenant, executionId);
     assertThat(replayed.getPreventionStatus()).isEqualTo("Prevented");
     // The guard matched zero rows, so the row keeps its version and no client is told anything
     // changed — even though the batch itself bumped the simulation's counter.
@@ -848,14 +878,14 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   void aChangedVerdictIsWrittenAgain() {
     Tenant tenant = verdictTenant("ap-expectation-change");
     String executionId = "exec-change-1";
-    executionRepository.save(createExecutionRow(executionId, tenant));
+    saveExecutionRow(tenant, executionId);
 
     updateExpectations(tenant, executionId, prevention("Not Prevented"));
-    long firstVersion = executionRepository.findById(executionId).orElseThrow().getRowVersion();
+    long firstVersion = findExecutionRow(tenant, executionId).getRowVersion();
 
     updateExpectations(tenant, executionId, prevention("Prevented"));
 
-    AttackPathExecution updated = executionRepository.findById(executionId).orElseThrow();
+    AttackPathExecution updated = findExecutionRow(tenant, executionId);
     assertThat(updated.getPreventionStatus()).isEqualTo("Prevented");
     assertThat(updated.getRowVersion()).isGreaterThan(firstVersion);
   }
@@ -871,7 +901,7 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     // ping every client's health check reads. Hence: no rows changed, no nudge.
     Tenant tenant = verdictTenant("ap-expectation-nudge");
     String executionId = "exec-nudge-1";
-    executionRepository.save(createExecutionRow(executionId, tenant));
+    saveExecutionRow(tenant, executionId);
 
     updateExpectations(tenant, executionId, prevention("Prevented"));
     assertThat(publishedNudges(tenant))
@@ -893,13 +923,13 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
   void anEmptyResultSetIsNotVersioned() {
     Tenant tenant = verdictTenant("ap-expectation-empty");
     String executionId = "exec-empty-1";
-    executionRepository.save(createExecutionRow(executionId, tenant));
+    saveExecutionRow(tenant, executionId);
 
     tenantTx.execute(
         TxCtx.forTenant(tenant.getId()),
         () -> ingestionService.updateExpectationByExecutionIndex(inject(tenant), Map.of()));
 
-    AttackPathExecution untouched = executionRepository.findById(executionId).orElseThrow();
+    AttackPathExecution untouched = findExecutionRow(tenant, executionId);
     assertThat(untouched.getPreventionStatus()).isNull();
     assertThat(untouched.getRowVersion()).isZero();
     assertThat(versionService.current(SIM_EXPECTATION, List.of(tenant.getId()))).isEmpty();
@@ -983,6 +1013,17 @@ class AttackPathExecutionIngestionServiceTest extends IntegrationTest {
     TenantContext.setCurrentTenant(tenant.getId());
     verdictTenantId = tenant.getId();
     return tenant;
+  }
+
+  private void saveExecutionRow(Tenant tenant, String id) {
+    tenantTx.execute(
+        TxCtx.forTenant(tenant.getId()),
+        () -> executionRepository.save(createExecutionRow(id, tenant)));
+  }
+
+  private AttackPathExecution findExecutionRow(Tenant tenant, String id) {
+    return tenantTx.execute(
+        TxCtx.forTenant(tenant.getId()), () -> executionRepository.findById(id).orElseThrow());
   }
 
   private long currentVersion() {

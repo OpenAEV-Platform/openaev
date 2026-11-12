@@ -14,18 +14,8 @@ import { Controller, useFormContext, useWatch } from 'react-hook-form';
 
 import { useFormatter } from '../../../../components/i18n';
 import ItemSecurityPlatformType from '../../../../components/ItemSecurityPlatformType';
-import { SECURITY_PLATFORM_TYPES } from '../../common/injects/expectations/Expectation';
+import { expectationTypeLabelKey, SECURITY_PLATFORM_TYPES } from '../../common/injects/expectations/Expectation';
 import { isTechnicalExpectation } from '../../common/injects/expectations/ExpectationUtils';
-
-// Canonical order + labels for the technical expectation types that can be
-// scoped to specific security platforms (PREVENTION / DETECTION / VULNERABILITY).
-// Human-validated types (MANUAL, ...) are fulfilled by people, not products, so
-// they never carry a security-platform scope.
-const TECHNICAL_EXPECTATION_LABELS: Record<string, string> = {
-  PREVENTION: 'Prevention',
-  DETECTION: 'Detection',
-  VULNERABILITY: 'Vulnerability',
-};
 
 // Per-expectation "which security products should catch this" selector for the
 // action form. For each selected TECHNICAL expectation it exposes a multi-select
@@ -83,7 +73,7 @@ const ExpectationSecurityPlatformsField = () => {
                   {/* The library field reserves no notch for a floating label,
                       so the label must be the library's own and sit above the
                       field. A MUI `InputLabel` here landed ON the field. */}
-                  <ComboboxLabel>{t(TECHNICAL_EXPECTATION_LABELS[type] ?? type)}</ComboboxLabel>
+                  <ComboboxLabel>{t(expectationTypeLabelKey(type) ?? type)}</ComboboxLabel>
                   <ComboboxField>
                     <ComboboxChips />
                     <ComboboxInput
