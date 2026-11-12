@@ -5,6 +5,7 @@ import { useFormatter } from '../../../../../../../components/i18n';
 import useSvgVisibilityPause from '../../../../../../../utils/hooks/useSvgVisibilityPause';
 import { compactNumber } from '../../../../../../../utils/number';
 import { expectationTypeColor } from '../../../../../common/ExpectationIconByType';
+import { expectationTypeLabelKey } from '../../../../../common/injects/expectations/Expectation';
 
 export interface DefenseLayer {
   key: string;
@@ -43,24 +44,6 @@ const PCT_Y = CY + GATE_HALF + 52;
 // palette, so the gauntlet scales to any layer set without ever borrowing a
 // result color.
 const FALLBACK_COLORS = ['#38bdf8', '#818cf8', '#c084fc', '#22d3ee', '#a855f7'];
-const KNOWN_TYPES = new Set([
-  'PREVENTION',
-  'DETECTION',
-  'VULNERABILITY',
-  'HUMAN_RESPONSE',
-  'MANUAL',
-  'ARTICLE',
-  'CHALLENGE',
-]);
-
-const KNOWN_LABELS: Record<string, string> = {
-  PREVENTION: 'Prevention',
-  DETECTION: 'Detection',
-  VULNERABILITY: 'Vulnerability',
-  MANUAL: 'Manual',
-  CHALLENGE: 'Challenge',
-  ARTICLE: 'Article',
-};
 
 // Outcome vocabulary per expectation type (covers every EXPECTATION_TYPE of the
 // backend): "stopped" is only accurate for prevention, so each gate states what
@@ -229,7 +212,8 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
         {visibleLayers.map((layer, i) => {
           const x = gateX(i);
           const layerKey = layer.key.toUpperCase();
-          const color = KNOWN_TYPES.has(layerKey)
+          const labelKey = expectationTypeLabelKey(layerKey);
+          const color = labelKey
             ? expectationTypeColor(layerKey)
             : FALLBACK_COLORS[i % FALLBACK_COLORS.length];
           const resolved = layer.success + layer.failed;
@@ -238,9 +222,7 @@ const AttackFlow: FunctionComponent<Props> = ({ layers, breached, onInvestigate 
           const trackTop = CY - GATE_HALF;
           const trackH = GATE_HALF * 2;
           const fillH = Math.max(rate * trackH, resolved > 0 ? 3 : 0);
-          const label = KNOWN_LABELS[layer.key.toUpperCase()]
-            ? t(KNOWN_LABELS[layer.key.toUpperCase()])
-            : humanize(layer.key);
+          const label = labelKey ? t(labelKey) : humanize(layer.key);
           const outcomeText = `${Math.round(rate * 100)}% ${t(OUTCOME_LABELS[layer.key.toUpperCase()] ?? 'stopped')}`;
           const stopped = particlesFor(layer.success);
           const gaugeX = x - gaugeWidth / 2;

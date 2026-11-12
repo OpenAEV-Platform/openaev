@@ -18,7 +18,7 @@ import { useHelper } from '../../../../../store';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import { isNotEmptyField } from '../../../../../utils/utils';
 import TagsFilter from '../../../common/filters/TagsFilter';
-import { HUMAN_EXPECTATION } from '../../../common/injects/expectations/ExpectationUtils.tsx';
+import { HUMAN_EXPECTATION_TYPES } from '../../../common/injects/expectations/Expectation';
 import InjectIcon from '../../../common/injects/InjectIcon';
 import ExecutionMenu from '../ExecutionMenu';
 import TeamOrAssetLine from './common/TeamOrAssetLine';
@@ -74,7 +74,7 @@ const Validations = () => {
       injectsMap[n.inject_expectation_inject] || {},
       n,
     )),
-    R.filter(n => HUMAN_EXPECTATION.includes((n.inject_expectation_type).toUpperCase())),
+    R.filter(n => HUMAN_EXPECTATION_TYPES.includes((n.inject_expectation_type).toUpperCase())),
     R.filter(
       n => tags.length === 0
         || R.any(
