@@ -206,6 +206,59 @@ public final class TenantIsolationCoverageFixtures {
     }
   }
 
+  /** The marked class is nested in a disabled outer class, so JUnit never runs it. */
+  @Disabled
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  public static class DisablesAClassAroundAMarkedNestedClass {
+    @Nested
+    @CoversTenantIsolation("tags")
+    public class MarksUnderADisabledOuterClass {
+      @Test
+      void runs() {}
+    }
+  }
+
+  /** Holds the one test of its child. */
+  public abstract static class HoldsATest {
+    @Test
+    void runs() {}
+  }
+
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassWhoseOnlyTestIsInherited extends HoldsATest {}
+
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassWhoseOnlyTestIsDisabled {
+    @Disabled
+    @Test
+    void runs() {}
+  }
+
+  /** The only nested class that holds a test holds a disabled one. */
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassWhoseOnlyNestedTestIsDisabled {
+    @Nested
+    public class Cases {
+      @Disabled
+      @Test
+      void runs() {}
+    }
+  }
+
+  /** Disabled, and not inherited: its subclass below still runs. */
+  @Disabled
+  public static class DisabledParent {}
+
+  @TestPropertySource(properties = "openaev.tenant.active-tables=tags")
+  @CoversTenantIsolation("tags")
+  public static class MarksAClassUnderADisabledParent extends DisabledParent {
+    @Test
+    void runs() {}
+  }
+
   /** A class that no marker names: the gate leaves it alone. */
   public static class MarksNothingAtAll {}
 }

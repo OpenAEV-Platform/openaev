@@ -26,7 +26,6 @@ import org.junit.platform.commons.annotation.Testable;
 import org.junit.platform.commons.support.AnnotationSupport;
 import org.junit.platform.commons.support.HierarchyTraversalMode;
 import org.junit.platform.commons.support.ReflectionSupport;
-import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.test.context.TestContextAnnotationUtils;
 
 /**
@@ -49,10 +48,11 @@ import org.springframework.test.context.TestContextAnnotationUtils;
  * the catalog cannot see (property files, profiles, {@code DynamicPropertyRegistrar}) are listed in
  * the "Not seen" paragraph of {@link PinnedActiveTablesCatalog}.
  *
- * <p>A runnable test is a class that is not abstract and not {@code @Disabled} (nor nested in a
- * disabled class), with a method JUnit runs as a test, in the class, its supertypes or a nested
- * class that is not disabled. {@code @EnabledIf}, {@code @DisabledIf} and the other conditions are
- * not read.
+ * <p>A runnable test is a class that is not abstract and not {@link Disabled} (nor a {@link Nested}
+ * class of a disabled class), with a method JUnit runs as a test that is not itself disabled, in
+ * the class, its supertypes or a nested class that is not disabled. A disabled parent class does
+ * not disable its subclass, as in JUnit. {@code EnabledIf}, {@code DisabledIf} and the other
+ * conditions are not read.
  *
  * <p>A class whose pin the baseline of {@link PinnedActiveTablesBaseline} records as {@code drifts}
  * or {@code control} covers nothing: its list is known to differ from production for a reason that
@@ -257,29 +257,40 @@ class TenantIsolationCoverageArchTest {
         } else if (isDisabled(type)) {
           unrunnable.put(type, "is @Disabled, or nested in a disabled class");
         } else if (!hasTestMethod(type)) {
-          unrunnable.put(type, "has no test method");
+          unrunnable.put(type, "has no enabled test method");
         }
       }
       return unrunnable;
     }
 
+    /**
+     * {@link Disabled} on the class or as a meta-annotation, or on the enclosing class while the
+     * class is {@link Nested}. The annotation is not inherited, so a disabled parent does not
+     * disable its subclass, as in JUnit.
+     */
     private static boolean isDisabled(Class<?> type) {
       for (Class<?> c = type; c != null; c = c.getEnclosingClass()) {
-        if (AnnotatedElementUtils.hasAnnotation(c, Disabled.class)) {
+        if (AnnotationSupport.isAnnotated(c, Disabled.class)) {
           return true;
+        }
+        if (!AnnotationSupport.isAnnotated(c, Nested.class)) {
+          return false;
         }
       }
       return false;
     }
 
     /**
-     * A method JUnit runs as a test, in the class, its supertypes or a nested class not disabled.
+     * An enabled method JUnit runs as a test, in the class, its supertypes or a nested class not
+     * disabled.
      */
     private static boolean hasTestMethod(Class<?> type) {
       boolean own =
           !ReflectionSupport.findMethods(
                   type,
-                  method -> AnnotationSupport.isAnnotated(method, Testable.class),
+                  method ->
+                      AnnotationSupport.isAnnotated(method, Testable.class)
+                          && !AnnotationSupport.isAnnotated(method, Disabled.class),
                   HierarchyTraversalMode.TOP_DOWN)
               .isEmpty();
       return own

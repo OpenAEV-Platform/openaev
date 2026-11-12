@@ -5,6 +5,11 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import io.openaev.architecture.TenantIsolationCoverageArchTest.Effective;
 import io.openaev.architecture.TenantIsolationCoverageArchTest.Scan;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.DisablesAClassAroundAMarkedNestedClass;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassUnderADisabledParent;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyNestedTestIsDisabled;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestIsDisabled;
+import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestIsInherited;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseOnlyTestsAreInADisabledNestedClass;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWhoseTestsAreNested;
 import io.openaev.architecture.fixture.TenantIsolationCoverageFixtures.MarksAClassWithNoTestMethod;
@@ -346,11 +351,61 @@ class TenantIsolationCoverageRulesTest {
       assertThat(scan.unrunnable())
           .containsEntry(MarksAnAbstractClass.class, "is abstract")
           .containsEntry(MarksADisabledClass.class, "is @Disabled, or nested in a disabled class")
-          .containsEntry(MarksAClassWithNoTestMethod.class, "has no test method")
+          .containsEntry(MarksAClassWithNoTestMethod.class, "has no enabled test method")
           .containsEntry(
-              MarksAClassWhoseOnlyTestsAreInADisabledNestedClass.class, "has no test method");
+              MarksAClassWhoseOnlyTestsAreInADisabledNestedClass.class,
+              "has no enabled test method");
       assertThat(scan.markedOutsideTheEffectiveList()).hasSize(4);
       assertThat(scan.covered()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given a marked class nested in a disabled class, should name it and not count")
+    void given_markedClassNestedInADisabledClass_should_nameItAndNotCount() {
+      // Arrange
+      Scan scan = scan(DisablesAClassAroundAMarkedNestedClass.MarksUnderADisabledOuterClass.class);
+
+      // Act and Assert
+      assertThat(scan.unrunnable())
+          .containsEntry(
+              DisablesAClassAroundAMarkedNestedClass.MarksUnderADisabledOuterClass.class,
+              "is @Disabled, or nested in a disabled class");
+      assertThat(scan.covered()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("given only disabled test methods, should name the class and not count it")
+    void given_onlyDisabledTestMethods_should_nameTheClassAndNotCountIt() {
+      // Arrange
+      Scan scan =
+          scan(
+              MarksAClassWhoseOnlyTestIsDisabled.class,
+              MarksAClassWhoseOnlyNestedTestIsDisabled.class);
+
+      // Act and Assert
+      assertThat(scan.unrunnable())
+          .containsEntry(MarksAClassWhoseOnlyTestIsDisabled.class, "has no enabled test method")
+          .containsEntry(
+              MarksAClassWhoseOnlyNestedTestIsDisabled.class, "has no enabled test method");
+      assertThat(scan.covered()).isEmpty();
+    }
+
+    @Test
+    @DisplayName(
+        "given a test inherited from an abstract parent or a disabled parent, should count the"
+            + " class as runnable")
+    void given_inheritedTestOrDisabledParent_should_countTheClassAsRunnable() {
+      // Arrange
+      Scan scan =
+          scan(MarksAClassWhoseOnlyTestIsInherited.class, MarksAClassUnderADisabledParent.class);
+
+      // Act and Assert
+      assertThat(scan.unrunnable()).isEmpty();
+      assertThat(scan.covered()).containsOnlyKeys("tags");
+      assertThat(scan.covered().get("tags"))
+          .containsExactlyInAnyOrder(
+              MarksAClassWhoseOnlyTestIsInherited.class.getName(),
+              MarksAClassUnderADisabledParent.class.getName());
     }
 
     @Test
