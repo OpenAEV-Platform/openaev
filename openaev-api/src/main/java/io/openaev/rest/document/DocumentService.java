@@ -117,7 +117,7 @@ public class DocumentService {
       if (!document.getExercises().isEmpty()) {
         Set<Exercise> exercises = new HashSet<>(document.getExercises());
         List<Exercise> inputExercises =
-            fromIterable(exerciseRepository.findAllById(input.getExerciseIds()));
+            fromIterable(exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), tenantId));
         exercises.addAll(inputExercises);
         document.setExercises(exercises);
       }
@@ -125,7 +125,7 @@ public class DocumentService {
       if (!document.getScenarios().isEmpty()) {
         Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
         List<Scenario> inputScenarios =
-            fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
+            fromIterable(scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), tenantId));
         scenarios.addAll(inputScenarios);
         document.setScenarios(scenarios);
       }
@@ -158,7 +158,8 @@ public class DocumentService {
         if (!document.getExercises().isEmpty()) {
           Set<Exercise> exercises = new HashSet<>(document.getExercises());
           List<Exercise> inputExercises =
-              fromIterable(exerciseRepository.findAllById(input.getExerciseIds()));
+              fromIterable(
+                  exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), tenantId));
           exercises.addAll(inputExercises);
           document.setExercises(exercises);
         }
@@ -166,7 +167,8 @@ public class DocumentService {
         if (!document.getScenarios().isEmpty()) {
           Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
           List<Scenario> inputScenarios =
-              fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
+              fromIterable(
+                  scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), tenantId));
           scenarios.addAll(inputScenarios);
           document.setScenarios(scenarios);
         }
@@ -187,11 +189,13 @@ public class DocumentService {
         document.setDescription(input.getDescription());
         if (!input.getExerciseIds().isEmpty()) {
           document.setExercises(
-              iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
+              iterableToSet(
+                  exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), tenantId)));
         }
         if (!input.getScenarioIds().isEmpty()) {
           document.setScenarios(
-              iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
+              iterableToSet(
+                  scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), tenantId)));
         }
         document.setTags(
             iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));

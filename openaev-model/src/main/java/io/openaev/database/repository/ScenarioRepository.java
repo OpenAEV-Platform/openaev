@@ -17,6 +17,7 @@ import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.Assert;
 
 /**
  * Repository interface for {@link Scenario} entities.
@@ -380,6 +381,21 @@ public interface ScenarioRepository
   Optional<Scenario> findByExercises_Id(String exerciseId);
 
   Optional<Scenario> findByIdAndTenantId(String id, String tenantId);
+
+  /** The scenarios among the given ids that belong to the given tenant. */
+  @NotNull
+  List<Scenario> findAllByIdInAndTenantId(
+      @NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The scenarios among the given ids that belong to the given tenant. Refuses a null id list, as
+   * {@code findAllById} does.
+   */
+  @NotNull
+  default List<Scenario> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
