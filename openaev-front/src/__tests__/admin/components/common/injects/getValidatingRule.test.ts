@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { getValidatingRule } from '../../../../../admin/components/common/injects/utils';
+import type { Translate } from '../../../../../components/i18n';
 import type { ContractElement } from '../../../../../utils/api-types-custom';
 
-const t = (s: string) => s;
+const t = ((s: string) => s) as Translate;
 
 const field = (type: ContractElement['type']) => ({
   key: 'doc',
