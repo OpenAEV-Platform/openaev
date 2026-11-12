@@ -32,12 +32,13 @@ class InjectEndpointScopeGuardRulesTest {
 
     @Test
     @DisplayName(
-        "given the fixtures, should select the by-id INJECT, ATOMIC_TESTING and INJECT_SECRET endpoints only")
+        "given the fixtures, should select the by-id INJECT, ATOMIC_TESTING, INJECT_SECRET and JOB endpoints only")
     void given_fixtures_should_selectByIdInjectEndpointsOnly() {
       // Act
       List<String> selected = endpoints().map(JavaMethod::getName).toList();
 
-      // Assert: no resource id, another resource type and a plain method are left out
+      // Assert: no resource id (a JOB that takes no inject included), another resource type and a
+      // plain method are left out
       assertThat(selected)
           .containsExactlyInAnyOrder(
               "guardedDirectly",
@@ -45,6 +46,8 @@ class InjectEndpointScopeGuardRulesTest {
               "guardedSecret",
               "guardedInALambda",
               "guardedWithTheIdSecond",
+              "jobGuarded",
+              "jobUnguarded",
               "unguarded",
               "guardTooFarAway",
               "guardOnAnotherId",
@@ -59,7 +62,7 @@ class InjectEndpointScopeGuardRulesTest {
 
     @Test
     @DisplayName(
-        "given a direct call, a helper, a lambda and an id in another position, should accept them")
+        "given a direct call, a helper, a lambda, an id in another position and a JOB endpoint, should accept them")
     void given_everyShapeOfGuard_should_acceptIt() {
       // Arrange
       List<String> guarded =
@@ -68,7 +71,8 @@ class InjectEndpointScopeGuardRulesTest {
               "guardedThroughAHelper",
               "guardedSecret",
               "guardedInALambda",
-              "guardedWithTheIdSecond");
+              "guardedWithTheIdSecond",
+              "jobGuarded");
 
       // Act
       List<String> accepted =
@@ -83,8 +87,8 @@ class InjectEndpointScopeGuardRulesTest {
 
     @Test
     @DisplayName(
-        "given an unscoped lookup, a guard too far away, a guard on another id and a guard after"
-            + " a write, should flag exactly those, each for its own reason")
+        "given an unscoped lookup, an unguarded JOB endpoint, a guard too far away, a guard on"
+            + " another id and a guard after a write, should flag exactly those, each for its own reason")
     void given_weakGuards_should_flagExactlyThose() {
       // Act
       EvaluationResult result =
@@ -95,9 +99,12 @@ class InjectEndpointScopeGuardRulesTest {
 
       // Assert
       assertThat(result.getFailureReport().getDetails())
-          .hasSize(5)
+          .hasSize(6)
           .anyMatch(
               detail -> detail.contains("#unguarded never passes its resource id to a scope guard"))
+          .anyMatch(
+              detail ->
+                  detail.contains("#jobUnguarded never passes its resource id to a scope guard"))
           .anyMatch(
               detail ->
                   detail.contains("#guardTooFarAway never passes its resource id to a scope guard"))

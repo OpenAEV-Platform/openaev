@@ -85,7 +85,9 @@ public class PayloadUpdateService {
             saved,
             attackPatterns,
             iterableToSet(domainRepository.findAllById(emptyIfNull(input.getDomainIds()))),
-            iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
+            iterableToSet(
+                tagRepository.findAllByIdInTenant(
+                    emptyIfNull(input.getTagIds()), saved.getTenant().getId())));
     return new PayloadCreationService.PayloadInjectorContractCreationResult(
         saved, injectorContract);
   }

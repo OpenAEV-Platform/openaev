@@ -53,7 +53,7 @@ class PaloAltoCortexExecutorContextServiceTest {
 
   @BeforeEach
   void setUp() {
-    service.scheduledExecutorService = immediateScheduler();
+    service.setScheduler(immediateScheduler());
     when(config.getApiBatchExecutionActionPagination()).thenReturn(1);
     when(config.getWindowsScriptUid()).thenReturn("windows-script");
     when(config.getUnixScriptUid()).thenReturn("unix-script");
@@ -237,6 +237,34 @@ class PaloAltoCortexExecutorContextServiceTest {
   }
 
   @Test
+  @DisplayName("executeActions should dispatch the rest of the page when one agent fails")
+  void given_failureOnOneAgentOfAPage_should_stillDispatchTheFollowingAgents() {
+    // Arrange: one page of 10 actions, the third agent fails
+    when(config.getApiBatchExecutionActionPagination()).thenReturn(10);
+    List<PaloAltoCortexAction> actions = new ArrayList<>();
+    for (int i = 1; i <= 10; i++) {
+      PaloAltoCortexAction action = new PaloAltoCortexAction();
+      action.setAgentExternalReference("agent-" + i);
+      action.setScriptId("unix-script");
+      PaloAltoCortexCommand command = new PaloAltoCortexCommand();
+      command.setCommand("encoded-" + i);
+      action.setCommandUnix(command);
+      actions.add(action);
+    }
+    doThrow(new RuntimeException("vendor unavailable"))
+        .when(client)
+        .executeScript(eq("agent-3"), anyString(), any());
+
+    // Act
+    assertDoesNotThrow(() -> service.executeActions(actions));
+
+    // Assert: agents 4 to 10 are still dispatched after the failure on agent 3
+    for (int i = 1; i <= 10; i++) {
+      verify(client).executeScript(eq("agent-" + i), eq("unix-script"), any());
+    }
+  }
+
+  @Test
   @DisplayName("executeActions should not call client when action list is empty")
   void given_noActions_should_notCallClient() {
     // Act
@@ -259,7 +287,7 @@ class PaloAltoCortexExecutorContextServiceTest {
   void given_runningDispatchWorker_should_shutItDownOnShutdown() {
     // Arrange
     ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
-    service.scheduledExecutorService = worker;
+    service.setScheduler(worker);
 
     // Act
     service.shutdown();

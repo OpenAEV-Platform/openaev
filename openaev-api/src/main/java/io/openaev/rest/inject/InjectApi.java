@@ -453,6 +453,7 @@ public class InjectApi extends RestBehavior {
       @PathVariable String injectId,
       @Valid @RequestBody InjectExecutionInput input)
       throws IOException {
+    injectService.requireInScopeForAgent(ctx, injectId);
     injectExecutionCallbackService.injectExecutionCallback(agentId, injectId, input);
   }
 
@@ -474,6 +475,7 @@ public class InjectApi extends RestBehavior {
       @PathVariable @NotBlank final String injectId,
       @PathVariable @NotBlank final String agentId)
       throws Exception {
+    injectService.requireInScopeForAgent(ctx, injectId);
     return executableInjectService.getExecutablePayloadAndUpdateInjectStatus(injectId, agentId);
   }
 

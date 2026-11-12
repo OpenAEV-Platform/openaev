@@ -44,12 +44,22 @@ const handleRegistrationError = (dispatch: Dispatch) => (error: unknown) => {
   });
 };
 
-export const fetchXtmHubRegistration = () => (dispatch: Dispatch) => {
+/**
+ * Resolves `true` once the registration is known (200 or 204) and `false` when the lookup failed, so a caller
+ * can tell "not registered" from "unknown" — the store is empty in both cases.
+ */
+export const fetchXtmHubRegistration = () => (dispatch: Dispatch): Promise<boolean> => {
   const uri = `${XTM_HUB_URI}/registration`;
   dispatch({ type: Constants.DATA_FETCH_SUBMITTED });
   return simpleCall(uri, undefined, false)
-    .then(handleRegistrationResponse(dispatch))
-    .catch(handleRegistrationError(dispatch));
+    .then((response) => {
+      handleRegistrationResponse(dispatch)(response);
+      return true;
+    })
+    .catch((error) => {
+      handleRegistrationError(dispatch)(error);
+      return false;
+    });
 };
 
 export const registerPlatform = (token: string) => (dispatch: Dispatch) => {

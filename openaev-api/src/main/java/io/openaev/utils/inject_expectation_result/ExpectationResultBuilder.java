@@ -58,7 +58,8 @@ public final class ExpectationResultBuilder {
 
   private static boolean isSettledByAnySource(@NotNull final BaseInjectExpectation expectation) {
     return BaseInjectExpectation.EXPECTATION_TYPE.DETECTION.equals(expectation.getType())
-        || BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(expectation.getType());
+        || BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION.equals(expectation.getType())
+        || BaseInjectExpectation.EXPECTATION_TYPE.LOGGING.equals(expectation.getType());
   }
 
   private static boolean hasAnyScoreReaching(

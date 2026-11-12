@@ -34,7 +34,7 @@ const InjectContractOverview: FunctionComponent<Props> = ({ injectorContract, do
 
   const payload = injectorContract.injector_contract_payload ?? null;
 
-  const action: ThreatArsenalAction = useMemo(() => {
+  const action: Omit<ThreatArsenalAction, 'action_grant_resource_id'> = useMemo(() => {
     const authorUser = injectorContract.injector_contract_payload_author_user;
     const authorOrganization = injectorContract.injector_contract_payload_author_organization;
     let authorName: string | undefined;

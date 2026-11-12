@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
@@ -48,6 +49,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Rows belonging to another tenant are seeded with a raw native INSERT carrying an explicit
  * tenant_id, never through the ambient tenant.
  */
+@CoversTenantIsolation("autonomous_objective_templates")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=autonomous_objective_templates")
 @WithMockUser(isAdmin = true)

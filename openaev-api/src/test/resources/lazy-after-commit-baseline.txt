@@ -417,7 +417,6 @@ ExerciseLessonsApi.updateExerciseLessonsCategoryTeams -> LessonsCategory.getUser
 ExerciseLessonsApi.updateExerciseLessonsCategoryTeams -> LessonsCategory.teams | NOT ESTABLISHED | not written by any measured test response
 FindingApi.createFinding -> ScenarioSimple.tags | NOT ESTABLISHED | not written by any measured test response
 FindingApi.finding -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
-FindingApi.updateFinding -> ScenarioSimple.tags | NOT ESTABLISHED | not written by any measured test response
 FindingSearchApi.findings -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
 FindingSearchApi.findingsByEndpoint -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose
 FindingSearchApi.findingsByInject -> ScenarioSimple.tags | NOT ESTABLISHED | read after the commit, but no test row to lose

@@ -27,6 +27,7 @@ import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.WorkflowNotEditableException;
 import io.openaev.scheduler.jobs.QueueChainingJob;
+import jakarta.persistence.EntityManager;
 import java.io.IOException;
 import java.util.*;
 import java.util.UUID;
@@ -61,6 +62,7 @@ class StepServiceTest {
   @Mock private SimulationRateLimitService simulationRateLimitService;
   @Mock private TenantScopedTransaction tenantScopedTransaction;
   @Mock private StepEventService stepEventService;
+  @Mock private EntityManager entityManager;
 
   @Spy @InjectMocks StepService stepService;
   private QueueChainingJob queueChainingJob;
@@ -86,7 +88,8 @@ class StepServiceTest {
             stepService,
             workflowService,
             tenantScopedTransaction,
-            stepEventService);
+            stepEventService,
+            entityManager);
     lenient()
         .doAnswer(
             invocation -> {

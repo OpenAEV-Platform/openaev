@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.engine.model.assetgroup.AssetGroupHandler;
@@ -39,6 +40,7 @@ import org.springframework.test.context.TestPropertySource;
  * transaction inside an active one, so seeding and cleanup go through an auto-committing {@link
  * JdbcTemplate}.
  */
+@CoversTenantIsolation("asset_groups")
 @TestPropertySource(properties = "openaev.tenant.active-tables=asset_groups")
 @DisplayName("asset_groups background (ES indexing) tenant scope")
 class AssetGroupBackgroundIsolationTest extends IntegrationTest {

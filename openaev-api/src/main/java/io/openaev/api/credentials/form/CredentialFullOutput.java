@@ -56,6 +56,10 @@ public record CredentialFullOutput(
     @Schema(description = "AWS source profile access key id")
         @JsonProperty("credential_aws_source_profile_access_key_id")
         String awsSourceProfileAccessKeyId,
+    @Schema(description = "AWS account id") @JsonProperty("credential_aws_account_id")
+        String awsAccountId,
+    @Schema(description = "AWS endpoint URL override") @JsonProperty("credential_aws_endpoint_url")
+        String awsEndpointUrl,
     // AZURE
     @Schema(description = "Azure environment") @JsonProperty("credential_azure_environment")
         String azureEnvironment,
@@ -65,6 +69,14 @@ public record CredentialFullOutput(
         String azureTenantId,
     @Schema(description = "Azure subscription id") @JsonProperty("credential_azure_subscription_id")
         String azureSubscriptionId,
+    @Schema(description = "Azure authority host URI")
+        @JsonProperty("credential_azure_authority_host_uri")
+        String azureAuthorityHostUri,
+    @Schema(
+            description =
+                "Whether an Azure requests certificate is stored; the certificate itself is never returned")
+        @JsonProperty("credential_azure_requests_certificate_defined")
+        boolean azureRequestsCertificateDefined,
     // GCP
     @Schema(description = "GCP OAuth scope") @JsonProperty("credential_gcp_scope") String gcpScope,
     @Schema(description = "GCP project id") @JsonProperty("credential_gcp_project_id")
@@ -85,4 +97,19 @@ public record CredentialFullOutput(
             description =
                 "Whether a GCP OAuth refresh token is stored; the token itself is never returned")
         @JsonProperty("credential_gcp_oauth_refresh_token_defined")
-        boolean gcpOauthRefreshTokenDefined) {}
+        boolean gcpOauthRefreshTokenDefined,
+    @Schema(description = "GCP custom token URI") @JsonProperty("credential_gcp_custom_token_uri")
+        String gcpCustomTokenUri,
+    @Schema(description = "GCP custom projects URI")
+        @JsonProperty("credential_gcp_custom_projects_uri")
+        String gcpCustomProjectsUri,
+    @Schema(description = "GCP custom resource manager URI")
+        @JsonProperty("credential_gcp_custom_resource_manager_uri")
+        String gcpCustomResourceManagerUri,
+    @Schema(description = "GCP custom IAM URI") @JsonProperty("credential_gcp_custom_iam_uri")
+        String gcpCustomIamUri,
+    @Schema(
+            description =
+                "Whether a GCP custom OAuth access token is stored; the token itself is never returned")
+        @JsonProperty("credential_gcp_custom_oauth_access_token_defined")
+        boolean gcpCustomOauthAccessTokenDefined) {}

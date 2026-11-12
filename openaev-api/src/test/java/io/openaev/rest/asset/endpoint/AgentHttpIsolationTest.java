@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.api.autonomous.AutonomousRunApi;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.asset.endpoint.form.EndpointRegisterInput;
 import io.openaev.service.account.AgentServiceAccountPrivilegeService;
@@ -87,9 +88,11 @@ class AgentHttpIsolationTest extends IntegrationTest {
     // Arrange: two tenants the mock user belongs to, each with the built-in OpenAEV executor (the
     // registration path resolves it by id) and exactly one active agent on one of its endpoints.
     tenantA = tenantHelper.createTenantWithCurrentUser("agent-iso-a").getId();
-    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantA);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+        TxCtx.forTenant(tenantA), tenantA);
     tenantB = tenantHelper.createTenantWithCurrentUser("agent-iso-b").getId();
-    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantB);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+        TxCtx.forTenant(tenantB), tenantB);
 
     seedExecutor(tenantA);
     seedExecutor(tenantB);

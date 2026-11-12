@@ -115,6 +115,28 @@ public class InjectEndpointScopeGuardFixtures {
     hopOne(ctx, injectId);
   }
 
+  @RequestMapping("/job-guarded")
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.WRITE,
+      resourceType = ResourceType.JOB)
+  public void jobGuarded(TxCtx ctx, String injectId, String agentId) {
+    injectService.requireInScopeForAgent(ctx, injectId);
+  }
+
+  @RequestMapping("/job-unguarded")
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.JOB)
+  public void jobUnguarded(TxCtx ctx, String injectId, String agentId) {
+    injectService.inject(injectId);
+  }
+
+  @RequestMapping("/job-without-inject")
+  @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.JOB)
+  public void jobWithoutInject(String agentId) {}
+
   @RequestMapping("/no-resource-id")
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.INJECT)
   public void noResourceId() {}

@@ -5,6 +5,7 @@ import static java.util.Optional.ofNullable;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.openaev.authorisation.HttpClientFactory;
 import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.executors.ExecutorService;
 import io.openaev.executors.caldera.client.CalderaExecutorClient;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Slf4j
 public class CalderaExecutorIntegration extends Integration {
@@ -55,6 +57,12 @@ public class CalderaExecutorIntegration extends Integration {
   private final TenantScopedTransaction tenantTx;
 
   private final List<ScheduledFuture<?>> timers = new ArrayList<>();
+
+  /**
+   * The source under which the executor reports to the Caldera unavailable banner, kept at start:
+   * the connector instance is gone when stop runs.
+   */
+  private String bannerSource;
 
   public CalderaExecutorIntegration(
       ConnectorInstance connectorInstance,
@@ -122,6 +130,7 @@ public class CalderaExecutorIntegration extends Integration {
               Endpoint.PLATFORM_TYPE.MacOS.name()
             });
 
+    bannerSource = CalderaExecutorService.bannerSource(executor);
     client = new CalderaExecutorClient(config, httpClientFactory);
     calderaExecutorContextService =
         new CalderaExecutorContextService(config, injectorService, client);
@@ -135,7 +144,8 @@ public class CalderaExecutorIntegration extends Integration {
             injectorService,
             platformSettingsService,
             agentService,
-            tenantTx);
+            tenantTx,
+            taskScheduler);
 
     calderaExecutorContextService.registerAbilities();
 
@@ -157,8 +167,38 @@ public class CalderaExecutorIntegration extends Integration {
 
   @Override
   protected void innerStop() {
-    this.platformSettingsService.cleanMessage(BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE);
+    // Same platform-wide operational status as CalderaExecutorService's banner (see its javadoc).
+    // The monitoring job stops an integration inside its tenant transaction, which holds a
+    // connection: there the write is handed to the scheduler and opens its own transaction, so
+    // stopping never waits for a second connection. A shutdown or a test stops it outside any
+    // transaction, where the write runs at once. Either way a failed write never fails the stop.
+    // This executor no longer reports: the banner is rewritten from the other executors' reports.
+    if (bannerSource != null) {
+      Runnable clearBanner = () -> clearBanner(bannerSource);
+      if (TransactionSynchronizationManager.isActualTransactionActive()) {
+        try {
+          taskScheduler.execute(clearBanner);
+        } catch (RuntimeException e) {
+          log.warn(
+              "Could not schedule the Caldera unavailable banner clearing: {}", e.getMessage(), e);
+        }
+      } else {
+        clearBanner.run();
+      }
+    }
     timers.forEach(timer -> timer.cancel(true));
     timers.clear();
+  }
+
+  private void clearBanner(String source) {
+    try {
+      tenantTx.executeAsPlatformWrite(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () ->
+              this.platformSettingsService.reportMessageSource(
+                  BannerMessage.BANNER_KEYS.CALDERA_UNAVAILABLE, source, false));
+    } catch (Exception e) {
+      log.warn("Failed to clear the Caldera unavailable banner: {}", e.getMessage(), e);
+    }
   }
 }

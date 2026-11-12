@@ -17,6 +17,7 @@ import io.openaev.rest.exercise.exports.ExportOptions;
 import io.openaev.service.ArticleService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.FileService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.organization.OrganizationService;
 import jakarta.annotation.Resource;
@@ -39,6 +40,7 @@ public class ExportService {
   @Resource private ArticleService articleService;
   @Resource private FileService fileService;
   @Resource private WorkflowService workflowService;
+  @Resource private WorkflowOwnerScope workflowOwnerScope;
   @Resource private WorkflowExportInitializer workflowExportInitializer;
   @Resource private OrganizationService organizationService;
 
@@ -85,7 +87,13 @@ public class ExportService {
                 this.articleService,
                 this.organizationService)
             .withOptions(exportOptionsMask);
-    boolean isChaining = workflowService.isSimulationChaining(exercise.getId());
+    // The simulation's workflow is read in the simulation's own tenant whatever the caller's
+    // scope, as a workflow inherits its owner's tenant and can never move. Every other table this
+    // export reads (documents, tags, challenges, organizations, teams) stays under the scope the
+    // request resolved, so the owner scope holds only over the chaining reads below.
+    boolean isChaining =
+        workflowOwnerScope.call(
+            exercise, () -> workflowService.isSimulationChaining(exercise.getId()));
     if (isChaining) {
       importExport.setInjects(new ArrayList<>());
     }
@@ -97,12 +105,20 @@ public class ExportService {
             ? Mixins.WorkflowExport.class
             : Mixins.WorkflowExportWithoutScope.class);
 
-    // Add workflow (chaining) if present — scope definition is optional
+    // Add workflow (chaining) if present — scope definition is optional. The whole workflow graph
+    // is loaded inside the owner's tenant, so the serialization below finds it already initialized.
     Optional<Workflow> workflowOpt =
-        workflowService.findWorkflowTemplateBySimulationIdForExport(exercise.getId());
+        workflowOwnerScope.call(
+            exercise,
+            () -> {
+              Optional<Workflow> workflow =
+                  workflowService.findWorkflowTemplateBySimulationIdForExport(exercise.getId());
+              workflow.ifPresent(
+                  found -> workflowExportInitializer.initialize(found, isWithScopeDefinition));
+              return workflow;
+            });
     workflowOpt.ifPresent(
         workflow -> {
-          workflowExportInitializer.initialize(workflow, isWithScopeDefinition);
           if (isChaining) {
             ArrayList<Tag> workflowAndExerciseTags = new ArrayList<>(importExport.getTags());
             workflowAndExerciseTags.addAll(workflowExportInitializer.collectWorkflowTags(workflow));

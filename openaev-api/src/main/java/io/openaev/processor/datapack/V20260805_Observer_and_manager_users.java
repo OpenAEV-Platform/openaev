@@ -87,7 +87,7 @@ public class V20260805_Observer_and_manager_users extends DataPack {
           if (groupRepository.findByNameAndTenantId(roleName, tenantId).isPresent()) {
             return;
           }
-          Role role = createRoleIfMissing(roleName, capabilities);
+          Role role = createRoleIfMissing(roleName, capabilities, tenantId);
           Group group = new Group();
           group.setName(roleName);
           group.setDescription(roleName);
@@ -99,9 +99,9 @@ public class V20260805_Observer_and_manager_users extends DataPack {
         });
   }
 
-  private Role createRoleIfMissing(String roleName, Set<Capability> capabilities) {
+  private Role createRoleIfMissing(String roleName, Set<Capability> capabilities, String tenantId) {
     return tenantRoleService.createRoleInternal(
-        UUID.randomUUID().toString(), roleName, roleName, capabilities, null);
+        UUID.randomUUID().toString(), roleName, roleName, capabilities, tenantId);
   }
 
   private void createUserInGroup(

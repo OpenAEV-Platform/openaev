@@ -298,11 +298,21 @@ public interface UserRepository
   // Native: JPA only exposes FOR UPDATE (PESSIMISTIC_WRITE), which would block the inserts of rows
   // referencing the user (tags, tokens...); FOR NO KEY UPDATE does not. Unlike a no-op UPDATE it
   // writes no tuple and fires no UPDATE trigger. No entity is read or changed, so no listener,
-  // index or audit side effect is lost.
+  // index or audit side effect is lost. Enough for the writers that only replace rows of their own
+  // join table and never delete the account: nothing they decide on can be overtaken by an insert.
   @Query(
       value = "SELECT us.user_id FROM users us WHERE us.user_id = :userId FOR NO KEY UPDATE",
       nativeQuery = true)
   List<String> lockRow(@Param("userId") String userId);
+
+  // Native: JPA only exposes FOR UPDATE through a lock mode on a loaded entity, and no entity is
+  // read or changed here, so no listener, index or audit side effect is lost. Unlike lockRow, this
+  // lock conflicts with the FOR KEY SHARE that an insert into users_tenants takes. The delete of a
+  // player holds it, so a membership cannot be added after the check that decides the deletion.
+  @Query(
+      value = "SELECT us.user_id FROM users us WHERE us.user_id = :userId FOR UPDATE",
+      nativeQuery = true)
+  List<String> lockRowAgainstNewLinks(@Param("userId") String userId);
 
   // Native: a set-based delete scoped by tenant through a sub-query. It touches a join table that
   // is not indexed, audited nor streamed, so no session side effect is lost.
@@ -313,6 +323,44 @@ public interface UserRepository
               + "SELECT organization_id FROM organizations WHERE tenant_id = :tenantId)",
       nativeQuery = true)
   void removeOrganizationsOfTenant(
+      @Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  // Native: set-based deletes of the links a user holds in one tenant, each scoped by tenant
+  // through a sub-query. They touch join tables that are not indexed, audited nor streamed, and a
+  // link table row cannot be removed through the loaded collections without reading every team,
+  // simulation and scenario of the tenant.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM users_teams WHERE user_id = :userId AND team_id IN ("
+              + "SELECT team_id FROM teams WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeTeamsOfTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM users_tags WHERE user_id = :userId AND tag_id IN ("
+              + "SELECT tag_id FROM tags WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeTagsOfTenant(@Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM exercises_teams_users WHERE user_id = :userId AND exercise_id IN ("
+              + "SELECT exercise_id FROM exercises WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeSimulationTeamUsersOfTenant(
+      @Param("userId") String userId, @Param("tenantId") String tenantId);
+
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM scenarios_teams_users WHERE user_id = :userId AND scenario_id IN ("
+              + "SELECT scenario_id FROM scenarios WHERE tenant_id = :tenantId)",
+      nativeQuery = true)
+  void removeScenarioTeamUsersOfTenant(
       @Param("userId") String userId, @Param("tenantId") String tenantId);
 
   // Native: atomic upsert (ON CONFLICT) on a join table that is not indexed, audited nor streamed.
@@ -335,6 +383,36 @@ public interface UserRepository
               + " ON CONFLICT DO NOTHING",
       nativeQuery = true)
   void addTag(@Param("userId") String userId, @Param("tagId") String tagId);
+
+  // Native: one set-based insert with ON CONFLICT on a join table that is not indexed, audited nor
+  // streamed. The tags are read from the tags table, so only the ones in the scope of the
+  // transaction are linked, and a link that already exists is left as it is.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value =
+          "INSERT INTO users_tags (user_id, tag_id)"
+              + " SELECT :userId, t.tag_id FROM tags t WHERE t.tag_id IN :tagIds"
+              + " ON CONFLICT DO NOTHING",
+      nativeQuery = true)
+  void addTags(@Param("userId") String userId, @Param("tagIds") Collection<String> tagIds);
+
+  // JPQL, not the loaded collection: the collection may have been read before the row of the user
+  // was locked, while this reads the links as committed once the lock is held. Rooted on Tag, since
+  // selecting the id through the join table alone never reads the tags table: only the tags in the
+  // scope of the transaction come back.
+  @Query(
+      "SELECT t.id FROM Tag t WHERE t.id IN"
+          + " (SELECT linked.id FROM User u JOIN u.tags linked WHERE u.id = :userId)")
+  List<String> tagIdsInScope(@Param("userId") String userId);
+
+  // Native: a set-based delete of the listed links only, on a join table that is not indexed,
+  // audited nor streamed. Replacing the collection would delete every row of the user, the links
+  // to the tags the transaction's scope cannot see included.
+  @Modifying(flushAutomatically = true)
+  @Query(
+      value = "DELETE FROM users_tags WHERE user_id = :userId AND tag_id IN :tagIds",
+      nativeQuery = true)
+  void removeTags(@Param("userId") String userId, @Param("tagIds") Collection<String> tagIds);
 
   // Native: same rationale as addTag, for the teams of the user.
   @Modifying(flushAutomatically = true)

@@ -31,6 +31,7 @@ import io.openaev.database.repository.TenantRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.execution.ExecutionExecutorException;
+import io.openaev.execution.UnexecutableInjectException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.inject.form.InjectInput;
@@ -971,6 +972,35 @@ public class InjectExecutionStepTest extends IntegrationTest {
                 trace ->
                     ExecutionTraceStatus.ERROR.equals(trace.getStatus())
                         && "No asset executed".equals(trace.getMessage())),
+        "the failure reason must be kept as an error trace");
+  }
+
+  @Test
+  void given_stoppedConnectorInstance_should_failInjectAndEndStepWithoutRollback()
+      throws Exception {
+    // Arrange: a final failure other than "no agent", here the injector's connector is stopped
+    String reason = "No started connector instance found for injector type: openaev_nmap";
+    doThrow(new UnexecutableInjectException(reason)).when(executor).directExecute(any());
+    Step stepReady = createReadyStepForRun();
+
+    // Act
+    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+
+    // Assert
+    assertTrue(stepRunOpt.isEmpty(), "the step must be ended, not moved to RUN");
+    Boolean rollbackOnly =
+        new TransactionTemplate(transactionManager).execute(TransactionStatus::isRollbackOnly);
+    assertFalse(rollbackOnly, "the transaction must still be able to commit");
+    String injectId = StepService.getField(stepReady.getData(), "inject_id");
+    InjectStatus injectStatus =
+        injectRepository.findById(injectId).orElseThrow().getStatus().orElseThrow();
+    assertEquals(ExecutionStatus.ERROR, injectStatus.getName());
+    assertTrue(
+        injectStatus.getTraces().stream()
+            .anyMatch(
+                trace ->
+                    ExecutionTraceStatus.ERROR.equals(trace.getStatus())
+                        && reason.equals(trace.getMessage())),
         "the failure reason must be kept as an error trace");
   }
 

@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
@@ -561,7 +562,8 @@ public class MeApiTest extends IntegrationTest {
     void given_serviceAccountBearerToken_should_rejectSelfRenewal() throws Exception {
       // -------- Arrange: bootstrap the tenant's service account and read its real bearer token,
       // exactly as an INSTALL_AGENT holder would obtain it from the installer endpoint --------
-      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(Tenant.DEFAULT_TENANT_UUID);
+      agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), Tenant.DEFAULT_TENANT_UUID);
       entityManager.flush();
       entityManager.clear();
       String serviceAccountToken =

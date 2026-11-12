@@ -1,48 +1,52 @@
 import { type ChipSeverity } from '@filigran/design-system';
 import { type Theme } from '@mui/material';
 
-import { HUMAN_EXPECTATION } from '../admin/components/common/injects/expectations/ExpectationUtils';
+import { HUMAN_EXPECTATION_TYPES } from '../admin/components/common/injects/expectations/Expectation';
 import colorStyles from '../components/Color';
 import { capitalize } from './String';
 
-const injectExpectationMap = {
-  SUCCESS: {
-    PREVENTION: 'Prevented',
-    DETECTION: 'Detected',
-    VULNERABILITY: 'Not vulnerable',
-  },
-  FAILED: {
-    PREVENTION: 'Not Prevented',
-    DETECTION: 'Not Detected',
-    VULNERABILITY: 'Vulnerable',
-  },
-  PARTIAL: {
-    PREVENTION: 'Partially Prevented',
-    DETECTION: 'Partially Detected',
-    VULNERABILITY: 'Partially Vulnerable',
-  },
-  PENDING: {
-    PREVENTION: 'Pending',
-    DETECTION: 'Pending',
-    VULNERABILITY: 'Pending',
-  },
-} as const;
+type ExpectationResult = 'SUCCESS' | 'PARTIAL' | 'FAILED';
 
-type InjectExpectationStatus = keyof typeof injectExpectationMap;
-type InjectExpectationType = keyof (typeof injectExpectationMap)[InjectExpectationStatus];
+// Result labels of the technical expectation types. A label is coloured as the result it stands for,
+// so a new type only needs its entry here.
+const EXPECTATION_RESULT_LABELS: Record<string, Record<ExpectationResult, string>> = {
+  PREVENTION: {
+    SUCCESS: 'Prevented',
+    PARTIAL: 'Partially Prevented',
+    FAILED: 'Not Prevented',
+  },
+  DETECTION: {
+    SUCCESS: 'Detected',
+    PARTIAL: 'Partially Detected',
+    FAILED: 'Not Detected',
+  },
+  VULNERABILITY: {
+    SUCCESS: 'Not vulnerable',
+    PARTIAL: 'Partially Vulnerable',
+    FAILED: 'Vulnerable',
+  },
+};
+
+// Upper-cased result label -> the result it stands for.
+const RESULT_BY_EXPECTATION_LABEL: Record<string, ExpectationResult> = Object.fromEntries(
+  Object.values(EXPECTATION_RESULT_LABELS).flatMap(labels =>
+    Object.entries(labels).map(([result, label]) => [label.toUpperCase(), result as ExpectationResult])),
+);
 
 export function computeInjectExpectationLabel(
   status?: string,
   type?: string): string | undefined {
   if (!status || !type) return undefined;
 
-  const normalizedStatus = status.toUpperCase() as InjectExpectationStatus;
-  const normalizedType = type.toUpperCase() as InjectExpectationType;
+  const normalizedStatus = status.toUpperCase();
+  const labels = EXPECTATION_RESULT_LABELS[type.toUpperCase()];
+  if (labels) {
+    if (normalizedStatus === 'PENDING') return 'Pending';
+    const label = labels[normalizedStatus as ExpectationResult];
+    if (label) return label;
+  }
 
-  const result = injectExpectationMap[normalizedStatus]?.[normalizedType];
-  if (result) return result;
-
-  if (HUMAN_EXPECTATION.includes(type.toUpperCase())) {
+  if (HUMAN_EXPECTATION_TYPES.includes(type.toUpperCase())) {
     return capitalize(status);
   }
 
@@ -67,121 +71,55 @@ export const colorStyleSeverity: Record<keyof typeof colorStyles, ChipSeverity> 
 
 const STATUS_COLOR_STYLE: Record<string, keyof typeof colorStyles> = {
   // -- Common --
-  'SUCCESS': 'green',
-  'EXECUTED': 'green',
-  'ERROR': 'red',
+  SUCCESS: 'green',
+  EXECUTED: 'green',
+  ERROR: 'red',
   // -- ExecutionTraceStatus --
-  'EXECUTED_WITH_CLEANUP_FAILURE': 'orange',
-  'WARNING': 'green',
-  'ACCESS_DENIED': 'green',
-  'COMMAND_NOT_FOUND': 'red',
-  'COMMAND_CANNOT_BE_EXECUTED': 'red',
-  'PREREQUISITE_FAILED': 'red',
-  'INVALID_USAGE': 'red',
-  'TIMEOUT': 'red',
-  'INTERRUPTED': 'red',
-  'MAYBE_PREVENTED': 'red',
-  'MAYBE_PARTIAL_PREVENTED': 'red',
-  'ASSET_AGENTLESS': 'blueGrey',
-  'AGENT_INACTIVE': 'blueGrey',
-  'ASSET_CLEARANCE_RESTRICTED': 'blueGrey',
-  'INFO': 'blue',
+  EXECUTED_WITH_CLEANUP_FAILURE: 'orange',
+  WARNING: 'green',
+  ACCESS_DENIED: 'green',
+  COMMAND_NOT_FOUND: 'red',
+  COMMAND_CANNOT_BE_EXECUTED: 'red',
+  PREREQUISITE_FAILED: 'red',
+  INVALID_USAGE: 'red',
+  TIMEOUT: 'red',
+  INTERRUPTED: 'red',
+  MAYBE_PREVENTED: 'red',
+  MAYBE_PARTIAL_PREVENTED: 'red',
+  ASSET_AGENTLESS: 'blueGrey',
+  AGENT_INACTIVE: 'blueGrey',
+  ASSET_CLEARANCE_RESTRICTED: 'blueGrey',
+  INFO: 'blue',
   // -- ExecutionStatus --
-  'PARTIAL': 'orange',
-  'EXECUTING': 'blue',
-  'PENDING': 'blue',
-  'QUEUING': 'yellow',
-  'DRAFT': 'blueGrey',
-  'DISABLED': 'blueGrey',
-  // Expectation display labels
-  'FAILED': 'red',
-  'ASSET_INACTIVE': 'red',
-  'NOT PREVENTED': 'red',
-  'NOT DETECTED': 'red',
-  'VULNERABLE': 'red',
-  'PARTIALLY PREVENTED': 'orange',
-  'PARTIALLY DETECTED': 'orange',
-  'PREVENTED': 'green',
-  'DETECTED': 'green',
-  'NOT VULNERABLE': 'green',
+  PARTIAL: 'orange',
+  EXECUTING: 'blue',
+  PENDING: 'blue',
+  QUEUING: 'yellow',
+  DRAFT: 'blueGrey',
+  DISABLED: 'blueGrey',
+  // Expectation display labels (the per-type result labels resolve through their result)
+  FAILED: 'red',
+  ASSET_INACTIVE: 'red',
   // Simulation statuses
-  'RUNNING': 'green',
-  'SCHEDULED': 'blue',
-  'PAUSED': 'orange',
-  'CANCELED': 'canceled',
-  'FINISHED': 'grey',
-  'NOT_PLANNED': 'grey',
+  RUNNING: 'green',
+  SCHEDULED: 'blue',
+  PAUSED: 'orange',
+  CANCELED: 'canceled',
+  FINISHED: 'grey',
+  NOT_PLANNED: 'grey',
+};
+
+const statusColorStyle = (status: string | undefined | null): keyof typeof colorStyles => {
+  const normalized = (status ?? '').toUpperCase();
+  const result = RESULT_BY_EXPECTATION_LABEL[normalized];
+  return STATUS_COLOR_STYLE[normalized] ?? (result ? STATUS_COLOR_STYLE[result] : undefined) ?? 'blueGrey';
 };
 
 /** The library severity for a status chip; unknown statuses read neutral, like the grey they had. */
 export const statusSeverity = (status: string | undefined | null): ChipSeverity =>
-  colorStyleSeverity[STATUS_COLOR_STYLE[(status ?? '').toUpperCase()] ?? 'blueGrey'];
+  colorStyleSeverity[statusColorStyle(status)];
 
-export const computeStatusStyle = (status: string | undefined | null) => {
-  const normalized = (status ?? '').toUpperCase();
-
-  const statusMap: Record<string, typeof colorStyles[keyof typeof colorStyles]> = {
-    // -- Common --
-    'SUCCESS': colorStyles.green,
-    'EXECUTED': colorStyles.green,
-    'ERROR': colorStyles.red,
-
-    // -- ExecutionTraceStatus --
-    // Success statuses
-    'EXECUTED_WITH_CLEANUP_FAILURE': colorStyles.orange,
-    'WARNING': colorStyles.green,
-    'ACCESS_DENIED': colorStyles.green,
-
-    // Error statuses
-    'COMMAND_NOT_FOUND': colorStyles.red,
-    'COMMAND_CANNOT_BE_EXECUTED': colorStyles.red,
-    'PREREQUISITE_FAILED': colorStyles.red,
-    'INVALID_USAGE': colorStyles.red,
-    'TIMEOUT': colorStyles.red,
-    'INTERRUPTED': colorStyles.red,
-    // @deprecated — rerouted to error in backend
-    'MAYBE_PREVENTED': colorStyles.red,
-    'MAYBE_PARTIAL_PREVENTED': colorStyles.red,
-
-    // Not counted statuses (from ExecutionTraceStatus)
-    'ASSET_AGENTLESS': colorStyles.blueGrey,
-    'AGENT_INACTIVE': colorStyles.blueGrey,
-    'ASSET_CLEARANCE_RESTRICTED': colorStyles.blueGrey,
-    'INFO': colorStyles.blue,
-
-    // -- ExecutionStatus --
-    // Inject-level statuses (from ExecutionStatus)
-    'PARTIAL': colorStyles.orange,
-    'EXECUTING': colorStyles.blue,
-    'PENDING': colorStyles.blue,
-    'QUEUING': colorStyles.yellow,
-    'DRAFT': colorStyles.blueGrey,
-    // Display-only status for disabled injects (never executed, no status row)
-    'DISABLED': colorStyles.blueGrey,
-
-    // Expectation display labels
-    'FAILED': colorStyles.red,
-    'ASSET_INACTIVE': colorStyles.red,
-    'NOT PREVENTED': colorStyles.red,
-    'NOT DETECTED': colorStyles.red,
-    'VULNERABLE': colorStyles.red,
-    'PARTIALLY PREVENTED': colorStyles.orange,
-    'PARTIALLY DETECTED': colorStyles.orange,
-    'PREVENTED': colorStyles.green,
-    'DETECTED': colorStyles.green,
-    'NOT VULNERABLE': colorStyles.green,
-
-    // Simulation statuses
-    'RUNNING': colorStyles.green,
-    'SCHEDULED': colorStyles.blue,
-    'PAUSED': colorStyles.orange,
-    'CANCELED': colorStyles.canceled,
-
-    'FINISHED': colorStyles.grey,
-    'NOT_PLANNED': colorStyles.grey,
-  };
-  return statusMap[normalized] ?? colorStyles.blueGrey;
-};
+export const computeStatusStyle = (status: string | undefined | null) => colorStyles[statusColorStyle(status)];
 
 export const getStatusColor = (theme: Theme, status: string | undefined): string => {
   const normalized = (status ?? '').toLowerCase();
@@ -218,28 +156,17 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     'queuing': colorStyles.yellow.color,
     'draft': theme.palette.grey['500'],
 
-    // -- Expectation display labels --
+    // -- Expectation display labels (the per-type result labels resolve through their result) --
     // Success
-    'prevented': theme.palette.success.main,
-    'detected': theme.palette.success.main,
-    'not vulnerable': theme.palette.success.main,
     'successful': theme.palette.success.main,
     '100': theme.palette.success.main,
     'ok': theme.palette.success.main,
     // Partial
-    'partially prevented': theme.palette.warning.main,
-    'partially detected': theme.palette.warning.main,
     'executed_with_cleanup_failure': theme.palette.warning.main,
     // Failed
     'failed': theme.palette.error.main,
     'undetected': theme.palette.error.main,
     'unprevented': theme.palette.error.main,
-    // The labels ExpectationType actually stores for a failed expectation (what the expiration
-    // manager stamps). They used to land on the catch-all below, so the colour was right by accident
-    // and indistinguishable from an unrecognised status.
-    'not prevented': theme.palette.error.main,
-    'not detected': theme.palette.error.main,
-    'vulnerable': theme.palette.error.main,
     '0': theme.palette.error.main,
 
     // -- Simulation statuses --
@@ -256,7 +183,13 @@ export const getStatusColor = (theme: Theme, status: string | undefined): string
     'replace': theme.palette.error.main,
   };
 
-  return colorMap[normalized] ?? theme.palette.error.main;
+  const resultColor: Record<ExpectationResult, string> = {
+    SUCCESS: theme.palette.success.main,
+    PARTIAL: theme.palette.warning.main,
+    FAILED: theme.palette.error.main,
+  };
+  const result = RESULT_BY_EXPECTATION_LABEL[normalized.toUpperCase()];
+  return colorMap[normalized] ?? (result ? resultColor[result] : undefined) ?? theme.palette.error.main;
 };
 
 export default getStatusColor;

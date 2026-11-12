@@ -7,24 +7,16 @@ import TextFieldController from '../../../../components/fields/TextFieldControll
 import { useFormatter } from '../../../../components/i18n';
 import { useHelper } from '../../../../store';
 import type { Domain } from '../../../../utils/api-types';
+import { expectationTypeLabelKey, TECHNICAL_EXPECTATION_TYPES } from '../../common/injects/expectations/Expectation';
 import ExpectationSecurityPlatformsField from './ExpectationSecurityPlatformsField';
 
 const GeneralFormTab = () => {
   const { t } = useFormatter();
 
-  const expectationsItems = [
-    {
-      value: 'PREVENTION',
-      label: t('Prevention'),
-    },
-    {
-      value: 'DETECTION',
-      label: t('Detection'),
-    }, {
-      value: 'VULNERABILITY',
-      label: t('Vulnerability'),
-    },
-  ];
+  const expectationsItems = TECHNICAL_EXPECTATION_TYPES.map(type => ({
+    value: type,
+    label: t(expectationTypeLabelKey(type) ?? type),
+  }));
 
   const domainOptions: Domain[] = useHelper((helper: DomainHelper) => {
     return helper.getDomains();

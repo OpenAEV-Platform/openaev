@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.NotifierType;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Each test stays on ONE tenant path: the scope is set once per transaction and changing it
  * inside the same one is refused by the nesting guard.
  */
+@CoversTenantIsolation("notifiers")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=notifiers")
 @WithMockUser(isAdmin = true)

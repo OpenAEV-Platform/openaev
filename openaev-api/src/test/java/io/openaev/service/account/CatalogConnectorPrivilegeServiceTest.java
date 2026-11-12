@@ -9,6 +9,7 @@ import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.config.SessionManager;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,6 +59,7 @@ class CatalogConnectorPrivilegeServiceTest {
   @Mock private TenantUserService tenantUserService;
   @Mock private SessionManager sessionManager;
   @Mock private MarkingClearanceCacheManager markingClearanceCacheManager;
+  @Spy private TenantWriteScopeResolver writeScopeResolver = new TenantWriteScopeResolver();
 
   @InjectMocks private CatalogConnectorPrivilegeService privilegeService;
 
@@ -105,7 +108,7 @@ class CatalogConnectorPrivilegeServiceTest {
       ArgumentCaptor<String> createdToken = ArgumentCaptor.forClass(String.class);
 
       // Act
-      String result = privilegeService.getOrCreateToken(TENANT_ID);
+      String result = privilegeService.getOrCreateToken(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
       // Assert
       verify(userService)
@@ -131,7 +134,7 @@ class CatalogConnectorPrivilegeServiceTest {
       when(userService.findByEmailIgnoreCase(ACCOUNT_EMAIL)).thenReturn(Optional.of(account));
 
       // Act
-      String result = privilegeService.getOrCreateToken(TENANT_ID);
+      String result = privilegeService.getOrCreateToken(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
       // Assert
       assertThat(result).isEqualTo("existing-token");
@@ -149,7 +152,7 @@ class CatalogConnectorPrivilegeServiceTest {
       when(userService.createUserToken(eq(account), anyString())).thenReturn(token("new-token"));
 
       // Act
-      String result = privilegeService.getOrCreateToken(TENANT_ID);
+      String result = privilegeService.getOrCreateToken(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
       // Assert
       assertThat(result).isEqualTo("new-token");
@@ -167,7 +170,7 @@ class CatalogConnectorPrivilegeServiceTest {
       when(userService.findByEmailIgnoreCase(ACCOUNT_EMAIL)).thenReturn(Optional.of(account));
 
       // Act
-      privilegeService.getOrCreateToken(TENANT_ID);
+      privilegeService.getOrCreateToken(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
       // Assert
       verify(tenantRoleService)
@@ -196,7 +199,7 @@ class CatalogConnectorPrivilegeServiceTest {
           ArgumentCaptor.forClass(TenantGroupCreateInput.class);
 
       // Act
-      privilegeService.getOrCreateToken(TENANT_ID);
+      privilegeService.getOrCreateToken(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
       // Assert
       verify(tenantRoleService)

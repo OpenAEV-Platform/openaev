@@ -6,6 +6,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,7 @@ class AttackPathCausalSeedRealisticChainTest extends IntegrationTest {
   void realistic_chain_connects_multiple_hops() {
     Tenant tenant =
         tenantRepository.save(TenantFixture.getTenant("ap-seed-causal-realistic-tenant"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
 
     String sim = causalSeedService.seedRealisticChain(tenant.getId());
 

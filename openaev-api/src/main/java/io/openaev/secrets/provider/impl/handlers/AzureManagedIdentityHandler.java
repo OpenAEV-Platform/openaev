@@ -6,6 +6,7 @@ import io.openaev.secrets.provider.SecretMetadata;
 import io.openaev.secrets.provider.SecretResolvedValue;
 import io.openaev.secrets.provider.SecretStoreRequest;
 import io.openaev.secrets.provider.impl.validators.AzureCredentialConnectivityCheck;
+import io.openaev.service.connector_instances.NativeEncryptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AzureManagedIdentityHandler implements SecretHandler {
 
+  protected final NativeEncryptionService nativeEncryptionService;
   private final AzureCredentialConnectivityCheck azureCredentialConnectivityCheck;
 
   @Override
@@ -51,6 +53,17 @@ public class AzureManagedIdentityHandler implements SecretHandler {
       azureSecret.setAzureSubscriptionId(request.azureSubscriptionId());
     }
 
+    if (request.azureAuthorityHostUri() != null) {
+      azureSecret.setAzureAuthorityHostUri(
+          SecretHandler.blankToNull(request.azureAuthorityHostUri()));
+    }
+
+    // Absent file part = left untouched, like the GCP service account key file.
+    if (request.azureRequestsCertificate() != null) {
+      azureSecret.setAzureRequestsCertificate(
+          nativeEncryptionService.encrypt(request.azureRequestsCertificate()));
+    }
+
     if (azureSecret.getAzureEnvironment() == null) {
       throw new IllegalArgumentException("Azure environment is required");
     }
@@ -64,7 +77,9 @@ public class AzureManagedIdentityHandler implements SecretHandler {
       return SecretMetadata.forAzureManagedIdentity(
           azureManagedIdentitySecret.getAzureEnvironment(),
           azureManagedIdentitySecret.getAzureClientId(),
-          azureManagedIdentitySecret.getAzureSubscriptionId());
+          azureManagedIdentitySecret.getAzureSubscriptionId(),
+          azureManagedIdentitySecret.getAzureAuthorityHostUri(),
+          azureManagedIdentitySecret.getAzureRequestsCertificate() != null);
     }
     throw new IllegalArgumentException(
         "Secret type mismatch: expected AZURE_MANAGED_IDENTITY secret");
@@ -73,10 +88,17 @@ public class AzureManagedIdentityHandler implements SecretHandler {
   @Override
   public SecretResolvedValue toResolvedValue(Secret secret) {
     if (secret instanceof AzureManagedIdentitySecret azureManagedIdentitySecret) {
+      byte[] requestsCertificate =
+          azureManagedIdentitySecret.getAzureRequestsCertificate() == null
+              ? null
+              : nativeEncryptionService.decrypt(
+                  azureManagedIdentitySecret.getAzureRequestsCertificate());
       return SecretResolvedValue.forAzureManagedIdentity(
           azureManagedIdentitySecret.getAzureEnvironment(),
           azureManagedIdentitySecret.getAzureClientId(),
-          azureManagedIdentitySecret.getAzureSubscriptionId());
+          azureManagedIdentitySecret.getAzureSubscriptionId(),
+          azureManagedIdentitySecret.getAzureAuthorityHostUri(),
+          requestsCertificate);
     }
     throw new IllegalArgumentException(
         "Secret type mismatch: expected AZURE_MANAGED_IDENTITY secret");

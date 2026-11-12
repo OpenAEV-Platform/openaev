@@ -29,7 +29,6 @@ import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
 import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.KillChainPhaseFixture;
-import io.openaev.utils.fixtures.PayloadFixture;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
@@ -43,14 +42,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
@@ -3244,153 +3248,47 @@ class V1_DataImporterTest extends IntegrationTest {
         "no missing action must be reported when at least one injector of the type exists");
   }
 
-  @Test
-  @Transactional
-  @WithMockUser
-  void
-      given_sameSimulationImportedTwiceWithReadableContract_when_importing_should_reuseExistingPayload()
-          throws Exception {
-    // -- Arrange --
-    // Re-importing the same chaining simulation must NOT pile up duplicate payloads: the embedded
-    // Command payload is recreated once, then reused on the second import — provided the current
-    // user can read its injector contract (RBAC on THREAT_ARSENAL grants).
-    builtinConnectorRegistration.register(
-        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
-    long payloadCountBefore = payloadRepository.count();
+  enum Reimport {
+    SAME_CONTENT(true, true, node -> {}),
+    OTHER_DESCRIPTION(false, true, node -> node.put("payload_description", "another description")),
+    OTHER_COMMAND(false, true, node -> node.put("command_content", "echo other")),
+    OTHER_PLATFORM(
+        false,
+        true,
+        node -> node.set("payload_platforms", new ObjectMapper().createArrayNode().add("Windows"))),
+    UNREADABLE(false, false, node -> {}),
+    NO_CURRENT_USER(false, true, node -> {});
 
-    // First import: creates the payload + its injector contract.
-    this.importer.importData(
-        txCtx(),
-        readMissingContractWithPayloadFixture(),
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-    Payload created = findSinglePayloadByName("step missing contract payload");
-    assertEquals(
-        payloadCountBefore + 1, payloadRepository.count(), "first import creates one payload");
-    InjectorContract createdContract =
-        injectorContractRepository.findInjectorContractByPayload(created).orElseThrow();
+    final boolean reused;
+    final boolean readable;
+    final Consumer<ObjectNode> change;
 
-    // Grant the current user read access on the created contract so the dedup RBAC check passes.
-    addGrantToCurrentUser(
-        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
-        Grant.GRANT_TYPE.OBSERVER,
-        createdContract.getId());
-    long payloadCountAfterFirst = payloadRepository.count();
-
-    // -- Act --
-    // Second import of the SAME simulation.
-    this.importer.importData(
-        txCtx(),
-        readMissingContractWithPayloadFixture(),
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-
-    // -- Assert --
-    assertEquals(
-        payloadCountAfterFirst,
-        payloadRepository.count(),
-        "the second import must reuse the existing readable payload, not create a duplicate");
-    assertEquals(
-        1,
-        countPayloadsByName("step missing contract payload"),
-        "there must remain exactly one payload with that name after re-import");
+    Reimport(boolean reused, boolean readable, Consumer<ObjectNode> change) {
+      this.reused = reused;
+      this.readable = readable;
+      this.change = change;
+    }
   }
 
-  @Test
+  @ParameterizedTest
+  @EnumSource(Reimport.class)
   @Transactional
   @WithMockUser
-  void
-      given_sameSimulationImportedTwiceWithUnreadableContract_when_importing_should_recreatePayload()
-          throws Exception {
-    // -- Arrange --
-    // RBAC is a priority filter but must NEVER block the import: when the equivalent existing
-    // payload's contract is NOT readable by the current user, the dedup cascade falls through and a
-    // fresh payload is recreated (product goal: maximise the chance the imported simulation runs).
+  void given_payloadImportedTwice_should_reuseItOnlyForSameReadableContent(Reimport reimport)
+      throws Exception {
+    // Arrange
     builtinConnectorRegistration.register(
         openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
-
-    // First import: creates the payload + contract, WITHOUT granting the user any read access.
-    this.importer.importData(
-        txCtx(),
-        readMissingContractWithPayloadFixture(),
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-    long payloadCountAfterFirst = payloadRepository.count();
-    assertEquals(1, countPayloadsByName("step missing contract payload"));
-
-    // -- Act --
-    // Second import: the existing payload's contract is unreadable (no grant) -> RBAC denied.
-    this.importer.importData(
-        txCtx(),
-        readMissingContractWithPayloadFixture(),
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-
-    // -- Assert --
-    assertEquals(
-        payloadCountAfterFirst + 1,
-        payloadRepository.count(),
-        "an unreadable equivalent must not stop the cascade: a fresh payload is recreated");
-    assertEquals(
-        2,
-        countPayloadsByName("step missing contract payload"),
-        "the denied candidate is skipped and the payload is duplicated (RBAC never blocks import)");
-  }
-
-  @Test
-  @Transactional
-  @WithMockUser
-  void
-      given_equivalentPayloadWithDifferentExecutionSemantics_when_reimporting_should_notReuseCandidate()
-          throws Exception {
-    // -- Arrange --
-    // The name + type-specific content match is only a coarse pre-filter: a candidate sharing the
-    // command name/executor/content but differing on an execution-relevant field (here: platforms)
-    // must NOT be reused - reusing it would silently change the runtime behaviour of the imported
-    // chain. The dedup must fall through and create a fresh payload.
-    builtinConnectorRegistration.register(
-        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
-
-    // First import: creates the payload (Linux) + its injector contract, readable by the user so
-    // only the semantics check can block reuse.
-    this.importer.importData(
-        txCtx(),
-        readMissingContractWithPayloadFixture(),
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    importChainedFixture(readMissingContractWithPayloadFixture());
     Payload created = findSinglePayloadByName("step missing contract payload");
-    InjectorContract createdContract =
-        injectorContractRepository.findInjectorContractByPayload(created).orElseThrow();
-    addGrantToCurrentUser(
-        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
-        Grant.GRANT_TYPE.OBSERVER,
-        createdContract.getId());
-    long payloadCountAfterFirst = payloadRepository.count();
-
-    // Second import: same name/executor/content but Windows platforms in the export.
-    ObjectMapper om = new ObjectMapper();
+    if (reimport.readable) {
+      addGrantToCurrentUser(
+          Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
+          Grant.GRANT_TYPE.OBSERVER,
+          injectorContractRepository.findInjectorContractByPayload(created).orElseThrow().getId());
+    }
     ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
-    ObjectNode payloadNode =
+    reimport.change.accept(
         (ObjectNode)
             importData
                 .get("scenario_workflow")
@@ -3398,12 +3296,27 @@ class V1_DataImporterTest extends IntegrationTest {
                 .get(0)
                 .get("step_data")
                 .get("inject_injector_contract")
-                .get("injector_contract_payload");
-    ArrayNode windowsOnly = om.createArrayNode();
-    windowsOnly.add("Windows");
-    payloadNode.set("payload_platforms", windowsOnly);
+                .get("injector_contract_payload"));
+    SecurityContext user = SecurityContextHolder.getContext();
 
-    // -- Act --
+    // Act
+    if (reimport == Reimport.NO_CURRENT_USER) {
+      SecurityContextHolder.clearContext();
+    }
+    try {
+      importChainedFixture(importData);
+    } finally {
+      SecurityContextHolder.setContext(user);
+    }
+
+    // Assert
+    assertEquals(
+        reimport.reused ? 1 : 2,
+        countPayloadsByName("step missing contract payload"),
+        reimport + ": identical readable content is reused, anything else gets its own copy");
+  }
+
+  private void importChainedFixture(JsonNode importData) throws Exception {
     this.importer.importData(
         txCtx(),
         importData,
@@ -3413,16 +3326,6 @@ class V1_DataImporterTest extends IntegrationTest {
         null,
         null,
         Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-
-    // -- Assert --
-    assertEquals(
-        payloadCountAfterFirst + 1,
-        payloadRepository.count(),
-        "a candidate differing on platforms must not be reused: a fresh payload is created");
-    assertEquals(
-        2,
-        countPayloadsByName("step missing contract payload"),
-        "both the Linux original and the Windows import must exist after the second import");
   }
 
   @Test
@@ -3485,188 +3388,6 @@ class V1_DataImporterTest extends IntegrationTest {
   @Test
   @Transactional
   @WithMockUser
-  void given_equivalentPayloadWithDifferentOutputParsers_when_reimporting_should_notReuseCandidate()
-      throws Exception {
-    // -- Arrange --
-    // Output parsers drive runtime result processing: a candidate sharing name/executor/content
-    // but differing on parsers must not be reused.
-    builtinConnectorRegistration.register(
-        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
-
-    // First import: creates the payload WITHOUT parsers, readable by the user.
-    this.importer.importData(
-        txCtx(),
-        readMissingContractWithPayloadFixture(),
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-    Payload created = findSinglePayloadByName("step missing contract payload");
-    InjectorContract createdContract =
-        injectorContractRepository.findInjectorContractByPayload(created).orElseThrow();
-    addGrantToCurrentUser(
-        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
-        Grant.GRANT_TYPE.OBSERVER,
-        createdContract.getId());
-    long payloadCountAfterFirst = payloadRepository.count();
-
-    // Second import: identical content but WITH an output parser.
-    ObjectMapper om = new ObjectMapper();
-    ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
-    ObjectNode payloadNode = fixtureEmbeddedPayloadNode(importData);
-    ArrayNode parsers = om.createArrayNode();
-    parsers.add(fixtureOutputParserNode(om));
-    payloadNode.set("payload_output_parsers", parsers);
-
-    // -- Act --
-    this.importer.importData(
-        txCtx(),
-        importData,
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-
-    // -- Assert --
-    assertEquals(
-        payloadCountAfterFirst + 1,
-        payloadRepository.count(),
-        "a candidate differing on output parsers must not be reused: a fresh payload is created");
-  }
-
-  @Test
-  @Transactional
-  @WithMockUser
-  void given_equivalentPayloadWithIdenticalOutputParsers_when_reimporting_should_reuseCandidate()
-      throws Exception {
-    // -- Arrange --
-    // Counterpart of the mismatch test: identical parsers must still deduplicate, proving the
-    // normalized signature comparison aligns the export JSON shape with the entity shape
-    // (ids/timestamps/tags never break the equivalence).
-    builtinConnectorRegistration.register(
-        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
-    ObjectMapper om = new ObjectMapper();
-
-    ObjectNode firstImport = (ObjectNode) readMissingContractWithPayloadFixture();
-    ArrayNode firstParsers = om.createArrayNode();
-    firstParsers.add(fixtureOutputParserNode(om));
-    fixtureEmbeddedPayloadNode(firstImport).set("payload_output_parsers", firstParsers);
-    this.importer.importData(
-        txCtx(),
-        firstImport,
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-    Payload created = findSinglePayloadByName("step missing contract payload");
-    InjectorContract createdContract =
-        injectorContractRepository.findInjectorContractByPayload(created).orElseThrow();
-    addGrantToCurrentUser(
-        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
-        Grant.GRANT_TYPE.OBSERVER,
-        createdContract.getId());
-    long payloadCountAfterFirst = payloadRepository.count();
-
-    ObjectNode secondImport = (ObjectNode) readMissingContractWithPayloadFixture();
-    ArrayNode secondParsers = om.createArrayNode();
-    secondParsers.add(fixtureOutputParserNode(om));
-    fixtureEmbeddedPayloadNode(secondImport).set("payload_output_parsers", secondParsers);
-
-    // -- Act --
-    this.importer.importData(
-        txCtx(),
-        secondImport,
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-
-    // -- Assert --
-    assertEquals(
-        payloadCountAfterFirst,
-        payloadRepository.count(),
-        "identical output parsers must still deduplicate: no new payload on re-import");
-    assertEquals(
-        1,
-        countPayloadsByName("step missing contract payload"),
-        "the second import must reuse the parser-carrying payload");
-  }
-
-  @Test
-  @Transactional
-  @WithMockUser
-  void
-      given_sameTenantPayloadUuidCollisionWithDifferentContent_when_importing_should_notReuseUnrelatedPayload()
-          throws Exception {
-    // -- Arrange --
-    // The import file's payload_id collides with a SAME-TENANT payload that is semantically
-    // unrelated (different name/content). The Step 1 UUID fast path must not trust the id alone:
-    // the candidate has to pass the same name + content + semantics equivalence as Step 2,
-    // otherwise the imported chain would execute an unrelated existing payload.
-    builtinConnectorRegistration.register(
-        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
-    String sourcePayloadId = "cccccccc-0003-0003-0003-000000000004";
-    Command colliding = PayloadFixture.createCommand("sh", "rm -f /tmp/unrelated", null, null);
-    colliding.setId(sourcePayloadId);
-    colliding.setName("unrelated colliding payload");
-    colliding.setTenant(new Tenant(TenantContext.getCurrentTenant()));
-    payloadRepository.save(colliding);
-    InjectorContract collidingContract = new InjectorContract();
-    collidingContract.setId(UUID.randomUUID().toString());
-    collidingContract.setTenant(new Tenant(TenantContext.getCurrentTenant()));
-    collidingContract.setContent("{}");
-    collidingContract.setLabels(Map.of("en", "unrelated colliding contract"));
-    collidingContract.setCustom(false);
-    collidingContract.setManual(false);
-    collidingContract.setNeedsExecutor(false);
-    collidingContract.setPlatforms(new Endpoint.PLATFORM_TYPE[0]);
-    collidingContract.setPayload(colliding);
-    injectorContractRepository.save(collidingContract);
-    // Make the RBAC check pass on the colliding contract, so only the semantics gate protects.
-    addGrantToCurrentUser(
-        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
-        Grant.GRANT_TYPE.OBSERVER,
-        collidingContract.getId());
-    long payloadCountBefore = payloadRepository.count();
-
-    // -- Act --
-    this.importer.importData(
-        txCtx(),
-        readMissingContractWithPayloadFixture(),
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-
-    // -- Assert --
-    assertEquals(
-        payloadCountBefore + 1,
-        payloadRepository.count(),
-        "a same-tenant UUID collision with different content must not be reused: a fresh payload"
-            + " is created");
-    assertEquals(
-        1,
-        countPayloadsByName("step missing contract payload"),
-        "the embedded payload must be recreated under its own name");
-    assertEquals(
-        1,
-        countPayloadsByName("unrelated colliding payload"),
-        "the unrelated colliding payload must be left untouched");
-  }
-
-  @Test
-  @Transactional
-  @WithMockUser
   void
       given_missingContractWithElevatedPayloadAndExpectedPlatforms_when_importing_should_preserveRuntimeFieldsOnRecreation()
           throws Exception {
@@ -3712,63 +3433,6 @@ class V1_DataImporterTest extends IntegrationTest {
     assertTrue(
         preventionExpected.contains(SecurityPlatform.SECURITY_PLATFORM_TYPE.EDR),
         "the PREVENTION entry must carry the exported EDR platform type");
-  }
-
-  @Test
-  @Transactional
-  @WithMockUser
-  void
-      given_equivalentPayloadWithDifferentExpectedSecurityPlatforms_when_reimporting_should_notReuseCandidate()
-          throws Exception {
-    // -- Arrange --
-    // Same name/executor/content, but the second import carries an expected security platform map
-    // the candidate does not have: the dedup must not reuse it (different runtime expectation
-    // behaviour).
-    builtinConnectorRegistration.register(
-        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
-    this.importer.importData(
-        txCtx(),
-        readMissingContractWithPayloadFixture(),
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-    Payload created = findSinglePayloadByName("step missing contract payload");
-    InjectorContract createdContract =
-        injectorContractRepository.findInjectorContractByPayload(created).orElseThrow();
-    addGrantToCurrentUser(
-        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
-        Grant.GRANT_TYPE.OBSERVER,
-        createdContract.getId());
-    long payloadCountAfterFirst = payloadRepository.count();
-
-    ObjectMapper om = new ObjectMapper();
-    ObjectNode importData = (ObjectNode) readMissingContractWithPayloadFixture();
-    ObjectNode payloadNode = fixtureEmbeddedPayloadNode(importData);
-    ObjectNode expectedPlatforms = om.createObjectNode();
-    ArrayNode detectionPlatforms = om.createArrayNode();
-    detectionPlatforms.add("SIEM");
-    expectedPlatforms.set("DETECTION", detectionPlatforms);
-    payloadNode.set("payload_expected_security_platforms", expectedPlatforms);
-
-    // -- Act --
-    this.importer.importData(
-        txCtx(),
-        importData,
-        Map.of(),
-        null,
-        null,
-        null,
-        null,
-        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
-
-    // -- Assert --
-    assertEquals(
-        payloadCountAfterFirst + 1,
-        payloadRepository.count(),
-        "a candidate differing on expected security platforms must not be reused");
   }
 
   @Test
@@ -3933,68 +3597,6 @@ class V1_DataImporterTest extends IntegrationTest {
         injectorContractRepository.existsByContractIdAndTenant(
             rewrittenContractId, TenantContext.getCurrentTenant()),
         "the step must point to a contract recreated in the current tenant");
-  }
-
-  @Test
-  @Transactional
-  @WithMockUser
-  void
-      given_importedPayloadUuidExistingOnlyInAnotherTenant_when_deduplicating_should_notReuseForeignPayload()
-          throws Exception {
-    // -- Arrange --
-    // The imported payload carries a source UUID that collides with a payload belonging to ANOTHER
-    // tenant. findById is a PK load that bypasses the Hibernate tenant filter, so the dedup lookup
-    // must be tenant-scoped: the foreign payload (and its contract) must never be reused, even when
-    // the current user would pass the RBAC check on the foreign contract.
-    Tenant foreignTenant =
-        tenantRepository.save(TenantFixture.getTenant("v1-import-foreign-tenant-payload"));
-    String sourcePayloadId = "cccccccc-0003-0003-0003-000000000004";
-    Command foreignPayload = PayloadFixture.createCommand("sh", "echo hello", null, null);
-    foreignPayload.setId(sourcePayloadId);
-    foreignPayload.setName("step missing contract payload");
-    foreignPayload.setTenant(foreignTenant);
-    payloadRepository.save(foreignPayload);
-    InjectorContract foreignContract = new InjectorContract();
-    foreignContract.setId(UUID.randomUUID().toString());
-    foreignContract.setTenant(foreignTenant);
-    foreignContract.setContent("{}");
-    foreignContract.setLabels(Map.of("en", "foreign tenant contract"));
-    foreignContract.setCustom(false);
-    foreignContract.setManual(false);
-    foreignContract.setNeedsExecutor(false);
-    foreignContract.setPlatforms(new Endpoint.PLATFORM_TYPE[0]);
-    foreignContract.setPayload(foreignPayload);
-    injectorContractRepository.save(foreignContract);
-    // Make the RBAC check pass on the foreign contract, so only tenant scoping protects.
-    addGrantToCurrentUser(
-        Grant.GRANT_RESOURCE_TYPE.THREAT_ARSENAL,
-        Grant.GRANT_TYPE.OBSERVER,
-        foreignContract.getId());
-
-    JsonNode payloadNode =
-        readMissingContractWithPayloadFixture()
-            .get("scenario_workflow")
-            .get("workflow_steps")
-            .get(0)
-            .get("step_data")
-            .get("inject_injector_contract")
-            .get("injector_contract_payload");
-
-    // Simulate a session WITHOUT the Hibernate tenant filter (background paths): the tenant-scoped
-    // lookup must protect on its own.
-    entityManager.flush();
-    entityManager.unwrap(Session.class).disableFilter("tenantFilter");
-
-    // -- Act --
-    Optional<InjectorContract> reusable =
-        ReflectionTestUtils.invokeMethod(
-            importer, "findReusableContractForImportedPayload", payloadNode);
-
-    // -- Assert --
-    assertNotNull(reusable);
-    assertTrue(
-        reusable.isEmpty(),
-        "a payload UUID colliding with another tenant's payload must never be reused by dedup");
   }
 
   @Test

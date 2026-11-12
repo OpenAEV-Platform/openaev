@@ -140,10 +140,10 @@ public class AutonomousRunApi extends RestBehavior {
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.SEARCH,
       isEnterpriseEdition = true)
-  public AutonomousDefaultAgentsOutput defaultAgents(TxCtx ctx) {
+  public AutonomousDefaultAgentsOutput defaultAgents(@RequireTenantSelector TxCtx ctx) {
     return new AutonomousDefaultAgentsOutput(
-        autonomousRunService.defaultAdditionalAgentIds(),
-        autonomousRunService.defaultAdditionalAgentModes());
+        autonomousRunService.defaultAdditionalAgentIds(ctx),
+        autonomousRunService.defaultAdditionalAgentModes(ctx));
   }
 
   @Operation(
@@ -153,13 +153,13 @@ public class AutonomousRunApi extends RestBehavior {
   @Transactional
   @AccessControl(requireAdmin = true, isEnterpriseEdition = true)
   public AutonomousDefaultAgentsOutput setDefaultAgents(
-      TxCtx ctx, @RequestBody AutonomousDefaultAgentsInput input) {
+      @RequireTenantSelector TxCtx ctx, @RequestBody AutonomousDefaultAgentsInput input) {
     List<String> ids =
         autonomousRunService.updateDefaultAdditionalAgentIds(
-            input != null ? input.getAgentIds() : null);
+            ctx, input != null ? input.getAgentIds() : null);
     Map<String, String> modes =
         autonomousRunService.updateDefaultAdditionalAgentModes(
-            input != null ? input.getAgentModes() : null);
+            ctx, input != null ? input.getAgentModes() : null);
     return new AutonomousDefaultAgentsOutput(ids, modes);
   }
 

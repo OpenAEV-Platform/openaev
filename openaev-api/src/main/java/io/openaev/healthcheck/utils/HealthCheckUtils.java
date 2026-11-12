@@ -1,6 +1,8 @@
 package io.openaev.healthcheck.utils;
 
 import static io.openaev.database.model.InjectorContract.*;
+import static io.openaev.service.InjectExpectationUtils.filterCollectorsSupportingType;
+import static io.openaev.service.InjectExpectationUtils.isOnExpectedPlatform;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.StreamSupport.stream;
@@ -124,10 +126,8 @@ public class HealthCheckUtils {
    */
   public List<HealthCheck> runCollectorChecks(Inject inject, List<Collector> collectors) {
     List<HealthCheck> result = new ArrayList<>();
-    boolean isDetectionOrPrenvention =
-        InjectModelHelper.isDetectionOrPrevention(inject.getContent());
 
-    if (isDetectionOrPrenvention && collectors.isEmpty()) {
+    if (hasExpectationWithoutCollector(inject.getContent(), collectors)) {
       result.add(
           new HealthCheck(
               HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,
@@ -137,6 +137,65 @@ public class HealthCheckUtils {
     }
 
     return result;
+  }
+
+  /**
+   * Mirrors the collector resolution at execution (see AbstractTechnicalBehavior): an expectation
+   * waiting for a collector is only answered by the collectors declaring its type, on one of its
+   * expected security platform types when it sets some. Without any of them, it fails as soon as
+   * the inject runs.
+   */
+  private boolean hasExpectationWithoutCollector(ObjectNode content, List<Collector> collectors) {
+    if (content == null) {
+      return false;
+    }
+    for (JsonNode expectation : content.path("expectations")) {
+      Optional<BaseInjectExpectation.EXPECTATION_TYPE> type =
+          collectorAnsweredType(expectation.path("expectation_type").asText());
+      if (type.isEmpty()) {
+        continue;
+      }
+      List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedTypes =
+          expectedSecurityPlatformTypes(expectation);
+      if (filterCollectorsSupportingType(collectors, type.get()).stream()
+          .noneMatch(collector -> isOnExpectedPlatform(collector, expectedTypes))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * The types whose expectation waits for a collector. Vulnerability is answered by its injector
+   * (see VulnerabilityBehavior), and Logging expectations are only created while the preview
+   * feature is on.
+   */
+  private Optional<BaseInjectExpectation.EXPECTATION_TYPE> collectorAnsweredType(String type) {
+    return Arrays.stream(BaseInjectExpectation.EXPECTATION_TYPE.values())
+        .filter(expectationType -> expectationType.name().equals(type))
+        .filter(
+            expectationType ->
+                expectationType == BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
+                    || expectationType == BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION
+                    || (expectationType == BaseInjectExpectation.EXPECTATION_TYPE.LOGGING
+                        && previewFeatureService.isFeatureEnabled(
+                            PreviewFeature.LOGGING_EXPECTATION)))
+        .findFirst();
+  }
+
+  /** Unknown platform types are skipped, so a stale or imported content never breaks the check. */
+  private static List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedSecurityPlatformTypes(
+      JsonNode expectation) {
+    List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedTypes = new ArrayList<>();
+    expectation
+        .path("expectation_expected_security_platform_types")
+        .forEach(
+            type ->
+                Arrays.stream(SecurityPlatform.SECURITY_PLATFORM_TYPE.values())
+                    .filter(platformType -> platformType.name().equals(type.asText()))
+                    .findFirst()
+                    .ifPresent(expectedTypes::add));
+    return expectedTypes;
   }
 
   /**

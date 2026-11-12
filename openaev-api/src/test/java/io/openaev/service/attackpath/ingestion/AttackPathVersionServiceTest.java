@@ -6,6 +6,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +41,9 @@ class AttackPathVersionServiceTest extends IntegrationTest {
   void setUp() {
     tenantA = tenantRepository.save(TenantFixture.getTenant("ap-version-a"));
     tenantB = tenantRepository.save(TenantFixture.getTenant("ap-version-b"));
+    // Both tenants are written by the tests below, so both are in the scope of the transaction.
+    DefaultTenantScopeTestListener.setAmbientScope(
+        entityManager, tenantA.getId() + "," + tenantB.getId());
   }
 
   @Test

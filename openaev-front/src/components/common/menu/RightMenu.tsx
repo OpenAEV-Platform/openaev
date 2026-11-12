@@ -3,7 +3,7 @@ import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent, type ReactElement, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 
-import { computeBannerSettings } from '../../../public/components/systembanners/utils';
+import useBannerSettings from '../../../public/components/systembanners/useBannerSettings';
 import useAuth from '../../../utils/hooks/useAuth';
 import { isNotEmptyField } from '../../../utils/utils';
 import { useFormatter } from '../../i18n';
@@ -50,7 +50,7 @@ const RightMenu: FunctionComponent<Props> = ({ entries, header, variant = 'drawe
   const { t } = useFormatter();
 
   const { settings } = useAuth();
-  const { bannerHeightNumber } = computeBannerSettings(settings);
+  const { bannerHeightNumber } = useBannerSettings(settings);
   // Banner plus header bar, kept as a CSS expression so the library's height stays the single source.
   const topOffset = `calc(${bannerHeightNumber}px + ${HEADER_HEIGHT})`;
 

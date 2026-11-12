@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
@@ -97,6 +98,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Each test stays on a single tenant selection: the per-request scope is set once and the aspect
  * refuses to redefine it within one transaction.
  */
+@CoversTenantIsolation("autonomous_runs")
 @Transactional
 @TestPropertySource(
     properties = {

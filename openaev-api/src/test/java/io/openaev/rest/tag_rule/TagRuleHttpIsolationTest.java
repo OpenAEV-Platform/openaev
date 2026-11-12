@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.rest.tag_rule.form.TagRuleInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -25,7 +26,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,10 +37,15 @@ import org.springframework.transaction.annotation.Transactional;
  * raw native INSERT carrying an explicit tenant_id, never through v1 TenantContext.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=tags,tag_rules")
 @WithMockUser(isAdmin = true)
 @DisplayName("tag_rules read and write isolation through the real HTTP endpoint")
 class TagRuleHttpIsolationTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   private static final String TENANT_TAG_RULES = "/api/tenants/{tenantId}/tag-rules";
 

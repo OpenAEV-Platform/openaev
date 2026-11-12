@@ -1,7 +1,9 @@
 package io.openaev.service.account;
 
 import io.openaev.config.SessionManager;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
@@ -39,13 +41,15 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
       UserService userService,
       TenantUserService tenantUserService,
       MarkingClearanceCacheManager markingClearanceCacheManager,
+      TenantWriteScopeResolver writeScopeResolver,
       SessionManager sessionManager) {
     super(
         tenantRoleService,
         tenantGroupService,
         userService,
         tenantUserService,
-        markingClearanceCacheManager);
+        markingClearanceCacheManager,
+        writeScopeResolver);
     this.sessionManager = sessionManager;
   }
 
@@ -66,12 +70,13 @@ public class CatalogConnectorPrivilegeService extends AbstractPrivilegeService {
 
   /**
    * Returns the tenant's catalog connector token, creating the account on the first call. The role
-   * and group are resynced at every call.
+   * and group are resynced at every call. {@code ctx} is the scope the work runs under and must
+   * contain {@code tenantId}, the tenant the role is written in.
    */
   @Transactional
-  public String getOrCreateToken(String tenantId) {
+  public String getOrCreateToken(TxCtx ctx, String tenantId) {
     String email = accountEmail(tenantId);
-    Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(tenantId), tenantId);
+    Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(ctx, tenantId), tenantId);
 
     Optional<User> existingUser = userService.findByEmailIgnoreCase(email);
     if (existingUser.isEmpty()) {

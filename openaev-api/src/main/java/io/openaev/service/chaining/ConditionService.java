@@ -348,6 +348,18 @@ public class ConditionService {
     return condition;
   }
 
+  private Condition findConditionRootById(String conditionRootId, String tenantId) {
+    Condition condition =
+        conditionRepository
+            .findByIdAndTenantId(conditionRootId, tenantId)
+            .orElseThrow(
+                () -> new EntityNotFoundException("Condition root not found: " + conditionRootId));
+    if (condition.getConditionParent() != null) {
+      throw new EntityNotFoundException("Condition root not found: " + conditionRootId);
+    }
+    return condition;
+  }
+
   /**
    * Finds a condition by id, returning {@code null} instead of throwing when no condition has that
    * id (unlike {@link #findConditionRootById}, which throws). It returns whatever condition carries
@@ -917,7 +929,8 @@ public class ConditionService {
   }
 
   /**
-   * Links existing condition roots to a step via the conditions_steps join table.
+   * Links existing condition roots to a step via the conditions_steps join table. A condition of
+   * another tenant than the step's is an unknown id.
    *
    * @param step the step to link
    * @param conditionRootIds IDs of existing root conditions to link; ignored if null or empty
@@ -926,8 +939,9 @@ public class ConditionService {
     if (conditionRootIds == null || conditionRootIds.isEmpty()) {
       return;
     }
+    String tenantId = step.getTenant().getId();
     for (String conditionRootId : conditionRootIds) {
-      Condition root = findConditionRootById(conditionRootId);
+      Condition root = findConditionRootById(conditionRootId, tenantId);
       linkToStep(root, step, true);
       conditionRepository.save(root);
     }

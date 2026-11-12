@@ -929,7 +929,7 @@ public class InjectImportService {
       type = "expectation";
     }
     switch (type) {
-      case "text", "textarea":
+      case "text", "textarea", "document":
         // If it is a text, we get the columns, split by "+" if there is a concatenation of columns
         // and then joins the result of the cells
         String columnValue = Strings.EMPTY;

@@ -69,6 +69,26 @@ public class PayloadCreationService {
     return createInternal(ctx, explicitTenant, input);
   }
 
+  /** The payload the input describes, not saved: the importer compares its content first. */
+  public Payload toPayload(TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
+    if (enterpriseEditionService.isEnterpriseLicenseInactive(
+        licenseCacheManager.getEnterpriseEditionInfo())) {
+      input.setDetectionRemediations(null);
+    }
+    PayloadType payloadType = PayloadType.fromString(input.getType());
+    validateArchitecture(payloadType.key, input.getExecutionArch());
+
+    Payload payload = payloadType.getPayloadSupplier().get();
+    payloadUtils.copyProperties(input, payload);
+    payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, explicitTenant)));
+    if (payload instanceof Executable executable) {
+      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
+    } else if (payload instanceof FileDrop fileDrop) {
+      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
+    }
+    return payload;
+  }
+
   /**
    * Shared body of both {@code createPayload} overloads, called directly rather than through {@code
    * this.createPayload(...)}: an intra-class call to a @Transactional method bypasses the Spring
@@ -77,30 +97,9 @@ public class PayloadCreationService {
    */
   private PayloadInjectorContractCreationResult createInternal(
       TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
-    if (enterpriseEditionService.isEnterpriseLicenseInactive(
-        licenseCacheManager.getEnterpriseEditionInfo())) {
-      input.setDetectionRemediations(null);
-    }
-
-    return create(ctx, explicitTenant, input);
-  }
-
-  private PayloadInjectorContractCreationResult create(
-      TxCtx ctx, String explicitTenant, PayloadCreateInput input) {
     PayloadType payloadType = PayloadType.fromString(input.getType());
-    validateArchitecture(payloadType.key, input.getExecutionArch());
-
-    Payload payload = payloadType.getPayloadSupplier().get();
-    payloadUtils.copyProperties(input, payload);
-    payload.setTenant(new Tenant(writeScopeResolver.tenantForWrite(ctx, explicitTenant)));
-
+    Payload payload = toPayload(ctx, explicitTenant, input);
     authorService.authorByCurrentUser(payload);
-
-    if (payload instanceof Executable executable) {
-      executable.setExecutableFile(documentService.document(input.getExecutableFile()));
-    } else if (payload instanceof FileDrop fileDrop) {
-      fileDrop.setFileDropFile(documentService.document(input.getFileDropFile()));
-    }
 
     Payload payloadSaved = payloadRepository.save(payload);
     // The id collections default to empty lists on the input, but callers that build the
@@ -114,7 +113,9 @@ public class PayloadCreationService {
             fromIterable(
                 attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds()))),
             iterableToSet(domainService.findAllById(emptyIfNull(input.getDomainIds()))),
-            iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
+            iterableToSet(
+                tagRepository.findAllByIdInTenant(
+                    emptyIfNull(input.getTagIds()), payloadSaved.getTenant().getId())));
     // Telemetry: one payload created, by type - recorded only once the payload and
     // its injector contract are persisted (a rollback would otherwise inflate the counter).
     resultsMetricCollector.recordPayloadCreated(payloadType.key);

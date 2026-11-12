@@ -64,6 +64,9 @@ public abstract class InjectTarget {
   @JsonProperty("target_prevention_status")
   private BaseInjectExpectation.EXPECTATION_STATUS targetPreventionStatus;
 
+  @JsonProperty("target_logging_status")
+  private BaseInjectExpectation.EXPECTATION_STATUS targetLoggingStatus;
+
   @JsonProperty("target_vulnerability_status")
   private BaseInjectExpectation.EXPECTATION_STATUS targetVulnerabilityStatus;
 

@@ -1081,14 +1081,14 @@ public class InjectExpectationService {
    * <p>If signatures were never initialized for an expectation, existing signatures are cleared
    * once, then new signatures are appended. Otherwise, signatures are only appended.
    *
-   * <p>Only Detection and prevention expectations are supported for structured output signatures.
-   * Other types will be ignored with a warning.
+   * <p>Only detection, prevention and logging expectations are supported for structured output
+   * signatures. Other types will be ignored with a warning.
    *
    * @param injectId the inject ID
    * @param agentId optional agent ID target
    * @param assetId optional asset ID target
    * @param assetGroupId optional asset group ID target
-   * @param expectationType the expectation type (DETECTION or PREVENTION)
+   * @param expectationType the expectation type (DETECTION, PREVENTION or LOGGING)
    * @param signatures signatures to append
    */
   public void appendExpectationSignatures(
@@ -1101,9 +1101,9 @@ public class InjectExpectationService {
     if (signatures.isEmpty()) {
       return;
     }
-    if (!List.of(DETECTION, PREVENTION).contains(expectationType)) {
+    if (!List.of(DETECTION, PREVENTION, LOGGING).contains(expectationType)) {
       log.warn(
-          "Signature structured output is only supported for DETECTION and PREVENTION expectations (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
+          "Signature structured output is only supported for DETECTION, PREVENTION and LOGGING expectations (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
           injectId,
           agentId,
           assetId,

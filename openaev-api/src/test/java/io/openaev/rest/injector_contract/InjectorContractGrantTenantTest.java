@@ -189,7 +189,8 @@ class InjectorContractGrantTenantTest extends IntegrationTest {
       // Act / Assert
       mvc.perform(get(TENANT_ME_URI, tenantA.getId()))
           .andExpect(status().isOk())
-          .andExpect(jsonPath("$.user_grants['" + CONTRACT + "']").exists());
+          .andExpect(jsonPath("$.user_grants['" + CONTRACT + "'].grant").value("OBSERVER"))
+          .andExpect(jsonPath("$.user_grants['" + CONTRACT + "'].type").value("THREAT_ARSENAL"));
       mvc.perform(get(CONTRACT_URI, tenantA.getId(), CONTRACT)).andExpect(status().isOk());
     }
 

@@ -6,17 +6,8 @@ import { type FunctionComponent, type KeyboardEvent, useState } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
 import { tint } from '../../../utils/tint';
+import { expectationTypeLabelKey } from '../common/injects/expectations/Expectation';
 import { type PostureBreakdownEntry } from './useExpectationPosture';
-
-// Human label per expectation-type pillar.
-const PILLAR_LABELS: Record<string, string> = {
-  PREVENTION: 'Prevention',
-  DETECTION: 'Detection',
-  VULNERABILITY: 'Vulnerability',
-  MANUAL: 'Manual',
-  CHALLENGE: 'Challenge',
-  ARTICLE: 'Article',
-};
 
 interface Props {
   /** Expectations met (SUCCESS) in this scope. */
@@ -380,7 +371,7 @@ const PostureScore: FunctionComponent<Props> = ({ success, failed, breakdown, lo
                     }}
                     >
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {t(PILLAR_LABELS[pillar.key.toUpperCase()] ?? pillar.key)}
+                        {t(expectationTypeLabelKey(pillar.key) ?? pillar.key)}
                       </Typography>
                       <Typography
                         variant="body2"

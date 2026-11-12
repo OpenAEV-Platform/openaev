@@ -1,5 +1,6 @@
 package io.openaev.engine.impl.elasticsearch.es9;
 
+import static io.openaev.engine.EsUtils.toEngineDate;
 import static io.openaev.engine.impl.elasticsearch.es9.ElasticUtils.*;
 import static io.openaev.utils.CustomDashboardQueryUtils.*;
 import static java.util.Optional.ofNullable;
@@ -1243,6 +1244,8 @@ public class ElasticService implements EngineService {
 
     // Every Instant bound is truncated here, once, so the query cannot disagree with the
     // millisecond resolution of the engine's `date` field (base_updated_at is not date_nanos).
+    // Each bound is sent through toEngineDate, fraction always written: Instant.toString drops a
+    // zero fraction, and the engine rounds a whole-second lte bound up to .999 (issue/9095).
     Instant windowEnd = query.windowEnd().truncatedTo(ChronoUnit.MILLIS);
     Instant since = query.since() != null ? query.since().truncatedTo(ChronoUnit.MILLIS) : null;
     CursorPageQuery.Keyset after = query.after();
@@ -1253,12 +1256,12 @@ public class ElasticService implements EngineService {
     filters.add(
         TermQuery.of(t -> t.field("base_tenant_side.keyword").value(query.tenantId()))._toQuery());
     filters.add(
-        DateRangeQuery.of(d -> d.field("base_updated_at").lte(String.valueOf(windowEnd)))
+        DateRangeQuery.of(d -> d.field("base_updated_at").lte(toEngineDate(windowEnd)))
             ._toRangeQuery()
             ._toQuery());
     if (since != null) {
       filters.add(
-          DateRangeQuery.of(d -> d.field("base_updated_at").gte(String.valueOf(since)))
+          DateRangeQuery.of(d -> d.field("base_updated_at").gte(toEngineDate(since)))
               ._toRangeQuery()
               ._toQuery());
     }

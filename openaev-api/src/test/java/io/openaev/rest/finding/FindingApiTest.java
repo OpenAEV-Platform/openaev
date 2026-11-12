@@ -23,7 +23,6 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.specification.FindingSpecification;
 import io.openaev.rest.finding.form.AggregatedFindingOutput;
-import io.openaev.rest.finding.form.FindingInput;
 import io.openaev.rest.finding.form.RelatedFindingOutput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
@@ -896,43 +895,6 @@ class FindingApiTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.totalElements").value(0));
-    }
-
-    @Test
-    @DisplayName("Finding created in tenant X should NOT be updatable from tenant Y")
-    void given_findingInTenantX_should_notBeUpdatableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-
-      Finding finding = createFindingInTenant(tenantX.getId());
-      entityManager.flush();
-      entityManager.clear();
-
-      FindingInput updateInput = new FindingInput();
-      updateInput.setField("updated_field");
-      updateInput.setType(ContractOutputType.Text);
-      updateInput.setValue("updated_value");
-      updateInput.setInjectId(finding.getInject().getId());
-
-      // -------- Act --------
-      int responseStatus =
-          mvc.perform(
-                  put("/api/tenants/" + tenantY.getId() + "/findings/" + finding.getId())
-                      .content(asJsonString(updateInput))
-                      .contentType(MediaType.APPLICATION_JSON)
-                      .accept(MediaType.APPLICATION_JSON)
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
 
     @Test

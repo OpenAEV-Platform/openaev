@@ -772,6 +772,33 @@ class InjectExpectationServiceTest {
       verify(injectExpectationLockService, times(2))
           .applySignaturesForExpectationWithLock(anyString(), any());
     }
+
+    @Test
+    @DisplayName("Appends logging signatures to the logging expectations of the target only")
+    void given_logging_signatures_should_append_them_to_logging_expectations_only() {
+      // Arrange
+      LoggingInjectExpectation logging = new LoggingInjectExpectation();
+      logging.setId("logging-exp");
+      DetectionInjectExpectation detection = new DetectionInjectExpectation();
+      detection.setId("detection-exp");
+      when(injectExpectationRepository.findAllByInjectAndAgent("inject-id", "agent-id"))
+          .thenReturn(List.of(logging, detection));
+
+      // Act
+      injectExpectationService.appendExpectationSignatures(
+          "inject-id",
+          "agent-id",
+          null,
+          null,
+          BaseInjectExpectation.EXPECTATION_TYPE.LOGGING,
+          List.of(new ExpectationSignature("target_ipv4_address", "10.0.0.5")));
+
+      // Assert
+      verify(injectExpectationLockService)
+          .applySignaturesForExpectationWithLock(eq("logging-exp"), any());
+      verify(injectExpectationLockService, never())
+          .applySignaturesForExpectationWithLock(eq("detection-exp"), any());
+    }
   }
 
   @Nested

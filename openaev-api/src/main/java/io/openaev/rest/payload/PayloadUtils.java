@@ -176,7 +176,12 @@ public class PayloadUtils {
         "grants",
         "author",
         "authorUser",
-        "authorOrganization");
+        "authorOrganization",
+        "identity",
+        "externalId",
+        "source",
+        "collectorType",
+        "version");
     duplicate.setAuthor(origin.getAuthor() == null ? null : origin.getAuthor().copy());
     duplicate.setId(null);
     duplicate.setName(duplicateString(origin.getName()));

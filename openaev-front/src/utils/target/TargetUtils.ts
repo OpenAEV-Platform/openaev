@@ -53,6 +53,14 @@ export const isAgentless = (hasAgents: boolean, hasTeams: boolean) => {
   return !hasAgents && !hasTeams;
 };
 
+// An inject with no target at all (e.g. a manual or HTTP inject with neither teams, assets,
+// asset groups, agents, players nor AI targets) has nothing to list per target: once every
+// target-type probe has answered and none returned a tab, the overview shows a single
+// explanation pointing to the execution details instead of two empty panes.
+export const hasNoTarget = (allTargetsChecked: boolean, targetTabCount: number) => {
+  return allTargetsChecked && targetTabCount === 0;
+};
+
 export const isTeam = (target: InjectTarget) => {
   return target.target_type === 'TEAMS';
 };

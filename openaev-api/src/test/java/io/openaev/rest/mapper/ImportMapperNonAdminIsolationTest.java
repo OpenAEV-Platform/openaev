@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.Capability;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  * tenant's mappers under its path. It closes the gap left by the admin-only tests: that the scope,
  * set from the request and never from the isAdmin flag, is what isolates a non-admin too.
  */
+@CoversTenantIsolation("import_mappers")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=import_mappers")
 @WithMockUser(isAdmin = false)

@@ -175,9 +175,12 @@ public class TenantIsolationTestHelper {
     tenantRepository.addUserToTenant(userId, tenantId);
     tenantMembershipCacheManager.evict(userId, tenantId);
 
-    // The role and group composers resolve the tenant via TenantContext.getCurrentTenant().
+    // The role and group composers resolve the tenant via TenantContext.getCurrentTenant(), and a
+    // role of that tenant is writable only in a scope that holds it.
     String previousTenantId = TenantContext.getCurrentTenant();
+    String previousScope = currentScope();
     TenantContext.setCurrentTenant(tenantId);
+    setCurrentScope(previousScope.isEmpty() ? tenantId : previousScope + "," + tenantId);
     try {
       // Create a role with the requested capabilities using fixture + composer
       TenantRoleComposer.Composer roleComposer =
@@ -193,6 +196,7 @@ public class TenantIsolationTestHelper {
       entityManager.flush();
       entityManager.clear();
     } finally {
+      setCurrentScope(previousScope);
       TenantContext.setCurrentTenant(previousTenantId);
     }
   }
@@ -244,6 +248,23 @@ public class TenantIsolationTestHelper {
         }
       }
     }
+  }
+
+  private String currentScope() {
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT coalesce(current_setting('app.current_tenants', true), '')")
+            .setFlushMode(FlushModeType.COMMIT)
+            .getSingleResult();
+  }
+
+  /** Sets the current scope only, leaving the test's ambient scope marker as it is. */
+  private void setCurrentScope(String scope) {
+    entityManager
+        .createNativeQuery("SELECT set_config('app.current_tenants', :scope, true)")
+        .setFlushMode(FlushModeType.COMMIT)
+        .setParameter("scope", scope)
+        .getResultList();
   }
 
   /**

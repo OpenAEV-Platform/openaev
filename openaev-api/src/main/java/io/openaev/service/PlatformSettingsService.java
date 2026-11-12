@@ -42,6 +42,7 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
@@ -66,6 +67,13 @@ public class PlatformSettingsService {
   public static final String THEME_TYPE_DARK = "dark";
 
   private final ApplicationContext context;
+
+  /** Prefix of the platform rows that hold the reports of the sources of a banner. */
+  private static final String BANNER_SOURCE_PREFIX = "platform_banner_source.";
+
+  /** A source reports every minute: a report older than this is a source that is gone. */
+  static final Duration BANNER_SOURCE_TTL = Duration.ofMinutes(5);
+
   private final Environment env;
   private final SettingRepository settingRepository;
   private final XtmHubConfig xtmHubConfig;
@@ -164,16 +172,6 @@ public class PlatformSettingsService {
       return updateSetting;
     }
     return new Setting(themeKey, value);
-  }
-
-  /**
-   * Save setting
-   *
-   * @param setting setting to save
-   * @return setting saved
-   */
-  public Setting save(Setting setting) {
-    return this.settingRepository.save(setting);
   }
 
   private RunMode resolveRunMode() {
@@ -681,12 +679,62 @@ public class PlatformSettingsService {
   }
 
   public void errorMessage(@NotBlank final BannerMessage.BANNER_KEYS banner) {
-    Optional<Setting> bannerLevelOpt =
-        this.settingRepository.findByKeyAndTenantIsNull(PLATFORM_BANNER + "." + banner.key());
-    if (bannerLevelOpt.isEmpty()) {
-      Setting bannerLevel =
-          resolve(bannerLevelOpt, PLATFORM_BANNER + "." + banner.key(), banner.level().name());
-      settingRepository.save(bannerLevel);
+    settingRepository.insertPlatformSettingIfAbsent(
+        UUID.randomUUID().toString(), PLATFORM_BANNER + "." + banner.key(), banner.level().name());
+  }
+
+  /**
+   * Records whether {@code source} (an executor of a tenant, for example) raises {@code banner},
+   * then writes the banner from the reports of every source. The reports are platform rows of
+   * {@code parameters}, one per source that raises the banner and renewed each time it reports, so
+   * any node computes the same banner from the same rows: it shows while at least one source
+   * reported within {@link #BANNER_SOURCE_TTL}, and clears otherwise. A report not renewed within
+   * that time (a node that died, an executor removed without stopping) is deleted here. Callers are
+   * serialised on the banner by a transaction-level lock. Runs in a platform-write transaction.
+   */
+  public void reportMessageSource(
+      @NotBlank final BannerMessage.BANNER_KEYS banner, @NotBlank String source, boolean raised) {
+    String bannerKey = PLATFORM_BANNER + "." + banner.key();
+    settingRepository.lockUntilEndOfTransaction(bannerKey);
+    String sourceKey = BANNER_SOURCE_PREFIX + banner.key() + "." + source;
+    if (raised) {
+      Setting report =
+          settingRepository
+              .findByKeyAndTenantIsNull(sourceKey)
+              .orElseGet(() -> new Setting(sourceKey, ""));
+      report.setValue(String.valueOf(System.currentTimeMillis()));
+      settingRepository.save(report);
+    } else {
+      settingRepository.deleteByKeyIn(List.of(sourceKey));
+    }
+    syncMessage(banner);
+  }
+
+  private void syncMessage(final BannerMessage.BANNER_KEYS banner) {
+    long oldestLive = System.currentTimeMillis() - BANNER_SOURCE_TTL.toMillis();
+    List<Setting> reports =
+        settingRepository.findAllByKeyStartingWithAndTenantIsNull(
+            BANNER_SOURCE_PREFIX + banner.key() + ".");
+    List<String> expired =
+        reports.stream()
+            .filter(report -> !isLive(report, oldestLive))
+            .map(Setting::getKey)
+            .toList();
+    if (!expired.isEmpty()) {
+      settingRepository.deleteByKeyIn(expired);
+    }
+    if (reports.size() > expired.size()) {
+      errorMessage(banner);
+    } else {
+      cleanMessage(banner);
+    }
+  }
+
+  private static boolean isLive(Setting report, long oldestLive) {
+    try {
+      return Long.parseLong(report.getValue()) >= oldestLive;
+    } catch (NumberFormatException e) {
+      return false;
     }
   }
 

@@ -4,7 +4,10 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Setting;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.utilstest.RabbitMQTestListener;
@@ -25,21 +28,39 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Deliberately NOT {@code @Transactional}: {@code SmtpService.saveServiceState} writes its platform
+ * setting through {@code TenantScopedTransaction#executeAsPlatformWrite} (parameters is
+ * dual-scope-active), which refuses to open inside an already-active transaction, and production
+ * never calls it from one ({@code @PostConstruct}/{@code @Scheduled} both run with no ambient
+ * transaction). See {@code TenantScopedTransaction}'s testing note and {@code
+ * TenantScopedTransactionIntegrationTest}, the reference pattern this follows.
+ */
 @SpringBootTest(properties = "spring.task.scheduling.enabled=false")
 @TestExecutionListeners(
     value = {RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Transactional
 public class SmtpServiceTest {
 
   private JavaMailSenderImpl mailSender;
 
   @Autowired private SettingRepository settingRepository;
 
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
+
   @Autowired private SmtpService smtpService;
+
+  /**
+   * The service writes its own platform-write-scoped transaction; this only needs a scope to see
+   * it.
+   */
+  private Optional<Setting> smtpServiceAvailableSetting() {
+    return tenantScopedTransaction.execute(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> settingRepository.findByKeyAndTenantIsNull("smtp_service_available"));
+  }
 
   private Object originalMailSender;
   private Object originalEnabled;
@@ -103,8 +124,7 @@ public class SmtpServiceTest {
 
     smtpService.connectionListener();
 
-    Optional<Setting> actualSmtpAvailable =
-        settingRepository.findByKeyAndTenantIsNull("smtp_service_available");
+    Optional<Setting> actualSmtpAvailable = smtpServiceAvailableSetting();
 
     assertThat(actualSmtpAvailable)
         .isPresent()
@@ -118,8 +138,7 @@ public class SmtpServiceTest {
 
     smtpService.connectionListener();
 
-    Optional<Setting> actualSmtpAvailable =
-        settingRepository.findByKeyAndTenantIsNull("smtp_service_available");
+    Optional<Setting> actualSmtpAvailable = smtpServiceAvailableSetting();
 
     AssertionsForClassTypes.assertThat(actualSmtpAvailable)
         .isPresent()

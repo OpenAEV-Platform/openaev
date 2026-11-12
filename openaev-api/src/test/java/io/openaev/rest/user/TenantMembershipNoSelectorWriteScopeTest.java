@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -15,10 +16,14 @@ import io.openaev.IntegrationTest;
 import io.openaev.api.users.dto.UserInput;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Organization;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.OrganizationRepository;
+import io.openaev.rest.user.form.player.PlayerBulkProcessingInput;
 import io.openaev.rest.user.form.player.PlayerInput;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.PlayerFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
@@ -57,6 +62,16 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>a caller with no membership is refused with {@code TENANT_WRITE_SCOPE}, nothing written.
  * </ul>
  *
+ * <p>The player update ({@code PUT /api/players/{id}}) writes no membership row but resolves its
+ * write tenant the same way, to assign the organization, and is pinned for all four shapes: the
+ * organization link it writes is the one of the tenant of the first two, and a refused update
+ * leaves the profile of the player as it was.
+ *
+ * <p>The player delete ({@code DELETE /api/players/{id}}) and the bulk delete ({@code DELETE
+ * /api/players}) resolve their write tenant the same way and are pinned for every shape of this
+ * list, plus a header naming two tenants ({@code TENANT_WRITE_SCOPE}); what they remove is read
+ * from the memberships left.
+ *
  * <p>Dropping the annotation from one handler turns the first two shapes of that handler into a
  * different outcome (a single-tenant caller keeps working, a two-tenant one gets a 400), so each
  * handler is pinned on its own.
@@ -78,6 +93,7 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantIsolationHelper;
   @Autowired private UserComposer userComposer;
+  @Autowired private OrganizationRepository organizationRepository;
 
   /** The three handlers that create a membership, each with its own request body. */
   private enum Creator {
@@ -95,6 +111,27 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
       Object body = this == USER_CREATE ? userInput(email) : playerInput(email);
       return post(uri)
           .content(asJsonString(body))
+          .contentType(MediaType.APPLICATION_JSON)
+          .accept(MediaType.APPLICATION_JSON)
+          .with(csrf());
+    }
+  }
+
+  /** The two handlers that delete players, each with its own request. */
+  private enum PlayerDeleter {
+    SINGLE,
+    BULK;
+
+    MockHttpServletRequestBuilder request(User player) {
+      if (this == SINGLE) {
+        return delete(PLAYER_URI + "/" + player.getId())
+            .accept(MediaType.APPLICATION_JSON)
+            .with(csrf());
+      }
+      PlayerBulkProcessingInput input = new PlayerBulkProcessingInput();
+      input.setUserIdsToProcess(List.of(player.getId()));
+      return delete(PLAYER_URI)
+          .content(asJsonString(input))
           .contentType(MediaType.APPLICATION_JSON)
           .accept(MediaType.APPLICATION_JSON)
           .with(csrf());
@@ -168,6 +205,50 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
     return List.of(tenantIds).stream().sorted().toList();
   }
 
+  private Organization organizationIn(String tenantId) {
+    Organization organization = OrganizationFixture.createDefaultOrganisation();
+    organization.setTenant(new Tenant(tenantId));
+    return organizationRepository.save(organization);
+  }
+
+  /** The ids of the organizations the user is linked to, whatever their tenant. */
+  @SuppressWarnings("unchecked")
+  private List<String> organizationsOf(User player) {
+    entityManager.flush();
+    return entityManager
+        .createNativeQuery(
+            "SELECT organization_id FROM users_organizations WHERE user_id = :id"
+                + " ORDER BY organization_id")
+        .setParameter("id", player.getId())
+        .getResultList();
+  }
+
+  /** The player update the caller sends, renaming the player. */
+  private MockHttpServletRequestBuilder playerUpdate(User player) {
+    return playerUpdate(player, null);
+  }
+
+  /** The same update, assigning the organization of the given id. */
+  private MockHttpServletRequestBuilder playerUpdate(User player, String organizationId) {
+    PlayerInput input = playerInput(player.getEmail());
+    input.setFirstname("Changed-" + UUID.randomUUID());
+    input.setOrganizationId(organizationId);
+    return put(PLAYER_URI + "/" + player.getId())
+        .content(asJsonString(input))
+        .contentType(MediaType.APPLICATION_JSON)
+        .accept(MediaType.APPLICATION_JSON)
+        .with(csrf());
+  }
+
+  private String firstnameOf(User player) {
+    entityManager.flush();
+    return (String)
+        entityManager
+            .createNativeQuery("SELECT user_firstname FROM users WHERE user_id = :id")
+            .setParameter("id", player.getId())
+            .getSingleResult();
+  }
+
   @Nested
   @DisplayName("Caller member of one tenant, not the default one")
   class SingleNonDefaultTenant {
@@ -191,6 +272,23 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
+    @DisplayName("A player update assigns the organization of the caller's own tenant")
+    void given_singleTenantCaller_should_updateThePlayerInItsOwnTenant() throws Exception {
+      // -- PREPARE --
+      String tenant = tenantIsolationHelper.createTenantWithCurrentUser("noselector-solo").getId();
+      Organization organizationOfTenant = organizationIn(tenant);
+      User player = memberOf(tenant);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(playerUpdate(player, organizationOfTenant.getId()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(List.of(organizationOfTenant.getId()), organizationsOf(player));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
     @DisplayName("A detach removes the membership of the caller's own tenant only")
     void given_singleTenantCaller_should_detachFromItsOwnTenant() throws Exception {
       // -- PREPARE --
@@ -207,6 +305,24 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
 
       // -- ASSERT --
       assertEquals(List.of(DEFAULT_TENANT), membershipTenantsOf(member.getEmail()));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(PlayerDeleter.class)
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player delete removes the membership of the caller's own tenant only")
+    void given_singleTenantCaller_should_deleteThePlayerFromItsOwnTenant(PlayerDeleter deleter)
+        throws Exception {
+      // -- PREPARE --
+      String tenant = tenantIsolationHelper.createTenantWithCurrentUser("noselector-solo").getId();
+      User player = memberOf(tenant, DEFAULT_TENANT);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(deleter.request(player)).andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertEquals(List.of(DEFAULT_TENANT), membershipTenantsOf(player.getEmail()));
     }
   }
 
@@ -235,6 +351,25 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
+    @DisplayName("A player update assigns the organization of the default tenant")
+    void given_callerOfDefaultAndB_should_updateThePlayerInTheDefaultTenant() throws Exception {
+      // -- PREPARE --
+      tenantIsolationHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String tenantB =
+          tenantIsolationHelper.createTenantWithCurrentUser("noselector-default-and-b").getId();
+      Organization organizationOfDefault = organizationIn(DEFAULT_TENANT);
+      User player = memberOf(DEFAULT_TENANT, tenantB);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(playerUpdate(player, organizationOfDefault.getId()))
+          // -- ASSERT --
+          .andExpect(status().isOk());
+      assertEquals(List.of(organizationOfDefault.getId()), organizationsOf(player));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
     @DisplayName("A detach removes the membership of the default tenant only")
     void given_callerOfDefaultAndB_should_detachFromTheDefaultTenant() throws Exception {
       // -- PREPARE --
@@ -253,6 +388,26 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
 
       // -- ASSERT --
       assertEquals(List.of(tenantB), membershipTenantsOf(member.getEmail()));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(PlayerDeleter.class)
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player delete removes the membership of the default tenant only")
+    void given_callerOfDefaultAndB_should_deleteThePlayerFromTheDefaultTenant(PlayerDeleter deleter)
+        throws Exception {
+      // -- PREPARE --
+      tenantIsolationHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String tenantB =
+          tenantIsolationHelper.createTenantWithCurrentUser("noselector-default-and-b").getId();
+      User player = memberOf(DEFAULT_TENANT, tenantB);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(deleter.request(player)).andExpect(status().is2xxSuccessful());
+
+      // -- ASSERT --
+      assertEquals(List.of(tenantB), membershipTenantsOf(player.getEmail()));
     }
   }
 
@@ -299,6 +454,90 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
           .andExpect(jsonPath("$.message").value("TENANT_SELECTOR_REQUIRED"));
       assertEquals(sorted(tenantB, tenantC), membershipTenantsOf(member.getEmail()));
     }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player update is refused with TENANT_SELECTOR_REQUIRED and writes nothing")
+    void given_callerOfBAndC_should_refuseThePlayerUpdate() throws Exception {
+      // -- PREPARE --
+      String tenantB = tenantIsolationHelper.createTenantWithCurrentUser("noselector-b").getId();
+      String tenantC = tenantIsolationHelper.createTenantWithCurrentUser("noselector-c").getId();
+      User player = memberOf(tenantB, tenantC);
+      String firstname = firstnameOf(player);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(playerUpdate(player))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_SELECTOR_REQUIRED"));
+      assertEquals(firstname, firstnameOf(player));
+      assertEquals(sorted(tenantB, tenantC), membershipTenantsOf(player.getEmail()));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(PlayerDeleter.class)
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player delete is refused with TENANT_SELECTOR_REQUIRED and removes nothing")
+    void given_callerOfBAndC_should_refuseThePlayerDelete(PlayerDeleter deleter) throws Exception {
+      // -- PREPARE --
+      String tenantB = tenantIsolationHelper.createTenantWithCurrentUser("noselector-b").getId();
+      String tenantC = tenantIsolationHelper.createTenantWithCurrentUser("noselector-c").getId();
+      User player = memberOf(tenantB, tenantC);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(deleter.request(player))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_SELECTOR_REQUIRED"));
+      assertEquals(sorted(tenantB, tenantC), membershipTenantsOf(player.getEmail()));
+    }
+  }
+
+  @Nested
+  @DisplayName("Header naming several tenants")
+  class HeaderNamingTwoTenants {
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player update is refused with TENANT_WRITE_SCOPE and writes nothing")
+    void given_headerNamingTwoTenants_should_refuseThePlayerUpdate() throws Exception {
+      // -- PREPARE --
+      tenantIsolationHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String tenantB = tenantIsolationHelper.createTenantWithCurrentUser("header-two-b").getId();
+      User player = memberOf(DEFAULT_TENANT, tenantB);
+      String firstname = firstnameOf(player);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(playerUpdate(player).header("X-Tenant-Ids", DEFAULT_TENANT + "," + tenantB))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_WRITE_SCOPE"));
+      assertEquals(firstname, firstnameOf(player));
+      assertEquals(sorted(DEFAULT_TENANT, tenantB), membershipTenantsOf(player.getEmail()));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(PlayerDeleter.class)
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player delete is refused with TENANT_WRITE_SCOPE and removes nothing")
+    void given_headerNamingTwoTenants_should_refuseThePlayerDelete(PlayerDeleter deleter)
+        throws Exception {
+      // -- PREPARE --
+      tenantIsolationHelper.attachCurrentUserToTenant(DEFAULT_TENANT);
+      String tenantB = tenantIsolationHelper.createTenantWithCurrentUser("header-two-b").getId();
+      User player = memberOf(DEFAULT_TENANT, tenantB);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(deleter.request(player).header("X-Tenant-Ids", DEFAULT_TENANT + "," + tenantB))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_WRITE_SCOPE"));
+      assertEquals(sorted(DEFAULT_TENANT, tenantB), membershipTenantsOf(player.getEmail()));
+    }
   }
 
   @Nested
@@ -339,6 +578,41 @@ public class TenantMembershipNoSelectorWriteScopeTest extends IntegrationTest {
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.message").value("TENANT_WRITE_SCOPE"));
       assertEquals(List.of(DEFAULT_TENANT), membershipTenantsOf(member.getEmail()));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(PlayerDeleter.class)
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player delete is refused with TENANT_WRITE_SCOPE and removes nothing")
+    void given_callerWithoutMembership_should_refuseThePlayerDelete(PlayerDeleter deleter)
+        throws Exception {
+      // -- PREPARE --
+      User player = memberOf(DEFAULT_TENANT);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(deleter.request(player))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_WRITE_SCOPE"));
+      assertEquals(List.of(DEFAULT_TENANT), membershipTenantsOf(player.getEmail()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A player update is refused with TENANT_WRITE_SCOPE and writes nothing")
+    void given_callerWithoutMembership_should_refuseThePlayerUpdate() throws Exception {
+      // -- PREPARE --
+      User player = memberOf(DEFAULT_TENANT);
+      String firstname = firstnameOf(player);
+      arriveWithNoAmbientTenant();
+
+      // -- EXECUTE --
+      mvc.perform(playerUpdate(player))
+          // -- ASSERT --
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("TENANT_WRITE_SCOPE"));
+      assertEquals(firstname, firstnameOf(player));
     }
   }
 }

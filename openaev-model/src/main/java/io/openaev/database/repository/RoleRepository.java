@@ -21,4 +21,8 @@ public interface RoleRepository
   List<Role> findAllByIdInAndTenantId(Collection<String> ids, String tenantId);
 
   List<Role> findAllByTenantId(String tenantId);
+
+  Optional<Role> findByIdAndTenantIdIn(String id, Collection<String> tenantIds);
+
+  List<Role> findAllByTenantIdIn(Collection<String> tenantIds);
 }

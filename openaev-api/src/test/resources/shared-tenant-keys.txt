@@ -57,7 +57,7 @@ injectors_contracts injector_contract_payload
 kill_chain_phases phase_stix_id
 mitigations mitigation_external_id
 parameters parameter_key
-payloads payload_external_id
+payload_identities payload_external_id
 secret_references secret_reference_name
 security_coverages security_coverage_bundle_hash_md5
 security_coverages security_coverage_external_id

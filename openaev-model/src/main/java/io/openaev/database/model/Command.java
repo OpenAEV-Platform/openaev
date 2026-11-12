@@ -3,6 +3,7 @@ package io.openaev.database.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.database.model.hash.Hashed;
 import jakarta.persistence.Column;
 import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
@@ -20,15 +21,18 @@ public class Command extends Payload {
 
   public static final String COMMAND_TYPE = "Command";
 
+  @Hashed
   @JsonProperty("payload_type")
   private String type = COMMAND_TYPE;
 
+  @Hashed
   @Queryable(filterable = true, sortable = true)
   @Column(name = "command_executor")
   @JsonProperty("command_executor")
   @NotNull
   private String executor;
 
+  @Hashed
   @Queryable(filterable = true, sortable = true)
   @Column(name = "command_content")
   @JsonProperty("command_content")

@@ -81,8 +81,10 @@ public class GrantService {
           case SIMULATION -> exerciseRepository.existsById(resourceId);
           case ATOMIC_TESTING ->
               injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(resourceId);
-          // Threat arsenal: the grant is held on the injector contract ID.
-          case THREAT_ARSENAL -> injectorContractRepository.existsByContractId(resourceId);
+          // Threat arsenal: on the payload identity, else on the injector contract ID.
+          case THREAT_ARSENAL ->
+              injectorContractRepository.existsByPayloadIdentityId(resourceId)
+                  || injectorContractRepository.existsByContractId(resourceId);
           default -> false;
         };
 
@@ -90,6 +92,17 @@ public class GrantService {
       throw new IllegalArgumentException(
           "A valid resource ID of type " + resourceType + " should be present");
     }
+  }
+
+  /** Ids a THREAT_ARSENAL grant on this contract may target: the contract, its payload identity. */
+  public List<String> threatArsenalGrantResources(@NotBlank final String contractId) {
+    return injectorContractRepository
+        .findById(contractId)
+        .map(contract -> List.of(contractId, contract.getGrantResourceId()))
+        .orElse(List.of(contractId))
+        .stream()
+        .distinct()
+        .toList();
   }
 
   // -- CRUD --
