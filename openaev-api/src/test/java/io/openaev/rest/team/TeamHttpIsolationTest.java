@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -23,7 +24,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,20 +36,25 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Every read exercised here carries NO tenant predicate of its own: {@code optionsById} goes
  * through {@code findAllById}, and {@code find} and {@code search} go through a Criteria
  * specification that never names a tenant. They are therefore scoped by the statement inspector and
- * by nothing else, which is what makes this class an activation proof: emptying the armed list in
- * the {@code @TestPropertySource} above turns the cross-tenant assertions red. The by-id read path
- * is deliberately NOT used here, because it carries an explicit tenant predicate of its own and
- * would stay green with the table disarmed.
+ * by nothing else, which is what makes this class an activation proof: registering the production
+ * list without {@code teams} turns the cross-tenant assertions red. The by-id read path is
+ * deliberately NOT used here, because it carries an explicit tenant predicate of its own and would
+ * stay green with the table disarmed.
  *
  * <p>Each test method stays on a single tenant path or header so the per-request scope is resolved
  * once: changing it inside the test transaction would hit the nesting guard in {@code
  * TenantScopeTransactionAspect}.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=teams")
 @WithMockUser(isAdmin = true)
 @DisplayName("Teams read isolation through the real HTTP endpoints")
 class TeamHttpIsolationTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   private static final String TENANT_OPTIONS_URI = "/api/tenants/{tenantId}/teams/options";
   private static final String TENANT_FIND_URI = "/api/tenants/{tenantId}/teams/find";
