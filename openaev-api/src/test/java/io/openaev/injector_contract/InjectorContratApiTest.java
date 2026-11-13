@@ -2,6 +2,7 @@ package io.openaev.injector_contract;
 
 import static io.openaev.database.model.Filters.FilterOperator.contains;
 import static io.openaev.database.model.Filters.FilterOperator.eq;
+import static io.openaev.database.model.Filters.FilterOperator.not_empty;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -11,16 +12,22 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.integration.impl.injectors.challenge.ChallengeInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.channel.ChannelInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.integration.impl.injectors.manual.ManualInjectorIntegrationFactory;
 import io.openaev.utils.fixtures.BuiltinConnectorRegistration;
+import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
 import io.openaev.utils.fixtures.PaginationFixture;
+import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -37,9 +44,11 @@ class InjectorContratApiTest extends IntegrationTest {
   @Autowired private ChallengeInjectorIntegrationFactory challengeInjectorIntegrationFactory;
   @Autowired private ChannelInjectorIntegrationFactory channelInjectorIntegrationFactory;
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
+  @Autowired private InjectorContractComposer injectorContractComposer;
 
   @BeforeEach
   public void before() throws Exception {
+    injectorContractComposer.reset();
     builtinConnectorRegistration.register(
         emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
     builtinConnectorRegistration.register(
@@ -176,6 +185,39 @@ class InjectorContratApiTest extends IntegrationTest {
                     .with(csrf()))
             .andExpect(status().is2xxSuccessful())
             .andExpect(jsonPath("$.numberOfElements").value(1));
+      }
+
+      @DisplayName("Fetching only the contracts an injector is registered for")
+      @Test
+      void given_not_empty_injectors_filter_should_only_return_the_linked_contract()
+          throws Exception {
+        // Arrange
+        String sharedLabel = UUID.randomUUID().toString();
+        injectorContractComposer
+            .forInjectorContract(
+                InjectorContractFixture.createInjectorContract(
+                    Map.of("en", sharedLabel + " orphan")))
+            .persist();
+        InjectorContract linked =
+            InjectorContractFixture.createInjectorContract(Map.of("en", sharedLabel + " linked"));
+        injectorContractComposer
+            .forInjectorContract(linked)
+            .withInjector(InjectorFixture.createDefaultPayloadInjector())
+            .persist();
+        SearchPaginationInput searchPaginationInput =
+            PaginationFixture.simpleSearchWithAndOperator(
+                "injector_contract_injectors", null, not_empty);
+        searchPaginationInput.setTextSearch(sharedLabel);
+
+        // Act + Assert
+        mvc.perform(
+                post("/api/injector_contracts/search")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(searchPaginationInput))
+                    .with(csrf()))
+            .andExpect(status().is2xxSuccessful())
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.content.[0].injector_contract_id").value(linked.getId()));
       }
     }
 
