@@ -13,6 +13,7 @@ import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Tenant;
+import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -52,7 +53,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class FindingAssetGroupSinkTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
-  @Autowired private FindingService findingService;
+  @Autowired private FindingOccurrenceService findingOccurrenceService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private EntityManager entityManager;
 
@@ -131,7 +132,10 @@ class FindingAssetGroupSinkTest extends IntegrationTest {
               finding.setType(ContractOutputType.Text);
               finding.setField("hostname");
               finding.setName("sink probe");
-              findingService.createFindings(List.of(finding), inject.getId());
+              finding.setInject(inject);
+              finding.setTenant(new Tenant(tenantId));
+              entityManager.persist(finding);
+              findingOccurrenceService.recordOccurrencesByInject(inject, List.of(finding));
               findingId = finding.getId();
               entityManager.flush();
 

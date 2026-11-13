@@ -75,7 +75,6 @@ public class FindingMapper {
         .field(occurrence.map(FindingOccurrence::getField).orElse(null))
         .type(finding.getType())
         .value(finding.getValueDisplay())
-        .labels(finding.getLabels())
         .name(finding.getName())
         .tags(finding.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
         .injectId(inject.map(Inject::getId).orElse(null))

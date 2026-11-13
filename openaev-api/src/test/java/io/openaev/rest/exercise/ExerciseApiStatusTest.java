@@ -578,10 +578,10 @@ public class ExerciseApiStatusTest extends IntegrationTest {
     assertThat(resetInjects).allSatisfy(inject -> assertThat(inject.getStatus()).isEmpty());
   }
 
-  @DisplayName("Reset of a finished exercise deletes the findings its injects wrote")
+  @DisplayName("Reset of a finished exercise keeps the findings its injects wrote")
   @Test
   @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-  void given_finishedExerciseWithFindings_should_deleteThemOnReset() throws Exception {
+  void given_finishedExerciseWithFindings_should_keepThemOnReset() throws Exception {
     // Arrange
     findingComposer.reset();
     FindingComposer.Composer findingWrapper =
@@ -613,12 +613,12 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
-    // Assert
+    // Assert: a reset keeps what the inject detected (#7848, chunk 4)
     entityManager.flush();
     entityManager.clear();
-    assertThat(findingRepository.findById(findingId)).isEmpty();
+    assertThat(findingRepository.findById(findingId)).isPresent();
     assertThat(findingOccurrenceRepository.findByFindingIdAndInjectId(findingId, injectId))
-        .isEmpty();
+        .isPresent();
   }
 
   @DisplayName("Check an exercise from finished to scheduled")
