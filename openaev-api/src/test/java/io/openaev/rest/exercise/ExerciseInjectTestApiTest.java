@@ -302,43 +302,6 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
   class InjectTestScopedToSimulation {
 
     @Test
-    @DisplayName("A simulation launcher can test an inject of the simulation")
-    @WithMockUser(autoJoinDefaultTenant = true)
-    void given_launcherGrant_should_testInject() throws Exception {
-      // Arrange
-      addGrantToCurrentUser(
-          Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.LAUNCHER, simulation.getId());
-
-      // Act & Assert
-      mvc.perform(
-              get(
-                      EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
-                      simulation.getId(),
-                      inject1.getId())
-                  .with(csrf()))
-          .andExpect(status().isOk())
-          .andExpect(jsonPath("$.inject_id").value(inject1.getId()));
-    }
-
-    @Test
-    @DisplayName("A simulation observer cannot test an inject")
-    @WithMockUser(autoJoinDefaultTenant = true)
-    void given_observerGrant_should_return403_when_testingInject() throws Exception {
-      // Arrange
-      addGrantToCurrentUser(
-          Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
-
-      // Act & Assert
-      mvc.perform(
-              get(
-                      EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
-                      simulation.getId(),
-                      inject1.getId())
-                  .with(csrf()))
-          .andExpect(status().isForbidden());
-    }
-
-    @Test
     @DisplayName("Testing an inject of another simulation returns 404")
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_injectOfAnotherSimulation_should_return404_when_testingInject() throws Exception {

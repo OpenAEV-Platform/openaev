@@ -192,7 +192,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Simulation variable is interpolated")
-    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     public void simulationVariableIsInterpolated() throws Exception {
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
       String varKey = "var_key";
@@ -242,7 +242,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("User variable is interpolated in simulation inject test")
-    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     public void userVariableIsInterpolatedInSimulationInjectTest() throws Exception {
       User testUser = testUserHolder.get();
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
@@ -386,7 +386,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Simulation variable is interpolated")
-    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     public void simulationVariableIsInterpolated() throws Exception {
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);
       String varKey = "var_key";
@@ -437,7 +437,7 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
     @Test
     @DisplayName(
         "When a single user is used in a multi email, user variable is interpolated in simulation inject test")
-    @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
+    @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
     public void userVariableIsInterpolatedInSimulationInjectTest() throws Exception {
       User testUser = testUserHolder.get();
       ArgumentCaptor<MimeMessage> argument = ArgumentCaptor.forClass(MimeMessage.class);

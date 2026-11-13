@@ -84,7 +84,7 @@ public class SimulationInjectTestApi extends RestBehavior {
   })
   @AccessControl(
       resourceId = "#simulationId",
-      actionPerformed = Action.LAUNCH,
+      actionPerformed = Action.READ,
       resourceType = ResourceType.SIMULATION)
   public InjectTestStatusOutput testInject(
       // The TxCtx parameter is not used directly; it signals the transaction aspect to set the
