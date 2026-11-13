@@ -620,7 +620,11 @@ public class InjectService {
   private List<AssetToExecute> resolveAllTargetedAssets(Inject inject) {
     List<AssetToExecute> assetToExecutes = new ArrayList<>();
 
-    inject.getAssets().forEach(asset -> assetToExecutes.add(new AssetToExecute(asset)));
+    // Reloaded in the inject's tenant: the scheduler loads injects and their agents across tenants
+    List<String> assetIds = inject.getAssets().stream().map(Asset::getId).toList();
+    assetService
+        .assetFromIds(assetIds, inject.getTenant().getId())
+        .forEach(asset -> assetToExecutes.add(new AssetToExecute(asset)));
 
     inject
         .getAssetGroups()
