@@ -38,6 +38,7 @@ export interface ConnectorOutput {
   type: string;
   catalog?: CatalogConnectorSimpleOutput;
   updatedAt?: string;
+  commit?: string;
   connectorInstance?: ConnectorInstanceOutput;
   isExternal?: boolean;
   isExisting?: boolean;
@@ -98,6 +99,7 @@ export const injectorConfig: ConnectorContextType<InjectorOutput> = {
     type: data?.injector_type,
     catalog: data?.catalog,
     updatedAt: data?.injector_updated_at,
+    commit: data?.injector_commit,
     connectorInstance: data?.connector_instance,
     isExternal: data?.injector_external,
     isExisting: data?.existing_injector,

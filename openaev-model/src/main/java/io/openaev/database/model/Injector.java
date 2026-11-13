@@ -85,6 +85,10 @@ public class Injector extends BaseConnectorEntity implements TenantIdBase, Audit
   @JsonProperty("injector_payloads")
   private boolean payloads = false;
 
+  @Column(name = "injector_commit")
+  @JsonProperty("injector_commit")
+  private String commit;
+
   @Column(name = "injector_created_at")
   @JsonProperty("injector_created_at")
   @NotNull

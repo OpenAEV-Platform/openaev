@@ -284,6 +284,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
       if (injector != null) {
         // Capture significant state before mutation
         Map<String, Object> before = injector.significantState(mapper);
+        injector.setCommit(input.getCommit());
         updateExistingExternalInjector(
             injector,
             input.getType(),
@@ -309,6 +310,7 @@ public class InjectorService extends AbstractConnectorService<Injector, Injector
         newInjector.setExecutorCommands(input.getExecutorCommands());
         newInjector.setExecutorClearCommands(input.getExecutorClearCommands());
         newInjector.setPayloads(input.getPayloads());
+        newInjector.setCommit(input.getCommit());
         newInjector.setTenantId(tenantId);
         Injector savedInjector = injectorRepository.save(newInjector);
         // Save the contracts

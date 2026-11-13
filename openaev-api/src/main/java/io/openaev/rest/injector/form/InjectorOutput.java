@@ -31,4 +31,7 @@ public class InjectorOutput extends ConnectorOutput {
 
   @JsonProperty("injector_updated_at")
   private Instant updatedAt;
+
+  @JsonProperty("injector_commit")
+  private String commit;
 }
