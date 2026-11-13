@@ -1,4 +1,5 @@
 import { Text } from '@filigran/design-system';
+import { useLocation } from 'react-router';
 
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
@@ -24,6 +25,8 @@ interface Props { tab: NewsFeedTab }
 const NewsFeedPage = ({ tab }: Props) => {
   const { t } = useFormatter();
   const ability = useAbility();
+  // Changes on every navigation, including a click on a link to the page already shown.
+  const { key: visitKey } = useLocation();
   // Same permission as the connect flow: a user without it is told to ask an administrator instead.
   const canConnectXtmHub = ability.can(ACTIONS.MANAGE, SUBJECTS.TENANT_SETTINGS);
   const { settings: platformSettings } = useAuth();
@@ -35,7 +38,7 @@ const NewsFeedPage = ({ tab }: Props) => {
     updateSubscribedTypes,
   } = useNewsFeedSettings();
   // Only the items view marks them read: the settings tab shows none.
-  useMarkNewsFeedItemsRead(tab === 'items');
+  useMarkNewsFeedItemsRead(tab === 'items', visitKey);
 
   let bannerVariant: NewsFeedHubBannerVariant | null = null;
   if (isXtmHubUnreachable) {
@@ -57,8 +60,9 @@ const NewsFeedPage = ({ tab }: Props) => {
       {bannerVariant && <NewsFeedHubBanner variant={bannerVariant} />}
       <NewsFeedTabs current={tab} />
       <div style={{ marginTop: 20 }}>
+        {/* The list is keyed on the visit: coming back to the page reloads it, so a new item shows up. */}
         {tab === 'items'
-          ? <NewsFeedList />
+          ? <NewsFeedList key={visitKey} />
           : (
               <NewsFeedSettings
                 settings={settings}
