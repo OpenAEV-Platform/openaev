@@ -2588,6 +2588,18 @@ export interface CatalogPayloadOutput {
   catalog_payload_version: string;
 }
 
+export interface CatalogScenarioInstallInput {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  manual_targets?: string[];
+  team_ids?: string[];
+}
+
+export interface CatalogScenarioInstallOutput {
+  /** @minLength 1 */
+  installed_scenario_id: string;
+}
+
 export interface CatalogScenarioOutput {
   /** @minLength 1 */
   catalog_scenario_external_id: string;

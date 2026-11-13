@@ -21,6 +21,14 @@ public interface CatalogItemRepository extends JpaRepository<CatalogItem, String
   Optional<CatalogItem> findByTypeAndExternalIdAndVersion(
       ContentType type, String externalId, String version);
 
+  @Query(
+      "SELECT i FROM CatalogItem i WHERE TYPE(i) = :type"
+          + " AND i.externalId = :externalId AND i.version = :version")
+  <T extends CatalogItem> Optional<T> findVersion(
+      @Param("type") Class<T> type,
+      @Param("externalId") String externalId,
+      @Param("version") String version);
+
   // -- SCENARIOS --
 
   @Query("SELECT s FROM CatalogScenario s")
@@ -30,8 +38,4 @@ public interface CatalogItemRepository extends JpaRepository<CatalogItem, String
 
   @Query("SELECT p FROM CatalogPayload p")
   List<CatalogPayload> findAllPayloads();
-
-  @Query("SELECT p FROM CatalogPayload p WHERE p.externalId = :externalId AND p.version = :version")
-  Optional<CatalogPayload> findPayload(
-      @Param("externalId") String externalId, @Param("version") String version);
 }

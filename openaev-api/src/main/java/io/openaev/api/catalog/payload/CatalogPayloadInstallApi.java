@@ -1,20 +1,21 @@
-package io.openaev.api.catalog;
+package io.openaev.api.catalog.payload;
 
 import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
-import io.openaev.api.catalog.dto.CatalogPayloadInstallAllOutput;
-import io.openaev.api.catalog.dto.CatalogPayloadInstallOutput;
+import io.openaev.api.catalog.CatalogFeature;
+import io.openaev.api.catalog.dto.payload.CatalogPayloadInstallAllOutput;
+import io.openaev.api.catalog.dto.payload.CatalogPayloadInstallOutput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
-import io.openaev.service.catalog.CatalogPayloadInstaller;
-import io.openaev.service.catalog.CatalogPayloadService;
-import io.openaev.service.catalog.InstallablePayloadVersion;
-import io.openaev.service.catalog.InstalledPayloads;
+import io.openaev.service.catalog.payload.CatalogPayloadInstaller;
+import io.openaev.service.catalog.payload.CatalogPayloadService;
+import io.openaev.service.catalog.payload.InstallablePayloadVersion;
+import io.openaev.service.catalog.payload.InstalledPayloads;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

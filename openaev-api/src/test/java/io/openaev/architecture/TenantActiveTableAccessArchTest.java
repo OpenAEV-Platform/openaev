@@ -277,9 +277,9 @@ import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.AutonomousTimeoutService;
 import io.openaev.service.autonomous.CapabilityResolverService;
 import io.openaev.service.catalog.CatalogListService;
-import io.openaev.service.catalog.CatalogPayloadOfferService;
-import io.openaev.service.catalog.CatalogPayloadService;
 import io.openaev.service.catalog.CatalogService;
+import io.openaev.service.catalog.payload.CatalogPayloadOfferService;
+import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.chaining.ScopeSnapshotService;
 import io.openaev.service.chaining.StepEventService;
 import io.openaev.service.chaining.WorkflowEndService;
@@ -437,7 +437,8 @@ class TenantActiveTableAccessArchTest {
           "injectors_contracts_domains",
           "injectors_contracts_vulnerabilities",
           "injectors_injector_contracts",
-          "catalog_history");
+          "catalog_history",
+          "scenario_identities");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -4322,5 +4323,19 @@ class TenantActiveTableAccessArchTest {
           .areAssignableTo(io.openaev.database.repository.CatalogHistoryRepository.class)
           .because(
               "catalog_history is tenant-active: an accessor without a tenant scope silently"
+                  + " reads zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule scenario_identities_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // Catalogue installs, in a TxCtx-scoped transaction with the tenantId:
+              io.openaev.service.catalog.scenario.CatalogScenarioService.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.ScenarioIdentityRepository.class)
+          .because(
+              "scenario_identities is tenant-active: an accessor without a tenant scope silently"
                   + " reads zero rows. New accessors must carry a scope and be allowlisted here");
 }

@@ -27,6 +27,7 @@ import io.openaev.config.cache.LicenseCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.scenario.ScenarioIdentity;
 import io.openaev.database.raw.RawExerciseSimple;
 import io.openaev.database.raw.RawPaginationScenario;
 import io.openaev.database.raw.RawScenario;
@@ -177,6 +178,8 @@ public class ScenarioService {
   private final org.springframework.beans.factory.ObjectProvider<PermissionService>
       permissionServiceProvider;
 
+  // -- CREATE --
+
   /** Authored by whoever creates it, a person or a service account; no author at startup. */
   @Transactional
   public Scenario createScenario(@NotNull final Scenario scenario) {
@@ -243,6 +246,8 @@ public class ScenarioService {
     }
   }
 
+  // -- LIST --
+
   /**
    * The scenarios the caller reads: every scenario of a tenant where it holds the access right, and
    * the scenarios it holds a grant on.
@@ -291,6 +296,8 @@ public class ScenarioService {
   private static boolean canAccessEveryScenario(User user) {
     return user.isAdminOrBypass() || user.getCapabilities().contains(Capability.ACCESS_ASSESSMENT);
   }
+
+  // -- SEARCH --
 
   public Page<RawPaginationScenario> scenarios(
       @NotNull final TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
@@ -494,12 +501,16 @@ public class ScenarioService {
     return cb.function("string_to_array", String[].class, csvPlatforms, cb.literal(","));
   }
 
+  // -- LAUNCH --
+
   public void throwIfScenarioNotLaunchable(Scenario scenario) {
     if (enterpriseEditionService.isLicenseActive(licenseCacheManager.getEnterpriseEditionInfo())) {
       return;
     }
     scenario.getInjects().forEach(injectService::throwIfInjectNotLaunchable);
   }
+
+  // -- RECURRENCE --
 
   /** Scenario is recurring AND end date is after now */
   public List<Scenario> recurringScenarios(@NotNull final Instant instant) {
@@ -516,6 +527,8 @@ public class ScenarioService {
                 ScenarioSpecification.recurrenceStartDateBefore(instant)
                     .or(ScenarioSpecification.recurrenceStopDateBefore(instant))));
   }
+
+  // -- READ --
 
   /**
    * Loads a scenario in the current tenant. For work that runs without a request scope and sets the
@@ -707,6 +720,8 @@ public class ScenarioService {
         .orElseThrow(() -> new ElementNotFoundException("Latest exercise not found"));
   }
 
+  // -- UPDATE --
+
   @Transactional
   public Scenario updateScenario(@NotNull final Scenario scenario) {
     return updateScenarioInternal(scenario, null, false);
@@ -752,6 +767,8 @@ public class ScenarioService {
     scenarios.forEach(scenario -> scenario.setUpdatedAt(now()));
     this.scenarioRepository.saveAll(scenarios);
   }
+
+  // -- DELETE --
 
   /** Validates that the scenario exists inside the request's tenant scope. Throws if not. */
   public void existsInScope(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
@@ -858,6 +875,12 @@ public class ScenarioService {
             });
     log.info("Bulk deleted {} scenarios by user {}", deletedIds.size(), currentUser.getId());
     return deletedIds;
+  }
+
+  // -- CATALOGUE --
+
+  public boolean isCatalogInstalled(ScenarioIdentity identity) {
+    return scenarioRepository.existsByCatalogIdentityId(identity.getId());
   }
 
   // -- EXPORT --
@@ -1240,6 +1263,8 @@ public class ScenarioService {
     return teamService.find(fromIds(modifiedTeamIds));
   }
 
+  // -- PLAYERS --
+
   public Scenario addScenarioPlayer(
       @NotNull final TxCtx ctx,
       @NotBlank final String scenarioId,
@@ -1309,6 +1334,8 @@ public class ScenarioService {
         });
     return this.scenario(ctx, scenarioId);
   }
+
+  // -- DUPLICATE --
 
   /**
    * Duplicates a scenario in full: its authored content, plus the logic map when it is chained.
@@ -1619,6 +1646,8 @@ public class ScenarioService {
     scenario.setObjectives(duplicatedObjectives);
   }
 
+  // -- HEALTH CHECKS --
+
   /**
    * Verify all healthcheck for a given scenario id
    *
@@ -1699,6 +1728,8 @@ public class ScenarioService {
 
     return healthChecks;
   }
+
+  // -- CREATE STEPS --
 
   private Scenario computeAndCreateScenario(Scenario scenario) {
     computeEmails(scenario);

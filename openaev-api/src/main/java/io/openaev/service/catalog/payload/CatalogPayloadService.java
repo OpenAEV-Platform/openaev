@@ -1,4 +1,4 @@
-package io.openaev.service.catalog;
+package io.openaev.service.catalog.payload;
 
 import static io.openaev.rest.payload.PayloadUtils.validateArchitecture;
 
@@ -76,19 +76,24 @@ public class CatalogPayloadService {
       CatalogHistory.Mode mode) {
     PayloadIdentity identity = catalogueIdentity(tenantId, released);
     List<Payload> versions = payloadRepository.findAllByIdentityId(identity.getId());
-    Optional<Payload> installed =
-        versions.stream().filter(v -> released.version().equals(v.getVersion())).findFirst();
-    if (installed.isPresent() && !identity.isUninstalled()) {
+    if (installedVersion(identity, versions, released).isPresent()) {
       throw new BadRequestException("This version is already installed");
     }
-    Payload payload =
-        installed.orElseGet(() -> createVersion(ctx, tenantId, identity, versions, released, file));
-    identity.setLatestVersion(highest(versions, payload));
-    // Creating the version's contract clears the session: the identity is saved again.
-    payloadIdentityRepository.save(identity);
-    changePublisher.payloadChanged(
-        identity, released.version(), CatalogHistory.Action.INSTALL, mode);
-    return payload;
+    return installVersion(ctx, tenantId, identity, versions, released, file, mode);
+  }
+
+  /** The released version, installed first when the tenant does not have it. */
+  @Transactional(rollbackFor = Exception.class)
+  public Payload installIfMissing(
+      TxCtx ctx,
+      String tenantId,
+      InstallablePayloadVersion released,
+      byte[] file,
+      CatalogHistory.Mode mode) {
+    PayloadIdentity identity = catalogueIdentity(tenantId, released);
+    List<Payload> versions = payloadRepository.findAllByIdentityId(identity.getId());
+    return installedVersion(identity, versions, released)
+        .orElseGet(() -> installVersion(ctx, tenantId, identity, versions, released, file, mode));
   }
 
   // -- DELETE --
@@ -112,14 +117,39 @@ public class CatalogPayloadService {
     identity.setLatestVersion(null);
     versions.forEach(
         version ->
-            changePublisher.payloadChanged(
-                identity,
-                version.getVersion(),
-                CatalogHistory.Action.UNINSTALL,
-                CatalogHistory.Mode.MANUAL));
+            changePublisher.changed(
+                version, CatalogHistory.Action.UNINSTALL, CatalogHistory.Mode.MANUAL));
   }
 
   // -- STEPS --
+
+  private static Optional<Payload> installedVersion(
+      PayloadIdentity identity, List<Payload> versions, InstallablePayloadVersion released) {
+    return identity.isUninstalled() ? Optional.empty() : version(versions, released);
+  }
+
+  private static Optional<Payload> version(
+      List<Payload> versions, InstallablePayloadVersion released) {
+    return versions.stream().filter(v -> released.version().equals(v.getVersion())).findFirst();
+  }
+
+  private Payload installVersion(
+      TxCtx ctx,
+      String tenantId,
+      PayloadIdentity identity,
+      List<Payload> versions,
+      InstallablePayloadVersion released,
+      byte[] file,
+      CatalogHistory.Mode mode) {
+    Payload payload =
+        version(versions, released)
+            .orElseGet(() -> createVersion(ctx, tenantId, identity, versions, released, file));
+    identity.setLatestVersion(highest(versions, payload));
+    // Creating the version's contract clears the session: the identity is saved again.
+    payloadIdentityRepository.save(identity);
+    changePublisher.changed(payload, CatalogHistory.Action.INSTALL, mode);
+    return payload;
+  }
 
   private PayloadIdentity catalogueIdentity(String tenantId, InstallablePayloadVersion released) {
     return payloadIdentityRepository
