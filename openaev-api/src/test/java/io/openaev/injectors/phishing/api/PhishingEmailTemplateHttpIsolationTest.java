@@ -13,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.injectors.phishing.form.PhishingEmailTemplateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -24,7 +26,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,13 +36,19 @@ import org.springframework.transaction.annotation.Transactional;
  * #7901), on both routes: the tenant path and the {@code X-Tenant-Ids} header. Every row is seeded
  * with a raw native INSERT carrying an explicit tenant_id, never through v1 TenantContext.
  */
+@CoversTenantIsolation("phishing_email_templates")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=phishing_email_templates")
 @io.openaev.utils.mockUser.WithMockUser(isAdmin = true)
 @DisplayName(
     "phishing_email_templates read and write isolation through the real HTTP endpoint, both"
         + " routes")
 class PhishingEmailTemplateHttpIsolationTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   private static final String TENANT_TEMPLATES = "/api/tenants/{tenantId}/phishing/email-templates";
   private static final String TEMPLATES = "/api/phishing/email-templates";
