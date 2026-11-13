@@ -17,7 +17,7 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionWithContentOutput;
 import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.SessionHelper;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawContractTenant;
 import io.openaev.database.raw.RawInjectorsContracts;
@@ -55,6 +55,7 @@ import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TriVoid;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -166,6 +167,39 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
+   * Retrieves an injector contract by ID or external ID, constrained to a known parent's tenant (an
+   * exercise or a scenario the caller already resolved in scope). A built-in contract id repeats
+   * across tenants (#8485), so a lookup that relies on the request's own scope can match more than
+   * one tenant's copy; this stays inside the parent's tenant regardless.
+   *
+   * @param id the injector contract ID or external ID
+   * @param tenantId the parent row's tenant
+   * @return the injector contract
+   * @throws ElementNotFoundException if not found in that tenant
+   */
+  public InjectorContract injectorContractInTenant(
+      @NotBlank final String id, @NotBlank final String tenantId) {
+    return injectorContractRepository
+        .findByIdOrExternalIdAndTenant(id, id, tenantId)
+        // User-facing wording: the entity is exposed as "threat arsenal item" everywhere.
+        .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
+  }
+
+  /**
+   * Looks a contract up by its ID alone in one tenant, leaving the caller to decide what a missing
+   * contract means. A built-in contract id repeats across tenants (#8485), so the tenant of the
+   * parent row the contract is written into is passed explicitly.
+   *
+   * @param id the injector contract ID, not its external ID
+   * @param tenantId the tenant of the row the contract is used by
+   * @return the contract of that tenant, empty when it has none under that ID
+   */
+  public Optional<InjectorContract> injectorContractByIdInTenant(
+      @NotBlank final String id, @NotBlank final String tenantId) {
+    return injectorContractRepository.findByContractIdAndTenant(id, tenantId);
+  }
+
+  /**
    * Retrieves an injector contract by ID, only if it is referenced by one of the given workflow's
    * steps.
    *
@@ -175,18 +209,24 @@ public class InjectorContractService implements DependenciesManager {
    * both chaining contexts, and the caller's permission is checked on the workflow's parent
    * simulation or scenario.
    *
+   * @param ctx the request's scope: a workflow outside it is not found
    * @param injectorContractId the injector contract ID
    * @param workflowId the ID of the workflow the contract must be referenced by
    * @return the injector contract
    * @throws ElementNotFoundException if not found or not referenced by the workflow
    */
   public InjectorContract injectorContractForWorkflow(
-      @NotBlank final String injectorContractId, @NotBlank final String workflowId) {
-    if (!stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
-        workflowId, injectorContractId)) {
-      throw new ElementNotFoundException("Threat arsenal item not found");
-    }
-    return injectorContract(injectorContractId);
+      @NotNull final TxCtx ctx,
+      @NotBlank final String injectorContractId,
+      @NotBlank final String workflowId) {
+    // Resolved in the workflow's own tenant, not the request's ambient scope: a built-in contract
+    // id repeats across tenants (#8485), and the caller's scope can legitimately span several.
+    String tenantId =
+        stepRepository
+            .findWorkflowTenantIdIfReferencesInjectorContract(
+                workflowId, injectorContractId, TxCtxScopeUtils.requestReadScope(ctx))
+            .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
+    return injectorContractInTenant(injectorContractId, tenantId);
   }
 
   // -- OTHERS --
@@ -209,9 +249,15 @@ public class InjectorContractService implements DependenciesManager {
     Root<InjectorContract> injectorContractRoot = cq.from(InjectorContract.class);
     selector.apply(cb, cq, injectorContractRoot);
 
-    // Always apply access spec
-    Specification<InjectorContract> accessSpec =
+    // Always apply access spec, and read a contract id repeated across the scope's tenants once,
+    // through its best-ranked copy that matches the request (specificationCount carries no join
+    // shared with the page query, so it can also run on the competing copies)
+    Specification<InjectorContract> visible =
         InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+    Specification<InjectorContract> accessSpec =
+        visible.and(
+            InjectorContractSpecification.onePerContractId(
+                specificationCount == null ? visible : specificationCount.and(visible)));
 
     Specification<InjectorContract> combinedSpec =
         (specification == null ? accessSpec : specification.and(accessSpec));
@@ -248,12 +294,10 @@ public class InjectorContractService implements DependenciesManager {
 
   public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
     User currentUser = userService.currentUser();
-    String tenantId = TenantContext.getCurrentTenant();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_THREAT_ARSENALS)) {
+    if (currentUser.isAdmin()) {
       return injectorContractRepository.getAllRawInjectorsContracts();
     }
-    return injectorContractRepository.getAllRawInjectorsContractsGranted(currentUser.getId());
+    return injectorContractRepository.getAllRawInjectorsContractsVisible(currentUser.getId());
   }
 
   /**
@@ -293,11 +337,10 @@ public class InjectorContractService implements DependenciesManager {
     // during registration (InjectorService.registerBuiltinInjector).
     injectorContract.addInjector(injector);
 
-    // A contract lives in its injector's tenant. Stamp it explicitly instead of relying on
-    // TenantBaseListener's TenantContext fallback: injectors is on v2 isolation, so the injector
-    // lookup above follows the request's TxCtx while TenantContext is only populated from the
-    // tenant path - a header-selected tenant would otherwise link tenant A's injector to a
-    // contract stamped on the default tenant.
+    // A contract lives in its injector's tenant, and InjectorContract has no listener that stamps
+    // one, so the tenant is set here from the injector. The injector lookup above follows the
+    // request's TxCtx while TenantContext is only populated from the tenant path: a header-selected
+    // tenant takes the injector's tenant, not the default one.
     injectorContract.setTenant(new Tenant(injector.getTenantId()));
 
     // Authorship is a function of the creation's provenance (machine sync vs interactive),
@@ -310,7 +353,7 @@ public class InjectorContractService implements DependenciesManager {
 
     injectorContract.setDomains(
         injector != null && !injector.isPayloads()
-            ? this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
+            ? this.domainService.upserts(input.getDomains(), injector.getTenantId())
             : new HashSet<>());
     InjectorContract saved = injectorContractRepository.save(injectorContract);
     // The join row is persisted through the contract's cascade over the join entity (addInjector)
@@ -411,8 +454,10 @@ public class InjectorContractService implements DependenciesManager {
             new HashSet<>(input.getAttackPatternsIds())));
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
+    // The domains live in the contract's tenant: the ambient one is the default tenant on the
+    // non-prefixed route, whatever tenant the selector chose.
     injectorContract.setDomains(
-        this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant()));
+        this.domainService.upserts(input.getDomains(), injectorContract.getTenant().getId()));
 
     reconcileExternalInjectorAuthorship(injectorContract);
 
@@ -580,9 +625,8 @@ public class InjectorContractService implements DependenciesManager {
     // dependencies - they would keep feeding every engine-backed statistic (dashboards, KPIs) after
     // the contract is gone.
     String tenantId =
-        injectorContract.getTenant() != null
-            ? injectorContract.getTenant().getId()
-            : TenantContext.getCurrentTenant();
+        Objects.requireNonNull(injectorContract.getTenant(), "a loaded contract carries its tenant")
+            .getId();
     List<String> cascadeDeletedInjectIds =
         injectIndexCleanupService.injectIdsByContractIds(
             List.of(injectorContract.getId()), tenantId);
@@ -591,23 +635,14 @@ public class InjectorContractService implements DependenciesManager {
     // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
     // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
     // The sweep is tenant-scoped: default contracts share their ids across tenants, so an unscoped
-    // sweep would wipe other tenants' authored logic-map nodes. It runs in the contract's own
-    // tenant, which the caller's scope may not hold: the deletion was granted on the contract.
+    // sweep would wipe other tenants' authored logic-map nodes. The contract was loaded through
+    // the statement inspector, in the request's tenant scope, so the tenant it carries is one that
+    // scope holds; the sweep runs in that tenant, read from the loaded contract.
     workflowOwnerScope.run(
         injectorContract,
         () ->
             chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
                 List.of(injectorContract.getId()), tenantId));
-  }
-
-  /**
-   * Checks whether the given injector contract is payload-based without loading the full entity.
-   *
-   * @param injectorContractId the contract ID to check
-   * @return true if the contract exists and has a non-null payload
-   */
-  public boolean isPayloadBased(String injectorContractId) {
-    return this.injectorContractRepository.existsByIdAndPayloadIsNotNull(injectorContractId);
   }
 
   /**
@@ -640,11 +675,13 @@ public class InjectorContractService implements DependenciesManager {
    * reference it are swept in that contract's own tenant.
    *
    * @param injectorContractId the contract ID to delete
+   * @param tenantId the tenant of the contract copy to delete: a built-in id exists in every
+   *     tenant, so the id alone does not name the row, and the ambient tenant is not read
    */
   @Transactional(rollbackFor = Exception.class)
-  public void deleteInjectorContractById(String injectorContractId) {
+  public void deleteInjectorContractById(String injectorContractId, String tenantId) {
     this.injectorContractRepository
-        .findById(new InjectorContractId(injectorContractId, TenantContext.getCurrentTenant()))
+        .findById(new InjectorContractId(injectorContractId, tenantId))
         .ifPresent(this::deleteInjectorContract);
   }
 
@@ -1144,8 +1181,12 @@ public class InjectorContractService implements DependenciesManager {
   private Specification<InjectorContract> facetBaseSpec(SearchPaginationInput input) {
     Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
-    Specification<InjectorContract> accessSpec =
+    Specification<InjectorContract> visible =
         InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+    Specification<InjectorContract> accessSpec =
+        visible.and(
+            InjectorContractSpecification.onePerContractId(
+                filterSpec.and(searchSpec).and(visible)));
     return Specification.<InjectorContract>unrestricted()
         .and(filterSpec)
         .and(searchSpec)

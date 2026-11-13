@@ -376,6 +376,7 @@ public class InjectExportTest extends IntegrationTest {
   @DisplayName("When standard user with staggered privileges")
   public class WhenStandardUserWithStaggeredPrivileges {
     @Test
+    @WithMockUser(autoJoinDefaultTenant = true)
     @DisplayName("When lacking OBSERVER grant on some scenarios, return NOT FOUND")
     public void whenLackingOBSERVERGrantOnSomeScenariosReturnNOTFOUND() throws Exception {
       List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();
@@ -653,6 +654,7 @@ public class InjectExportTest extends IntegrationTest {
       }
 
       @Test
+      @WithMockUser(autoJoinDefaultTenant = true)
       @DisplayName("With OBSERVER grant on exercise with exclusion, return correct injects")
       public void withOBSERVERGrantOnExerciseWithExclusionReturnCorrectInjects() throws Exception {
         List<InjectComposer.Composer> injectWrappers = createDefaultInjectWrappers();

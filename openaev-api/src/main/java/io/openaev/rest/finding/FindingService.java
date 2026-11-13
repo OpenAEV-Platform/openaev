@@ -105,13 +105,6 @@ public class FindingService {
     return saved;
   }
 
-  public Finding updateFinding(@NotNull final Finding finding, @NotNull final String injectId) {
-    if (!finding.getInject().getId().equals(injectId)) {
-      throw new IllegalArgumentException("Inject id cannot be changed: " + injectId);
-    }
-    return this.findingRepository.save(finding);
-  }
-
   public void deleteFinding(@NotNull final String id) {
     if (!this.findingRepository.existsByIdAndTenantId(id, TenantContext.getCurrentTenant())) {
       throw new EntityNotFoundException("Finding not found with id: " + id);

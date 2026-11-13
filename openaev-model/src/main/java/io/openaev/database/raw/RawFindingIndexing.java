@@ -37,11 +37,11 @@ public interface RawFindingIndexing extends RawTenant {
   String getFinding_value_display();
 
   /**
-   * Returns the field name that categorizes this finding.
+   * Returns the field names under which the finding's occurrences were reported.
    *
-   * @return the field name
+   * @return the field names
    */
-  String getFinding_field();
+  Set<String> getFinding_fields();
 
   /**
    * Returns the creation timestamp of the finding.
@@ -65,25 +65,34 @@ public interface RawFindingIndexing extends RawTenant {
   String getFinding_type();
 
   /**
-   * Returns the ID of the inject that produced this finding.
+   * Returns the IDs of the injects where this finding occurred.
    *
-   * @return the inject ID
+   * @return the inject IDs
    */
+  Set<String> getInject_ids();
+
+  /**
+   * Returns the IDs of the simulations where this finding occurred.
+   *
+   * @return the simulation IDs
+   */
+  Set<String> getSimulation_ids();
+
+  /**
+   * Returns the IDs of the scenarios where this finding occurred.
+   *
+   * @return the scenario IDs
+   */
+  Set<String> getScenario_ids();
+
+  /** Returns the inject the finding is deleted with. */
   String getFinding_inject_id();
 
-  /**
-   * Returns the ID of the exercise this finding belongs to.
-   *
-   * @return the exercise ID, or {@code null} if from a scenario
-   */
-  String getInject_exercise();
+  /** Returns the simulation of the inject the finding is deleted with. */
+  String getFinding_simulation_id();
 
-  /**
-   * Returns the ID of the scenario this finding belongs to.
-   *
-   * @return the scenario ID, or {@code null} if from an exercise
-   */
-  String getScenario_id();
+  /** Returns the scenario of the inject the finding is deleted with. */
+  String getFinding_scenario_id();
 
   /**
    * Returns the IDs of the assets where this finding was discovered.

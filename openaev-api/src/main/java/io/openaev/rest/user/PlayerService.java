@@ -217,7 +217,7 @@ public class PlayerService {
     }
     User user = new User();
     user.setUpdateAttributes(input);
-    user.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    user.setTags(iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
     User savedUser = userRepository.save(user);
     assignOrganization(savedUser, input.getOrganizationId(), tenantId);
     userService.createUserToken(savedUser);
@@ -241,7 +241,7 @@ public class PlayerService {
       // changes, so the update event that the flush publishes carries the links just added: the
       // stream serializes that very instance afterwards.
       tagRepository
-          .findAllById(input.getTagIds())
+          .findAllByIdInTenant(input.getTagIds(), tenantId)
           .forEach(tag -> userRepository.addTag(existingUser.getId(), tag.getId()));
       teamRepository
           .findAllById(input.getTeamIds())
@@ -260,7 +260,8 @@ public class PlayerService {
     } else {
       User newUser = new User();
       newUser.setUpdateAttributes(input);
-      newUser.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+      newUser.setTags(
+          iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
       newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
       User savedUser = userRepository.save(newUser);
       assignOrganization(savedUser, input.getOrganizationId(), tenantId);
@@ -338,7 +339,8 @@ public class PlayerService {
     user.setPhone2(input.getPhone2());
     user.setPgpKey(input.getPgpKey());
     user.setCountry(input.getCountry());
-    userService.replaceTags(user, iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    userService.replaceTags(
+        user, iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
     assignOrganization(user, input.getOrganizationId(), tenantId);
     return forTenant(userRepository.save(user), tenantId);
   }

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.AssetCriticality;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
@@ -42,6 +43,7 @@ import java.time.Instant;
 import java.util.Map;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -83,6 +85,11 @@ class AttackPathGraphServiceTest extends IntegrationTest {
   private Tenant tenant;
   private String exec1Id;
   private String exec2Id;
+
+  @AfterEach
+  void clearAmbientTenant() {
+    TenantContext.clearCurrentTenant();
+  }
 
   @BeforeEach
   void seedGraph() {
@@ -254,6 +261,24 @@ class AttackPathGraphServiceTest extends IntegrationTest {
             .orElseThrow();
     assertThat(noStepNode.getInjectId()).isNull();
     assertThat(noStepNode.getExecutionStatus()).isNull();
+  }
+
+  @Test
+  @DisplayName("An empty simulation rebuilds to an empty collapsed graph without error")
+  void empty_simulation_collapsed_is_safe() {
+    AttackPathDTO dto = service.buildCollapsedGraph("SIM-WITH-NO-DATA");
+    assertThat(dto.attackPathNodes()).isEmpty();
+    assertThat(dto.attackPathEdges()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("An endpoint of an empty simulation has an empty feed without error")
+  void empty_simulation_endpoint_relations_is_safe() {
+    AttackPathEndpointRelationsDTO dto =
+        service.endpointRelations("SIM-WITH-NO-DATA", "dc-01", PageRequest.of(0, 50));
+    assertThat(dto.executions()).isEmpty();
+    assertThat(dto.edges()).isEmpty();
+    assertThat(dto.totalExecutions()).isZero();
   }
 
   @Test

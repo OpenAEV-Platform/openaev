@@ -387,7 +387,8 @@ public class TenantGroupService {
     permissionService.inTenant(
         tenantId,
         () -> {
-          grantService.validateResourceIdForGrant(input.getResourceId(), input.getResourceType());
+          grantService.validateResourceIdForGrant(
+              input.getResourceId(), input.getResourceType(), tenantId);
           assertCanAssignGrant(userService.currentUser(), input.getName(), input.getResourceId());
           return null;
         });
