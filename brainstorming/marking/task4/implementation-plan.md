@@ -398,119 +398,64 @@ filters ANDed together. Small-to-medium change in `MarkedTable` and `MarkingDime
 
 Size: L, check with Guillaume and Damien for the POC to revisit Stream.
 
-**Status**: leak reproduced (2026-10-08), fix not started.
+**Status**: ✅ leak reproduced (2026-10-08), fixed behind the `MARKING` preview feature, checked by tests
+and by hand in two browsers (2026-11-12).
 
-### 1) What we observed: two browsers, one admin, one `TLP:GREEN` user
+### 1) What we observed
 
-**Setup.**
+With a `TLP:GREEN` user in one browser and an admin in another, renaming a RED endpoint sent the **full RED
+endpoint** to the GREEN user's stream (name, IPs, MACs, markings, embedded agent). Nothing showed on screen,
+but the data was in the network stream and the Redux store. Causes:
 
-- Browser 1: a user whose group grants `TLP:GREEN` (role with `ACCESS_ASSETS`).
-- Browser 2: admin.
+- every logged-in browser keeps one `EventSource` open (`useDataLoader` in the root layout);
+- the stream checks tenant and READ permission only, then sends the entity as the publisher loaded it;
+- endpoints landed in `entities.assets` instead of `entities.endpoints`, and paginated lists keep their rows
+  in local state, so a legitimate rename was not displayed either.
 
-Endpoint `WWcorinne…` is marked `TLP:RED`, so browser 1 does not see it in Assets → Endpoints
-(the REST search is filtered by the Task 3 rewrite).
+Fixed on the side: assets are streamed under their frontend bucket (`getStreamSchema`), and the Endpoints
+list patches the names of the rows it shows (`patchRowsFromStore`). Other lists still need a reload.
 
-**Scenario 1 — the leak.** In browser 2, the admin renames the RED endpoint. In browser 1, DevTools →
-Network → `stream` → EventStream shows a `message` event with the **full RED endpoint**: name,
-hostname, every IP and MAC address, `asset_markings` (the `TLP:RED` id), tags, and its embedded agent
-(`agent_external_reference`, executor, run-as user). Nothing appears on screen.
+### 2) Stream filtered by the rules of the SQL filtering
 
-**Scenario 2 — the UI does not refresh either.** In browser 1, the GREEN user renames a visible
-endpoint `toto` → `toto3`. Browser 2 (admin) receives the event with `asset_name: "toto3"`, but its
-Endpoints table keeps showing `toto` until the page is reloaded.
+Behind `MARKING` and `assets` in `openaev.marking.active-tables`; otherwise every event is sent as before.
+Design and diagrams: `tech-design.md`, "The SSE stream: rules read from the registry and the JPA mapping".
 
-**Why: the event carries the data, but nothing displays it.**
+- **Rules** (`StreamMarkingRules`): read at startup from the active marked tables, registry included, and the
+  JPA mapping: own markings, parent row (with chains), link rows (*about*), listed ids (at any depth, e.g. the
+  assets of a finding's groups), embedded objects. A list whose rows can never be hidden gets no rule (a team's
+  table-top expectations). A table added to `MarkingDerivedTables` is filtered on the stream too.
+- **Per event** (`StreamVisibilityService`, after commit): the markings of the rows the payload points to,
+  read by id at system clearance, in the entity's tenant (else the event's).
+- **Per reader** (`StreamClearanceService`): the reader's clearance, cached. `StreamService` drops the event
+  or sends a copy without the hidden ids and objects. Fail-closed when markings cannot be read.
 
-- **The stream is always open.** `admin/Index.tsx` (the root layout) calls `useDataLoader`, so every
-  logged-in browser keeps one `EventSource` on `/api/stream`, whatever page it is on. 110 components
-  register a loader, but they only say *what to reload on reconnection*; one global handler
-  (`useDataLoader.js`, `addEventListener('message', …)`) receives every event.
-- **Events go to the Redux store, under the wrong key for endpoints.** The handler normalizes each
-  event under its `attribute_schema`. `BaseEvent` takes it from the class declaring the `@Id`
-  (`Asset`), so an endpoint lands in `entities.assets`, while every endpoint helper reads
-  `entities.endpoints` (`Schema.js`, `getEndpoint` / `getEndpoints`).
-- **The table is not store-driven anyway.** `Endpoints.tsx` keeps its rows in local state filled by
-  the paginated REST search (`PaginationComponentV2 … setContent={setEndpoints}`); a stream event never
-  touches it. Same for every `useQueryableWithLocalStorage` + `PaginationComponentV2` list.
-- **The backend gate ignores markings.** `StreamApi.listenDatabaseUpdate` checks the consumer's tenant
-  and READ permission (for assets, the `ACCESS_ASSETS` capability only), then serializes the instance
-  loaded under the **publisher's** clearance and sends it.
+Worked example, amber holding `{CLEAR, GREEN, AMBER}`, assets A (`TLP:GREEN`) and R (`TLP:RED`):
 
-So the UI *looks* right (the RED asset never shows in browser 1) while the data is in the browser: in
-the network stream and in the Redux store, readable by DevTools or by any component that later reads
-`entities.assets`. And the legitimate update of scenario 2 is lost for the same reason.
+| Event | Amber receives |
+|---|---|
+| endpoint R, its agent, an expectation on R, a finding on R only | nothing |
+| finding on A and R | the finding, `finding_assets = [A]` |
+| finding on group G holding A and R | the finding, G with `asset_group_assets = [A]` |
+| team with expectations | as before |
+| inject targeting A and R | the inject, `inject_assets = [A]` |
+| inject run on R | the inject, no expectation, only the global trace |
+| endpoint A | as before |
 
-> Side observation: each endpoint change is streamed **twice** (1 ms apart). `Asset` and `Endpoint`
-> both declare `@EntityListeners(ModelBaseListener.class)`, and JPA invokes a superclass's listeners as
-> well as the subclass's. Not verified further; unrelated to markings.
+Tests: `StreamMarkingRulesTest`, `StreamVisibilityServiceTest`, `StreamVisibilityServiceReadTest`,
+`StreamServiceTest`, `StreamClearanceServiceTest`, `WorkflowUpdateEventOutOfScopeCallersTest`.
 
-### 2) Proposal: stream a signal, not the content
+Known limits:
 
-`StreamApi` stops sending the entity. It sends **"entity `<id>` of type `<schema>` changed / was
-deleted"**, and the client re-reads what it displays through the REST API, which already applies
-tenant, RBAC and marking filtering (statement inspector) for the **reader**.
+- the payload is the publisher's view: a reader with more clearance than the publisher may receive a shorter
+  list (e.g. `inject_assets`) until reload;
+- a reader who loses access (asset GREEN → RED, grant removed) gets no event: the row stays until reload.
 
-```json
-{ "event_type": "DATA_UPDATE_SUCCESS", "attribute_schema": "assets", "attribute_id": "asset_id",
-  "instance": { "asset_id": "5a962860-…" } }
-```
+### 3) Longer term: stream a signal, not the content
 
-This is the shape of the id-only DELETE `StreamApi` already sends to consumers without READ
-permission, and the pattern of the attack-path version nudge, whose Javadoc states the notification can
-never leak state.
-
-**Backend (`StreamApi`)**
-
-- `sendStreamEvent` sends `{ <id attribute>: <id> }` instead of `mapper.valueToTree(instance)`, for
-  every event (or, as a first step, for the schemas that can carry marked data: `assets`, `agents`,
-  `findings`, `injects_expectations`, `execution_traces`, `injects`, `asset_groups`).
-- Keep the tenant and READ-permission gate: it stops ids reaching consumers who may not read the type.
-- Add a marking gate on marked entities (`Asset` first, via a small `Marked` interface):
-  `MarkingClearanceCacheManager.findClearance(userId, tenantId, user.isAdminOrBypass())`, cached, no
-  query per event. Outside the clearance → send nothing (an id alone still reveals that a RED asset
-  exists and changed).
-
-**Frontend (`useDataLoader.js` + consumers)**
-
-- The `message` handler no longer normalizes `instance` into the store. It notifies subscribers per
-  schema with the changed / deleted ids (the existing `SseActionBatcher` already coalesces by entity).
-- Lists subscribe and refetch only when a visible row is signalled. For `Endpoints.tsx`: bump
-  `reloadContentCount` on `PaginationComponentV2` (already supported, used by `AtomicTesting`,
-  `ThreatArsenal`, `GroupDetail`), debounced.
-- Detail pages re-fetch their entity when its id is signalled.
-- Fixes scenario 2 as a side effect: a list that subscribes now refreshes on another user's change.
-
-**Why a signal rather than filtering the payload per consumer**
-
-- **Nothing to sanitize.** Parent payloads embed restricted data (an asset embeds its agents; an
-  inject or asset group embeds asset ids). Filtering the payload means per-type knowledge of every
-  embedded marked reference, easy to miss one. A signal carries none.
-- **One rule for every entity**, derived ones included: with Variant B, findings / expectations / traces
-  carry no marking, and the refetch goes through the SQL rewrite that already filters them.
-- **Same answer as the REST API by construction**: the screen shows what the reader's own query returns.
-
-**Costs and residual risks**
-
-- One REST request per refresh instead of zero. Bounded by: refetch only for ids on screen, debounce,
-  and coalescing per schema + id. To watch on a running simulation (many inject / expectation events).
-- Store-driven views lose the instant payload and depend on their refetch; every view relying on the
-  pushed payload must be migrated (110 `useDataLoader` callers to review, most only reload taxonomies).
-- Derived entities without a marking (a finding of a RED asset): the signal still reaches the GREEN
-  user, but only an id, and their refetch returns nothing. Acceptable, or gate with a parent-asset
-  lookup later.
-
-### 3) Steps
-
-- **5.1** Failing test first: a `TLP:GREEN` consumer of `StreamApi` must not receive the `instance` of a
-  `TLP:RED` asset update (today it does).
-- **5.2** Backend: signal-only events + marking gate on `Asset`; tests for an unmarked asset (signal to
-  everyone with READ), a RED asset (nothing to a GREEN consumer), a RED-cleared consumer (signal).
-- **5.3** Frontend: signal handling in `useDataLoader.js` (per-schema subscribers), then `Endpoints.tsx`
-  refetch via `reloadContentCount`.
-- **5.4** Review the remaining `useDataLoader` / store-driven views and migrate those that relied on
-  the pushed payload.
-- **5.5** (optional) Stream each endpoint change once (duplicate `ModelBaseListener` on `Asset` /
-  `Endpoint`).
+`StreamApi` would send only "entity `<id>` of type `<schema>` changed / was deleted", and the client would
+re-read through REST, already filtered for the reader. It removes the payload filtering and fixes both known
+limits, at the cost of one REST request per refresh and migrating the views that rely on the pushed payload
+(110 `useDataLoader` callers).
 
 ## Chunk 6 — OCTI: scenario create
 

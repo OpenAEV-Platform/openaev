@@ -21,6 +21,10 @@ import java.util.stream.Stream;
  * <p>Each entry spells out the columns of one hop, because the predicate is generated SQL and must
  * name them; a chain (a table derived from a derived table) resolves hop by hop down to the marked
  * table. The columns are checked against the schema by {@code MarkingLinkedTablesRowsTest}.
+ *
+ * <p>The stream reads its rules from these entries and the JPA mapping ({@link
+ * io.openaev.service.stream.StreamMarkingRules}): an entry added here is filtered on the stream
+ * too.
  */
 public final class MarkingDerivedTables {
 

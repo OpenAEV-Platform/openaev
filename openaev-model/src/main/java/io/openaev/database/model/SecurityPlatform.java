@@ -173,6 +173,12 @@ public class SecurityPlatform extends Asset implements StixDomainObjectConvertib
     }
   }
 
+  @Override
+  @JsonIgnore
+  public String getStreamSchema() {
+    return "securityplatforms";
+  }
+
   public SecurityPlatform() {}
 
   public SecurityPlatform(
