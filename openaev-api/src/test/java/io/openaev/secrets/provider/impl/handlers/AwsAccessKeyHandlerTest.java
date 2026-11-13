@@ -7,7 +7,9 @@ import static io.openaev.utils.fixtures.CredentialSecretReferenceFixture.getNonC
 import static io.openaev.utils.fixtures.CredentialSecretReferenceFixture.getUsernamePasswordReference;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_ACCESS_KEY_ID;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_DEFAULT_REGION;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_ENDPOINT_URL;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_OTHER_ACCESS_KEY_ID;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_OTHER_ENDPOINT_URL;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_OTHER_REGION;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_OTHER_SECRET_ACCESS_KEY;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_SECRET_ACCESS_KEY;
@@ -290,6 +292,81 @@ class AwsAccessKeyHandlerTest extends IntegrationTest {
       assertThat(awsSecret.getAwsSecretAccessKey()).isNotEqualTo(previousCipherText);
       assertThat(nativeEncryptionService.decrypt(awsSecret.getAwsSecretAccessKey()))
           .isEqualTo(AWS_OTHER_SECRET_ACCESS_KEY);
+    }
+  }
+
+  @Nested
+  @DisplayName("buildOrUpdate - endpoint change")
+  class BuildOrUpdateEndpointChange {
+
+    private AwsAccessKeySecret secretWithEndpoint(SecretStoreRequest creation) {
+      return (AwsAccessKeySecret)
+          handler.buildOrUpdate(
+              null, creation.toBuilder().awsEndpointUrl(AWS_ENDPOINT_URL).build());
+    }
+
+    @Test
+    @DisplayName("Given a new endpoint without the secret key, should throw")
+    void given_newEndpointWithoutSecretKey_should_throw() {
+      // Arrange
+      AwsAccessKeySecret existing = secretWithEndpoint(awsAccessKeyRequest());
+      SecretStoreRequest request =
+          SecretStoreRequest.builder().awsEndpointUrl(AWS_OTHER_ENDPOINT_URL).build();
+
+      // Act & Assert
+      assertThatThrownBy(() -> handler.buildOrUpdate(existing, request))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("must be reset in order to change the endpoint URL");
+    }
+
+    @Test
+    @DisplayName("Given a new endpoint without the stored session token, should throw")
+    void given_newEndpointWithoutSessionToken_should_throw() {
+      // Arrange
+      AwsAccessKeySecret existing = secretWithEndpoint(awsAccessKeyRequestWithSessionToken());
+      SecretStoreRequest request =
+          SecretStoreRequest.builder()
+              .awsEndpointUrl(AWS_OTHER_ENDPOINT_URL)
+              .awsSecretAccessKey(AWS_OTHER_SECRET_ACCESS_KEY)
+              .build();
+
+      // Act & Assert
+      assertThatThrownBy(() -> handler.buildOrUpdate(existing, request))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("must be reset in order to change the endpoint URL");
+    }
+
+    @Test
+    @DisplayName("Given a new endpoint with the secrets, should store it")
+    void given_newEndpointWithSecrets_should_storeIt() {
+      // Arrange
+      AwsAccessKeySecret existing = secretWithEndpoint(awsAccessKeyRequestWithSessionToken());
+      SecretStoreRequest request =
+          SecretStoreRequest.builder()
+              .awsEndpointUrl(AWS_OTHER_ENDPOINT_URL)
+              .awsSecretAccessKey(AWS_OTHER_SECRET_ACCESS_KEY)
+              .awsSessionToken(AWS_SESSION_TOKEN)
+              .build();
+
+      // Act
+      AwsAccessKeySecret updated = (AwsAccessKeySecret) handler.buildOrUpdate(existing, request);
+
+      // Assert
+      assertThat(updated.getAwsEndpointUrl()).isEqualTo(AWS_OTHER_ENDPOINT_URL);
+    }
+
+    @Test
+    @DisplayName(
+        "Given the same endpoint, an absent endpoint or a blank one, should not require the secrets")
+    void given_noRedirection_should_notRequireSecrets() {
+      // Arrange
+      AwsAccessKeySecret existing = secretWithEndpoint(awsAccessKeyRequestWithSessionToken());
+
+      // Act & Assert
+      for (String endpoint : new String[] {AWS_ENDPOINT_URL, null, ""}) {
+        SecretStoreRequest request = SecretStoreRequest.builder().awsEndpointUrl(endpoint).build();
+        assertThat(handler.buildOrUpdate(existing, request)).isSameAs(existing);
+      }
     }
   }
 

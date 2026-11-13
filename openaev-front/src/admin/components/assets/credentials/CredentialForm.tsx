@@ -24,6 +24,7 @@ import type {
 } from '../../../../utils/api-types-custom';
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
 import { humanizeEnum } from '../asset-categories';
+import { endpointFieldsOf, fieldsToResetOnEndpointChange } from './credentialEndpointGuards';
 
 interface Props {
   /** Receives the multipart payload: an `input` JSON part plus one part per uploaded file. */
@@ -227,6 +228,20 @@ const CredentialForm: FunctionComponent<Props> = ({
     });
   }, [getValues, selectedContract, setValue]);
 
+  const endpointFields = endpointFieldsOf(selectedAuthMethod);
+  const watchedEndpointValues = useWatch({
+    control: methods.control,
+    name: endpointFields as (keyof CredentialInput)[],
+  });
+
+  // Pointing an endpoint elsewhere must not replay a stored secret there: the untouched secrets are
+  // emptied, so the user has to type them again, like the backend requires.
+  useEffect(() => {
+    fieldsToResetOnEndpointChange(selectedAuthMethod, getValues(), initialValues).forEach((name) => {
+      setValue(name, '', { shouldDirty: true });
+    });
+  }, [getValues, initialValues, selectedAuthMethod, setValue, watchedEndpointValues]);
+
   const fieldsToSubscribe = useMemo(() => {
     const names = new Set<string>();
     (selectedContract?.fields ?? []).forEach((field: CredentialContractField) => {
@@ -288,6 +303,7 @@ const CredentialForm: FunctionComponent<Props> = ({
       cardinality: '1',
       defaultValue: field.default_value ?? undefined,
       settings: { required: isRequired },
+      helperText: field.field_description ? t(field.field_description) : undefined,
       // A stored secret is never echoed back: passwords and uploaded key files are both rendered
       // as a placeholder in edit mode and only sent when the user provides a new value.
       writeOnly: editing && (field.field_type === 'password' || field.field_type === 'file'),
@@ -402,8 +418,8 @@ const CredentialForm: FunctionComponent<Props> = ({
                 <FileFieldController
                   key={field.field_name}
                   name={field.field_name}
-                  label={field.field_name}
-                  acceptMimeTypes="application/json"
+                  label={t(field.field_name)}
+                  acceptMimeTypes={field.accepted_formats?.join(',')}
                   required={!!field.required}
                   disabled={isSubmitting}
                 />

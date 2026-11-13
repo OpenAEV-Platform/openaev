@@ -35,8 +35,13 @@ public class AwsAccessKeyHandler implements SecretHandler {
 
   @Override
   public Secret buildOrUpdate(Secret existingSecret, SecretStoreRequest request) {
-    AwsAccessKeySecret awsSecret =
-        existingSecret instanceof AwsAccessKeySecret casted ? casted : new AwsAccessKeySecret();
+    AwsAccessKeySecret awsSecret;
+    if (existingSecret instanceof AwsAccessKeySecret casted) {
+      refuseEndpointChangeWithoutNewSecretValues(casted, request);
+      awsSecret = casted;
+    } else {
+      awsSecret = new AwsAccessKeySecret();
+    }
 
     if (request.awsDefaultRegion() != null) {
       awsSecret.setAwsDefaultRegion(request.awsDefaultRegion());
@@ -139,5 +144,25 @@ public class AwsAccessKeyHandler implements SecretHandler {
         awsAccessKeySecret.getAwsAccessKeyId(),
         nativeEncryptionService.decrypt(awsAccessKeySecret.getAwsSecretAccessKey()),
         sessionToken);
+  }
+
+  /**
+   * The stored secrets must not be replayed against a new endpoint: the caller has to supply them
+   * again, otherwise whoever can edit the credential could redirect them to a host they control.
+   */
+  private static void refuseEndpointChangeWithoutNewSecretValues(
+      AwsAccessKeySecret existing, SecretStoreRequest request) {
+    if (!SecretHandler.redirectsEndpoint(existing.getAwsEndpointUrl(), request.awsEndpointUrl())) {
+      return;
+    }
+    boolean secretKeyMissing = request.awsSecretAccessKey() == null;
+    boolean sessionTokenMissing =
+        existing.getAwsSessionToken() != null
+            && !existing.getAwsSessionToken().isBlank()
+            && request.awsSessionToken() == null;
+    if (secretKeyMissing || sessionTokenMissing) {
+      throw new IllegalArgumentException(
+          "AWS secret access key and session token (if set) must be reset in order to change the endpoint URL");
+    }
   }
 }

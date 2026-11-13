@@ -8,7 +8,7 @@ interface Props {
   name: string;
   label?: string;
   required?: boolean;
-  /** html input "accept", MIME types only. */
+  /** html input "accept": MIME types and/or file extensions such as `.pem`. */
   acceptMimeTypes?: string;
   /** Accepted mime type fragments, e.g. ['image/', 'application/pdf'] */
   filters?: string[];

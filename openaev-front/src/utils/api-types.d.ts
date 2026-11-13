@@ -3430,8 +3430,10 @@ export interface CredentialBulkProcessingInput {
 }
 
 export interface CredentialContractField {
+  accepted_formats?: string[];
   choices?: string[];
   default_value?: string;
+  field_description?: string;
   field_name: string;
   field_type?: "text" | "password" | "select" | "number" | "checkbox" | "file";
   mandatory_condition_field?: string;
@@ -3517,6 +3519,8 @@ export interface CredentialFullOutput {
     | "us-gov-west-1";
   /** AWS endpoint URL override */
   credential_aws_endpoint_url?: string;
+  /** Whether an AWS external id is stored; the external id itself is never returned */
+  credential_aws_external_id_defined?: boolean;
   /** AWS role ARN */
   credential_aws_role_arn?: string;
   /** AWS session token present */
@@ -3527,6 +3531,8 @@ export interface CredentialFullOutput {
     | "INSTANCE_DEFAULT";
   /** AWS source profile access key id */
   credential_aws_source_profile_access_key_id?: string;
+  /** Whether an AWS source profile secret access key is stored; the key itself is never returned */
+  credential_aws_source_profile_secret_access_key_defined?: boolean;
   /** Azure authority host URI */
   credential_azure_authority_host_uri?: string;
   /** Azure client id */
