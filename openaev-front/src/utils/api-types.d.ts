@@ -3519,6 +3519,8 @@ export interface CredentialFullOutput {
     | "us-gov-west-1";
   /** AWS endpoint URL override */
   credential_aws_endpoint_url?: string;
+  /** Whether an AWS external id is stored; the external id itself is never returned */
+  credential_aws_external_id_defined?: boolean;
   /** AWS role ARN */
   credential_aws_role_arn?: string;
   /** AWS session token present */
@@ -3527,8 +3529,6 @@ export interface CredentialFullOutput {
   credential_aws_source_identity_type?:
     | "STATIC_ACCESS_KEY"
     | "INSTANCE_DEFAULT";
-  /** Whether an AWS external id is stored; the external id itself is never returned */
-  credential_aws_external_id_defined?: boolean;
   /** AWS source profile access key id */
   credential_aws_source_profile_access_key_id?: string;
   /** Whether an AWS source profile secret access key is stored; the key itself is never returned */
