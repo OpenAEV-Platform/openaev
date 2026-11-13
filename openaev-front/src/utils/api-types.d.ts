@@ -2594,10 +2594,7 @@ export interface CatalogPayloadOutput {
 }
 
 export interface CatalogScenarioInstallInput {
-  asset_group_ids?: string[];
-  asset_ids?: string[];
-  manual_targets?: string[];
-  team_ids?: string[];
+  scenario_type: string;
 }
 
 export interface CatalogScenarioOutput {
@@ -2628,6 +2625,11 @@ export interface CatalogSyncOutput {
   /** @format int32 */
   unchanged?: number;
 }
+
+export type ChainedScenarioInstallInput = CatalogScenarioInstallInput & {
+  /** Input for creating or updating a workflow configuration. */
+  workflow_configuration?: WorkflowConfigurationInput;
+};
 
 export interface Challenge {
   challenge_category?: string;
@@ -13480,6 +13482,13 @@ export interface ThreatArsenalFacetCountsOutput {
   /** Number of contracts per payload status under the current filters */
   statuses?: Record<string, number>;
 }
+
+export type TimeBasedScenarioInstallInput = CatalogScenarioInstallInput & {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  manual_targets?: string[];
+  team_ids?: string[];
+};
 
 export interface Token {
   listened?: boolean;
