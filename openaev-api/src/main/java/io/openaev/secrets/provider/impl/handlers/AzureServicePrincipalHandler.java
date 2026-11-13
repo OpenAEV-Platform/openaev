@@ -152,6 +152,7 @@ public class AzureServicePrincipalHandler implements SecretHandler {
         azureSecret.getAzureTenantId(),
         azureSecret.getAzureClientId(),
         nativeEncryptionService.decrypt(azureSecret.getAzureClientSecret()),
-        azureSecret.getAzureSubscriptionId());
+        azureSecret.getAzureSubscriptionId(),
+        azureSecret.getAzureAuthorityHostUri());
   }
 }

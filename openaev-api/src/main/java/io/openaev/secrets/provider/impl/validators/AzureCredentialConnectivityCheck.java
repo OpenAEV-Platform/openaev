@@ -5,15 +5,14 @@ import com.azure.core.credential.TokenCredential;
 import com.azure.core.credential.TokenRequestContext;
 import com.azure.core.exception.ClientAuthenticationException;
 import com.azure.core.exception.HttpResponseException;
+import com.azure.core.http.HttpHeaderName;
+import com.azure.core.http.HttpMethod;
+import com.azure.core.http.HttpRequest;
+import com.azure.core.http.HttpResponse;
 import com.azure.core.management.AzureEnvironment;
 import com.azure.identity.CredentialUnavailableException;
 import io.openaev.database.model.AzureEnvironments;
 import io.openaev.secrets.provider.SecretConnectionResult;
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +64,8 @@ public class AzureCredentialConnectivityCheck {
    * @param clientId the application id
    * @param clientSecret the decrypted client secret
    * @param subscriptionId optional subscription to additionally probe with an ARM read
+   * @param authorityHostUri optional host of a sovereign or mocked cloud, used for the login and
+   *     the ARM read instead of the endpoints of the stored cloud
    * @return the outcome, never null
    */
   public SecretConnectionResult validateServicePrincipal(
@@ -72,7 +73,8 @@ public class AzureCredentialConnectivityCheck {
       String tenantId,
       String clientId,
       String clientSecret,
-      String subscriptionId) {
+      String subscriptionId,
+      String authorityHostUri) {
     AzureEnvironment environment;
     try {
       environment = requireEnvironment(environmentName);
@@ -84,9 +86,17 @@ public class AzureCredentialConnectivityCheck {
       return SecretConnectionResult.formatError();
     }
 
-    TokenCredential credential =
-        tokenCredentialFactory.forServicePrincipal(environment, tenantId, clientId, clientSecret);
-    return probe(credential, environment, subscriptionId);
+    TokenCredential credential;
+    try {
+      credential =
+          tokenCredentialFactory.forServicePrincipal(
+              environment, tenantId, clientId, clientSecret, authorityHostUri);
+    } catch (IllegalArgumentException e) {
+      // The SDK refuses a malformed or non-HTTPS authority host: the stored override is wrong.
+      return SecretConnectionResult.formatError();
+    }
+    return probe(
+        credential, resourceManagerEndpoint(environment, authorityHostUri), subscriptionId);
   }
 
   /**
@@ -98,10 +108,13 @@ public class AzureCredentialConnectivityCheck {
    * @param environmentName the stored Azure cloud name
    * @param clientId the user-assigned identity's client id, or null for the system-assigned one
    * @param subscriptionId optional subscription to additionally probe with an ARM read
+   * @param authorityHostUri optional host of a sovereign or mocked cloud, used for the ARM read
+   *     instead of the endpoint of the stored cloud (the identity endpoint stays the one of the
+   *     platform, see {@link AzureCredentialConnectivityCheckFactory#forManagedIdentity})
    * @return the outcome, never null
    */
   public SecretConnectionResult validateManagedIdentity(
-      String environmentName, String clientId, String subscriptionId) {
+      String environmentName, String clientId, String subscriptionId, String authorityHostUri) {
     AzureEnvironment environment;
     try {
       environment = requireEnvironment(environmentName);
@@ -110,17 +123,26 @@ public class AzureCredentialConnectivityCheck {
     }
 
     TokenCredential credential = tokenCredentialFactory.forManagedIdentity(clientId);
-    return probe(credential, environment, subscriptionId);
+    return probe(
+        credential, resourceManagerEndpoint(environment, authorityHostUri), subscriptionId);
+  }
+
+  private static String resourceManagerEndpoint(
+      AzureEnvironment environment, String authorityHostUri) {
+    return withTrailingSlash(
+        isBlank(authorityHostUri) ? environment.getResourceManagerEndpoint() : authorityHostUri);
   }
 
   private SecretConnectionResult probe(
-      TokenCredential credential, AzureEnvironment environment, String subscriptionId) {
+      TokenCredential credential, String resourceManagerEndpoint, String subscriptionId) {
     Duration timeout = Duration.ofSeconds(Math.max(1, timeoutSeconds));
     String token;
     try {
       AccessToken accessToken =
           credential
-              .getToken(new TokenRequestContext().addScopes(armScope(environment)))
+              .getToken(
+                  new TokenRequestContext()
+                      .addScopes(resourceManagerEndpoint + DEFAULT_SCOPE_SUFFIX))
               .block(timeout);
       if (accessToken == null) {
         return SecretConnectionResult.timeout();
@@ -133,42 +155,55 @@ public class AzureCredentialConnectivityCheck {
     if (isBlank(subscriptionId)) {
       return SecretConnectionResult.active();
     }
-    return probeSubscription(environment, subscriptionId, token, timeout);
+    return probeSubscription(resourceManagerEndpoint, subscriptionId, token, timeout);
   }
 
   /**
-   * Reads the subscription with the freshly obtained token. A plain HTTPS GET rather than the
+   * Reads the subscription with the freshly obtained token. A plain GET rather than the
    * resource-manager SDK: the status code alone answers the question, and pulling {@code
    * azure-resourcemanager} in for one call would add a large dependency tree for no gain.
+   *
+   * <p>Sent through the transport of the credential itself: a second client (the JDK one) resolves
+   * {@code localhost} to a single address and ignores {@code HTTPS_PROXY}, so it could fail on a
+   * host the token call had just reached.
    */
   private SecretConnectionResult probeSubscription(
-      AzureEnvironment environment, String subscriptionId, String token, Duration timeout) {
-    String endpoint = withTrailingSlash(environment.getResourceManagerEndpoint());
-    URI uri =
-        URI.create(
-            endpoint
-                + "subscriptions/"
-                + subscriptionId
-                + "?api-version="
-                + SUBSCRIPTION_API_VERSION);
+      String resourceManagerEndpoint, String subscriptionId, String token, Duration timeout) {
+    HttpRequest request;
+    try {
+      request =
+          new HttpRequest(
+              HttpMethod.GET,
+              resourceManagerEndpoint
+                  + "subscriptions/"
+                  + subscriptionId
+                  + "?api-version="
+                  + SUBSCRIPTION_API_VERSION);
+    } catch (IllegalArgumentException e) {
+      // A malformed authority host override: the stored configuration is wrong.
+      return SecretConnectionResult.formatError();
+    }
+    request.setHeader(HttpHeaderName.AUTHORIZATION, "Bearer " + token);
 
-    try (HttpClient httpClient = HttpClient.newBuilder().connectTimeout(timeout).build()) {
-      HttpRequest request =
-          HttpRequest.newBuilder(uri)
-              .GET()
-              .timeout(timeout)
-              .header("Authorization", "Bearer " + token)
-              .build();
-      HttpResponse<Void> response =
-          httpClient.send(request, HttpResponse.BodyHandlers.discarding());
-      return mapStatusCode(response.statusCode());
-    } catch (java.net.http.HttpTimeoutException e) {
-      return SecretConnectionResult.timeout();
-    } catch (IOException e) {
+    HttpResponse response = null;
+    try {
+      response = tokenCredentialFactory.httpClient().send(request).block(timeout);
+      if (response == null) {
+        return SecretConnectionResult.timeout();
+      }
+      return mapStatusCode(response.getStatusCode());
+    } catch (RuntimeException e) {
+      if (isTimeout(e)) {
+        return SecretConnectionResult.timeout();
+      }
+      // No response at all: inconclusive. Never logged with its message, a URL may carry the
+      // subscription id.
+      log.debug("Azure subscription probe failed without a response");
       return SecretConnectionResult.networkError();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return SecretConnectionResult.networkError();
+    } finally {
+      if (response != null) {
+        response.close();
+      }
     }
   }
 
@@ -254,10 +289,6 @@ public class AzureCredentialConnectivityCheck {
       throw new IllegalArgumentException("Azure environment is required");
     }
     return environment;
-  }
-
-  private static String armScope(AzureEnvironment environment) {
-    return withTrailingSlash(environment.getResourceManagerEndpoint()) + DEFAULT_SCOPE_SUFFIX;
   }
 
   private static String withTrailingSlash(String endpoint) {
