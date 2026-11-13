@@ -2571,6 +2571,15 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface CatalogPayloadInstallAllOutput {
+  failed_payload_external_ids?: string[];
+  installed_payload_ids?: string[];
+}
+
+export interface CatalogPayloadInstallOutput {
+  installed_payload_ids?: string[];
+}
+
 export interface CatalogPayloadOutput {
   /** @minLength 1 */
   catalog_payload_external_id: string;

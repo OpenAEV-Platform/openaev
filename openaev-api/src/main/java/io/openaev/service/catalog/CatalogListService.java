@@ -42,7 +42,7 @@ public class CatalogListService {
   }
 
   // The latest offered version of each item, sorted by name.
-  private static <T extends CatalogItem> List<T> latestVersions(List<T> items) {
+  static <T extends CatalogItem> List<T> latestVersions(List<T> items) {
     return items.stream()
         .filter(CatalogListService::isOffered)
         .collect(

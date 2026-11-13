@@ -12,11 +12,11 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadFileName;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadVersion;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioFileName;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.scenarioItem;
+import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,8 +35,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -49,9 +47,6 @@ import org.springframework.transaction.annotation.Transactional;
 @TestPropertySource(properties = "openaev.enabled-dev-features=MARKING,CATALOG")
 @DisplayName("Catalogue sync endpoint")
 class CatalogSyncApiTest extends IntegrationTest {
-
-  private static final String CATALOG =
-      TENANT_CATALOG_URI.replace("{tenantId}", DEFAULT_TENANT_UUID);
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -114,18 +109,10 @@ class CatalogSyncApiTest extends IntegrationTest {
 
     ResultActions syncWithoutTenant(String... tenantIds) throws Exception {
       MockMultipartHttpServletRequestBuilder request =
-          multipart(CATALOG_URI + "/sync")
-              .file(
-                  new MockMultipartFile(
-                      "manifest",
-                      "manifest.json",
-                      MediaType.APPLICATION_JSON_VALUE,
-                      mapper.writeValueAsBytes(manifest(name, items, payloads))));
-      files.forEach(
-          (fileName, content) ->
-              request.file(
-                  new MockMultipartFile(
-                      "archives", fileName, "application/octet-stream", content)));
+          syncRequest(
+              mapper.writeValueAsBytes(manifest(name, items, payloads)),
+              files,
+              CATALOG_URI + "/sync");
       if (tenantIds.length > 0) {
         request.header("X-Tenant-Ids", String.join(",", tenantIds));
       }
@@ -138,16 +125,9 @@ class CatalogSyncApiTest extends IntegrationTest {
   }
 
   private ResultActions post(byte[] manifest, Map<String, byte[]> files) throws Exception {
-    MockMultipartHttpServletRequestBuilder request =
-        multipart(CATALOG + "/sync")
-            .file(
-                new MockMultipartFile(
-                    "manifest", "manifest.json", MediaType.APPLICATION_JSON_VALUE, manifest));
-    files.forEach(
-        (name, content) ->
-            request.file(
-                new MockMultipartFile("archives", name, "application/octet-stream", content)));
-    return mvc.perform(request.with(csrf()));
+    return mvc.perform(
+        syncRequest(manifest, files, TENANT_CATALOG_URI + "/sync", DEFAULT_TENANT_UUID)
+            .with(csrf()));
   }
 
   private JsonNode body(ResultActions result) throws Exception {
@@ -155,7 +135,9 @@ class CatalogSyncApiTest extends IntegrationTest {
   }
 
   private JsonNode list(String type) throws Exception {
-    return body(mvc.perform(get(CATALOG + "/" + type)).andExpect(status().isOk()));
+    return body(
+        mvc.perform(get(TENANT_CATALOG_URI + "/" + type, DEFAULT_TENANT_UUID))
+            .andExpect(status().isOk()));
   }
 
   @Nested

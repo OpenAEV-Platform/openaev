@@ -1,17 +1,26 @@
 package io.openaev.utils.fixtures;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.service.catalog.CatalogArchiveChecks;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 
 /** Manifest entries and files of a catalogue release, as the collector sends them. */
 public class CatalogReleaseFixture {
@@ -61,6 +70,27 @@ public class CatalogReleaseFixture {
     }
   }
 
+  /** A Command payload file as the repository stores it, and the content hash it releases. */
+  public record ReleasedPayload(byte[] file, String contentHash) {}
+
+  public static ReleasedPayload releasedPayload() {
+    try (InputStream in =
+        CatalogReleaseFixture.class.getResourceAsStream("/catalog/payload-hash-vectors.json")) {
+      JsonNode vector =
+          StreamSupport.stream(MAPPER.readTree(in).path("vectors").spliterator(), false)
+              .filter(v -> v.path("name").asText().contains("as the repository stores it"))
+              .findFirst()
+              .orElseThrow();
+      ObjectNode file = ((ObjectNode) vector.path("payload")).deepCopy();
+      file.remove("payload_id");
+      file.put("payload_external_id", PAYLOAD_ID);
+      file.set("payload_attack_patterns", vector.path("attack_patterns"));
+      return new ReleasedPayload(MAPPER.writeValueAsBytes(file), vector.path("sha256").asText());
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
   public static String scenarioFileName(String version) {
     return SCENARIO_ID + "-" + version + ".zip";
   }
@@ -100,6 +130,14 @@ public class CatalogReleaseFixture {
     return payload;
   }
 
+  public static Map<String, Object> payloadVersion(
+      String version, String status, ReleasedPayload released) {
+    Map<String, Object> payload = payloadVersion(version, released.file());
+    payload.put("sha256", released.contentHash());
+    payload.put("status", status);
+    return payload;
+  }
+
   public static Map<String, Object> manifest(
       String release, List<Map<String, Object>> items, List<Map<String, Object>> payloads) {
     Map<String, Object> manifest = new LinkedHashMap<>();
@@ -109,5 +147,20 @@ public class CatalogReleaseFixture {
     manifest.put("items", items);
     manifest.put("payloads", payloads);
     return manifest;
+  }
+
+  /** A sync request: the manifest, and each file of the release as an archive. */
+  public static MockMultipartHttpServletRequestBuilder syncRequest(
+      byte[] manifest, Map<String, byte[]> files, String uri, Object... uriVariables) {
+    MockMultipartHttpServletRequestBuilder request =
+        multipart(uri, uriVariables)
+            .file(
+                new MockMultipartFile(
+                    "manifest", "manifest.json", MediaType.APPLICATION_JSON_VALUE, manifest));
+    files.forEach(
+        (name, content) ->
+            request.file(
+                new MockMultipartFile("archives", name, "application/octet-stream", content)));
+    return request;
   }
 }

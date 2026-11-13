@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CatalogItemMapper {
 
-  private static final String FILIGRAN = "Filigran";
+  public static final String FILIGRAN = "Filigran";
   private static final String ORIGIN_FILIGRAN = "filigran";
   private static final String ORIGIN_COMMUNITY = "community";
 

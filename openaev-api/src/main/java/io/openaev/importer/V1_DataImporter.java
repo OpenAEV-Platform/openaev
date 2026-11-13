@@ -47,6 +47,7 @@ import io.openaev.rest.payload.regex_group.RegexGroupInput;
 import io.openaev.rest.payload.service.PayloadCreationService;
 import io.openaev.service.*;
 import io.openaev.service.payload.PayloadContentHashService;
+import io.openaev.service.payload.PayloadVersionMatcher;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.CollectorTypeHumanizer;
 import io.openaev.utils.ConditionKeyTypesUtils;
@@ -118,6 +119,7 @@ public class V1_DataImporter implements Importer {
 
   private final UserService userService;
   private final PayloadContentHashService payloadContentHashService;
+  private final PayloadVersionMatcher payloadVersionMatcher;
 
   private final PermissionService permissionService;
 
@@ -2070,9 +2072,16 @@ public class V1_DataImporter implements Importer {
             : null;
 
     if (hasText(externalId)) {
+      List<Payload> versions =
+          payloadRepository.findAllByTenantIdAndIdentityExternalId(
+              tenantWriteScopeResolver.tenantForWrite(ctx, null), externalId);
+      if (versions.size() > 1) {
+        return importVersionOrCopy(ctx, versions, payloadNode, injectContractNode, baseIds);
+      }
       Optional<InjectorContract> existing =
-          findContractByPayloadExternalId(
-              externalId, tenantWriteScopeResolver.tenantForWrite(ctx, null));
+          versions.stream()
+              .findFirst()
+              .flatMap(injectorContractRepository::findInjectorContractByPayload);
       if (existing.isPresent()) {
         return existing.get();
       }
@@ -2109,24 +2118,9 @@ public class V1_DataImporter implements Importer {
     if (!hasText(externalId)) {
       return Optional.empty();
     }
-    return findContractByPayloadExternalId(externalId, writeTenant);
-  }
-
-  /**
-   * The contract a payload external id leads to in {@code tenantId}. The external id repeats across
-   * the tenants that hold a copy of the same payload, and the transaction keeps the scope of the
-   * request, so both lookups name the write tenant instead of answering for every tenant of the
-   * scope.
-   */
-  private Optional<InjectorContract> findContractByPayloadExternalId(
-      String externalId, String tenantId) {
-    Optional<InjectorContract> contractFromPayload =
-        injectorContractRepository.findByPayloadExternalIdAndTenant(externalId, tenantId);
-    if (contractFromPayload.isPresent()) {
-      return contractFromPayload;
-    }
-    return payloadRepository
-        .findByExternalIdAndTenantId(externalId, tenantId)
+    // A step never creates a payload: the highest version stands for the exported one.
+    return payloadVersionMatcher
+        .highest(payloadRepository.findAllByTenantIdAndIdentityExternalId(writeTenant, externalId))
         .flatMap(injectorContractRepository::findInjectorContractByPayload);
   }
 
@@ -2135,6 +2129,11 @@ public class V1_DataImporter implements Importer {
       @NotNull final JsonNode payloadNode,
       @NotNull final JsonNode injectContractNode,
       Map<String, Base> baseIds) {
+    return importPayload(ctx, payloadInput(ctx, payloadNode, injectContractNode, baseIds));
+  }
+
+  private PayloadCreateInput payloadInput(
+      TxCtx ctx, JsonNode payloadNode, JsonNode injectContractNode, Map<String, Base> baseIds) {
     // swap executable file id or file drop file id
     if (payloadNode.has("executable_file")) {
       ((ObjectNode) payloadNode)
@@ -2148,8 +2147,32 @@ public class V1_DataImporter implements Importer {
               "file_drop_file", baseIds.get(payloadNode.get("file_drop_file").textValue()).getId());
     }
 
-    PayloadCreateInput payloadCreateInput =
-        buildPayloadCreateInput(ctx, baseIds, payloadNode, injectContractNode);
+    return buildPayloadCreateInput(ctx, baseIds, payloadNode, injectContractNode);
+  }
+
+  // Several versions of one payload: the one the zip holds, else a local copy of its content.
+  private InjectorContract importVersionOrCopy(
+      TxCtx ctx,
+      List<Payload> versions,
+      JsonNode payloadNode,
+      JsonNode injectContractNode,
+      Map<String, Base> baseIds) {
+    PayloadCreateInput input = payloadInput(ctx, payloadNode, injectContractNode, baseIds);
+    Payload imported =
+        payloadCreationService.toPayload(
+            ctx, tenantWriteScopeResolver.tenantForWrite(ctx, null), input);
+    return payloadVersionMatcher
+        .match(versions, imported, attackPatternsOf(input), payloadNode)
+        .flatMap(injectorContractRepository::findInjectorContractByPayload)
+        .orElseGet(() -> importPayload(ctx, input));
+  }
+
+  private List<AttackPattern> attackPatternsOf(PayloadCreateInput input) {
+    return fromIterable(
+        attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds())));
+  }
+
+  private InjectorContract importPayload(TxCtx ctx, PayloadCreateInput payloadCreateInput) {
     String writeTenant = tenantWriteScopeResolver.tenantForWrite(ctx, null);
     Optional<InjectorContract> sameContent =
         findContractWithSameContent(ctx, writeTenant, payloadCreateInput);
@@ -2187,11 +2210,7 @@ public class V1_DataImporter implements Importer {
       return Optional.empty();
     }
     Payload imported = payloadCreationService.toPayload(ctx, writeTenant, input);
-    Optional<String> hash =
-        payloadContentHashService.hash(
-            imported,
-            fromIterable(
-                attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds()))));
+    Optional<String> hash = payloadContentHashService.hash(imported, attackPatternsOf(input));
     if (hash.isEmpty()) {
       return Optional.empty();
     }
