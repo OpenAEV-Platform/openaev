@@ -277,6 +277,7 @@ import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.autonomous.AutonomousTimeoutService;
 import io.openaev.service.autonomous.CapabilityResolverService;
 import io.openaev.service.catalog.CatalogListService;
+import io.openaev.service.catalog.CatalogPayloadOfferService;
 import io.openaev.service.catalog.CatalogPayloadService;
 import io.openaev.service.catalog.CatalogService;
 import io.openaev.service.chaining.ScopeSnapshotService;
@@ -2362,7 +2363,7 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Called by the catalogue API and sync, inside their scoped transactions:
-              CatalogService.class, CatalogListService.class, CatalogPayloadService.class)
+              CatalogService.class, CatalogListService.class, CatalogPayloadOfferService.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(CatalogItemRepository.class)
@@ -2678,6 +2679,7 @@ class TenantActiveTableAccessArchTest {
               InjectorContract.class,
               io.openaev.database.repository.PayloadIdentityRepository.class,
               CatalogPayloadService.class,
+              CatalogPayloadOfferService.class,
               // Reads the identity it is handed by the catalogue, to describe the change:
               io.openaev.service.catalog.event.CatalogChangePublisher.class)
           .should()

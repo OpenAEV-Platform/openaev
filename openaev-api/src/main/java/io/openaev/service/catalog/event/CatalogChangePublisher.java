@@ -18,7 +18,10 @@ public class CatalogChangePublisher {
   private final ApplicationEventPublisher eventPublisher;
 
   public void payloadChanged(
-      PayloadIdentity identity, String version, CatalogHistory.Action action) {
+      PayloadIdentity identity,
+      String version,
+      CatalogHistory.Action action,
+      CatalogHistory.Mode mode) {
     User user = userService.currentUserOrNull();
     eventPublisher.publishEvent(
         new CatalogContentChanged(
@@ -28,6 +31,7 @@ public class CatalogChangePublisher {
             identity.getExternalId(),
             version,
             action,
+            mode,
             user == null ? null : user.getId()));
   }
 }

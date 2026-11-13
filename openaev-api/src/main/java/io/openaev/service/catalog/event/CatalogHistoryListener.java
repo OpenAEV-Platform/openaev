@@ -26,6 +26,7 @@ public class CatalogHistoryListener {
     history.setExternalId(event.externalId());
     history.setVersion(event.version());
     history.setAction(event.action());
+    history.setMode(event.mode());
     if (event.userId() != null) {
       history.setUser(entityManager.getReference(User.class, event.userId()));
     }

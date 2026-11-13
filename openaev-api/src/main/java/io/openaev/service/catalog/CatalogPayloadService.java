@@ -11,9 +11,7 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.PayloadType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.catalog.CatalogHistory;
-import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.model.payload.PayloadIdentity;
-import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.PayloadIdentityRepository;
 import io.openaev.database.repository.PayloadRepository;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
@@ -25,6 +23,7 @@ import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.catalog.event.CatalogChangePublisher;
+import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.payload.PayloadContentHashService;
 import io.openaev.service.payload.PayloadUsageService;
@@ -34,8 +33,6 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -49,7 +46,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CatalogPayloadService {
 
-  private final CatalogItemRepository catalogItemRepository;
+  public static final String OTHER_TYPE_REFUSED = "A new version cannot change the payload type";
+
   private final PayloadIdentityRepository payloadIdentityRepository;
   private final PayloadRepository payloadRepository;
   private final PayloadUtils payloadUtils;
@@ -61,34 +59,7 @@ public class CatalogPayloadService {
   private final OrganizationService organizationService;
   private final ObjectMapper mapper;
   private final CatalogChangePublisher changePublisher;
-
-  // -- LIST --
-
-  /** A released version the catalogue still offers. */
-  @Transactional(readOnly = true)
-  public InstallablePayloadVersion installable(TxCtx ctx, String externalId, String version) {
-    CatalogPayload item =
-        catalogItemRepository
-            .findPayload(externalId, version)
-            .orElseThrow(() -> new ElementNotFoundException("Catalogue payload not found"));
-    if (!item.getStatus().isOffered()) {
-      throw new BadRequestException("This version is no longer offered");
-    }
-    return InstallablePayloadVersion.of(item);
-  }
-
-  /** The latest offered version of every catalogue payload the tenant never installed. */
-  @Transactional(readOnly = true)
-  public List<InstallablePayloadVersion> neverInstalled(TxCtx ctx, String tenantId) {
-    Set<String> known =
-        payloadIdentityRepository.findAllByTenantIdAndRepositoryIsNotNull(tenantId).stream()
-            .map(identity -> key(identity.getRepository(), identity.getExternalId()))
-            .collect(Collectors.toSet());
-    return CatalogListService.latestVersions(catalogItemRepository.findAllPayloads()).stream()
-        .map(InstallablePayloadVersion::of)
-        .filter(released -> !known.contains(key(released.repository(), released.externalId())))
-        .toList();
-  }
+  private final DetectionRemediationService detectionRemediationService;
 
   // -- CREATE --
 
@@ -98,7 +69,11 @@ public class CatalogPayloadService {
    */
   @Transactional(rollbackFor = Exception.class)
   public Payload install(
-      TxCtx ctx, String tenantId, InstallablePayloadVersion released, byte[] file) {
+      TxCtx ctx,
+      String tenantId,
+      InstallablePayloadVersion released,
+      byte[] file,
+      CatalogHistory.Mode mode) {
     PayloadIdentity identity = catalogueIdentity(tenantId, released);
     List<Payload> versions = payloadRepository.findAllByIdentityId(identity.getId());
     Optional<Payload> installed =
@@ -107,11 +82,12 @@ public class CatalogPayloadService {
       throw new BadRequestException("This version is already installed");
     }
     Payload payload =
-        installed.orElseGet(() -> createVersion(ctx, tenantId, identity, released, file));
+        installed.orElseGet(() -> createVersion(ctx, tenantId, identity, versions, released, file));
     identity.setLatestVersion(highest(versions, payload));
     // Creating the version's contract clears the session: the identity is saved again.
     payloadIdentityRepository.save(identity);
-    changePublisher.payloadChanged(identity, released.version(), CatalogHistory.Action.INSTALL);
+    changePublisher.payloadChanged(
+        identity, released.version(), CatalogHistory.Action.INSTALL, mode);
     return payload;
   }
 
@@ -137,7 +113,10 @@ public class CatalogPayloadService {
     versions.forEach(
         version ->
             changePublisher.payloadChanged(
-                identity, version.getVersion(), CatalogHistory.Action.UNINSTALL));
+                identity,
+                version.getVersion(),
+                CatalogHistory.Action.UNINSTALL,
+                CatalogHistory.Mode.MANUAL));
   }
 
   // -- STEPS --
@@ -167,10 +146,12 @@ public class CatalogPayloadService {
       TxCtx ctx,
       String tenantId,
       PayloadIdentity identity,
+      List<Payload> versions,
       InstallablePayloadVersion released,
       byte[] file) {
     PayloadUpsertInput input = read(file);
     PayloadType type = PayloadType.fromString(input.getType());
+    refuseOtherType(versions, type);
     validateArchitecture(type.key, input.getExecutionArch());
     Payload payload = type.getPayloadSupplier().get();
     // Copied before the identity is set: the input carries an origin the release does not decide.
@@ -184,12 +165,29 @@ public class CatalogPayloadService {
     List<AttackPattern> attackPatterns = attackPatterns(ctx, input);
     payload.setContentHash(releasedHash(payload, attackPatterns, released));
     Payload saved = payloadRepository.save(payload);
+    carryLocalRules(identity.getLatestVersion(), saved);
     payloadService.synchroniseInjectorContractBasedOnPayload(
         saved,
         attackPatterns,
         domainService.upserts(input.getDomains(), tenantId),
         new HashSet<>());
     return saved;
+  }
+
+  // A type change is a new external ID in the catalogue, never a new version.
+  private static void refuseOtherType(List<Payload> versions, PayloadType type) {
+    if (versions.stream().anyMatch(version -> version.getTypeEnum() != type)) {
+      throw new BadRequestException(OTHER_TYPE_REFUSED);
+    }
+  }
+
+  // The tenant only adds AI rules to a catalogue version: they stay on a newer one, to review. Read
+  // before the contract is created, which clears the session.
+  private void carryLocalRules(Payload replaced, Payload payload) {
+    if (replaced != null
+        && SemanticVersion.ORDER.compare(replaced.getVersion(), payload.getVersion()) < 0) {
+      detectionRemediationService.copyAiRulesToReview(replaced, payload);
+    }
   }
 
   private PayloadUpsertInput read(byte[] file) {
@@ -225,9 +223,5 @@ public class CatalogPayloadService {
       throw new BadRequestException("This version does not match the release");
     }
     return hash;
-  }
-
-  private static String key(String repository, String externalId) {
-    return repository + "/" + externalId;
   }
 }

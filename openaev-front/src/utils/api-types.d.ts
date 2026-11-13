@@ -2596,6 +2596,14 @@ export interface CatalogScenarioOutput {
   catalog_scenario_version: string;
 }
 
+export interface CatalogSettingsInput {
+  payload_auto_install: boolean;
+}
+
+export interface CatalogSettingsOutput {
+  payload_auto_install: boolean;
+}
+
 export interface CatalogSyncOutput {
   /** @format int32 */
   added?: number;
