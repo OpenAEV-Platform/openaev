@@ -47,9 +47,9 @@ public interface SecretHandler {
   }
 
   /**
-   * Whether a request points the secret at an endpoint other than the stored one. An absent or
-   * blank value is not a redirection: the stored endpoint is kept, or dropped to fall back to the
-   * official one.
+   * Whether a request points the secret at an endpoint (URL, URI or authority host) other than the
+   * stored one. An absent or blank value is not a redirection: the stored endpoint is kept, or
+   * dropped to fall back to the official one.
    *
    * @param storedEndpoint the endpoint currently stored, null when none
    * @param requestedEndpoint the endpoint of the request, null when the client left it untouched
