@@ -507,6 +507,8 @@ public class InjectExportTest extends IntegrationTest {
                 .withGroup(groupComposed)
                 .persist()
                 .get();
+        // The request runs as this user: a member of the tenant its granted simulations live in
+        tenantRepository.addUserToTenant(testUser.getId(), Tenant.DEFAULT_TENANT_UUID);
 
         Authentication auth = buildAuthenticationToken(testUser);
 
@@ -771,6 +773,7 @@ public class InjectExportTest extends IntegrationTest {
 
     @Test
     @DisplayName("When a single target inject is not found in the database, return NOT FOUND")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     public void whenSingleTargetInjectIsNotFound_returnNotFound() throws Exception {
       List<InjectExportTarget> targets = createDefaultInjectTargets();
 
@@ -815,6 +818,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned zip file contains json with correct injects")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithCorrectInjects() throws Exception {
         byte[] response = doExport();
 
@@ -835,6 +839,7 @@ public class InjectExportTest extends IntegrationTest {
       @Test
       @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Returned zip file contains json with correct challenges")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithCorrectChallenges() throws Exception {
         byte[] response = doExport();
 
@@ -854,6 +859,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned zip file contains json with correct articles")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithCorrectArticles() throws Exception {
         byte[] response = doExport();
 
@@ -873,6 +879,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned zip file contains json with correct channels")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithCorrectChannels() throws Exception {
         byte[] response = doExport();
 
@@ -895,6 +902,7 @@ public class InjectExportTest extends IntegrationTest {
       @Test
       @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Returned zip file contains json with correct documents")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithCorrectDocuments() throws Exception {
         byte[] response = doExport();
 
@@ -914,6 +922,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned zip file contains json with empty teams key")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithEmptyTeamsKey() throws Exception {
         byte[] response = doExport();
 
@@ -925,6 +934,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned zip file contains json with absent users key")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithAbsentUsersKey() throws Exception {
         byte[] response = doExport();
 
@@ -937,6 +947,7 @@ public class InjectExportTest extends IntegrationTest {
       @Test
       @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Returned zip file contains document files")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsDocumentFiles() throws Exception {
         byte[] response = doExport();
 
@@ -973,6 +984,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned teams are correct")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedTeamsAreCorrect() throws Exception {
         byte[] response = doExport();
 
@@ -992,6 +1004,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Users are absent")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void usersAreAbsent() throws Exception {
         byte[] response = doExport();
 
@@ -1021,6 +1034,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned teams are empty")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedTeamsAreCorrect() throws Exception {
         byte[] response = doExport();
 
@@ -1032,6 +1046,7 @@ public class InjectExportTest extends IntegrationTest {
 
       @Test
       @DisplayName("Returned users are empty")
+      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedUsersAreEmpty() throws Exception {
         byte[] response = doExport();
 

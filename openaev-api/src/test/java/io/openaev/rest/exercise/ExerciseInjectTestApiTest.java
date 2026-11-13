@@ -164,7 +164,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return test status using test id")
-    @WithMockUser
+    @WithMockUser(autoJoinDefaultTenant = true)
     void should_return_test_status_by_testId() throws Exception {
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.PLANNER, simulation.getId());
@@ -242,7 +242,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return 200 when search by id")
-    @WithMockUser
+    @WithMockUser(autoJoinDefaultTenant = true)
     void should_return_200_when_search_by_testId() throws Exception {
       addGrantToCurrentUser(
           Grant.GRANT_RESOURCE_TYPE.SIMULATION, Grant.GRANT_TYPE.OBSERVER, simulation.getId());
