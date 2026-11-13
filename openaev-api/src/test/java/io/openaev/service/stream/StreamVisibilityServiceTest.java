@@ -2,6 +2,7 @@ package io.openaev.service.stream;
 
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
 import static io.openaev.database.audit.ModelBaseListener.DATA_UPDATE;
+import static io.openaev.utils.fixtures.FindingOccurrenceFixture.createOccurrence;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -38,6 +39,7 @@ import io.openaev.utils.fixtures.ScenarioFixture;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -263,7 +265,8 @@ class StreamVisibilityServiceTest {
       inject.setAssetGroups(List.of(group));
       Finding finding = FindingFixture.createDefaultTextFinding();
       finding.setId("finding-id");
-      finding.setInject(inject);
+      finding.setOccurrences(
+          List.of(createOccurrence(finding, inject, Instant.now(), finding.getField())));
       finding.setAssets(List.of(endpoint("g")));
 
       // Act
