@@ -6218,11 +6218,6 @@ export interface FindingOutput {
   finding_id: string;
   /** Inject that produced the finding */
   finding_inject_id?: string;
-  /**
-   * Deprecated, kept for backward compatibility
-   * @deprecated
-   */
-  finding_labels?: string[];
   /** Finding name */
   finding_name?: string;
   /** Scenario the finding was produced in */

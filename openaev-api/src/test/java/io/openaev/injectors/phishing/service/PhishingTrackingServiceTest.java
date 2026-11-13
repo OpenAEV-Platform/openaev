@@ -9,7 +9,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -25,6 +24,7 @@ import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.Team;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -32,6 +32,8 @@ import io.openaev.database.repository.PhishingResultRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.finding.identity.DetectedFinding;
+import io.openaev.finding.identity.LocationIdentity.UserLocation;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.service.attackpath.ingestion.AttackPathFindingIngestionService;
 import io.openaev.service.finding.FindingOccurrenceService;
@@ -62,11 +64,24 @@ class PhishingTrackingServiceTest {
 
   @InjectMocks private PhishingTrackingService phishingTrackingService;
 
+  private DetectedFinding recordedDetection(PhishingResult result) {
+    ArgumentCaptor<List<DetectedFinding>> captor = ArgumentCaptor.forClass(List.class);
+    verify(findingService).recordFindingsByInject(any(), eq(result.getInject()), captor.capture());
+    return captor.getValue().getFirst();
+  }
+
+  private static Finding finding(String id) {
+    Finding finding = new Finding();
+    finding.setId(id);
+    return finding;
+  }
+
   private PhishingResult resultWith(final boolean capture, final boolean capturePasswords) {
     User user = new User();
     user.setId("user-1");
     Inject inject = new Inject();
     inject.setId("inject-1");
+    inject.setTenant(new Tenant("tenant-1"));
     PhishingLandingPage landingPage = new PhishingLandingPage();
     landingPage.setName("Login page");
     landingPage.setCaptureSubmittedData(capture);
@@ -516,12 +531,11 @@ class PhishingTrackingServiceTest {
         "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
 
     // -- ASSERT --
-    ArgumentCaptor<List<Finding>> captor = ArgumentCaptor.forClass(List.class);
-    verify(findingService).createFindings(captor.capture(), eq("inject-1"));
-    Finding finding = captor.getValue().get(0);
-    assertEquals(ContractOutputType.Credentials, finding.getType());
-    assertTrue(finding.getValue().contains("victim@corp.test"));
-    assertTrue(finding.getValue().contains("hunter2"), "password should be captured when enabled");
+    DetectedFinding detection = recordedDetection(result);
+    assertEquals(ContractOutputType.Credentials, detection.type());
+    assertEquals(new UserLocation("user-1"), detection.location());
+    assertTrue(detection.value().contains("victim@corp.test"));
+    assertTrue(detection.value().contains("hunter2"), "password should be captured when enabled");
   }
 
   @Test
@@ -535,7 +549,9 @@ class PhishingTrackingServiceTest {
     when(phishingResultRepository.save(any(PhishingResult.class)))
         .thenAnswer(i -> i.getArgument(0));
     when(injectExpectationRepository.findAllByInjectId(anyString())).thenReturn(List.of());
-    when(findingOccurrenceService.occurrence(any(), eq("inject-1")))
+    when(findingService.recordFindingsByInject(any(), any(), anyList()))
+        .thenReturn(List.of(finding("finding-1")));
+    when(findingOccurrenceService.occurrence("finding-1", "inject-1"))
         .thenReturn(Optional.of(occurrence));
 
     // -- ACT --
@@ -562,7 +578,7 @@ class PhishingTrackingServiceTest {
         "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
 
     // -- ASSERT --
-    verify(findingService, never()).createFindings(anyList(), anyString());
+    verify(findingService, never()).recordFindingsByInject(any(), any(), anyList());
   }
 
   @Test
@@ -580,10 +596,7 @@ class PhishingTrackingServiceTest {
         "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
 
     // -- ASSERT --
-    ArgumentCaptor<List<Finding>> captor = ArgumentCaptor.forClass(List.class);
-    verify(findingService).createFindings(captor.capture(), eq("inject-1"));
-    Finding finding = captor.getValue().get(0);
-    assertEquals("victim@corp.test", finding.getValue());
+    assertEquals("victim@corp.test", recordedDetection(result).value());
   }
 
   @Test
@@ -602,7 +615,8 @@ class PhishingTrackingServiceTest {
     phishingTrackingService.markSubmitted("token-1", fields, "1.2.3.4", "ua");
 
     // -- ASSERT --
-    verify(findingService, org.mockito.Mockito.times(1)).createFindings(anyList(), anyString());
+    verify(findingService, org.mockito.Mockito.times(1))
+        .recordFindingsByInject(any(), any(), anyList());
   }
 
   @Test
@@ -618,15 +632,8 @@ class PhishingTrackingServiceTest {
     when(phishingResultRepository.save(any(PhishingResult.class)))
         .thenAnswer(i -> i.getArgument(0));
     when(injectExpectationRepository.findAllByInjectId(anyString())).thenReturn(List.of());
-    // The mocked service persists nothing: set the id the real create would generate.
-    doAnswer(
-            i -> {
-              List<Finding> findings = i.getArgument(0);
-              findings.getFirst().setId("finding-1");
-              return null;
-            })
-        .when(findingService)
-        .createFindings(anyList(), anyString());
+    when(findingService.recordFindingsByInject(any(), any(), anyList()))
+        .thenReturn(List.of(finding("finding-1")));
 
     // -- ACT --
     phishingTrackingService.markSubmitted(
@@ -652,7 +659,7 @@ class PhishingTrackingServiceTest {
         "token-1", Map.of("username", "victim@corp.test", "password", "hunter2"), "1.2.3.4", "ua");
 
     // -- ASSERT --
-    verify(findingService).createFindings(anyList(), eq("inject-1"));
+    verify(findingService).recordFindingsByInject(any(), eq(result.getInject()), anyList());
     verifyNoInteractions(attackPathFindingIngestion);
   }
 

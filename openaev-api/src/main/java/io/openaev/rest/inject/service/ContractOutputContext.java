@@ -10,8 +10,7 @@ public record ContractOutputContext(
     String name, // display name / label
     ContractOutputType type,
     boolean isMultiple,
-    String[] tagIds,
-    String[] labels) {
+    String[] tagIds) {
 
   public static ContractOutputContext from(ContractOutputElement element) {
     return new ContractOutputContext(
@@ -21,8 +20,7 @@ public record ContractOutputContext(
         true,
         element.getTags().isEmpty()
             ? new String[0]
-            : element.getTags().stream().map(Tag::getId).toArray(String[]::new),
-        new String[0]);
+            : element.getTags().stream().map(Tag::getId).toArray(String[]::new));
   }
 
   public static ContractOutputContext from(InjectorContractContentOutputElement element) {
@@ -31,7 +29,6 @@ public record ContractOutputContext(
         element.getField(), // or derive name differently
         element.getType(),
         element.isMultiple(),
-        new String[0], // tags not available here yet
-        element.getLabels());
+        new String[0]); // tags not available here yet
   }
 }

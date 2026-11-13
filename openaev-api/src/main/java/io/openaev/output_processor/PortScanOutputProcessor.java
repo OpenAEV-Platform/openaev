@@ -8,7 +8,6 @@ import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.service.chaining.PrimitiveValueValidator;
-import java.util.Collections;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -47,14 +46,5 @@ public class PortScanOutputProcessor extends FindingCapableOutputProcessor {
     String port = buildString(jsonNode, PORT);
     String service = buildString(jsonNode, SERVICE);
     return host + ":" + port + (hasText(service) ? " (" + service + ")" : "");
-  }
-
-  @Override
-  public List<String> toFindingAssets(JsonNode jsonNode) {
-    JsonNode assetIdNode = jsonNode.get(ASSET_ID);
-    if (assetIdNode != null) {
-      return List.of(assetIdNode.asText());
-    }
-    return Collections.emptyList();
   }
 }

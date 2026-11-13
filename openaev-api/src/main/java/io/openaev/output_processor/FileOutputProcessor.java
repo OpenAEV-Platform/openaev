@@ -5,8 +5,6 @@ import io.openaev.database.model.ContractOutputField;
 import io.openaev.database.model.ContractOutputTechnicalType;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.rest.finding.FindingService;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -73,21 +71,5 @@ public class FileOutputProcessor extends FindingCapableOutputProcessor {
     // Local file (no share, e.g. FTP/NFS listing): keep the host prefix so files
     // with the same path on different hosts stay distinct.
     return host + ":" + (relative.startsWith("/") ? relative : "/" + relative);
-  }
-
-  @Override
-  public List<String> toFindingAssets(JsonNode jsonNode) {
-    JsonNode assetIdNode = jsonNode.get(ASSET_ID);
-    if (assetIdNode == null) {
-      return Collections.emptyList();
-    }
-    if (assetIdNode.isArray()) {
-      List<String> result = new ArrayList<>();
-      for (JsonNode idNode : assetIdNode) {
-        result.add(idNode.asText());
-      }
-      return result;
-    }
-    return List.of(assetIdNode.asText());
   }
 }

@@ -48,11 +48,14 @@ import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.autonomous.AutonomousDirectiveRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
+import io.openaev.finding.identity.DetectedFinding;
+import io.openaev.finding.identity.LocationIdentity.AssetLocation;
 import io.openaev.rest.asset.endpoint.form.EndpointInput;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ConflictException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.service.ExerciseService;
+import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.service.EndpointService;
 import io.openaev.service.ScenarioToExerciseService;
@@ -69,6 +72,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -81,6 +85,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -195,6 +200,7 @@ public class AutonomousRunService {
   private final InjectRepository injectRepository;
   private final InjectExpectationRepository injectExpectationRepository;
   private final FindingRepository findingRepository;
+  private final FindingService findingService;
   private final EndpointService endpointService;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
@@ -3528,16 +3534,29 @@ public class AutonomousRunService {
     return traces;
   }
 
+  /** The endpoint a finding was promoted to, and the finding to record on it. */
+  private record Promotion(
+      AutonomousPromotedAssetResult result, Inject inject, DetectedFinding detection) {}
+
   /**
    * Promotes a run finding (a host/IP/hostname discovered during the attack path) into a real,
-   * targetable endpoint asset so the orchestrator can pivot to attacking it. The ORIGINAL finding
-   * is kept - the new asset is simply linked onto it - which is the whole point: the finding
-   * remains the evidence trail while the asset becomes the inject target for the next chained step
-   * (lateral movement).
+   * targetable endpoint asset so the orchestrator can pivot to attacking it. The original finding
+   * is kept as the evidence trail, and its value is recorded again as a finding located on the new
+   * asset, on the inject of its latest occurrence: a finding has a single location.
    */
-  @Transactional(rollbackFor = Exception.class)
   public AutonomousPromotedAssetResult promoteFindingToAsset(
-      String runId, String findingId, String actingAgentId) {
+      TxCtx ctx, String runId, String findingId, String actingAgentId) {
+    // The finding is recorded in its own transaction, which only sees a committed endpoint
+    Promotion promotion =
+        tenantTx.execute(ctx, () -> createPromotedEndpoint(runId, findingId, actingAgentId));
+    if (promotion.inject() != null) {
+      findingService.recordFindingsByInject(
+          ctx, promotion.inject(), List.of(promotion.detection()));
+    }
+    return promotion.result();
+  }
+
+  private Promotion createPromotedEndpoint(String runId, String findingId, String actingAgentId) {
     AutonomousRun run = require(runId);
     Finding finding =
         findingRepository
@@ -3577,8 +3596,6 @@ public class AutonomousRunService {
     }
     // Promotion happens inside the run's own tenant; the run row carries it.
     Endpoint endpoint = endpointService.createEndpoint(input, run.getTenant().getId());
-    // Keep the original finding; just link the promoted asset onto it (promotion, not replacement).
-    findingRepository.insertFindingAsset(findingId, endpoint.getId());
     eventService.append(
         runId,
         runTenantId(run),
@@ -3589,9 +3606,28 @@ public class AutonomousRunService {
             + label
             + "' is now a targetable endpoint ("
             + endpoint.getId()
-            + "). The original finding is kept and linked to the asset.",
+            + "). The original finding is kept, and its value is recorded as a finding on the"
+            + " asset.",
         null);
-    return new AutonomousPromotedAssetResult(endpoint.getId(), label, findingId);
+    AutonomousPromotedAssetResult result =
+        new AutonomousPromotedAssetResult(endpoint.getId(), label, findingId);
+    return finding.getOccurrences().stream()
+        .max(Comparator.comparing(FindingOccurrence::getDate))
+        .map(
+            latest ->
+                new Promotion(
+                    result,
+                    Hibernate.unproxy(latest.getInject(), Inject.class),
+                    DetectedFinding.builder()
+                        .type(finding.getType())
+                        .value(finding.getValue())
+                        .field(latest.getField())
+                        .name(finding.getName())
+                        .location(new AssetLocation(endpoint.getId()))
+                        .tagIds(
+                            finding.getTags().stream().map(Tag::getId).collect(Collectors.toSet()))
+                        .build()))
+        .orElseGet(() -> new Promotion(result, null, null));
   }
 
   private boolean looksLikeIpAddress(String value) {

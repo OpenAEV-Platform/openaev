@@ -20,7 +20,6 @@ public class FindingFixture {
     finding.setName("Text");
     finding.setField(TEXT_FIELD);
     finding.setValue("text_value");
-    finding.setLabels(new String[] {"reconnaissance phase"});
     return finding;
   }
 
@@ -39,7 +38,6 @@ public class FindingFixture {
     finding.setName("vulnerability");
     finding.setField(TEXT_FIELD);
     finding.setValue(cveName);
-    finding.setLabels(new String[] {"reconnaissance phase"});
     return finding;
   }
 

@@ -431,11 +431,6 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonDeserialize(contentUsing = MonoIdDeserializerHelper.class)
   private List<BaseInjectExpectation> expectations = new ArrayList<>();
 
-  @JsonIgnore
-  @Getter
-  @OneToMany(mappedBy = "inject", cascade = CascadeType.ALL, orphanRemoval = true)
-  private List<Finding> findings = new ArrayList<>();
-
   @Getter
   @OneToOne(
       mappedBy = "inject",
@@ -500,11 +495,6 @@ public class Inject implements GrantableBase, Injection, TenantBase {
     this.communications.clear();
     this.expectations.clear();
     this.setTriggerNowDate(null);
-    if (this.findings == null) {
-      this.findings = new ArrayList<>();
-    } else {
-      this.findings.clear();
-    }
     this.setCollectExecutionStatus(COLLECTING);
   }
 

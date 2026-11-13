@@ -193,18 +193,13 @@ public interface FindingRepository
               + " FILTER ( WHERE i.inject_exercise IS NOT NULL ) AS simulation_ids,"
               + " array_agg(DISTINCT se.scenario_id)"
               + " FILTER ( WHERE se.scenario_id IS NOT NULL ) AS scenario_ids,"
-              + " array_agg(DISTINCT fa.asset_id) FILTER ( WHERE fa.asset_id IS NOT NULL ) AS asset_ids,"
-              // The inject the finding is deleted with (ON DELETE CASCADE), and its context
-              + " f.finding_inject_id, li.inject_exercise AS finding_simulation_id,"
-              + " MAX(lse.scenario_id) AS finding_scenario_id,"
+              + " fl.finding_location_asset_id, fl.finding_location_user_id,"
               + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "FROM findings f "
               + "LEFT JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = f.finding_id "
               + "LEFT JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id "
               + "LEFT JOIN scenarios_exercises se ON i.inject_exercise = se.exercise_id "
-              + "LEFT JOIN injects li ON li.inject_id = f.finding_inject_id "
-              + "LEFT JOIN scenarios_exercises lse ON lse.exercise_id = li.inject_exercise "
-              + "LEFT JOIN findings_assets fa ON f.finding_id = fa.finding_id "
+              + "LEFT JOIN finding_locations fl ON fl.finding_location_id = f.finding_location_id "
               // Keyset resume on (updated_at, id): a batch whose LIMIT falls inside a group of
               // findings sharing one timestamp - an upsert stamps a whole transaction with now() -
               // resumes after its last id instead of skipping the rest of the group. A null id
@@ -218,84 +213,12 @@ public interface FindingRepository
               // and this query stops being valid SQL: search indexing then fails outright instead
               // of degrading. The array_agg(...) stay out, being aggregates.
               + "GROUP BY f.finding_id, f.finding_value, f.finding_value_display, f.finding_type,"
-              + " f.finding_inject_id, li.inject_exercise,"
+              + " fl.finding_location_asset_id, fl.finding_location_user_id,"
               + " f.finding_created_at, f.finding_updated_at, f.tenant_id "
               + "ORDER BY f.finding_updated_at, f.finding_id LIMIT :limit;",
       nativeQuery = true)
   List<RawFindingIndexing> findForIndexing(
       @Param("from") Instant from, @Param("fromId") String fromId, @Param("limit") int limit);
-
-  // The finding upsert, its asset link and its tag links used to be one modifying CTE
-  // (WITH ... INSERT ... RETURNING), which JSQLParser cannot parse, so the tenant inspector would
-  // fail-close on it. They are split into three parseable statements run together in one
-  // transaction by FindingWriter (REQUIRES_NEW). The transaction boundary lives in the API layer,
-  // not here.
-  //
-  // The conflict branch MUST bump finding_updated_at: search indexing is driven by an updated_at
-  // cursor (findForIndexing), so a re-detected finding (same natural key, possibly a new asset
-  // link added right after by insertFindingAsset) would otherwise never be re-indexed and its
-  // ES document would keep a stale asset list forever.
-  //
-  // This native write skips the JPA callbacks of Finding, so the caller passes the displayed value
-  // computed by SensitiveValueMaskingUtils.maskIfNeededFailClosed. The conflict branch writes it
-  // again, so a row written before the column existed gets it the next time the finding is
-  // detected.
-  //
-  // Being native, the upsert and the asset link skip ModelBaseListener: FindingWriter publishes
-  // the lifecycle event itself, which notification triggers and the stream depend on. "inserted"
-  // tells a create from an update: xmax is 0 only on a row version this statement inserted, the
-  // conflict branch stamps it with its own transaction id. insertFindingAsset returns 0 when the
-  // link already existed, which tells a new asset from a repeated report.
-
-  /** Projection for {@link #upsertFinding}. */
-  interface UpsertedFinding {
-    String getId();
-
-    boolean getInserted();
-  }
-
-  @Query(
-      value =
-          """
-        INSERT INTO findings
-          (finding_id, finding_field, finding_type, finding_value, finding_value_display,
-           finding_labels, finding_inject_id, finding_name, tenant_id)
-        VALUES
-          (gen_random_uuid(), :findingField, :findingType, :findingValue, :findingValueDisplay,
-           :findingLabels, :findingInjectId, :findingName, :tenantId)
-        ON CONFLICT (finding_inject_id, finding_field, finding_type, finding_value)
-        DO UPDATE SET finding_name = EXCLUDED.finding_name,
-          finding_value_display = EXCLUDED.finding_value_display,
-          finding_updated_at = now()
-        RETURNING finding_id AS id, (xmax = 0) AS inserted
-        """,
-      nativeQuery = true)
-  UpsertedFinding upsertFinding(
-      @Param("findingField") String findingField,
-      @Param("findingType") String findingType,
-      @Param("findingValue") String findingValue,
-      @Param("findingValueDisplay") String findingValueDisplay,
-      @Param("findingLabels") String[] findingLabels,
-      @Param("findingInjectId") String injectId,
-      @Param("findingName") String name,
-      @Param("tenantId") String tenantId);
-
-  @Modifying
-  @Query(
-      value =
-          "INSERT INTO findings_assets (finding_id, asset_id) VALUES (:findingId, :assetId)"
-              + " ON CONFLICT DO NOTHING",
-      nativeQuery = true)
-  int insertFindingAsset(@Param("findingId") String findingId, @Param("assetId") String assetId);
-
-  @Modifying
-  @Query(
-      value =
-          "INSERT INTO findings_tags (finding_id, tag_id)"
-              + " SELECT :findingId, tag_id FROM unnest(CAST(:tagIds AS varchar[])) AS tag_id"
-              + " ON CONFLICT DO NOTHING",
-      nativeQuery = true)
-  void insertFindingTags(@Param("findingId") String findingId, @Param("tagIds") String[] tagIds);
 
   // -- READ ON THE IDENTITY KEY --
 
