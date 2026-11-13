@@ -7087,6 +7087,46 @@ export interface InjectExportTarget {
   inject_id?: string;
 }
 
+/** Fields read by the atomic testing / simulation inject detail header (InjectHero.tsx) */
+export interface InjectHeroOutput {
+  /** Result of expectations */
+  inject_expectation_results: ExpectationResultsByType[];
+  /**
+   * Id of inject
+   * @minLength 1
+   */
+  inject_id: string;
+  /** Full contract */
+  inject_injector_contract?: AtomicInjectorContractOutput;
+  /** Kill chain phases */
+  inject_kill_chain_phases?: KillChainPhaseSimple[];
+  /** User who launched this inject */
+  inject_launched_by?: UserSimple;
+  /** Recurrence cron expression for scheduled relaunch */
+  inject_recurrence?: string;
+  /**
+   * End date of the recurrence scheduling
+   * @format date-time
+   */
+  inject_recurrence_end?: string;
+  /**
+   * Start date of the recurrence scheduling
+   * @format date-time
+   */
+  inject_recurrence_start?: string;
+  /** status */
+  inject_status?: InjectStatusSimple;
+  /**
+   * Title of inject
+   * @minLength 1
+   */
+  inject_title: string;
+  /** Type of inject */
+  inject_type?: string;
+  /** Tags */
+  injects_tags?: string[];
+}
+
 export interface InjectImporter {
   /** @format date-time */
   inject_importer_created_at?: string;
@@ -13815,6 +13855,12 @@ export interface UserOutput {
   /** @uniqueItems true */
   user_tags?: string[];
   user_tenants?: UserTenantOutput[];
+}
+
+export interface UserSimple {
+  user_email?: string;
+  user_id?: string;
+  user_name?: string;
 }
 
 export interface UserTenantOutput {

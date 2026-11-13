@@ -44,6 +44,7 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.ObjectMapperHelper;
 import io.openaev.injectors.email.service.PlatformMailSender;
+import io.openaev.rest.atomic_testing.form.UserSimple;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
@@ -560,6 +561,18 @@ public class ScenarioService {
   public Scenario scenario(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
     return findInScope(ctx, scenarioId)
         .orElseThrow(() -> new ElementNotFoundException("Scenario not found"));
+  }
+
+  /** Feeds the scenario detail header's "scheduled by" chip. */
+  public UserSimple findScheduledBy(@NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
+    User scheduledBy = scenario(ctx, scenarioId).getScheduledBy();
+    return scheduledBy == null
+        ? null
+        : UserSimple.of(
+            scheduledBy.getId(),
+            scheduledBy.getFirstname(),
+            scheduledBy.getLastname(),
+            scheduledBy.getEmail());
   }
 
   /**

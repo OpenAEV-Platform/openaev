@@ -2,17 +2,18 @@ import { useTheme } from '@mui/material/styles';
 
 import Breadcrumbs, { type BreadcrumbsElement } from '../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../components/i18n';
-import type { InjectResultOverviewOutput } from '../../../../utils/api-types';
+import type { InjectHeroOutput, InjectResultOverviewOutput } from '../../../../utils/api-types';
 import AtomicTestingHeaderActions from './AtomicTestingHeaderActions';
 import AtomicTestingTabs from './AtomicTestingTabs';
 import InjectHero from './InjectHero';
 
 interface Props {
   injectResultOverview: InjectResultOverviewOutput;
+  injectHero: InjectHeroOutput;
   setInjectResultOverview: (injectResultOverviewOutput: InjectResultOverviewOutput) => void;
 }
 
-const AtomicTestingHeader = ({ injectResultOverview, setInjectResultOverview }: Props) => {
+const AtomicTestingHeader = ({ injectResultOverview, injectHero, setInjectResultOverview }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
 
@@ -40,7 +41,7 @@ const AtomicTestingHeader = ({ injectResultOverview, setInjectResultOverview }: 
         elements={breadcrumbs}
       />
       <InjectHero
-        injectResultOverview={injectResultOverview}
+        injectHero={injectHero}
         actions={(
           <AtomicTestingHeaderActions
             injectResultOverview={injectResultOverview}

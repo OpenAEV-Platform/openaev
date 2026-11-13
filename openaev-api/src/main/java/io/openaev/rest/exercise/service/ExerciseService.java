@@ -39,6 +39,7 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.injectors.email.service.PlatformMailSender;
 import io.openaev.rest.atomic_testing.form.TargetSimple;
+import io.openaev.rest.atomic_testing.form.UserSimple;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
@@ -269,6 +270,18 @@ public class ExerciseService {
   public Exercise exercise(@NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
     return findInScope(ctx, exerciseId)
         .orElseThrow(() -> new ElementNotFoundException("Exercise not found"));
+  }
+
+  /** Feeds the simulation detail header's "launched by" / "scheduled by" chip. */
+  public UserSimple findLaunchedBy(@NotNull final TxCtx ctx, @NotBlank final String exerciseId) {
+    User launchedBy = exercise(ctx, exerciseId).getLaunchedBy();
+    return launchedBy == null
+        ? null
+        : UserSimple.of(
+            launchedBy.getId(),
+            launchedBy.getFirstname(),
+            launchedBy.getLastname(),
+            launchedBy.getEmail());
   }
 
   /** Validates that the exercise exists inside the request's tenant scope. Throws if not. */

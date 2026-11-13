@@ -37,6 +37,7 @@ import {
   dismissScenarioExpectationsDrift,
   fetchScenario,
   fetchScenarioExpectationsDrift,
+  fetchScenarioScheduledBy,
   fetchScenarioTeams,
   realignScenarioExpectations,
   searchScenarioHealthcheks,
@@ -62,6 +63,7 @@ import {
   type Inject,
   type Scenario,
   type Team,
+  type UserSimple,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -193,6 +195,20 @@ const ScenarioHeader = ({
   const hasChallenges = challenges.length > 0;
 
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
+  // Fetched on its own (not through the redux-merged scenario entity): keeping it off the shared
+  // store entity avoids it colliding with the plain id string other endpoints (e.g.
+  // updateScenarioRecurrence) return for the same JSON key on the raw Scenario entity.
+  const [scheduledBy, setScheduledBy] = useState<UserSimple | undefined>(undefined);
+  useEffect(() => {
+    let stale = false;
+    fetchScenarioScheduledBy(scenarioId).then((result: { data: UserSimple }) => {
+      if (!stale) setScheduledBy(result.data);
+    }).catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [scenarioId, scenario.scenario_recurrence]);
+  const scheduledByName = scheduledBy?.user_name ?? scheduledBy?.user_email;
   const isScenarioChaining = !!scenarioWorkflowId;
   const canOpenConfiguration = canManage && !isScenarioChaining;
 
@@ -738,6 +754,13 @@ const ScenarioHeader = ({
                 </TooltipTrigger>
                 {(scheduleLabel ?? '') && <TooltipContent>{scheduleLabel ?? ''}</TooltipContent>}
               </Tooltip>
+              {scheduledByName && (
+                <Chip
+                  startIcon={<PersonOutlined sx={{ fontSize: 14 }} />}
+                  label={`${t('Scheduled by')} ${scheduledByName}`}
+                  severity="low"
+                />
+              )}
             </>
           )}
           // The alert-toned controls sit in the body row, right-aligned, where the

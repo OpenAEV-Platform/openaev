@@ -3,16 +3,17 @@ import { useSearchParams } from 'react-router';
 
 import Breadcrumbs, { type BreadcrumbsElement } from '../../../../../components/Breadcrumbs';
 import { useFormatter } from '../../../../../components/i18n';
-import type { Exercise as ExerciseType, InjectResultOverviewOutput } from '../../../../../utils/api-types';
+import type { Exercise as ExerciseType, InjectHeroOutput, InjectResultOverviewOutput } from '../../../../../utils/api-types';
 import InjectHero from '../../../atomic_testings/atomic_testing/InjectHero';
 import InjectIndexTabs from './InjectIndexTabs';
 
 interface Props {
   injectResultOverview: InjectResultOverviewOutput;
+  injectHero: InjectHeroOutput;
   exercise: ExerciseType;
 }
 
-const InjectIndexHeader = ({ injectResultOverview, exercise }: Props) => {
+const InjectIndexHeader = ({ injectResultOverview, injectHero, exercise }: Props) => {
   const { t } = useFormatter();
   const theme = useTheme();
   const [searchParams] = useSearchParams();
@@ -51,7 +52,7 @@ const InjectIndexHeader = ({ injectResultOverview, exercise }: Props) => {
     }}
     >
       <Breadcrumbs variant="object" elements={breadcrumbs} />
-      <InjectHero injectResultOverview={injectResultOverview} />
+      <InjectHero injectHero={injectHero} />
       <InjectIndexTabs
         injectResultOverview={injectResultOverview}
         exercise={exercise}

@@ -32,6 +32,7 @@ import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.importer.ImportResult;
 import io.openaev.rest.asset.endpoint.form.EndpointOutput;
 import io.openaev.rest.asset_group.form.AssetGroupOutput;
+import io.openaev.rest.atomic_testing.form.UserSimple;
 import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
@@ -841,6 +842,20 @@ public class ExerciseApi extends RestBehavior {
     }
 
     return detail;
+  }
+
+  /** Feeds the simulation detail header's "launched by" / "scheduled by" chip. */
+  @GetMapping({
+    EXERCISE_URI + "/{exerciseId}/launched-by",
+    TENANT_EXERCISE_URI + "/{exerciseId}/launched-by"
+  })
+  @AccessControl(
+      resourceId = "#exerciseId",
+      actionPerformed = Action.READ,
+      resourceType = ResourceType.SIMULATION)
+  @Transactional(readOnly = true)
+  public UserSimple exerciseLaunchedBy(TxCtx ctx, @PathVariable String exerciseId) {
+    return exerciseService.findLaunchedBy(ctx, exerciseId);
   }
 
   @LogExecutionTime

@@ -20,6 +20,11 @@ export const fetchInjectResultOverviewOutput = (injectId: string) => {
   return simpleCall(uri);
 };
 
+export const fetchInjectHeroOutput = (injectId: string) => {
+  const uri = `${ATOMIC_TESTING_URI}/${injectId}/hero`;
+  return simpleCall(uri);
+};
+
 export const fetchAtomicTestingPayload = (injectId: string) => {
   const uri = `${ATOMIC_TESTING_URI}/${injectId}/payload`;
   return simpleCall(uri);

@@ -67,6 +67,14 @@ export const fetchScenario = (scenarioId: string) => (dispatch: Dispatch) => {
   return getReferential(scenario, uri)(dispatch);
 };
 
+// Plain call (no redux normalization): the resolved { user_name, user_email } shape only exists
+// on this endpoint, so it must not be merged into the same store entity as the raw Scenario
+// (whose scenario_scheduled_by is a plain user-id string) - that caused "undefined" in the hero.
+export const fetchScenarioScheduledBy = (scenarioId: string) => {
+  const uri = `${SCENARIO_URI}/${scenarioId}/scheduled-by`;
+  return simpleCall(uri);
+};
+
 export const updateScenario = (
   scenarioId: Scenario['scenario_id'],
   data: UpdateScenarioInput,

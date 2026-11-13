@@ -30,6 +30,7 @@ import { type ArticlesHelper } from '../../../../actions/channels/article-helper
 import {
   dismissExerciseExpectationsDrift,
   fetchExerciseExpectationsDrift,
+  fetchExerciseLaunchedBy,
   fetchExerciseTeams,
   realignExerciseExpectations,
   searchExerciseHealthchecks,
@@ -60,6 +61,7 @@ import {
   type Inject,
   type SimulationDetails,
   type Team,
+  type UserSimple,
 } from '../../../../utils/api-types';
 import { MESSAGING$ } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -413,6 +415,22 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   // reload (it only appeared to work right after a create when the redux entity
   // was transiently patched). The injects list is what already feeds the asset
   // counters below, so this keeps every hero counter on the same source.
+  // Fetched on its own (not through the redux-merged exercise entity): launched_by is stamped
+  // once at creation and never changes, and keeping it off the shared store entity avoids it
+  // colliding with the plain id string other endpoints (e.g. changeExerciseStatus) return for the
+  // same JSON key on the raw Exercise entity.
+  const [launchedBy, setLaunchedBy] = useState<UserSimple | undefined>(undefined);
+  useEffect(() => {
+    let stale = false;
+    fetchExerciseLaunchedBy(exerciseId).then((result: { data: UserSimple }) => {
+      if (!stale) setLaunchedBy(result.data);
+    }).catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [exerciseId]);
+  const launchedByName = launchedBy?.user_name ?? launchedBy?.user_email;
+
   const injectsCount = injects?.length ?? 0;
   // Teams and articles are counted from their dedicated list fetches for the
   // same reason as injects: the SimulationDetails DTO carries no
@@ -467,6 +485,14 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
                 severity="info"
               />
               <ExerciseStatus exerciseStatus={exercise.exercise_status} exerciseStartDate={exercise.exercise_start_date} variant="list" />
+              {/* Same stamped-user field reads as "Scheduled by" while still SCHEDULED, "Launched by" once it has actually run. */}
+              {launchedByName && (
+                <Chip
+                  startIcon={<PersonOutlined sx={{ fontSize: 14 }} />}
+                  label={`${exercise.exercise_status === 'SCHEDULED' ? t('Scheduled by') : t('Launched by')} ${launchedByName}`}
+                  severity="low"
+                />
+              )}
             </>
           )}
           // The alert-toned controls sit in the body row, right-aligned, where the
