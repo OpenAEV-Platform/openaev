@@ -1,6 +1,7 @@
 package io.openaev.rest.scenario;
 
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
+import static io.openaev.utils.fixtures.DocumentFixture.getDocumentJpeg;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -8,31 +9,35 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Document;
+import io.openaev.database.model.Inject;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.composers.DocumentComposer;
+import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.util.List;
-import java.util.UUID;
-import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Not {@code @Transactional}: the launch must commit before its response is written, as in
- * production, so that the response reads the simulation outside the request's tenant scope.
+ * Not {@code @Transactional}: a test transaction would keep the tenant scope alive while the
+ * response is written, and hide the failure.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("Launching a scenario whose inject has a document attached")
 class ScenarioLaunchWithInjectDocumentTest extends IntegrationTest {
-
-  private static final String TENANT = Tenant.DEFAULT_TENANT_UUID;
 
   @DynamicPropertySource
   static void productionActiveTables(DynamicPropertyRegistry registry) {
@@ -42,78 +47,57 @@ class ScenarioLaunchWithInjectDocumentTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
-  @Autowired private DataSource dataSource;
+  @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private ScenarioComposer scenarioComposer;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private DocumentComposer documentComposer;
 
-  private JdbcTemplate jdbc;
-  private final String scenarioId = UUID.randomUUID().toString();
-  private final String contractId = UUID.randomUUID().toString();
-  private final String injectId = UUID.randomUUID().toString();
-  private final String documentId = UUID.randomUUID().toString();
+  private String tenant;
 
   @BeforeEach
-  void seedScenario() {
-    jdbc = new JdbcTemplate(dataSource);
-    tenantHelper.attachCurrentUserToTenant(TENANT);
-    jdbc.update(
-        "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id) VALUES (?, ?, ?)",
-        scenarioId,
-        "launch-with-document-" + scenarioId,
-        TENANT);
-    jdbc.update(
-        "INSERT INTO injectors_contracts (injector_contract_id, tenant_id,"
-            + " injector_contract_content, injector_contract_import_available)"
-            + " VALUES (?, ?, '{}', false)",
-        contractId,
-        TENANT);
-    jdbc.update(
-        "INSERT INTO injects (inject_id, tenant_id, inject_title, inject_all_teams, inject_enabled,"
-            + " inject_depends_duration, inject_injector_contract, inject_scenario)"
-            + " VALUES (?, ?, ?, false, true, 0, ?, ?)",
-        injectId,
-        TENANT,
-        "launch-with-document-" + injectId,
-        contractId,
-        scenarioId);
-    jdbc.update(
-        "INSERT INTO documents (document_id, document_name, document_type, document_target,"
-            + " tenant_id) VALUES (?, ?, 'text/plain', ?, ?)",
-        documentId,
-        "launch-with-document.txt",
-        "launch-with-document/" + documentId,
-        TENANT);
-    jdbc.update(
-        "INSERT INTO injects_documents (inject_id, document_id, document_attached)"
-            + " VALUES (?, ?, true)",
-        injectId,
-        documentId);
+  void setUp() throws Exception {
+    scenarioComposer.reset();
+    injectComposer.reset();
+    documentComposer.reset();
+    tenant = tenantHelper.createTenantWithCurrentUser("launch-with-document").getId();
   }
 
   @AfterEach
   void cleanup() {
-    List<String> simulationIds =
-        jdbc.queryForList(
-            "SELECT exercise_id FROM scenarios_exercises WHERE scenario_id = ?",
-            String.class,
-            scenarioId);
-    jdbc.update("DELETE FROM injects_documents WHERE document_id = ?", documentId);
-    for (String simulationId : simulationIds) {
-      jdbc.update("DELETE FROM injects WHERE inject_exercise = ?", simulationId);
-      jdbc.update("DELETE FROM exercises WHERE exercise_id = ?", simulationId);
-    }
-    jdbc.update("DELETE FROM injects WHERE inject_id = ?", injectId);
-    jdbc.update("DELETE FROM scenarios WHERE scenario_id = ?", scenarioId);
-    jdbc.update("DELETE FROM injectors_contracts WHERE injector_contract_id = ?", contractId);
-    jdbc.update("DELETE FROM documents WHERE document_id = ?", documentId);
+    tenantHelper.deleteCommittedTenants(tenant);
   }
 
   @Test
   @DisplayName("given an inject with a document attached, should answer the new simulation")
   void given_injectWithAttachedDocument_should_answerTheLaunchedSimulation() throws Exception {
+    // Arrange
+    Scenario scenario = seedScenarioWithInjectDocument();
+
     // Act & Assert
     mvc.perform(
-            post(TENANT_SCENARIO_URI + "/{scenarioId}/exercise/running", TENANT, scenarioId)
+            post(TENANT_SCENARIO_URI + "/{scenarioId}/exercise/running", tenant, scenario.getId())
                 .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.exercise_injects.length()").value(1));
+  }
+
+  private Scenario seedScenarioWithInjectDocument() {
+    Document document = getDocumentJpeg();
+    document.setTenant(new Tenant(tenant));
+    Inject inject = InjectFixture.getDefaultInject();
+    inject.setTenant(new Tenant(tenant));
+    Scenario scenario = ScenarioFixture.getScenario();
+    scenario.setTenant(new Tenant(tenant));
+    return tenantTx.execute(
+        TxCtx.forTenant(tenant),
+        () ->
+            scenarioComposer
+                .forScenario(scenario)
+                .withInject(
+                    injectComposer
+                        .forInject(inject)
+                        .withDocument(documentComposer.forDocument(document)))
+                .persist()
+                .get());
   }
 }
