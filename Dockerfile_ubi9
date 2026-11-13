@@ -33,7 +33,7 @@ COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 RUN mvn install -DskipTests -Pdev
 
-FROM registry.access.redhat.com/ubi9/openjdk-21-runtime AS app
+FROM registry.access.redhat.com/ubi9/openjdk-21-runtime@sha256:9a074c2ff90be60b12521ffd5e531acafd25fe36f1c177180cbe1176dfb36c84 AS app
 
 USER root
 
