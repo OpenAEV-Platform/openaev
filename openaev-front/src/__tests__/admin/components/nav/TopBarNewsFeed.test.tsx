@@ -55,6 +55,10 @@ const pushEvent = (event: MessageEvent) => {
   act(() => mocks.streamHandlers.get('message')?.(event));
 };
 
+const openStream = () => {
+  act(() => mocks.streamHandlers.get('open')?.(new Event('open') as MessageEvent));
+};
+
 /** Lets the pending count request resolve and the batch timer elapse. */
 const flushRefresh = async () => {
   await act(async () => {
@@ -204,10 +208,36 @@ describe('TopBarNewsFeed', () => {
       expect(megaphone()).toHaveAccessibleDescription('Unread news feed items: 5');
     });
 
+    it('refreshes the count when the stream reconnects, without any item message', async () => {
+      mocks.fetchMyUnreadNewsFeedCount.mockResolvedValueOnce({ data: 3 });
+      renderMegaphone();
+      await flushRefresh();
+      expect(megaphone()).toHaveAccessibleDescription('Unread news feed items: 3');
+      // Items were created while the tab was disconnected: no message told it.
+      mocks.fetchMyUnreadNewsFeedCount.mockResolvedValue({ data: 5 });
+
+      openStream();
+      await flushRefresh();
+
+      expect(megaphone()).toHaveAccessibleDescription('Unread news feed items: 5');
+    });
+
+    it('does not load the count twice when the first connection opens right after the mount', async () => {
+      renderMegaphone();
+      expect(mocks.fetchMyUnreadNewsFeedCount).toHaveBeenCalledTimes(1);
+
+      openStream();
+      await flushRefresh();
+
+      expect(mocks.fetchMyUnreadNewsFeedCount).toHaveBeenCalledTimes(1);
+    });
+
     it('stops listening once unmounted', async () => {
       const { unmount } = renderMegaphone();
       await flushRefresh();
       unmount();
+      expect(mocks.streamHandlers.has('message')).toBe(false);
+      expect(mocks.streamHandlers.has('open')).toBe(false);
       expect(mocks.streamHandlers.size).toBe(0);
       mocks.fetchMyUnreadNewsFeedCount.mockClear();
 
