@@ -144,7 +144,7 @@ class AutonomousRunServiceTest {
     run.setStatus(AutonomousRunStatus.RUNNING);
     when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
 
-    assertThatThrownBy(() -> service.promoteToRealRun("run-1"))
+    assertThatThrownBy(() -> service.promoteToRealRun(TX, "run-1"))
         .isInstanceOf(ResponseStatusException.class);
   }
 
@@ -156,7 +156,7 @@ class AutonomousRunServiceTest {
     run.setStatus(AutonomousRunStatus.PLANNING);
     when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
 
-    assertThatThrownBy(() -> service.promoteToRealRun("run-1"))
+    assertThatThrownBy(() -> service.promoteToRealRun(TX, "run-1"))
         .isInstanceOf(ResponseStatusException.class);
   }
 
@@ -779,7 +779,7 @@ class AutonomousRunServiceTest {
   /** Stubs the collaborators the restart teardown + re-provisioning path touches. */
   private void stubRestartCollaborators() {
     Scenario scenario = new Scenario();
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
     Exercise freshSimulation = new Exercise();
     freshSimulation.setId("sim-new");
     when(scenarioToExerciseService.toExercise(
@@ -802,12 +802,12 @@ class AutonomousRunServiceTest {
     when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
-    AutonomousRun restarted = service.restart("run-1");
+    AutonomousRun restarted = service.restart(TX, "run-1");
 
     // The previous orchestration is stopped (and its coordination state purged) and the previous
     // simulation torn down before the fresh one is provisioned from the SAME scenario.
     verify(xtmOneClient).cancelAutonomousRun(eq("run-1"), anyString(), eq(true));
-    verify(exerciseService).deleteById("sim-old");
+    verify(exerciseService).deleteById(TX, "sim-old");
     verify(workflowService)
         .startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any(), eq(true));
     // Keep-alive is applied to the freshly provisioned SIMULATION, never the reusable scenario
@@ -834,10 +834,10 @@ class AutonomousRunServiceTest {
     when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
-    AutonomousRun restarted = service.restart("run-1");
+    AutonomousRun restarted = service.restart(TX, "run-1");
 
     verify(xtmOneClient).cancelAutonomousRun(eq("run-1"), anyString(), eq(true));
-    verify(exerciseService).deleteById("sim-old");
+    verify(exerciseService).deleteById(TX, "sim-old");
     verify(workflowService)
         .startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any(), eq(true));
     assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
@@ -851,9 +851,9 @@ class AutonomousRunServiceTest {
     when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
-    AutonomousRun restarted = service.restart("run-1");
+    AutonomousRun restarted = service.restart(TX, "run-1");
 
-    verify(exerciseService).deleteById("sim-old");
+    verify(exerciseService).deleteById(TX, "sim-old");
     verify(workflowService)
         .startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any(), eq(true));
     assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
@@ -868,12 +868,32 @@ class AutonomousRunServiceTest {
     when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
     stubRestartCollaborators();
 
-    AutonomousRun restarted = service.restart("run-1");
+    AutonomousRun restarted = service.restart(TX, "run-1");
 
     verify(workflowService).provisionSimulationTemplateWorkflow(eq("scenario-1"), any());
     verify(workflowService, never())
         .startWorkflowByScenarioIdAndSimulation(anyString(), any(), anyBoolean());
     assertThat(restarted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
+  }
+
+  @Test
+  @DisplayName("promoting a settled plan starts a fresh, live, non-plan-mode simulation")
+  void promoteOfPlannedRunProvisionsALiveSimulation() throws Exception {
+    AutonomousRun run = restartableRun(AutonomousRunStatus.PLANNED);
+    run.setPlanMode(true);
+    when(runRepository.findByIdForUpdate("run-1")).thenReturn(Optional.of(run));
+    stubRestartCollaborators();
+
+    AutonomousRun promoted = service.promoteToRealRun(TX, "run-1");
+
+    verify(xtmOneClient).cancelAutonomousRun(eq("run-1"), anyString(), eq(true));
+    verify(exerciseService).deleteById(TX, "sim-old");
+    verify(workflowService)
+        .startWorkflowByScenarioIdAndSimulation(eq("scenario-1"), any(), eq(true));
+    verify(workflowService).markSimulationWorkflowKeepAlive("sim-new");
+    assertThat(promoted.isPlanMode()).isFalse();
+    assertThat(promoted.getStatus()).isEqualTo(AutonomousRunStatus.CREATED);
+    assertThat(promoted.getSimulationId()).isEqualTo("sim-new");
   }
 
   // endregion
@@ -896,9 +916,9 @@ class AutonomousRunServiceTest {
     when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
     Scenario duplicate = new Scenario();
     duplicate.setId("scenario-copy");
-    when(scenarioService.getDuplicateScenario("scenario-1")).thenReturn(duplicate);
+    when(scenarioService.getDuplicateScenario(TX, "scenario-1")).thenReturn(duplicate);
 
-    Scenario result = service.convertToManual("run-1", ConvertToManualMode.DUPLICATE);
+    Scenario result = service.convertToManual(TX, "run-1", ConvertToManualMode.DUPLICATE);
 
     assertThat(result).isSameAs(duplicate);
     // The copy's chaining workflow is cloned with keep-alive forced off.
@@ -920,11 +940,11 @@ class AutonomousRunServiceTest {
     when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
     Scenario duplicate = new Scenario();
     duplicate.setId("scenario-copy");
-    when(scenarioService.getDuplicateScenario("scenario-1")).thenReturn(duplicate);
+    when(scenarioService.getDuplicateScenario(TX, "scenario-1")).thenReturn(duplicate);
     when(workflowService.copyScenarioChainingWorkflowAsManual("scenario-1", duplicate))
         .thenThrow(new ChainingException("internal detail that must not reach the client"));
 
-    assertThatThrownBy(() -> service.convertToManual("run-1", ConvertToManualMode.DUPLICATE))
+    assertThatThrownBy(() -> service.convertToManual(TX, "run-1", ConvertToManualMode.DUPLICATE))
         .isInstanceOfSatisfying(
             ResponseStatusException.class,
             ex -> {
@@ -944,23 +964,23 @@ class AutonomousRunServiceTest {
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
     scenario.setAutonomous(true);
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
 
-    Scenario result = service.convertToManual("run-1", ConvertToManualMode.IN_PLACE);
+    Scenario result = service.convertToManual(TX, "run-1", ConvertToManualMode.IN_PLACE);
 
     assertThat(result).isSameAs(scenario);
     assertThat(scenario.isAutonomous()).isFalse();
     // Orchestration halted + purged, simulation settled, keep-alive cleared, run + timeline
     // dropped.
     verify(xtmOneClient).cancelAutonomousRun(eq("run-1"), anyString(), eq(true));
-    verify(exerciseService).changeExerciseStatus(ExerciseStatus.CANCELED, "sim-1");
+    verify(exerciseService).changeExerciseStatus(TX, ExerciseStatus.CANCELED, "sim-1");
     verify(scenarioService).updateScenario(scenario);
     verify(workflowService).clearScenarioWorkflowKeepAlive("scenario-1");
     verify(directiveRepository).deleteByRunId("run-1");
     verify(eventService).deleteByRun("run-1");
     verify(runRepository).delete(run);
     // No new scenario is ever created in place.
-    verify(scenarioService, never()).getDuplicateScenario(anyString());
+    verify(scenarioService, never()).getDuplicateScenario(any(TxCtx.class), anyString());
   }
 
   @Test
@@ -971,9 +991,9 @@ class AutonomousRunServiceTest {
     Scenario scenario = new Scenario();
     scenario.setId("scenario-1");
     scenario.setAutonomous(true);
-    when(scenarioService.scenario("scenario-1")).thenReturn(scenario);
+    when(scenarioService.scenario(TX, "scenario-1")).thenReturn(scenario);
 
-    service.convertToManual("run-1", ConvertToManualMode.IN_PLACE);
+    service.convertToManual(TX, "run-1", ConvertToManualMode.IN_PLACE);
 
     // A settled run already left the simulation scheduled/terminal - never re-transition it.
     verifyNoInteractions(exerciseService);
@@ -989,7 +1009,7 @@ class AutonomousRunServiceTest {
     run.setStatus(AutonomousRunStatus.RUNNING);
     when(runRepository.findById("run-1")).thenReturn(Optional.of(run));
 
-    assertThatThrownBy(() -> service.convertToManual("run-1", ConvertToManualMode.IN_PLACE))
+    assertThatThrownBy(() -> service.convertToManual(TX, "run-1", ConvertToManualMode.IN_PLACE))
         .isInstanceOfSatisfying(
             ResponseStatusException.class,
             ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
@@ -1164,7 +1184,7 @@ class AutonomousRunServiceTest {
     // for a plan-mode dry-run), then the fresh plan run is created and the logic map wiped.
     verify(runRepository).delete(prior);
     verify(xtmOneClient).cancelAutonomousRun(eq("prior-run"), anyString(), eq(true));
-    verify(exerciseService, never()).deleteById(anyString());
+    verify(exerciseService, never()).deleteById(any(TxCtx.class), anyString());
     verify(workflowService).deleteAllScenarioSteps("scenario-1");
     assertThat(run.getStatus()).isEqualTo(AutonomousRunStatus.PLANNING);
   }
@@ -1470,9 +1490,9 @@ class AutonomousRunServiceTest {
     run.setSimulationId("live-sim");
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(run));
 
-    service.deleteForScenario("scenario-1");
+    service.deleteForScenario(TX, "scenario-1");
 
-    verify(exerciseService, never()).deleteById(anyString());
+    verify(exerciseService, never()).deleteById(any(TxCtx.class), anyString());
     verify(directiveRepository).deleteByRunId("run-1");
     verify(eventService).deleteByRun("run-1");
     verify(runRepository).delete(run);
@@ -1492,9 +1512,9 @@ class AutonomousRunServiceTest {
     run.setSimulationId("plan-sim");
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(run));
 
-    service.deleteForScenario("scenario-1");
+    service.deleteForScenario(TX, "scenario-1");
 
-    verify(exerciseService).deleteById("plan-sim");
+    verify(exerciseService).deleteById(TX, "plan-sim");
     verify(runRepository).delete(run);
   }
 
@@ -1512,12 +1532,12 @@ class AutonomousRunServiceTest {
     run.setStatus(activeStatus);
     when(runRepository.findByScenarioId("scenario-1")).thenReturn(Optional.of(run));
 
-    assertThatThrownBy(() -> service.deleteForScenario("scenario-1"))
+    assertThatThrownBy(() -> service.deleteForScenario(TX, "scenario-1"))
         .isInstanceOfSatisfying(
             ResponseStatusException.class,
             ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.CONFLICT));
     verify(runRepository, never()).delete(any());
-    verify(exerciseService, never()).deleteById(anyString());
+    verify(exerciseService, never()).deleteById(any(TxCtx.class), anyString());
   }
 
   @Test

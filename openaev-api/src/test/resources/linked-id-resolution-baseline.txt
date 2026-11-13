@@ -51,6 +51,7 @@ io.openaev.rest.domain.DomainService#findAllAsOptionsById -> DomainRepository | 
 io.openaev.rest.domain.DomainService#findAllById -> DomainRepository | link | 1 | service wrapper whose callers, InjectorContractService and PayloadCreationService, link the domains named in a request body
 io.openaev.rest.exercise.ExerciseApi#createExercise -> TagRepository | link | 1 | links the tags named in the request body to the simulation it creates
 io.openaev.rest.exercise.ExerciseApi#createLog -> TagRepository | link | 1 | links the tags named in the request body to the log it creates
+io.openaev.rest.exercise.ExerciseApi#optionsById -> ExerciseRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.exercise.ExerciseApi#updateExerciseInformation -> TagRepository | link | 1 | links the tags named in the request body to the simulation it updates
 io.openaev.rest.exercise.ExerciseApi#updateExerciseTags -> TagRepository | link | 1 | links the tags named in the request body to the simulation it updates
 io.openaev.rest.exercise.ExerciseApi#updateLog -> TagRepository | link | 1 | links the tags named in the request body to the log it updates
@@ -70,12 +71,16 @@ io.openaev.rest.payload.service.PayloadUpdateService#update -> DomainRepository 
 io.openaev.rest.payload.service.PayloadUpdateService#updatePayload -> AttackPatternRepository | link | 1 | links the attack patterns named in the request body to the payload it updates
 io.openaev.rest.reporting.ReportingService#withHistoryLoaded -> ReportingRepository | other | 2 | fetches the generations and schedules of reportings already loaded, by their own ids, so a response can serialize them
 io.openaev.rest.scenario.ScenarioApi#createScenario -> TagRepository | link | 1 | links the tags named in the request body to the scenario it creates
+io.openaev.rest.scenario.ScenarioApi#optionsById -> ScenarioRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.scenario.ScenarioApi#updateScenario -> TagRepository | link | 1 | links the tags named in the request body to the scenario it updates
 io.openaev.rest.scenario.ScenarioApi#updateScenarioTags -> TagRepository | link | 1 | links the tags named in the request body to the scenario it updates
+io.openaev.rest.simulation.SimulationService#findAllByIdsAsOptions -> ExerciseRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.tag.TagService#optionsById -> TagRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.tag.TagService#tagSet -> TagRepository | link | 1 | service wrapper whose callers link the tags named in a request body to an inject, a payload or an organization
 io.openaev.rest.team.TeamApi#optionsById -> TeamRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.user.PlayerService#upsertPlayer -> TeamRepository | link | 2 | links the teams named in the request body to the player it upserts
+io.openaev.scheduler.jobs.InjectsExecutionJob#promoteToRunning -> ExerciseRepository | other | 1 | loads the simulations whose ids the job's own poll of due simulations returned, inside the scope of their tenant, to set them running; the ids never come from a request
+io.openaev.scheduler.jobs.InjectsFinalizationJob#handleAutoClosingSimulations -> ExerciseRepository | other | 1 | refetches, inside the scope of their tenant, the simulations the job's own search found ended and not chained, to finish them; the ids never come from a request
 io.openaev.secrets.service.SecretReferenceService#secretReferences -> SecretReferenceRepository | link | 1 | service wrapper whose callers link the secret references named in an inject request body to the inject
 io.openaev.secrets.service.SecretValidationService#persistResults -> SecretReferenceRepository | other | 1 | loads the secret references whose connection check just produced a result, to store the verification date on them
 io.openaev.service.AssetGroupService#assetGroups -> AssetGroupRepository | link | 1 | service wrapper whose callers link the asset groups named in an inject request body to the inject (InjectService buildInject, updateInject and bulk update, InjectAssistantService, and InjectExecutionStep from the stored data of a chained step), and whose two readers are ScopeService and AssetGroupTargetSearchAdaptor
@@ -108,6 +113,7 @@ io.openaev.service.chaining.ScopeService#getValidTeams -> TeamRepository | link 
 io.openaev.service.expectation.ChallengeBehavior#resolveChallenges -> ChallengeRepository | other | 1 | loads the challenges stored in the content of an inject, to compute its expectations
 io.openaev.service.inject.BatchingInjectStatusService#processTenantCallbacks -> AgentRepository | other | 1 | resolves by id the agents named by execution callbacks, inside the transaction scoped to the tenant that owns the injects of the group, so an agent of another tenant is not found, and binds the agent to the execution trace as its actor
 io.openaev.service.organization.OrganizationService#fetchTags -> OrganizationRepository | other | 1 | fetches the tags of organizations already loaded, by their own ids, so a response can serialize them
+io.openaev.service.scenario.ScenarioService#bulkDeleteScenarios -> ScenarioRepository | other | 1 | loads in chunks the scenarios named in the bulk delete request, each checked against the request scope first, which are the rows it deletes, not linked rows
 io.openaev.service.scenario.ScenarioService#prepareScenarioFromScenarioInput -> TagRepository | link | 1 | links the tags named in the request body to the scenario it prepares
 io.openaev.service.scenario.ScenarioService#replaceTeams -> TeamRepository | link | 2 | replaces the teams of a scenario with the teams named in the request body and enables their players
 io.openaev.service.targets.search.EndpointTargetSearchAdaptor#getOptionsByIds -> EndpointRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing

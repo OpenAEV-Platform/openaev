@@ -574,7 +574,7 @@ public class ExerciseApi extends RestBehavior {
     // is resolved in the request scope by id inside it.
     String duplicateId =
         faithfulCopy.execute(ctx, () -> exerciseService.duplicateExercise(ctx, exerciseId).getId());
-    return hydrateForResponse(exerciseService.exercise(duplicateId));
+    return hydrateForResponse(exerciseService.exercise(ctx, duplicateId));
   }
 
   @PutMapping({EXERCISE_URI + "/{exerciseId}", TENANT_EXERCISE_URI + "/{exerciseId}"})

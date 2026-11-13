@@ -190,13 +190,23 @@ public class ScenarioApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public List<ScenarioSimple> updateScenariosWithInjectorContracts(
       TxCtx ctx, @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
-    return BulkOperationContext.runSuppressed(
+    // The injects are written in one tenant, the write tenant of the request: a scope naming
+    // several tenants cannot designate it and is refused, as on the create endpoint above.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    // The contract search and the injects are not tenant-active yet and follow the ambient tenant:
+    // align it on the write tenant so the scenarios and their injects stay in one tenant on both
+    // routes.
+    return ambientTenantBridge.callInTenant(
+        tenantId,
         () ->
-            this.scenarioService.updateScenariosWithInjectorContracts(
-                ctx,
-                inputs.getScenarioIds(),
-                inputs.getInjectorContractSearchPaginationInput(),
-                inputs.getLocale()));
+            BulkOperationContext.runSuppressed(
+                () ->
+                    this.scenarioService.updateScenariosWithInjectorContracts(
+                        ctx,
+                        tenantId,
+                        inputs.getScenarioIds(),
+                        inputs.getInjectorContractSearchPaginationInput(),
+                        inputs.getLocale())));
   }
 
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})
@@ -216,7 +226,7 @@ public class ScenarioApi extends RestBehavior {
     // resolved in the request scope by id inside it.
     String duplicateId =
         faithfulCopy.execute(ctx, () -> scenarioService.duplicateScenario(ctx, scenarioId).getId());
-    return hydrateForResponse(scenarioService.scenario(duplicateId));
+    return hydrateForResponse(scenarioService.scenario(ctx, duplicateId));
   }
 
   @GetMapping({SCENARIO_URI, TENANT_SCENARIO_URI})
@@ -378,7 +388,7 @@ public class ScenarioApi extends RestBehavior {
     // the scenario. Finished simulations are NOT deleted - they detach and remain as history, like
     // any chained simulation. No-op for manual scenarios.
     this.scenarioService.existsInScope(ctx, scenarioId);
-    this.autonomousRunService.deleteForScenario(scenarioId);
+    this.autonomousRunService.deleteForScenario(ctx, scenarioId);
     this.scenarioService.deleteScenario(ctx, scenarioId);
   }
 
@@ -752,7 +762,7 @@ public class ScenarioApi extends RestBehavior {
               }
               return simulation.getId();
             });
-    return ExerciseResponseHydrator.hydrateForResponse(exerciseService.exercise(simulationId));
+    return ExerciseResponseHydrator.hydrateForResponse(exerciseService.exercise(ctx, simulationId));
   }
 
   @PostMapping({

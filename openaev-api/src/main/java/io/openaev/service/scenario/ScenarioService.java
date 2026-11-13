@@ -217,13 +217,18 @@ public class ScenarioService {
     return ScenarioSimple.fromScenario(scenario);
   }
 
+  /**
+   * The scenarios resolve in {@code tenantId}, the tenant the injects are written to: a scenario of
+   * another tenant is treated like an unknown id, even when the request scope holds both tenants.
+   */
   @Transactional
   public List<ScenarioSimple> updateScenariosWithInjectorContracts(
       final TxCtx ctx,
+      @NotBlank final String tenantId,
       @NotNull final List<String> scenarioIds,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
-    List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
+    List<Scenario> scenarios = this.scenarioRepository.findAllByIdInTenant(scenarioIds, tenantId);
     this.injectService.createInjectsFromInjectorContractInput(
         ctx, null, scenarios, injectorContractSearchPaginationInput, locale);
     scenarios.forEach(
@@ -541,11 +546,10 @@ public class ScenarioService {
 
   /**
    * Loads a scenario by primary key and keeps it only when its tenant lies in the request's tenant
-   * scope. Unlike {@link #findInScope}, the load is not narrowed to the v1 ambient tenant, which is
-   * the default one on the non-prefixed route: a member reaches its own scenario in any tenant of
-   * its scope on both routes. For the callers that already loaded by primary key, so that scoping
-   * them refuses only what lies outside the scope. Transactional with the {@link TxCtx}, so the
-   * lookup carries the request scope even from a caller that opens no transaction of its own.
+   * scope. For the callers that already loaded by primary key, so that scoping them refuses only
+   * what lies outside the scope. Transactional with the {@link TxCtx}, so the lookup carries the
+   * request scope even from a caller that opens no transaction of its own: without a transaction
+   * the statement inspector has no scope to read and the load fails closed.
    */
   @Transactional(readOnly = true)
   public Optional<Scenario> findByIdInScope(
@@ -582,10 +586,10 @@ public class ScenarioService {
   }
 
   /**
-   * Reads a scenario found inside the request's tenant scope. The native read itself keys on the v1
-   * ambient tenant, the default one on the non-prefixed route, so the scope is checked first. The
-   * detail also names the scenario's workflow, read in the scenario's own tenant once access is
-   * granted (WorkflowOwnerScope).
+   * Reads a scenario found inside the request's tenant scope: the access check runs first, then the
+   * native read of the detail aggregate runs in that same scope. The workflow id and the platforms
+   * the detail names are read separately, in the scenario's own tenant (WorkflowOwnerScope), since
+   * a workflow can never move tenant.
    */
   public ScenarioOutput getScenarioById(
       @NotNull final TxCtx ctx, @NotBlank final String scenarioId) {
@@ -845,15 +849,15 @@ public class ScenarioService {
             "scenarios",
             scenarioIdsToDelete,
             chunk -> {
-              // The ids were resolved under the v1 ambient tenant, the default one on the
-              // non-prefixed route, so each is checked against the request scope first.
+              // The ids come from a search resolved in another transaction, so each is checked
+              // against the request scope inside this one before it is deleted.
               chunk.forEach(id -> existsInScope(ctx, id));
               // Tear the autonomous run (simulation + timeline + XTM orchestration) down first,
               // inside the same chunk transaction, so an autonomous scenario is never left with an
               // orphaned autonomous_runs row after a bulk delete. No-op for manual scenarios.
               io.openaev.service.autonomous.AutonomousRunService autonomousRunService =
                   this.autonomousRunServiceProvider.getObject();
-              chunk.forEach(autonomousRunService::deleteForScenarioForce);
+              chunk.forEach(id -> autonomousRunService.deleteForScenarioForce(ctx, id));
               this.scenarioRepository.deleteAll(this.scenarioRepository.findAllById(chunk));
             });
     log.info("Bulk deleted {} scenarios by user {}", deletedIds.size(), currentUser.getId());
@@ -1314,7 +1318,7 @@ public class ScenarioService {
    * Duplicates a scenario in full: its authored content, plus the logic map when it is chained.
    *
    * <p>This is the entry point for the duplicate endpoint. The metadata-only {@link
-   * #getDuplicateScenario(String)} stays separate because {@code
+   * #getDuplicateScenario(TxCtx, String)} stays separate because {@code
    * AutonomousRunService.convertToManual} calls it and then copies the workflow itself - folding
    * the chaining copy into it would give that duplicate two TEMPLATE workflows.
    *
@@ -1367,6 +1371,15 @@ public class ScenarioService {
    *
    * @param scenarioId the source scenario
    * @return the persisted duplicate
+   */
+  @Transactional
+  public Scenario getDuplicateScenario(@NotNull TxCtx ctx, @NotBlank String scenarioId) {
+    return copyScenarioContent(ctx, scenarioId);
+  }
+
+  /**
+   * Same as {@link #getDuplicateScenario(TxCtx, String)} for a scenario of the current tenant, for
+   * work that runs without a request scope. No production code calls it: it stays for its tests.
    */
   @Transactional
   public Scenario getDuplicateScenario(@NotBlank String scenarioId) {

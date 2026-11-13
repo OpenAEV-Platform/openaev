@@ -106,9 +106,9 @@ public class DocumentApi extends RestBehavior {
     // must be refused with 400 whether the uploaded bytes match an existing document or not, not
     // only on the new-document branch. The new document below is attributed to this tenant.
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    // Simulations and scenarios are still scoped by the ambient tenant, which is the default one on
-    // the non-prefixed route: resolve the ids the caller supplies in the write tenant, so the
-    // document is only bound to parents of its own tenant.
+    // Documents, simulations, scenarios and tags are v2, so the bridge protects nothing on this
+    // path: the parents the caller names are read in the request scope, which is the write tenant
+    // alone because tenantForWrite refuses a scope that holds several.
     return ambientTenantBridge.callInTenantChecked(
         tenantId, () -> uploadDocumentInTenant(tenantId, input, file));
   }
@@ -133,7 +133,7 @@ public class DocumentApi extends RestBehavior {
       if (!document.getExercises().isEmpty()) {
         Set<Exercise> exercises = new HashSet<>(document.getExercises());
         List<Exercise> inputExercises =
-            fromIterable(exerciseRepository.findAllById(input.getExerciseIds()));
+            fromIterable(exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), tenantId));
         exercises.addAll(inputExercises);
         document.setExercises(exercises);
       }
@@ -141,7 +141,7 @@ public class DocumentApi extends RestBehavior {
       if (!document.getScenarios().isEmpty()) {
         Set<Scenario> scenarios = new HashSet<>(document.getScenarios());
         List<Scenario> inputScenarios =
-            fromIterable(scenarioRepository.findAllById(input.getScenarioIds()));
+            fromIterable(scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), tenantId));
         scenarios.addAll(inputScenarios);
         document.setScenarios(scenarios);
       }
@@ -164,11 +164,13 @@ public class DocumentApi extends RestBehavior {
       document.setDescription(input.getDescription());
       if (!input.getExerciseIds().isEmpty()) {
         document.setExercises(
-            iterableToSet(exerciseRepository.findAllById(input.getExerciseIds())));
+            iterableToSet(
+                exerciseRepository.findAllByIdInTenant(input.getExerciseIds(), tenantId)));
       }
       if (!input.getScenarioIds().isEmpty()) {
         document.setScenarios(
-            iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
+            iterableToSet(
+                scenarioRepository.findAllByIdInTenant(input.getScenarioIds(), tenantId)));
       }
       document.setTags(
           iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
@@ -310,15 +312,19 @@ public class DocumentApi extends RestBehavior {
     // the scoped lookup above, so a caller outside the document's tenant gets the same 404 as for a
     // missing document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
-    // Simulations and scenarios are still scoped by the ambient tenant, which is the default one on
-    // the non-prefixed route: resolve the ids the caller supplies in the tenant of the document, so
-    // it keeps the parents of its own tenant and is never bound to those of another one.
+    // The bridge protects the inject attachments a removed simulation or scenario takes with it
+    // (injects are v1, scoped by the ambient tenant, which is the default one on the non-prefixed
+    // route). The simulations and scenarios themselves are v2: they follow the request scope and
+    // the update keeps those of the tenant of the document.
     return ambientTenantBridge.callInTenant(
         document.getTenant().getId(), () -> updateDocumentInTenant(document, input));
   }
 
   private Document updateDocumentInTenant(Document document, DocumentUpdateInput input) {
     String documentId = document.getId();
+    // The request scope can hold several tenants: a parent of another tenant is dropped like an
+    // unknown id, so the document only links simulations and scenarios of its own tenant.
+    String tenantId = document.getTenant().getId();
     document.setUpdateAttributes(input);
     document.setTags(
         new HashSet<>(
@@ -341,7 +347,8 @@ public class DocumentApi extends RestBehavior {
         document.getExercises().stream()
             .filter(exercise -> !askExerciseIds.contains(exercise.getId()))
             .toList();
-    document.setExercises(iterableToSet(exerciseRepository.findAllById(askExerciseIds)));
+    document.setExercises(
+        new HashSet<>(exerciseRepository.findAllByIdInTenant(askExerciseIds, tenantId)));
     // In case of exercise removal, all inject doc attachment for exercise
     removedExercises.forEach(
         exercise -> injectService.cleanInjectsDocExercise(exercise.getId(), documentId));
@@ -363,7 +370,8 @@ public class DocumentApi extends RestBehavior {
         document.getScenarios().stream()
             .filter(scenario -> !askScenarioIds.contains(scenario.getId()))
             .toList();
-    document.setScenarios(iterableToSet(scenarioRepository.findAllById(askScenarioIds)));
+    document.setScenarios(
+        new HashSet<>(scenarioRepository.findAllByIdInTenant(askScenarioIds, tenantId)));
     // In case of scenario removal, all inject doc attachment for scenario
     removedScenarios.forEach(
         scenario -> injectService.cleanInjectsDocScenario(scenario.getId(), documentId));
