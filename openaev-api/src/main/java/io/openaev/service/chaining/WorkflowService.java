@@ -2160,6 +2160,42 @@ public class WorkflowService {
   }
 
   /**
+   * Validates that {@code stepTemplateId} is a step template of the simulation's template workflow,
+   * so a caller authorized on one simulation can only edit or delete that simulation's own steps.
+   * Throws {@link ElementNotFoundException} (404) otherwise, the same answer as an unknown id.
+   *
+   * @param simulationId the run's live simulation
+   * @param stepTemplateId the step template the caller asked to edit or delete
+   */
+  public void assertStepTemplateOnSimulationWorkflow(String simulationId, String stepTemplateId) {
+    assertStepTemplateOnWorkflow(
+        findWorkflowTemplateBySimulationId(simulationId).orElse(null), stepTemplateId);
+  }
+
+  /**
+   * Scenario-side twin of {@link #assertStepTemplateOnSimulationWorkflow}: validates {@code
+   * stepTemplateId} is a step template of the scenario's template workflow (author-scenario mode).
+   */
+  public void assertStepTemplateOnScenarioWorkflow(String scenarioId, String stepTemplateId) {
+    Workflow template;
+    try {
+      template = findWorkflowTemplateByScenarioId(scenarioId).orElse(null);
+    } catch (ChainingException e) {
+      template = null;
+    }
+    assertStepTemplateOnWorkflow(template, stepTemplateId);
+  }
+
+  private void assertStepTemplateOnWorkflow(Workflow template, String stepTemplateId) {
+    Workflow stepWorkflow = stepService.findStepTemplateById(stepTemplateId).getWorkflow();
+    if (template == null
+        || stepWorkflow == null
+        || !Objects.equals(stepWorkflow.getId(), template.getId())) {
+      throw new ElementNotFoundException("Step template not found, id: " + stepTemplateId);
+    }
+  }
+
+  /**
    * Validates every non-blank id in {@code eventConditionIds} is an AND/OR finding-event root on
    * {@code workflowId}. The service-boundary guard for the reused-event link channel (which itself
    * only checks root-ness): callers pass the reused ids straight to {@code

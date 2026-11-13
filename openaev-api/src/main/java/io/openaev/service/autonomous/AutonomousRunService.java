@@ -2900,6 +2900,8 @@ public class AutonomousRunService {
           throw new ConflictException(
               "The autonomous run has neither a live simulation nor a scenario to update steps on");
         }
+        // The step id comes from the caller: only a step of this run's own workflow may be edited.
+        workflowService.assertStepTemplateOnScenarioWorkflow(run.getScenarioId(), stepTemplateId);
         // Validate a reused event id up front so a bad/foreign id is a precise 400. In
         // author-scenario mode the event lives on the scenario's own workflow.
         if (reuseEvent) {
@@ -2932,6 +2934,7 @@ public class AutonomousRunService {
             null);
         return stepTemplateId;
       }
+      workflowService.assertStepTemplateOnSimulationWorkflow(run.getSimulationId(), stepTemplateId);
       // Validate a reused event id up front so a bad/foreign id is a precise 400. In live mode the
       // event lives on the simulation's own workflow (the state read surfaces simulation event
       // ids).
@@ -3007,6 +3010,13 @@ public class AutonomousRunService {
     String previousTenant = hadTenant ? TenantContext.getCurrentTenant() : null;
     TenantContext.setCurrentTenant(runTenantId(run));
     try {
+      // The step id comes from the caller: only a step of this run's own workflow may be deleted.
+      if (hasText(run.getSimulationId())) {
+        workflowService.assertStepTemplateOnSimulationWorkflow(
+            run.getSimulationId(), stepTemplateId);
+      } else {
+        workflowService.assertStepTemplateOnScenarioWorkflow(run.getScenarioId(), stepTemplateId);
+      }
       try {
         workflowService.deleteChainedStep(stepTemplateId);
       } catch (ChainingException e) {
