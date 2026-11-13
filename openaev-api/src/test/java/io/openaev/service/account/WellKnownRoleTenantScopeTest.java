@@ -1,14 +1,12 @@
 package io.openaev.service.account;
 
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
-import static io.openaev.database.model.User.ADMIN_UUID;
 import static io.openaev.service.account.AbstractPrivilegeService.getUUIDFromName;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TxCtx;
-import io.openaev.database.repository.UserRepository;
 import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -24,8 +22,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * Pins the tenant of the well-known role written by the privilege services that take a {@link
- * TxCtx}: the admin bootstrap, the agent service account and the catalog connector account. The
- * OpenCTI connector family has its own pin in {@code OpenCTIConnectorPrivilegeScopeTest}.
+ * TxCtx}: the agent service account and the catalog connector account. The OpenCTI connector family
+ * has its own pin in {@code OpenCTIConnectorPrivilegeScopeTest}; the admin bootstrap reuses the
+ * tenant's Admin role, so its scope is pinned in {@code InitAdminCommandLineRunnerTest}.
  *
  * <p>Not transactional: each call opens and commits its own transaction, as the startup runner, the
  * onboarding and the request do. The role is read back through JDBC, which the statement inspector
@@ -38,7 +37,6 @@ class WellKnownRoleTenantScopeTest extends IntegrationTest {
 
   /** One entry per service whose role write takes the scope of its caller. */
   enum Family {
-    ADMIN(AdminPrivilegeService.ADMIN_ACCESS),
     AGENT(ReservedServiceAccount.AGENT.access()),
     CATALOG_CONNECTOR(ReservedServiceAccount.CATALOG_CONNECTOR.access());
 
@@ -53,10 +51,8 @@ class WellKnownRoleTenantScopeTest extends IntegrationTest {
     }
   }
 
-  @Autowired private AdminPrivilegeService adminPrivilegeService;
   @Autowired private AgentServiceAccountPrivilegeService agentServiceAccountPrivilegeService;
   @Autowired private CatalogConnectorPrivilegeService catalogConnectorPrivilegeService;
-  @Autowired private UserRepository userRepository;
   @Autowired private JdbcTemplate jdbc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
 
@@ -96,9 +92,6 @@ class WellKnownRoleTenantScopeTest extends IntegrationTest {
 
   private void ensureRole(Family family, TxCtx ctx, String tenantId) {
     switch (family) {
-      case ADMIN ->
-          adminPrivilegeService.ensureAdminGroup(
-              ctx, tenantId, userRepository.findById(ADMIN_UUID).orElseThrow());
       case AGENT -> agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(ctx, tenantId);
       case CATALOG_CONNECTOR -> catalogConnectorPrivilegeService.getOrCreateToken(ctx, tenantId);
     }
