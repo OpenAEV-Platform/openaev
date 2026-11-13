@@ -11,17 +11,22 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantContext;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Evaluation;
 import io.openaev.database.model.Objective;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.EvaluationRepository;
 import io.openaev.database.repository.ObjectiveRepository;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.EvaluationFixture;
 import io.openaev.utils.fixtures.ObjectiveFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.composers.ObjectiveComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,6 +58,7 @@ class ScenarioObjectiveApiTest extends IntegrationTest {
   @Autowired private ObjectiveComposer objectiveComposer;
   @Autowired private ObjectiveRepository objectiveRepository;
   @Autowired private EvaluationRepository evaluationRepository;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   private String scenarioId;
   private String objectiveId;
@@ -170,6 +176,106 @@ class ScenarioObjectiveApiTest extends IntegrationTest {
           // Assert
           .andExpect(status().isNotFound());
       assertThat(otherScenarioRows()).isEqualTo(before);
+    }
+  }
+
+  @Nested
+  @TestInstance(PER_CLASS)
+  @WithMockUser
+  @DisplayName("Scenario of another tenant")
+  class ScenarioOfAnotherTenant {
+
+    private String foreignScenarioId;
+    private String foreignObjectiveId;
+    private String foreignEvaluationId;
+
+    @BeforeEach
+    void setUpForeignScenario() throws Exception {
+      String otherTenant = tenantHelper.createTenant("scenario-objectives-scope").getId();
+      Scenario scenario = ScenarioFixture.getScenario();
+      scenario.setTenant(new Tenant(otherTenant));
+      scenarioComposer.forScenario(scenario).persist();
+      Objective objective = persistObjective(scenario);
+      Evaluation evaluation = persistEvaluation(objective);
+      entityManager.flush();
+      entityManager.clear();
+      foreignScenarioId = scenario.getId();
+      foreignObjectiveId = objective.getId();
+      foreignEvaluationId = evaluation.getId();
+      // The caller manages assessments in the default tenant only.
+      tenantHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID,
+          Set.of(Capability.ACCESS_ASSESSMENT, Capability.MANAGE_ASSESSMENT));
+    }
+
+    private String foreignObjectiveUri() {
+      return "/api/tenants/"
+          + Tenant.DEFAULT_TENANT_UUID
+          + "/scenarios/"
+          + foreignScenarioId
+          + "/objectives/"
+          + foreignObjectiveId;
+    }
+
+    /** The foreign rows the calls could reach: objective title, evaluations and their score. */
+    private String foreignRows() {
+      entityManager.flush();
+      entityManager.clear();
+      Objective objective = objectiveRepository.findById(foreignObjectiveId).orElseThrow();
+      return objective.getTitle()
+          + "|"
+          + objective.getEvaluations().size()
+          + "|"
+          + evaluationRepository.findById(foreignEvaluationId).orElseThrow().getScore();
+    }
+
+    Stream<Arguments> callsOnAScenarioOfAnotherTenant() {
+      return Stream.of(
+          call("list its objectives", () -> get(foreignObjectiveUri().replaceAll("/[^/]+$", ""))),
+          call("update its objective", () -> withBody(put(foreignObjectiveUri()), OBJECTIVE_BODY)),
+          call("delete its objective", () -> delete(foreignObjectiveUri())),
+          call("list its evaluations", () -> get(foreignObjectiveUri() + "/evaluations")),
+          call(
+              "read its evaluation",
+              () -> get(foreignObjectiveUri() + "/evaluations/" + foreignEvaluationId)),
+          call(
+              "evaluate its objective",
+              () -> withBody(post(foreignObjectiveUri() + "/evaluations"), EVALUATION_BODY)),
+          call(
+              "update its evaluation",
+              () ->
+                  withBody(
+                      put(foreignObjectiveUri() + "/evaluations/" + foreignEvaluationId),
+                      EVALUATION_BODY)),
+          call(
+              "delete its evaluation",
+              () -> delete(foreignObjectiveUri() + "/evaluations/" + foreignEvaluationId)));
+    }
+
+    private static Arguments call(String name, Supplier<MockHttpServletRequestBuilder> request) {
+      return Arguments.of(name, request);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("callsOnAScenarioOfAnotherTenant")
+    @DisplayName("Given a scenario of another tenant, should answer not found and change nothing")
+    void given_scenarioOfAnotherTenant_should_answerNotFoundAndChangeNothing(
+        String name, Supplier<MockHttpServletRequestBuilder> request) throws Exception {
+      // Arrange
+      String before = foreignRows();
+      // Fixtures leave a tenant on the test thread: the request must resolve its own scope.
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      String body =
+          mvc.perform(request.get().with(csrf()))
+              // Assert
+              .andExpect(status().isNotFound())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      assertThat(body).doesNotContain(foreignObjectiveId);
+      assertThat(foreignRows()).isEqualTo(before);
     }
   }
 
