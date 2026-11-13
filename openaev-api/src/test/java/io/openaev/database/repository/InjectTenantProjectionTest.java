@@ -12,6 +12,7 @@ import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,7 @@ class InjectTenantProjectionTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private EntityManager entityManager;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @Test
   @DisplayName("resolves each inject's owning tenant under a different active scope")
@@ -71,13 +73,24 @@ class InjectTenantProjectionTest extends IntegrationTest {
 
   private String seedInjectInTenant(String tenantId) {
     tenantHelper.switchToTenant(tenantId, entityManager);
-    InjectorContract contract = injectorContractFixture.getWellKnownSingleEmailContract();
-    InjectComposer.Composer injectC =
-        injectComposer.forInject(InjectFixture.createInject(contract, "callback-tenant-probe"));
-    exerciseComposer
-        .forExercise(ExerciseFixture.createDefaultExercise())
-        .withInjects(List.of(injectC))
-        .persist();
-    return injectC.get().getId();
+    // injectors_contracts is tenant-active: switchToTenant only sets the v1 filter, so resolving
+    // (find-or-creating) the built-in contract and persisting the inject that references it need
+    // the v2 scope too, in the same scope or the contract is detached by the time the inject save
+    // flushes.
+    String[] injectId = new String[1];
+    rowTenantScope.write(
+        tenantId,
+        () -> {
+          InjectorContract contract = injectorContractFixture.getWellKnownSingleEmailContract();
+          InjectComposer.Composer injectC =
+              injectComposer.forInject(
+                  InjectFixture.createInject(contract, "callback-tenant-probe"));
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInjects(List.of(injectC))
+              .persist();
+          injectId[0] = injectC.get().getId();
+        });
+    return injectId[0];
   }
 }

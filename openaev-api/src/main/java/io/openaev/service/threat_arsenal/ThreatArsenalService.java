@@ -39,6 +39,7 @@ import io.openaev.service.detection_remediation.DetectionRemediationService;
 import io.openaev.service.payload.PayloadUsageService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.utils.ThreatArsenalFilterUtils;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.criteria.Join;
@@ -456,16 +457,18 @@ public class ThreatArsenalService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void delete(
-      // Unused by the method body; TenantScopeTransactionAspect reads it to set the tenant scope
-      // for this transaction (isEligibleForDeletion resolves InjectorContract#getInjectorType(),
-      // which is v2 tenant-scoped through the injectors table; without a scope it silently reads
-      // null and every action looks "orphaned", bypassing the deletion guard).
+      // TenantScopeTransactionAspect reads it to set the tenant scope for this transaction
+      // (isEligibleForDeletion resolves InjectorContract#getInjectorType(), which is v2
+      // tenant-scoped through the injectors table; without a scope it silently reads null and
+      // every action looks "orphaned", bypassing the deletion guard). The body reads the tenant
+      // of the copy to delete from it too.
       TxCtx ctx, String actionId) {
+    String tenantId = TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     InjectorContract injectorContract = injectorContractService.injectorContract(actionId);
     if (!isEligibleForDeletion(injectorContract)) {
       throw new ElementNotFoundException("Only payload-based or orphaned actions can be deleted.");
     }
-    this.injectorContractService.deleteInjectorContractById(actionId);
+    this.injectorContractService.deleteInjectorContractById(actionId, tenantId);
   }
 
   /**
@@ -527,12 +530,14 @@ public class ThreatArsenalService {
       String tenantId, InjectorContractSearchPaginationInput input) {
     TxCtx tenantScope = TxCtx.forTenant(tenantId);
     List<String> eligibleIds =
-        bulkDeleteExecutor.resolveInTransaction(tenantScope, () -> resolveEligibleIds(input));
+        bulkDeleteExecutor.resolveInTransaction(
+            tenantScope, () -> resolveEligibleIds(tenantId, input));
     return bulkDeleteExecutor.deleteInChunks(
         tenantScope,
         "threat arsenal items",
         eligibleIds,
-        chunk -> chunk.forEach(injectorContractService::deleteInjectorContractById));
+        chunk ->
+            chunk.forEach(id -> injectorContractService.deleteInjectorContractById(id, tenantId)));
   }
 
   /**
@@ -545,8 +550,9 @@ public class ThreatArsenalService {
    * was deleted. The explicit-selection path stays entity-based: it is bounded by what the user
    * ticked on screen.
    */
-  private List<String> resolveEligibleIds(InjectorContractSearchPaginationInput input) {
-    return payloadUsageService.notInUse(resolveCandidateIds(input));
+  private List<String> resolveEligibleIds(
+      String tenantId, InjectorContractSearchPaginationInput input) {
+    return payloadUsageService.notInUse(resolveCandidateIds(input), tenantId);
   }
 
   private List<String> resolveCandidateIds(InjectorContractSearchPaginationInput input) {

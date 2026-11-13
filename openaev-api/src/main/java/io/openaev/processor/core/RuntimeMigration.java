@@ -40,13 +40,14 @@ public abstract class RuntimeMigration implements Processable {
 
   /**
    * Enables the v1 Hibernate {@code tenantFilter} for the tenant being processed. Call this
-   * explicitly at the top of {@link #doMigrate(Tenant)} when the migration reads v1-scoped entities
-   * through JPQL / derived queries that are not explicitly tenant-parameterized (e.g. {@code
-   * InjectorContractRepository#findById(String)} on the composite-PK {@code injectors_contracts}
-   * table). Before migrations moved under {@code MigrationProcessor}'s tenant-scoped transactions,
-   * the {@code @Transactional} annotation on {@code process()} made {@code
-   * HibernateFilterTransactionAspect} enable this filter implicitly; the programmatic transaction
-   * does not, so migrations that depend on it must opt in.
+   * explicitly at the top of {@link #doMigrate(Tenant)} when the migration reads entities that
+   * still carry the v1 filter ({@code Exercise}, {@code Inject} and {@code Scenario}) through JPQL
+   * / derived queries that are not explicitly tenant-parameterized. A tenant-active table, such as
+   * {@code injectors_contracts}, needs no filter: the statement inspector scopes its reads to the
+   * tenant scope of the transaction {@code MigrationProcessor} opens. Before migrations moved under
+   * {@code MigrationProcessor}'s tenant-scoped transactions, the {@code @Transactional} annotation
+   * on {@code process()} made {@code HibernateFilterTransactionAspect} enable this filter
+   * implicitly; the programmatic transaction does not, so migrations that depend on it must opt in.
    */
   // TODO v2: once all v1 tables read by runtime migrations are v2 activated, remove this method
   // and all calls to it (and the v1 filter itself) - the SQL rewriter scopes them independently

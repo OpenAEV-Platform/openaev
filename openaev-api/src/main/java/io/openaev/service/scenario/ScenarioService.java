@@ -1067,7 +1067,9 @@ public class ScenarioService {
     workflowOpt.ifPresent(
         workflow -> {
           if (isChaining) {
-            scenarioTags.addAll(workflowExportInitializer.collectWorkflowTags(workflow));
+            scenarioTags.addAll(
+                workflowExportInitializer.collectWorkflowTags(
+                    workflow, scenario.getTenant().getId()));
           }
           scenarioFileExport.setWorkflow(workflow);
         });
@@ -1134,7 +1136,7 @@ public class ScenarioService {
     ObjectNode exportNode = objectMapper.valueToTree(scenarioFileExport);
     FileExportBase.dropForeignOrganizationReferences(exportNode, "scenario");
     workflowExportInitializer.enrichWorkflowDataForExport(
-        exportNode, "scenario_workflow", objectMapper);
+        exportNode, "scenario_workflow", objectMapper, scenario.getTenant().getId());
     zipExport.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(exportNode));
     zipExport.closeEntry();
     // Add the documents

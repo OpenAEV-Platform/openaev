@@ -125,7 +125,7 @@ runs:
         working-directory: ${{ inputs.context }}
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v4
+      uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
     - name: Resolve CI registry
       id: registry
@@ -189,7 +189,7 @@ runs:
     # Produce the OCI artifact before the optional registry handoff so GHCR failures do not discard it.
     - name: Build image (single-platform OCI archive)
       id: docker-build
-      uses: docker/build-push-action@v7
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       env:
         BUILDKIT_PROGRESS: plain
       with:

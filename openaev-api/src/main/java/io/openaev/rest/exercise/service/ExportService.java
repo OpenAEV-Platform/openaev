@@ -121,7 +121,9 @@ public class ExportService {
         workflow -> {
           if (isChaining) {
             ArrayList<Tag> workflowAndExerciseTags = new ArrayList<>(importExport.getTags());
-            workflowAndExerciseTags.addAll(workflowExportInitializer.collectWorkflowTags(workflow));
+            workflowAndExerciseTags.addAll(
+                workflowExportInitializer.collectWorkflowTags(
+                    workflow, exercise.getTenant().getId()));
             importExport.setTags(workflowAndExerciseTags.stream().distinct().toList());
           }
           importExport.setWorkflow(workflow);
@@ -135,7 +137,10 @@ public class ExportService {
     ObjectNode exportNode = importExport.getObjectMapper().valueToTree(importExport);
     FileExportBase.dropForeignOrganizationReferences(exportNode, "exercise");
     workflowExportInitializer.enrichWorkflowDataForExport(
-        exportNode, "exercise_workflow", importExport.getObjectMapper());
+        exportNode,
+        "exercise_workflow",
+        importExport.getObjectMapper(),
+        exercise.getTenant().getId());
     zipExport.write(
         importExport
             .getObjectMapper()

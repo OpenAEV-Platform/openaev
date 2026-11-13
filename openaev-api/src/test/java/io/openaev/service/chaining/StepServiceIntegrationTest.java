@@ -331,6 +331,31 @@ class StepServiceIntegrationTest extends IntegrationTest {
   }
 
   @Test
+  void
+      given_workflowWithNeitherSimulationNorScenario_should_refuseStepTemplateWithChainingException()
+          throws Exception {
+    // No condition list is given, so the contract auto-links are built first. That step reads the
+    // tenant of the workflow's parent: a workflow with neither parent must still reach
+    // InjectExecutionStep#create and be refused there with the ChainingException it always was,
+    // not fail with a NullPointerException on the tenant read.
+    InjectInput injectInput = mapper.readValue(injectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput input = new StepsCreateInput.StepInput();
+    input.setStepAction(StepActionClass.INJECT_EXECUTION);
+    input.setDataStep(injectInput);
+    input.setConditions(null);
+    Workflow parentlessWorkflow = WorkflowFixture.getDefaultWorkflowTemplate();
+
+    long countBefore = stepRepository.count();
+    ChainingException ex =
+        assertThrows(
+            ChainingException.class,
+            () -> spyStepService.createStepTemplate(parentlessWorkflow, input));
+
+    assertTrue(ex.getMessage().contains("Workflow has no simulation or scenario"));
+    assertEquals(countBefore, stepRepository.count(), "no step persisted");
+  }
+
+  @Test
   void createInjectStepTemplateIdempotent_shouldReject_whenInjectorContractDoesNotExist()
       throws JsonProcessingException {
     // #7418: the autonomous author path (idempotent) must reject a deleted contract too, so a stale
