@@ -101,4 +101,53 @@ class MarkingCtxTest {
       assertEquals(MarkingCtx.all(), MarkingCtx.all());
     }
   }
+
+  // Same rule as is_marking_set_allowed in SQL: a row is visible only when the clearance holds
+  // every
+  // marking on it, and a row with no marking is visible to everyone.
+  @Nested
+  @DisplayName("allows()")
+  class AllowsTests {
+
+    @Test
+    @DisplayName("all() allows a marked row")
+    void given_all_should_allowAMarkedRow() {
+      // Act & Assert
+      assertTrue(MarkingCtx.all().allows(List.of("tlp-red")));
+    }
+
+    @Test
+    @DisplayName("a clearance holding every marking of the row allows it")
+    void given_everyMarkingHeld_should_allowTheRow() {
+      // Arrange
+      MarkingCtx amber = MarkingCtx.forMarkings(List.of("tlp-clear", "tlp-green", "tlp-amber"));
+
+      // Act & Assert
+      assertTrue(amber.allows(List.of("tlp-green", "tlp-amber")));
+    }
+
+    @Test
+    @DisplayName("a clearance missing one marking of the row does not allow it")
+    void given_oneMarkingNotHeld_should_notAllowTheRow() {
+      // Arrange
+      MarkingCtx amber = MarkingCtx.forMarkings(List.of("tlp-clear", "tlp-green", "tlp-amber"));
+
+      // Act & Assert
+      assertFalse(amber.allows(List.of("tlp-amber", "tlp-red")));
+    }
+
+    @Test
+    @DisplayName("none() allows an unmarked row")
+    void given_none_should_allowAnUnmarkedRow() {
+      // Act & Assert
+      assertTrue(MarkingCtx.none().allows(List.of()));
+    }
+
+    @Test
+    @DisplayName("none() does not allow a marked row")
+    void given_none_should_notAllowAMarkedRow() {
+      // Act & Assert
+      assertFalse(MarkingCtx.none().allows(List.of("tlp-clear")));
+    }
+  }
 }
