@@ -106,22 +106,41 @@ class RabbitmqManagementClientConfigTest {
     assertThatThrownBy(() -> callManagementApi(httpClient)).isInstanceOf(IOException.class);
   }
 
-  @Test
-  @DisplayName("With a RabbitMQ trust store, the platform trust store still applies")
-  void keepsPlatformTrustWithDedicatedTrustStore() throws Exception {
-    KeyStore unrelatedStore = KeyStore.getInstance(KeyStore.getDefaultType());
-    unrelatedStore.load(null, null);
-    try (InputStream cert = new FileInputStream(UNRELATED_CA_DIR + "/cert.pem")) {
-      unrelatedStore.setCertificateEntry(
-          "unrelated", CertificateFactory.getInstance("X.509").generateCertificate(cert));
+  private static RabbitmqConfig sslRabbitmqConfigWithTrustStore(String caPem) throws Exception {
+    KeyStore dedicatedStore = KeyStore.getInstance(KeyStore.getDefaultType());
+    dedicatedStore.load(null, null);
+    try (InputStream cert = new FileInputStream(caPem)) {
+      dedicatedStore.setCertificateEntry(
+          "dedicated", CertificateFactory.getInstance("X.509").generateCertificate(cert));
     }
     ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-    unrelatedStore.store(bytes, "changeit".toCharArray());
+    dedicatedStore.store(bytes, "changeit".toCharArray());
     RabbitmqConfig rabbitmqConfig = sslRabbitmqConfig();
     rabbitmqConfig.setTrustStore(new ByteArrayResource(bytes.toByteArray()));
     rabbitmqConfig.setTrustStorePassword("changeit");
+    return rabbitmqConfig;
+  }
+
+  @Test
+  @DisplayName("With a RabbitMQ trust store, the platform trust store still applies")
+  void keepsPlatformTrustWithDedicatedTrustStore() throws Exception {
     HttpClient httpClient =
-        managementHttpClient(rabbitmqConfig, sslConfiguration(LOCALHOST_CA_DIR));
+        managementHttpClient(
+            sslRabbitmqConfigWithTrustStore(UNRELATED_CA_DIR + "/cert.pem"),
+            sslConfiguration(LOCALHOST_CA_DIR));
+
+    HttpResponse<String> response = callManagementApi(httpClient);
+
+    assertThat(response.statusCode()).isPositive();
+  }
+
+  @Test
+  @DisplayName("With a RabbitMQ trust store, a CA only that store holds is trusted")
+  void trustsDedicatedTrustStoreAlone() throws Exception {
+    HttpClient httpClient =
+        managementHttpClient(
+            sslRabbitmqConfigWithTrustStore(LOCALHOST_CA_DIR + "/ca.pem"),
+            sslConfiguration(UNRELATED_CA_DIR));
 
     HttpResponse<String> response = callManagementApi(httpClient);
 
