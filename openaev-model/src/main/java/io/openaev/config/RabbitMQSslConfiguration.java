@@ -59,7 +59,7 @@ public class RabbitMQSslConfiguration {
             .map(X509TrustManager.class::cast)
             .findFirst()
             .orElseThrow(() -> new IllegalStateException("No X509 trust manager in trust store"));
-    SSLContext sslContext = SSLContext.getInstance("TLS");
+    SSLContext sslContext = SSLContext.getInstance("TLSv1.3");
     TrustManager[] trustManagers = {eitherOf(dedicated, platformTrustManager)};
     sslContext.init(defaultKeyManagers(), trustManagers, null);
     return sslContext;
