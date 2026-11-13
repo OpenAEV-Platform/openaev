@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
@@ -47,6 +48,14 @@ import org.springframework.test.web.servlet.ResultMatcher;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Atomic testing API flows. The {@code TenantIsolation} group is the isolation test of {@code
+ * injects}: it seeds atomic testings in two tenants and asserts that a caller scoped to one tenant
+ * neither reads, finds in a search, nor deletes the other tenant's atomic testing. An atomic
+ * testing has no parent simulation or scenario, so the search refusal rests on the statement
+ * inspector over {@code injects} alone.
+ */
+@CoversTenantIsolation("injects")
 @TestInstance(PER_CLASS)
 @Transactional
 public class AtomicTestingApiTest extends IntegrationTest {
