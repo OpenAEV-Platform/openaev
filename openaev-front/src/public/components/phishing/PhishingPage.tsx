@@ -89,8 +89,15 @@ const PhishingPage = () => {
       controller.abort();
       const body = JSON.stringify({
         dwell_ms: dwellMs,
+        // Browsers driven by automation (Selenium, Puppeteer, headless Chrome...) set
+        // navigator.webdriver to true. The backend logs such a confirmation as automated and
+        // never scores it.
         webdriver: navigator.webdriver === true,
       });
+      // sendBeacon rather than a regular request: the interaction may navigate away (a link in
+      // the landing page) and the browser would cancel a regular request, losing the click. A
+      // beacon is queued by the browser and survives the navigation. The Blob sets the JSON
+      // content type the endpoint expects.
       navigator.sendBeacon(confirmUrl, new Blob([body], { type: 'application/json' }));
     };
 
