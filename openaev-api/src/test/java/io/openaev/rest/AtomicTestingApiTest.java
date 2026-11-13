@@ -312,8 +312,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
   class LaunchInPlaceWithFindings {
 
     @Test
-    @DisplayName("Should delete the findings the inject wrote, and their occurrences")
-    void given_injectWithFindings_should_deleteThemOnLaunch() throws Exception {
+    @DisplayName("Should keep the findings the inject wrote, and their occurrences")
+    void given_injectWithFindings_should_keepThemOnLaunch() throws Exception {
       // Arrange
       findingComposer.reset();
       FindingComposer.Composer findingWrapper =
@@ -337,11 +337,11 @@ public class AtomicTestingApiTest extends IntegrationTest {
       // Assert
       entityManager.flush();
       entityManager.clear();
-      assertThat(findingRepository.findById(findingId)).isEmpty();
+      assertThat(findingRepository.findById(findingId)).isPresent();
       assertThat(
               findingOccurrenceRepository.findByFindingIdAndInjectId(
                   findingId, atomicTesting.getId()))
-          .isEmpty();
+          .isPresent();
     }
   }
 
@@ -351,8 +351,8 @@ public class AtomicTestingApiTest extends IntegrationTest {
   class DeleteWithFindings {
 
     @Test
-    @DisplayName("Should delete the findings of the inject, and their occurrences")
-    void given_injectWithFindings_should_deleteThemWithTheInject() throws Exception {
+    @DisplayName("Should keep the findings of the inject, their occurrences losing the inject")
+    void given_injectWithFindings_should_keepThemWithoutTheInject() throws Exception {
       // Arrange
       findingComposer.reset();
       FindingComposer.Composer findingWrapper =
@@ -370,11 +370,21 @@ public class AtomicTestingApiTest extends IntegrationTest {
       // Assert
       entityManager.flush();
       entityManager.clear();
-      assertThat(findingRepository.findById(findingId)).isEmpty();
-      assertThat(
-              findingOccurrenceRepository.findByFindingIdAndInjectId(
-                  findingId, atomicTesting.getId()))
-          .isEmpty();
+      assertThat(findingRepository.findById(findingId)).isPresent();
+      List<FindingOccurrence> occurrences =
+          entityManager
+              .createQuery(
+                  "SELECT o FROM FindingOccurrence o WHERE o.finding.id = :findingId",
+                  FindingOccurrence.class)
+              .setParameter("findingId", findingId)
+              .getResultList();
+      assertThat(occurrences)
+          .singleElement()
+          .satisfies(
+              occurrence -> {
+                assertThat(occurrence.getInject()).isNull();
+                assertThat(occurrence.getDate()).isNotNull();
+              });
     }
   }
 

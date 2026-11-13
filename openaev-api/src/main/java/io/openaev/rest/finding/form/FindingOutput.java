@@ -53,11 +53,6 @@ public class FindingOutput {
   @NotBlank
   private String value;
 
-  @Deprecated
-  @Schema(description = "Deprecated, kept for backward compatibility", deprecated = true)
-  @JsonProperty("finding_labels")
-  private String[] labels;
-
   @Schema(description = "Finding name")
   @JsonProperty("finding_name")
   private String name;

@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.finding.identity.LocationIdentity.AssetLocation;
 import io.openaev.finding.identity.LocationIdentity.UnknownLocation;
-import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -64,13 +63,13 @@ class FindingValueNormalizerTest {
     void given_aSensitiveValue_should_keepItOutOfToString() {
       // -- ARRANGE --
       DetectedFinding detection =
-          new DetectedFinding(
-              ContractOutputType.Credentials,
-              "jdoe:Sup3rS3cret",
-              "credentials",
-              "jdoe",
-              ASSET_A,
-              Set.of());
+          DetectedFinding.builder()
+              .type(ContractOutputType.Credentials)
+              .value("jdoe:Sup3rS3cret")
+              .field("credentials")
+              .name("jdoe")
+              .location(ASSET_A)
+              .build();
 
       // -- ACT & ASSERT --
       assertThat(detection.toString()).doesNotContain("Sup3rS3cret");
@@ -81,11 +80,19 @@ class FindingValueNormalizerTest {
     void given_twoOutputKeys_should_resolveToTheSameIdentity() {
       // -- ARRANGE --
       DetectedFinding fromCve =
-          new DetectedFinding(
-              ContractOutputType.CVE, "CVE-2024-1234", "cve", null, ASSET_A, Set.of());
+          DetectedFinding.builder()
+              .type(ContractOutputType.CVE)
+              .value("CVE-2024-1234")
+              .field("cve")
+              .location(ASSET_A)
+              .build();
       DetectedFinding fromScan =
-          new DetectedFinding(
-              ContractOutputType.CVE, "CVE-2024-1234", "scan_cves", null, ASSET_A, Set.of());
+          DetectedFinding.builder()
+              .type(ContractOutputType.CVE)
+              .value("CVE-2024-1234")
+              .field("scan_cves")
+              .location(ASSET_A)
+              .build();
 
       // -- ACT & ASSERT --
       assertThat(fromCve.valueHash()).isEqualTo(fromScan.valueHash());

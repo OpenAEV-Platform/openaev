@@ -191,7 +191,7 @@ final class HandledErrorRollbackRules {
               "WorkflowService#deleteAllScenarioSteps -> ConditionService.deleteAllConditionsByWorkflowId",
               "known defect, reported by the #8102 sweep"),
           entry(
-              "PhishingTrackingService#captureCredentials -> FindingService.createFindings",
+              "PhishingTrackingService#captureCredentials -> FindingService.recordFindingsByInject",
               "known defect, reported by the #8102 sweep; the victim's tracking write is lost with it"),
           entry(
               "XtmOneService#autoRegister -> TenantSettingsService.resolveSettingValue",

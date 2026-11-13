@@ -5,7 +5,6 @@ import static java.time.Instant.now;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.ModelBaseListener;
 import io.openaev.database.audit.TenantBaseListener;
@@ -41,11 +40,10 @@ public class Finding implements TenantBase {
   // took (#7844 removes it for both). It only stamps tenant_id on write and never filters a read,
   // so keeping it costs no isolation.
   //
-  // It is redundant rather than load-bearing: both production create paths resolve the tenant
-  // explicitly from the inject that produced the finding. FindingService.createFindings stamps it,
-  // and FindingWriter receives it as a required argument and now refuses a blank one. What #7844
-  // still has to prepare is the test ground: twenty-two test sites persist a
-  // Finding straight through a repository, and neither FindingFixture nor FindingComposer stamps a
+  // It is redundant rather than load-bearing: the production create path,
+  // FindingRecordingService, stamps the tenant of the transaction scope and refuses a scope that
+  // names anything but one tenant. What #7844 still has to prepare is the test ground: test sites
+  // persist a Finding straight through a repository, and neither FindingFixture nor FindingComposer stamps a
   // tenant, so they all lean on this listener today.
 
   @Id
@@ -84,12 +82,6 @@ public class Finding implements TenantBase {
   @Column(name = "finding_value_display")
   @JsonProperty("finding_value")
   private String valueDisplay;
-
-  @Deprecated
-  @Type(StringArrayType.class)
-  @Column(name = "finding_labels", columnDefinition = "text[]")
-  @JsonProperty("finding_labels")
-  private String[] labels;
 
   @Queryable(searchable = true, filterable = true, sortable = true)
   @Column(name = "finding_name")
@@ -217,9 +209,8 @@ public class Finding implements TenantBase {
   private final ResourceType resourceType = ResourceType.SIMULATION;
 
   // -- DISPLAYED VALUE --
-  // finding_value_display is computed by SensitiveValueMaskingUtils.maskIfNeededFailClosed, like on
-  // every other write path (the native upsert of FindingWriter, the backfill migration and its
-  // delayed pass), so they all store exactly the same masked form.
+  // finding_value_display is computed by SensitiveValueMaskingUtils.maskIfNeededFailClosed, like in
+  // the backfill migration, so they all store exactly the same masked form.
 
   public void setType(final ContractOutputType type) {
     if (this.id != null && this.type != null && this.type != type) {

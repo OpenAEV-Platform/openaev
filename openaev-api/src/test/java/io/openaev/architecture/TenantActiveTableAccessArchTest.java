@@ -178,7 +178,6 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.finding.FindingDistinctSearchService;
 import io.openaev.rest.finding.FindingSearchApi;
 import io.openaev.rest.finding.FindingService;
-import io.openaev.rest.finding.FindingWriter;
 import io.openaev.rest.inject.InjectApi;
 import io.openaev.rest.inject.ScenarioInjectApi;
 import io.openaev.rest.inject.SimulationInjectApi;
@@ -223,6 +222,7 @@ import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.scheduler.jobs.AgentInactivityMonitorJob;
 import io.openaev.scheduler.jobs.ComchecksExecutionJob;
 import io.openaev.search.FullTextSearchService;
+import io.openaev.service.finding.FindingRecordingService;
 import io.openaev.service.AgentService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.ChannelService;
@@ -1552,7 +1552,6 @@ class TenantActiveTableAccessArchTest {
               FindingMapper.class,
               // REQUIRES_NEW, so each declares its own TxCtx and the aspect scopes the new
               // transaction (see the note on the class).
-              FindingWriter.class,
               FindingRecordingService.class,
               // Background writers, each reaching the primitive with the tenant taken from the
               // inject or run that owns the work.

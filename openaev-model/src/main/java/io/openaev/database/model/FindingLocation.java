@@ -7,7 +7,6 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.UuidGenerator;
 
 @Getter
@@ -34,9 +33,8 @@ public class FindingLocation implements Base {
   @JsonIgnore
   private User user;
 
-  // Computed by the database from the asset and the user: asset:<id>, user:<id> or unknown
-  @Generated
-  @Column(name = "finding_location_key", insertable = false, updatable = false)
+  // asset:<id>, user:<id> or unknown, built by FindingLocationKeys
+  @Column(name = "finding_location_key", nullable = false, updatable = false)
   @JsonProperty("finding_location_key")
   private String locationKey;
 

@@ -17,6 +17,7 @@ import io.openaev.rest.tag.form.TagCreateInput;
 import io.openaev.rest.tag.form.TagUpdateInput;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -122,6 +123,11 @@ public class TagService {
 
   public Set<Tag> tagSet(@NotNull final List<String> tagIds) {
     return iterableToSet(this.tagRepository.findAllById(tagIds));
+  }
+
+  /** The tags among {@code tagIds} that belong to the tenant: another tenant's id is skipped. */
+  public List<Tag> tagsInTenant(@NotNull final List<String> tagIds, @NotBlank final String tenantId) {
+    return this.tagRepository.findAllByIdInTenant(tagIds, tenantId);
   }
 
   public Iterable<Tag> tags() {

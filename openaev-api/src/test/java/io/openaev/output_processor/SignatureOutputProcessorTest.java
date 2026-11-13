@@ -103,8 +103,7 @@ class SignatureOutputProcessorTest {
             "signatures",
             ContractOutputType.ExpectationSignature,
             false,
-            new String[0],
-            new String[] {"SIGNATURES_PROCESSING"});
+            new String[0]);
 
     DetectionInjectExpectation firstCallExpectation = new DetectionInjectExpectation();
     firstCallExpectation.setId("exp-1");
@@ -181,8 +180,7 @@ class SignatureOutputProcessorTest {
             "signatures",
             ContractOutputType.ExpectationSignature,
             false,
-            new String[0],
-            new String[] {"SIGNATURES_PROCESSING"});
+            new String[0]);
 
     DetectionInjectExpectation expectation = new DetectionInjectExpectation();
     expectation.setId("exp-agent");
@@ -231,8 +229,7 @@ class SignatureOutputProcessorTest {
             "signatures",
             ContractOutputType.ExpectationSignature,
             false,
-            new String[0],
-            new String[] {"SIGNATURES_PROCESSING"});
+            new String[0]);
 
     PreventionInjectExpectation expectation = new PreventionInjectExpectation();
     expectation.setId("exp-asset");
@@ -281,8 +278,7 @@ class SignatureOutputProcessorTest {
             "signatures",
             ContractOutputType.ExpectationSignature,
             false,
-            new String[0],
-            new String[] {"SIGNATURES_PROCESSING"});
+            new String[0]);
 
     when(injectExpectationRepository.findAllByInjectAndAgent("inject-1", "agent-missing"))
         .thenReturn(List.of());
@@ -330,8 +326,7 @@ class SignatureOutputProcessorTest {
         "signatures",
         ContractOutputType.ExpectationSignature,
         false,
-        new String[0],
-        new String[] {"SIGNATURES_PROCESSING"});
+        new String[0]);
   }
 
   // -------------------------------------------------------------------------

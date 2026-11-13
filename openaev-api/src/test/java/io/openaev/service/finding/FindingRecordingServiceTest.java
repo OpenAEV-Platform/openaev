@@ -637,7 +637,14 @@ class FindingRecordingServiceTest extends IntegrationTest {
       String name,
       LocationIdentity location,
       String... tagIds) {
-    return new DetectedFinding(type, value, field, name, location, Set.of(tagIds));
+    return DetectedFinding.builder()
+        .type(type)
+        .value(value)
+        .field(field)
+        .name(name)
+        .location(location)
+        .tagIds(Set.of(tagIds))
+        .build();
   }
 
   private Inject seedInject(Instant sentAt) {
