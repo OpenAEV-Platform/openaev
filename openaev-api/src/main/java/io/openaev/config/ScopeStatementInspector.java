@@ -1,7 +1,9 @@
 package io.openaev.config;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -599,10 +601,14 @@ public class ScopeStatementInspector implements StatementInspector {
    */
   private static final class PlainSelectCollector extends TablesNamesFinder<Void> {
     private final List<PlainSelect> collected = new ArrayList<>();
+    private final Set<PlainSelect> seen = Collections.newSetFromMap(new IdentityHashMap<>());
 
     @Override
     public <S> Void visit(PlainSelect plainSelect, S context) {
-      collected.add(plainSelect);
+      // The finder reaches the body of a WITH item twice: filter it once.
+      if (seen.add(plainSelect)) {
+        collected.add(plainSelect);
+      }
       return super.visit(plainSelect, context);
     }
 
