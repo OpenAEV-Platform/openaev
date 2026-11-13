@@ -530,10 +530,12 @@ public class ExerciseLessonsApi extends RestBehavior {
 
   /** Refuses, as not found, a user who neither plays nor observes the simulation. */
   private void requirePlayerOfExercise(TxCtx ctx, String exerciseId, User user) {
-    exerciseService
-        .findByIdInScope(ctx, exerciseId)
-        .filter(exercise -> exercise.isUserHasAccess(user) || exercise.getUsers().contains(user))
-        .orElseThrow(ElementNotFoundException::new);
+    Exercise exercise =
+        exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    if (!exerciseService.isLessonsPlayer(exerciseId, user.getId())
+        && !exercise.isUserHasAccess(user)) {
+      throw new ElementNotFoundException();
+    }
   }
 
   /** The category, only when it belongs to the given simulation. */

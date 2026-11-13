@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.LessonsCategory;
 import io.openaev.database.repository.LessonsAnswerRepository;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.LessonsCategoryFixture;
@@ -19,6 +20,7 @@ import io.openaev.utils.fixtures.composers.LessonsCategoryComposer;
 import io.openaev.utils.fixtures.composers.LessonsQuestionsComposer;
 import io.openaev.utils.fixtures.composers.TeamComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -178,6 +180,36 @@ class PlayerLessonsApiTest extends IntegrationTest {
       mvc.perform(get(PLAYER_LESSONS_URI + playedSimulationId + "/lessons_categories"))
           // Assert
           .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName(
+        "Given a member of a team the lessons target, not enabled in the simulation, should record"
+            + " the answer")
+    void given_memberOfALessonsTeamNotEnabled_should_recordTheAnswer() throws Exception {
+      // Arrange
+      LessonsCategoryComposer.Composer category = categoryWithQuestion();
+      category
+          .get()
+          .setTeams(
+              List.of(
+                  teamComposer.forTeam(TeamFixture.getTeam(testUserHolder.get())).persist().get()));
+      Exercise simulation =
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withLessonCategory(category)
+              .persist()
+              .get();
+      entityManager.flush();
+      entityManager.clear();
+      LessonsCategory lessonsCategory = category.get();
+      String questionId = lessonsCategory.getQuestions().getFirst().getId();
+
+      // Act
+      mvc.perform(answer(simulation.getId(), lessonsCategory.getId(), questionId).with(csrf()))
+          // Assert
+          .andExpect(status().isOk());
+      assertThat(hasAnswered(questionId)).isTrue();
     }
 
     @Test

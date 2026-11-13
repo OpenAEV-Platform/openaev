@@ -19,6 +19,8 @@ public interface LessonsCategoryRepository
   @NotNull
   Optional<LessonsCategory> findById(@NotNull String id);
 
+  boolean existsByExercise_IdAndTeams_Users_Id(String exerciseId, String userId);
+
   // -- TEAM -
 
   @Modifying
