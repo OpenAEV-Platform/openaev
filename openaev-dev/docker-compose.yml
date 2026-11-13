@@ -96,15 +96,6 @@ services:
   #  name the service, or pass --profile opensearch / --profile es8 / --profile keycloak.
   # ===========================================================================
 
-  # Local mail catcher: SMTP on 1025, web UI on http://localhost:8025 (see phishing-bot-test.py)
-  openaev-dev-mailpit:
-    container_name: openaev-dev-mailpit
-    image: axllent/mailpit:latest
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    restart: unless-stopped
-
   # Test PostgreSQL database (ephemeral - no volume for clean test runs)
   openaev-test-pgsql:
     container_name: openaev-test-pgsql
