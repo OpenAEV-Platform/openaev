@@ -8,7 +8,9 @@ import static io.openaev.utils.fixtures.CredentialSecretReferenceFixture.getHash
 import static io.openaev.utils.fixtures.CredentialSecretReferenceFixture.getNonCredentialReference;
 import static io.openaev.utils.fixtures.CredentialSecretReferenceFixture.getUsernamePasswordReference;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_DEFAULT_REGION;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_ENDPOINT_URL;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_EXTERNAL_ID;
+import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_OTHER_ENDPOINT_URL;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_OTHER_REGION;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_OTHER_ROLE_ARN;
 import static io.openaev.utils.fixtures.SecretStoreRequestFixture.AWS_OTHER_SECRET_ACCESS_KEY;
@@ -430,6 +432,83 @@ class AwsAssumeRoleHandlerTest extends IntegrationTest {
           .isEqualTo(AWS_SOURCE_PROFILE_ACCESS_KEY_ID);
       assertThat(nativeEncryptionService.decrypt(awsSecret.getAwsSourceProfileSecretAccessKey()))
           .isEqualTo(AWS_SOURCE_PROFILE_SECRET_ACCESS_KEY);
+    }
+  }
+
+  @Nested
+  @DisplayName("buildOrUpdate - endpoint change")
+  class BuildOrUpdateEndpointChange {
+
+    private AwsAssumeRoleSecret secretWithEndpoint(SecretStoreRequest creation) {
+      return (AwsAssumeRoleSecret)
+          handler.buildOrUpdate(
+              null, creation.toBuilder().awsEndpointUrl(AWS_ENDPOINT_URL).build());
+    }
+
+    @Test
+    @DisplayName("Given a new endpoint without the stored external id, should throw")
+    void given_newEndpointWithoutExternalId_should_throw() {
+      // Arrange
+      AwsAssumeRoleSecret existing = secretWithEndpoint(awsAssumeRoleInstanceDefaultRequest());
+      SecretStoreRequest request =
+          SecretStoreRequest.builder().awsEndpointUrl(AWS_OTHER_ENDPOINT_URL).build();
+
+      // Act & Assert
+      assertThatThrownBy(() -> handler.buildOrUpdate(existing, request))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("must be reset in order to change the endpoint URL");
+    }
+
+    @Test
+    @DisplayName(
+        "Given a new endpoint without the source profile secret and no identity type, should throw")
+    void given_newEndpointWithoutSourceSecretAndNoIdentityType_should_throw() {
+      // Arrange — the identity type of the request is optional: the stored STATIC_ACCESS_KEY
+      // applies
+      AwsAssumeRoleSecret existing = secretWithEndpoint(awsAssumeRoleStaticAccessKeyRequest());
+      SecretStoreRequest request =
+          SecretStoreRequest.builder()
+              .awsEndpointUrl(AWS_OTHER_ENDPOINT_URL)
+              .awsExternalId(AWS_EXTERNAL_ID)
+              .build();
+
+      // Act & Assert
+      assertThatThrownBy(() -> handler.buildOrUpdate(existing, request))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("must be reset in order to change the endpoint URL");
+    }
+
+    @Test
+    @DisplayName("Given a new endpoint with the secrets, should store it")
+    void given_newEndpointWithSecrets_should_storeIt() {
+      // Arrange
+      AwsAssumeRoleSecret existing = secretWithEndpoint(awsAssumeRoleStaticAccessKeyRequest());
+      SecretStoreRequest request =
+          SecretStoreRequest.builder()
+              .awsEndpointUrl(AWS_OTHER_ENDPOINT_URL)
+              .awsExternalId(AWS_EXTERNAL_ID)
+              .awsSourceProfileSecretAccessKey(AWS_OTHER_SECRET_ACCESS_KEY)
+              .build();
+
+      // Act
+      AwsAssumeRoleSecret updated = (AwsAssumeRoleSecret) handler.buildOrUpdate(existing, request);
+
+      // Assert
+      assertThat(updated.getAwsEndpointUrl()).isEqualTo(AWS_OTHER_ENDPOINT_URL);
+    }
+
+    @Test
+    @DisplayName(
+        "Given the same endpoint, an absent endpoint or a blank one, should not require the secrets")
+    void given_noRedirection_should_notRequireSecrets() {
+      // Arrange
+      AwsAssumeRoleSecret existing = secretWithEndpoint(awsAssumeRoleStaticAccessKeyRequest());
+
+      // Act & Assert
+      for (String endpoint : new String[] {AWS_ENDPOINT_URL, null, ""}) {
+        SecretStoreRequest request = SecretStoreRequest.builder().awsEndpointUrl(endpoint).build();
+        assertThat(handler.buildOrUpdate(existing, request)).isSameAs(existing);
+      }
     }
   }
 

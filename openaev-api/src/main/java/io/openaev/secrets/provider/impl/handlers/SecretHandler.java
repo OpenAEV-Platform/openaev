@@ -45,4 +45,18 @@ public interface SecretHandler {
   static String blankToNull(String value) {
     return value == null || value.isBlank() ? null : value;
   }
+
+  /**
+   * Whether a request points the secret at an endpoint other than the stored one. An absent or
+   * blank value is not a redirection: the stored endpoint is kept, or dropped to fall back to the
+   * official one.
+   *
+   * @param storedEndpoint the endpoint currently stored, null when none
+   * @param requestedEndpoint the endpoint of the request, null when the client left it untouched
+   * @return {@code true} when the request sets a new, different endpoint
+   */
+  static boolean redirectsEndpoint(String storedEndpoint, String requestedEndpoint) {
+    String requested = blankToNull(requestedEndpoint);
+    return requested != null && !requested.equals(storedEndpoint);
+  }
 }
