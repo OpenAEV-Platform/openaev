@@ -1,6 +1,7 @@
 package io.openaev.service.marking;
 
 import static io.openaev.service.marking.MarkingEscalationValidator.assertCanAssignMarkings;
+import static io.openaev.service.marking.MarkingEscalationValidator.assertCanDefineMarking;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -127,6 +128,64 @@ class MarkingEscalationValidatorTest {
       // -- ACT / ASSERT --
       // Revocation only ever narrows what the group's members can see.
       assertDoesNotThrow(() -> assertCanAssignMarkings(MarkingCtx.none(), List.of()));
+    }
+  }
+
+  @Nested
+  @DisplayName("defining a marking: you may not place one above your own clearance")
+  class Define {
+
+    private final List<MarkingDefinition> heldUpToAmber =
+        List.of(
+            createMarkingDefinition(MarkingDefinition.TYPE_TLP, "TLP:GREEN", 2, "#000000"),
+            createMarkingDefinition(MarkingDefinition.TYPE_TLP, "TLP:AMBER", 3, "#000000"));
+
+    @Test
+    @DisplayName("given an order above the highest held on the type, should refuse")
+    void given_orderAboveHighestHeld_should_refuse() {
+      // -- ACT --
+      ForbiddenException thrown =
+          assertThrows(
+              ForbiddenException.class,
+              () -> assertCanDefineMarking(heldUpToAmber, MarkingDefinition.TYPE_TLP, 4));
+
+      // -- ASSERT --
+      assertTrue(thrown.getMessage().contains("above your own clearance"), thrown.getMessage());
+    }
+
+    @Test
+    @DisplayName("given a type the caller holds nothing on, should refuse even at order 0")
+    void given_typeNotHeld_should_refuse() {
+      // -- ACT / ASSERT --
+      // Types are separate scales: holding TLP:AMBER says nothing about PAP, nor about a type that
+      // does not exist yet.
+      assertThrows(ForbiddenException.class, () -> assertCanDefineMarking(heldUpToAmber, "PAP", 0));
+    }
+
+    @Test
+    @DisplayName("given no clearance, should refuse")
+    void given_noClearance_should_refuse() {
+      // -- ACT / ASSERT --
+      assertThrows(
+          ForbiddenException.class,
+          () -> assertCanDefineMarking(List.of(), MarkingDefinition.TYPE_TLP, 0));
+    }
+
+    @Test
+    @DisplayName("given an order equal to the highest held, should allow")
+    void given_orderEqualToHighestHeld_should_allow() {
+      // -- ACT / ASSERT --
+      // Two definitions at the same order are both covered by holding either: no escalation.
+      assertDoesNotThrow(
+          () -> assertCanDefineMarking(heldUpToAmber, MarkingDefinition.TYPE_TLP, 3));
+    }
+
+    @Test
+    @DisplayName("given an order below the highest held, should allow")
+    void given_orderBelowHighestHeld_should_allow() {
+      // -- ACT / ASSERT --
+      assertDoesNotThrow(
+          () -> assertCanDefineMarking(heldUpToAmber, MarkingDefinition.TYPE_TLP, 0));
     }
   }
 }
