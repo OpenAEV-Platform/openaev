@@ -47,6 +47,8 @@ const isSafeRedirect = (url: string): boolean => {
   return scheme === 'http' || scheme === 'https';
 };
 
+const MIN_DWELL_MS = 800;
+
 const PhishingPage = () => {
   const { tenantId, token } = useParams() as {
     tenantId?: string;
@@ -62,10 +64,50 @@ const PhishingPage = () => {
     ? `${APP_BASE_PATH}/api/phishing/tracking/${tenantId}/s/${token}`
     : `${APP_BASE_PATH}/api/hosted/s/${token}`;
 
+  const confirmUrl = `${APP_BASE_PATH}/api/hosted/confirm/${token}`;
+
   const [page, setPage] = useState<PhishingLandingPageReader | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Loading the page is not a click: mail scanners render it too. The click is confirmed on the
+  // visitor's first interaction (mouse, touch, keyboard, scroll, or a click from assistive
+  // technology) at least MIN_DWELL_MS after the page rendered; earlier ones are ignored and the
+  // page keeps listening. A beacon is used because the interaction may navigate away (a link in
+  // the landing page), which would cancel an ordinary request. Only the benign route confirms; the
+  // legacy one has no confirm endpoint and keeps counting the click on load.
+  useEffect(() => {
+    if (!page || tenantId) return undefined;
+    const renderedAt = Date.now();
+    const controller = new AbortController();
+    const interactionEvents = ['pointermove', 'pointerdown', 'touchstart', 'keydown', 'scroll', 'click'];
+
+    const onInteraction = () => {
+      const dwellMs = Date.now() - renderedAt;
+      if (dwellMs < MIN_DWELL_MS) return;
+      controller.abort();
+      const body = JSON.stringify({
+        dwell_ms: dwellMs,
+        // Browsers driven by automation (Selenium, Puppeteer, headless Chrome...) set
+        // navigator.webdriver to true. The backend logs such a confirmation as automated and
+        // never scores it.
+        webdriver: navigator.webdriver === true,
+      });
+      // sendBeacon rather than a regular request: the interaction may navigate away (a link in
+      // the landing page) and the browser would cancel a regular request, losing the click. A
+      // beacon is queued by the browser and survives the navigation. The Blob sets the JSON
+      // content type the endpoint expects.
+      navigator.sendBeacon(confirmUrl, new Blob([body], { type: 'application/json' }));
+    };
+
+    interactionEvents.forEach(name => window.addEventListener(name, onInteraction, {
+      capture: true,
+      passive: true,
+      signal: controller.signal,
+    }));
+    return () => controller.abort();
+  }, [page]);
 
   useEffect(() => {
     let active = true;

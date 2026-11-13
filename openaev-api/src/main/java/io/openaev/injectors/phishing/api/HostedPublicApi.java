@@ -6,6 +6,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.PhishingLandingPage;
 import io.openaev.database.model.PhishingResult;
+import io.openaev.injectors.phishing.form.PhishingConfirmInput;
 import io.openaev.injectors.phishing.form.PhishingSubmitInput;
 import io.openaev.injectors.phishing.response.PhishingLandingPageReader;
 import io.openaev.injectors.phishing.service.PhishingTrackingService;
@@ -58,6 +59,9 @@ public class HostedPublicApi extends RestBehavior {
   /** Benign, human-readable path segment used in the victim-facing landing URL. */
   public static final String LANDING_PATH_PREFIX = "auth";
 
+  /** A confirmation arriving sooner than this after the page rendered cannot be a human. */
+  private static final long MIN_HUMAN_DWELL_MS = 800L;
+
   /** 1x1 transparent GIF returned by the open-tracking pixel. */
   private static final byte[] TRACKING_PIXEL =
       Base64.getDecoder().decode("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
@@ -82,9 +86,8 @@ public class HostedPublicApi extends RestBehavior {
   }
 
   /**
-   * Serves the sanitized landing page content for the token and records the visit as a click (a
-   * loaded landing page is a stronger "fell for phishing" signal than an image pixel, and this is
-   * the first request the SPA makes after the recipient follows the email link).
+   * Serves the sanitized landing page content for the token. Fetching it is not a click by itself
+   * (see {@link #confirm}); a fetch identified as an automated probe is only logged, never scored.
    */
   @GetMapping(HOSTED_URI + "/page/{token}")
   @Transactional
@@ -109,9 +112,37 @@ public class HostedPublicApi extends RestBehavior {
     if (landingPage == null) {
       return null;
     }
-    phishingTrackingService.markClicked(
+    phishingTrackingService.markPageFetched(
         resolved, token, clientIp(request), request.getHeader("User-Agent"));
     return new PhishingLandingPageReader(landingPage);
+  }
+
+  /**
+   * Called by the landing page once the visitor interacted with it. This, not the page fetch, is
+   * what counts as a click: a scanner that renders the page never moves a mouse, scrolls or taps.
+   * Signals the page itself flags as automated (webdriver, or a confirmation faster than a human
+   * could react) are logged as automated and never scored.
+   */
+  @PostMapping(HOSTED_URI + "/confirm/{token}")
+  @Transactional
+  @AccessControl(skipRBAC = true)
+  public ResponseEntity<Void> confirm(
+      TxCtx ctx,
+      @PathVariable String token,
+      @RequestBody PhishingConfirmInput input,
+      HttpServletRequest request) {
+    Optional<String> tenantId = bindTenant(token);
+    if (tenantId.isPresent()) {
+      TxCtx resolved = TxCtx.forTenant(tenantId.get());
+      String ip = clientIp(request);
+      String userAgent = request.getHeader("User-Agent");
+      if (input.isWebdriver() || input.getDwellMs() < MIN_HUMAN_DWELL_MS) {
+        phishingTrackingService.markBotClicked(resolved, token, ip, userAgent);
+      } else {
+        phishingTrackingService.markClicked(resolved, token, ip, userAgent);
+      }
+    }
+    return ResponseEntity.noContent().build();
   }
 
   /** Records the credentials submitted by the victim and returns the configured redirect URL. */

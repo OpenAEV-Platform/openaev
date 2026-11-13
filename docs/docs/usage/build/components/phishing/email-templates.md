@@ -15,7 +15,7 @@ An Email Template is the lure email sent to recipients. Like Landing Pages, it i
     | Subject | The email subject line. Required. |
     | Sender name override | Display name of the sender. Leave empty to use the Simulation sender, then the platform default. |
     | Sender email override | Address the email is sent from. Same fallback chain as the sender name. |
-    | Add tracking pixel | When enabled, an invisible 1x1 image is appended to the body so *email opened* can be detected. |
+    | Add tracking pixel | When enabled, an invisible 1x1 image is appended to the body. Its loads are shown on the *Email not opened* step as information only. |
 
 4. Fill in the **Email content** section:
 
@@ -62,14 +62,14 @@ The sender display name follows the same chain, and the reply-to address always 
 
 ## Tracking pixel
 
-*Add tracking pixel* appends an invisible image pointing at the recipient's open-tracking endpoint. Loading it is what marks the email as opened.
+*Add tracking pixel* appends an invisible image pointing at the recipient's open-tracking endpoint. Loading it does **not** mark the email as opened: the *Email not opened* step stays green and only records *Email image loaded, open not confirmed*, with the origin of the request.
 
-Keep in mind what an invisible image can and cannot tell you:
+An invisible image cannot prove that a person read the email:
 
-- A recipient reading the email in a client that blocks remote images never triggers the pixel, so the *Email not opened* step stays green even though the email was read.
-- Mail gateways and image proxies fetch remote images on delivery. The platform ignores hits that arrive within seconds of delivery or that come from known scanning infrastructure, so those do not turn the step red.
+- Mail gateways, link scanners and privacy features such as Apple Mail Privacy Protection load remote images without anyone reading the email.
+- A recipient reading the email in a client that blocks remote images never loads it.
 
-Disable the pixel if you only want to measure clicks and submissions.
+The email is counted as opened only when the recipient interacts with the Landing Page. See [Results and scoring](results.md#mail-scanners-and-automated-hits).
 
 ## Generate content with AI
 

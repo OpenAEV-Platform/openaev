@@ -572,13 +572,14 @@ public class PhishingLandingPageService {
         prevention,
         buildPhishingStep(
             PhishingTrackingService.STEP_OPENED,
-            "Red once the recipient opens the lure email (tracking pixel loaded); green while the"
-                + " email is never opened.",
+            "Red once the recipient interacts with the phishing landing page, which proves they"
+                + " opened the lure email; the tracking image alone is not counted, as mail"
+                + " scanners load it too.",
             1),
         buildPhishingStep(
             PhishingTrackingService.STEP_CLICKED,
-            "Red once the recipient opens the phishing landing page; green while the link is never"
-                + " followed.",
+            "Red once the recipient interacts with the phishing landing page (mouse, touch,"
+                + " keyboard or scroll); green while the link is never followed.",
             2),
         buildPhishingStep(
             PhishingTrackingService.STEP_SUBMITTED,
