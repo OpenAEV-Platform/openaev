@@ -172,10 +172,21 @@ public class InjectHelper {
    * Loads an inject and what its execution reads (teams, players, targets). Called inside the
    * inject's tenant transaction, so every relation is read in that tenant only.
    *
-   * @return empty when the inject was deleted since the poll
+   * @return empty when the inject was deleted or started since the poll
    */
   public Optional<ExecutableInject> executableInject(@NotBlank final String injectId) {
-    return injectRepository.findById(injectId).map(this::toExecutableInject);
+    return injectRepository
+        .findById(injectId)
+        .filter(this::isStillToRun)
+        .map(this::toExecutableInject);
+  }
+
+  // Same statuses as the poll: none for a simulation inject, QUEUING for an atomic testing
+  private boolean isStillToRun(Inject inject) {
+    return inject
+        .getStatus()
+        .map(status -> status.getName() == ExecutionStatus.QUEUING)
+        .orElse(true);
   }
 
   /**
