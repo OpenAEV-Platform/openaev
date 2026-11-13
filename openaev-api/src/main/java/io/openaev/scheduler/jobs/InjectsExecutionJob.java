@@ -17,6 +17,7 @@ import io.openaev.database.repository.InjectExpectationRepository;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
+import io.openaev.execution.InjectToRun;
 import io.openaev.healthcheck.dto.HealthCheck;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
@@ -389,101 +390,76 @@ public class InjectsExecutionJob implements Job {
                 }));
   }
 
-  private void executeClassicalInjects() throws Exception {
-    // Get all injects to execute grouped by exercise.
-    List<ExecutableInject> injects = injectHelper.getInjectsToRun();
+  private void executeClassicalInjects() {
+    List<InjectToRun> injects = injectHelper.getInjectsToRun();
 
     // Computed once for the whole batch instead of once per inject (was O(n^2))
     Set<String> batchInjectIds =
-        injects.stream()
-            .map(execInject -> execInject.getInjection().getId())
-            .collect(Collectors.toSet());
+        injects.stream().map(InjectToRun::injectId).collect(Collectors.toSet());
 
-    // We're grouping the injects to run by exercises but also making sure no injects
-    // run in the same batch as it's parents
-    Map<String, List<ExecutableInject>> byExercises =
+    // We're grouping the injects to run by exercises but also making sure no injects run in the
+    // same batch as their parents. Do note that this is an edge case as it's not allowed to add a
+    // dependency less than a minute after a parent but can happen if the platform was restarted
+    // after some time out. It'll then start the injects that were not started because the
+    // platform was down.
+    Map<String, List<InjectToRun>> byExercises =
         injects.stream()
             .filter(
-                executableInject ->
-                    // If we got dependencies, we check that the parents are not part of the
-                    // current batch of injects running. If so, we're filtering them out and
-                    // they'll be part of the next batch of launched injects. Do note that this is
-                    // an edge case as it's not allowed to add a dependency less than a minute
-                    // after a parent but can happen if the platform was restarted after some time
-                    // out. It'll then start the injects that were not started because the
-                    // platform was down.
-                    executableInject.getInjection().getInject().getDependsOn() == null
-                        || executableInject.getInjection().getInject().getDependsOn().stream()
-                            .map(
-                                injectDependency ->
-                                    injectDependency
-                                        .getCompositeId()
-                                        .getInjectParent()
-                                        .getInject()
-                                        .getId())
-                            .noneMatch(batchInjectIds::contains))
+                injectToRun ->
+                    injectToRun.parentInjectIds().stream().noneMatch(batchInjectIds::contains))
             .collect(
                 groupingBy(
-                    ex ->
-                        ex.getInjection().getExercise() == null
+                    injectToRun ->
+                        injectToRun.exerciseId() == null
                             // Atomic injects have no exercise to group by.
                             ? ATOMIC_BATCH_KEY
-                            : ex.getInjection().getExercise().getId()));
+                            : injectToRun.exerciseId()));
 
     // Classical inject execution only applies to non-chained simulations; chained ones are driven
     // by the workflow engine after the run is created.
     byExercises.entrySet().parallelStream()
         .forEach(
             entry -> {
-              entry.getValue().parallelStream()
-                  .forEach(
-                      executableInject -> {
-                        Inject inject = executableInject.getInjection().getInject();
-                        String tenantId = inject.getTenant().getId();
-                        try {
-                          tenantScopedJobRunner.runInTenant(
-                              tenantId,
-                              () -> {
-                                try {
-                                  this.executeInject(executableInject);
-                                } catch (Exception e) {
-                                  // Same transaction: the traces written before the failure and
-                                  // the ERROR status commit together.
-                                  Throwable cause =
-                                      e instanceof RuntimeException && e.getCause() != null
-                                          ? e.getCause()
-                                          : e;
-                                  log.warn(cause.getMessage(), cause);
-                                  injectStatusService.persistErrorStatusInTransaction(
-                                      inject.getId(), cause.getMessage());
-                                }
-                              });
-                        } catch (RuntimeException e) {
-                          // The transaction could not commit (rollback-only, commit or
-                          // after-commit failure): persist the ERROR status in a fresh one.
-                          Throwable cause = e.getCause() != null ? e.getCause() : e;
-                          log.warn(cause.getMessage(), cause);
-                          tenantScopedJobRunner.runInTenant(
-                              tenantId,
-                              () ->
-                                  injectStatusService.persistErrorStatusInTransaction(
-                                      inject.getId(), cause.getMessage()));
-                        }
-                      });
+              entry.getValue().parallelStream().forEach(this::executeInTenant);
 
               // Update the exercise once all injects of the batch are processed.
               if (!entry.getKey().equals(ATOMIC_BATCH_KEY)) {
-                entry.getValue().stream()
-                    .findFirst()
-                    .map(
-                        executableInject ->
-                            executableInject.getInjection().getInject().getTenant().getId())
-                    .ifPresent(
-                        tenantId ->
-                            tenantScopedJobRunner.runInTenant(
-                                tenantId, () -> updateExercise(entry.getKey())));
+                String tenantId = entry.getValue().getFirst().tenantId();
+                tenantScopedJobRunner.runInTenant(tenantId, () -> updateExercise(entry.getKey()));
               }
             });
+  }
+
+  private void executeInTenant(InjectToRun injectToRun) {
+    String injectId = injectToRun.injectId();
+    String tenantId = injectToRun.tenantId();
+    try {
+      tenantScopedJobRunner.runInTenant(
+          tenantId,
+          () -> {
+            try {
+              Optional<ExecutableInject> executableInject = injectHelper.executableInject(injectId);
+              if (executableInject.isPresent()) {
+                this.executeInject(executableInject.get());
+              }
+            } catch (Exception e) {
+              // Same transaction: the traces written before the failure and
+              // the ERROR status commit together.
+              Throwable cause =
+                  e instanceof RuntimeException && e.getCause() != null ? e.getCause() : e;
+              log.warn(cause.getMessage(), cause);
+              injectStatusService.persistErrorStatusInTransaction(injectId, cause.getMessage());
+            }
+          });
+    } catch (RuntimeException e) {
+      // The transaction could not commit (rollback-only, commit or
+      // after-commit failure): persist the ERROR status in a fresh one.
+      Throwable cause = e.getCause() != null ? e.getCause() : e;
+      log.warn(cause.getMessage(), cause);
+      tenantScopedJobRunner.runInTenant(
+          tenantId,
+          () -> injectStatusService.persistErrorStatusInTransaction(injectId, cause.getMessage()));
+    }
   }
 
   // -- AUDIT LOGGING --

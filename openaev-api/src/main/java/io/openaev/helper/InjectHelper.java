@@ -1,5 +1,6 @@
 package io.openaev.helper;
 
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Stream.concat;
 
@@ -13,10 +14,14 @@ import io.openaev.database.specification.InjectSpecification;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
+import io.openaev.execution.InjectToRun;
 import jakarta.annotation.Resource;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -165,22 +170,26 @@ public class InjectHelper {
   }
 
   /**
-   * Retrieves all injects that are ready for execution.
+   * Loads an inject and what its execution reads (teams, players, targets). Called inside the
+   * inject's tenant transaction, so every relation is read in that tenant only.
    *
-   * <p>Combines regular exercise injects and atomic testing injects that are scheduled for now or
-   * earlier, converting them to executable form with all necessary context (teams, assets, users).
+   * @return empty when the inject was deleted since the poll
+   */
+  public Optional<ExecutableInject> executableInject(@NotBlank final String injectId) {
+    return injectRepository.findById(injectId).map(this::toExecutableInject);
+  }
+
+  /**
+   * Polls the injects that are ready for execution, regular and atomic testing ones, sorted by
+   * execution order.
    *
    * <p>Genuinely cross-tenant: opens through {@link TenantScopedTransaction#execute} with {@link
-   * TxCtx#allTenants()} instead of a plain {@code @Transactional}. A plain {@code @Transactional}
-   * here leaves {@code app.current_tenants} unset for the whole read, which {@code
-   * can_access_tenant} treats as fail-closed (no rows visible for ANY tenant, not just the wrong
-   * one). The eager {@code Agent.executor} join hits the already-activated (v2) {@code executors}
-   * table, so with no scope set it silently resolves to {@code null} for every agent, regardless of
-   * tenant or executor type — this is what caused "No asset executed" on every launch.
-   *
-   * @return list of executable injects ready to run, sorted by execution order
+   * TxCtx#allTenants()} instead of a plain {@code @Transactional}, which would leave {@code
+   * app.current_tenants} unset and see no rows at all. Only ids leave this read: an entity loaded
+   * here would carry the relations of every tenant into the execution, so each inject is reloaded
+   * in its own tenant with {@link #executableInject}.
    */
-  public List<ExecutableInject> getInjectsToRun() {
+  public List<InjectToRun> getInjectsToRun() {
     return tenantTx.execute(
         TxCtx.allTenants(),
         () -> {
@@ -193,23 +202,31 @@ public class InjectHelper {
                           .and(InjectSpecification.plannedDateReachable(Instant.now())),
                       PageRequest.ofSize(batchSize))
                   .getContent();
-          Stream<ExecutableInject> executableInjects =
-              injects.stream()
-                  .filter(this::isBeforeOrEqualsNow)
-                  .sorted(new InjectExecutionComparator(Instant.now()))
-                  .map(this::toExecutableInject);
-          // Get atomic testing injects
           List<Inject> atomicTests =
               this.injectRepository
                   .findAll(InjectSpecification.forAtomicTesting(), PageRequest.ofSize(batchSize))
                   .getContent();
-          Stream<ExecutableInject> executableAtomicTests =
-              atomicTests.stream()
-                  .filter(this::isBeforeOrEqualsNow)
-                  .sorted(new InjectExecutionComparator(Instant.now()))
-                  .map(this::toExecutableInject);
-          // Combine injects
-          return concat(executableInjects, executableAtomicTests).collect(Collectors.toList());
+          return concat(dueInOrder(injects), dueInOrder(atomicTests))
+              .map(this::toInjectToRun)
+              .toList();
         });
+  }
+
+  private Stream<Inject> dueInOrder(List<Inject> injects) {
+    return injects.stream()
+        .filter(this::isBeforeOrEqualsNow)
+        .sorted(new InjectExecutionComparator(Instant.now()));
+  }
+
+  private InjectToRun toInjectToRun(Inject inject) {
+    Set<String> parentInjectIds =
+        ofNullable(inject.getDependsOn()).orElse(List.of()).stream()
+            .map(dependency -> dependency.getCompositeId().getInjectParent().getInject().getId())
+            .collect(Collectors.toSet());
+    return new InjectToRun(
+        inject.getId(),
+        inject.getTenant().getId(),
+        inject.getExercise() == null ? null : inject.getExercise().getId(),
+        parentInjectIds);
   }
 }

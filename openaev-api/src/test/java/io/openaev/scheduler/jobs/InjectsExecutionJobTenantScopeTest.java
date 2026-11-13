@@ -20,6 +20,7 @@ import io.openaev.database.model.Injection;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.ExerciseRepository;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.execution.InjectToRun;
 import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.helper.InjectHelper;
 import io.openaev.rest.inject.service.InjectService;
@@ -27,6 +28,7 @@ import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -121,7 +123,7 @@ class InjectsExecutionJobTenantScopeTest {
     // Built before the when(): the helper stubs its own mocks, and nesting that inside
     // thenReturn(...) argument evaluation trips Mockito's unfinished-stubbing detection.
     ExecutableInject injectToRun = atomicInjectOfTenant(INJECT_TENANT);
-    when(injectHelper.getInjectsToRun()).thenReturn(List.of(injectToRun));
+    stubInjectsToRun(injectToRun);
 
     // Stand in for the real primitive: record the scope, run the work on this thread.
     doAnswer(
@@ -151,6 +153,19 @@ class InjectsExecutionJobTenantScopeTest {
   @AfterEach
   void clearScope() {
     TenantContext.clearCurrentTenant();
+  }
+
+  /** The poll returns these injects' ids, and each id reloads to its executable inject. */
+  private void stubInjectsToRun(ExecutableInject... executableInjects) {
+    List<InjectToRun> injectsToRun = new ArrayList<>();
+    for (ExecutableInject executableInject : executableInjects) {
+      Inject inject = executableInject.getInjection().getInject();
+      String exerciseId = executableInject.getExerciseId();
+      injectsToRun.add(
+          new InjectToRun(inject.getId(), inject.getTenant().getId(), exerciseId, Set.of()));
+      when(injectHelper.executableInject(inject.getId())).thenReturn(Optional.of(executableInject));
+    }
+    when(injectHelper.getInjectsToRun()).thenReturn(injectsToRun);
   }
 
   /** An atomic inject (no exercise) so the run needs no dependency or exercise bookkeeping. */
@@ -302,8 +317,7 @@ class InjectsExecutionJobTenantScopeTest {
     ExecutableInject atomicInjectA = injectOfTenant(atomicTenantA, null);
     ExecutableInject atomicInjectB = injectOfTenant(atomicTenantB, null);
 
-    when(injectHelper.getInjectsToRun())
-        .thenReturn(List.of(exerciseInject, atomicInjectA, atomicInjectB));
+    stubInjectsToRun(exerciseInject, atomicInjectA, atomicInjectB);
 
     // Exercise batch bookkeeping (updateExercise), reached only for the exercise-linked inject.
     when(exerciseRepository.findById(exercise.getId())).thenReturn(Optional.of(exercise));

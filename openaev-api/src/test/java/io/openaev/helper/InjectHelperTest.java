@@ -8,6 +8,7 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
+import io.openaev.execution.InjectToRun;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.TeamFixture;
 import java.time.Instant;
@@ -79,11 +80,12 @@ public class InjectHelperTest extends IntegrationTest {
     this.injectRepository.save(inject);
 
     // -- EXECUTE --
-    List<ExecutableInject> executableInjects = this.injectHelper.getInjectsToRun();
+    List<InjectToRun> injectsToRun = this.injectHelper.getInjectsToRun();
 
     // -- ASSERT --
-    assertFalse(executableInjects.isEmpty());
-    ExecutableInject executableInject = executableInjects.get(0);
+    assertFalse(injectsToRun.isEmpty());
+    ExecutableInject executableInject =
+        this.injectHelper.executableInject(injectsToRun.get(0).injectId()).orElseThrow();
     assertEquals(1, executableInject.getTeamSize());
     assertEquals(1, executableInject.getUsers().size());
     assertEquals(USER_EMAIL, executableInject.getUsers().get(0).getUser().getEmail());
