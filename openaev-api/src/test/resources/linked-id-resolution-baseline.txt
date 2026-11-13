@@ -92,7 +92,6 @@ io.openaev.service.AtomicTestingService#updateAtomicTestingTags -> TagRepository
 io.openaev.service.ChallengeService#fetchTags -> ChallengeRepository | other | 1 | fetches the tags of challenges already loaded, by their own ids, so a response can serialize them
 io.openaev.service.ChallengeService#findAllByIdWithDocumentsAndTags -> ChallengeRepository | other | 1 | loads with their documents the challenges named in a read request, for a response; nothing is written
 io.openaev.service.ChallengeService#resolveChallenges -> ChallengeRepository | other | 1 | loads with their documents the challenges that stored injects name, to list them in a read response
-io.openaev.service.EndpointService#getAssetGroupFromFilter -> AssetGroupRepository | other | 1 | resolves the asset group ids of a search filter into groups to expand the filter, and writes nothing
 io.openaev.service.EndpointService#removeSourceTagsFromAgentEndpoints -> EndpointRepository | other | 1 | loads the endpoints of agents being processed by id, from stored agent rows, to remove the tags a source added
 io.openaev.service.EsAttackPathService#fetchAttackPatterns -> AttackPatternRepository | other | 1 | loads the attack patterns whose ids come from search index results, to name them in a read response
 io.openaev.service.MapperService#exportMappers -> ImportMapperRepository | other | 1 | loads the import mappers named in the export request body to serialize them, and writes nothing
