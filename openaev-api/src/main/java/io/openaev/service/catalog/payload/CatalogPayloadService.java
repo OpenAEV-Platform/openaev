@@ -18,7 +18,6 @@ import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.attack_pattern.service.AttackPatternService;
 import io.openaev.rest.domain.DomainService;
 import io.openaev.rest.exception.BadRequestException;
-import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.form.PayloadUpsertInput;
 import io.openaev.rest.payload.service.PayloadService;
@@ -104,10 +103,7 @@ public class CatalogPayloadService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void uninstall(TxCtx ctx, String tenantId, String payloadId) {
-    Payload payload =
-        payloadRepository
-            .findByIdAndTenantId(payloadId, tenantId)
-            .orElseThrow(() -> new ElementNotFoundException("Payload not found"));
+    Payload payload = payloadService.payload(tenantId, payloadId);
     PayloadIdentity identity = payload.getIdentity();
     if (!identity.isManaged() || identity.isUninstalled()) {
       throw new BadRequestException("Only an installed catalogue payload can be uninstalled");

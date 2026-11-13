@@ -675,7 +675,10 @@ class TenantScopedEntrypointsTxCtxArchTest {
           // payloads, payload_identities, catalog_items, catalog_history: catalogue installs.
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installPayload",
           "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#installAllPayloads",
-          "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#uninstallPayload");
+          "io.openaev.api.catalog.payload.CatalogPayloadInstallApi#uninstallPayload",
+          // payload_revocations: a tenant admin revokes a payload version.
+          "io.openaev.api.payload.PayloadRevocationApi#revoke",
+          "io.openaev.api.payload.PayloadRevocationApi#lift");
 
   @ArchTest
   static final ArchRule tx_scoped_entrypoints_must_declare_tx_ctx =
