@@ -3527,8 +3527,12 @@ export interface CredentialFullOutput {
   credential_aws_source_identity_type?:
     | "STATIC_ACCESS_KEY"
     | "INSTANCE_DEFAULT";
+  /** Whether an AWS external id is stored; the external id itself is never returned */
+  credential_aws_external_id_defined?: boolean;
   /** AWS source profile access key id */
   credential_aws_source_profile_access_key_id?: string;
+  /** Whether an AWS source profile secret access key is stored; the key itself is never returned */
+  credential_aws_source_profile_secret_access_key_defined?: boolean;
   /** Azure authority host URI */
   credential_azure_authority_host_uri?: string;
   /** Azure client id */

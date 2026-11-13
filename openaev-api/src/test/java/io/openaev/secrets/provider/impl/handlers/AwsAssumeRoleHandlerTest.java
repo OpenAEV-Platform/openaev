@@ -228,6 +228,22 @@ class AwsAssumeRoleHandlerTest extends IntegrationTest {
     }
 
     @Test
+    @DisplayName("Given a blank external id, should clear the stored external id")
+    void given_blankExternalId_should_clearStoredExternalId() {
+      // Arrange
+      AwsAssumeRoleSecret existingSecret = staticAccessKeySecret();
+      SecretStoreRequest request =
+          awsAssumeRoleRequest(AWS_DEFAULT_REGION, AWS_ROLE_ARN, "", STATIC_ACCESS_KEY, null, null);
+
+      // Act
+      AwsAssumeRoleSecret awsSecret =
+          (AwsAssumeRoleSecret) handler.buildOrUpdate(existingSecret, request);
+
+      // Assert
+      assertThat(awsSecret.getAwsExternalId()).isNull();
+    }
+
+    @Test
     @DisplayName("Given an existing secret of another type, should build a brand new secret")
     void given_existingSecretOfAnotherType_should_buildNewSecret() {
       // Arrange
@@ -352,26 +368,29 @@ class AwsAssumeRoleHandlerTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Given a static access key type resent without keys, should throw")
-    void given_staticAccessKeyTypeResentWithoutKeys_should_throw() {
-      // Arrange — resending STATIC_ACCESS_KEY clears the stored source profile, so the caller
-      // must always resend both the access key id and its secret
+    @DisplayName("Given a static access key type resent without keys, should keep the stored keys")
+    void given_staticAccessKeyTypeResentWithoutKeys_should_keepStoredKeys() {
+      // Arrange — the form resends the type but leaves the untouched keys out
       AwsAssumeRoleSecret existingSecret = staticAccessKeySecret();
+      String encryptedSourceSecret = existingSecret.getAwsSourceProfileSecretAccessKey();
       SecretStoreRequest request =
           awsAssumeRoleRequest(null, null, null, STATIC_ACCESS_KEY, null, null);
 
-      // Act & Assert
-      assertThatThrownBy(() -> handler.buildOrUpdate(existingSecret, request))
-          .isInstanceOf(IllegalArgumentException.class)
-          .hasMessageContaining(
-              "source profile access key id and secret access key are required for STATIC_ACCESS_KEY");
+      // Act
+      AwsAssumeRoleSecret awsSecret =
+          (AwsAssumeRoleSecret) handler.buildOrUpdate(existingSecret, request);
+
+      // Assert
+      assertThat(awsSecret.getAwsSourceProfileAccessKeyId())
+          .isEqualTo(AWS_SOURCE_PROFILE_ACCESS_KEY_ID);
+      assertThat(awsSecret.getAwsSourceProfileSecretAccessKey()).isEqualTo(encryptedSourceSecret);
     }
 
     @Test
     @DisplayName(
-        "Given a switch from static access key to instance default, should not clear the stored"
-            + " source profile (current behaviour)")
-    void given_switchToInstanceDefault_should_notClearStoredSourceProfile() {
+        "Given a switch from static access key to instance default, should clear the stored"
+            + " source profile")
+    void given_switchToInstanceDefault_should_clearStoredSourceProfile() {
       // Arrange
       AwsAssumeRoleSecret existingSecret = staticAccessKeySecret();
       SecretStoreRequest request =
@@ -381,12 +400,10 @@ class AwsAssumeRoleHandlerTest extends IntegrationTest {
       AwsAssumeRoleSecret awsSecret =
           (AwsAssumeRoleSecret) handler.buildOrUpdate(existingSecret, request);
 
-      // Assert — the handler only resets the source profile when the type is STATIC_ACCESS_KEY,
-      // so switching to INSTANCE_DEFAULT keeps the previous (now unused) credentials
+      // Assert
       assertThat(awsSecret.getAwsSourceIdentityType()).isEqualTo(INSTANCE_DEFAULT);
-      assertThat(awsSecret.getAwsSourceProfileAccessKeyId())
-          .isEqualTo(AWS_SOURCE_PROFILE_ACCESS_KEY_ID);
-      assertThat(awsSecret.getAwsSourceProfileSecretAccessKey()).isNotNull();
+      assertThat(awsSecret.getAwsSourceProfileAccessKeyId()).isNull();
+      assertThat(awsSecret.getAwsSourceProfileSecretAccessKey()).isNull();
     }
 
     @Test
@@ -545,6 +562,8 @@ class AwsAssumeRoleHandlerTest extends IntegrationTest {
       assertThat(metadata.awsSourceIdentityType()).isEqualTo(STATIC_ACCESS_KEY);
       assertThat(metadata.awsSourceProfileAccessKeyId())
           .isEqualTo(AWS_SOURCE_PROFILE_ACCESS_KEY_ID);
+      assertThat(metadata.awsExternalIdDefined()).isTrue();
+      assertThat(metadata.awsSourceProfileSecretAccessKeyDefined()).isTrue();
       assertThat(metadata.username()).isNull();
       assertThat(metadata.hashAlgorithm()).isNull();
       assertThat(metadata.awsAccessKeyId()).isNull();
@@ -562,6 +581,7 @@ class AwsAssumeRoleHandlerTest extends IntegrationTest {
       // Assert
       assertThat(metadata.awsSourceIdentityType()).isEqualTo(INSTANCE_DEFAULT);
       assertThat(metadata.awsSourceProfileAccessKeyId()).isNull();
+      assertThat(metadata.awsSourceProfileSecretAccessKeyDefined()).isFalse();
     }
 
     @Test

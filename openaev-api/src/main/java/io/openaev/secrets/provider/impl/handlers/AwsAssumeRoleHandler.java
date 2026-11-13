@@ -49,15 +49,16 @@ public class AwsAssumeRoleHandler implements SecretHandler {
     }
 
     if (request.awsExternalId() != null) {
-      awsSecret.setAwsExternalId(
-          nativeEncryptionService.encrypt(
-              Objects.requireNonNull(
-                  request.awsExternalId(), "request.awsExternalId must not be null")));
+      if (request.awsExternalId().isBlank()) {
+        awsSecret.setAwsExternalId(null);
+      } else {
+        awsSecret.setAwsExternalId(nativeEncryptionService.encrypt(request.awsExternalId()));
+      }
     }
 
     if (request.awsSourceIdentityType() != null) {
       awsSecret.setAwsSourceIdentityType(request.awsSourceIdentityType());
-      if (STATIC_ACCESS_KEY.equals(request.awsSourceIdentityType())) {
+      if (!STATIC_ACCESS_KEY.equals(request.awsSourceIdentityType())) {
         awsSecret.setAwsSourceProfileAccessKeyId(null);
         awsSecret.setAwsSourceProfileSecretAccessKey(null);
       }
@@ -107,7 +108,9 @@ public class AwsAssumeRoleHandler implements SecretHandler {
           awsAssumeRoleSecret.getAwsDefaultRegion(),
           awsAssumeRoleSecret.getAwsRoleArn(),
           awsAssumeRoleSecret.getAwsSourceIdentityType(),
+          awsAssumeRoleSecret.getAwsExternalId() != null,
           awsAssumeRoleSecret.getAwsSourceProfileAccessKeyId(),
+          awsAssumeRoleSecret.getAwsSourceProfileSecretAccessKey() != null,
           awsAssumeRoleSecret.getAwsAccountId(),
           awsAssumeRoleSecret.getAwsEndpointUrl());
     }

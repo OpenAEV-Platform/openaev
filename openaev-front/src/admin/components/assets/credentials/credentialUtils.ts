@@ -29,8 +29,10 @@ const convertCredentialFullOutputToCredentialInput = (credential: CredentialFull
     aws_session_token: credential.credential_aws_session_token_present ? DOTS : '',
     aws_role_arn: credential.credential_aws_role_arn,
     aws_source_identity_type: credential.credential_aws_source_identity_type,
+    // The external id and the source profile secret never travel back: only a boolean tells us one is stored.
+    aws_external_id: credential.credential_aws_external_id_defined ? DOTS : '',
     aws_source_profile_access_key_id: credential.credential_aws_source_profile_access_key_id,
-    aws_source_profile_secret_access_key: credential.credential_aws_source_profile_access_key_id ? DOTS : '',
+    aws_source_profile_secret_access_key: credential.credential_aws_source_profile_secret_access_key_defined ? DOTS : '',
     aws_account_id: credential.credential_aws_account_id,
     aws_endpoint_url: credential.credential_aws_endpoint_url,
     // AZURE
