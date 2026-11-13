@@ -194,6 +194,13 @@
             minimumReleaseAge: null,
         },
         {
+            description: 'Our own @filigran packages need no waiting period, so their update PR replaces the manual bumps',
+            matchPackageNames: [
+                '@filigran/**',
+            ],
+            minimumReleaseAge: null,
+        },
+        {
             description: 'openaev-es8-client holds the Elasticsearch 8 client next to the 9 one in openaev-es9-client, so it stays on 8.x (#8900)',
             matchFileNames: [
                 'openaev-es8-client/pom.xml',
