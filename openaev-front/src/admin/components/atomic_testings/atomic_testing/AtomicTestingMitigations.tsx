@@ -1,214 +1,258 @@
 import { Button, Chip, Paper, Tabs, TabsList, TabsTrigger, Text } from '@filigran/design-system';
-import { BuildOutlined, InfoOutlined, ShieldOutlined } from '@mui/icons-material';
-import { useRef, useState } from 'react';
+import { BuildOutlined, ShieldOutlined } from '@mui/icons-material';
+import { useMemo, useRef, useState } from 'react';
 
 import { useFormatter } from '../../../../components/i18n';
-import MitigationCard, { type MockMitigation } from './MitigationCard';
-import { MOCK_MITIGATIONS } from './mitigationMock';
+import MitigationCard, { type MitigationFinding, type MockMitigation } from './MitigationCard';
+import MitigationContextPanel from './MitigationContextPanel';
+import { buildMitigations } from './mitigationMock';
+import MitigationTargetsTable from './MitigationTargetsTable';
 
 // ---------------------------------------------------------------------------------------------
 // PROTOTYPE - MOCK DATA ONLY.
-// Nothing here talks to the backend or to XTM One. It exists to show the proposed UX of a
-// "Mitigations" tab on the atomic testing page: one entry per agent (execution), generated on
-// click for NOT PREVENTED results only, and reused when action + environment are identical.
+// Nothing here talks to the backend or to XTM One. Mitigation tab of ONE atomic testing, built to
+// stay readable with many targets: the targets that were NOT PREVENTED are grouped by the reuse key
+// (command + finding types + operating system), so the left list is made of a handful of groups,
+// not of targets. Each group has one mitigation and a searchable, paginated target table.
+// Prevented targets need no mitigation: they are only counted. Generated on click, once per group.
 // ---------------------------------------------------------------------------------------------
 
-type MockResult = 'NOT_PREVENTED' | 'PREVENTED' | 'DETECTED';
-
-interface MockAgent {
-  id: string;
+interface MockTarget {
   name: string;
-  result: MockResult;
-  // Execution environment sent to XTM One. Undefined for network based executions (no agent).
-  environment?: {
-    os: string;
-    arch: string;
-    privilege: string;
-    executor: string;
-  };
+  prevented: boolean;
+  // Operating system of the agent. Undefined for injector based executions (no agent).
+  os?: string;
+  privilege?: string;
+  findings: MitigationFinding[];
+}
+
+interface MockSet {
+  action: string;
+  command: string;
+  targets: MockTarget[];
+}
+
+interface Group {
+  key: string;
+  label: string;
+  os?: string;
+  findings: MitigationFinding[];
+  targets: MockTarget[];
 }
 
 type MitigationState
   = | {
     status: 'ready';
-    mitigation: MockMitigation;
-    generatedBy: string;
+    mitigations: MockMitigation[];
   }
   | { status: 'loading' }
   | { status: 'error' };
 
-const MOCK_AGENTS: MockAgent[] = [
-  {
-    id: 'a1',
-    name: 'WIN-DC01',
-    result: 'NOT_PREVENTED',
-    environment: {
+const pad = (n: number) => String(n).padStart(2, '0');
+const range = <T, >(count: number, build: (index: number) => T): T[] => Array.from({ length: count }, (_, i) => build(i + 1));
+
+const credentials: MitigationFinding[] = [{ type: 'credentials' }];
+
+// LSASS dump: payload run by an agent. 6 of them prevented by the EDR.
+const PAYLOAD_SET: MockSet = {
+  action: 'LSASS credential dump',
+  command: 'procdump.exe -accepteula -ma lsass.exe #{dump_path}',
+  targets: [
+    ...range(12, i => ({
+      name: `WIN-FIN-${pad(i)}`,
+      prevented: false,
       os: 'Windows 10 22H2',
-      arch: 'x86_64',
       privilege: 'admin (SYSTEM)',
-      executor: 'Tanium',
-    },
-  },
-  {
-    id: 'a2',
-    name: 'WIN-FIN-07',
-    result: 'NOT_PREVENTED',
-    // Same environment as WIN-DC01 -> the stored mitigation is reused, no second XTM One call.
-    environment: {
-      os: 'Windows 10 22H2',
-      arch: 'x86_64',
+      findings: credentials,
+    })),
+    ...range(4, i => ({
+      name: `WIN-SRV-${pad(i)}`,
+      prevented: false,
+      os: 'Windows Server 2022',
       privilege: 'admin (SYSTEM)',
-      executor: 'Tanium',
-    },
-  },
-  {
-    id: 'a3',
-    name: 'ubuntu-web-03',
-    result: 'NOT_PREVENTED',
-    environment: {
-      os: 'Ubuntu 22.04',
-      arch: 'x86_64',
-      privilege: 'standard (www-data)',
-      executor: 'OpenAEV agent',
-    },
-  },
-  {
-    id: 'a4',
-    name: 'WIN-HR-12',
-    result: 'PREVENTED',
-    environment: {
+      findings: credentials,
+    })),
+    ...range(3, i => ({
+      name: `WIN-HR-${pad(i)}`,
+      prevented: false,
       os: 'Windows 11 23H2',
-      arch: 'x86_64',
+      privilege: 'admin',
+      findings: credentials,
+    })),
+    ...range(6, i => ({
+      name: `WIN-DEV-${pad(i)}`,
+      prevented: true,
+      os: 'Windows 11 23H2',
       privilege: 'standard',
-      executor: 'CrowdStrike',
-    },
-  },
-  {
-    id: 'a5',
-    name: '10.20.0.14 (network scan)',
-    result: 'NOT_PREVENTED',
-    // Network based execution: no agent, so no environment. We still suggest, with a notice.
-  },
-];
-
-// The "do not ask twice" key: everything that shapes the suggestion.
-const environmentKey = (agent: MockAgent) => {
-  if (!agent.environment) return 'network';
-  const {
-    os,
-    arch,
-    privilege,
-    executor,
-  } = agent.environment;
-  return [os, arch, privilege, executor].join('|');
+      findings: [],
+    })),
+  ],
 };
 
-const mitigationFor = (agent: MockAgent): MockMitigation => {
-  if (!agent.environment) return MOCK_MITIGATIONS.network;
-  return agent.environment.os.startsWith('Windows') ? MOCK_MITIGATIONS.windows : MOCK_MITIGATIONS.linux;
+// Injector based actions run from the platform against an asset: no agent, so no OS. The reuse key
+// is then command + finding types only, and most of the time there is a single group.
+const NMAP_SET: MockSet = {
+  action: 'Nmap portscan',
+  command: 'nmap -sV -p 445,3389 #{target}',
+  targets: [
+    ...range(14, i => ({
+      name: `HOST-${pad(i)} (10.20.0.${i + 10})`,
+      prevented: false,
+      // Some hosts only expose SMB: same finding type, so the same group and the same mitigation.
+      findings: i % 3 === 0
+        ? [{
+            type: 'portscan',
+            value: '445/tcp',
+          }]
+        : [
+            {
+              type: 'portscan',
+              value: '445/tcp',
+            },
+            {
+              type: 'portscan',
+              value: '3389/tcp',
+            },
+          ],
+    })),
+    ...range(5, i => ({
+      name: `DMZ-${pad(i)} (10.30.0.${i + 10})`,
+      prevented: true,
+      findings: [],
+    })),
+  ],
 };
 
-const AtomicTestingMitigations = () => {
-  const { t } = useFormatter();
-  const [activeTab, setActiveTab] = useState<number>(0);
-  // Stored mitigations keyed by action + environment: this is the "do not ask twice" rule.
+const NETEXEC_SET: MockSet = {
+  action: 'NetExec SMB - Share Listing',
+  command: 'nxc smb #{target} -u #{user} -p ****** --shares',
+  targets: [
+    ...range(9, i => ({
+      name: `FILESRV-${pad(i)} (10.20.1.${i + 10})`,
+      prevented: false,
+      findings: [
+        {
+          type: 'share',
+          value: 'C$',
+        },
+        {
+          type: 'share',
+          value: i % 2 === 0 ? 'ADMIN$' : 'Finance',
+        },
+      ],
+    })),
+    ...range(3, i => ({
+      name: `DC-${pad(i)} (10.20.2.${i + 10})`,
+      prevented: true,
+      findings: [],
+    })),
+  ],
+};
+
+// In the product the targets come from the inject itself; the prototype picks a mock set from the
+// injector of the atomic testing.
+const setFor = (injectType?: string): MockSet => {
+  if (injectType === 'openaev_nmap') return NMAP_SET;
+  if (injectType === 'openaev_netexec') return NETEXEC_SET;
+  return PAYLOAD_SET;
+};
+
+const distinctFindings = (findings: MitigationFinding[]) => {
+  const seen = new Set<string>();
+  return findings.filter((finding) => {
+    const id = `${finding.type}|${finding.value ?? ''}`;
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+};
+
+// The "do not ask twice" key: command + finding types + operating system.
+const groupKey = (command: string, target: MockTarget) => {
+  const types = [...new Set(target.findings.map(finding => finding.type))].sort().join(',');
+  return [command, types, target.os ?? 'no-agent'].join('|');
+};
+
+interface Props { injectType?: string }
+
+const AtomicTestingMitigations = ({ injectType }: Props) => {
+  const { t, n } = useFormatter();
+  const set = setFor(injectType);
+  const [selected, setSelected] = useState<string | null>(null);
   const [store, setStore] = useState<Record<string, MitigationState>>({});
-  // Demo only: the first attempt for the Linux host fails so the error state can be seen.
+  // Demo only: the first attempt for the Windows Server group fails so the error state can be seen.
   const failedOnce = useRef(false);
 
-  const agent = MOCK_AGENTS[activeTab];
-  const key = environmentKey(agent);
-  const state = store[key];
+  const { groups, preventedCount } = useMemo(() => {
+    const byKey = new Map<string, Group>();
+    set.targets.filter(target => !target.prevented).forEach((target) => {
+      const key = groupKey(set.command, target);
+      const group = byKey.get(key) ?? {
+        key,
+        label: target.os ?? t('Injector based (no agent)'),
+        os: target.os,
+        findings: [],
+        targets: [],
+      };
+      group.targets.push(target);
+      group.findings = distinctFindings([...group.findings, ...target.findings]);
+      byKey.set(key, group);
+    });
+    return {
+      groups: [...byKey.values()].sort((a, b) => b.targets.length - a.targets.length),
+      preventedCount: set.targets.filter(target => target.prevented).length,
+    };
+  }, [set, t]);
 
-  const generate = (target: MockAgent) => {
-    const k = environmentKey(target);
-    setStore(prev => ({
-      ...prev,
-      [k]: { status: 'loading' },
-    }));
+  const group = groups.find(g => g.key === selected) ?? groups[0];
+  const state = group ? store[group.key] : undefined;
+
+  const generate = (keys: string[]) => {
+    setStore((prev) => {
+      const next = { ...prev };
+      keys.forEach((key) => {
+        next[key] = { status: 'loading' };
+      });
+      return next;
+    });
     setTimeout(() => {
-      const shouldFail = target.environment?.os.startsWith('Ubuntu') && !failedOnce.current;
-      if (shouldFail) {
-        failedOnce.current = true;
-        setStore(prev => ({
-          ...prev,
-          [k]: { status: 'error' },
-        }));
-        return;
-      }
-      setStore(prev => ({
-        ...prev,
-        [k]: {
-          status: 'ready',
-          mitigation: mitigationFor(target),
-          generatedBy: target.name,
-        },
-      }));
-    }, 1800);
+      setStore((prev) => {
+        const next = { ...prev };
+        keys.forEach((key) => {
+          const target = groups.find(g => g.key === key);
+          if (!target) return;
+          if (target.os?.startsWith('Windows Server') && !failedOnce.current) {
+            failedOnce.current = true;
+            next[key] = { status: 'error' };
+            return;
+          }
+          next[key] = {
+            status: 'ready',
+            mitigations: buildMitigations({
+              actionName: set.command,
+              command: set.command,
+              findings: target.findings,
+              hasAgent: !!target.os,
+              platform: target.os,
+            }),
+          };
+        });
+        return next;
+      });
+    }, 1500);
   };
 
-  const resultChip = (result: MockResult) => {
-    if (result === 'NOT_PREVENTED') return <Chip label={t('Not prevented')} severity="high" />;
-    if (result === 'DETECTED') return <Chip label={t('Detected')} severity="info" />;
-    return <Chip label={t('Prevented')} severity="low" />;
-  };
+  const missing = groups.filter(g => !store[g.key]);
+  const missingTargets = missing.reduce((sum, g) => sum + g.targets.length, 0);
+  const notPreventedCount = groups.reduce((sum, g) => sum + g.targets.length, 0);
 
-  const renderEnvironment = () => (
-    <Paper
-      padding={16}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-      }}
-    >
-      <Text variant="content-base-bold" className="text-default-secondary">
-        {t('Context sent to XTM One')}
-      </Text>
-      {agent.environment
-        ? (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-              gap: 12,
-            }}
-            >
-              {([
-                [t('Operating system'), agent.environment.os],
-                [t('Architecture'), agent.environment.arch],
-                [t('Privilege'), agent.environment.privilege],
-                [t('Executor'), agent.environment.executor],
-              ] as [string, string][]).map(([label, value]) => (
-                <div key={label}>
-                  <Text variant="content-caption" className="block text-default-secondary">{label}</Text>
-                  <Text variant="content-compact" className="block">{value}</Text>
-                </div>
-              ))}
-            </div>
-          )
-        : (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-            >
-              <InfoOutlined fontSize="small" />
-              <Text variant="content-compact">
-                {t('Network based execution: no agent, so the environment is unknown. The suggestion will be more generic.')}
-              </Text>
-            </div>
-          )}
-    </Paper>
-  );
-
-  const renderMitigation = (mitigation: MockMitigation, generatedBy: string) => (
-    <MitigationCard
-      mitigation={mitigation}
-      reusedFrom={generatedBy !== agent.name ? generatedBy : undefined}
-      onRegenerate={() => generate(agent)}
-    />
-  );
+  const rows = useMemo(() => (group
+    ? group.targets.map(target => ({
+        name: target.name,
+        environment: target.os ? `${target.os} · ${target.privilege ?? ''}` : t('No agent (injector based)'),
+        findings: target.findings.map(finding => (finding.value ? `${finding.type}: ${finding.value}` : finding.type)).join(', '),
+      }))
+    : []), [group, t]);
 
   const centered = {
     display: 'flex',
@@ -217,56 +261,45 @@ const AtomicTestingMitigations = () => {
     justifyContent: 'center',
     gap: 12,
     textAlign: 'center' as const,
-    flex: 1,
-    minHeight: 180,
+    minHeight: 160,
   };
 
+  if (groups.length === 0) {
+    return (
+      <Paper padding={32} style={centered}>
+        <ShieldOutlined sx={{ fontSize: 44 }} />
+        <Text variant="content-compact" className="text-default-secondary">
+          {t('The action was prevented on every target, no mitigation needed.')}
+        </Text>
+      </Paper>
+    );
+  }
+
   const renderBody = () => {
-    if (agent.result !== 'NOT_PREVENTED') {
-      return (
-        <Paper padding={32} style={centered}>
-          <ShieldOutlined sx={{ fontSize: 44 }} />
-          <Text variant="content-compact" className="text-default-secondary">
-            {t('This action was stopped on this agent, no mitigation needed.')}
-          </Text>
-        </Paper>
-      );
-    }
     if (state?.status === 'ready') {
-      return (
-        <>
-          {renderEnvironment()}
-          {renderMitigation(state.mitigation, state.generatedBy)}
-        </>
-      );
+      return state.mitigations.map(mitigation => (
+        <MitigationCard key={mitigation.summary} mitigation={mitigation} onRegenerate={() => generate([group.key])} />
+      ));
     }
     if (state?.status === 'loading') {
       return (
-        <>
-          {renderEnvironment()}
-          <Paper padding={32} style={centered}>
-            <Text variant="content-compact" className="text-default-secondary">
-              {t('Generating mitigation…')}
-            </Text>
-          </Paper>
-        </>
+        <Paper padding={32} style={centered}>
+          <Text variant="content-compact" className="text-default-secondary">{t('Generating mitigation…')}</Text>
+        </Paper>
       );
     }
     return (
-      <>
-        {renderEnvironment()}
-        <Paper padding={32} style={centered}>
-          <BuildOutlined sx={{ fontSize: 44 }} />
-          <Text variant="content-compact" className="text-default-secondary">
-            {state?.status === 'error'
-              ? t('Mitigation generation failed. Try again.')
-              : t('No mitigation generated for this environment yet.')}
-          </Text>
-          <Button variant="ia" priority="secondary" onClick={() => generate(agent)}>
-            {state?.status === 'error' ? t('Try again') : t('Generate mitigation')}
-          </Button>
-        </Paper>
-      </>
+      <Paper padding={32} style={centered}>
+        <BuildOutlined sx={{ fontSize: 44 }} />
+        <Text variant="content-compact" className="text-default-secondary">
+          {state?.status === 'error'
+            ? t('Mitigation generation failed. Try again.')
+            : t('No mitigation generated for this group yet.')}
+        </Text>
+        <Button variant="ia" priority="secondary" onClick={() => generate([group.key])}>
+          {state?.status === 'error' ? t('Try again') : t('Generate mitigation')}
+        </Button>
+      </Paper>
     );
   };
 
@@ -281,13 +314,32 @@ const AtomicTestingMitigations = () => {
         display: 'flex',
         alignItems: 'center',
         gap: 8,
+        flexWrap: 'wrap',
       }}
       >
         <Chip label={t('Prototype - mock data')} severity="medium" />
         <Text variant="content-caption" className="text-default-secondary">
-          {t('Nothing is sent to XTM One. Generate on WIN-DC01, then open WIN-FIN-07: same environment, no second request.')}
+          {`${n(groups.length)} ${groups.length === 1 ? t('mitigation covers') : t('mitigations cover')} ${n(notPreventedCount)} ${t('targets that were not prevented.')}`}
+          {preventedCount > 0 && ` ${n(preventedCount)} ${t('targets were protected, no mitigation needed.')}`}
         </Text>
+        <div style={{
+          marginLeft: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+        >
+          {missing.length > 0 && (
+            <Text variant="content-caption" className="text-default-secondary">
+              {`${n(missing.length)} ${t('requests, one per distinct command, finding types and OS, for')} ${n(missingTargets)} ${t('targets')}`}
+            </Text>
+          )}
+          <Button variant="ia" priority="secondary" disabled={missing.length === 0} onClick={() => generate(missing.map(g => g.key))}>
+            {`${t('Generate missing')} (${missing.length})`}
+          </Button>
+        </div>
       </div>
+
       <div style={{
         display: 'flex',
         gap: 16,
@@ -297,19 +349,20 @@ const AtomicTestingMitigations = () => {
       >
         <Tabs
           orientation="vertical"
-          value={String(activeTab)}
-          onValueChange={value => setActiveTab(Number(value))}
+          value={group.key}
+          onValueChange={setSelected}
           panels="external"
           style={{
             display: 'grid',
-            minWidth: 220,
+            minWidth: 240,
+            maxWidth: 280,
             flexShrink: 0,
           }}
         >
-          <TabsList aria-label={t('Agents')}>
-            {MOCK_AGENTS.map((a, index) => (
-              <TabsTrigger key={a.id} value={String(index)}>
-                {a.name}
+          <TabsList aria-label={t('Mitigation groups')}>
+            {groups.map(g => (
+              <TabsTrigger key={g.key} value={g.key}>
+                {`${g.label} · ${n(g.targets.length)}`}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -323,18 +376,19 @@ const AtomicTestingMitigations = () => {
           gap: 12,
         }}
         >
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            minHeight: 36,
-          }}
-          >
-            <ShieldOutlined fontSize="small" />
-            <Text variant="content-base-bold">{t('Mitigation')}</Text>
-            {resultChip(agent.result)}
-          </div>
+          <MitigationContextPanel
+            action={set.action}
+            command={set.command}
+            findings={group.findings}
+            environment={group.os ? `${group.os} · ${n(group.targets.length)} ${t('targets')}` : undefined}
+          />
           {renderBody()}
+          <div>
+            <Text variant="content-base-bold" className="mb-2 block text-default-secondary">
+              {`${t('Targets')} (${n(group.targets.length)})`}
+            </Text>
+            <MitigationTargetsTable key={group.key} rows={rows} />
+          </div>
         </div>
       </div>
     </div>

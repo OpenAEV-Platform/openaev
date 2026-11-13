@@ -1,10 +1,11 @@
 import { Button, Chip, Paper, Text } from '@filigran/design-system';
 import { BuildOutlined, ShieldOutlined } from '@mui/icons-material';
-import { type ReactNode, useReducer } from 'react';
+import { useReducer } from 'react';
 
 import { useFormatter } from '../../../../../components/i18n';
-import MitigationCard, { type MockMitigation } from '../../../atomic_testings/atomic_testing/MitigationCard';
-import { buildMitigation } from '../../../atomic_testings/atomic_testing/mitigationMock';
+import MitigationCard, { type MitigationFinding, type MockMitigation } from '../../../atomic_testings/atomic_testing/MitigationCard';
+import MitigationContextPanel from '../../../atomic_testings/atomic_testing/MitigationContextPanel';
+import { buildMitigations } from '../../../atomic_testings/atomic_testing/mitigationMock';
 
 // ---------------------------------------------------------------------------------------------
 // PROTOTYPE - MOCK DATA ONLY. Nothing is sent to the backend or to XTM One.
@@ -18,7 +19,7 @@ import { buildMitigation } from '../../../atomic_testings/atomic_testing/mitigat
 type MitigationState
   = | {
     status: 'ready';
-    mitigation: MockMitigation;
+    mitigations: MockMitigation[];
     generatedBy: string;
   }
   | { status: 'loading' };
@@ -28,8 +29,10 @@ const store = new Map<string, MitigationState>();
 interface Props {
   executionLabel: string;
   actionName: string;
-  // Types only (credentials, share, portscan...): finding values are masked and never sent.
-  findingTypes: string[];
+  // Command template (sensitive arguments masked).
+  command?: string;
+  // Findings of the execution. The value is sent only for non-sensitive types (share, port...).
+  findings: MitigationFinding[];
   attackPatterns: string[];
   targetPlatform?: string;
   agentName?: string;
@@ -41,7 +44,8 @@ interface Props {
 const ExecutionMitigationTab = ({
   executionLabel,
   actionName,
-  findingTypes,
+  command,
+  findings,
   attackPatterns,
   targetPlatform,
   agentName,
@@ -52,9 +56,9 @@ const ExecutionMitigationTab = ({
   const [, rerender] = useReducer((n: number) => n + 1, 0);
 
   const hasAgent = !!agentName;
-  const types = [...new Set(findingTypes)].sort();
-  // Every input that shapes the suggestion is part of the key: same key, no new request.
-  const key = [actionName, types.join(','), targetPlatform ?? '', hasAgent ? `agent:${agentPrivilege ?? ''}` : 'no-agent'].join('|');
+  const types = [...new Set(findings.map(finding => finding.type))].sort();
+  // The reuse key: command + finding types + operating system (platform, privilege). Same key, no new request.
+  const key = [command ?? actionName, types.join(','), targetPlatform ?? '', hasAgent ? `agent:${agentPrivilege ?? ''}` : 'no-agent'].join('|');
   const state = store.get(key);
 
   const generate = () => {
@@ -63,10 +67,12 @@ const ExecutionMitigationTab = ({
     setTimeout(() => {
       store.set(key, {
         status: 'ready',
-        mitigation: buildMitigation({
+        mitigations: buildMitigations({
           actionName,
-          findingTypes: types,
+          command,
+          findings,
           hasAgent,
+          platform: targetPlatform,
         }),
         generatedBy: executionLabel,
       });
@@ -95,20 +101,6 @@ const ExecutionMitigationTab = ({
     );
   }
 
-  const contextRow = (label: string, value: ReactNode) => (
-    <div>
-      <Text variant="content-caption" className="block text-default-secondary">{label}</Text>
-      <div style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: 4,
-      }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-
   return (
     <div style={{
       display: 'flex',
@@ -123,45 +115,27 @@ const ExecutionMitigationTab = ({
       }}
       >
         <Chip label={t('Prototype - mock data')} severity="medium" />
-        <Chip label={t('Not prevented')} severity="high" />
       </div>
 
-      <Paper
-        padding={16}
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-        }}
-      >
-        <Text variant="content-base-bold" className="text-default-secondary">{t('Context sent to XTM One')}</Text>
-        {contextRow(t('Action'), <Text variant="content-compact">{actionName}</Text>)}
-        {contextRow(
-          t('Finding types'),
-          types.length > 0
-            ? types.map(type => <Chip key={type} label={type} severity="neutral" />)
-            : <Text variant="content-compact">{t('None')}</Text>,
-        )}
-        {attackPatterns.length > 0 && contextRow(
-          t('Techniques'),
-          attackPatterns.map(ap => <Chip key={ap} label={ap} severity="neutral" />),
-        )}
-        {contextRow(
-          t('Environment'),
-          <Text variant="content-compact">
-            {hasAgent
-              ? `${agentName} · ${agentPrivilege ?? '-'}`
-              : t('No agent (injector based execution): the suggestion relies on the action and its findings.')}
-          </Text>,
-        )}
-      </Paper>
+      <MitigationContextPanel
+        action={actionName}
+        command={command}
+        findings={findings}
+        techniques={attackPatterns}
+        environment={hasAgent ? [targetPlatform, agentName, agentPrivilege].filter(Boolean).join(' · ') : undefined}
+      />
 
       {state?.status === 'ready' && (
-        <MitigationCard
-          mitigation={state.mitigation}
-          reusedFrom={state.generatedBy !== executionLabel ? state.generatedBy : undefined}
-          onRegenerate={generate}
-        />
+        <>
+          {state.mitigations.map(mitigation => (
+            <MitigationCard
+              key={mitigation.summary}
+              mitigation={mitigation}
+              reusedFrom={state.generatedBy !== executionLabel ? state.generatedBy : undefined}
+              onRegenerate={generate}
+            />
+          ))}
+        </>
       )}
       {state?.status === 'loading' && (
         <Paper padding={24} style={centered}>

@@ -42,6 +42,7 @@ const Validations = lazy(() => import('./validation/Validations'));
 const SimulationScope = lazy(() => import('./scope/SimulationScope'));
 const SimulationLogic = lazy(() => import('./logic/SimulationLogic'));
 const SimulationAttackPath = lazy(() => import('./attack_path/SimulationAttackPath'));
+const SimulationMitigations = lazy(() => import('./mitigations/SimulationMitigations'));
 
 // The Animation area was renamed Execution: rewrite any legacy /animation/*
 // deep link to its /execution/* equivalent, preserving the sub-path.
@@ -143,6 +144,7 @@ const IndexComponent: FunctionComponent<{
                   <Route path="animation/*" element={<AnimationToExecutionRedirect />} />
                   <Route path="lessons" element={errorWrapper(Lessons)()} />
                   <Route path="findings" element={errorWrapper(SimulationFindings)()} />
+                  <Route path="mitigations" element={errorWrapper(SimulationMitigations)()} />
                   {/* An autonomous run's attack path renders as an action timeline instead of the
                     finding-centric manual-BAS view. That switch is derived inside SimulationAttackPath
                     from the selected simulation's durable exercise_autonomous marker, so a finished

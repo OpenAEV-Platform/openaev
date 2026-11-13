@@ -40,6 +40,7 @@ const ScenarioScope = lazy(() => import('./scope/ScenarioScope'));
 const ScenarioLogic = lazy(() => import('./logic/ScenarioLogic'));
 const ScenarioStatistics = lazy(() => import('./analysis/ScenarioAnalysis'));
 const ScenarioAttackPath = lazy(() => import('./attack_path/ScenarioAttackPath'));
+const ScenarioMitigations = lazy(() => import('./mitigations/ScenarioMitigations'));
 const ScenarioExecution = lazy(() => import('./execution/ScenarioExecution'));
 
 const IndexScenarioComponent: FunctionComponent<{
@@ -210,6 +211,7 @@ const IndexScenarioComponent: FunctionComponent<{
                 <Route path="tests/:statusId?" element={errorWrapper(Tests)()} />
                 <Route path="lessons" element={errorWrapper(Lessons)()} />
                 <Route path="findings" element={errorWrapper(ScenarioFindings)()} />
+                <Route path="mitigations" element={errorWrapper(ScenarioMitigations)()} />
                 {isChained && <Route path="attack-path" element={errorWrapper(ScenarioAttackPath)()} />}
                 {/* Live execution of the scenario's latest simulation - available for every scenario
                     type, mirroring the simulation Execution tab. */}

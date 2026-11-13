@@ -878,7 +878,11 @@ const ExecutionResultTerminalPanel = ({ loading, detail, onClose, onBack, onOpen
               <ExecutionMitigationTab
                 executionLabel={endpointLabel ?? detail.agentName ?? 'execution'}
                 actionName={detail.payloadName ?? t('Execution')}
-                findingTypes={(detail.findings ?? []).map(finding => finding.type ?? '').filter(Boolean)}
+                command={detail.command ?? detail.injectorCommandLine ?? undefined}
+                findings={(detail.findings ?? []).filter(finding => !!finding.type).map(finding => ({
+                  type: finding.type as string,
+                  value: finding.value,
+                }))}
                 attackPatterns={(detail.attackPatterns ?? []).map(ap => ap.externalId ?? ap.name ?? '').filter(Boolean)}
                 targetPlatform={detail.targetPlatform ?? undefined}
                 agentName={detail.agentName ?? undefined}

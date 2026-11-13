@@ -30,8 +30,11 @@ const AtomicTestingRoutes = ({ injectResultOverview }: Props) => {
           <>
             <Route path="payload_info" element={errorWrapper(AtomicTestingPayloadInfo)()} />
             <Route path="remediations" element={errorWrapper(AtomicTestingRemediations)()} />
-            <Route path="mitigations" element={errorWrapper(AtomicTestingMitigations)()} />
           </>
+        )}
+        {(injectResultOverview.inject_injector_contract?.injector_contract_payload
+          || externalContractTypesWithFindings.includes(injectResultOverview.inject_type ?? '')) && (
+          <Route path="mitigations" element={errorWrapper(AtomicTestingMitigations)({ injectType: injectResultOverview.inject_type })} />
         )}
         <Route path="*" element={<NotFound />} />
       </Routes>

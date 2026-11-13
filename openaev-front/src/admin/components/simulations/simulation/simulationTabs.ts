@@ -19,6 +19,7 @@ export default function buildSimulationTabs(params: {
       ...(hasWorkflow ? [['/attack-path', t('Attack Path')] as [string, string]] : []),
       ['/execution', t('Execution')],
       ['/findings', t('Findings')],
+      ['/mitigations', t('Mitigations')],
       ['/statistics', t('Statistics')],
     ];
   }
@@ -31,6 +32,7 @@ export default function buildSimulationTabs(params: {
       ['/execution', t('Execution')],
       ['/attack-path', t('Attack Path')],
       ['/findings', t('Findings')],
+      ['/mitigations', t('Mitigations')],
       ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
       ['/statistics', t('Statistics')],
     ];
@@ -42,6 +44,7 @@ export default function buildSimulationTabs(params: {
     ['/tests', t('Tests')],
     ['/execution', t('Execution')],
     ['/findings', t('Findings')],
+    ['/mitigations', t('Mitigations')],
     ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
     ['/statistics', t('Statistics')],
   ];

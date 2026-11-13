@@ -17,6 +17,7 @@ export default function buildScenarioTabs(params: {
       ['/attack-path', t('Attack Path')],
       ['/execution', t('Execution')],
       ['/findings', t('Findings')],
+      ['/mitigations', t('Mitigations')],
       ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
       ['/statistics', t('Statistics')],
     ];
@@ -28,6 +29,7 @@ export default function buildScenarioTabs(params: {
     ['/tests', t('Tests')],
     ['/execution', t('Execution')],
     ['/findings', t('Findings')],
+    ['/mitigations', t('Mitigations')],
     ...(lessonsEnabled ? [['/lessons', t('Lessons learned')] as [string, string]] : []),
     ['/statistics', t('Statistics')],
   ];

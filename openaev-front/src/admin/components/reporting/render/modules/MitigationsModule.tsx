@@ -70,6 +70,12 @@ const GROUPS: MitigationGroup[] = [
         action: 'NetExec SMB - Share Listing',
         execution: 'winterfell (10.0.0.7)',
       },
+      {
+        type: 'share',
+        value: '\\\\winterfell\\ADMIN$',
+        action: 'NetExec SMB - Share Listing',
+        execution: 'winterfell (10.0.0.7)',
+      },
     ],
     executions: ['winterfell (10.0.0.7)'],
   },
@@ -88,6 +94,12 @@ const GROUPS: MitigationGroup[] = [
         action: 'Nmap portscan',
         execution: 'castelback (20.224.192.102)',
       },
+      {
+        type: 'portscan',
+        value: '20.224.192.102:3389',
+        action: 'Nmap portscan',
+        execution: 'castelback (20.224.192.102)',
+      },
     ],
     executions: ['castelback (20.224.192.102)'],
   },
@@ -99,15 +111,17 @@ const MISSING: {
   execution: string;
 }[] = [
   {
-    action: 'LSASS credential dump',
+    action: 'Credential file read',
     execution: 'ubuntu-web-03',
   },
 ];
 
-const RISK_RANK: Record<MockMitigation['risk'], number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
+// Criticality comes from XTM One and is displayed as is; it drives the order of the section.
+const CRITICALITY_RANK: Record<MockMitigation['criticality'], number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
 };
 
 const MitigationsModule: FunctionComponent<Props> = ({ module }) => {
@@ -116,8 +130,8 @@ const MitigationsModule: FunctionComponent<Props> = ({ module }) => {
   const includeCommands = module.module_config?.include_commands !== false;
   const isEmpty = module.module_config?.mock_state === 'empty';
 
-  const riskColor = (risk: MockMitigation['risk']) => {
-    if (risk === 'high') return theme.palette.error.main;
+  const riskColor = (risk: MockMitigation['risk'] | MockMitigation['criticality']) => {
+    if (risk === 'critical' || risk === 'high') return theme.palette.error.main;
     if (risk === 'medium') return theme.palette.warning.main;
     return theme.palette.success.main;
   };
@@ -125,8 +139,8 @@ const MitigationsModule: FunctionComponent<Props> = ({ module }) => {
   const groups = isEmpty
     ? []
     : [...GROUPS].sort((a, b) => {
-        // Highest risk first, then the mitigation that closes the most executions.
-        const byRisk = RISK_RANK[a.mitigation.risk] - RISK_RANK[b.mitigation.risk];
+        // Most critical first, then the mitigation that closes the most executions.
+        const byRisk = CRITICALITY_RANK[a.mitigation.criticality] - CRITICALITY_RANK[b.mitigation.criticality];
         return byRisk !== 0 ? byRisk : b.executions.length - a.executions.length;
       });
   const closedExecutions = groups.reduce((sum, group) => sum + group.executions.length, 0);
@@ -184,7 +198,8 @@ const MitigationsModule: FunctionComponent<Props> = ({ module }) => {
               marginBottom: 1,
             }}
             >
-              <PrintChip label={`${t('Risk')}: ${t(group.mitigation.risk)}`} color={riskColor(group.mitigation.risk)} />
+              <PrintChip label={`${t('Criticality')}: ${t(group.mitigation.criticality)}`} color={riskColor(group.mitigation.criticality)} />
+              <PrintChip label={`${t('Risk of applying')}: ${t(group.mitigation.risk)}`} color={riskColor(group.mitigation.risk)} />
               <PrintChip label={`${n(group.executions.length)} ${group.executions.length === 1 ? t('execution') : t('executions')}`} color={theme.palette.primary.main} />
               {group.mitigation.limitedContext && (
                 <PrintChip label={t('Limited context')} color={theme.palette.warning.main} />
