@@ -21,9 +21,6 @@
 # a link.
 
 io.openaev.api.asset.AssetMarkingsService#bulkReplaceAssetMarkings -> AssetRepository | other | 1 | loads in chunks the assets named in the bulk request body, which are the rows whose markings are replaced, not linked rows
-io.openaev.api.asset.AssetMarkingsService#bulkReplaceAssetMarkings -> MarkingDefinitionRepository | link | 1 | links the marking definitions named in the bulk request body to every asset it replaces markings on
-io.openaev.api.asset.AssetMarkingsService#updateAssetMarkings -> MarkingDefinitionRepository | link | 1 | links the marking definitions named in the request body to the asset whose markings it replaces
-io.openaev.api.notification_trigger.NotificationTriggerMapper#toNotificationTrigger -> NotifierRepository | link | 1 | links the notifiers named in the request body to the trigger it builds, by method reference; the child triggers beside it resolve in the tenant
 io.openaev.engine.model.vulnerableendpoint.VulnerableEndpointHandler#fetch -> FindingRepository | other | 1 | indexing handler that loads the findings whose ids an endpoint search document stores, to build that document
 io.openaev.importer.V1_DataImporter#attackPatternsOf -> AttackPatternRepository | other | 1 | loads the attack patterns an imported payload names to hash its content and find an equal version, and writes nothing
 io.openaev.importer.V1_DataImporter#uploadNewDocument -> TagRepository | link | 1 | links the tags named in an imported archive to the document it uploads
@@ -33,14 +30,9 @@ io.openaev.injectors.phishing.service.PhishingTrackingService#createResult -> Te
 io.openaev.rest.asset.endpoint.EndpointApi#optionsById -> EndpointRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.asset.security_platforms.SecurityPlatformApi#optionsById -> SecurityPlatformRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.asset_group.AssetGroupApi#optionsById -> AssetGroupRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
-io.openaev.rest.attack_pattern.AttackPatternApi#createAttackPattern -> KillChainPhaseRepository | link | 1 | links the kill chain phases named in the request body to the attack pattern it creates
 io.openaev.rest.attack_pattern.AttackPatternApi#optionsById -> AttackPatternRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.attack_pattern.service.AttackPatternService#getAttackPattern -> AttackPatternRepository | other | 1 | loads the attack patterns a payload input names to build a remediation request for the AI service, and writes nothing
-io.openaev.rest.attack_pattern.service.AttackPatternService#getAttackPatternsByInternalIds -> AttackPatternRepository | link | 1 | private lookup behind findAllByInternalIdsThrowIfMissing, whose callers link the attack patterns named in a contract update or creation body
 io.openaev.rest.attack_pattern.service.AttackPatternService#getGlobalCoverage -> AttackPatternRepository | other | 1 | fetches the kill chain phases of attack patterns whose ids come from coverage counts already computed, for a read response
-io.openaev.rest.attack_pattern.service.AttackPatternUpsertService#loadPhases -> KillChainPhaseRepository | link | 1 | loads the kill chain phases named by the attack pattern inputs of an upsert, to link them to the patterns it writes
-io.openaev.rest.challenge.ChallengeApi#createChallenge -> DocumentRepository | link | 1 | links the documents named in the request body to the challenge it creates
-io.openaev.rest.challenge.ChallengeApi#updateChallenge -> DocumentRepository | link | 1 | links the documents named in the request body to the challenge it updates
 io.openaev.rest.challenge.ScenarioChallengeApi#scenarioChallenges -> ChallengeRepository | other | 1 | lists the challenges that the publish injects of the scenario in the path name, for a read response
 io.openaev.rest.challenge.SimulationChallengeApi#exerciseChallenges -> ChallengeRepository | other | 1 | lists the challenges that the publish injects of the simulation in the path name, for a read response
 io.openaev.rest.comcheck.ComcheckApi#communicationCheck -> TeamRepository | link | 1 | loads the teams named in the request body and writes a status row for each of their players into the comcheck it creates
@@ -63,8 +55,6 @@ io.openaev.rest.injector_contract.InjectorContractService#updateInjectorContract
 io.openaev.rest.kill_chain_phase.KillChainPhaseApi#optionsById -> KillChainPhaseRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.lessons.ExerciseLessonsApi#updateExerciseLessonsCategoryTeams -> TeamRepository | link | 1 | links the teams named in the request body to a lessons category of a simulation
 io.openaev.rest.lessons.ScenarioLessonsApi#updateScenarioLessonsCategoryTeams -> TeamRepository | link | 1 | links the teams named in the request body to a lessons category of a scenario
-io.openaev.rest.mitigation.MitigationApi#createMitigation -> AttackPatternRepository | link | 1 | links the attack patterns named in the request body to the mitigation it creates
-io.openaev.rest.mitigation.MitigationApi#upsertMitigations -> AttackPatternRepository | link | 1 | links the attack patterns named in each mitigation input of an upsert to the mitigation it writes
 io.openaev.rest.payload.service.PayloadCreationService#createInternal -> AttackPatternRepository | link | 1 | links the attack patterns named in the request body to the payload it creates
 io.openaev.rest.payload.service.PayloadUpdateService#update -> DomainRepository | link | 1 | links the domains named in the request body to the payload it updates
 io.openaev.rest.payload.service.PayloadUpdateService#updatePayload -> AttackPatternRepository | link | 1 | links the attack patterns named in the request body to the payload it updates
@@ -75,7 +65,6 @@ io.openaev.rest.scenario.ScenarioApi#updateScenarioTags -> TagRepository | link 
 io.openaev.rest.tag.TagService#optionsById -> TagRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.tag.TagService#tagSet -> TagRepository | link | 1 | service wrapper whose callers link the tags named in a request body to an inject, a payload or an organization
 io.openaev.rest.team.TeamApi#optionsById -> TeamRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
-io.openaev.rest.user.PlayerService#upsertPlayer -> TeamRepository | link | 2 | links the teams named in the request body to the player it upserts
 io.openaev.secrets.service.SecretReferenceService#secretReferences -> SecretReferenceRepository | link | 1 | service wrapper whose callers link the secret references named in an inject request body to the inject
 io.openaev.secrets.service.SecretValidationService#persistResults -> SecretReferenceRepository | other | 1 | loads the secret references whose connection check just produced a result, to store the verification date on them
 io.openaev.service.AssetGroupService#assetGroups -> AssetGroupRepository | link | 1 | service wrapper whose callers link the asset groups named in an inject request body to the inject (InjectService buildInject, updateInject and bulk update, InjectAssistantService, and InjectExecutionStep from the stored data of a chained step), and whose two readers are ScopeService and AssetGroupTargetSearchAdaptor

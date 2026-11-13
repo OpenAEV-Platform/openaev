@@ -1,7 +1,6 @@
 package io.openaev.rest.attack_pattern.service;
 
 import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -399,11 +398,11 @@ public class AttackPatternService {
     return this.attackPatternRepository.findAllByExternalIdInIgnoreCase(new ArrayList<>(ids));
   }
 
-  private List<AttackPattern> getAttackPatternsByInternalIds(Set<String> ids) {
+  private List<AttackPattern> getAttackPatternsByInternalIds(Set<String> ids, String tenantId) {
     if (ids.isEmpty()) {
       return Collections.emptyList();
     }
-    return fromIterable(this.attackPatternRepository.findAllById(new ArrayList<>(ids)));
+    return this.attackPatternRepository.findAllByIdInTenant(ids, tenantId);
   }
 
   /**
@@ -440,8 +439,14 @@ public class AttackPatternService {
     return attackPatterns;
   }
 
-  public List<AttackPattern> findAllByInternalIdsThrowIfMissing(Set<String> ids) {
-    List<AttackPattern> attackPatterns = this.getAttackPatternsByInternalIds(ids);
+  /**
+   * The attack patterns of the given tenant among the given ids. An id of another tenant is
+   * reported missing, as an unknown id is.
+   *
+   * @throws ElementNotFoundException when an id names no attack pattern of the tenant
+   */
+  public List<AttackPattern> findAllByInternalIdsThrowIfMissing(Set<String> ids, String tenantId) {
+    List<AttackPattern> attackPatterns = this.getAttackPatternsByInternalIds(ids, tenantId);
     List<String> missingIds =
         ids.stream()
             .filter(id -> !attackPatterns.stream().map(AttackPattern::getId).toList().contains(id))

@@ -119,7 +119,7 @@ public class MitigationApi extends RestBehavior {
     Mitigation mitigation = new Mitigation();
     mitigation.setUpdateAttributes(input);
     mitigation.setAttackPatterns(
-        fromIterable(attackPatternRepository.findAllById(input.getAttackPatternsIds())));
+        attackPatternRepository.findAllByIdInTenant(input.getAttackPatternsIds(), tenantId));
     mitigation.setTenant(new Tenant(tenantId));
     return hydrated(mitigationRepository.save(mitigation));
   }
@@ -173,8 +173,8 @@ public class MitigationApi extends RestBehavior {
               mitigationRepository.findByExternalId(mitigationExternalId);
           List<AttackPattern> attackPatterns =
               !mitigationInput.getAttackPatternsIds().isEmpty()
-                  ? fromIterable(
-                      attackPatternRepository.findAllById(mitigationInput.getAttackPatternsIds()))
+                  ? attackPatternRepository.findAllByIdInTenant(
+                      mitigationInput.getAttackPatternsIds(), tenantId)
                   : List.of();
           if (optionalMitigation.isEmpty()) {
             Mitigation newMitigation = new Mitigation();

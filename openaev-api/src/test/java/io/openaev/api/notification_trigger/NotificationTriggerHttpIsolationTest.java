@@ -144,7 +144,7 @@ class NotificationTriggerHttpIsolationTest extends IntegrationTest {
                 post("/api/notification-triggers")
                     .header("X-Tenant-Ids", tenantA)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(asJsonString(liveTrigger("created-via-header", notifierDefault)))
+                    .content(asJsonString(liveTrigger("created-via-header", notifierA)))
                     .with(csrf()))
             .andExpect(status().isOk())
             .andReturn()
@@ -190,7 +190,7 @@ class NotificationTriggerHttpIsolationTest extends IntegrationTest {
             post("/api/notification-triggers")
                 .header("X-Tenant-Ids", tenantA)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(digestWith(childDefault, notifierDefault)))
+                .content(asJsonString(digestWith(childDefault, notifierA)))
                 .with(csrf()))
         .andExpect(status().is4xxClientError());
 
