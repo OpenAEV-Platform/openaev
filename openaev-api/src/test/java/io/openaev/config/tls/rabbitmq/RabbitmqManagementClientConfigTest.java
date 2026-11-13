@@ -7,11 +7,13 @@ import io.openaev.authorisation.TlsConfig;
 import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.config.RabbitmqManagementClientConfig;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.KeyStore;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.X509TrustManager;
 import org.junit.jupiter.api.AfterAll;
@@ -22,6 +24,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.mockserver.configuration.Configuration;
 import org.mockserver.integration.ClientAndServer;
 import org.mockserver.socket.PortFactory;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -98,6 +101,24 @@ class RabbitmqManagementClientConfigTest {
         managementHttpClient(sslRabbitmqConfig(), sslConfiguration(UNRELATED_CA_DIR));
 
     assertThatThrownBy(() -> callManagementApi(httpClient)).isInstanceOf(IOException.class);
+  }
+
+  @Test
+  @DisplayName("With a RabbitMQ trust store, the platform trust store still applies")
+  void keepsPlatformTrustWithDedicatedTrustStore() throws Exception {
+    KeyStore emptyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+    emptyStore.load(null, null);
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    emptyStore.store(bytes, "changeit".toCharArray());
+    RabbitmqConfig rabbitmqConfig = sslRabbitmqConfig();
+    rabbitmqConfig.setTrustStore(new ByteArrayResource(bytes.toByteArray()));
+    rabbitmqConfig.setTrustStorePassword("changeit");
+    HttpClient httpClient =
+        managementHttpClient(rabbitmqConfig, sslConfiguration(LOCALHOST_CA_DIR));
+
+    HttpResponse<String> response = callManagementApi(httpClient);
+
+    assertThat(response.statusCode()).isPositive();
   }
 
   @Test
