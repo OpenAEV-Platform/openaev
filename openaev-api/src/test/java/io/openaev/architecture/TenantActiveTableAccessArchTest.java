@@ -2621,11 +2621,13 @@ class TenantActiveTableAccessArchTest {
           io.openaev.importer.V1_DataImporter.class,
           "buildStepTtpFromInjectorContract",
           "evaluateChainingStepResolvability",
-          "findContractByPayloadExternalId",
           "handleInjectContent",
           "importInjectorContractFromStarterPack",
           "importInjects",
+          "importVersionOrCopy",
           "readableContractForPayload",
+          "resolveInjectorContract",
+          "resolveInjectorContractReadOnly",
           "resolveStepData",
           "rewriteInjectInjector",
           "shouldResolveContractFromStepData");
@@ -3234,9 +3236,19 @@ class TenantActiveTableAccessArchTest {
         "keyed by a Payload entity, whose primary key is the single column payload_id"),
     allow(
         io.openaev.importer.V1_DataImporter.class,
-        "findContractByPayloadExternalId",
+        "importVersionOrCopy",
         "findInjectorContractByPayload",
-        "keyed by a payload found in the write tenant by findByExternalIdAndTenantId"),
+        "keyed by a payload found in the write tenant by findAllByTenantIdAndIdentityExternalId"),
+    allow(
+        io.openaev.importer.V1_DataImporter.class,
+        "resolveInjectorContract",
+        "findInjectorContractByPayload",
+        "keyed by a payload found in the write tenant by findAllByTenantIdAndIdentityExternalId"),
+    allow(
+        io.openaev.importer.V1_DataImporter.class,
+        "resolveInjectorContractReadOnly",
+        "findInjectorContractByPayload",
+        "keyed by a payload found in the write tenant by findAllByTenantIdAndIdentityExternalId"),
     allow(
         io.openaev.importer.V1_DataImporter.class,
         "readableContractForPayload",
@@ -4295,6 +4307,8 @@ class TenantActiveTableAccessArchTest {
     }
     return false;
   }
+
+  @ArchTest
   static final ArchRule catalog_history_repository_access_is_reviewed =
       noClasses()
           .that()

@@ -41,17 +41,6 @@ public interface PayloadRepository
   List<String> findUsageNamesByPayloadId(@Param("payloadId") String payloadId, Limit limit);
 
   /**
-   * Tenant-scoped counterpart of {@link #findByIdentityExternalId}: an external id repeats across
-   * the tenants that hold a copy of the same payload, so a caller whose scope spans several tenants
-   * resolves the one of the tenant it writes in.
-   */
-  @Query(
-      "SELECT p FROM Payload p WHERE p.identity.externalId = :externalId AND p.tenant.id ="
-          + " :tenantId")
-  Optional<Payload> findByExternalIdAndTenantId(
-      @Param("externalId") @NotNull String externalId, @Param("tenantId") @NotNull String tenantId);
-
-  /**
    * Icon metadata for a batch of payloads in one read: {@code [id, payloadType,
    * collectorTypeName]}, the collector type name being null for a hand-authored payload with no
    * backing collector. Lets the attack-path graph resolve each agent-executed action's real catalog
