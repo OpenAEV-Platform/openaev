@@ -588,7 +588,7 @@ class FindingRecordingServiceTest extends IntegrationTest {
       record(
           tuesdayInject,
           detection(
-              ContractOutputType.Text, "warm-up", "text", null, new AssetLocation(assetA), tagX));
+              ContractOutputType.Text, "warm-up", "text", null, UnknownLocation.INSTANCE, tagX));
 
       // -- ACT --
       long oneDetection = statementsToRecord(1);
@@ -607,7 +607,7 @@ class FindingRecordingServiceTest extends IntegrationTest {
                 "value-" + UUID.randomUUID(),
                 "text",
                 null,
-                new AssetLocation(assetA),
+                UnknownLocation.INSTANCE,
                 tagX));
       }
       Statistics stats =
