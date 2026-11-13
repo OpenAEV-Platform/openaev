@@ -243,35 +243,6 @@ Without the `keycloak` profile, the backend starts as usual and Keycloak is not 
 
 The Elasticsearch and OpenSearch configurations include `-XX:UseSVE=0` JVM option for compatibility with Apple Silicon architecture (M1/M2/M3/M4).
 
-### Testing the phishing bot detection locally (Optional)
-
-Replays a bot, a human and an "unknown" visitor against real lure emails, with no real SMTP server
-and no Defender involved.
-
-1. Start the mandatory containers plus the mail catcher: `podman compose up -d openaev-dev-pgsql
-   openaev-dev-minio openaev-dev-elasticsearch openaev-dev-rabbitmq openaev-dev-mailpit`
-2. Start the backend with its SMTP pointed at Mailpit (the placeholders of `application-dev.properties`
-   stay untouched):
-   `SPRING_MAIL_HOST=localhost SPRING_MAIL_PORT=1025 SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE=false
-   SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=false SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=false`
-3. Run `python3 openaev-dev/phishing-bot-test.py`. It creates the campaign through the API (3
-   recipients), reads the lure emails from Mailpit (http://localhost:8025), replays the scenarios and
-   prints what was recorded on each tracking row (takes about 30 seconds).
-
-Expected output:
-
-```
-  bot      user opened=no   user clicked=no   OK
-  human    user opened=yes  user clicked=yes  OK
-  unknown  user opened=no   user clicked=no   OK
-```
-
-The bot hits are not stored: the backend logs them (`Phishing automated open|click ignored for
-scoring`), so the bot and unknown rows look the same in the database.
-
-The script exits non-zero when a row differs. Hits landing within 10 seconds of delivery count as
-automated, which is why it waits before replaying the human scenarios.
-
 ### Telemetry (Optional)
 
 To enable OpenTelemetry, uncomment the `openaev-telemetry-otlp` service in `docker-compose.yml`.
