@@ -14,9 +14,11 @@ import com.tngtech.archunit.lang.SimpleConditionEvent;
 import io.openaev.aop.PlatformWrite;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Role;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Theme;
+import io.openaev.database.repository.RoleRepository;
 import io.openaev.database.repository.SettingRepository;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
@@ -29,10 +31,14 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 /**
- * What the guards on {@code parameters} check, and how. A platform row ({@code tenant_id IS NULL})
+ * What the guards on a dual-scope table check, and how. A platform row ({@code tenant_id IS NULL})
  * is readable under any scope but written only inside a platform-write transaction; a tenant row
- * read with no scope comes back empty. So the guards follow the WRITES of a {@code Setting} and the
- * READS of one: every path that reaches one must cross a marker.
+ * read with no scope comes back empty. So the guards follow the WRITES of a row of the table and
+ * the READS of one: every path that reaches one must cross a marker. Each guarded table is a {@link
+ * DualScopeTable}: {@link #PARAMETERS} (entity {@code Setting}) and {@link #ROLES} (entity {@code
+ * Role}). The list below is written for {@code parameters}; for another table read its entity,
+ * repository and table names in place of {@code Setting}, {@code SettingRepository} and {@code
+ * parameters}.
  *
  * <p>A writer is a method that makes one of these calls or refers to one as a method reference
  * ({@code .ifPresent(settingRepository::delete)}, {@code forEach(settingRepository::save)}), and a
@@ -100,8 +106,8 @@ import org.springframework.data.jpa.repository.Query;
 final class PlatformRowWriters {
 
   /**
-   * A method that writes a tenant row of {@code parameters} only, with the reason. The method is
-   * named with its parameter types: an overload of the same name is not exempted by it.
+   * A method that writes a tenant row of the table only, with the reason. The method is named with
+   * its parameter types: an overload of the same name is not exempted by it.
    */
   record TenantRowWriter(
       Class<?> owner, String method, List<Class<?>> parameterTypes, String reason) {}
@@ -112,7 +118,7 @@ final class PlatformRowWriters {
    * does not need the marker. Each entry must stay a live writer that touches tenant rows only
    * ({@link #tenantRowOnlyViolations}, checked by {@code TenantActiveTableAccessArchTest}).
    */
-  static final List<TenantRowWriter> TENANT_ROW_WRITERS =
+  private static final List<TenantRowWriter> PARAMETERS_TENANT_ROW_WRITERS =
       List.of(
           new TenantRowWriter(
               io.openaev.service.settings.TenantSettingsService.class,
@@ -158,7 +164,7 @@ final class PlatformRowWriters {
    */
   record ReviewedRoot(Class<?> owner, String method, String reason) {}
 
-  static final List<ReviewedRoot> REVIEWED_UNSCOPED_ROOTS =
+  private static final List<ReviewedRoot> PARAMETERS_REVIEWED_UNSCOPED_ROOTS =
       List.of(
           new ReviewedRoot(
               io.openaev.processor.datapack.V20260101_Starter_pack.class,
@@ -166,6 +172,85 @@ final class PlatformRowWriters {
               "called through DataPack#process by MigrationProcessor#init, which joins the"
                   + " onboarding transaction with setScopeOnCurrentTransaction or runs each pack in"
                   + " tenantTx.execute of the tenant's own scope"));
+
+  /** The writers of {@code roles} that never touch a platform role, each with its reason. */
+  private static final List<TenantRowWriter> ROLES_TENANT_ROW_WRITERS =
+      List.of(
+          new TenantRowWriter(
+              io.openaev.service.TenantRoleService.class,
+              "createRoleInternal",
+              List.of(String.class, String.class, String.class, Set.class, String.class),
+              "builds the role in the tenant it names (setTenant), a tenant row"),
+          new TenantRowWriter(
+              io.openaev.service.TenantRoleService.class,
+              "updateRoleInternal",
+              List.of(String.class, String.class, String.class, Set.class, String.class),
+              "updates the role looked up by (id, tenantId) through findByIdAndTenant: a tenant row"),
+          new TenantRowWriter(
+              io.openaev.service.TenantRoleService.class,
+              "delete",
+              List.of(String.class, String.class),
+              "deletes the role looked up by id among the tenant it names: a tenant row"),
+          new TenantRowWriter(
+              io.openaev.processor.core
+                  .V20260811_Add_phishing_reporting_capabilities_to_default_roles.class,
+              "doMigrate",
+              List.of(Tenant.class),
+              "rewrites the capabilities of the roles of the tenant it migrates (findAllByTenantId)"),
+          new TenantRowWriter(
+              io.openaev.processor.datapack.V20261001_Default_tenant_roles_and_groups.class,
+              "alignCapabilitiesWithPreset",
+              List.of(Role.class, String.class),
+              "rewrites a role that doProcess read with findAllByTenantId: a tenant row"));
+
+  /**
+   * A dual-scope table under guard: its entity, its repository, the names a write statement uses
+   * for it, the repository calls a writer of tenant rows may make (each keyed by a tenant, or a
+   * save or delete of a row it holds), the writers exempted as tenant-row-only, and the roots of
+   * reads of tenant rows whose scope is set by a caller ArchUnit cannot follow.
+   */
+  record DualScopeTable(
+      String name,
+      Class<?> entity,
+      Class<?> repository,
+      java.util.regex.Pattern writeStatement,
+      Set<String> tenantRowRepositoryCalls,
+      List<TenantRowWriter> tenantRowWriters,
+      List<ReviewedRoot> reviewedUnscopedRoots) {}
+
+  static final DualScopeTable PARAMETERS =
+      new DualScopeTable(
+          "parameters",
+          Setting.class,
+          SettingRepository.class,
+          writeStatementOn("parameters", "Setting"),
+          Set.of("save", "delete", "findByKeyAndTenantId", "findAllByTenantId"),
+          PARAMETERS_TENANT_ROW_WRITERS,
+          PARAMETERS_REVIEWED_UNSCOPED_ROOTS);
+
+  /**
+   * {@code roles} and its capabilities: a platform role's {@code roles_capabilities} rows are
+   * written only under the platform-write marker too (a row trigger refuses them otherwise), so a
+   * statement naming that table is a write of a role. {@code groups_roles} is not: its rule is that
+   * a role and a group share a tenant, not the marker.
+   */
+  static final DualScopeTable ROLES =
+      new DualScopeTable(
+          "roles",
+          Role.class,
+          RoleRepository.class,
+          writeStatementOn("roles", "roles_capabilities", "Role"),
+          Set.of(
+              "save",
+              "delete",
+              "findByIdAndTenantId",
+              "findAllByTenantId",
+              "findByIdAndTenantIdIn",
+              "findAllByIdInAndTenantId",
+              "findAllByTenantIdIn",
+              "findByTenantIdAndName"),
+          ROLES_TENANT_ROW_WRITERS,
+          List.of());
 
   /**
    * What marks a transaction: a method the aspect honours, a call on the current transaction, and
@@ -228,9 +313,13 @@ final class PlatformRowWriters {
           "executeBatch",
           "executeLargeUpdate");
 
-  private static final java.util.regex.Pattern WRITE_STATEMENT_ON_TABLE =
-      java.util.regex.Pattern.compile(
-          "(?is)\\b(update|delete\\s+from|insert\\s+into|merge\\s+into)\\s+(only\\s+)?\"?(parameters|Setting)\"?\\b");
+  /** A write statement ({@code update}, {@code delete from}, ...) on one of {@code names}. */
+  private static java.util.regex.Pattern writeStatementOn(String... names) {
+    return java.util.regex.Pattern.compile(
+        "(?is)\\b(update|delete\\s+from|insert\\s+into|merge\\s+into)\\s+(only\\s+)?\"?("
+            + String.join("|", names)
+            + ")\"?\\b");
+  }
 
   private static final Set<String> CALLBACK_TYPES =
       Set.of(
@@ -247,32 +336,33 @@ final class PlatformRowWriters {
 
   private PlatformRowWriters() {}
 
-  /** Methods that modify a {@code Setting}, outside {@code tenantRowWriters}. */
-  static DescribedPredicate<JavaMethod> writeASetting(List<TenantRowWriter> tenantRowWriters) {
-    return new DescribedPredicate<>("write a Setting") {
+  /** Methods that modify a row of {@code table}, outside {@code tenantRowWriters}. */
+  static DescribedPredicate<JavaMethod> writeARow(
+      DualScopeTable table, List<TenantRowWriter> tenantRowWriters) {
+    return new DescribedPredicate<>("write a row of " + table.name()) {
       @Override
       public boolean test(JavaMethod method) {
         return !isBridge(method)
             && !isMigration(method)
             && !isTenantRowWriter(method, tenantRowWriters)
-            && !writesOf(method).isEmpty();
+            && !writesOf(table, method).isEmpty();
       }
     };
   }
 
-  /** Methods that read a tenant row of {@code parameters}. */
-  static DescribedPredicate<JavaMethod> readATenantRowOfSettings() {
-    return new DescribedPredicate<>("read a tenant row of parameters") {
+  /** Methods that read a tenant row of {@code table}. */
+  static DescribedPredicate<JavaMethod> readATenantRow(DualScopeTable table) {
+    return new DescribedPredicate<>("read a tenant row of " + table.name()) {
       @Override
       public boolean test(JavaMethod method) {
-        return !isBridge(method) && !readsOf(method).isEmpty();
+        return !isBridge(method) && !readsOf(table, method).isEmpty();
       }
     };
   }
 
   /**
    * A Flyway migration runs once at boot on the migration connection, before any request, and
-   * writes {@code parameters} by raw SQL: it is reviewed as its own class, not by this guard.
+   * writes the table by raw SQL: it is reviewed as its own class, not by this guard.
    */
   private static boolean isMigration(JavaMethod method) {
     return method.getOwner().getPackageName().startsWith("io.openaev.migration");
@@ -294,56 +384,56 @@ final class PlatformRowWriters {
                     && e.parameterTypes().stream().map(Class::getName).toList().equals(parameters));
   }
 
-  /** The repository calls a writer of tenant rows may make: each one is keyed by a tenant. */
-  private static final Set<String> TENANT_ROW_REPOSITORY_CALLS =
-      Set.of("save", "delete", "findByKeyAndTenantId", "findAllByTenantId");
-
   /**
-   * What takes an exempted writer out of the tenant rows. It may call the settings repository only
-   * through {@link #TENANT_ROW_REPOSITORY_CALLS}, which never reach the platform row (a lookup by
-   * tenant, a save or delete of the row it holds), and every {@code Setting} it builds must be
-   * given a tenant. Empty when the method stays a tenant-row writer. A {@code Setting} handed in as
-   * an argument is not checked here; the caller is, and the database refuses a platform row written
-   * outside a platform-write transaction.
+   * What takes an exempted writer out of the tenant rows. It may call the table's repository only
+   * through {@link DualScopeTable#tenantRowRepositoryCalls}, which never reach a platform row (a
+   * lookup by tenant, a save or delete of the row it holds), and every row it builds must be given
+   * a tenant. Empty when the method stays a tenant-row writer. A row handed in as an argument is
+   * not checked here; the caller is, and the database refuses a platform row written outside a
+   * platform-write transaction.
    */
-  static List<String> tenantRowOnlyViolations(JavaCodeUnit unit) {
+  static List<String> tenantRowOnlyViolations(DualScopeTable table, JavaCodeUnit unit) {
     List<String> violations = new ArrayList<>();
     for (JavaCodeUnitAccess<?> call : callsAndReferences(unit)) {
-      if (onSettingRepository(unit, call)
-          && !TENANT_ROW_REPOSITORY_CALLS.contains(call.getName())) {
+      if (onTheRepository(table, unit, call)
+          && !table.tenantRowRepositoryCalls().contains(call.getName())) {
         violations.add(
             unit.getFullName()
-                + " calls SettingRepository."
+                + " calls "
+                + table.repository().getSimpleName()
+                + "."
                 + call.getName()
                 + ", which is not keyed by a tenant");
       }
     }
-    boolean buildsASetting =
+    boolean buildsARow =
         unit.getConstructorCallsFromSelf().stream()
-            .anyMatch(c -> c.getTargetOwner().isAssignableTo(Setting.class));
+            .anyMatch(c -> c.getTargetOwner().isAssignableTo(table.entity()));
     boolean givesItATenant =
         unit.getMethodCallsFromSelf().stream()
             .anyMatch(
                 c ->
-                    c.getTargetOwner().isAssignableTo(Setting.class)
+                    c.getTargetOwner().isAssignableTo(table.entity())
                         && c.getName().equals("setTenant"));
-    if (buildsASetting && !givesItATenant) {
+    if (buildsARow && !givesItATenant) {
       violations.add(
           unit.getFullName()
-              + " builds a Setting and never calls setTenant: that is a platform row");
+              + " builds a "
+              + table.entity().getSimpleName()
+              + " and never calls setTenant: that is a platform row");
     }
     return violations;
   }
 
-  private static boolean isReviewedRoot(JavaCodeUnit unit) {
-    return REVIEWED_UNSCOPED_ROOTS.stream()
+  private static boolean isReviewedRoot(DualScopeTable table, JavaCodeUnit unit) {
+    return table.reviewedUnscopedRoots().stream()
         .anyMatch(
             r -> unit.getOwner().isAssignableTo(r.owner()) && r.method().equals(unit.getName()));
   }
 
-  /** True when the method modifies a Setting, ignoring any exemption. */
-  static boolean writesASetting(JavaMethod method) {
-    return !writesOf(method).isEmpty();
+  /** True when the method modifies a row of {@code table}, ignoring any exemption. */
+  static boolean writesARow(DualScopeTable table, JavaMethod method) {
+    return !writesOf(table, method).isEmpty();
   }
 
   /**
@@ -359,33 +449,34 @@ final class PlatformRowWriters {
     return accesses;
   }
 
-  private static List<JavaCodeUnitAccess<?>> writesOf(JavaCodeUnit unit) {
-    boolean mentionsSetting = mentionsSetting(unit);
-    boolean namesTheTable = namesTheTableInAWriteStatement(unit);
+  private static List<JavaCodeUnitAccess<?>> writesOf(DualScopeTable table, JavaCodeUnit unit) {
+    boolean mentionsTheEntity = mentionsTheEntity(table, unit);
+    boolean namesTheTable = namesTheTableInAWriteStatement(table, unit);
     return callsAndReferences(unit).stream()
-        .filter(call -> writes(unit, call, mentionsSetting, namesTheTable))
+        .filter(call -> writes(table, unit, call, mentionsTheEntity, namesTheTable))
         .toList();
   }
 
   private static boolean writes(
+      DualScopeTable table,
       JavaCodeUnit unit,
       JavaCodeUnitAccess<?> call,
-      boolean mentionsSetting,
+      boolean mentionsTheEntity,
       boolean namesTheTable) {
     var target = call.getTargetOwner();
-    if (onSettingRepository(unit, call) && modifies(call)) {
+    if (onTheRepository(table, unit, call) && modifies(call)) {
       return true;
     }
-    if (modifiesTheTableByQuery(call)) {
+    if (modifiesTheTableByQuery(table, call)) {
       return true;
     }
-    // Dirty checking: a managed Setting changed by a setter is flushed with no save call.
-    if (target.isAssignableTo(Setting.class)
+    // Dirty checking: a managed row changed by a setter is flushed with no save call.
+    if (target.isAssignableTo(table.entity())
         && call.getName().startsWith("set")
-        && !unit.getOwner().isAssignableTo(Setting.class)) {
+        && !unit.getOwner().isAssignableTo(table.entity())) {
       return true;
     }
-    if (mentionsSetting
+    if (mentionsTheEntity
         && ((target.isAssignableTo(EntityManager.class)
                 && ENTITY_MANAGER_WRITES.contains(call.getName()))
             || (target.isAssignableTo("org.hibernate.Session")
@@ -396,7 +487,7 @@ final class PlatformRowWriters {
         target.isAssignableTo("jakarta.persistence.Query")
             || target.isAssignableTo("org.hibernate.query.MutationQuery");
     if (executesAQuery && call.getName().equals("executeUpdate")) {
-      return mentionsSetting || namesTheTable;
+      return mentionsTheEntity || namesTheTable;
     }
     boolean executesSql =
         target.isAssignableTo("org.springframework.jdbc.core.JdbcOperations")
@@ -409,13 +500,14 @@ final class PlatformRowWriters {
   }
 
   /**
-   * Whether the call, or the method reference, is on a {@link SettingRepository}. A reference
-   * carries the type that declares the method ({@code CrudRepository} for {@code
+   * Whether the call, or the method reference, is on the table's repository. A reference carries
+   * the type that declares the method ({@code CrudRepository} for {@code
    * settingRepository::delete}), which is no more a {@code SettingRepository} than any other
    * repository, so the type it is taken on is read from the class file.
    */
-  private static boolean onSettingRepository(JavaCodeUnit unit, JavaCodeUnitAccess<?> access) {
-    if (access.getTargetOwner().isAssignableTo(SettingRepository.class)) {
+  private static boolean onTheRepository(
+      DualScopeTable table, JavaCodeUnit unit, JavaCodeUnitAccess<?> access) {
+    if (access.getTargetOwner().isAssignableTo(table.repository())) {
       return true;
     }
     return access instanceof JavaMethodReference
@@ -423,30 +515,30 @@ final class PlatformRowWriters {
                 unit.getOwner(),
                 unit.getName(),
                 new CallSites.Target(access.getTargetOwner().getName(), access.getName()))
-            .contains(SettingRepository.class.getName());
+            .contains(table.repository().getName());
   }
 
   /** A {@code @Modifying} method of another repository whose query writes the table. */
-  private static boolean modifiesTheTableByQuery(JavaCodeUnitAccess<?> call) {
+  private static boolean modifiesTheTableByQuery(DualScopeTable table, JavaCodeUnitAccess<?> call) {
     return call.getTarget().resolveMember().stream()
         .filter(member -> member.isAnnotatedWith(Modifying.class))
         .flatMap(member -> member.tryGetAnnotationOfType(Query.class).stream())
-        .anyMatch(query -> isWriteOnTheTable(query.value()));
+        .anyMatch(query -> isWriteOnTheTable(table, query.value()));
   }
 
-  /** Whether {@code text} is a statement that writes {@code parameters} / {@code Setting}. */
-  static boolean isWriteOnTheTable(String text) {
-    return WRITE_STATEMENT_ON_TABLE.matcher(text).find();
+  /** Whether {@code text} is a statement that writes the table or its entity. */
+  static boolean isWriteOnTheTable(DualScopeTable table, String text) {
+    return table.writeStatement().matcher(text).find();
   }
 
-  private static boolean namesTheTableInAWriteStatement(JavaCodeUnit unit) {
+  private static boolean namesTheTableInAWriteStatement(DualScopeTable table, JavaCodeUnit unit) {
     return CallSites.stringConstants(unit.getOwner(), unit.getName()).stream()
-        .anyMatch(PlatformRowWriters::isWriteOnTheTable);
+        .anyMatch(text -> isWriteOnTheTable(table, text));
   }
 
-  private static List<JavaCodeUnitAccess<?>> readsOf(JavaCodeUnit unit) {
+  private static List<JavaCodeUnitAccess<?>> readsOf(DualScopeTable table, JavaCodeUnit unit) {
     return callsAndReferences(unit).stream()
-        .filter(call -> onSettingRepository(unit, call) && isTenantRowRead(call.getName()))
+        .filter(call -> onTheRepository(table, unit, call) && isTenantRowRead(call.getName()))
         .toList();
   }
 
@@ -462,26 +554,32 @@ final class PlatformRowWriters {
             .anyMatch(member -> member.isAnnotatedWith(Modifying.class));
   }
 
-  private static boolean mentionsSetting(JavaCodeUnit unit) {
-    return unit.getRawParameterTypes().stream().anyMatch(t -> t.isAssignableTo(Setting.class))
+  private static boolean mentionsTheEntity(DualScopeTable table, JavaCodeUnit unit) {
+    return unit.getRawParameterTypes().stream().anyMatch(t -> t.isAssignableTo(table.entity()))
         || unit.getAccessesFromSelf().stream()
-            .anyMatch(a -> a.getTargetOwner().isAssignableTo(Setting.class));
+            .anyMatch(a -> a.getTargetOwner().isAssignableTo(table.entity()));
   }
 
   /** Every path that reaches a platform-row write crosses a platform-write marker. */
-  static ArchCondition<JavaMethod> beReachedOnlyUnderPlatformWrite() {
+  static ArchCondition<JavaMethod> beReachedOnlyUnderPlatformWrite(DualScopeTable table) {
     return beReachedOnlyUnder(
-        PLATFORM_WRITE, PlatformRowWriters::writesOf, "writes a platform row of parameters");
+        table,
+        PLATFORM_WRITE,
+        unit -> writesOf(table, unit),
+        "writes a platform row of " + table.name());
   }
 
   /** Every path to a reader crosses a tenant scope: an unscoped tenant row comes back empty. */
-  static ArchCondition<JavaMethod> beReachedOnlyUnderATenantScope() {
+  static ArchCondition<JavaMethod> beReachedOnlyUnderATenantScope(DualScopeTable table) {
     return beReachedOnlyUnder(
-        TENANT_SCOPE, PlatformRowWriters::readsOf, "reads a tenant row of parameters");
+        table, TENANT_SCOPE, unit -> readsOf(table, unit), "reads a tenant row of " + table.name());
   }
 
   private static ArchCondition<JavaMethod> beReachedOnlyUnder(
-      Marker marker, Function<JavaCodeUnit, List<JavaCodeUnitAccess<?>>> calls, String what) {
+      DualScopeTable table,
+      Marker marker,
+      Function<JavaCodeUnit, List<JavaCodeUnitAccess<?>>> calls,
+      String what) {
     return new ArchCondition<>("be reached only under the " + marker.description()) {
       @Override
       public void check(JavaMethod method, ConditionEvents events) {
@@ -495,7 +593,7 @@ final class PlatformRowWriters {
           collectUnmarkedRoots(method, edge, marker, visited, unmarkedRoots);
         }
         for (JavaCodeUnit root : unmarkedRoots) {
-          if (marker == TENANT_SCOPE && isReviewedRoot(root)) {
+          if (marker == TENANT_SCOPE && isReviewedRoot(table, root)) {
             continue;
           }
           events.add(

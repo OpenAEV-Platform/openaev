@@ -368,6 +368,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @AnalyzeClasses(packages = "io.openaev", importOptions = ImportOption.DoNotIncludeTests.class)
 class TenantActiveTableAccessArchTest {
 
+  /** The accessors of {@code RoleRepository}, each with the scope it runs under. */
+  private static final Class<?>[] ROLES_REPOSITORY_ACCESSORS = {
+    // Tenant roles, by the tenant each method names; every caller passes a TxCtx holding it:
+    io.openaev.service.TenantRoleService.class,
+    // Platform roles, readable under any scope, written under @PlatformWrite:
+    io.openaev.service.platform.roles.PlatformRoleService.class,
+    // Datapacks, run by MigrationProcessor in the scope of the tenant they process:
+    io.openaev.processor.core.V20260811_Add_phishing_reporting_capabilities_to_default_roles.class,
+    io.openaev.processor.datapack.V20261001_Default_tenant_roles_and_groups.class
+  };
+
   /** Tables guarded by this test. Must cover every entry of the production allowlist. */
   private static final Set<String> GUARDED_TABLES =
       Set.of(
@@ -2543,9 +2554,10 @@ class TenantActiveTableAccessArchTest {
    * executeNewAsPlatformWrite}) may, and a refused write raises. So the guard follows the writers:
    * every method that modifies a {@code Setting} (see {@link PlatformRowWriters}), directly or
    * through {@code SettingService} and {@code PlatformSettingsService}, is reached only through
-   * such a marker. The methods of {@link PlatformRowWriters#TENANT_ROW_WRITERS} write tenant rows
-   * only, each with its reason. A tenant row read with no scope still comes back empty; the readers
-   * of tenant rows are covered by {@link #parameters_tenant_row_readers_off_the_request_thread}.
+   * such a marker. The methods of {@link PlatformRowWriters#PARAMETERS} tenant-row writers write
+   * tenant rows only, each with its reason. A tenant row read with no scope still comes back empty;
+   * the readers of tenant rows are covered by {@link
+   * #parameters_tenant_row_readers_off_the_request_thread}.
    *
    * <p>Covered, as a call or as a method reference: the settings repository writes (saveAll
    * included), a setter of a {@code Setting} (dirty checking), an {@code EntityManager} / {@code
@@ -2562,8 +2574,10 @@ class TenantActiveTableAccessArchTest {
   @ArchTest
   static final ArchRule parameters_platform_row_writers_run_under_platform_write =
       methods()
-          .that(PlatformRowWriters.writeASetting(PlatformRowWriters.TENANT_ROW_WRITERS))
-          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite())
+          .that(
+              PlatformRowWriters.writeARow(
+                  PlatformRowWriters.PARAMETERS, PlatformRowWriters.PARAMETERS.tenantRowWriters()))
+          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite(PlatformRowWriters.PARAMETERS))
           .because(
               "parameters is dual-scope: a write of a platform row outside a platform-write"
                   + " transaction is refused with an error. Every writer the rule can see (settings"
@@ -2584,7 +2598,12 @@ class TenantActiveTableAccessArchTest {
    */
   @ArchTest
   static void parameters_tenant_row_writer_exemptions_are_live(JavaClasses classes) {
-    for (PlatformRowWriters.TenantRowWriter exemption : PlatformRowWriters.TENANT_ROW_WRITERS) {
+    assertTenantRowWriterExemptionsAreLive(classes, PlatformRowWriters.PARAMETERS);
+  }
+
+  private static void assertTenantRowWriterExemptionsAreLive(
+      JavaClasses classes, PlatformRowWriters.DualScopeTable table) {
+    for (PlatformRowWriters.TenantRowWriter exemption : table.tenantRowWriters()) {
       java.util.List<com.tngtech.archunit.core.domain.JavaMethod> exempted =
           classes.stream()
               .filter(c -> c.isAssignableTo(exemption.owner()))
@@ -2592,16 +2611,18 @@ class TenantActiveTableAccessArchTest {
               .filter(m -> PlatformRowWriters.isTenantRowWriter(m, java.util.List.of(exemption)))
               .toList();
       assertTrue(
-          exempted.stream().anyMatch(PlatformRowWriters::writesASetting),
+          exempted.stream().anyMatch(m -> PlatformRowWriters.writesARow(table, m)),
           () ->
               exemption.owner().getSimpleName()
                   + "#"
                   + exemption.method()
                   + exemption.parameterTypes().stream().map(Class::getSimpleName).toList()
-                  + " is exempted as a tenant-row-only writer but no longer modifies a Setting:"
-                  + " remove the entry");
+                  + " is exempted as a tenant-row-only writer but no longer writes a row of "
+                  + table.name()
+                  + ": remove the entry");
       for (com.tngtech.archunit.core.domain.JavaMethod method : exempted) {
-        java.util.List<String> violations = PlatformRowWriters.tenantRowOnlyViolations(method);
+        java.util.List<String> violations =
+            PlatformRowWriters.tenantRowOnlyViolations(table, method);
         assertTrue(
             violations.isEmpty(),
             () ->
@@ -2611,6 +2632,55 @@ class TenantActiveTableAccessArchTest {
       }
     }
   }
+
+  /**
+   * {@code roles} is dual-scope like {@code parameters}: a platform role ({@code tenant_id IS
+   * NULL}) and its capabilities are readable under any scope and written only inside a
+   * platform-write transaction, the database refusing the write otherwise ({@code
+   * require_tenant_write} for Hibernate, a row trigger on {@code roles} and {@code
+   * roles_capabilities} for JDBC). Every method that writes a role (see {@link PlatformRowWriters},
+   * table {@link PlatformRowWriters#ROLES}), directly or through {@code PlatformRoleService}, is
+   * reached only through such a marker; the writers of {@link PlatformRowWriters#ROLES} that touch
+   * tenant roles only are exempted, each with its reason. A write of {@code groups_roles} is not a
+   * write of a role: its rule is that the role and the group share a tenant, checked by the trigger
+   * of that table. Not covered: what the {@code parameters} rule does not cover either.
+   */
+  @ArchTest
+  static final ArchRule roles_platform_row_writers_run_under_platform_write =
+      methods()
+          .that(
+              PlatformRowWriters.writeARow(
+                  PlatformRowWriters.ROLES, PlatformRowWriters.ROLES.tenantRowWriters()))
+          .should(PlatformRowWriters.beReachedOnlyUnderPlatformWrite(PlatformRowWriters.ROLES))
+          .because(
+              "roles is dual-scope: a write of a platform role or of its capabilities outside a"
+                  + " platform-write transaction is refused with an error. Every writer the rule can"
+                  + " see must sit under @PlatformWrite or executeAsPlatformWrite/"
+                  + "executeNewAsPlatformWrite, or be a listed writer of tenant roles only");
+
+  /** Each tenant-row-only exemption of {@code roles} is live and touches tenant roles only. */
+  @ArchTest
+  static void roles_tenant_row_writer_exemptions_are_live(JavaClasses classes) {
+    assertTenantRowWriterExemptionsAreLive(classes, PlatformRowWriters.ROLES);
+  }
+
+  /**
+   * {@code roles} is active: a tenant role read with no scope comes back empty, and a role of
+   * another tenant is not readable. The accessors below each carry a scope; the platform roles are
+   * read by {@code PlatformRoleService} under any scope.
+   */
+  @ArchTest
+  static final ArchRule roles_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(ROLES_REPOSITORY_ACCESSORS)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.RoleRepository.class)
+          .because(
+              "roles is tenant-active: an accessor without a tenant scope silently reads no tenant"
+                  + " role, and a capability check built on it refuses what the role grants. New"
+                  + " accessors must carry a scope and be allowlisted here");
 
   /**
    * A tenant row of {@code parameters} read with no tenant scope comes back empty, silently: the
@@ -2624,8 +2694,8 @@ class TenantActiveTableAccessArchTest {
   @ArchTest
   static final ArchRule parameters_tenant_row_readers_off_the_request_thread =
       methods()
-          .that(PlatformRowWriters.readATenantRowOfSettings())
-          .should(PlatformRowWriters.beReachedOnlyUnderATenantScope())
+          .that(PlatformRowWriters.readATenantRow(PlatformRowWriters.PARAMETERS))
+          .should(PlatformRowWriters.beReachedOnlyUnderATenantScope(PlatformRowWriters.PARAMETERS))
           .because(
               "a tenant row of the dual-scope parameters table read with no scope comes back empty"
                   + " instead of failing");
