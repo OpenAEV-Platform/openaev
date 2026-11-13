@@ -23,6 +23,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.processor.datapack.PresetTenantData;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.group.form.GroupGrantInput;
@@ -76,10 +77,21 @@ public class TenantGroupService {
   }
 
   public Group createGroup(@NotBlank final String name, @NotBlank final String tenantId) {
-    Group group = new Group();
-    group.setName(name);
-    group.setTenant(entityManager.getReference(Tenant.class, tenantId));
-    return groupRepository.save(group);
+    return createGroup(tenantId, null, name, List.of());
+  }
+
+  public Group createGroup(
+      @NotBlank final String tenantId, @NotBlank final String name, @NotNull final Role role) {
+    return createGroup(tenantId, null, name, List.of(role));
+  }
+
+  /** Creates a group bound to the role with this id, used for a well-known group. */
+  public Group createGroup(
+      @NotBlank final String tenantId,
+      @NotBlank final String id,
+      @NotBlank final String name,
+      @NotNull final Role role) {
+    return createGroup(tenantId, id, name, List.of(role));
   }
 
   public Group createInternalGroupWithRole(
@@ -92,7 +104,51 @@ public class TenantGroupService {
     return groupRepository.save(group);
   }
 
+  @Transactional(readOnly = true)
+  public List<Group> findByTenantIdAndName(
+      @NotBlank final String tenantId, @NotBlank final String name) {
+    return groupRepository.findByTenantIdAndName(tenantId, name);
+  }
+
+  /** The group of this name in the tenant, lowest id on a tie, as names are not unique. */
+  @Transactional(readOnly = true)
+  public Optional<Group> findFirstByName(
+      @NotBlank final String tenantId, @NotBlank final String name) {
+    return groupRepository.findByTenantIdAndName(tenantId, name).stream()
+        .min(Comparator.comparing(Group::getId));
+  }
+
+  /**
+   * Finds or creates the Manager and Observer roles, then their groups: Admin is the bootstrap's.
+   */
+  public void findOrCreateDefaultGroups(@NotBlank final String tenantId) {
+    Map<String, Role> roles = new LinkedHashMap<>();
+    PresetTenantData.DEFAULT_ROLES.forEach(
+        (name, capabilities) -> {
+          if (!PresetTenantData.ADMIN.equals(name)) {
+            roles.put(name, tenantRoleService.findOrCreate(tenantId, name, capabilities));
+          }
+        });
+    roles.forEach((name, role) -> findOrCreate(tenantId, name, role));
+  }
+
+  /** The group of this name, left as is when it exists; else created with this role. */
+  public Group findOrCreate(
+      @NotBlank final String tenantId, @NotBlank final String name, @NotNull final Role role) {
+    return findFirstByName(tenantId, name).orElseGet(() -> createGroup(tenantId, name, role));
+  }
+
   // PRIVATE
+
+  /** A null id is generated. */
+  private Group createGroup(String tenantId, String id, String name, List<Role> roles) {
+    Group group = new Group();
+    group.setId(id);
+    group.setName(name);
+    group.setRoles(new ArrayList<>(roles));
+    group.setTenant(entityManager.getReference(Tenant.class, tenantId));
+    return groupRepository.save(group);
+  }
 
   private Group createGroupInner(
       @NotBlank final String tenantId, @NotBlank final String id, TenantGroupCreateInput input) {

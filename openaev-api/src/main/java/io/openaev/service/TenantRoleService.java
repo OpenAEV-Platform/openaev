@@ -106,6 +106,32 @@ public class TenantRoleService {
   }
 
   @Transactional(readOnly = true)
+  public List<Role> findByTenantIdAndName(
+      @NotBlank final String tenantId, @NotBlank final String name) {
+    return roleRepository.findByTenantIdAndName(tenantId, name);
+  }
+
+  /** Role names are not unique: the oldest of this name, lowest id on a tie. */
+  @Transactional(readOnly = true)
+  public Optional<Role> findOldestByName(
+      @NotBlank final String tenantId, @NotBlank final String name) {
+    return roleRepository.findByTenantIdAndName(tenantId, name).stream()
+        .min(Comparator.comparing(Role::getCreatedAt).thenComparing(Role::getId));
+  }
+
+  /** The oldest role of this name, else created with these capabilities. */
+  public Role findOrCreate(
+      @NotBlank final String tenantId,
+      @NotBlank final String name,
+      @NotNull final Set<Capability> capabilities) {
+    return findOldestByName(tenantId, name)
+        .orElseGet(
+            () ->
+                createRoleInternal(
+                    UUID.randomUUID().toString(), name, name, capabilities, tenantId));
+  }
+
+  @Transactional(readOnly = true)
   public Page<Role> search(
       SearchPaginationInput searchPaginationInput, @NotNull final Collection<String> tenantIds) {
     return buildPaginationJPA(
