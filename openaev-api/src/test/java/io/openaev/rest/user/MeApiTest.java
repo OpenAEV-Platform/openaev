@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.*;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -383,6 +384,56 @@ public class MeApiTest extends IntegrationTest {
           .isNotEmpty()
           .get()
           .satisfies(user -> assertThat(user.getEmail()).isEqualTo(newEmail));
+    }
+
+    @Test
+    @DisplayName("Given email change request, then confirmation link is sent to the new address")
+    void given_emailChangeRequest_then_confirmationLinkGoesToNewAddress() throws Exception {
+      String currentPassword = "current_user_password";
+      String newEmail = "new-owner@elsewhere.invalid";
+      User me = testUserHolder.get();
+      String currentEmail = me.getEmail();
+      me.setPassword(userService.encodeUserPassword(currentPassword));
+      userRepository.save(me);
+
+      UpdateMeEmailInput input = new UpdateMeEmailInput();
+      input.setCurrentPassword(currentPassword);
+      input.setEmail(newEmail);
+
+      mvc.perform(
+              put(URI)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .with(csrf())
+                  .content(objectMapper.writeValueAsString(input)))
+          .andExpect(status().isOk());
+
+      ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+      @SuppressWarnings("unchecked")
+      ArgumentCaptor<List<User>> recipientsCaptor = ArgumentCaptor.forClass(List.class);
+      verify(mockMailingService, atLeastOnce())
+          .sendEmail(anyString(), bodyCaptor.capture(), recipientsCaptor.capture());
+
+      // The confirmation link must reach the new address and only the new address: the holder of
+      // the
+      // current address must never receive it, otherwise they could confirm a change to an address
+      // they do not control. Assert exactly one link-bearing mail, to the new address, and no
+      // link-bearing mail addressed to the current address.
+      List<String> bodies = bodyCaptor.getAllValues();
+      List<List<User>> recipients = recipientsCaptor.getAllValues();
+      int linkMails = 0;
+      boolean newAddressGotLink = false;
+      for (int i = 0; i < bodies.size(); i++) {
+        if (bodies.get(i).contains("/api/me/confirm-email-change/")) {
+          linkMails++;
+          List<String> addresses = recipients.get(i).stream().map(User::getEmail).toList();
+          assertThat(addresses).doesNotContain(currentEmail);
+          if (addresses.contains(newEmail)) {
+            newAddressGotLink = true;
+          }
+        }
+      }
+      assertThat(linkMails).isEqualTo(1);
+      assertThat(newAddressGotLink).isTrue();
     }
 
     @Test
