@@ -46,11 +46,12 @@ public class NotificationTriggerMapper {
     trigger.setInstanceId(input.getInstanceId());
     trigger.setPeriod(input.getPeriod());
     trigger.setTriggerTime(input.getTriggerTime());
-    // notifiers is v2-active since #7864, so the inspector scopes this lookup. The endpoint
-    // resolves tenantForWrite first and refuses a multi-tenant scope with a 400, so the scope
-    // reaching here always names exactly the tenant the trigger is written into.
+    // Notifiers resolve in the tenant the trigger is written into, as the child triggers do.
     trigger.setNotifiers(
-        resolveAll(input.getNotifierIds(), notifierRepository::findAllById, "Notifier"));
+        resolveAll(
+            input.getNotifierIds(),
+            ids -> notifierRepository.findAllByIdInTenant(ids, tenantId),
+            "Notifier"));
     trigger.setChildTriggers(
         resolveAll(
             input.getChildTriggerIds(),

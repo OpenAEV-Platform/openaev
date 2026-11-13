@@ -315,6 +315,11 @@ public class InjectorContractService implements DependenciesManager {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setCustom(true);
     injectorContract.setUpdateAttributes(input);
+
+    // Resolve the injector specified in the input: its tenant is the tenant of the contract, in
+    // which the attack patterns named by the input resolve.
+    Injector injector = injectorService.injector(input.getInjectorId());
+
     List<AttackPattern> aps = new ArrayList<>();
     if (!input.getAttackPatternsExternalIds().isEmpty()) {
       aps =
@@ -323,14 +328,11 @@ public class InjectorContractService implements DependenciesManager {
     } else if (!input.getAttackPatternsIds().isEmpty()) {
       aps =
           attackPatternService.findAllByInternalIdsThrowIfMissing(
-              new HashSet<>(input.getAttackPatternsIds()));
+              new HashSet<>(input.getAttackPatternsIds()), injector.getTenantId());
     }
     injectorContract.setAttackPatterns(aps);
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
-
-    // Resolve the injector specified in the input
-    Injector injector = injectorService.injector(input.getInjectorId());
 
     // Link the contract to the specified injector only.
     // Custom contracts are user-defined for a specific instance —
@@ -452,7 +454,7 @@ public class InjectorContractService implements DependenciesManager {
     injectorContract.setUpdateAttributes(input);
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(
-            new HashSet<>(input.getAttackPatternsIds())));
+            new HashSet<>(input.getAttackPatternsIds()), injectorContract.getTenant().getId()));
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
     // The domains live in the contract's tenant: the ambient one is the default tenant on the
@@ -575,7 +577,8 @@ public class InjectorContractService implements DependenciesManager {
     // instead of failing on new HashSet<>(null) / findAllById(null).
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(
-            new HashSet<>(emptyIfNull(input.getAttackPatternsIds()))));
+            new HashSet<>(emptyIfNull(input.getAttackPatternsIds())),
+            injectorContract.getTenant().getId()));
     injectorContract.setTags(
         iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
     injectorContract.setDomains(

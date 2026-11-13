@@ -89,7 +89,9 @@ public class AssetMarkingsService {
 
     Set<String> uniqueMarkingIds = new LinkedHashSet<>(input.markingIds());
     List<MarkingDefinition> markings = new ArrayList<>();
-    markingDefinitionRepository.findAllById(uniqueMarkingIds).forEach(markings::add);
+    markingDefinitionRepository
+        .findAllByIdInTenant(uniqueMarkingIds, tenantId)
+        .forEach(markings::add);
     if (markings.size() != uniqueMarkingIds.size()) {
       throw new ElementNotFoundException(
           "One or more marking definitions not found in the current tenant");
@@ -177,7 +179,9 @@ public class AssetMarkingsService {
             ctx,
             () -> {
               List<MarkingDefinition> found = new ArrayList<>();
-              markingDefinitionRepository.findAllById(uniqueMarkingIds).forEach(found::add);
+              markingDefinitionRepository
+                  .findAllByIdInTenant(uniqueMarkingIds, tenantId)
+                  .forEach(found::add);
               if (found.size() != uniqueMarkingIds.size()) {
                 throw new ElementNotFoundException(
                     "One or more marking definitions not found in the current tenant");
