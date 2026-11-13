@@ -109,9 +109,7 @@ public class TenantRoleService {
   @Transactional(readOnly = true)
   public List<Role> findByNameOldestFirst(
       @NotBlank final String tenantId, @NotBlank final String name) {
-    return roleRepository.findByTenantIdAndName(tenantId, name).stream()
-        .sorted(Comparator.comparing(Role::getCreatedAt).thenComparing(Role::getId))
-        .toList();
+    return oldestFirst(tenantId, name);
   }
 
   /** The oldest role of this name, else created with these capabilities. */
@@ -119,7 +117,7 @@ public class TenantRoleService {
       @NotBlank final String tenantId,
       @NotBlank final String name,
       @NotNull final Set<Capability> capabilities) {
-    return findByNameOldestFirst(tenantId, name).stream()
+    return oldestFirst(tenantId, name).stream()
         .findFirst()
         .orElseGet(
             () ->
@@ -188,5 +186,11 @@ public class TenantRoleService {
     ReservedKeyValidator.validateRoleId(role.getId());
     groupRepository.findAllByRoles(role).forEach(group -> group.getRoles().remove(role));
     roleRepository.delete(role);
+  }
+
+  private List<Role> oldestFirst(String tenantId, String name) {
+    return roleRepository.findByTenantIdAndName(tenantId, name).stream()
+        .sorted(Comparator.comparing(Role::getCreatedAt).thenComparing(Role::getId))
+        .toList();
   }
 }

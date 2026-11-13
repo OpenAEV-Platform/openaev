@@ -105,8 +105,7 @@ public class TenantGroupService {
   @Transactional(readOnly = true)
   public Optional<Group> findFirstByName(
       @NotBlank final String tenantId, @NotBlank final String name) {
-    return groupRepository.findByTenantIdAndName(tenantId, name).stream()
-        .min(Comparator.comparing(Group::getId));
+    return firstByName(tenantId, name);
   }
 
   /**
@@ -126,10 +125,15 @@ public class TenantGroupService {
   /** The group of this name, left as is when it exists; else created with this role. */
   public Group findOrCreate(
       @NotBlank final String tenantId, @NotBlank final String name, @NotNull final Role role) {
-    return findFirstByName(tenantId, name).orElseGet(() -> createGroup(tenantId, name, role));
+    return firstByName(tenantId, name).orElseGet(() -> createGroup(tenantId, name, role));
   }
 
   // PRIVATE
+
+  private Optional<Group> firstByName(String tenantId, String name) {
+    return groupRepository.findByTenantIdAndName(tenantId, name).stream()
+        .min(Comparator.comparing(Group::getId));
+  }
 
   private Group createGroup(String tenantId, String name, String description, List<Role> roles) {
     Group group = new Group();
