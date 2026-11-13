@@ -4,11 +4,12 @@ import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 import static io.openaev.api.catalog.CatalogSettingsApi.CATALOG_SETTINGS_URI;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
-import static io.openaev.service.catalog.scenario.CatalogScenarioOfferService.CHAINED_REFUSED;
 import static io.openaev.service.catalog.scenario.CatalogScenarioService.ALREADY_INSTALLED;
 import static io.openaev.service.catalog.scenario.CatalogScenarioService.OTHER_PAYLOAD_REFUSED;
+import static io.openaev.service.catalog.scenario.CatalogScenarioService.OTHER_TYPE_CHOICE_REFUSED;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.SCENARIO_ID;
+import static io.openaev.utils.fixtures.CatalogReleaseFixture.chainedScenarioPackage;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.manifest;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadFileName;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadVersion;
@@ -32,11 +33,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.api.catalog.dto.CatalogSettingsInput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioInstallInput;
+import io.openaev.api.catalog.dto.scenario.ChainedScenarioInstallInput;
+import io.openaev.api.catalog.dto.scenario.TimeBasedScenarioInstallInput;
+import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
+import io.openaev.database.model.Workflow;
+import io.openaev.database.model.WorkflowStatus;
 import io.openaev.database.model.catalog.CatalogHistory;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.database.repository.CatalogHistoryRepository;
@@ -44,6 +50,8 @@ import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.ScenarioIdentityRepository;
 import io.openaev.database.repository.ScenarioRepository;
+import io.openaev.database.repository.WorkflowRepository;
+import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.catalog.scenario.CatalogScenarioInstaller;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
@@ -66,6 +74,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -90,6 +99,9 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private CatalogHistoryRepository catalogHistoryRepository;
+  @Autowired private WorkflowRepository workflowRepository;
+  // Chained scenarios need the Enterprise Edition: a mock never finds the license inactive.
+  @MockitoBean private EnterpriseEditionService enterpriseEditionService;
   @Autowired private CatalogScenarioInstaller catalogScenarioInstaller;
 
   @BeforeEach
@@ -102,7 +114,10 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
 
   /** Publishes the scenario, running the released payload, with what its manifest adds. */
   private void publish(Map<String, Object> manifestFields) throws Exception {
-    byte[] archive = scenarioPackage(RELEASED.file());
+    publish(manifestFields, scenarioPackage(RELEASED.file()));
+  }
+
+  private void publish(Map<String, Object> manifestFields, byte[] archive) throws Exception {
     Map<String, Object> item = scenarioItem(VERSION, "VERIFIED", archive);
     item.put("payloads", List.of(Map.of("external_id", PAYLOAD_ID, "version", VERSION)));
     item.putAll(manifestFields);
@@ -142,7 +157,7 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   }
 
   private ResultActions install() throws Exception {
-    return install(new CatalogScenarioInstallInput(null, null, null, null));
+    return install(new TimeBasedScenarioInstallInput(null, null, null, null));
   }
 
   private Scenario installedScenario(ResultActions result) throws Exception {
@@ -210,7 +225,9 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
       // Act
       Scenario scenario =
           installedScenario(
-              install(new CatalogScenarioInstallInput(List.of(endpoint.getId()), null, null, null))
+              install(
+                      new TimeBasedScenarioInstallInput(
+                          List.of(endpoint.getId()), null, null, null))
                   .andExpect(status().isCreated()));
 
       // Assert
@@ -221,9 +238,49 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Installing a chained scenario")
+  class InstallingChained {
+
+    @Test
+    @DisplayName(
+        "installs it with the limits the admin chose, its step running the released payload")
+    void given_chainedScenario_should_installItWithTheChosenLimits() throws Exception {
+      // Arrange
+      publish(Map.of("type", "chained"), chainedScenarioPackage(RELEASED.file()));
+      WorkflowConfigurationInput limits =
+          WorkflowConfigurationInput.builder().timeoutEnabled(true).timeoutSeconds(600L).build();
+
+      // Act
+      Scenario scenario =
+          installedScenario(
+              install(new ChainedScenarioInstallInput(limits)).andExpect(status().isCreated()));
+
+      // Assert
+      Workflow workflow =
+          workflowRepository
+              .findByScenario_IdAndStatus(scenario.getId(), WorkflowStatus.TEMPLATE)
+              .getFirst();
+      assertThat(workflow.isTimeoutEnabled()).isTrue();
+      assertThat(workflow.getTimeoutSeconds()).isEqualTo(600L);
+    }
+  }
+
+  @Nested
   @TestInstance(PER_CLASS)
   @DisplayName("Refusing")
   class Refusing {
+
+    @Test
+    @DisplayName("refuses the scope and limits of a chained scenario for a time-based one")
+    void given_choiceOfAnotherType_should_refuseTheInstall() throws Exception {
+      // Arrange
+      publish(Map.of());
+
+      // Act & Assert
+      install(new ChainedScenarioInstallInput(null))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(OTHER_TYPE_CHOICE_REFUSED));
+    }
 
     @Test
     @DisplayName("refuses a scenario already installed")
@@ -243,7 +300,6 @@ class CatalogScenarioInstallApiTest extends IntegrationTest {
           Arguments.of(
               Map.of("requires", Map.of("injectors", List.of("openaev_unknown"))),
               "Missing to install this scenario: Injector openaev_unknown"),
-          Arguments.of(Map.of("type", "chained"), CHAINED_REFUSED),
           Arguments.of(Map.of("payloads", List.of()), OTHER_PAYLOAD_REFUSED));
     }
 

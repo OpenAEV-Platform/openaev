@@ -1,11 +1,13 @@
 package io.openaev.api.catalog.dto.scenario;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-/** Targets added to every inject of the installed scenario that takes their kind. */
-public record CatalogScenarioInstallInput(
-    @JsonProperty("asset_ids") List<String> assetIds,
-    @JsonProperty("asset_group_ids") List<String> assetGroupIds,
-    @JsonProperty("team_ids") List<String> teamIds,
-    @JsonProperty("manual_targets") List<String> manualTargets) {}
+/** What an admin chooses to install a scenario, by the type of the scenario. */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "scenario_type")
+@JsonSubTypes({
+  @JsonSubTypes.Type(value = TimeBasedScenarioInstallInput.class, name = "time-based"),
+  @JsonSubTypes.Type(value = ChainedScenarioInstallInput.class, name = "chained")
+})
+public sealed interface CatalogScenarioInstallInput
+    permits TimeBasedScenarioInstallInput, ChainedScenarioInstallInput {}

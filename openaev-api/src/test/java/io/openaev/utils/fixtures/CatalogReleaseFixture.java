@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -95,12 +96,34 @@ public class CatalogReleaseFixture {
 
   /** A scenario export holding one implant inject that runs the given payload file. */
   public static byte[] scenarioPackage(byte[] payloadFile) {
-    try (InputStream in =
-        CatalogReleaseFixture.class.getResourceAsStream(
-            "/importer-v1/import-scenario-with-attack-pattern.json")) {
+    return zippedExport(
+        "/importer-v1/import-scenario-with-attack-pattern.json",
+        export ->
+            (ObjectNode) export.get("scenario_injects").get(0).get("inject_injector_contract"),
+        payloadFile);
+  }
+
+  /** A chained scenario export whose one workflow step runs the given payload file. */
+  public static byte[] chainedScenarioPackage(byte[] payloadFile) {
+    return zippedExport(
+        "/importer-v1/import-scenario-workflow-step-missing-contract-with-payload.json",
+        export ->
+            (ObjectNode)
+                export
+                    .get("scenario_workflow")
+                    .get("workflow_steps")
+                    .get(0)
+                    .get("step_data")
+                    .get("inject_injector_contract"),
+        payloadFile);
+  }
+
+  // The contract keeps an ID of the exporting platform: the import links its payload by content.
+  private static byte[] zippedExport(
+      String resource, Function<ObjectNode, ObjectNode> contractOf, byte[] payloadFile) {
+    try (InputStream in = CatalogReleaseFixture.class.getResourceAsStream(resource)) {
       ObjectNode export = (ObjectNode) MAPPER.readTree(in);
-      ObjectNode contract =
-          (ObjectNode) export.get("scenario_injects").get(0).get("inject_injector_contract");
+      ObjectNode contract = contractOf.apply(export);
       contract.put("injector_contract_id", UUID.randomUUID().toString());
       contract.set("injector_contract_payload", MAPPER.readTree(payloadFile));
       ByteArrayOutputStream out = new ByteArrayOutputStream();
