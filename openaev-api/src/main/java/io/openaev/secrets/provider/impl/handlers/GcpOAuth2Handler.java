@@ -52,6 +52,9 @@ public class GcpOAuth2Handler implements SecretHandler {
   public Secret buildOrUpdate(Secret existingSecret, SecretStoreRequest request) {
     boolean creating = !(existingSecret instanceof GcpOAuth2Secret);
     GcpOAuth2Secret gcpSecret = creating ? new GcpOAuth2Secret() : (GcpOAuth2Secret) existingSecret;
+    if (!creating) {
+      refuseUriChangeWithoutNewSecretValues(gcpSecret, request);
+    }
 
     // A null value means "left untouched by the client", so the stored value must be kept: the
     // form strips unchanged write-only fields from the payload.
@@ -110,6 +113,32 @@ public class GcpOAuth2Handler implements SecretHandler {
     }
 
     return gcpSecret;
+  }
+
+  /**
+   * The stored secrets must not be replayed against a new token, projects or IAM URI: the caller
+   * has to supply them again, otherwise whoever can edit the credential could redirect them to a
+   * host they control. The custom access token is only required when one is stored.
+   */
+  private static void refuseUriChangeWithoutNewSecretValues(
+      GcpOAuth2Secret existing, SecretStoreRequest request) {
+    boolean redirected =
+        SecretHandler.redirectsEndpoint(existing.getCustomTokenUri(), request.gcpCustomTokenUri())
+            || SecretHandler.redirectsEndpoint(
+                existing.getCustomProjectsUri(), request.gcpCustomProjectsUri())
+            || SecretHandler.redirectsEndpoint(
+                existing.getCustomIamUri(), request.gcpCustomIamUri());
+    if (!redirected) {
+      return;
+    }
+    boolean clientSecretMissing = request.gcpOauthClientSecret() == null;
+    boolean refreshTokenMissing = request.gcpOauthRefreshToken() == null;
+    boolean accessTokenMissing =
+        existing.getCustomOauthAccessToken() != null && request.gcpCustomOauthAccessToken() == null;
+    if (clientSecretMissing || refreshTokenMissing || accessTokenMissing) {
+      throw new IllegalArgumentException(
+          "GCP OAuth client secret, refresh token and custom access token (if set) must be reset in order to change the token, projects or IAM URI");
+    }
   }
 
   /**
