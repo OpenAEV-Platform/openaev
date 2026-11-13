@@ -1,7 +1,5 @@
 package io.openaev.service.marking_definition;
 
-import static io.openaev.database.specification.MarkingDefinitionSpecification.byNameSpecification;
-import static io.openaev.database.specification.MarkingDefinitionSpecification.idsSpecification;
 import static io.openaev.database.specification.MarkingDefinitionSpecification.tenantAndClearanceSpecification;
 import static io.openaev.database.specification.MarkingDefinitionSpecification.tenantSpecification;
 import static io.openaev.database.specification.MarkingDefinitionSpecification.typeSpecification;
@@ -24,7 +22,6 @@ import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.TenantGroupService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
-import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.validation.constraints.NotBlank;
@@ -86,30 +83,27 @@ public class MarkingDefinitionService {
   // -- READ --
 
   /**
-   * Lists the tenant's marking definitions narrowed to what the caller is cleared to assign - the
-   * same clearance {@link io.openaev.service.marking.MarkingEscalationValidator} enforces when an
-   * assignment is actually attempted (cumulative per type: holding {@code TLP:AMBER} also clears
-   * {@code TLP:GREEN} and {@code TLP:CLEAR}, see {@link io.openaev.config.MarkingScopeResolver}).
-   * Meant for populating an assignment picker with only the options a submission would actually be
-   * allowed to include, instead of offering every definition and rejecting the ones the caller
-   * doesn't hold at submit time.
+   * Lists the marking definitions of the tenants in scope narrowed to what the caller is cleared
+   * for - the same clearance {@link io.openaev.service.marking.MarkingEscalationValidator} enforces
+   * when an assignment is actually attempted (cumulative per type: holding {@code TLP:AMBER} also
+   * clears {@code TLP:GREEN} and {@code TLP:CLEAR}, see {@link
+   * io.openaev.config.MarkingScopeResolver}). Serves both the assignment picker, which then only
+   * offers what a submission is allowed to include, and the marking filter, where a definition
+   * above the caller's clearance could only match rows they cannot see.
    *
-   * <p>Deliberately the <b>write</b> clearance, not {@link MarkingScopeSupplier#clearanceFor}: the
-   * read clearance unions every tenant in scope, which would offer definitions of another tenant
-   * the assignment then rejects.
+   * <p>The clearance is {@link MarkingScopeSupplier#clearanceFor}, the union of the caller's
+   * clearance in each tenant in scope. A definition belongs to exactly one tenant, so this is the
+   * same set as resolving each tenant on its own. An assignment needs a single-tenant scope, in
+   * which the union is that tenant's clearance.
    *
    * @param ctx transaction context containing tenant scope
-   * @param tenantId the single tenant whose definitions and clearance are being read
-   * @param userId the current user identifier, whose clearance narrows the result
-   * @return marking definitions the caller may assign, ascending by order
+   * @return marking definitions the caller is cleared for, ascending by order
    */
   @Transactional(readOnly = true)
-  public List<MarkingDefinition> listAssignable(
-      @NotNull TxCtx ctx, @NotBlank String tenantId, @NotBlank String userId) {
-    // Scoped to the one tenant the clearance was resolved for, as the assignment itself is.
-    MarkingCtx clearance = markingClearanceCacheManager.findClearance(userId, tenantId);
+  public List<MarkingDefinition> listAssignable(@NotNull TxCtx ctx) {
+    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
     Optional<Specification<MarkingDefinition>> specificationOpt =
-        tenantAndClearanceSpecification(Set.of(tenantId), clearance);
+        tenantAndClearanceSpecification(tenantIds, markingScopeSupplier.clearanceFor(ctx));
     return specificationOpt
         .map(
             markingDefinitionSpecification ->
@@ -356,57 +350,6 @@ public class MarkingDefinitionService {
           markingDefinitionId,
           markingDefinitionId);
     }
-  }
-
-  // -- OPTIONS --
-
-  /**
-   * Resolves marking definitions in the current tenant scope by id, for labeling filter values
-   * already selected elsewhere (e.g. an asset's {@code marking_ids} array).
-   *
-   * @param ctx transaction context containing tenant scope
-   * @param ids marking definition ids to resolve
-   * @return one option per id found, label formatted as {@code "{type}:{definition}"}
-   */
-  @Transactional(readOnly = true)
-  public List<FilterUtilsJpa.Option> optionsById(@NotNull TxCtx ctx, @NotNull List<String> ids) {
-    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    if (tenantIds.isEmpty() || ids.isEmpty()) {
-      return List.of();
-    }
-    return repository.findAll(tenantSpecification(tenantIds).and(idsSpecification(ids))).stream()
-        .map(MarkingDefinitionService::toOption)
-        .toList();
-  }
-
-  /**
-   * Searches marking definitions in the current tenant scope by a free-text match on type or
-   * definition, for populating a filter's dynamic value picker.
-   *
-   * @param ctx transaction context containing tenant scope
-   * @param searchText optional substring to match (case-insensitive) against type or definition
-   * @return matching options, ascending by {@code order}
-   */
-  @Transactional(readOnly = true)
-  public List<FilterUtilsJpa.Option> optionsByName(@NotNull TxCtx ctx, String searchText) {
-    Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    if (tenantIds.isEmpty()) {
-      return List.of();
-    }
-    Specification<MarkingDefinition> specification = tenantSpecification(tenantIds);
-    if (searchText != null && !searchText.isBlank()) {
-      specification = specification.and(byNameSpecification(searchText));
-    }
-    return repository.findAll(specification, Sort.by("order").ascending()).stream()
-        .map(MarkingDefinitionService::toOption)
-        .toList();
-  }
-
-  private static FilterUtilsJpa.Option toOption(MarkingDefinition definition) {
-    String type = definition.getType();
-    String value = definition.getDefinition();
-    String label = value.startsWith(type + ":") ? value : type + ":" + value;
-    return new FilterUtilsJpa.Option(definition.getId(), label);
   }
 
   /**
