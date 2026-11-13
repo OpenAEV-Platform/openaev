@@ -30,12 +30,14 @@ const contracts: CredentialContractOutput[] = [
       },
       optionalField('aws_account_id', 'text', 'This value is mandatory for some injectors'),
       optionalField('aws_endpoint_url'),
+      optionalField('aws_session_token', 'password'),
     ],
   },
   {
     credential_type: 'CLOUD_AZURE',
     credential_auth_method: 'AZURE_SERVICE_PRINCIPAL',
     fields: [
+      optionalField('azure_client_secret', 'password'),
       optionalField('azure_authority_host_uri'),
       optionalField('azure_requests_certificate', 'file', undefined, CERTIFICATE_FORMATS),
     ],
@@ -151,7 +153,8 @@ describe('CredentialForm', () => {
       }, true);
       const tokenInput = await screen.findByLabelText('Custom OAuth access token') as HTMLInputElement;
       expect(tokenInput.value).toBe(DOTS);
-      fireEvent.change(screen.getByLabelText(/Custom token URI/), { target: { value: 'https://oauth2.mock.local/token' } });
+      // A field unrelated to the endpoints: changing an endpoint would empty the stored token.
+      fireEvent.change(screen.getByLabelText(/Name/), { target: { value: 'renamed credential' } });
 
       // Act
       submit();
@@ -159,7 +162,7 @@ describe('CredentialForm', () => {
       // Assert
       await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
       const input = await submittedInput(onSubmit.mock.calls[0][0]);
-      expect(input.gcp_custom_token_uri).toBe('https://oauth2.mock.local/token');
+      expect(input.credential_name).toBe('renamed credential');
       expect(input).not.toHaveProperty('gcp_custom_oauth_access_token');
     });
 
@@ -180,6 +183,60 @@ describe('CredentialForm', () => {
       const formData = onSubmit.mock.calls[0][0];
       expect(formData.has('azure_requests_certificate')).toBe(false);
       expect(await submittedInput(formData)).not.toHaveProperty('azure_requests_certificate');
+    });
+  });
+
+  describe('endpoint change in edit mode', () => {
+    const azureValues = {
+      credential_type: 'CLOUD_AZURE',
+      credential_auth_method: 'AZURE_SERVICE_PRINCIPAL',
+      azure_client_secret: DOTS,
+      azure_authority_host_uri: 'https://login.stored.local/',
+    } as const;
+
+    it('empties the untouched client secret when the authority host changes', async () => {
+      // Arrange
+      renderForm(azureValues, true);
+      const secretInput = await screen.findByLabelText(/Client secret/) as HTMLInputElement;
+      expect(secretInput.value).toBe(DOTS);
+
+      // Act
+      fireEvent.change(screen.getByLabelText(/Authority host URI/), { target: { value: 'https://login.mock.local/' } });
+
+      // Assert
+      await waitFor(() => expect(secretInput.value).toBe(''));
+    });
+
+    it('keeps a client secret typed before the authority host changed', async () => {
+      // Arrange
+      renderForm(azureValues, true);
+      const secretInput = await screen.findByLabelText(/Client secret/) as HTMLInputElement;
+      fireEvent.change(secretInput, { target: { value: 'typed-secret' } });
+
+      // Act
+      fireEvent.change(screen.getByLabelText(/Authority host URI/), { target: { value: 'https://login.mock.local/' } });
+
+      // Assert
+      await waitFor(() => expect((screen.getByLabelText(/Authority host URI/) as HTMLInputElement).value).toBe('https://login.mock.local/'));
+      expect(secretInput.value).toBe('typed-secret');
+    });
+
+    it('keeps the stored secrets masked when the endpoint is cleared', async () => {
+      // Arrange
+      renderForm({
+        credential_type: 'CLOUD_AWS',
+        credential_auth_method: 'AWS_ACCESS_KEY',
+        aws_endpoint_url: 'http://stored.local',
+        aws_session_token: DOTS,
+      }, true);
+      const tokenInput = await screen.findByLabelText(/Session token/) as HTMLInputElement;
+
+      // Act
+      fireEvent.change(screen.getByLabelText(/Endpoint URL/), { target: { value: '' } });
+
+      // Assert
+      await waitFor(() => expect((screen.getByLabelText(/Endpoint URL/) as HTMLInputElement).value).toBe(''));
+      expect(tokenInput.value).toBe(DOTS);
     });
   });
 

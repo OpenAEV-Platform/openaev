@@ -24,6 +24,7 @@ import type {
 } from '../../../../utils/api-types-custom';
 import InjectContentFieldComponent from '../../common/injects/form/InjectContentFieldComponent';
 import { humanizeEnum } from '../asset-categories';
+import { endpointFieldsOf, fieldsToResetOnEndpointChange } from './credentialEndpointGuards';
 
 interface Props {
   /** Receives the multipart payload: an `input` JSON part plus one part per uploaded file. */
@@ -226,6 +227,20 @@ const CredentialForm: FunctionComponent<Props> = ({
       }
     });
   }, [getValues, selectedContract, setValue]);
+
+  const endpointFields = endpointFieldsOf(selectedAuthMethod);
+  const watchedEndpointValues = useWatch({
+    control: methods.control,
+    name: endpointFields as (keyof CredentialInput)[],
+  });
+
+  // Pointing an endpoint elsewhere must not replay a stored secret there: the untouched secrets are
+  // emptied, so the user has to type them again, like the backend requires.
+  useEffect(() => {
+    fieldsToResetOnEndpointChange(selectedAuthMethod, getValues(), initialValues).forEach((name) => {
+      setValue(name, '', { shouldDirty: true });
+    });
+  }, [getValues, initialValues, selectedAuthMethod, setValue, watchedEndpointValues]);
 
   const fieldsToSubscribe = useMemo(() => {
     const names = new Set<string>();
