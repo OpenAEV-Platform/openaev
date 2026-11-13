@@ -1,15 +1,24 @@
 import { FlagOutlined } from '@mui/icons-material';
 import { Box, LinearProgress, List, ListItem, ListItemButton, ListItemText, Typography } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import * as R from 'ramda';
-import { useContext } from 'react';
+import { type FunctionComponent, useContext } from 'react';
 
 import { useFormatter } from '../../../components/i18n';
+import { type Objective } from '../../../utils/api-types';
 import { PermissionsContext } from '../common/Context';
 import LessonsPlaceholder from './LessonsPlaceholder';
 import ObjectivePopover from './ObjectivePopover';
 
-const LessonsObjectives = ({
+interface Props {
+  objectives: Objective[];
+  source: {
+    type: string;
+    isReadOnly: boolean;
+  };
+  setSelectedObjective?: (objectiveId: string) => void;
+}
+
+const LessonsObjectives: FunctionComponent<Props> = ({
   objectives,
   source,
   setSelectedObjective,
@@ -18,9 +27,8 @@ const LessonsObjectives = ({
   const { t } = useFormatter();
   const { permissions } = useContext(PermissionsContext);
 
-  const sortedObjectives = R.sortWith(
-    [R.ascend(R.prop('objective_priority'))],
-    objectives,
+  const sortedObjectives = [...objectives].sort(
+    (a, b) => (a.objective_priority ?? 0) - (b.objective_priority ?? 0),
   );
   return (
     /* No surface here: ConfigurationSection owns it now, with the library

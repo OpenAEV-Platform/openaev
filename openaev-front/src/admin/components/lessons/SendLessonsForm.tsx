@@ -1,0 +1,92 @@
+import { Button } from '@filigran/design-system';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { type FunctionComponent, type SyntheticEvent } from 'react';
+import { FormProvider, type SubmitHandler, useForm } from 'react-hook-form';
+import { z } from 'zod';
+
+import RichTextField from '../../../components/fields/RichTextField';
+import TextFieldController from '../../../components/fields/TextFieldController';
+import { useFormatter } from '../../../components/i18n';
+import { requiredRichText, zodImplement } from '../../../utils/Zod';
+
+interface SendLessonsFormInputs {
+  subject: string;
+  body: string;
+}
+
+interface Props {
+  onSubmit: SubmitHandler<SendLessonsFormInputs>;
+  handleClose: () => void;
+  initialValues?: Partial<SendLessonsFormInputs>;
+}
+
+const SendLessonsForm: FunctionComponent<Props> = ({
+  onSubmit,
+  handleClose,
+  initialValues,
+}) => {
+  // Standard hooks
+  const { t } = useFormatter();
+
+  const methods = useForm<SendLessonsFormInputs>({
+    mode: 'onChange',
+    resolver: zodResolver(
+      zodImplement<SendLessonsFormInputs>().with({
+        subject: z.string().min(1, { message: t('This field is required.') }),
+        body: requiredRichText(t),
+      }),
+    ),
+    defaultValues: {
+      subject: '',
+      body: '',
+      ...initialValues,
+    },
+  });
+
+  const {
+    control,
+    handleSubmit,
+    formState: { isSubmitting },
+  } = methods;
+
+  const handleSubmitWithoutPropagation = (e: SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleSubmit(onSubmit)(e);
+  };
+
+  return (
+    <FormProvider {...methods}>
+      <form id="sendLessonsForm" onSubmit={handleSubmitWithoutPropagation}>
+        <TextFieldController
+          name="subject"
+          label={t('Subject')}
+          style={{ marginTop: 20 }}
+        />
+        <RichTextField
+          name="body"
+          label={t('Message')}
+          style={{ marginTop: 20 }}
+          control={control}
+          disabled={false}
+          askAi={false}
+          inInject={false}
+        />
+        <div style={{
+          float: 'right',
+          marginTop: 20,
+        }}
+        >
+          <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 10 }}>
+            {t('Cancel')}
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {t('Send')}
+          </Button>
+        </div>
+      </form>
+    </FormProvider>
+  );
+};
+
+export default SendLessonsForm;

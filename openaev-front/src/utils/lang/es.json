@@ -2658,6 +2658,8 @@
   "Must be a valid email": "Debe ser un email válido",
   "Must be a valid URI": "Debe ser un URI válido",
   "Must be a valid UUID": "Debe ser un UUID válido",
+  "Must be a whole number": "Debe ser un número entero",
+  "Must be greater than or equal to 0": "Debe ser mayor o igual que 0",
   "My evaluation": "Mi evaluación",
   "N/A": "N/A",
   "name": "Nombre",

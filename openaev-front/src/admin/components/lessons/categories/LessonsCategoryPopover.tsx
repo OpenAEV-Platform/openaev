@@ -1,22 +1,25 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
-import * as R from 'ramda';
-import { useContext, useState } from 'react';
+import { type FunctionComponent, type MouseEvent, useContext, useState } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import Drawer from '../../../../components/common/Drawer';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
+import { type LessonsCategory } from '../../../../utils/api-types';
 import { LessonContext } from '../../common/Context';
-import LessonsCategoryForm from './LessonsCategoryForm';
+import LessonsCategoryForm, { type LessonsCategoryFormInputs } from './LessonsCategoryForm';
 
-const LessonsCategoryPopover = ({ lessonsCategory }) => {
+interface Props { lessonsCategory: LessonsCategory }
+
+const LessonsCategoryPopover: FunctionComponent<Props> = ({ lessonsCategory }) => {
   // utils
   const { t } = useFormatter();
   // states
-  const [openDelete, setOpenDelete] = useState(false);
-  const [openEdit, setOpenEdit] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [openDelete, setOpenDelete] = useState<boolean>(false);
+  const [openEdit, setOpenEdit] = useState<boolean>(false);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   // Context
   const {
@@ -24,7 +27,7 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
     onUpdateLessonsCategory,
   } = useContext(LessonContext);
   // popover management
-  const handlePopoverOpen = (event) => {
+  const handlePopoverOpen = (event: MouseEvent<HTMLElement>) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
   };
@@ -35,11 +38,17 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
     handlePopoverClose();
   };
   const handleCloseEdit = () => setOpenEdit(false);
-  const onSubmitEdit = (data) => {
+  const onSubmitEdit: SubmitHandler<LessonsCategoryFormInputs> = (data) => {
+    // The update resolves the normalized entity on success and an error map on failure: keep the
+    // drawer open on failure so the edits are not lost.
     return onUpdateLessonsCategory(
       lessonsCategory.lessonscategory_id,
       data,
-    ).then(() => handleCloseEdit());
+    ).then((result) => {
+      if (result.result) {
+        handleCloseEdit();
+      }
+    });
   };
   // Delete action
   const handleOpenDelete = () => {
@@ -48,16 +57,15 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
   };
   const handleCloseDelete = () => setOpenDelete(false);
   const submitDelete = () => {
-    onDeleteLessonsCategory(lessonsCategory.lessonscategory_id).then(() => handleCloseDelete());
+    onDeleteLessonsCategory(lessonsCategory.lessonscategory_id)
+      .then(() => handleCloseDelete());
   };
   // Rendering
-  const initialValues = R.pipe(
-    R.pick([
-      'lessons_category_name',
-      'lessons_category_description',
-      'lessons_category_order',
-    ]),
-  )(lessonsCategory);
+  const initialValues: Partial<LessonsCategoryFormInputs> = {
+    lessons_category_name: lessonsCategory.lessons_category_name,
+    lessons_category_description: lessonsCategory.lessons_category_description ?? '',
+    lessons_category_order: lessonsCategory.lessons_category_order,
+  };
   return (
     <>
       <IconButton
@@ -89,7 +97,7 @@ const LessonsCategoryPopover = ({ lessonsCategory }) => {
         </DialogContent>
         <DialogActions>
           <Button type="button" priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button type="button" onClick={submitDelete}>
+          <Button type="button" variant="destructive" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

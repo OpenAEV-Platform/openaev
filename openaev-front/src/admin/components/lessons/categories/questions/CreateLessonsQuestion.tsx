@@ -1,38 +1,35 @@
 import { IconButton } from '@filigran/design-system';
 import { Add, ControlPointOutlined } from '@mui/icons-material';
 import { Dialog, DialogContent, DialogTitle, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { useContext, useState } from 'react';
-import { makeStyles } from 'tss-react/mui';
+import { type FunctionComponent, useContext, useState } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
 import { LessonContext } from '../../../common/Context';
-import LessonsQuestionForm from './LessonsQuestionForm';
+import LessonsQuestionForm, { type LessonsQuestionFormInputs } from './LessonsQuestionForm';
 
-const useStyles = makeStyles()(theme => ({
-  text: {
-    fontSize: 15,
-    color: theme.palette.primary.main,
-    fontWeight: 500,
-  },
-}));
+interface Props {
+  lessonsCategoryId: string;
+  onCreate?: (lessonsQuestionId: string) => void;
+  inline?: boolean;
+}
 
-const CreateLessonsQuestion = (props) => {
-  const { onCreate, inline, lessonsCategoryId } = props;
-  const { classes } = useStyles();
+const CreateLessonsQuestion: FunctionComponent<Props> = ({ onCreate, inline, lessonsCategoryId }) => {
   const { t } = useFormatter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<boolean>(false);
 
   // Context
   const { onAddLessonsQuestion } = useContext(LessonContext);
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
-  const onSubmit = async (data) => {
+  const onSubmit: SubmitHandler<LessonsQuestionFormInputs> = async (data) => {
     const result = await onAddLessonsQuestion(lessonsCategoryId, data);
-    if (result.result) {
+    const createdId = result.result;
+    if (createdId) {
       if (onCreate) {
-        onCreate(result.result);
+        onCreate(createdId);
       }
       return handleClose();
     }
@@ -47,7 +44,15 @@ const CreateLessonsQuestion = (props) => {
           </ListItemIcon>
           <ListItemText
             primary={t('Create a new lessons learned question')}
-            classes={{ primary: classes.text }}
+            slotProps={{
+              primary: {
+                sx: {
+                  fontSize: 15,
+                  color: 'primary.main',
+                  fontWeight: 500,
+                },
+              },
+            }}
           />
         </ListItemButton>
       ) : (

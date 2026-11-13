@@ -1,20 +1,27 @@
 import { Button } from '@filigran/design-system';
 import { HowToVoteOutlined } from '@mui/icons-material';
 import { Box, LinearProgress, List, ListItem, ListItemIcon, ListItemText, Slider, Typography } from '@mui/material';
-import * as R from 'ramda';
-import { useContext, useState } from 'react';
+import { type FunctionComponent, useContext, useState } from 'react';
 
+import { type ObjectiveHelper, type UserHelper } from '../../../actions/helper';
 import { useFormatter } from '../../../components/i18n';
 import Loader from '../../../components/Loader';
 import { useHelper } from '../../../store';
+import { type Evaluation, type Objective, type User } from '../../../utils/api-types';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { resolveUserName } from '../../../utils/String';
 import { LessonContext } from '../common/Context';
 
-const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
+interface Props {
+  objectiveId: string;
+  handleClose: () => void;
+  isUpdatable: boolean;
+}
+
+const ObjectiveEvaluations: FunctionComponent<Props> = ({ objectiveId, handleClose, isUpdatable }) => {
   const { t } = useFormatter();
-  const [value, setValue] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [value, setValue] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState<boolean>(false);
 
   // Context
   const {
@@ -23,8 +30,13 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
     onFetchEvaluation,
   } = useContext(LessonContext);
   // Fetching data
-  const { me, objective, evaluations, usersMap } = useHelper(
-    (helper) => {
+  const { me, objective, evaluations, usersMap }: {
+    me: User;
+    objective: Objective | undefined;
+    evaluations: Evaluation[];
+    usersMap: Record<string, User>;
+  } = useHelper(
+    (helper: ObjectiveHelper & UserHelper) => {
       return {
         me: helper.getMe(),
         usersMap: helper.getUsersMap(),
@@ -37,32 +49,21 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
   useDataLoader(() => {
     onFetchEvaluation(objectiveId);
   });
-  const currentUserEvaluation = R.head(
-    R.filter(n => n.evaluation_user === me.user_id, evaluations),
-  );
+  const currentUserEvaluation = evaluations.find(n => n.evaluation_user === me.user_id);
+  const score = value ?? (currentUserEvaluation?.evaluation_score || 10);
   const submitEvaluation = () => {
     setSubmitting(true);
-    const data = { evaluation_score: value };
-    if (currentUserEvaluation) {
-      return onUpdateEvaluation(
-        objectiveId,
-        currentUserEvaluation.evaluation_id,
-        data,
-      ).then((result) => {
+    const data = { evaluation_score: score };
+    const request = currentUserEvaluation
+      ? onUpdateEvaluation(objectiveId, currentUserEvaluation.evaluation_id, data)
+      : onAddEvaluation(objectiveId, data);
+    return request
+      .then((result) => {
         if (result.result) {
-          return handleClose();
+          handleClose();
         }
-        return result;
-      });
-    }
-    return onAddEvaluation(objectiveId, data).then(
-      (result) => {
-        if (result.result) {
-          return handleClose();
-        }
-        return result;
-      },
-    );
+      })
+      .finally(() => setSubmitting(false));
   };
   if (!objective) {
     return <Loader variant="inElement" />;
@@ -161,12 +162,8 @@ const ObjectiveEvaluations = ({ objectiveId, handleClose, isUpdatable }) => {
           <Typography variant="h4">{t('My evaluation')}</Typography>
           <Slider
             aria-label={t('Score')}
-            value={
-              value === null
-                ? currentUserEvaluation?.evaluation_score || 10
-                : value
-            }
-            onChange={(_, val) => setValue(val)}
+            value={score}
+            onChange={(_, val) => setValue(Array.isArray(val) ? val[0] : val)}
             valueLabelDisplay="auto"
             step={5}
             marks

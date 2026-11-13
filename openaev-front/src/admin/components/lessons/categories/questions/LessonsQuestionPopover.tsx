@@ -1,25 +1,31 @@
 import { Button, IconButton } from '@filigran/design-system';
 import { MoreVert } from '@mui/icons-material';
 import { Dialog, DialogActions, DialogContent, DialogContentText, Menu, MenuItem } from '@mui/material';
-import * as R from 'ramda';
-import { useContext, useState } from 'react';
+import { type FunctionComponent, type MouseEvent, useContext, useState } from 'react';
+import { type SubmitHandler } from 'react-hook-form';
 
 import Drawer from '../../../../../components/common/Drawer';
 import Transition from '../../../../../components/common/Transition';
 import { useFormatter } from '../../../../../components/i18n';
+import { type LessonsQuestion } from '../../../../../utils/api-types';
 import { LessonContext } from '../../../common/Context';
-import LessonsQuestionForm from './LessonsQuestionForm';
+import LessonsQuestionForm, { type LessonsQuestionFormInputs } from './LessonsQuestionForm';
 
-const LessonsQuestionPopover = ({
+interface Props {
+  lessonsCategoryId: string;
+  lessonsQuestion: LessonsQuestion;
+}
+
+const LessonsQuestionPopover: FunctionComponent<Props> = ({
   lessonsCategoryId,
   lessonsQuestion,
 }) => {
   // utils
   const { t } = useFormatter();
   // states
-  const [openDelete, setOpenDelete] = useState(false);
-  const [openEdit, setOpenEdit] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [openDelete, setOpenDelete] = useState<boolean>(false);
+  const [openEdit, setOpenEdit] = useState<boolean>(false);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
   // Context
   const {
@@ -28,7 +34,7 @@ const LessonsQuestionPopover = ({
   } = useContext(LessonContext);
 
   // popover management
-  const handlePopoverOpen = (event) => {
+  const handlePopoverOpen = (event: MouseEvent<HTMLElement>) => {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
   };
@@ -39,12 +45,18 @@ const LessonsQuestionPopover = ({
     handlePopoverClose();
   };
   const handleCloseEdit = () => setOpenEdit(false);
-  const onSubmitEdit = (data) => {
+  const onSubmitEdit: SubmitHandler<LessonsQuestionFormInputs> = (data) => {
+    // The update resolves the normalized entity on success and an error map on failure: keep the
+    // drawer open on failure so the edits are not lost.
     return onUpdateLessonsQuestion(
       lessonsCategoryId,
       lessonsQuestion.lessonsquestion_id,
       data,
-    ).then(() => handleCloseEdit());
+    ).then((result) => {
+      if (result.result) {
+        handleCloseEdit();
+      }
+    });
   };
   // Delete action
   const handleOpenDelete = () => {
@@ -59,13 +71,11 @@ const LessonsQuestionPopover = ({
     ).then(() => handleCloseDelete());
   };
   // Rendering
-  const initialValues = R.pipe(
-    R.pick([
-      'lessons_question_content',
-      'lessons_question_explanation',
-      'lessons_question_order',
-    ]),
-  )(lessonsQuestion);
+  const initialValues: Partial<LessonsQuestionFormInputs> = {
+    lessons_question_content: lessonsQuestion.lessons_question_content,
+    lessons_question_explanation: lessonsQuestion.lessons_question_explanation ?? '',
+    lessons_question_order: lessonsQuestion.lessons_question_order,
+  };
   return (
     <div>
       <IconButton
@@ -97,7 +107,7 @@ const LessonsQuestionPopover = ({
         </DialogContent>
         <DialogActions>
           <Button type="button" priority="secondary" onClick={handleCloseDelete}>{t('Cancel')}</Button>
-          <Button type="button" onClick={submitDelete}>
+          <Button type="button" variant="destructive" onClick={submitDelete}>
             {t('Delete')}
           </Button>
         </DialogActions>

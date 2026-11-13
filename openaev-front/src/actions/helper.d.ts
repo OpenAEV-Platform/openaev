@@ -1,7 +1,9 @@
 import {
   type Challenge,
   type Document,
+  type Evaluation,
   type Exercise,
+  type Objective,
   type Organization,
   type PlatformSettings,
   type Scenario,
@@ -15,6 +17,11 @@ export interface UserHelper {
   getMe: () => User;
   getMeAdmin: () => boolean;
   getUsersMap: () => Record<string, User>;
+}
+
+export interface ObjectiveHelper {
+  getObjective: (objectiveId: string) => Objective | undefined;
+  getObjectiveEvaluations: (objectiveId: string) => Evaluation[];
 }
 
 export interface OrganizationHelper {
