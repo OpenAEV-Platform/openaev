@@ -7,10 +7,15 @@ import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.service.account.AdminPrivilegeService;
+import io.openaev.utilstest.PinsUnscopedPlatformRead;
+import io.openaev.utilstest.WithoutTenantScope;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -54,6 +59,63 @@ class DualScopeRolesBootTest extends IntegrationTest {
     return tenantScopedTransaction.execute(
         TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
         () -> roleRepository.findById(PLATFORM_ADMIN_ROLE_ID).orElseThrow());
+  }
+
+  /**
+   * The decision for {@code roles}: a platform role is readable with no scope, as {@code
+   * can_access_tenant} lets every platform row through, and a tenant role is not. The loads that
+   * read roles with no scope (a token or a login, a user with no membership) evaluate the platform
+   * roles only.
+   */
+  @Nested
+  @WithoutTenantScope
+  @DisplayName("read with no scope")
+  class ReadWithNoScope {
+
+    @Test
+    @PinsUnscopedPlatformRead(table = "roles")
+    @DisplayName("given_noScope_should_readThePlatformAdminRoleWithItsCapabilities")
+    void given_noScope_should_readThePlatformAdminRoleWithItsCapabilities() {
+      // Act: no transaction is open, the repository opens one with no scope
+      Optional<Role> role = roleRepository.findById(PLATFORM_ADMIN_ROLE_ID);
+
+      // Assert
+      assertThat(role).isPresent();
+      assertThat(role.get().getTenant()).isNull();
+      assertThat(role.get().getCapabilities()).containsExactly(Capability.BYPASS);
+    }
+
+    @Test
+    @DisplayName("given_noScope_should_notReadATenantRole")
+    void given_noScope_should_notReadATenantRole() {
+      // Arrange: a role of the default tenant, committed
+      Role tenantRole =
+          tenantScopedTransaction.execute(
+              TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+              () -> {
+                Role role = new Role();
+                role.setName("role read with no scope");
+                role.setCapabilities(Set.of(Capability.ACCESS_ASSESSMENT));
+                role.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+                return roleRepository.save(role);
+              });
+      try {
+        // Act
+        Optional<Role> unscoped = roleRepository.findById(tenantRole.getId());
+        Optional<Role> scoped =
+            tenantScopedTransaction.execute(
+                TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+                () -> roleRepository.findById(tenantRole.getId()));
+
+        // Assert
+        assertThat(unscoped).isEmpty();
+        assertThat(scoped).isPresent();
+      } finally {
+        tenantScopedTransaction.execute(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> roleRepository.deleteById(tenantRole.getId()));
+      }
+    }
   }
 
   @Nested
