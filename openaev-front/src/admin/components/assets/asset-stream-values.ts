@@ -15,14 +15,17 @@ export const withoutNullValues = <T extends object>(values: T): Partial<T> => Ob
   Object.entries(values).filter(([, value]) => value !== null),
 ) as Partial<T>;
 
-const streamedFields = (entity: Record<string, unknown> | undefined) => Object.fromEntries(
-  STREAMED_ROW_FIELDS.filter(field => entity && field in entity).map(field => [field, entity?.[field]]),
+/** The streamed fields whose value changed in the store: an unchanged one may be older than the row. */
+const changedFields = (previous: Record<string, unknown> | undefined, current: Record<string, unknown> | undefined) => Object.fromEntries(
+  STREAMED_ROW_FIELDS
+    .filter(field => current && field in current && JSON.stringify(current[field]) !== JSON.stringify(previous?.[field]))
+    .map(field => [field, current?.[field]]),
 );
 
 /**
- * Patches the rows whose entity changed in the store between two renders. Only a change counts: a
- * store copy older than the searched row must not overwrite it. Returns the same array when no row
- * changed, so a caller can skip the state update.
+ * Patches, in each row, the streamed fields whose value changed in the store between two reads.
+ * Only a change counts: a store value older than the searched row must not overwrite it. Returns
+ * the same array when no row changed, so a caller can skip the state update.
  */
 export const patchRowsFromStore = <Row extends { asset_id: string }>(
   rows: Row[],
@@ -31,8 +34,8 @@ export const patchRowsFromStore = <Row extends { asset_id: string }>(
 ): Row[] => {
   let patched = false;
   const result = rows.map((row) => {
-    const fields = streamedFields(current[row.asset_id]);
-    if (!current[row.asset_id] || JSON.stringify(fields) === JSON.stringify(streamedFields(previous[row.asset_id]))) {
+    const fields = changedFields(previous[row.asset_id], current[row.asset_id]);
+    if (Object.keys(fields).length === 0) {
       return row;
     }
     patched = true;

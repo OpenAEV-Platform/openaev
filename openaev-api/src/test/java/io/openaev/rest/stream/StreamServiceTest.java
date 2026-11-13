@@ -734,7 +734,8 @@ public class StreamServiceTest {
       MarkingCtx.forMarkings(List.of("tlp-clear", "tlp-green", "tlp-amber"));
 
   private void readerHolds(User user, MarkingCtx clearance) {
-    when(streamClearanceService.clearanceFor(user, null)).thenReturn(clearance);
+    // In the tenant the event's markings are read in, the subject of its own test
+    when(streamClearanceService.clearanceFor(eq(user), any())).thenReturn(clearance);
   }
 
   /** Visible to every clearance but AMBER's, with no payload to filter. */

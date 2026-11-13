@@ -114,6 +114,45 @@ describe('keepStreamedChanges', () => {
     expect((await response).data.content[0].asset_name).toBe('new');
   });
 
+  it('given_aStreamedRenameAndANewerSearchedCriticality_should_keepBoth', async () => {
+    // Arrange: the store copy is older than the search on criticality; only the name is streamed
+    let store: Record<string, Record<string, unknown>> = {
+      e1: {
+        asset_name: 'A',
+        asset_criticality: 1,
+      },
+    };
+    let answer: (page: { data: Page<Row & { asset_criticality: number }> }) => void = () => {};
+    const search = () => new Promise<{ data: Page<Row & { asset_criticality: number }> }>((resolve) => {
+      answer = resolve;
+    });
+    const response = keepStreamedChanges(search, () => store)({} as SearchPaginationInput);
+
+    // Act
+    store = {
+      e1: {
+        asset_name: 'B',
+        asset_criticality: 1,
+      },
+    };
+    answer({
+      data: {
+        content: [{
+          asset_id: 'e1',
+          asset_name: 'A',
+          asset_criticality: 3,
+        }],
+      } as Page<Row & { asset_criticality: number }>,
+    });
+
+    // Assert
+    expect((await response).data.content[0]).toEqual({
+      asset_id: 'e1',
+      asset_name: 'B',
+      asset_criticality: 3,
+    });
+  });
+
   it('given_noStreamedChangeDuringTheSearch_should_keepTheSearchedRows', async () => {
     // Arrange: the store copy is older than the search, and did not change while it ran
     const store = { e1: { asset_name: 'old' } };
