@@ -14,10 +14,8 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.catalog.scenario.CatalogScenarioInstaller;
-import io.openaev.service.catalog.scenario.targeting.TargetChoice;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Propagation;
@@ -63,7 +61,7 @@ public class CatalogScenarioInstallApi {
                 writeScopeResolver.tenantForWrite(ctx, null),
                 externalId,
                 version,
-                targets(input))
+                CatalogScenarioInstallMapper.toChoice(input))
             .getId());
   }
 
@@ -79,19 +77,5 @@ public class CatalogScenarioInstallApi {
     catalogFeature.require();
     return catalogItemMapper.toOutput(
         catalogScenarioInstaller.installAll(ctx, writeScopeResolver.tenantForWrite(ctx, null)));
-  }
-
-  private static TargetChoice targets(CatalogScenarioInstallInput input) {
-    return input == null
-        ? TargetChoice.NONE
-        : new TargetChoice(
-            orEmpty(input.assetIds()),
-            orEmpty(input.assetGroupIds()),
-            orEmpty(input.teamIds()),
-            orEmpty(input.manualTargets()));
-  }
-
-  private static List<String> orEmpty(List<String> values) {
-    return values == null ? List.of() : values;
   }
 }

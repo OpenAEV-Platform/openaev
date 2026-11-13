@@ -14,7 +14,6 @@ import io.openaev.service.catalog.CatalogSettingsService;
 import io.openaev.service.catalog.payload.CatalogPayloadOfferService;
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -25,9 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class CatalogScenarioOfferService implements CatalogOffer<InstallableScenarioVersion> {
-
-  public static final String CHAINED_REFUSED = "A chained scenario cannot be installed yet";
-  private static final String CHAINED = "chained";
 
   private final CatalogListService catalogListService;
   private final CatalogPayloadOfferService catalogPayloadOfferService;
@@ -45,17 +41,17 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
   @Transactional(readOnly = true)
   public InstallableScenarioVersion installable(TxCtx ctx, String externalId, String version) {
     CatalogScenario item = catalogListService.offered(CatalogScenario.class, externalId, version);
-    refusal(item)
-        .ifPresent(
-            reason -> {
-              throw new BadRequestException(reason);
-            });
+    List<String> missing = catalogScenarioRequirements.missing(item);
+    if (!missing.isEmpty()) {
+      throw new BadRequestException(
+          "Missing to install this scenario: " + String.join(", ", missing));
+    }
     return toInstallable(ctx, item);
   }
 
   /**
-   * The latest version of every catalogue scenario the tenant never installed. A scenario this
-   * platform cannot install as is (chained, missing a requirement) is left to install by hand.
+   * The latest version of every catalogue scenario the tenant never installed. A chained scenario,
+   * whose scope an admin chooses, and one missing a requirement are left to install by hand.
    */
   @Override
   @Transactional(readOnly = true)
@@ -85,19 +81,10 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
             item ->
                 !known.contains(
                     CatalogOffer.key(item.getRelease().getRepository(), item.getExternalId())))
-        .filter(item -> refusal(item).isEmpty())
+        .filter(item -> CatalogScenarioType.of(item.getScenarioType()).installedInBulk())
+        .filter(item -> catalogScenarioRequirements.missing(item).isEmpty())
         .map(item -> toInstallable(ctx, item))
         .toList();
-  }
-
-  private Optional<String> refusal(CatalogScenario item) {
-    if (CHAINED.equalsIgnoreCase(item.getScenarioType())) {
-      return Optional.of(CHAINED_REFUSED);
-    }
-    List<String> missing = catalogScenarioRequirements.missing(item);
-    return missing.isEmpty()
-        ? Optional.empty()
-        : Optional.of("Missing to install this scenario: " + String.join(", ", missing));
   }
 
   private InstallableScenarioVersion toInstallable(TxCtx ctx, CatalogScenario item) {
@@ -105,6 +92,7 @@ public class CatalogScenarioOfferService implements CatalogOffer<InstallableScen
         item.getRelease().getRepository(),
         item.getExternalId(),
         item.getVersion(),
+        CatalogScenarioType.of(item.getScenarioType()),
         item.getAuthor(),
         item.getArchiveHash(),
         payloadRefs(item).stream()
