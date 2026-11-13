@@ -433,9 +433,13 @@ public class StreamService {
             visibility.isUnfiltered() ? MarkingCtx.all() : clearanceOf(consumer, user, event);
         if (!visibility.visibleUnder(clearance)) {
           // Above the consumer's clearance: like a READ denial, nothing is sent, not even a
-          // tombstone, since the id and timing of a hidden asset are already a disclosure. A row
-          // deleted with its parent (the agents of a deleted endpoint) is the exception: its
-          // markings are gone with the parent, and its id is what removes it from the client.
+          // tombstone, since the id and timing of a hidden asset are already a disclosure.
+          // Exception, an accepted disclosure: a row deleted with its parent (the agents of a
+          // deleted endpoint). Its markings are gone with the parent, so whether the consumer
+          // could see it is unknown. The tombstone goes to every consumer who passes READ, to
+          // remove the row from their client. One without the parent's clearance learns the id
+          // and deletion time of a row that no longer exists. Avoiding that would mean capturing
+          // the parent's markings when the event is created.
           if (DATA_DELETE.equals(event.getType()) && visibility.parentDeleted()) {
             sendTombstone(fluxSink, event);
           }
