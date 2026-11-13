@@ -13,6 +13,7 @@ import io.openaev.service.*;
 import io.openaev.service.platform.groups.PlatformGroupService;
 import io.openaev.service.platform.roles.PlatformRoleService;
 import io.openaev.service.tenants.TenantUserService;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -155,13 +156,13 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
             () -> {
               Role role =
                   tenantRoleService
-                      .findByTenantIdAndName(tenantId, ADMIN_ACCESS.roleName())
+                      .findByNameOldestFirst(tenantId, ADMIN_ACCESS.roleName())
                       .stream()
                       .filter(Role::hasBypass)
-                      .min(Comparator.comparing(Role::getCreatedAt).thenComparing(Role::getId))
+                      .findFirst()
                       .orElseGet(() -> findOrCreateWellKnownRole(tenantId));
-              return tenantGroupService.createGroup(
-                  tenantId, groupId, ADMIN_ACCESS.groupName(), role);
+              return tenantGroupService.createInternalGroupWithRole(
+                  tenantId, groupId, wellKnownGroupInput(), new ArrayList<>(List.of(role)));
             });
   }
 

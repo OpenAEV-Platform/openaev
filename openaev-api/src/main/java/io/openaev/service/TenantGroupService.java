@@ -77,21 +77,12 @@ public class TenantGroupService {
   }
 
   public Group createGroup(@NotBlank final String name, @NotBlank final String tenantId) {
-    return createGroup(tenantId, null, name, List.of());
+    return createGroup(tenantId, name, null, List.of());
   }
 
   public Group createGroup(
       @NotBlank final String tenantId, @NotBlank final String name, @NotNull final Role role) {
-    return createGroup(tenantId, null, name, List.of(role));
-  }
-
-  /** Creates a group bound to the role with this id, used for a well-known group. */
-  public Group createGroup(
-      @NotBlank final String tenantId,
-      @NotBlank final String id,
-      @NotBlank final String name,
-      @NotNull final Role role) {
-    return createGroup(tenantId, id, name, List.of(role));
+    return createGroup(tenantId, name, name, List.of(role));
   }
 
   public Group createInternalGroupWithRole(
@@ -140,11 +131,10 @@ public class TenantGroupService {
 
   // PRIVATE
 
-  /** A null id is generated. */
-  private Group createGroup(String tenantId, String id, String name, List<Role> roles) {
+  private Group createGroup(String tenantId, String name, String description, List<Role> roles) {
     Group group = new Group();
-    group.setId(id);
     group.setName(name);
+    group.setDescription(description);
     group.setRoles(new ArrayList<>(roles));
     group.setTenant(entityManager.getReference(Tenant.class, tenantId));
     return groupRepository.save(group);
