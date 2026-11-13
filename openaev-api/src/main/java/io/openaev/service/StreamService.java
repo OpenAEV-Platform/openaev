@@ -288,6 +288,25 @@ public class StreamService {
     sendStreamEvent(flux, event, mapper.valueToTree(event.getInstance()));
   }
 
+  /** A deletion carrying the id only. */
+  private void sendTombstone(FluxSink<Object> flux, BaseEvent event) {
+    try {
+      String propertyId = event.getAttributeId();
+      if (propertyId == null || propertyId.isBlank()) {
+        log.warn(
+            "Class {} can't be streamed without an identifier",
+            event.getInstance().getClass().getSimpleName());
+        return;
+      }
+      ObjectNode deleteNode = mapper.createObjectNode();
+      deleteNode.set(propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
+      sendStreamEvent(flux, event.clone(), deleteNode);
+    } catch (Exception e) {
+      String simpleName = event.getInstance().getClass().getSimpleName();
+      log.warn(String.format("Class %s can't be streamed", simpleName), e);
+    }
+  }
+
   private void sendStreamEvent(FluxSink<Object> flux, BaseEvent event, JsonNode instanceData) {
     event.setInstanceData(instanceData);
     ServerSentEvent<BaseEvent> message =
@@ -406,31 +425,20 @@ public class StreamService {
       if (!hasReadPermission(consumer, user, event)) {
         // A consumer that cannot read the entity gets nothing: even an id-only tombstone
         // discloses the id, schema and timing of an unreadable mutation.
-        if (!isGrantManagedRootDeletion(event)) {
-          return;
-        }
-        try {
-          String propertyId = event.getAttributeId();
-          if (propertyId == null || propertyId.isBlank()) {
-            log.warn(
-                "Class {} can't be streamed without an identifier",
-                event.getInstance().getClass().getSimpleName());
-            return;
-          }
-          ObjectNode deleteNode = mapper.createObjectNode();
-          deleteNode.set(
-              propertyId, mapper.convertValue(event.getInstance().getId(), JsonNode.class));
-          sendStreamEvent(fluxSink, event.clone(), deleteNode);
-        } catch (Exception e) {
-          String simpleName = event.getInstance().getClass().getSimpleName();
-          log.warn(String.format("Class %s can't be streamed", simpleName), e);
+        if (isGrantManagedRootDeletion(event)) {
+          sendTombstone(fluxSink, event);
         }
       } else {
         MarkingCtx clearance =
             visibility.isUnfiltered() ? MarkingCtx.all() : clearanceOf(consumer, user, event);
         if (!visibility.visibleUnder(clearance)) {
           // Above the consumer's clearance: like a READ denial, nothing is sent, not even a
-          // tombstone, since the id and timing of a hidden asset are already a disclosure.
+          // tombstone, since the id and timing of a hidden asset are already a disclosure. A row
+          // deleted with its parent (the agents of a deleted endpoint) is the exception: its
+          // markings are gone with the parent, and its id is what removes it from the client.
+          if (DATA_DELETE.equals(event.getType()) && visibility.parentDeleted()) {
+            sendTombstone(fluxSink, event);
+          }
           return;
         }
         if (event.getInstance().getResourceType() == ResourceType.NOTIFIER

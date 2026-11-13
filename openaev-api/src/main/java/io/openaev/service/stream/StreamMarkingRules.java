@@ -38,8 +38,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *       to (an agent, a trace), or its link rows (a finding, hidden when all its assets are).
  *   <li><b>Listings</b>: the ids of marked or derived rows in the payload, at any depth, keep only
  *       the visible ones (an inject's targets, a finding's groups' assets).
- *   <li><b>Embedded</b>: the objects of a marked or derived table in the payload keep only the
- *       visible ones (an inject's expectations and traces).
+ *   <li><b>Embedded</b>: the objects of a marked or derived table in the payload, alone or in an
+ *       array, keep only the visible ones (an inject's expectations and traces, a collector's
+ *       security platform).
  * </ul>
  *
  * The markings are read after commit ({@link StreamVisibilityService}).
@@ -88,9 +89,9 @@ public class StreamMarkingRules {
   public record ListingRule(String path, String table) {}
 
   /**
-   * An array of objects of a marked or derived table embedded whole in a payload.
+   * Objects of a marked or derived table embedded whole in a payload, alone or in an array.
    *
-   * @param path the JSON path of the array, dot-separated (e.g. {@code
+   * @param path the JSON path of the object or array, dot-separated (e.g. {@code
    *     inject_status.status_traces})
    * @param idProperty the property identifying an element
    * @param table the table of the elements, whose {@link RowRule} each element follows
@@ -260,9 +261,7 @@ public class StreamMarkingRules {
         continue;
       }
       if (table != null) {
-        if (property.getPrimaryType().isCollectionLikeType()) {
-          embedded.add(new EmbeddedRule(path, idPropertyOf(content), table));
-        }
+        embedded.add(new EmbeddedRule(path, idPropertyOf(content), table));
       } else {
         collectNested(content, path + ".", walked, listings, embedded);
       }
