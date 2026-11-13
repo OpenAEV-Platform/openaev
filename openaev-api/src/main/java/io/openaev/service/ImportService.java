@@ -13,7 +13,6 @@ import io.openaev.database.model.Scenario;
 import io.openaev.importer.ImportException;
 import io.openaev.importer.ImportResult;
 import io.openaev.importer.Importer;
-import io.openaev.importer.MissingImportedAction;
 import io.openaev.importer.V1_DataImporter;
 import io.openaev.utils.constants.Constants;
 import jakarta.annotation.Resource;
@@ -324,14 +323,14 @@ public class ImportService {
       // Process all loaded data. A single ZIP can carry the main Exercise/Scenario file plus one or
       // more payload.json (direct-import or nested in a PayloadArchive): aggregate the missing
       // actions reported by every importData call into one consolidated result.
-      List<MissingImportedAction> aggregatedMissingActions = new ArrayList<>();
+      ImportResult aggregated = ImportResult.empty();
       for (InputStream dataStream : dataImports) {
-        ImportResult result =
-            handleDataImport(
-                ctx, dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix);
-        aggregatedMissingActions.addAll(result.missingActions());
+        aggregated =
+            aggregated.and(
+                handleDataImport(
+                    ctx, dataStream, docReferences, exercise, scenario, asset, assetGroup, suffix));
       }
-      return new ImportResult(aggregatedMissingActions);
+      return aggregated;
     } finally {
       tempFile.delete();
     }

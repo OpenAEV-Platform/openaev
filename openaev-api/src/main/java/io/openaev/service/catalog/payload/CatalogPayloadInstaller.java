@@ -1,8 +1,9 @@
-package io.openaev.service.catalog;
+package io.openaev.service.catalog.payload;
 
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.service.catalog.CatalogFileService;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

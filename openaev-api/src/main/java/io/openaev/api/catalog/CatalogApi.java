@@ -3,8 +3,8 @@ package io.openaev.api.catalog;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.api.catalog.dto.CatalogPayloadOutput;
-import io.openaev.api.catalog.dto.CatalogScenarioOutput;
+import io.openaev.api.catalog.dto.payload.CatalogPayloadOutput;
+import io.openaev.api.catalog.dto.scenario.CatalogScenarioOutput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;

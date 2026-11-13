@@ -406,7 +406,8 @@ public class V1_DataImporter implements Importer {
             ctx, importNode, prefix, savedExercise, savedScenario, baseIds, resolvedContracts);
     List<MissingImportedAction> missingActions =
         skippedSteps.stream().map(V1_DataImporter::toMissingImportedAction).toList();
-    return new ImportResult(new ArrayList<>(missingActions));
+    return new ImportResult(
+        new ArrayList<>(missingActions), savedScenario == null ? null : savedScenario.getId());
   }
 
   private static MissingImportedAction toMissingImportedAction(SkippedWorkflowStep step) {

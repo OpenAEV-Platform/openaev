@@ -17,6 +17,9 @@ import io.openaev.database.audit.TenantBaseListener;
 import io.openaev.database.model.Endpoint.PLATFORM_TYPE;
 import io.openaev.database.model.author.Authored;
 import io.openaev.database.model.author.Authorship;
+import io.openaev.database.model.catalog.CatalogContent;
+import io.openaev.database.model.catalog.ContentType;
+import io.openaev.database.model.scenario.ScenarioIdentity;
 import io.openaev.helper.InjectStatisticsHelper;
 import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdListSerializer;
@@ -84,7 +87,8 @@ import org.hibernate.type.SqlTypes;
       attributeNodes = {@NamedAttributeNode("tags"), @NamedAttributeNode("injects")})
 })
 @Grantable(Grant.GRANT_RESOURCE_TYPE.SCENARIO)
-public class Scenario extends ModelBehaviour implements GrantableBase, TenantBase, Authored {
+public class Scenario extends ModelBehaviour
+    implements GrantableBase, TenantBase, Authored, CatalogContent {
 
   /** Status of scenario recurrence scheduling. */
   public enum RECURRENCE_STATUS {
@@ -304,6 +308,33 @@ public class Scenario extends ModelBehaviour implements GrantableBase, TenantBas
       joinColumns = @JoinColumn(name = "scenario_author_organization"))
   @JsonIgnore
   private Authorship author;
+
+  // -- CATALOGUE --
+
+  // Where the scenario was installed from; kept out of exports, a copy is a scenario of its own.
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "scenario_catalog_identity")
+  @JsonIgnore
+  private ScenarioIdentity catalogIdentity;
+
+  @Column(name = "scenario_catalog_version")
+  @JsonIgnore
+  private String catalogVersion;
+
+  @Override
+  public ContentType getCatalogType() {
+    return ContentType.SCENARIO;
+  }
+
+  @Override
+  public String getCatalogRepository() {
+    return catalogIdentity == null ? null : catalogIdentity.getRepository();
+  }
+
+  @Override
+  public String getCatalogExternalId() {
+    return catalogIdentity == null ? null : catalogIdentity.getExternalId();
+  }
 
   // -- MESSAGE --
 

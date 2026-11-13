@@ -8,7 +8,7 @@ import io.openaev.database.audit.AuditableListener;
 import io.openaev.database.model.CollectorType;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.TenantBase;
+import io.openaev.database.model.catalog.CatalogIdentity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -22,7 +22,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Entity
 @Table(name = "payload_identities")
 @EntityListeners(AuditableListener.class)
-public class PayloadIdentity implements TenantBase, Auditable {
+public class PayloadIdentity implements CatalogIdentity, Auditable {
 
   // -- ID --
 
