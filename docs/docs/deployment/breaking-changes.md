@@ -19,6 +19,7 @@ implemented.
 | [Injector contract expectation format](#injector-contract-expectation-format) | -             | \[MigrationVersion\]        |
 | [Tenant users, groups and roles capabilities](#tenant-users-groups-and-roles-capabilities) | -             | \[MigrationVersion\]        |
 | [Elasticsearch 9 and engine auto-detection](#elasticsearch-9)  | -             | \[MigrationVersion\]        |
+| [Windows agent token encrypted with DPAPI](#windows-agent-token-dpapi) | -             | \[MigrationVersion\]        |
 | [Windows agent config file permissions](#windows-agent-config-permissions) | -             | 3.261016.0 |
 
 ## OpenAEV 2.2.0
@@ -137,6 +138,17 @@ is removed: a value still set is ignored with a warning. `engine.client` forces 
 cannot decide.
 
 For more details, see [this migration guide](breaking-changes/MigrationVersion-elasticsearch-9.md)
+
+<a id="windows-agent-token-dpapi"></a>
+
+#### Windows agent token encrypted with DPAPI
+
+Starting with **OpenAEV \[MigrationVersion\]**, the Windows agent encrypts its token with DPAPI (Data Protection API)
+instead of storing it in clear text in its config file. Hosts running the agent in **service-user** mode must
+reinstall the agent after upgrading: an upgrade only replaces the binary, so the agent cannot remove the token from its
+config file and stops until it is reinstalled.
+
+For more details, see [this migration guide](breaking-changes/MigrationVersion-windows-agent-token-dpapi.md)
 
 ## OpenAEV 3.261016.0
 
