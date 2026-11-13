@@ -42,13 +42,13 @@ public class FindingOccurrenceService {
         new HashSet<>(
             findingOccurrenceRepository.findFindingIdsWithOccurrenceOnInject(
                 inject.getId(), findings.stream().map(Finding::getId).toList()));
-    List<FindingOccurrence> occurrences =
-        findings.stream()
-            .filter(finding -> !findingIdsWithOccurrence.contains(finding.getId()))
-            .map(
-                finding ->
-                    newOccurrence(finding, inject, date, fieldByFindingId.get(finding.getId())))
-            .toList();
+    List<FindingOccurrence> occurrences = new ArrayList<>();
+    for (Finding finding : findings) {
+      if (!findingIdsWithOccurrence.contains(finding.getId())) {
+        occurrences.add(
+            newOccurrence(finding, inject, date, fieldByFindingId.get(finding.getId())));
+      }
+    }
     return fromIterable(findingOccurrenceRepository.saveAll(occurrences));
   }
 
@@ -72,10 +72,7 @@ public class FindingOccurrenceService {
     for (Finding finding : findings) {
       if (!findingIdsWithOccurrence.contains(finding.getId())) {
         findingIdsWithOccurrence.add(finding.getId());
-        FindingOccurrence occurrence = newOccurrence(finding, inject, date, finding.getField());
-        // Kept in sync so readers in the same session see it without a reload
-        finding.getOccurrences().add(occurrence);
-        occurrences.add(occurrence);
+        occurrences.add(newOccurrence(finding, inject, date, finding.getField()));
       }
     }
     findingOccurrenceRepository.saveAll(occurrences);
@@ -98,6 +95,8 @@ public class FindingOccurrenceService {
     occurrence.setInject(inject);
     occurrence.setField(field);
     occurrence.setDate(date);
+    // Kept in sync so readers in the same session see it without a reload
+    finding.getOccurrences().add(occurrence);
     return occurrence;
   }
 }

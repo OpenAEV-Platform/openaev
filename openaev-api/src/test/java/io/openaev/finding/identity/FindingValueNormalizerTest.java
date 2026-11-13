@@ -112,8 +112,6 @@ class FindingValueNormalizerTest {
       // -- ACT & ASSERT --
       assertThat(hash(ContractOutputType.Username, "NORTH\\JDoe"))
           .isEqualTo(hash(ContractOutputType.Username, "north\\jdoe"));
-      assertThat(hash(ContractOutputType.AdminUsername, "Administrator"))
-          .isEqualTo(hash(ContractOutputType.AdminUsername, "administrator"));
       assertThat(hash(ContractOutputType.KerberoastableAccount, "SVC_SQL"))
           .isEqualTo(hash(ContractOutputType.KerberoastableAccount, "svc_sql"));
       assertThat(hash(ContractOutputType.AsreproastableAccount, "Brandon.Stark"))
@@ -143,6 +141,25 @@ class FindingValueNormalizerTest {
           .isNotEqualTo(hash(ContractOutputType.Credentials, "jdoe:secret"));
       assertThat(hash(ContractOutputType.Credentials, "Root:secret"))
           .isNotEqualTo(hash(ContractOutputType.Credentials, "root:secret"));
+    }
+
+    @Test
+    @DisplayName(
+        "given credentials differing by password whitespace, should resolve to different identities")
+    void given_credentialsDifferingByPasswordWhitespace_should_resolveToDifferentIdentities() {
+      // -- ACT & ASSERT --
+      assertThat(hash(ContractOutputType.Credentials, "jdoe:secret "))
+          .isNotEqualTo(hash(ContractOutputType.Credentials, "jdoe:secret"));
+    }
+
+    @Test
+    @DisplayName("given a bare username differing by case, should resolve to different identities")
+    void given_aBareUsernameDifferingByCase_should_resolveToDifferentIdentities() {
+      // -- ACT & ASSERT --
+      assertThat(hash(ContractOutputType.Username, "Root"))
+          .isNotEqualTo(hash(ContractOutputType.Username, "root"));
+      assertThat(hash(ContractOutputType.AdminUsername, "Root"))
+          .isNotEqualTo(hash(ContractOutputType.AdminUsername, "root"));
     }
 
     @Test

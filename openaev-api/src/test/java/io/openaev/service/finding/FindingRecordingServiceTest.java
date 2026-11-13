@@ -20,6 +20,8 @@ import io.openaev.finding.identity.LocationIdentity.UnknownLocation;
 import io.openaev.finding.identity.LocationIdentity.UserLocation;
 import io.openaev.rest.finding.FindingService;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -33,6 +35,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
+import org.awaitility.Awaitility;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterEach;
@@ -66,6 +69,7 @@ class FindingRecordingServiceTest extends IntegrationTest {
 
   private static final Instant MONDAY = Instant.parse("2026-11-02T09:00:00Z");
   private static final Instant TUESDAY = Instant.parse("2026-11-03T09:00:00Z");
+  private static final Instant WEDNESDAY = Instant.parse("2026-11-04T09:00:00Z");
   private static final String CVE = "CVE-2024-1234";
 
   @Autowired private FindingRecordingService findingRecordingService;
@@ -103,6 +107,7 @@ class FindingRecordingServiceTest extends IntegrationTest {
         "INSERT INTO users (user_id, user_email, user_admin, user_status) VALUES (?, ?, false, 0)",
         userId,
         "record-detections-" + userId + "@openaev.io");
+    jdbc.update("INSERT INTO users_tenants (user_id, tenant_id) VALUES (?, ?)", userId, tenantId);
     tagX = seedTag();
     tagY = seedTag();
   }
@@ -116,6 +121,7 @@ class FindingRecordingServiceTest extends IntegrationTest {
     jdbc.update("DELETE FROM findings WHERE tenant_id = ?", tenantId);
     jdbc.update("DELETE FROM tags WHERE tenant_id = ?", tenantId);
     jdbc.update("DELETE FROM assets WHERE tenant_id = ?", tenantId);
+    jdbc.update("DELETE FROM users_tenants WHERE user_id = ?", userId);
     jdbc.update("DELETE FROM users WHERE user_id = ?", userId);
     jdbc.update("DELETE FROM injects WHERE tenant_id = ?", tenantId);
     jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", tenantId);
@@ -129,12 +135,11 @@ class FindingRecordingServiceTest extends IntegrationTest {
     @DisplayName("should create one finding at its location and its occurrence on the inject")
     void given_aNewDetection_should_createOneFindingAndItsOccurrence() {
       // -- ACT --
-      String findingId =
-          record(mondayInject, cve(CVE, "cve", "OpenSSL", new AssetLocation(assetA)))
-              .get(0)
-              .getId();
+      Finding finding =
+          record(mondayInject, cve(CVE, "cve", "OpenSSL", new AssetLocation(assetA))).get(0);
 
       // -- ASSERT --
+      String findingId = finding.getId();
       assertThat(countFindings()).isEqualTo(1);
       assertThat(locationKeyOf(findingId)).isEqualTo("asset:" + assetA);
       assertThat(
@@ -149,6 +154,10 @@ class FindingRecordingServiceTest extends IntegrationTest {
       assertThat(seenOf(findingId)).containsExactly(MONDAY, MONDAY);
       assertThat(countOccurrences(findingId)).isEqualTo(1);
       assertThat(occurrenceFieldOf(findingId, mondayInject)).isEqualTo("cve");
+      assertThat(finding.getInjects())
+          .extracting(Inject::getId)
+          .containsExactly(mondayInject.getId());
+      assertThat(finding.getFields()).containsExactly("cve");
       assertThat(
               count(
                   "SELECT count(*) FROM findings_assets WHERE finding_id = ? AND asset_id = ?",
@@ -189,8 +198,8 @@ class FindingRecordingServiceTest extends IntegrationTest {
   }
 
   @Nested
-  @DisplayName("When the detected asset is not one of the tenant's")
-  class WhenTheAssetIsNotTheTenants {
+  @DisplayName("When the detected location is not one of the tenant's")
+  class WhenTheLocationIsNotTheTenants {
 
     @Test
     @DisplayName("given a missing or a foreign asset, should keep the finding at no location")
@@ -224,6 +233,54 @@ class FindingRecordingServiceTest extends IntegrationTest {
         jdbc.update("DELETE FROM assets WHERE tenant_id = ?", otherTenantId);
         jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", otherTenantId);
       }
+    }
+
+    @Test
+    @DisplayName("given a missing or a foreign user, should keep the finding at no location")
+    void given_aMissingOrAForeignUser_should_keepTheFindingAtNoLocation() {
+      // -- ARRANGE --
+      String otherTenantId = UUID.randomUUID().toString();
+      jdbc.update(
+          "INSERT INTO tenants (tenant_id, tenant_name, tenant_created_at, tenant_updated_at)"
+              + " VALUES (?, ?, now(), now())",
+          otherTenantId,
+          "record-detections-" + otherTenantId);
+      String foreignUser = UUID.randomUUID().toString();
+      jdbc.update(
+          "INSERT INTO users (user_id, user_email, user_admin, user_status) VALUES (?, ?, false, 0)",
+          foreignUser,
+          "record-detections-" + foreignUser + "@openaev.io");
+      jdbc.update(
+          "INSERT INTO users_tenants (user_id, tenant_id) VALUES (?, ?)",
+          foreignUser,
+          otherTenantId);
+
+      try {
+        // -- ACT --
+        List<Finding> recorded =
+            record(
+                mondayInject,
+                credentials(new UserLocation(UUID.randomUUID().toString())),
+                credentials(new UserLocation(foreignUser)));
+
+        // -- ASSERT --
+        assertThat(recorded).hasSize(1);
+        assertThat(locationKeyOf(recorded.get(0).getId())).isEqualTo("unknown");
+        assertThat(
+                count(
+                    "SELECT count(*) FROM findings_users WHERE finding_id = ?",
+                    recorded.get(0).getId()))
+            .isZero();
+      } finally {
+        jdbc.update("DELETE FROM users_tenants WHERE user_id = ?", foreignUser);
+        jdbc.update("DELETE FROM users WHERE user_id = ?", foreignUser);
+        jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", otherTenantId);
+      }
+    }
+
+    private DetectedFinding credentials(LocationIdentity location) {
+      return detection(
+          ContractOutputType.Credentials, "jdoe:secret", "credentials", "jdoe", location);
     }
   }
 
@@ -373,8 +430,8 @@ class FindingRecordingServiceTest extends IntegrationTest {
   class LifecycleEvents {
 
     @Test
-    @DisplayName("should publish a create, nothing on a repeat, then an update on a new occurrence")
-    void given_aNewThenRepeatedThenLaterDetection_should_publishCreateNothingThenUpdate() {
+    @DisplayName("should publish a create, then an update on each later detection, repeat included")
+    void given_aNewThenRepeatedThenLaterDetection_should_publishCreateThenUpdates() {
       // -- ACT --
       String findingId =
           record(mondayInject, cve(CVE, "cve", "OpenSSL", new AssetLocation(assetA)))
@@ -388,8 +445,34 @@ class FindingRecordingServiceTest extends IntegrationTest {
           applicationEvents.stream(BaseEvent.class)
               .filter(event -> event.getInstance() instanceof Finding)
               .toList();
-      assertThat(events).extracting(BaseEvent::getType).containsExactly(DATA_PERSIST, DATA_UPDATE);
+      assertThat(events)
+          .extracting(BaseEvent::getType)
+          .containsExactly(DATA_PERSIST, DATA_UPDATE, DATA_UPDATE);
       assertThat(events).allMatch(event -> findingId.equals(event.getInstance().getId()));
+    }
+
+    @Test
+    @DisplayName(
+        "given a new occurrence leaving the seen dates as they are, should publish an update")
+    void given_aNewOccurrenceLeavingTheSeenDatesAsTheyAre_should_publishAnUpdate() {
+      // -- ARRANGE --
+      Inject sameTimeInject = seedInject(MONDAY);
+      String findingId =
+          record(mondayInject, cve(CVE, "cve", "OpenSSL", new AssetLocation(assetA)))
+              .get(0)
+              .getId();
+
+      // -- ACT --
+      record(sameTimeInject, cve(CVE, "cve", "OpenSSL", new AssetLocation(assetA)));
+
+      // -- ASSERT --
+      assertThat(seenOf(findingId)).containsExactly(MONDAY, MONDAY);
+      assertThat(countOccurrences(findingId)).isEqualTo(2);
+      assertThat(
+              applicationEvents.stream(BaseEvent.class)
+                  .filter(event -> event.getInstance() instanceof Finding))
+          .extracting(BaseEvent::getType)
+          .containsExactly(DATA_PERSIST, DATA_UPDATE);
     }
   }
 
@@ -432,6 +515,65 @@ class FindingRecordingServiceTest extends IntegrationTest {
       } finally {
         pool.shutdownNow();
       }
+    }
+
+    @Test
+    @DisplayName("given a newer batch refreshing the finding meanwhile, should keep its data")
+    void given_aNewerBatchRefreshingTheFindingMeanwhile_should_keepItsData() throws Exception {
+      // -- ARRANGE --
+      String findingId =
+          record(mondayInject, cve(CVE, "cve", "OpenSSL 1", new AssetLocation(assetA)))
+              .get(0)
+              .getId();
+      ExecutorService pool =
+          new DelegatingSecurityContextExecutorService(
+              Executors.newSingleThreadExecutor(), SecurityContextHolder.getContext());
+
+      try (Connection newerBatch = dataSource.getConnection()) {
+        newerBatch.setAutoCommit(false);
+        try (PreparedStatement lock =
+            newerBatch.prepareStatement(
+                "SELECT finding_id FROM findings WHERE finding_id = ? FOR UPDATE")) {
+          lock.setString(1, findingId);
+          lock.executeQuery();
+        }
+
+        // -- ACT --
+        Future<List<Finding>> olderBatch =
+            pool.submit(
+                () ->
+                    record(tuesdayInject, cve(CVE, "cve", "OpenSSL 2", new AssetLocation(assetA))));
+        Awaitility.await()
+            .atMost(30, TimeUnit.SECONDS)
+            .until(
+                () ->
+                    count(
+                            "SELECT count(*) FROM pg_stat_activity"
+                                + " WHERE datname = current_database() AND wait_event_type = 'Lock'")
+                        > 0);
+        try (PreparedStatement refresh =
+            newerBatch.prepareStatement(
+                "UPDATE findings SET finding_last_seen = ?, finding_name = ? WHERE finding_id = ?")) {
+          refresh.setTimestamp(1, Timestamp.from(WEDNESDAY));
+          refresh.setString(2, "OpenSSL 3");
+          refresh.setString(3, findingId);
+          refresh.executeUpdate();
+        }
+        newerBatch.commit();
+        olderBatch.get(30, TimeUnit.SECONDS);
+      } finally {
+        pool.shutdownNow();
+      }
+
+      // -- ASSERT --
+      assertThat(seenOf(findingId)).containsExactly(MONDAY, WEDNESDAY);
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT finding_name FROM findings WHERE finding_id = ?",
+                  String.class,
+                  findingId))
+          .isEqualTo("OpenSSL 3");
+      assertThat(countOccurrences(findingId)).isEqualTo(2);
     }
   }
 
