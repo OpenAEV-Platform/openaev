@@ -52,18 +52,13 @@ public final class FindingValueNormalizer {
     String stripped = value.strip();
     // No default: a new contract output type does not compile until it declares its rule
     return switch (type) {
-      case Text, ActionOutput, Number, Port, IPv4 -> stripped;
-      // Not only Active Directory: an SSH or FTP username is case sensitive.
-      case Credentials -> stripped;
-      case IPv6,
-              Username,
-              AdminUsername,
-              AsreproastableAccount,
-              KerberoastableAccount,
-              Computer,
-              Email,
-              Delegation ->
+      case Text, ActionOutput, Number, Port, IPv4, AdminUsername -> stripped;
+      // Not only Active Directory: an SSH or FTP username is case sensitive, and a password keeps
+      // its whitespace.
+      case Credentials -> value;
+      case IPv6, AsreproastableAccount, KerberoastableAccount, Computer, Email, Delegation ->
           lower(stripped);
+      case Username -> username(stripped);
       case CVE -> cveId(stripped);
       case Sid -> stripped.toUpperCase(Locale.ROOT);
       case Group -> lower(strip(stripped, TRAILING_MEMBER_COUNT));
@@ -82,6 +77,11 @@ public final class FindingValueNormalizer {
   private static String cveId(String value) {
     Matcher matcher = CVE_ID.matcher(value);
     return (matcher.find() ? matcher.group() : value).toUpperCase(Locale.ROOT);
+  }
+
+  // "NORTH\JDoe" -> "north\jdoe": a Windows account ignores case, a bare name may be a Unix one
+  private static String username(String value) {
+    return value.contains("\\") ? lower(value) : value;
   }
 
   // "host:port (service (version))" -> "port" on an asset, "host:port" otherwise

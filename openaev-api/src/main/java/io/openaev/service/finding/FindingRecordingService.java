@@ -21,7 +21,7 @@ import io.openaev.finding.identity.LocationIdentity.UnknownLocation;
 import io.openaev.finding.identity.LocationIdentity.UserLocation;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AssetService;
-import io.openaev.service.UserService;
+import io.openaev.service.tenants.TenantUserService;
 import io.openaev.utils.ReferenceResolver;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -49,7 +49,7 @@ public class FindingRecordingService {
   private final FindingOccurrenceService findingOccurrenceService;
   private final TagService tagService;
   private final AssetService assetService;
-  private final UserService userService;
+  private final TenantUserService tenantUserService;
   private final ReferenceResolver referenceResolver;
 
   /**
@@ -72,7 +72,7 @@ public class FindingRecordingService {
     Instant date = FindingOccurrenceService.occurrenceDate(inject);
 
     // 1 - keep only the assets and users that exist in the tenant
-    List<DetectedFinding> detectedFindings = withKnownLocations(detections);
+    List<DetectedFinding> detectedFindings = withKnownLocations(tenantId, detections);
 
     // 2 - find or create the locations (based on their key)
     List<FindingLocation> findingLocations =
@@ -92,10 +92,11 @@ public class FindingRecordingService {
 
   /**
    * An asset or a user that does not exist, or that belongs to another tenant, becomes the unknown
-   * location: the finding is kept, without a target. The assets are read in the transaction's
-   * scope, so another tenant's are not found.
+   * location: the finding is kept, without a target. The assets are read in the transaction's scope
+   * and the users among the tenant's members, so another tenant's are not found.
    */
-  private List<DetectedFinding> withKnownLocations(List<DetectedFinding> detections) {
+  private List<DetectedFinding> withKnownLocations(
+      String tenantId, List<DetectedFinding> detections) {
     Set<String> knownAssetIds =
         assetService
             .assets(
@@ -108,8 +109,9 @@ public class FindingRecordingService {
             .map(Asset::getId)
             .collect(Collectors.toSet());
     Set<String> knownUserIds =
-        userService
-            .find(
+        tenantUserService
+            .findMembers(
+                tenantId,
                 detections.stream()
                     .map(detection -> userIdOf(detection.location()))
                     .filter(Objects::nonNull)
@@ -218,7 +220,7 @@ public class FindingRecordingService {
             .stream()
             .collect(Collectors.toMap(Tag::getId, tag -> tag));
 
-    List<Finding> existing = findFindingsByKeys(tenantId, detectionsByKey.keySet());
+    List<Finding> existing = findFindingsByKeysForUpdate(tenantId, detectionsByKey.keySet());
     Set<FindingKey> existingKeys =
         existing.stream().map(FindingKey::of).collect(Collectors.toSet());
     List<List<DetectedFinding>> missing =
@@ -242,12 +244,9 @@ public class FindingRecordingService {
     for (Finding finding : existing) {
       List<DetectedFinding> detections = detectionsByKey.get(FindingKey.of(finding));
       refreshFinding(finding, detections.getLast(), occurrenceDate);
-      boolean tagsAdded = addTags(finding, detections, tagById);
-      boolean locationLinked = linkLegacyLocation(finding, detections.getLast().location());
-      // A change of links alone leaves the row untouched: the search index follows updated_at
-      if (tagsAdded || locationLinked) {
-        finding.setUpdateDate(Instant.now());
-      }
+      addTags(finding, detections, tagById);
+      linkLegacyLocation(finding, detections.getLast().location());
+      finding.setUpdateDate(Instant.now());
     }
     return fromIterable(findingRepository.saveAll(existing));
   }
@@ -277,9 +276,9 @@ public class FindingRecordingService {
     return fromIterable(findingRepository.saveAll(newFindings));
   }
 
-  private List<Finding> findFindingsByKeys(String tenantId, Set<FindingKey> keys) {
+  private List<Finding> findFindingsByKeysForUpdate(String tenantId, Set<FindingKey> keys) {
     return findingRepository
-        .findAllByTenantTypeValueHashAndLocation(
+        .findAllByTenantTypeValueHashAndLocationForUpdate(
             tenantId,
             keys.stream().map(FindingKey::type).collect(Collectors.toSet()),
             keys.stream().map(FindingKey::valueHash).collect(Collectors.toSet()),

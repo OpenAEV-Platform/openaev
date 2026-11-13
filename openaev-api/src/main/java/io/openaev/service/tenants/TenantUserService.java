@@ -113,6 +113,15 @@ public class TenantUserService implements DependenciesManager {
     return toOutputs(userRepository.findAll(inTenant(tenantId).and(fromIds(userIds))), tenantId);
   }
 
+  /** The users among these ids that are members of the tenant. */
+  @Transactional(readOnly = true)
+  public List<User> findMembers(@NotBlank String tenantId, @NotNull List<String> userIds) {
+    if (userIds.isEmpty()) {
+      return List.of();
+    }
+    return userRepository.findAllByIdInAndTenantId(userIds, tenantId);
+  }
+
   /** Returns all users belonging to the tenant of the request. */
   @Transactional(readOnly = true)
   public List<RawUser> users(TxCtx ctx) {
