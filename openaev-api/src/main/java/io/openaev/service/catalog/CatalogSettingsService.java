@@ -1,8 +1,7 @@
 package io.openaev.service.catalog;
 
-import static io.openaev.database.model.TenantSettingKeys.CATALOG_PAYLOAD_AUTO_INSTALL;
-
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.catalog.ContentType;
 import io.openaev.service.settings.TenantSettingsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,18 +16,36 @@ public class CatalogSettingsService {
 
   // -- LIST --
 
-  /** Whether the payloads a release brings and the tenant never installed install themselves. */
   @Transactional(readOnly = true)
-  public boolean isPayloadAutoInstall(TxCtx ctx, String tenantId) {
-    return Boolean.parseBoolean(
-        tenantSettingsService.resolveSettingValue(tenantId, CATALOG_PAYLOAD_AUTO_INSTALL));
+  public CatalogSettings settings(TxCtx ctx, String tenantId) {
+    return new CatalogSettings(
+        isAutoInstall(tenantId, ContentType.PAYLOAD),
+        isAutoInstall(tenantId, ContentType.SCENARIO));
+  }
+
+  /** Whether the content of this type a release brings and the tenant never had installs itself. */
+  @Transactional(readOnly = true)
+  public boolean isAutoInstall(TxCtx ctx, String tenantId, ContentType type) {
+    return isAutoInstall(tenantId, type);
   }
 
   // -- UPDATE --
 
   @Transactional(rollbackFor = Exception.class)
-  public boolean setPayloadAutoInstall(TxCtx ctx, String tenantId, boolean enabled) {
-    tenantSettingsService.updateCatalogPayloadAutoInstall(tenantId, enabled);
-    return enabled;
+  public CatalogSettings update(TxCtx ctx, String tenantId, CatalogSettings settings) {
+    setAutoInstall(tenantId, ContentType.PAYLOAD, settings.payloadAutoInstall());
+    setAutoInstall(tenantId, ContentType.SCENARIO, settings.scenarioAutoInstall());
+    return settings;
+  }
+
+  // -- STEPS --
+
+  private boolean isAutoInstall(String tenantId, ContentType type) {
+    return Boolean.parseBoolean(
+        tenantSettingsService.resolveSettingValue(tenantId, type.autoInstallSetting()));
+  }
+
+  private void setAutoInstall(String tenantId, ContentType type, boolean enabled) {
+    tenantSettingsService.updateCatalogAutoInstall(tenantId, type.autoInstallSetting(), enabled);
   }
 }

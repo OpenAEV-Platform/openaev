@@ -63,16 +63,17 @@ public class CatalogScenarioService {
       InstallableScenarioVersion released,
       byte[] archive,
       Map<InstallablePayloadVersion, byte[]> payloadFiles,
-      TargetChoice targets)
+      TargetChoice targets,
+      CatalogHistory.Mode mode)
       throws Exception {
     ScenarioIdentity identity = uninstalledIdentity(tenantId, released);
-    Set<String> payloadIds = installPayloads(ctx, tenantId, payloadFiles);
+    Set<String> payloadIds = installPayloads(ctx, tenantId, payloadFiles, mode);
     Scenario scenario = importPackage(ctx, archive);
     Set<Inject> injects = injectService.findByScenarioId(scenario.getId());
     refuseOtherPayloads(injects, payloadIds);
     catalogScenarioTargets.addTo(injects, targets);
     markInstalled(scenario, identity, tenantId, released);
-    changePublisher.changed(scenario, CatalogHistory.Action.INSTALL, CatalogHistory.Mode.MANUAL);
+    changePublisher.changed(scenario, CatalogHistory.Action.INSTALL, mode);
     return scenario;
   }
 
@@ -102,12 +103,15 @@ public class CatalogScenarioService {
   }
 
   private Set<String> installPayloads(
-      TxCtx ctx, String tenantId, Map<InstallablePayloadVersion, byte[]> payloadFiles) {
+      TxCtx ctx,
+      String tenantId,
+      Map<InstallablePayloadVersion, byte[]> payloadFiles,
+      CatalogHistory.Mode mode) {
     return payloadFiles.entrySet().stream()
         .map(
             file ->
                 catalogPayloadService.installIfMissing(
-                    ctx, tenantId, file.getKey(), file.getValue(), CatalogHistory.Mode.MANUAL))
+                    ctx, tenantId, file.getKey(), file.getValue(), mode))
         .map(Payload::getId)
         .collect(Collectors.toSet());
   }

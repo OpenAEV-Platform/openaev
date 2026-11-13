@@ -5,8 +5,10 @@ import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.catalog.CatalogFeature;
+import io.openaev.api.catalog.CatalogItemMapper;
+import io.openaev.api.catalog.dto.CatalogInstallAllOutput;
+import io.openaev.api.catalog.dto.CatalogInstallOutput;
 import io.openaev.api.catalog.dto.scenario.CatalogScenarioInstallInput;
-import io.openaev.api.catalog.dto.scenario.CatalogScenarioInstallOutput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -34,6 +36,7 @@ public class CatalogScenarioInstallApi {
   private final CatalogScenarioInstaller catalogScenarioInstaller;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final CatalogFeature catalogFeature;
+  private final CatalogItemMapper catalogItemMapper;
 
   // -- CREATE --
 
@@ -46,14 +49,14 @@ public class CatalogScenarioInstallApi {
   @ResponseStatus(HttpStatus.CREATED)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
   @Transactional(propagation = Propagation.SUPPORTS)
-  public CatalogScenarioInstallOutput installScenario(
+  public CatalogInstallOutput installScenario(
       TxCtx ctx,
       @PathVariable String externalId,
       @PathVariable String version,
       @Valid @RequestBody(required = false) CatalogScenarioInstallInput input)
       throws Exception {
     catalogFeature.require();
-    return new CatalogScenarioInstallOutput(
+    return new CatalogInstallOutput(
         catalogScenarioInstaller
             .install(
                 ctx,
@@ -64,9 +67,23 @@ public class CatalogScenarioInstallApi {
             .getId());
   }
 
+  @LogExecutionTime
+  @Operation(
+      summary = "Install every catalogue scenario never installed",
+      description = "Chained ones and those the platform cannot run are left to install by hand.")
+  @PostMapping(TENANT_CATALOG_URI + "/scenarios/install-all")
+  @ResponseStatus(HttpStatus.CREATED)
+  @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.SCENARIO)
+  @Transactional(propagation = Propagation.SUPPORTS)
+  public CatalogInstallAllOutput installAllScenarios(TxCtx ctx) {
+    catalogFeature.require();
+    return catalogItemMapper.toOutput(
+        catalogScenarioInstaller.installAll(ctx, writeScopeResolver.tenantForWrite(ctx, null)));
+  }
+
   private static TargetChoice targets(CatalogScenarioInstallInput input) {
     return input == null
-        ? new TargetChoice(List.of(), List.of(), List.of(), List.of())
+        ? TargetChoice.NONE
         : new TargetChoice(
             orEmpty(input.assetIds()),
             orEmpty(input.assetGroupIds()),

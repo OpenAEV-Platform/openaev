@@ -5,8 +5,9 @@ import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.LogExecutionTime;
 import io.openaev.api.catalog.CatalogFeature;
-import io.openaev.api.catalog.dto.payload.CatalogPayloadInstallAllOutput;
-import io.openaev.api.catalog.dto.payload.CatalogPayloadInstallOutput;
+import io.openaev.api.catalog.CatalogItemMapper;
+import io.openaev.api.catalog.dto.CatalogInstallAllOutput;
+import io.openaev.api.catalog.dto.CatalogInstallOutput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
@@ -14,10 +15,7 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.ResourceType;
 import io.openaev.service.catalog.payload.CatalogPayloadInstaller;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
-import io.openaev.service.catalog.payload.InstallablePayloadVersion;
-import io.openaev.service.catalog.payload.InstalledPayloads;
 import io.swagger.v3.oas.annotations.Operation;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Propagation;
@@ -37,6 +35,7 @@ public class CatalogPayloadInstallApi {
   private final CatalogPayloadService catalogPayloadService;
   private final TenantWriteScopeResolver writeScopeResolver;
   private final CatalogFeature catalogFeature;
+  private final CatalogItemMapper catalogItemMapper;
 
   // -- CREATE --
 
@@ -45,13 +44,13 @@ public class CatalogPayloadInstallApi {
   @ResponseStatus(HttpStatus.CREATED)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
   @Transactional(propagation = Propagation.SUPPORTS)
-  public CatalogPayloadInstallOutput installPayload(
+  public CatalogInstallOutput installPayload(
       TxCtx ctx, @PathVariable String externalId, @PathVariable String version) {
     catalogFeature.require();
     Payload payload =
         catalogPayloadInstaller.install(
             ctx, writeScopeResolver.tenantForWrite(ctx, null), externalId, version);
-    return new CatalogPayloadInstallOutput(List.of(payload.getId()));
+    return new CatalogInstallOutput(payload.getId());
   }
 
   @LogExecutionTime
@@ -60,13 +59,10 @@ public class CatalogPayloadInstallApi {
   @ResponseStatus(HttpStatus.CREATED)
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.THREAT_ARSENAL)
   @Transactional(propagation = Propagation.SUPPORTS)
-  public CatalogPayloadInstallAllOutput installAllPayloads(TxCtx ctx) {
+  public CatalogInstallAllOutput installAllPayloads(TxCtx ctx) {
     catalogFeature.require();
-    InstalledPayloads result =
-        catalogPayloadInstaller.installAll(ctx, writeScopeResolver.tenantForWrite(ctx, null));
-    return new CatalogPayloadInstallAllOutput(
-        result.installed().stream().map(Payload::getId).toList(),
-        result.failed().stream().map(InstallablePayloadVersion::externalId).toList());
+    return catalogItemMapper.toOutput(
+        catalogPayloadInstaller.installAll(ctx, writeScopeResolver.tenantForWrite(ctx, null)));
   }
 
   // -- DELETE --
