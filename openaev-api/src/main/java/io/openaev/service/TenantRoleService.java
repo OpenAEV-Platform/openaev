@@ -105,6 +105,26 @@ public class TenantRoleService {
     return roleRepository.findAllByTenantIdIn(tenantIds);
   }
 
+  /** Role names are not unique: oldest first, lowest id on a tie. */
+  @Transactional(readOnly = true)
+  public List<Role> findByNameOldestFirst(
+      @NotBlank final String tenantId, @NotBlank final String name) {
+    return oldestFirst(tenantId, name);
+  }
+
+  /** The oldest role of this name, else created with these capabilities. */
+  public Role findOrCreate(
+      @NotBlank final String tenantId,
+      @NotBlank final String name,
+      @NotNull final Set<Capability> capabilities) {
+    return oldestFirst(tenantId, name).stream()
+        .findFirst()
+        .orElseGet(
+            () ->
+                createRoleInternal(
+                    UUID.randomUUID().toString(), name, name, capabilities, tenantId));
+  }
+
   @Transactional(readOnly = true)
   public Page<Role> search(
       SearchPaginationInput searchPaginationInput, @NotNull final Collection<String> tenantIds) {
@@ -166,5 +186,11 @@ public class TenantRoleService {
     ReservedKeyValidator.validateRoleId(role.getId());
     groupRepository.findAllByRoles(role).forEach(group -> group.getRoles().remove(role));
     roleRepository.delete(role);
+  }
+
+  private List<Role> oldestFirst(String tenantId, String name) {
+    return roleRepository.findByTenantIdAndName(tenantId, name).stream()
+        .sorted(Comparator.comparing(Role::getCreatedAt).thenComparing(Role::getId))
+        .toList();
   }
 }
