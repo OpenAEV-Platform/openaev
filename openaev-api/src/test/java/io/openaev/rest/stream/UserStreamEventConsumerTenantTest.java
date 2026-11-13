@@ -2,6 +2,7 @@ package io.openaev.rest.stream;
 
 import static io.openaev.rest.user.PlayerApi.PLAYER_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static io.openaev.utils.PlatformWriteJdbc.inPlatformWriteTransaction;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -346,8 +347,15 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       deleteWhere("DELETE FROM groups WHERE group_id = ?", group);
     }
     for (String role : roles) {
-      deleteWhere("DELETE FROM roles_capabilities WHERE role_id = ?", role);
-      deleteWhere("DELETE FROM roles WHERE role_id = ?", role);
+      cleanupStep(
+          "delete the role " + role,
+          () ->
+              inPlatformWriteTransaction(
+                  dataSource,
+                  writer -> {
+                    writer.update("DELETE FROM roles_capabilities WHERE role_id = ?", role);
+                    writer.update("DELETE FROM roles WHERE role_id = ?", role);
+                  }));
     }
     cleanupStep(
         "delete the committed tenants",
@@ -492,14 +500,13 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
   private String insertGroup(String tenantId, String capability) {
     String groupId = UUID.randomUUID().toString();
     String roleId = UUID.randomUUID().toString();
-    jdbc.update(
-        "INSERT INTO roles (role_id, role_name, role_created_at, role_updated_at, tenant_id)"
-            + " VALUES (?, ?, now(), now(), ?)",
-        roleId,
-        "stream-role-" + roleId,
-        tenantId);
-    jdbc.update(
-        "INSERT INTO roles_capabilities (role_id, capability) VALUES (?, ?)", roleId, capability);
+    // A platform role and its capability are written in a platform-write transaction only
+    if (tenantId == null) {
+      inPlatformWriteTransaction(
+          dataSource, writer -> insertRole(writer, roleId, tenantId, capability));
+    } else {
+      insertRole(jdbc, roleId, tenantId, capability);
+    }
     roles.add(roleId);
     jdbc.update(
         "INSERT INTO groups (group_id, group_name, tenant_id) VALUES (?, ?, ?)",
@@ -508,6 +515,18 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
         tenantId);
     jdbc.update("INSERT INTO groups_roles (group_id, role_id) VALUES (?, ?)", groupId, roleId);
     return groupId;
+  }
+
+  private static void insertRole(
+      JdbcTemplate writer, String roleId, String tenantId, String capability) {
+    writer.update(
+        "INSERT INTO roles (role_id, role_name, role_created_at, role_updated_at, tenant_id)"
+            + " VALUES (?, ?, now(), now(), ?)",
+        roleId,
+        "stream-role-" + roleId,
+        tenantId);
+    writer.update(
+        "INSERT INTO roles_capabilities (role_id, capability) VALUES (?, ?)", roleId, capability);
   }
 
   private void insertGrant(String groupId, String simulationId, String grantType) {
