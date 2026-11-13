@@ -8,12 +8,15 @@ import io.openaev.config.RabbitMQSslConfiguration;
 import io.openaev.config.RabbitmqConfig;
 import io.openaev.config.RabbitmqManagementClientConfig;
 import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.security.KeyStore;
+import java.security.cert.CertificateFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.X509TrustManager;
 import org.junit.jupiter.api.AfterAll;
@@ -106,10 +109,14 @@ class RabbitmqManagementClientConfigTest {
   @Test
   @DisplayName("With a RabbitMQ trust store, the platform trust store still applies")
   void keepsPlatformTrustWithDedicatedTrustStore() throws Exception {
-    KeyStore emptyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-    emptyStore.load(null, null);
+    KeyStore unrelatedStore = KeyStore.getInstance(KeyStore.getDefaultType());
+    unrelatedStore.load(null, null);
+    try (InputStream cert = new FileInputStream(UNRELATED_CA_DIR + "/cert.pem")) {
+      unrelatedStore.setCertificateEntry(
+          "unrelated", CertificateFactory.getInstance("X.509").generateCertificate(cert));
+    }
     ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-    emptyStore.store(bytes, "changeit".toCharArray());
+    unrelatedStore.store(bytes, "changeit".toCharArray());
     RabbitmqConfig rabbitmqConfig = sslRabbitmqConfig();
     rabbitmqConfig.setTrustStore(new ByteArrayResource(bytes.toByteArray()));
     rabbitmqConfig.setTrustStorePassword("changeit");
