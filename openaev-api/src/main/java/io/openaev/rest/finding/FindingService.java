@@ -3,20 +3,20 @@ package io.openaev.rest.finding;
 import static io.openaev.helper.StreamHelper.fromIterable;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetRepository;
 import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.TeamRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.finding.identity.DetectedFinding;
 import io.openaev.rest.finding.form.FindingSummaryOutput;
 import io.openaev.rest.inject.service.ContractOutputContext;
 import io.openaev.rest.inject.service.ExecutionProcessingContext;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.finding.FindingOccurrenceService;
+import io.openaev.service.finding.FindingRecordingService;
 import io.openaev.utils.mapper.FindingMapper;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotBlank;
@@ -26,6 +26,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,7 +43,7 @@ public class FindingService {
   private final FindingMapper findingMapper;
   private final FindingWriter findingWriter;
   private final FindingOccurrenceService findingOccurrenceService;
-  private final TenantWriteScopeResolver tenantWriteScopeResolver;
+  private final FindingRecordingService findingRecordingService;
   private final AssetRepository assetRepository;
   private final TeamRepository teamRepository;
   private final UserRepository userRepository;
@@ -88,28 +89,19 @@ public class FindingService {
     return this.findingMapper.toFindingSummaryOutput(finding, seen, counts);
   }
 
-  public Finding createFinding(
-      @NotNull final TxCtx ctx, @NotNull final Finding finding, @NotBlank final String injectId) {
-    Inject inject = this.injectService.inject(injectId);
-    finding.setInject(inject);
-    // The inject's tenant is validated against the request scope, not trusted: inject() is a
-    // primary key load that no tenant predicate filters, and the endpoint's @AccessControl checks a
-    // capability with no resourceId, so a caller could otherwise attribute a finding to a tenant
-    // that does not own the inject.
-    String tenantId =
-        this.tenantWriteScopeResolver.tenantForWrite(
-            ctx, inject.getTenant() != null ? inject.getTenant().getId() : null);
-    finding.setTenant(new Tenant(tenantId));
-    Finding saved = this.findingRepository.save(finding);
-    findingOccurrenceService.recordOccurrencesByInject(inject, List.of(saved));
-    return saved;
-  }
-
-  public void deleteFinding(@NotNull final String id) {
-    if (!this.findingRepository.existsByIdAndTenantId(id, TenantContext.getCurrentTenant())) {
-      throw new EntityNotFoundException("Finding not found with id: " + id);
+  /**
+   * Records what an inject detected, retried once: two batches creating the same location, finding
+   * or tag at once collide on its unique key, and the retry finds what the other one created.
+   */
+  public List<Finding> recordFindingsByInject(
+      @NotNull final TxCtx ctx,
+      @NotNull final Inject inject,
+      @NotNull final List<DetectedFinding> detections) {
+    try {
+      return findingRecordingService.recordFindingsByInject(ctx, inject, detections);
+    } catch (DataIntegrityViolationException concurrentBatch) {
+      return findingRecordingService.recordFindingsByInject(ctx, inject, detections);
     }
-    this.findingRepository.deleteById(id);
   }
 
   /**

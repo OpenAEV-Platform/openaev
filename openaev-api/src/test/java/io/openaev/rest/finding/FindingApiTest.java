@@ -896,34 +896,6 @@ class FindingApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.totalElements").value(0));
     }
-
-    @Test
-    @DisplayName("Finding created in tenant X should NOT be deletable from tenant Y")
-    void given_findingInTenantX_should_notBeDeletableFromTenantY() throws Exception {
-      // -------- Arrange --------
-      Tenant tenantX =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant X", Set.of(Capability.MANAGE_FINDINGS, Capability.ACCESS_FINDINGS));
-      Tenant tenantY =
-          tenantIsolationHelper.createTenantWithCapabilities(
-              "Tenant Y", Set.of(Capability.DELETE_FINDINGS, Capability.ACCESS_FINDINGS));
-
-      Finding finding = createFindingInTenant(tenantX.getId());
-      entityManager.flush();
-      entityManager.clear();
-
-      // -------- Act --------
-      int responseStatus =
-          mvc.perform(
-                  delete("/api/tenants/" + tenantY.getId() + "/findings/" + finding.getId())
-                      .with(csrf()))
-              .andReturn()
-              .getResponse()
-              .getStatus();
-
-      // -------- Assert --------
-      assertThat(responseStatus).isEqualTo(HttpStatus.NOT_FOUND.value());
-    }
   }
 
   @Nested

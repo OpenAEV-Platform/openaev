@@ -3,12 +3,15 @@ package io.openaev.database.repository;
 import io.openaev.database.model.ContractOutputType;
 import io.openaev.database.model.Finding;
 import io.openaev.database.raw.RawFindingIndexing;
+import jakarta.persistence.LockModeType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -293,4 +296,18 @@ public interface FindingRepository
               + " ON CONFLICT DO NOTHING",
       nativeQuery = true)
   void insertFindingTags(@Param("findingId") String findingId, @Param("tagIds") String[] tagIds);
+
+  // -- READ ON THE IDENTITY KEY --
+
+  // Over-matches (any type x any hash x any location): the caller keeps the exact identities.
+  // Locked in id order: concurrent batches refresh a finding one after the other, without deadlock
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query(
+      "SELECT f FROM Finding f WHERE f.tenant.id = :tenantId AND f.type IN :types"
+          + " AND f.valueHash IN :hashes AND f.location.id IN :locationIds ORDER BY f.id")
+  List<Finding> findAllByTenantTypeValueHashAndLocationForUpdate(
+      @Param("tenantId") String tenantId,
+      @Param("types") Collection<ContractOutputType> types,
+      @Param("hashes") Collection<String> hashes,
+      @Param("locationIds") Collection<String> locationIds);
 }
