@@ -14,6 +14,7 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.mapper.InjectStatusMapper;
@@ -194,7 +195,38 @@ public class InjectTestStatusService {
     return this.injectTestStatusRepository.save(injectTestStatus);
   }
 
-  public void deleteInjectTest(String testId) {
-    injectTestStatusRepository.deleteById(testId);
+  /**
+   * @throws ElementNotFoundException when the test status does not exist or its inject is not in
+   *     the given simulation
+   */
+  public void deleteInjectTestOfSimulation(String simulationId, String testId) {
+    InjectTestStatus injectTestStatus = findInjectTestStatus(testId);
+    Exercise simulation = injectTestStatus.getInject().getExercise();
+    if (simulation == null || !simulationId.equals(simulation.getId())) {
+      throw new ElementNotFoundException(
+          "Inject test not found with id: " + testId + " in simulation: " + simulationId);
+    }
+    injectTestStatusRepository.delete(injectTestStatus);
+  }
+
+  /**
+   * @throws ElementNotFoundException when the test status does not exist or its inject is not in
+   *     the given scenario
+   */
+  public void deleteInjectTestOfScenario(String scenarioId, String testId) {
+    InjectTestStatus injectTestStatus = findInjectTestStatus(testId);
+    Scenario scenario = injectTestStatus.getInject().getScenario();
+    if (scenario == null || !scenarioId.equals(scenario.getId())) {
+      throw new ElementNotFoundException(
+          "Inject test not found with id: " + testId + " in scenario: " + scenarioId);
+    }
+    injectTestStatusRepository.delete(injectTestStatus);
+  }
+
+  private InjectTestStatus findInjectTestStatus(String testId) {
+    return injectTestStatusRepository
+        .findById(testId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Inject test not found with id: " + testId));
   }
 }
