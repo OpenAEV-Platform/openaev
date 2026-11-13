@@ -8,7 +8,6 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
 import io.openaev.execution.ExecutableInject;
-import io.openaev.execution.InjectToRun;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.TeamFixture;
 import java.time.Instant;
