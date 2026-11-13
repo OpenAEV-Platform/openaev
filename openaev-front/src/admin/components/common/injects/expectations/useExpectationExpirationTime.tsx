@@ -4,6 +4,7 @@ import { type InjectExpectationOutput, type PlatformSettings } from '../../../..
 
 type ExpirationTimeSetting = 'expectation_detection_expiration_time'
   | 'expectation_prevention_expiration_time'
+  | 'expectation_logging_expiration_time'
   | 'expectation_challenge_expiration_time'
   | 'expectation_article_expiration_time'
   | 'expectation_manual_expiration_time';
@@ -12,6 +13,7 @@ type ExpirationTimeSetting = 'expectation_detection_expiration_time'
 const EXPIRATION_TIME_SETTINGS: Partial<Record<InjectExpectationOutput['inject_expectation_type'], ExpirationTimeSetting>> = {
   DETECTION: 'expectation_detection_expiration_time',
   PREVENTION: 'expectation_prevention_expiration_time',
+  LOGGING: 'expectation_logging_expiration_time',
   CHALLENGE: 'expectation_challenge_expiration_time',
   ARTICLE: 'expectation_article_expiration_time',
   MANUAL: 'expectation_manual_expiration_time',

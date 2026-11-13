@@ -122,7 +122,7 @@ const ThreatArsenalActionForm = ({
     action_tags: z.string().array().optional(),
     // action_domains: z.array(domainZodObject).refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
     action_domains: z.string().array().refine(arr => arr.length > 0, t('Should not be empty')).describe('General-tab'),
-    action_expectations: z.enum(['PREVENTION', 'DETECTION', 'VULNERABILITY', 'MANUAL', 'TEXT', 'CHALLENGE', 'DOCUMENT', 'ARTICLE']).array(),
+    action_expectations: z.enum(['PREVENTION', 'DETECTION', 'LOGGING', 'VULNERABILITY', 'MANUAL', 'TEXT', 'CHALLENGE', 'DOCUMENT', 'ARTICLE']).array(),
     // Bound per-expectation by ExpectationSecurityPlatformsField, whose Controllers
     // may leave freshly mounted entries as `undefined` before the user touches them.
     // Normalise (drop undefined/empty scopes) so an untouched form still validates.
