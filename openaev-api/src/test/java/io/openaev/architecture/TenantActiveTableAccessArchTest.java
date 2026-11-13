@@ -456,7 +456,8 @@ class TenantActiveTableAccessArchTest {
           "scenario_identities",
           "payload_revocations",
           "exercises",
-          "scenarios");
+          "scenarios",
+          "roles");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
