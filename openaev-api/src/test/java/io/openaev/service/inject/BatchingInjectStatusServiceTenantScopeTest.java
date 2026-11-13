@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.ExecutionStatus;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
@@ -56,6 +58,7 @@ class BatchingInjectStatusServiceTenantScopeTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private EntityManager entityManager;
   @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private String tenantA;
   private String tenantB;
@@ -89,16 +92,19 @@ class BatchingInjectStatusServiceTenantScopeTest extends IntegrationTest {
         .containsExactlyInAnyOrder(injectA, injectB);
 
     entityManager.clear();
-    assertThat(statusOf(injectA)).isNotEqualTo(ExecutionStatus.PENDING);
-    assertThat(statusOf(injectB)).isNotEqualTo(ExecutionStatus.PENDING);
+    assertThat(statusOf(tenantA, injectA)).isNotEqualTo(ExecutionStatus.PENDING);
+    assertThat(statusOf(tenantB, injectB)).isNotEqualTo(ExecutionStatus.PENDING);
   }
 
-  private ExecutionStatus statusOf(String injectId) {
-    return injectRepository
-        .findById(injectId)
-        .flatMap(Inject::getStatus)
-        .map(InjectStatus::getName)
-        .orElseThrow();
+  private ExecutionStatus statusOf(String tenantId, String injectId) {
+    return tenantTx.execute(
+        TxCtx.forTenant(tenantId),
+        () ->
+            injectRepository
+                .findById(injectId)
+                .flatMap(Inject::getStatus)
+                .map(InjectStatus::getName)
+                .orElseThrow());
   }
 
   private String seedPendingInject(String tenantId) {
