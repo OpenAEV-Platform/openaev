@@ -482,7 +482,8 @@ class TenantActiveTableAccessArchTest {
           "exercises",
           "scenarios",
           "injects",
-          "execution_traces");
+          "execution_traces",
+          "roles");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
