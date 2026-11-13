@@ -758,16 +758,6 @@ public class ExerciseService {
   }
 
   /**
-   * Find all simulations matching a list of IDs
-   *
-   * @param simulationIds list of simulation IDs to search
-   * @return the list of simulations found
-   */
-  public List<Exercise> findAllById(List<String> simulationIds) {
-    return exerciseRepository.findAllById(simulationIds);
-  }
-
-  /**
    * Save a simulation
    *
    * @param simulation simulation to save
