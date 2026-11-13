@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -45,6 +46,7 @@ import org.springframework.transaction.annotation.Transactional;
  * once: changing it inside the test transaction would hit the nesting guard in {@code
  * TenantScopeTransactionAspect}.
  */
+@CoversTenantIsolation("teams")
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Teams read isolation through the real HTTP endpoints")

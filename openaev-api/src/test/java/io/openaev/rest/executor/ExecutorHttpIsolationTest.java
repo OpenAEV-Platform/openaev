@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.rest.executor.form.ExecutorCreateInput;
 import io.openaev.rest.executor.form.ExecutorUpdateInput;
@@ -39,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
  * isolates the table through the real {@link ExecutorApi} endpoints. A user who belongs to two
  * tenants sees an executor only under its own tenant's path, never another tenant's.
  */
+@CoversTenantIsolation("executors")
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("executors read and write isolation through the real HTTP endpoint")

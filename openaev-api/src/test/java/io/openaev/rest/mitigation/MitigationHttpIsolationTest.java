@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -41,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Each test stays on a single tenant path so the per-request scope is set once: re-applying the
  * same scope inside the test transaction is tolerated, changing it would hit the nesting guard.
  */
+@CoversTenantIsolation("mitigations")
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("mitigations read and write isolation through the real HTTP endpoint")

@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.rest.tag_rule.form.TagRuleInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -36,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
  * same shape as {@code TagHttpIsolationTest} (tags, already v2-active): every row is seeded with a
  * raw native INSERT carrying an explicit tenant_id, never through v1 TenantContext.
  */
+@CoversTenantIsolation("tag_rules")
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("tag_rules read and write isolation through the real HTTP endpoint")
