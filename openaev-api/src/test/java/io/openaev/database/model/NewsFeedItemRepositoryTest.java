@@ -149,6 +149,35 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Unread items")
+  class UnreadItems {
+
+    @Test
+    @DisplayName("Given read and unread items of several users, should only find the unread ones")
+    void given_itemsOfSeveralUsers_should_findOnlyUnreadItemsOfTheUser() {
+      // Arrange
+      User first = createUser();
+      User second = createUser();
+      NewsFeedItem unread =
+          newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(first, "hub-1"));
+      NewsFeedItem read = NewsFeedItemFixture.createNewsFeedItem(first, "hub-2");
+      read.setRead(true);
+      newsFeedItemRepository.save(read);
+      newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(second, "hub-1"));
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      long count = newsFeedItemRepository.countByUserIdAndReadFalse(first.getId());
+      List<NewsFeedItem> items = newsFeedItemRepository.findAllByUserIdAndReadFalse(first.getId());
+
+      // Assert
+      assertThat(count).isEqualTo(1);
+      assertThat(items).extracting(NewsFeedItem::getId).containsExactly(unread.getId());
+    }
+  }
+
+  @Nested
   @DisplayName("Uniqueness")
   class Uniqueness {
 

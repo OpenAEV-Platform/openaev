@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { IntlProvider } from 'react-intl';
-import { MemoryRouter } from 'react-router';
+import { Link, MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type NewsFeedSettingsOutput } from '../../../../utils/api-types';
@@ -14,11 +14,13 @@ let xtmHubReachable = true;
 const {
   mockFetchSettings,
   mockUpdateSettings,
+  mockMarkAllRead,
   mockNotifyError,
   mockNotifyErrorHandler,
 } = vi.hoisted(() => ({
   mockFetchSettings: vi.fn(),
   mockUpdateSettings: vi.fn(),
+  mockMarkAllRead: vi.fn(),
   mockNotifyError: vi.fn(),
   mockNotifyErrorHandler: vi.fn(),
 }));
@@ -29,6 +31,7 @@ vi.mock('../../../../utils/hooks/useAuth', () => ({ default: () => ({ settings: 
 vi.mock('../../../../actions/news_feed/news-feed-actions', () => ({
   fetchMyNewsFeedSettings: mockFetchSettings,
   updateMyNewsFeedSettings: mockUpdateSettings,
+  markAllMyNewsFeedItemsRead: mockMarkAllRead,
 }));
 vi.mock(import('../../../../utils/Environment'), async (importOriginal) => {
   const original = await importOriginal();
@@ -41,13 +44,24 @@ vi.mock(import('../../../../utils/Environment'), async (importOriginal) => {
   };
 });
 vi.mock('../../../../utils/error/errorHandlerUtil', () => ({ notifyErrorHandler: mockNotifyErrorHandler }));
-vi.mock('../../../../admin/components/profile/news_feed/NewsFeedList', () => ({ default: () => <div data-testid="news-feed-list" /> }));
+const { mockListMounted } = vi.hoisted(() => ({ mockListMounted: vi.fn() }));
+vi.mock('../../../../admin/components/profile/news_feed/NewsFeedList', async () => {
+  const { useEffect } = await import('react');
+  return {
+    default: () => {
+      useEffect(() => mockListMounted(), []);
+      return <div data-testid="news-feed-list" />;
+    },
+  };
+});
 vi.mock('../../../../components/NotFound', () => ({ default: () => <div data-testid="not-found" /> }));
 
 const { default: NewsFeed } = await import('../../../../admin/components/profile/news_feed/NewsFeed');
+const { MESSAGING$ } = await import('../../../../utils/Environment');
 
 const DISCONNECTED = 'XTM Hub is disconnected';
 const ENABLE_ALL = 'Enable News Feed notifications';
+const TOP_BAR_LINK = 'Top bar icon';
 
 const buildSettings = (overrides: Partial<NewsFeedSettingsOutput> = {}): NewsFeedSettingsOutput => ({
   news_feed_settings_subscribed_types: ['RESOURCE_SCENARIO'],
@@ -60,6 +74,7 @@ const renderPage = (tab: 'items' | 'settings') => render(
   <MemoryRouter>
     <IntlProvider locale="en" onError={() => {}}>
       <ThemeProvider theme={createTheme()}>
+        <Link to="/admin/profile/news-feed">{TOP_BAR_LINK}</Link>
         <NewsFeed tab={tab} />
       </ThemeProvider>
     </IntlProvider>
@@ -72,6 +87,7 @@ describe('NewsFeed page', () => {
     canManageTenantSettings = true;
     xtmHubReachable = true;
     mockFetchSettings.mockResolvedValue({ data: buildSettings() });
+    mockMarkAllRead.mockResolvedValue({});
     mockUpdateSettings.mockImplementation(async input => ({ data: buildSettings({ news_feed_settings_subscribed_types: input.news_feed_settings_subscribed_types }) }));
   });
 
@@ -88,6 +104,59 @@ describe('NewsFeed page', () => {
       expect(screen.getByTestId('not-found')).toBeInTheDocument();
       expect(screen.queryByTestId('news-feed-list')).not.toBeInTheDocument();
       expect(mockFetchSettings).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('unread items', () => {
+    it('marks all the items read once under the News feed tab, then refreshes the counter', async () => {
+      const refreshCounter = vi.fn();
+      const subscription = MESSAGING$.refreshNewsFeedUnreadCount.subscribe(refreshCounter);
+      renderPage('items');
+      await waitFor(() => expect(refreshCounter).toHaveBeenCalledTimes(1));
+      expect(mockMarkAllRead).toHaveBeenCalledTimes(1);
+      subscription.unsubscribe();
+    });
+
+    it('marks the items read and reloads the list again when the user navigates to the page already shown', async () => {
+      renderPage('items');
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
+      expect(mockListMounted).toHaveBeenCalledTimes(1);
+      fireEvent.click(screen.getByRole('link', { name: TOP_BAR_LINK }));
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(2));
+      expect(mockListMounted).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not mark anything read when navigating to the page under the Settings tab', async () => {
+      renderPage('settings');
+      await screen.findByRole('switch', { name: ENABLE_ALL });
+      fireEvent.click(screen.getByRole('link', { name: TOP_BAR_LINK }));
+      await screen.findByRole('switch', { name: ENABLE_ALL });
+      expect(mockMarkAllRead).not.toHaveBeenCalled();
+    });
+
+    it('does not mark anything read under the Settings tab', async () => {
+      renderPage('settings');
+      await screen.findByRole('switch', { name: ENABLE_ALL });
+      expect(mockMarkAllRead).not.toHaveBeenCalled();
+    });
+
+    it('does not mark anything read when the feature is disabled', () => {
+      enabled = false;
+      renderPage('items');
+      expect(mockMarkAllRead).not.toHaveBeenCalled();
+    });
+
+    it('keeps the counter and the page when the items cannot be marked read', async () => {
+      mockMarkAllRead.mockRejectedValue(new Error('unavailable'));
+      const refreshCounter = vi.fn();
+      const subscription = MESSAGING$.refreshNewsFeedUnreadCount.subscribe(refreshCounter);
+      renderPage('items');
+      await waitFor(() => expect(mockMarkAllRead).toHaveBeenCalledTimes(1));
+      expect(screen.getByTestId('news-feed-list')).toBeInTheDocument();
+      expect(refreshCounter).not.toHaveBeenCalled();
+      expect(mockNotifyError).not.toHaveBeenCalled();
+      expect(mockNotifyErrorHandler).not.toHaveBeenCalled();
+      subscription.unsubscribe();
     });
   });
 
