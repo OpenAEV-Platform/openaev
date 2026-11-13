@@ -10,6 +10,7 @@ import io.openaev.database.model.*;
 import io.openaev.database.repository.ComcheckRepository;
 import io.openaev.database.repository.ComcheckStatusRepository;
 import io.openaev.database.repository.TeamRepository;
+import io.openaev.database.specification.ComcheckSpecification;
 import io.openaev.rest.comcheck.form.ComcheckInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -17,6 +18,7 @@ import io.openaev.rest.helper.RestBehavior;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -83,7 +85,10 @@ public class ComcheckApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void deleteComcheck(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String comcheckId) {
-    comcheckRepository.deleteById(comcheckId);
+    Specification<Comcheck> ofExercise =
+        ComcheckSpecification.fromExercise(exerciseId).and(ComcheckSpecification.id(comcheckId));
+    comcheckRepository.delete(
+        comcheckRepository.findOne(ofExercise).orElseThrow(ElementNotFoundException::new));
   }
 
   @PostMapping({

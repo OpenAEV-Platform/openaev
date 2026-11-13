@@ -278,7 +278,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable String logId,
       @Valid @RequestBody LogCreateInput input) {
     requireSimulationInScope(ctx, exerciseId);
-    Log log = logRepository.findById(logId).orElseThrow(ElementNotFoundException::new);
+    Log log = logOfExercise(exerciseId, logId);
     log.setUpdateAttributes(input);
     log.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
     return logRepository.save(log);
@@ -295,7 +295,15 @@ public class ExerciseApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void deleteLog(TxCtx ctx, @PathVariable String exerciseId, @PathVariable String logId) {
     requireSimulationInScope(ctx, exerciseId);
-    logRepository.deleteById(logId);
+    logRepository.delete(logOfExercise(exerciseId, logId));
+  }
+
+  /** The log, only when it belongs to the given simulation. */
+  private Log logOfExercise(String exerciseId, String logId) {
+    return logRepository
+        .findById(logId)
+        .filter(log -> log.getExercise() != null && exerciseId.equals(log.getExercise().getId()))
+        .orElseThrow(ElementNotFoundException::new);
   }
 
   // endregion
@@ -898,7 +906,10 @@ public class ExerciseApi extends RestBehavior {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     exercise.setUpdatedAt(now());
     Document doc =
-        documentRepository.findById(documentId).orElseThrow(ElementNotFoundException::new);
+        exercise.getDocuments().stream()
+            .filter(linked -> documentId.equals(linked.getId()))
+            .findFirst()
+            .orElseThrow(ElementNotFoundException::new);
     // Drop the link from the exercise side as well: the response serializes exercise_documents
     // from this instance, and the removal below only rewrites the join table from the document
     // side. Loading the collection here also keeps it inside the scoped transaction.
