@@ -3,6 +3,7 @@ package io.openaev.utils;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.rest.exception.TenantSelectorRequiredException;
+import io.openaev.rest.exception.TenantSingleScopeRequiredException;
 import io.openaev.rest.exception.TenantWriteScopeException;
 import java.util.Objects;
 import java.util.Set;
@@ -57,5 +58,23 @@ public final class TxCtxScopeUtils {
   public static Set<String> requestReadScope(TxCtx ctx) {
     Set<String> tenantIds = tenantIdsFromHTTPCtx(ctx);
     return tenantIds.isEmpty() ? Set.of(TenantContext.getCurrentTenant()) : tenantIds;
+  }
+
+  /**
+   * The single tenant a request's scope pins, for an endpoint whose lookup resolves ambiguously
+   * once the scope spans more than one tenant (a shared built-in id, #8485). An empty or
+   * multi-tenant scope is refused with {@link TenantSingleScopeRequiredException}, mapped to 400
+   * with its own error code, so a read is not answered with a write-scope error. Use this one when
+   * the caller only needs the check (a read, or a write that resolves its own tenant elsewhere),
+   * and {@code TenantWriteScopeResolver#tenantForWrite} for a write that attributes a new row's
+   * tenant from its return value. {@link #requireSingleTenant} is the other check, for the default
+   * agents settings: it answers {@code TENANT_SELECTOR_REQUIRED}.
+   */
+  public static String requireOneTenantOfScope(TxCtx ctx) {
+    Set<String> scoped = tenantIdsFromHTTPCtx(ctx);
+    if (scoped.size() != 1) {
+      throw new TenantSingleScopeRequiredException();
+    }
+    return scoped.iterator().next();
   }
 }

@@ -130,7 +130,10 @@ public class StepTargetingService {
       return true;
     }
     try {
-      return supportsAssetTargeting(injectorContractService.injectorContract(contractId));
+      // Resolved in the step's own tenant, not the ambient scope: a built-in contract id repeats
+      // across tenants (#8485), and the caller's scope can legitimately span several.
+      return supportsAssetTargeting(
+          injectorContractService.injectorContractInTenant(contractId, step.getTenant().getId()));
     } catch (Exception e) {
       log.warn(
           "Failed to resolve injector contract {} while classifying step {} targeting; assuming asset-centric",

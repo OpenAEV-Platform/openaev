@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Group;
@@ -51,12 +51,17 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The caller is a member of two tenants and holds no capability in either: every access below
  * comes from the grant alone.
+ *
+ * <p>{@code injectors_contracts} is tenant-active: the test classpath arms no active-tables list by
+ * default, so this class arms the production one, or a bare id/external-id lookup like {@code
+ * InjectorContractService#injectorContract} runs unscoped and matches both tenants' copies of the
+ * built-in contract (#8485).
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @WithMockUser
 @DisplayName("Injector contract grants apply in the tenant of their group")
-class InjectorContractGrantTenantTest extends IntegrationTest {
+class InjectorContractGrantTenantTest extends ProductionTablesIntegrationTest {
 
   private static final String CONTRACT_URI = TENANT_INJECTOR_CONTRACT_URL + "/{contractId}";
   private static final String SEARCH_URI = TENANT_INJECTOR_CONTRACT_URL + "/search";

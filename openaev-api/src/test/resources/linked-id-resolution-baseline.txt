@@ -96,6 +96,7 @@ io.openaev.service.EndpointService#getAssetGroupFromFilter -> AssetGroupReposito
 io.openaev.service.EndpointService#removeSourceTagsFromAgentEndpoints -> EndpointRepository | other | 1 | loads the endpoints of agents being processed by id, from stored agent rows, to remove the tags a source added
 io.openaev.service.EsAttackPathService#fetchAttackPatterns -> AttackPatternRepository | other | 1 | loads the attack patterns whose ids come from search index results, to name them in a read response
 io.openaev.service.MapperService#exportMappers -> ImportMapperRepository | other | 1 | loads the import mappers named in the export request body to serialize them, and writes nothing
+io.openaev.service.MapperService#getMapOfInjectorContracts -> InjectorContractRepository | other | 1 | loads the injector contracts named in the importer request body by the composite key (id, tenant of the import mapper written), so an id held by another tenant is not found
 io.openaev.service.TeamService#bulkDelete -> TeamRepository | other | 1 | loads in chunks the teams named in the bulk delete body, which are the rows deleted, not linked rows
 io.openaev.service.TeamService#getTeamsByIds -> TeamRepository | link | 1 | service wrapper whose caller links the teams named in the serialized data of a chained inject step to the inject it builds
 io.openaev.service.TenantGroupService#updateGroupMarkings -> MarkingDefinitionRepository | link | 1 | links the marking definitions named in the request body to the group whose markings it replaces

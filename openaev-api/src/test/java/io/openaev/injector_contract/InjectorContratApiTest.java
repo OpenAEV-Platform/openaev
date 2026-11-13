@@ -51,7 +51,7 @@ class InjectorContratApiTest extends IntegrationTest {
   }
 
   @Nested
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("Fetching contracts")
   class FetchingContracts {
 

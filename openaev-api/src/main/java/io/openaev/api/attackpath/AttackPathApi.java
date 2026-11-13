@@ -25,7 +25,6 @@ import io.openaev.service.attackpath.dto.AttackPathSeedResultDTO;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
 import io.openaev.utils.TxCtxScopeUtils;
 import jakarta.validation.constraints.Min;
-import java.util.Collection;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -65,20 +64,6 @@ public class AttackPathApi extends RestBehavior {
   private final AttackPathSeedService seedService;
   private final AttackPathCausalSeedService causalSeedService;
   private final AttackPathAccessControl attackPathAccessControl;
-
-  /**
-   * The single tenant the seed writes under. Seeding is a one-tenant operation, so a scope that
-   * does not resolve to exactly one tenant (none, or several from a multi-tenant header) is
-   * rejected rather than silently picking one and seeding the wrong tenant.
-   */
-  private String requireSingleTenant(TxCtx ctx) {
-    Collection<String> tenants = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    if (tenants.size() != 1) {
-      throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST, "seed under exactly one tenant: use the /tenant/{id}/ route");
-    }
-    return tenants.iterator().next();
-  }
 
   /**
    * Full graph of a simulation, built from two flat reads plus one in-memory pass.
@@ -272,7 +257,7 @@ public class AttackPathApi extends RestBehavior {
     if (!SessionHelper.currentUser().isAdmin()) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
     }
-    String tenantId = requireSingleTenant(ctx);
+    String tenantId = TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     String simulationId =
         switch (scenario) {
           case "realistic" -> causalSeedService.seedRealisticChain(tenantId);
@@ -307,7 +292,7 @@ public class AttackPathApi extends RestBehavior {
     if (!SessionHelper.currentUser().isAdmin()) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Attack path seeding is admin-only");
     }
-    String tenantId = requireSingleTenant(ctx);
+    String tenantId = TxCtxScopeUtils.requireOneTenantOfScope(ctx);
     return causalSeedService.replayRansomwareNextStage(simulationId, tenantId, footholds);
   }
 }
