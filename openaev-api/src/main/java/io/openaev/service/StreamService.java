@@ -178,11 +178,8 @@ public class StreamService {
     if (!streamClearanceService.isFiltering()) {
       return StreamVisibility.UNFILTERED;
     }
-    // The entity's tenant, else the one the event was written in (an expectation has no tenant).
-    String rowTenantId = tenantOf(event.getInstance());
-    String tenantId = rowTenantId != null ? rowTenantId : event.getTenantId();
     try {
-      return streamVisibilityService.visibilityOf(event, tenantId);
+      return streamVisibilityService.visibilityOf(event, markingTenantOf(event));
     } catch (RuntimeException e) {
       log.warn("Cannot read the markings of a {} event", event.getSchema(), e);
       return StreamVisibility.unresolved();
@@ -194,7 +191,20 @@ public class StreamService {
    * permission: reading assets does not mean reading every asset.
    */
   private MarkingCtx clearanceOf(StreamConsumer consumer, User user, BaseEvent event) {
-    return streamClearanceService.clearanceFor(user, checkTenantOf(consumer, event));
+    String tenantId =
+        Optional.ofNullable(markingTenantOf(event))
+            .or(() -> Optional.ofNullable(consumer.tenantId()).filter(id -> !id.isBlank()))
+            .orElse(null);
+    return streamClearanceService.clearanceFor(user, tenantId);
+  }
+
+  /**
+   * The tenant an event's markings are read in, and its readers' clearance resolved in: the
+   * entity's, else the one the event was written in (an expectation has no tenant).
+   */
+  private static String markingTenantOf(BaseEvent event) {
+    String rowTenantId = tenantOf(event.getInstance());
+    return rowTenantId != null ? rowTenantId : event.getTenantId();
   }
 
   /**

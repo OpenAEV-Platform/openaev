@@ -850,6 +850,27 @@ public class StreamServiceTest {
   }
 
   @Test
+  public void given_entityWithoutTenant_should_resolveTheClearanceInTheEventsTenant() {
+    // Arrange: the default consumer has no tenant; the markings are read in the event's tenant
+    PreventionInjectExpectation expectation = restrictedExpectation();
+    stubRead(mockUser, expectation, true);
+    hiddenFromAmber();
+    TenantContext.setCurrentTenant(TENANT_ID);
+    BaseEvent event;
+    try {
+      event = new BaseEvent(DATA_UPDATE, expectation, mock(ObjectMapper.class));
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+
+    // Act
+    streamService.listenDatabaseUpdate(event);
+
+    // Assert
+    verify(streamClearanceService).clearanceFor(mockUser, TENANT_ID);
+  }
+
+  @Test
   public void given_unfilteredEvent_should_notResolveTheReadersClearance() {
     // Arrange
     Endpoint endpoint = restrictedEndpoint();
