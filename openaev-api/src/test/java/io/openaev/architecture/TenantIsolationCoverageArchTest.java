@@ -72,7 +72,7 @@ class TenantIsolationCoverageArchTest {
    * removes the marker of a class found not to assert the refusal on the table itself, and say why
    * in that change: a new activation never adds a line.
    */
-  static final int BASELINE_SIZE = 29;
+  static final int BASELINE_SIZE = 23;
 
   @TestFactory
   @DisplayName("given the test tree, should pass every check of the gate")
