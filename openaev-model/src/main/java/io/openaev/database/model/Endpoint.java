@@ -15,9 +15,6 @@ import java.util.stream.StreamSupport;
 import lombok.*;
 import org.hibernate.annotations.BatchSize;
 
-// Identity comes from Asset (id only). Hashing the fields would initialize the lazy injects Set
-// (PersistentSet.hashCode reads it) and load every inject of the endpoint.
-@EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
 @Data
 @Entity
 @DiscriminatorValue(AssetType.Values.ENDPOINT_TYPE)
@@ -200,5 +197,21 @@ public class Endpoint extends Asset implements AuditStateCapturable {
   public Endpoint(String id, String type, String name, PLATFORM_TYPE platform) {
     super(id, type, name);
     this.platform = platform;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof Endpoint other)) {
+      return false;
+    }
+    return getId() != null && getId().equals(other.getId());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getId());
   }
 }
