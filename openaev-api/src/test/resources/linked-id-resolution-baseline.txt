@@ -55,7 +55,6 @@ io.openaev.rest.exercise.ExerciseApi#optionsById -> ExerciseRepository | other |
 io.openaev.rest.exercise.ExerciseApi#updateExerciseInformation -> TagRepository | link | 1 | links the tags named in the request body to the simulation it updates
 io.openaev.rest.exercise.ExerciseApi#updateExerciseTags -> TagRepository | link | 1 | links the tags named in the request body to the simulation it updates
 io.openaev.rest.exercise.ExerciseApi#updateLog -> TagRepository | link | 1 | links the tags named in the request body to the log it updates
-io.openaev.rest.exercise.service.ExerciseService#findAllById -> ExerciseRepository | other | 1 | service wrapper with no production caller that loads the simulations named by its argument, and writes nothing
 io.openaev.rest.exercise.service.ExerciseService#replaceTeams -> TeamRepository | link | 2 | replaces the teams of a simulation with the teams named in the request body and enables their players
 io.openaev.rest.inject.service.InjectService#buildInject -> TeamRepository | link | 1 | links the teams named in the request body to the inject it builds
 io.openaev.rest.inject.service.InjectService#bulkUpdateInject -> TeamRepository | link | 1 | loads the teams named in the bulk update body to add or remove them on the injects it updates
@@ -117,5 +116,4 @@ io.openaev.service.organization.OrganizationService#fetchTags -> OrganizationRep
 io.openaev.service.scenario.ScenarioService#bulkDeleteScenarios -> ScenarioRepository | other | 1 | loads in chunks the scenarios named in the bulk delete request, each checked against the request scope first, which are the rows it deletes, not linked rows
 io.openaev.service.scenario.ScenarioService#prepareScenarioFromScenarioInput -> TagRepository | link | 1 | links the tags named in the request body to the scenario it prepares
 io.openaev.service.scenario.ScenarioService#replaceTeams -> TeamRepository | link | 2 | replaces the teams of a scenario with the teams named in the request body and enables their players
-io.openaev.service.scenario.ScenarioService#updateScenariosWithInjectorContracts -> ScenarioRepository | other | 1 | loads the scenarios named in the request body, which are the rows the injects are created on, not linked rows
 io.openaev.service.targets.search.EndpointTargetSearchAdaptor#getOptionsByIds -> EndpointRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing

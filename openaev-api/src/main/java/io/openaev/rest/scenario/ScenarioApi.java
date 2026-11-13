@@ -190,13 +190,23 @@ public class ScenarioApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.WRITE, resourceType = ResourceType.SCENARIO)
   public List<ScenarioSimple> updateScenariosWithInjectorContracts(
       TxCtx ctx, @Valid @RequestBody final ScenarioIdsAndInjectorContractsInputs inputs) {
-    return BulkOperationContext.runSuppressed(
+    // The injects are written in one tenant, the write tenant of the request: a scope naming
+    // several tenants cannot designate it and is refused, as on the create endpoint above.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
+    // The contract search and the injects are not tenant-active yet and follow the ambient tenant:
+    // align it on the write tenant so the scenarios and their injects stay in one tenant on both
+    // routes.
+    return ambientTenantBridge.callInTenant(
+        tenantId,
         () ->
-            this.scenarioService.updateScenariosWithInjectorContracts(
-                ctx,
-                inputs.getScenarioIds(),
-                inputs.getInjectorContractSearchPaginationInput(),
-                inputs.getLocale()));
+            BulkOperationContext.runSuppressed(
+                () ->
+                    this.scenarioService.updateScenariosWithInjectorContracts(
+                        ctx,
+                        tenantId,
+                        inputs.getScenarioIds(),
+                        inputs.getInjectorContractSearchPaginationInput(),
+                        inputs.getLocale())));
   }
 
   @PostMapping({SCENARIO_URI + "/{scenarioId}", TENANT_SCENARIO_URI + "/{scenarioId}"})

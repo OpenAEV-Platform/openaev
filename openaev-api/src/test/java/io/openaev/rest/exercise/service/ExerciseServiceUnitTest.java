@@ -428,16 +428,6 @@ class ExerciseServiceUnitTest {
     }
 
     @Test
-    void findAllById_shouldDelegate() {
-      List<String> ids = List.of("1", "2");
-      List<Exercise> list = List.of(exercise);
-
-      when(exerciseRepository.findAllById(ids)).thenReturn(list);
-
-      assertEquals(list, mockedExerciseService.findAllById(ids));
-    }
-
-    @Test
     void saveSimulation_shouldDelegate() {
       when(exerciseRepository.save(any())).thenAnswer(i -> i.getArgument(0));
       assertEquals(exercise, mockedExerciseService.saveSimulation(exercise));

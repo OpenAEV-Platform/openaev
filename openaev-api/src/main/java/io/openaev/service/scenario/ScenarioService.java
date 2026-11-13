@@ -217,13 +217,18 @@ public class ScenarioService {
     return ScenarioSimple.fromScenario(scenario);
   }
 
+  /**
+   * The scenarios resolve in {@code tenantId}, the tenant the injects are written to: a scenario of
+   * another tenant is treated like an unknown id, even when the request scope holds both tenants.
+   */
   @Transactional
   public List<ScenarioSimple> updateScenariosWithInjectorContracts(
       final TxCtx ctx,
+      @NotBlank final String tenantId,
       @NotNull final List<String> scenarioIds,
       @NotNull final InjectorContractSearchPaginationInput injectorContractSearchPaginationInput,
       @NotBlank final String locale) {
-    List<Scenario> scenarios = this.scenarioRepository.findAllById(scenarioIds);
+    List<Scenario> scenarios = this.scenarioRepository.findAllByIdInTenant(scenarioIds, tenantId);
     this.injectService.createInjectsFromInjectorContractInput(
         ctx, null, scenarios, injectorContractSearchPaginationInput, locale);
     scenarios.forEach(
