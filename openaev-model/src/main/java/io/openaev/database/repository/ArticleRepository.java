@@ -13,4 +13,8 @@ public interface ArticleRepository
 
   @NotNull
   Optional<Article> findById(@NotNull String id);
+
+  Optional<Article> findByIdAndExerciseId(@NotNull String id, @NotNull String exerciseId);
+
+  Optional<Article> findByIdAndScenarioId(@NotNull String id, @NotNull String scenarioId);
 }
