@@ -19,6 +19,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -71,7 +73,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.web.servlet.MockMvc;
@@ -80,14 +83,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
 @Transactional
-// @TestPropertySource REPLACES the allowlist, so only assets is active in this context. That is a
-// known reduction: the AgentExecutorJoin nested test below is about the eager agent-to-executor
-// join, and executors is inactive here, so it exercises the join without the rewrite. Adding
-// executors to this list was tried and turns four of this class's tests red on their executor
-// fixtures, which is a separate piece of work; executors has its own activation and its own
-// coverage. Widen this list when that fixture work is done, not inside this activation.
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets,asset_agent_jobs")
+// The context arms the production list, executors included, so the AgentExecutorJoin nested test
+// exercises the eager agent-to-executor join with the rewrite production applies.
+@CoversTenantIsolation("asset_agent_jobs")
 class EndpointApiTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TagRepository tagRepository;
@@ -796,12 +801,13 @@ class EndpointApiTest extends IntegrationTest {
      * the legacy {@code X-Tenant-Ids} header route - since {@code cleanupAssetAgentJob} carries a
      * bare {@code TxCtx}, resolved identically on either one.
      *
-     * <p>The read tests here cover the route contract end to end: a caller scoped to another tenant
-     * gets nothing back from either read endpoint. They do NOT isolate a single mechanism, because
-     * the production table set is active in this context and both read specifications join {@code
-     * agents} and {@code assets}, which are v2-active too. The proof that the inspector scopes
-     * {@code asset_agent_jobs} itself lives in {@code AssetAgentJobDeletionScopeTest}, where that
-     * table is the only active one and removing it from the list turns the cross-tenant read red.
+     * <p>The read tests cover the route contract end to end: a caller scoped to another tenant gets
+     * nothing back from either read endpoint; their specifications also join {@code agents} and
+     * {@code assets}, so they do not isolate a single table. The cross-tenant DELETE cases are the
+     * refusal on {@code asset_agent_jobs} itself: the job is loaded by id with a left join on
+     * {@code agents}, so the job row's own scope decides; the other tenant's job stays in place and
+     * the own tenant's job is removed. {@code AssetAgentJobDeletionScopeTest} pins the same with
+     * {@code asset_agent_jobs} as the only active table.
      */
     @Nested
     @DisplayName("Asset agent job isolation")
