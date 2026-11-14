@@ -431,7 +431,10 @@ class BatchQueueServiceBatchProcessingTest {
       internalQueue.get(0).add(nextElem);
       deliveryTable.put(
           nextElem, DeliveryContext.builder().tag(2L).deliveryChannel(nextChannel).build());
+      // The provoked exception kills the worker thread on purpose, possibly while this await
+      // runs: Awaitility must not report it as a failure of the test
       Awaitility.await()
+          .dontCatchUncaughtExceptions()
           .atMost(5, TimeUnit.SECONDS)
           .until(
               () -> {
