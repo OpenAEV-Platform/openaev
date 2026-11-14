@@ -255,11 +255,11 @@ public class MarkingDefinitionService {
    * Deletes a marking definition when it is not protected.
    *
    * <p>Option 2 has no FK on {@code marking_ids} (tech-design-option-c.md §3.2), so nothing
-   * cascades into the arrays: {@code groups_markings} grants are removed by the schema's {@code ON
-   * DELETE CASCADE}, but the deleted id would otherwise survive inside every row's array forever,
-   * hiding those rows from the entire platform with no error and no way back through the API. The
-   * PO decision is that a definition must stay hard-deletable even while still assigned, so the
-   * scrub below - not archiving - is the chosen mitigation.
+   * cascades into the arrays: {@code groups_markings} grants are revoked through the groups (see
+   * {@link TenantGroupService#revokeFromEveryGroup}), but the deleted id would otherwise survive
+   * inside every row's array forever, hiding those rows from the entire platform with no error and
+   * no way back through the API. The PO decision is that a definition must stay hard-deletable even
+   * while still assigned, so the scrub below - not archiving - is the chosen mitigation.
    *
    * @param ctx transaction context containing tenant scope
    * @param markingDefinitionId identifier of the marking definition
@@ -269,10 +269,11 @@ public class MarkingDefinitionService {
     if (Boolean.TRUE.equals(existing.getProtectedDefinition())) {
       throw new BadRequestException("Protected marking definitions cannot be deleted");
     }
+    tenantGroupService.revokeFromEveryGroup(existing);
     repository.delete(existing);
     scrubMarkingIds(markingDefinitionId);
-    // groups_markings grants are already gone via the FK cascade; a clearance derived from them
-    // before the delete is still cached and would otherwise keep granting access to this id.
+    // A clearance derived from the revoked groups_markings grants before the delete is still
+    // cached and would otherwise keep granting access to this id.
     markingClearanceCacheManager.evictAll();
   }
 
