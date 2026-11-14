@@ -31,11 +31,15 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -46,6 +50,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -171,10 +176,15 @@ class GroupPrivilegeCheckHiddenRolesTest extends IntegrationTest {
       jdbc.update("DELETE FROM groups_roles WHERE group_id = ?", groupId);
       jdbc.update("DELETE FROM groups WHERE group_id = ?", groupId);
     }
-    for (String roleId : roleIds) {
-      jdbc.update("DELETE FROM roles_capabilities WHERE role_id = ?", roleId);
-      jdbc.update("DELETE FROM roles WHERE role_id = ?", roleId);
-    }
+    // The roles include platform roles, written only in a platform-write transaction
+    inOwnTransaction(
+        "SELECT set_config('app.platform_write', 'true', true)",
+        writer -> {
+          for (String roleId : roleIds) {
+            writer.update("DELETE FROM roles_capabilities WHERE role_id = ?", roleId);
+            writer.update("DELETE FROM roles WHERE role_id = ?", roleId);
+          }
+        });
     for (String userId : userIds) {
       jdbc.update("DELETE FROM users_tenants WHERE user_id = ?", userId);
       jdbc.update("DELETE FROM users WHERE user_id = ?", userId);
@@ -227,23 +237,46 @@ class GroupPrivilegeCheckHiddenRolesTest extends IntegrationTest {
     return saved;
   }
 
-  /** The group, committed, with a role of tenant A linked by JDBC. */
+  /**
+   * The group, committed, with a role of tenant A linked by JDBC. The link is written with the
+   * triggers skipped ({@code session_replication_role = replica}), as a restore would write it: the
+   * database guard refuses a link between a role and a group of different tenants.
+   */
   private String groupWithHiddenRole(String groupTenantId) {
+    String hiddenRoleId = committedRole(tenantA, HIDDEN_CAPABILITY);
     String groupId =
         tenantTx.executeAsPlatformWrite(
-            TxCtx.forTenants(List.of(tenantA, tenantB)),
-            () -> {
-              Role hidden = role(tenantA, HIDDEN_CAPABILITY);
-              Group group = group(groupTenantId);
-              groupRepository.flush();
-              jdbc.update(
-                  "INSERT INTO groups_roles (group_id, role_id) VALUES (?, ?)",
-                  group.getId(),
-                  hidden.getId());
-              return group.getId();
-            });
+            TxCtx.forTenants(List.of(tenantA, tenantB)), () -> group(groupTenantId).getId());
     TenantContext.clearCurrentTenant();
+    inOwnTransaction(
+        "SET LOCAL session_replication_role = replica",
+        writer ->
+            writer.update(
+                "INSERT INTO groups_roles (group_id, role_id) VALUES (?, ?)",
+                groupId,
+                hiddenRoleId));
     return groupId;
+  }
+
+  /**
+   * Runs the writes by JDBC in one committed transaction of their own, opened by {@code setting}. A
+   * write that fails rolls the transaction back and rethrows.
+   */
+  private void inOwnTransaction(String setting, Consumer<JdbcTemplate> writes) {
+    try (Connection connection = Objects.requireNonNull(jdbc.getDataSource()).getConnection()) {
+      connection.setAutoCommit(false);
+      try {
+        JdbcTemplate writer = new JdbcTemplate(new SingleConnectionDataSource(connection, true));
+        writer.execute(setting);
+        writes.accept(writer);
+        connection.commit();
+      } catch (RuntimeException e) {
+        connection.rollback();
+        throw e;
+      }
+    } catch (SQLException e) {
+      throw new IllegalStateException("Could not run the JDBC writes", e);
+    }
   }
 
   /** A committed group of the tenant (a platform group when null) holding a role of its own. */
