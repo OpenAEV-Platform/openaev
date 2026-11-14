@@ -2728,6 +2728,9 @@ class TenantActiveTableAccessArchTest {
               io.openaev.service.chaining.ConditionService.class,
               io.openaev.service.chaining.ChainingStepCleanupService.class,
               io.openaev.service.chaining.QueueChainingService.class,
+              // Counts the READY inject steps of a simulation for the chaining rate limit, called
+              // only by the chaining engine in the same scope as its launched-inject count:
+              io.openaev.service.chaining.SimulationRateLimitService.class,
               // Attack-path graph and seeding, reached only from the TxCtx-carrying AttackPathApi:
               io.openaev.service.attackpath.AttackPathGraphService.class,
               io.openaev.service.attackpath.AttackPathCausalSeedService.class,

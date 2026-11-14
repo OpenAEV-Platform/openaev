@@ -6,8 +6,11 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.Exercise;
+import io.openaev.database.model.StepActionClass;
+import io.openaev.database.model.StepStatus;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.InjectStatusRepository;
+import io.openaev.database.repository.StepRepository;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -23,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class SimulationRateLimitServiceTest {
 
   @Mock private InjectStatusRepository injectStatusRepository;
+  @Mock private StepRepository stepRepository;
   @Mock private StepDelayQueueService stepDelayQueueService;
 
   @InjectMocks private SimulationRateLimitService simulationRateLimitService;
@@ -124,6 +128,32 @@ class SimulationRateLimitServiceTest {
       boolean result = simulationRateLimitService.isExecutionAllowed(workflow, 1);
 
       assertTrue(result);
+    }
+
+    @Test
+    @DisplayName("should count inject steps readied in an earlier cycle and not run yet")
+    void should_returnFalse_when_readiedNotRunStepsReachMax() {
+      Workflow workflow = buildWorkflow(true, 3, 60L);
+      // 1 launched inject + 2 READY inject steps still queued from an earlier cycle = 3
+      when(injectStatusRepository.countLaunchedInjectsSince(anyString(), any(Instant.class)))
+          .thenReturn(1L);
+      String simulationId = workflow.getSimulation().getId();
+      when(stepRepository.countBySimulationAndStatusAndAction(
+              simulationId, StepStatus.READY, StepActionClass.INJECT_EXECUTION))
+          .thenReturn(2L);
+
+      boolean result = simulationRateLimitService.isExecutionAllowed(workflow, 0);
+
+      assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("should not read the steps when rate limit is disabled")
+    void should_notCountReadiedSteps_when_rateLimitDisabled() {
+      Workflow workflow = buildWorkflow(false, 3, 60L);
+
+      assertTrue(simulationRateLimitService.isExecutionAllowed(workflow, 0));
+      verifyNoInteractions(stepRepository);
     }
   }
 
