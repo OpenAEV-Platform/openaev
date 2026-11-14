@@ -649,6 +649,10 @@ public class InjectExecutionStepTest extends IntegrationTest {
         tenantRepository.save(
             TenantFixture.getTenant("inject-execution-step-other-" + UUID.randomUUID()));
     entityManager.flush();
+    String currentTenantId = TenantContext.getCurrentTenant();
+    // The rows of the other tenant are written in that tenant's scope and flushed before the scope
+    // goes back, so no statement writes them from the scope of the test's own tenant.
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(otherTenant.getId()));
     Injector otherInjectorToSave = InjectorFixture.createDefaultPayloadInjector();
     otherInjectorToSave.setTenantId(otherTenant.getId());
     Injector otherInjector = injectorRepository.save(otherInjectorToSave);
@@ -658,6 +662,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     InjectorContract otherContractSaved = injectorContractRepository.save(otherContract);
     otherInjector.linkContract(otherContractSaved);
     injectorRepository.save(otherInjector);
+    entityManager.flush();
+    tenantTx.setScopeOnCurrentTransaction(TxCtx.forTenant(currentTenantId));
 
     doReturn(otherContractSaved)
         .when(injectorContractService)
