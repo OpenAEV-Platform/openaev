@@ -509,11 +509,15 @@ public class ExecutorApi extends RestBehavior {
         TENANT_AGENT_URI + "/installer/openaev/token"
       })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
-  public @ResponseBody ResponseEntity<String> getOpenAevAgentInstallerToken(TxCtx ctx) {
+  public @ResponseBody ResponseEntity<String> getOpenAevAgentInstallerToken(
+      @RequireTenantSelector TxCtx ctx) {
+    // The tenant of the request scope, not the ambient one: on the non-prefixed route the ambient
+    // tenant is the default one whatever tenant the caller selected.
+    String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     // The non-throwing lookup: a missing token caught after the throwing one would leave this
     // transaction rollback-only, and the 404 would become a 500 at commit.
     return agentServiceAccountPrivilegeService
-        .findTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant())
+        .findTokenUserServiceAccountByTenant(tenantId)
         .map(
             token ->
                 ResponseEntity.ok()
