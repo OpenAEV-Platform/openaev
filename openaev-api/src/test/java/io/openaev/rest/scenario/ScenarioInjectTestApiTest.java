@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectTestStatusRepository;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
@@ -62,10 +63,13 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
   @Autowired private ObjectMapper mapper;
   @Autowired private JavaMailSender mailSender;
   @Autowired private TenantRepository tenantRepository;
+  @Autowired private InjectTestStatusRepository injectTestStatusRepository;
 
   private ScenarioComposer.Composer scenarioWrapper;
-  private InjectComposer.Composer inject1Wrapper, inject2Wrapper;
-  private InjectTestStatusComposer.Composer injectTestStatus1Wrapper, injectTestStatus2Wrapper;
+  private InjectComposer.Composer inject1Wrapper, inject2Wrapper, otherScenarioInjectWrapper;
+  private InjectTestStatusComposer.Composer injectTestStatus1Wrapper,
+      injectTestStatus2Wrapper,
+      otherScenarioInjectTestStatusWrapper;
 
   @BeforeEach
   public void setup() throws Exception {
@@ -516,6 +520,20 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
               .forScenario(ScenarioFixture.getScenario())
               .withInjects(List.of(injectComposer1, injectComposer2))
               .persist();
+
+      otherScenarioInjectTestStatusWrapper =
+          injectTestStatusComposer.forInjectTestStatus(
+              InjectTestStatusFixture.createSuccessInjectStatus());
+      otherScenarioInjectWrapper =
+          injectComposer
+              .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
+              .withInjectTestStatus(otherScenarioInjectTestStatusWrapper)
+              .persist();
+      otherScenarioInjectTestStatusWrapper.persist();
+      scenarioComposer
+          .forScenario(ScenarioFixture.getScenario())
+          .withInject(otherScenarioInjectWrapper)
+          .persist();
     }
 
     @Nested
@@ -623,6 +641,45 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
                         injectTestStatus2Wrapper.get().getId())
                     .with(csrf()))
             .andExpect(status().isOk());
+      }
+    }
+
+    @Nested
+    @DisplayName("Inject test scoped to its scenario")
+    class InjectTestScopedToScenario {
+
+      @Test
+      @DisplayName("Testing an inject of another scenario returns 404")
+      @WithMockUser(withCapabilities = {Capability.LAUNCH_ASSESSMENT})
+      void given_injectOfAnotherScenario_should_return404_when_testingInject() throws Exception {
+        // Act & Assert
+        mvc.perform(
+                get(
+                        SCENARIO_URI + "/{scenarioId}/injects/{injectId}/test",
+                        scenarioWrapper.get().getId(),
+                        otherScenarioInjectWrapper.get().getId())
+                    .with(csrf()))
+            .andExpect(status().isNotFound());
+      }
+
+      @Test
+      @DisplayName("Deleting a test of another scenario returns 404 and keeps it")
+      @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+      void given_testOfAnotherScenario_should_return404_when_deletingInjectTest() throws Exception {
+        // Act
+        mvc.perform(
+                delete(
+                        SCENARIO_URI + "/{scenarioId}/injects/test/{testId}",
+                        scenarioWrapper.get().getId(),
+                        otherScenarioInjectTestStatusWrapper.get().getId())
+                    .with(csrf()))
+            .andExpect(status().isNotFound());
+
+        // Assert
+        assertThat(
+                injectTestStatusRepository.existsById(
+                    otherScenarioInjectTestStatusWrapper.get().getId()))
+            .isTrue();
       }
     }
 

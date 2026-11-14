@@ -3,6 +3,7 @@ package io.openaev.rest.exercise;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -12,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
+import io.openaev.database.repository.InjectTestStatusRepository;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.integration.impl.injectors.email.EmailInjectorIntegrationFactory;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
@@ -47,9 +49,11 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private RowTenantScope rowTenantScope;
 
+  @Autowired private InjectTestStatusRepository injectTestStatusRepository;
+
   private Exercise simulation;
-  private Inject inject1, inject2;
-  private InjectTestStatus injectTestStatus1, injectTestStatus2;
+  private Inject inject1, inject2, otherSimulationInject;
+  private InjectTestStatus injectTestStatus1, injectTestStatus2, otherSimulationInjectTestStatus;
 
   @BeforeEach
   void beforeEach() throws Exception {
@@ -101,6 +105,20 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
                   .withInjects(List.of(injectComposer1, injectComposer2))
                   .persist()
                   .get();
+
+          InjectTestStatusComposer.Composer otherSimulationInjectTestStatusComposer =
+              injectTestStatusComposer.forInjectTestStatus(
+                  InjectTestStatusFixture.createSuccessInjectStatus());
+          InjectComposer.Composer otherSimulationInjectComposer =
+              injectComposer
+                  .forInject(InjectFixture.getInjectForEmailContract(injectorContract))
+                  .withInjectTestStatus(otherSimulationInjectTestStatusComposer);
+          otherSimulationInject = otherSimulationInjectComposer.persist().get();
+          otherSimulationInjectTestStatus = otherSimulationInjectTestStatusComposer.persist().get();
+          simulationComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInject(otherSimulationInjectComposer)
+              .persist();
         });
   }
 
@@ -276,6 +294,43 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
                       injectTestStatus1.getId())
                   .with(csrf()))
           .andExpect(status().isForbidden());
+    }
+  }
+
+  @Nested
+  @DisplayName("Inject test scoped to its simulation")
+  class InjectTestScopedToSimulation {
+
+    @Test
+    @DisplayName("Testing an inject of another simulation returns 404")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_injectOfAnotherSimulation_should_return404_when_testingInject() throws Exception {
+      // Act & Assert
+      mvc.perform(
+              get(
+                      EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
+                      simulation.getId(),
+                      otherSimulationInject.getId())
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Deleting a test of another simulation returns 404 and keeps it")
+    @WithMockUser(isAdmin = true)
+    void given_testOfAnotherSimulation_should_return404_when_deletingInjectTest() throws Exception {
+      // Act
+      mvc.perform(
+              delete(
+                      EXERCISE_URI + "/{simulationId}/injects/test/{testId}",
+                      simulation.getId(),
+                      otherSimulationInjectTestStatus.getId())
+                  .with(csrf()))
+          .andExpect(status().isNotFound());
+
+      // Assert
+      assertThat(injectTestStatusRepository.existsById(otherSimulationInjectTestStatus.getId()))
+          .isTrue();
     }
   }
 }
