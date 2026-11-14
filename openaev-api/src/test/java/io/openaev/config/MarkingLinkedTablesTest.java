@@ -398,7 +398,11 @@ class MarkingLinkedTablesTest {
               "findings",
               "injects_expectations",
               "agents",
-              "execution_traces"),
+              "execution_traces",
+              "attackpath_execution",
+              "attackpath_execution_finding",
+              "attackpath_execution_collector",
+              "attackpath_finding"),
           active.tableNames());
     }
 
@@ -457,6 +461,36 @@ class MarkingLinkedTablesTest {
               + " WHERE mkp1_assets.asset_id = mkp0_agents.agent_asset"
               + " AND is_marking_set_allowed(mkp1_assets.marking_ids)))))",
           registry.readPredicate("execution_traces", "t"));
+    }
+
+    @Test
+    @DisplayName("an attack-path execution follows the one asset it is about")
+    void attackPathExecutionPredicate() {
+      MarkingDimension registry =
+          new MarkingDimension(
+              fromSchema.restrictTo(List.of("assets")).withDerived(MarkingDerivedTables.ALL));
+      assertEquals(
+          "(ae.attackpath_execution_asset_id IS NULL OR EXISTS (SELECT 1 FROM assets mkp0_assets"
+              + " WHERE mkp0_assets.asset_id = ae.attackpath_execution_asset_id"
+              + " AND is_marking_set_allowed(mkp0_assets.marking_ids)))",
+          registry.readPredicate("attackpath_execution", "ae"));
+    }
+
+    @Test
+    @DisplayName("the collector lines of an attack-path execution follow its asset")
+    void attackPathCollectorPredicate() {
+      MarkingDimension registry =
+          new MarkingDimension(
+              fromSchema.restrictTo(List.of("assets")).withDerived(MarkingDerivedTables.ALL));
+      assertEquals(
+          "(c.attackpath_execution_id IS NULL OR EXISTS (SELECT 1 FROM attackpath_execution"
+              + " mkp0_attackpath_execution WHERE mkp0_attackpath_execution.attackpath_execution_id"
+              + " = c.attackpath_execution_id AND"
+              + " (mkp0_attackpath_execution.attackpath_execution_asset_id IS NULL OR EXISTS"
+              + " (SELECT 1 FROM assets mkp1_assets WHERE mkp1_assets.asset_id ="
+              + " mkp0_attackpath_execution.attackpath_execution_asset_id"
+              + " AND is_marking_set_allowed(mkp1_assets.marking_ids)))))",
+          registry.readPredicate("attackpath_execution_collector", "c"));
     }
 
     @Test
