@@ -149,6 +149,8 @@ class ExerciseChildrenApiTest extends IntegrationTest {
         String name, Supplier<MockHttpServletRequestBuilder> request) throws Exception {
       // Arrange
       String before = rowsOutsideTheSimulation();
+      // The seed must be visible here, so an unchanged state proves the refusal, not invisibility.
+      assertThat(before).doesNotStartWith("no log").endsWith("|true|true");
 
       // Act
       mvc.perform(request.get().with(csrf()))
@@ -177,6 +179,11 @@ class ExerciseChildrenApiTest extends IntegrationTest {
     @Test
     @DisplayName("Given its own log, comcheck and document, should delete them")
     void given_ownLogComcheckAndDocument_should_deleteThem() throws Exception {
+      // Arrange
+      assertThat(logRepository.findById(logId)).isPresent();
+      assertThat(comcheckRepository.findById(comcheckId)).isPresent();
+      assertThat(documentRepository.findById(documentId)).isPresent();
+
       // Act
       mvc.perform(delete(simulationUri() + "/logs/" + logId).with(csrf()))
           // Assert
