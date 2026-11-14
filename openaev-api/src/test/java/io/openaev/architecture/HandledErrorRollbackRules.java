@@ -182,9 +182,6 @@ final class HandledErrorRollbackRules {
               "InjectExecutionService#handleInjectExecutionCallback -> InjectRepository.updateUpdatedAt",
               "known defect, reported by the #8102 sweep"),
           entry(
-              "ExecutorApi#getOpenAevAgentInstallerToken -> AgentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant",
-              "known defect, reported by the #8102 sweep; the documented 404 becomes a 500"),
-          entry(
               "WorkflowService#deleteAllScenarioSteps -> StepService.deleteStepTemplate",
               "known defect, reported by the #8102 sweep"),
           entry(
