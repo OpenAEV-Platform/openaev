@@ -318,6 +318,19 @@ public interface UserRepository
       nativeQuery = true)
   List<String> lockRowAgainstNewLinks(@Param("userId") String userId);
 
+  // Native: a set-based delete scoped by tenant through a sub-query; removing it through the
+  // loaded collection would hydrate the user, its EAGER groups and their users, in cascade. The
+  // join table is not indexed, audited nor streamed, and a collection-only change of the
+  // unversioned User fires no update event, so no session side effect is lost.
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query(
+      value =
+          "DELETE FROM users_groups WHERE user_id = :userId AND group_id IN ("
+              + "SELECT group_id FROM groups WHERE tenant_id IN (:tenantIds))",
+      nativeQuery = true)
+  void removeGroupsOfTenants(
+      @Param("userId") String userId, @Param("tenantIds") Collection<String> tenantIds);
+
   // Native: a set-based delete scoped by tenant through a sub-query. It touches a join table that
   // is not indexed, audited nor streamed, so no session side effect is lost.
   @Modifying(flushAutomatically = true)

@@ -199,8 +199,12 @@ public class TenantUserService implements DependenciesManager {
   /** Detaches a user from the tenant of the request's write scope without deleting the user. */
   public void detach(TxCtx ctx, String userId) {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    User user = userService.user(userId);
-    ReservedKeyValidator.validateUserEmailPattern(user.getEmail());
+    // The email alone: loading the user would pull its EAGER groups and their users, in cascade.
+    String email =
+        userRepository
+            .findEmailById(userId)
+            .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
+    ReservedKeyValidator.validateUserEmailPattern(email);
     // Before the membership row goes away, so the groups it granted go with it.
     userService.revokeTenantGroups(userId, List.of(tenantId));
     tenantRepository.removeUserFromTenant(userId, tenantId);

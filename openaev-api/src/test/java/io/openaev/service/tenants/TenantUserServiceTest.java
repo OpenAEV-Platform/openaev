@@ -33,6 +33,8 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import org.hibernate.Session;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -319,6 +321,81 @@ class TenantUserServiceTest extends IntegrationTest {
       assertThat(userService.isUserPasswordValid(reloaded, RAW_PASSWORD)).isTrue();
       assertThat(userService.isUserPasswordValid(reloaded, reAttachInput.plainPassword()))
           .isFalse();
+    }
+
+    @Test
+    @DisplayName("given_userSharingATenantGroup_should_detachWithoutLoadingAnyUser")
+    void given_userSharingATenantGroup_should_detachWithoutLoadingAnyUser() {
+      // -- ARRANGE --
+      // User.groups and Group.users are both EAGER: loading the user to detach used to pull every
+      // member of its groups, then their groups, and so on (the whole user base on a real
+      // platform).
+      Group sharedGroup =
+          tenantGroupComposer.forGroup(TenantGroupFixture.getGroup()).persist().get();
+      User target =
+          userComposer
+              .forUser(getUser("Detach", "Shared", "detach-shared@test.invalid"))
+              .withGroup(tenantGroupComposer.forGroup(sharedGroup))
+              .persist()
+              .get();
+      tenantRepository.addUserToTenant(target.getId(), tenant.getId());
+      for (int i = 0; i < 5; i++) {
+        userComposer
+            .forUser(getUser("Peer", "Member", "detach-peer-" + i + "@test.invalid"))
+            .withGroup(tenantGroupComposer.forGroup(sharedGroup))
+            .persist();
+      }
+      entityManager.flush();
+      entityManager.clear();
+      Statistics stats = entityManager.unwrap(Session.class).getSessionFactory().getStatistics();
+      boolean statisticsWereEnabled = stats.isStatisticsEnabled();
+      stats.setStatisticsEnabled(true);
+      stats.clear();
+
+      // -- ACT --
+      long loadedUsers;
+      try {
+        tenantUserService.detach(ctx(), target.getId());
+        loadedUsers = stats.getEntityStatistics(User.class.getName()).getLoadCount();
+      } finally {
+        stats.setStatisticsEnabled(statisticsWereEnabled);
+      }
+
+      // -- ASSERT --
+      assertThat(loadedUsers).as("detaching a user must not hydrate any User entity").isZero();
+      assertThat(groupRepository.findUserIdsByGroupId(sharedGroup.getId()))
+          .hasSize(5)
+          .doesNotContain(target.getId());
+    }
+
+    @Test
+    @DisplayName("given_userInTwoTenants_should_keepTheGroupsOfTheOtherTenantOnDetach")
+    void given_userInTwoTenants_should_keepTheGroupsOfTheOtherTenantOnDetach() {
+      // -- ARRANGE --
+      Tenant otherTenant = tenantComposer.forTenant(getTenant("Other tenant")).persist().get();
+      Group groupOfTenant =
+          tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("Left tenant")).persist().get();
+      TenantContext.setCurrentTenant(otherTenant.getId());
+      Group groupOfOtherTenant =
+          tenantGroupComposer.forGroup(TenantGroupFixture.getGroup("Kept tenant")).persist().get();
+      TenantContext.setCurrentTenant(tenant.getId());
+      // Linked directly: re-persisting the groups through their composer would re-scope them.
+      User user = getUser("Two", "Tenants", "detach-two-tenants@test.invalid");
+      user.getUnscopedGroups().addAll(List.of(groupOfTenant, groupOfOtherTenant));
+      user = userComposer.forUser(user).persist().get();
+      tenantRepository.addUserToTenant(user.getId(), tenant.getId());
+      tenantRepository.addUserToTenant(user.getId(), otherTenant.getId());
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ACT --
+      tenantUserService.detach(ctx(), user.getId());
+
+      // -- ASSERT --
+      assertThat(groupRepository.findUserIdsByGroupId(groupOfTenant.getId()))
+          .doesNotContain(user.getId());
+      assertThat(groupRepository.findUserIdsByGroupId(groupOfOtherTenant.getId()))
+          .containsExactly(user.getId());
     }
   }
 

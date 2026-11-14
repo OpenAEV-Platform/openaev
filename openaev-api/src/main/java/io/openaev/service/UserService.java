@@ -944,11 +944,13 @@ public class UserService {
     if (tenantIds.isEmpty()) {
       return;
     }
-    User user = user(userId);
-    revokeTenantGroups(user, tenantIds);
-    User savedUser = userRepository.save(user);
+    // A targeted write: loading the user would pull its EAGER groups and their users, in cascade.
+    userRepository.removeGroupsOfTenants(userId, tenantIds);
     markingClearanceCacheManager.evictForUser(userId);
-    sessionManager.refreshUserSessions(savedUser);
+    // Only a live session needs the user reloaded to be refreshed.
+    if (!sessionManager.findUserSessions(userId).isEmpty()) {
+      sessionManager.refreshUserSessions(user(userId));
+    }
   }
 
   /**

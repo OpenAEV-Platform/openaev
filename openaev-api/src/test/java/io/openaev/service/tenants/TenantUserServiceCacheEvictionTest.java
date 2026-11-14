@@ -8,11 +8,11 @@ import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserService;
 import io.openaev.service.organization.OrganizationService;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -64,10 +64,7 @@ class TenantUserServiceCacheEvictionTest {
     // -- ARRANGE --
     TenantUserService tenantUserService = newService();
     TenantContext.setCurrentTenant("tenant-1");
-    User user = new User();
-    user.setId("user-1");
-    user.setEmail("user-1@test.invalid");
-    when(userService.user(anyString())).thenReturn(user);
+    when(userRepository.findEmailById(anyString())).thenReturn(Optional.of("user-1@test.invalid"));
 
     try {
       // -- ACT --
