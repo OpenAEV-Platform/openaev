@@ -510,17 +510,18 @@ public class ExecutorApi extends RestBehavior {
       })
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.AGENT_INSTALLER)
   public @ResponseBody ResponseEntity<String> getOpenAevAgentInstallerToken(TxCtx ctx) {
-    try {
-      String token =
-          agentServiceAccountPrivilegeService.getTokenUserServiceAccountByTenant(
-              TenantContext.getCurrentTenant());
-      return ResponseEntity.ok()
-          .contentType(MediaType.TEXT_PLAIN)
-          .header(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, private")
-          .body(token);
-    } catch (UnsupportedOperationException e) {
-      return ResponseEntity.notFound().build();
-    }
+    // The non-throwing lookup: a missing token caught after the throwing one would leave this
+    // transaction rollback-only, and the 404 would become a 500 at commit.
+    return agentServiceAccountPrivilegeService
+        .findTokenUserServiceAccountByTenant(TenantContext.getCurrentTenant())
+        .map(
+            token ->
+                ResponseEntity.ok()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .header(
+                        HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, private")
+                    .body(token))
+        .orElseGet(() -> ResponseEntity.notFound().build());
   }
 
   @Operation(
