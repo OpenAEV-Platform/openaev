@@ -141,10 +141,11 @@ The inject execution engine runs the actions described in the Injector contracts
 |:----------------------------------------------|:----------------------------------------------|:--------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | openaev.scheduling.inject-staleness-threshold | OPENAEV_SCHEDULING_INJECT-STALENESS-THRESHOLD | 4             | Grace period in minutes after the start time of a time-based Inject, during which it can still run. Past this period, the Inject is set in error. Values below `1` are treated as `1`. |
 
+{% if feature_visible("CREDENTIAL_ASSET") %}
 #### Credential status validation
 
-A scheduled job re-checks the stored credentials against their cloud provider and records the result, so you see a
-revoked or expired credential *before* a Simulation fails on it.
+A scheduled job re-checks the stored [Credentials](../../usage/build/credentials.md) against their cloud provider and
+records the result, so you see a revoked or expired credential *before* a Simulation fails on it.
 
 The job runs per Tenant and only checks credentials whose status is stale, up to a per-run limit. Credential types with
 no remote counterpart (username/password, hash) are never checked and keep the `UNSET` status.
@@ -156,6 +157,8 @@ no remote counterpart (username/password, hash) are never checked and keep the `
 | openaev.credentials.status-validation.revalidate-after-days | OPENAEV_CREDENTIALS_STATUS-VALIDATION_REVALIDATE-AFTER-DAYS | 1             | How long a credential status stays fresh. Past this age the credential is checked again.                 |
 | openaev.credentials.status-validation.max-per-run           | OPENAEV_CREDENTIALS_STATUS-VALIDATION_MAX-PER-RUN          | 500           | Maximum number of credentials checked per tenant and per run. Oldest verification first.                 |
 | openaev.credentials.status-validation.timeout-seconds       | OPENAEV_CREDENTIALS_STATUS-VALIDATION_TIMEOUT-SECONDS      | 10            | Per-call budget for a single provider probe. A probe exceeding it is inconclusive, not a rejection.      |
+
+{% endif %}
 
 #### Report rendering
 
@@ -296,8 +299,8 @@ Tuning parameters applicable to both engines:
 | openaev.rabbitmq.user                 | OPENAEV_RABBITMQ_USER                 | guest                             | RabbitMQ user                                                                                                                                                                     |
 | openaev.rabbitmq.pass                 | OPENAEV_RABBITMQ_PASS                 | guest                             | RabbitMQ password                                                                                                                                                                 |
 | openaev.rabbitmq.queue-type           | OPENAEV_RABBITMQ_QUEUE-TYPE           | classic                           | RabbitMQ Queue Type ("classic" or "quorum")                                                                                                                                       |
-| openaev.rabbitmq.management-insecure  | OPENAEV_RABBITMQ_MANAGEMENT-INSECURE  | `true`                            | Whether or not the calls to the management plugin of rabbitmq can be insecure                                                                                                     |
-| openaev.rabbitmq.trust-store          | OPENAEV_RABBITMQ_TRUST_STORE          |                                   | Path to the p12 trust store (for example `file:/path/to/truststore.p12`) with the CA of the RabbitMQ server certificate. Used when SSL is on. When empty, the JVM default trust store applies. |
+| openaev.rabbitmq.management-insecure  | OPENAEV_RABBITMQ_MANAGEMENT-INSECURE  | `true`                            | No effect, kept for compatibility (deprecated). The calls to the management plugin are always verified (see `openaev.rabbitmq.trust-store`). |
+| openaev.rabbitmq.trust-store          | OPENAEV_RABBITMQ_TRUST_STORE          |                                   | Path to the p12 trust store (for example `file:/path/to/truststore.p12`) with the CA of the RabbitMQ server certificate. Used when SSL is on. When empty, the platform trust store applies: the JVM default trust store plus the certificates of `openaev.extra-trusted-certs-dir`. Applies to the AMQP connection. The calls to the management plugin trust this store and the platform trust store. |
 | openaev.rabbitmq.trust-store-password | OPENAEV_RABBITMQ_TRUST-STORE-PASSWORD |                                   | Password of the keystore                                                                                                                                                          |
 | openaev.rabbitmq.publish-timeout-ms   | OPENAEV_RABBITMQ_PUBLISH-TIMEOUT-MS   | 30000                             | Hard cap in milliseconds on a single publish, so a broker that stops answering cannot hold a database transaction open. Must be strictly positive, otherwise the default applies.  |
 

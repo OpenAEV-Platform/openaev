@@ -1,6 +1,8 @@
 package io.openaev.healthcheck.utils;
 
 import static io.openaev.database.model.InjectorContract.*;
+import static io.openaev.service.InjectExpectationUtils.filterCollectorsSupportingType;
+import static io.openaev.service.InjectExpectationUtils.isOnExpectedPlatform;
 import static java.time.Instant.now;
 import static java.util.Optional.ofNullable;
 import static java.util.stream.StreamSupport.stream;
@@ -124,10 +126,8 @@ public class HealthCheckUtils {
    */
   public List<HealthCheck> runCollectorChecks(Inject inject, List<Collector> collectors) {
     List<HealthCheck> result = new ArrayList<>();
-    boolean isDetectionOrPrenvention =
-        InjectModelHelper.isDetectionOrPrevention(inject.getContent());
 
-    if (isDetectionOrPrenvention && collectors.isEmpty()) {
+    if (hasExpectationWithoutCollector(inject.getContent(), collectors)) {
       result.add(
           new HealthCheck(
               HealthCheck.Type.SECURITY_SYSTEM_COLLECTOR,
@@ -137,6 +137,65 @@ public class HealthCheckUtils {
     }
 
     return result;
+  }
+
+  /**
+   * Mirrors the collector resolution at execution (see AbstractTechnicalBehavior): an expectation
+   * waiting for a collector is only answered by the collectors declaring its type, on one of its
+   * expected security platform types when it sets some. Without any of them, it fails as soon as
+   * the inject runs.
+   */
+  private boolean hasExpectationWithoutCollector(ObjectNode content, List<Collector> collectors) {
+    if (content == null) {
+      return false;
+    }
+    for (JsonNode expectation : content.path("expectations")) {
+      Optional<BaseInjectExpectation.EXPECTATION_TYPE> type =
+          collectorAnsweredType(expectation.path("expectation_type").asText());
+      if (type.isEmpty()) {
+        continue;
+      }
+      List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedTypes =
+          expectedSecurityPlatformTypes(expectation);
+      if (filterCollectorsSupportingType(collectors, type.get()).stream()
+          .noneMatch(collector -> isOnExpectedPlatform(collector, expectedTypes))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * The types whose expectation waits for a collector. Vulnerability is answered by its injector
+   * (see VulnerabilityBehavior), and Logging expectations are only created while the preview
+   * feature is on.
+   */
+  private Optional<BaseInjectExpectation.EXPECTATION_TYPE> collectorAnsweredType(String type) {
+    return Arrays.stream(BaseInjectExpectation.EXPECTATION_TYPE.values())
+        .filter(expectationType -> expectationType.name().equals(type))
+        .filter(
+            expectationType ->
+                expectationType == BaseInjectExpectation.EXPECTATION_TYPE.DETECTION
+                    || expectationType == BaseInjectExpectation.EXPECTATION_TYPE.PREVENTION
+                    || (expectationType == BaseInjectExpectation.EXPECTATION_TYPE.LOGGING
+                        && previewFeatureService.isFeatureEnabled(
+                            PreviewFeature.LOGGING_EXPECTATION)))
+        .findFirst();
+  }
+
+  /** Unknown platform types are skipped, so a stale or imported content never breaks the check. */
+  private static List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedSecurityPlatformTypes(
+      JsonNode expectation) {
+    List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedTypes = new ArrayList<>();
+    expectation
+        .path("expectation_expected_security_platform_types")
+        .forEach(
+            type ->
+                Arrays.stream(SecurityPlatform.SECURITY_PLATFORM_TYPE.values())
+                    .filter(platformType -> platformType.name().equals(type.asText()))
+                    .findFirst()
+                    .ifPresent(expectedTypes::add));
+    return expectedTypes;
   }
 
   /**
@@ -550,16 +609,17 @@ public class HealthCheckUtils {
    *       scope (no explicit assets/targets in its drawer, no target-feeding mapper) but the
    *       allowlist holds no technical entry;
    *   <li>{@code MISSING_AUDIENCE_TARGETS} (error) when at least one tabletop step relies on the
-   *       scope (no explicit audience in its drawer, no target-feeding mapper) but the allowlist
+   *       scope (no explicit audience in its drawer and no target-feeding mapper, or all-teams
+   *       mode, which targets the whole scope audience in a chained workflow) but the allowlist
    *       holds no team/player entry;
    *   <li>{@code INEFFECTIVE_TECHNICAL_TARGETS} (warning) when the allowlist holds technical
    *       entries but the workflow has no technical step: the scope fan-out never consumes them;
    *   <li>{@code INEFFECTIVE_AUDIENCE_TARGETS} (warning) when the allowlist holds team/player
-   *       entries but no tabletop step actually falls back to them (every audience step either
-   *       carries an explicit drawer audience or is mapper-fed) - the entries would be silently
-   *       ignored at run time. Technical entries differ: the per-asset fan-out consumes them for
-   *       every technical step, explicit drawer targets or not, so only a fully technical-step-less
-   *       workflow makes them ineffective.
+   *       entries that no tabletop step uses. Team and player entries are used by a step relying on
+   *       the scope (see above); team entries also by a step whose drawer audience picks one of
+   *       them: the drawer of a chained scenario only offers its scope teams. Technical entries
+   *       differ: the per-asset fan-out consumes them for every technical step, explicit drawer
+   *       targets or not, so only a fully technical-step-less workflow makes them ineffective.
    * </ul>
    *
    * <p>Only MAPPER conditions that feed actual execution targets (assets, manual targets, raw
@@ -597,6 +657,14 @@ public class HealthCheckUtils {
                 rule ->
                     rule.getValueType() != null
                         && AUDIENCE_SCOPE_TYPES.contains(rule.getValueType()));
+    Set<String> scopeTeamIds =
+        allowlistRules.stream()
+            .filter(rule -> ScopeRuleValueType.TEAM_ID.equals(rule.getValueType()))
+            .map(WorkflowScopeRule::getRuleValue)
+            .collect(Collectors.toSet());
+    boolean hasPlayerEntries =
+        allowlistRules.stream()
+            .anyMatch(rule -> ScopeRuleValueType.PLAYER_ID.equals(rule.getValueType()));
 
     List<Step> steps = ofNullable(workflow.getSteps()).orElse(List.of());
     // A step "relies on the scope" when nothing else can provide its targets: no explicit
@@ -609,6 +677,9 @@ public class HealthCheckUtils {
     boolean hasTechnicalStep = false;
     boolean technicalStepNeedsScope = false;
     boolean audienceStepNeedsScope = false;
+    // The teams a chained scenario offers in the Configure-action drawer are its scope teams, so an
+    // explicit drawer audience picking one of them consumes the scope too.
+    boolean audienceStepUsesScopeTeams = false;
     for (Step step : steps) {
       List<Condition> stepConditions =
           step.getId() == null ? List.of() : conditionsByStep.getOrDefault(step.getId(), List.of());
@@ -620,11 +691,18 @@ public class HealthCheckUtils {
                     && !stepTargetingService.hasTargetFeedingMapperConditions(
                         step, stepConditions, true));
       } else {
+        // All-teams mode targets the whole scope audience (teams and players) at execution.
         audienceStepNeedsScope =
             audienceStepNeedsScope
+                || stepTargetingService.targetsAllTeams(step)
                 || (!stepTargetingService.hasExplicitAudience(step)
                     && !stepTargetingService.hasTargetFeedingMapperConditions(
                         step, stepConditions, false));
+        audienceStepUsesScopeTeams =
+            audienceStepUsesScopeTeams
+                || (!scopeTeamIds.isEmpty()
+                    && stepTargetingService.getExplicitAudienceTeamIds(step).stream()
+                        .anyMatch(scopeTeamIds::contains));
       }
     }
 
@@ -664,9 +742,12 @@ public class HealthCheckUtils {
                 HealthCheck.Status.WARNING,
                 now()));
       }
-      // Audience entries are only consumed by the scope fallback, which explicit-drawer and
-      // mapper-fed audience steps skip: warn whenever no step actually needs them.
-      if (hasAudienceEntries && !audienceStepNeedsScope) {
+      // Scope teams are consumed by a step relying on the scope (fallback or all-teams mode) or by
+      // an explicit drawer audience picking them; scope players only by a step relying on it.
+      boolean scopeTeamsIgnored =
+          !scopeTeamIds.isEmpty() && !audienceStepNeedsScope && !audienceStepUsesScopeTeams;
+      boolean scopePlayersIgnored = hasPlayerEntries && !audienceStepNeedsScope;
+      if (scopeTeamsIgnored || scopePlayersIgnored) {
         result.add(
             new HealthCheck(
                 HealthCheck.Type.SCOPE_DEFINITION,

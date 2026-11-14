@@ -4,7 +4,8 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.role.form.RoleMapper.toOutput;
 
 import io.openaev.aop.AccessControl;
-import io.openaev.context.TenantContext;
+import io.openaev.config.RequireTenantSelector;
+import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
@@ -13,6 +14,7 @@ import io.openaev.rest.role.form.RoleInput;
 import io.openaev.rest.role.form.RoleMapper;
 import io.openaev.rest.role.form.RoleOutput;
 import io.openaev.service.TenantRoleService;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -36,6 +38,7 @@ public class TenantRoleApi extends RestBehavior {
   private static final String TENANT_ROLE_URI = TENANT_PREFIX + "/roles";
 
   private final TenantRoleService tenantRoleService;
+  private final TenantWriteScopeResolver writeScopeResolver;
 
   // -- CREATE --
 
@@ -48,9 +51,14 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "200", description = "Role created"),
         @ApiResponse(responseCode = "409", description = "Role already exists")
       })
-  public RoleOutput create(TxCtx ctx, @Valid @RequestBody final RoleInput input) {
+  public RoleOutput create(
+      @RequireTenantSelector TxCtx ctx, @Valid @RequestBody final RoleInput input) {
     return toOutput(
-        tenantRoleService.createRole(input.name(), input.description(), input.capabilities()));
+        tenantRoleService.createRole(
+            writeScopeResolver.tenantForWrite(ctx, null),
+            input.name(),
+            input.description(),
+            input.capabilities()));
   }
 
   // -- READ --
@@ -68,9 +76,10 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
   public RoleOutput findRole(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
-    return toOutput(tenantRoleService.findByIdInTenant(roleId));
+    return toOutput(
+        tenantRoleService.findByIdInTenants(roleId, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx)));
   }
 
   @AccessControl(actionPerformed = Action.READ, resourceType = ResourceType.GROUP_ROLE)
@@ -78,8 +87,8 @@ public class TenantRoleApi extends RestBehavior {
   @Transactional
   @Operation(description = "Get All Roles", summary = "Get Roles")
   @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "The list of all Roles")})
-  public List<RoleOutput> roles(TxCtx ctx) {
-    return tenantRoleService.findAll(TenantContext.getCurrentTenant()).stream()
+  public List<RoleOutput> roles(@RequireTenantSelector TxCtx ctx) {
+    return tenantRoleService.findAll(TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx)).stream()
         .map(RoleMapper::toOutput)
         .toList();
   }
@@ -97,9 +106,10 @@ public class TenantRoleApi extends RestBehavior {
             description = "The list of all Roles corresponding to the search criteria")
       })
   public Page<RoleOutput> search(
-      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
+      @RequireTenantSelector TxCtx ctx,
+      @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
     return tenantRoleService
-        .search(searchPaginationInput, TenantContext.getCurrentTenant())
+        .search(searchPaginationInput, TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx))
         .map(RoleMapper::toOutput);
   }
 
@@ -118,12 +128,16 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
   public RoleOutput update(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId,
       @Valid @RequestBody final RoleInput input) {
     return toOutput(
         tenantRoleService.updateRole(
-            roleId, input.name(), input.description(), input.capabilities()));
+            writeScopeResolver.tenantForWrite(ctx, null),
+            roleId,
+            input.name(),
+            input.description(),
+            input.capabilities()));
   }
 
   // -- DELETE --
@@ -141,8 +155,8 @@ public class TenantRoleApi extends RestBehavior {
         @ApiResponse(responseCode = "404", description = "Role not found")
       })
   public void delete(
-      TxCtx ctx,
+      @RequireTenantSelector TxCtx ctx,
       @PathVariable @NotBlank @Schema(description = "ID of the role") final String roleId) {
-    tenantRoleService.delete(roleId);
+    tenantRoleService.delete(writeScopeResolver.tenantForWrite(ctx, null), roleId);
   }
 }

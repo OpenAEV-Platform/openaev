@@ -6,6 +6,7 @@ import { makeStyles } from 'tss-react/mui';
 import { useFormatter } from '../../../../components/i18n';
 import { type InjectTarget } from '../../../../utils/api-types';
 import { expectationResultColor, expectationTypeIcon } from '../../common/ExpectationIconByType';
+import { type ExpectationResultType, expectationTypeLabelKey } from '../../common/injects/expectations/Expectation';
 
 const useStyles = makeStyles()(() => ({
   inline: {
@@ -18,10 +19,30 @@ const useStyles = makeStyles()(() => ({
 
 interface Props { target: InjectTarget }
 
-const PreventionIcon = expectationTypeIcon('PREVENTION');
-const DetectionIcon = expectationTypeIcon('DETECTION');
-const VulnerabilityIcon = expectationTypeIcon('VULNERABILITY');
-const HumanResponseIcon = expectationTypeIcon('HUMAN_RESPONSE');
+type TargetStatusField = Extract<keyof InjectTarget, `target_${string}_status`>;
+
+// Each expectation status column of a target, in display order.
+const TARGET_STATUS_FIELDS: {
+  type: ExpectationResultType;
+  field: TargetStatusField;
+}[] = [
+  {
+    type: 'PREVENTION',
+    field: 'target_prevention_status',
+  },
+  {
+    type: 'DETECTION',
+    field: 'target_detection_status',
+  },
+  {
+    type: 'VULNERABILITY',
+    field: 'target_vulnerability_status',
+  },
+  {
+    type: 'HUMAN_RESPONSE',
+    field: 'target_human_response_status',
+  },
+];
 
 const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
   const { t } = useFormatter();
@@ -30,62 +51,23 @@ const NewAtomicTestingResult: FunctionComponent<Props> = ({ target }) => {
 
   return (
     <div className={classes.inline}>
-      {'target_prevention_status' in target && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <PreventionIcon
-              style={{
-                color: expectationResultColor(target.target_prevention_status),
-                marginRight: theme.spacing(2),
-                fontSize: 22,
-              }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>{t('Prevention')}</TooltipContent>
-        </Tooltip>
-      )}
-      {'target_detection_status' in target && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DetectionIcon
-              style={{
-                color: expectationResultColor(target.target_detection_status),
-                marginRight: theme.spacing(2),
-                fontSize: 22,
-              }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>{t('Detection')}</TooltipContent>
-        </Tooltip>
-      )}
-      {'target_vulnerability_status' in target && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <VulnerabilityIcon
-              style={{
-                color: expectationResultColor(target.target_vulnerability_status),
-                marginRight: theme.spacing(2),
-                fontSize: 22,
-              }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>{t('Vulnerability')}</TooltipContent>
-        </Tooltip>
-      )}
-      {'target_human_response_status' in target && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <HumanResponseIcon
-              style={{
-                color: expectationResultColor(target.target_human_response_status),
-                marginRight: theme.spacing(2),
-                fontSize: 22,
-              }}
-            />
-          </TooltipTrigger>
-          <TooltipContent>{t('Human Response')}</TooltipContent>
-        </Tooltip>
-      )}
+      {TARGET_STATUS_FIELDS.filter(({ field }) => field in target).map(({ type, field }) => {
+        const Icon = expectationTypeIcon(type);
+        return (
+          <Tooltip key={type}>
+            <TooltipTrigger asChild>
+              <Icon
+                style={{
+                  color: expectationResultColor(target[field]),
+                  marginRight: theme.spacing(2),
+                  fontSize: 22,
+                }}
+              />
+            </TooltipTrigger>
+            <TooltipContent>{t(expectationTypeLabelKey(type) ?? type)}</TooltipContent>
+          </Tooltip>
+        );
+      })}
     </div>
   );
 };

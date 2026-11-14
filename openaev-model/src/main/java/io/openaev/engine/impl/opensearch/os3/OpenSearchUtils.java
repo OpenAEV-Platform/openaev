@@ -1,5 +1,7 @@
 package io.openaev.engine.impl.opensearch.os3;
 
+import static io.openaev.engine.EsUtils.toEngineDate;
+
 import io.openaev.database.model.Filters;
 import io.openaev.engine.api.HistogramInterval;
 import io.openaev.exception.InvalidDateRangeException;
@@ -104,7 +106,9 @@ public class OpenSearchUtils {
    * Builds the exclusive "resume after (ts, id)" keyset predicate used by cursor-paged search:
    * either strictly after {@code ts}, or equal to {@code ts} and strictly after {@code id}. The
    * equality branch is written as a double-bounded range (not a term) so it parses {@code ts}
-   * through the same date path as the {@code gt} branch.
+   * through the same date path as the {@code gt} branch. The bound goes through {@link
+   * io.openaev.engine.EsUtils#toEngineDate}: a whole-second bound without its fraction would be
+   * rounded up by the engine and the {@code gt} branch would skip the rest of that second.
    *
    * @param tsField the date field to compare the timestamp on (must not be blank)
    * @param idField the sortable id field, e.g. {@code base_id.keyword} (must not be blank)
@@ -116,14 +120,13 @@ public class OpenSearchUtils {
       @NotBlank final String idField,
       @NotNull final Instant ts,
       @NotBlank final String id) {
-    Query strictlyAfterTs = RangeQuery.of(d -> d.field(tsField).gt(JsonData.of(ts))).toQuery();
+    JsonData bound = JsonData.of(toEngineDate(ts));
+    Query strictlyAfterTs = RangeQuery.of(d -> d.field(tsField).gt(bound)).toQuery();
     Query sameTsAfterId =
         BoolQuery.of(
                 b ->
                     b.must(
-                        RangeQuery.of(
-                                d -> d.field(tsField).gte(JsonData.of(ts)).lte(JsonData.of(ts)))
-                            .toQuery(),
+                        RangeQuery.of(d -> d.field(tsField).gte(bound).lte(bound)).toQuery(),
                         RangeQuery.of(d -> d.field(idField).gt(JsonData.of(id))).toQuery()))
             .toQuery();
     return BoolQuery.of(b -> b.should(strictlyAfterTs, sameTsAfterId).minimumShouldMatch("1"))

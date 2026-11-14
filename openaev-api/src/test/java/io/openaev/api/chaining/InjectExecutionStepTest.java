@@ -4,6 +4,7 @@ import static io.openaev.database.model.InjectorContract.AVAILABLE_EXPECTATIONS;
 import static io.openaev.database.model.InjectorContract.IS_PREDEFINED_EXPECTATION;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -31,8 +32,10 @@ import io.openaev.database.repository.TenantRepository;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.execution.ExecutionExecutorException;
+import io.openaev.execution.UnexecutableInjectException;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ChainingException;
+import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
 import io.openaev.rest.inject.service.InjectService;
@@ -56,6 +59,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -112,7 +116,9 @@ public class InjectExecutionStepTest extends IntegrationTest {
     injectorSaved.linkContract(injectorContractSaved);
     injectorRepository.save(injectorSaved);
 
-    doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
+    doReturn(injectorContractSaved)
+        .when(injectorContractService)
+        .injectorContractInTenant(any(), eq(injectorContractSaved.getTenant().getId()));
     doReturn(new User()).when(userService).currentUser();
     doReturn(false).when(injectService).canApplyTargetType(any(), any());
     doReturn(new InjectStatus()).when(executor).directExecute(any());
@@ -621,6 +627,79 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   /**
+   * Pins the tenant {@code InjectExecutionStep#create} passes for the contract: the simulation's
+   * own tenant, not the caller's ambient one. The contract service is a mock that answers only for
+   * the exact (contract id, simulation tenant id) pair, and the contract row exists only under the
+   * simulation's tenant. Two checks fail when the computation falls back to the ambient tenant: the
+   * stub does not match (the mocked service returns {@code null}, failing {@code
+   * injectUtils.resolveInjector}) and the existence check, a repository query with an explicit
+   * tenant id predicate, finds no row for the ambient tenant.
+   *
+   * <p>This class arms the {@code documents} table only, so {@code injectors_contracts} is not
+   * isolated here: the test proves which tenant id the step passes on, and the explicit predicate
+   * of the existence check. It does not prove the statement inspector scopes the contract read.
+   */
+  @Test
+  public void given_simulationInAnotherTenant_should_resolveInjectorContractInSimulationsTenant()
+      throws Exception {
+    // PREPARE: a second tenant holding its own copy of the injector contract, under its own id. A
+    // bare tenant row is enough (no provisioning side effects, no mock user to attach), mirroring
+    // the foreign-tenant document test above.
+    Tenant otherTenant =
+        tenantRepository.save(
+            TenantFixture.getTenant("inject-execution-step-other-" + UUID.randomUUID()));
+    entityManager.flush();
+    Injector otherInjectorToSave = InjectorFixture.createDefaultPayloadInjector();
+    otherInjectorToSave.setTenantId(otherTenant.getId());
+    Injector otherInjector = injectorRepository.save(otherInjectorToSave);
+    InjectorContract otherContract = InjectorContractFixture.createImplantInjectorContract();
+    otherContract.setTenant(otherTenant);
+    otherContract.addInjector(otherInjector);
+    InjectorContract otherContractSaved = injectorContractRepository.save(otherContract);
+    otherInjector.linkContract(otherContractSaved);
+    injectorRepository.save(otherInjector);
+
+    doReturn(otherContractSaved)
+        .when(injectorContractService)
+        .injectorContractInTenant(eq(otherContractSaved.getId()), eq(otherTenant.getId()));
+
+    // No explicit injector id: resolveInjector's bare-id branch resolves by TenantContext, which
+    // is this test's ambient tenant, not otherTenant, and is not the computation under test here.
+    // Leaving the id blank exercises its other branch instead: auto-resolving from the contract's
+    // own linked injectors, which is otherInjector since it was linked to otherContractSaved above.
+    String otherInjectInputJson =
+        injectInputJson
+            .replace(injectorContractSaved.getId(), otherContractSaved.getId())
+            .replace(
+                "\"inject_injector\": \""
+                    + injectorContractSaved.getInjectors().stream()
+                        .findFirst()
+                        .orElseThrow()
+                        .getId()
+                    + "\"",
+                "\"inject_injector\": \"\"");
+    InjectInput injectInput = mapper.readValue(otherInjectInputJson, InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+    Exercise simulationInOtherTenant = ExerciseFixture.createDefaultExercise();
+    simulationInOtherTenant.setTenant(otherTenant);
+    workflowTemplate.setSimulation(simulationInOtherTenant);
+
+    // ACT
+    Optional<Step> stepTemplateOpt = injectExecutionStep.create(step, workflowTemplate);
+
+    // ASSERT: the resolved contract is the simulation tenant's own copy.
+    assertTrue(stepTemplateOpt.isPresent());
+    assertEquals(
+        otherContractSaved.getId(),
+        StepService.getField(
+            stepTemplateOpt.get().getData(), "inject_injector_contract.injector_contract_id"));
+    verify(injectorContractService)
+        .injectorContractInTenant(eq(otherContractSaved.getId()), eq(otherTenant.getId()));
+  }
+
+  /**
    * Tests the transition of a step (InjectExecutionAction) from TEMPLATE to READY (ready state).
    *
    * <p>This test verifies that:
@@ -975,6 +1054,35 @@ public class InjectExecutionStepTest extends IntegrationTest {
   }
 
   @Test
+  void given_stoppedConnectorInstance_should_failInjectAndEndStepWithoutRollback()
+      throws Exception {
+    // Arrange: a final failure other than "no agent", here the injector's connector is stopped
+    String reason = "No started connector instance found for injector type: openaev_nmap";
+    doThrow(new UnexecutableInjectException(reason)).when(executor).directExecute(any());
+    Step stepReady = createReadyStepForRun();
+
+    // Act
+    Optional<Step> stepRunOpt = injectExecutionStep.run(stepReady);
+
+    // Assert
+    assertTrue(stepRunOpt.isEmpty(), "the step must be ended, not moved to RUN");
+    Boolean rollbackOnly =
+        new TransactionTemplate(transactionManager).execute(TransactionStatus::isRollbackOnly);
+    assertFalse(rollbackOnly, "the transaction must still be able to commit");
+    String injectId = StepService.getField(stepReady.getData(), "inject_id");
+    InjectStatus injectStatus =
+        injectRepository.findById(injectId).orElseThrow().getStatus().orElseThrow();
+    assertEquals(ExecutionStatus.ERROR, injectStatus.getName());
+    assertTrue(
+        injectStatus.getTraces().stream()
+            .anyMatch(
+                trace ->
+                    ExecutionTraceStatus.ERROR.equals(trace.getStatus())
+                        && reason.equals(trace.getMessage())),
+        "the failure reason must be kept as an error trace");
+  }
+
+  @Test
   void given_noAssetExecutedOnRollbackOnlyTransaction_should_throwChainingException()
       throws Exception {
     // Arrange: an inner transactional call already doomed the transaction before the executor
@@ -1201,6 +1309,17 @@ public class InjectExecutionStepTest extends IntegrationTest {
    */
   private Step emailReadyStep(List<String> drawerTeamIds, List<Document> drawerDocuments)
       throws Exception {
+    return emailReadyStep(drawerTeamIds, drawerDocuments, false);
+  }
+
+  /** Same as {@link #emailReadyStep(List)} with all-teams mode selected in the drawer. */
+  private Step emailReadyStepInAllTeamsMode() throws Exception {
+    return emailReadyStep(List.of(), List.of(), true);
+  }
+
+  private Step emailReadyStep(
+      List<String> drawerTeamIds, List<Document> drawerDocuments, boolean allTeams)
+      throws Exception {
     Injector emailInjector =
         injectorRepository.save(
             InjectorFixture.createInjector(
@@ -1214,7 +1333,8 @@ public class InjectExecutionStepTest extends IntegrationTest {
     injectorRepository.save(emailInjector);
     doReturn(emailContractSaved)
         .when(injectorContractService)
-        .injectorContract(emailContractSaved.getId());
+        .injectorContractInTenant(
+            eq(emailContractSaved.getId()), eq(emailContractSaved.getTenant().getId()));
 
     String teamsJson =
         drawerTeamIds.stream()
@@ -1231,9 +1351,14 @@ public class InjectExecutionStepTest extends IntegrationTest {
          "inject_content":{"subject":"Subject","body":"Body"},
          "inject_depends_on":[],"inject_depends_duration":0,
          "inject_teams":[%s],"inject_assets":[],"inject_asset_groups":[],
-         "inject_documents":[%s],"inject_all_teams":false,"inject_tags":[],"inject_enabled":true}
+         "inject_documents":[%s],"inject_all_teams":%s,"inject_tags":[],"inject_enabled":true}
         """
-            .formatted(emailContractSaved.getId(), emailInjector.getId(), teamsJson, documentsJson);
+            .formatted(
+                emailContractSaved.getId(),
+                emailInjector.getId(),
+                teamsJson,
+                documentsJson,
+                allTeams);
     InjectInput injectInput = mapper.readValue(emailInputJson, InjectInput.class);
     StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
 
@@ -1303,6 +1428,66 @@ public class InjectExecutionStepTest extends IntegrationTest {
     assertNotNull(inject);
     assertEquals(List.of(drawerTeam.getId()), inject.getTeams().stream().map(Team::getId).toList());
     verify(scopeService, never()).getValidTeams(any());
+  }
+
+  @Test
+  void given_allTeamsStep_whenRunningAudience_thenWholeScopeAudienceIsRecipient() throws Exception {
+    // Arrange: the team and the player are only in the workflow scope, not in the simulation
+    // audience (exercise.getTeams() stays empty), which all-teams mode used to read (#7884).
+    Step readyStep = emailReadyStepInAllTeamsMode();
+    User member = new User();
+    member.setId("scope-member-1");
+    Team scopeTeam = new Team();
+    scopeTeam.setId("scope-team-1");
+    scopeTeam.setName("Scope team");
+    scopeTeam.setUsers(List.of(member));
+    User scopePlayer = new User();
+    scopePlayer.setId("scope-player-1");
+    doReturn(List.of(scopeTeam)).when(scopeService).getValidTeams(any());
+    doReturn(List.of(scopePlayer)).when(scopeService).getValidPlayers(any());
+    doReturn(Set.of()).when(scopeService).getDeniedPlayerIds(any());
+    doAnswer(invocation -> mock(ExecutionContext.class))
+        .when(executionContextService)
+        .executionContext(any(User.class), any(Inject.class), anyString());
+    Exercise exercise = ExerciseFixture.createDefaultExercise();
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+    assertNotNull(inject);
+    inject.setExercise(exercise);
+    List<ExecutionContext> recipients =
+        ReflectionTestUtils.invokeMethod(
+            injectExecutionStep, "resolveAudienceRecipients", inject, readyStep);
+
+    // Assert: all-teams mode targets the scope teams explicitly, so their members are enabled
+    // on the simulation and receive the inject, and adds the scope's individual players.
+    assertFalse(inject.isAllTeams());
+    assertEquals(List.of("scope-team-1"), inject.getTeams().stream().map(Team::getId).toList());
+    assertNotNull(recipients);
+    assertEquals(2, recipients.size());
+    verify(executionContextService).executionContext(member, inject, "Scope team");
+    verify(executionContextService).executionContext(scopePlayer, inject, "Direct execution");
+    verify(exerciseTeamUserService)
+        .enableTargetedTeamMembers(exercise.getId(), List.of("scope-team-1"), Set.of());
+  }
+
+  @Test
+  void given_allTeamsStepWithoutScopeTeam_whenBuildingInject_thenSimulationTeamsAreNotTargeted()
+      throws Exception {
+    // Arrange
+    Step readyStep = emailReadyStepInAllTeamsMode();
+    doReturn(List.of()).when(scopeService).getValidTeams(any());
+
+    // Act
+    Inject inject =
+        ReflectionTestUtils.invokeMethod(injectExecutionStep, "getInjectFromDataStep", readyStep);
+
+    // Assert: all-teams mode only targets the scope teams, never the simulation teams; the
+    // MISSING_AUDIENCE_TARGETS healthcheck flags this case before launch.
+    assertNotNull(inject);
+    assertFalse(inject.isAllTeams());
+    assertTrue(inject.getTeams().isEmpty());
   }
 
   // ---------------------------------------------------------------------------
@@ -1593,6 +1778,57 @@ public class InjectExecutionStepTest extends IntegrationTest {
         assertThrows(
             BadRequestException.class, () -> injectExecutionStep.create(step, workflowTemplate));
     assertTrue(ex.getMessage().contains(missingContractId));
+  }
+
+  @Test
+  void create_shouldKeepItsAnswer_whenTheWorkflowHasNeitherSimulationNorScenario()
+      throws Exception {
+    // create() refuses a workflow with no parent before stepData() runs, whatever the contract
+    // is: moving the parent check ahead of the contract check inside stepData() leaves this answer
+    // unchanged.
+    String missingContractId = "missing-" + UUID.randomUUID();
+    InjectInput injectInput =
+        mapper.readValue(
+            injectInputJson.replace(injectorContractSaved.getId(), missingContractId),
+            InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+    Workflow workflowTemplate = WorkflowFixture.getDefaultWorkflowTemplate();
+
+    ChainingException ex =
+        assertThrows(
+            ChainingException.class, () -> injectExecutionStep.create(step, workflowTemplate));
+
+    assertTrue(ex.getMessage().contains("Workflow has no simulation or scenario"));
+  }
+
+  @Test
+  void stepData_shouldAnswerWith400_whenNeitherParentIsGivenAndTheContractDoesNotExist()
+      throws Exception {
+    // The parent tenant is read before the contract is looked up, so a step with neither parent
+    // is refused by the parent check, not by the contract check. Both exceptions are client errors
+    // that the REST layer answers with 400, so the status a caller sees does not change.
+    String missingContractId = "missing-" + UUID.randomUUID();
+    InjectInput injectInput =
+        mapper.readValue(
+            injectInputJson.replace(injectorContractSaved.getId(), missingContractId),
+            InjectInput.class);
+    StepsCreateInput.StepInput step = InjectExecutionStep.getInjectAsStepsCreateInput(injectInput);
+
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                ReflectionTestUtils.invokeMethod(
+                    injectExecutionStep, "stepData", step, null, null));
+
+    assertEquals("Exactly one of exercise or scenario should be present", ex.getMessage());
+    assertEquals(
+        HttpStatus.BAD_REQUEST, new RestBehavior().handleIllegalArgument(ex).getStatusCode());
+    assertEquals(
+        HttpStatus.BAD_REQUEST,
+        new RestBehavior()
+            .handleBadRequestException(new BadRequestException("missing"))
+            .getStatusCode());
   }
 
   @Test

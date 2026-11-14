@@ -17,8 +17,6 @@ import lombok.Data;
  *
  * <p>This is a data transfer object (DTO) that is deserialized from JSON form submissions and then
  * used to construct domain expectation objects.
- *
- * @see io.openaev.expectation.ExpectationBuilderService
  */
 @Data
 @JsonAutoDetect(

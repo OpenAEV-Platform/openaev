@@ -38,6 +38,13 @@ inputs:
     description: "Maximum wait for either source; ready artifacts are selected immediately"
     required: false
     default: "900"
+  producer-grace-seconds:
+    description: >
+      Extra wait after wait-seconds while a producer job matched by build-job-names
+      has no conclusion yet (queued or still building). Falling back at the plain
+      deadline would download a partial artifact set and fail the consumer.
+    required: false
+    default: "1200"
   registry-pull-timeout-seconds:
     description: "Maximum total time for pulling all requested images from GHCR"
     required: false
@@ -81,6 +88,7 @@ runs:
         GHCR_USERNAME: ${{ github.actor }}
         LOCAL_TAGS: ${{ inputs.local-tags }}
         POLL_INTERVAL_SECONDS: ${{ inputs.poll-interval-seconds }}
+        PRODUCER_GRACE_SECONDS: ${{ inputs.producer-grace-seconds }}
         PRODUCER_CHECK_INTERVAL_SECONDS: ${{ inputs.producer-check-interval-seconds }}
         REGISTRY_MODE: ${{ inputs.registry-mode }}
         REGISTRY_PULL_TIMEOUT_SECONDS: ${{ inputs.registry-pull-timeout-seconds }}
@@ -102,6 +110,10 @@ runs:
         fi
         if ! [[ "$WAIT_SECONDS" =~ ^[0-9]+$ ]]; then
           echo "wait-seconds must be a non-negative integer" >&2
+          exit 1
+        fi
+        if ! [[ "$PRODUCER_GRACE_SECONDS" =~ ^[0-9]+$ ]]; then
+          echo "producer-grace-seconds must be a non-negative integer" >&2
           exit 1
         fi
         for value_name in REGISTRY_PULL_TIMEOUT_SECONDS POLL_INTERVAL_SECONDS PRODUCER_CHECK_INTERVAL_SECONDS; do
@@ -254,12 +266,32 @@ runs:
 
         fall_back_to_artifacts() {
           echo "source=artifact" >> "$GITHUB_OUTPUT"
-          echo "::warning title=Image source probe unavailable::Could not confirm an image source within ${WAIT_SECONDS}s; trying the workflow artifacts directly."
+          echo "::warning title=Image source probe unavailable::Could not confirm an image source within $((SECONDS - START_TIME))s; trying the workflow artifacts directly."
           exit 0
         }
 
+        # The base deadline runs from the start of this consumer job, but a producer
+        # can sit queued for minutes before it even starts. While a producer has no
+        # conclusion yet, falling back would only download the archives that already
+        # exist and fail on the missing platform, so the wait is extended up to the
+        # grace deadline. A producer that concluded without success still fails fast.
+        deadline_reached() {
+          [ "$SECONDS" -ge "$BASE_DEADLINE" ] || return 1
+          if [ "$PRODUCERS_PENDING" -gt 0 ] && [ "$SECONDS" -lt "$GRACE_DEADLINE" ]; then
+            if [ "$DEADLINE" -lt "$GRACE_DEADLINE" ]; then
+              echo "::notice title=Image producer still running::${PRODUCERS_PENDING} producer job(s) have no conclusion after ${WAIT_SECONDS}s; waiting up to ${PRODUCER_GRACE_SECONDS}s more."
+              DEADLINE=$GRACE_DEADLINE
+            fi
+            return 1
+          fi
+          return 0
+        }
+
         START_TIME=$SECONDS
-        DEADLINE=$((SECONDS + WAIT_SECONDS))
+        BASE_DEADLINE=$((SECONDS + WAIT_SECONDS))
+        GRACE_DEADLINE=$((BASE_DEADLINE + PRODUCER_GRACE_SECONDS))
+        DEADLINE=$BASE_DEADLINE
+        PRODUCERS_PENDING=${#JOB_NAMES[@]}
         NEXT_PRODUCER_CHECK=$SECONDS
         REGISTRY_LOGIN_ATTEMPTED=false
         REGISTRY_RETRY_ATTEMPTED=false
@@ -291,13 +323,14 @@ runs:
               exit 1
             fi
 
+            PRODUCERS_PENDING=$((${#JOB_NAMES[@]} - PRODUCERS_SUCCEEDED))
             if [ "$PRODUCERS_SUCCEEDED" -eq "${#JOB_NAMES[@]}" ] && \
                [ "$MARKERS_READY" != "true" ]; then
               USE_REGISTRY=false
             fi
             NEXT_PRODUCER_CHECK=$((SECONDS + PRODUCER_CHECK_INTERVAL_SECONDS))
           fi
-          [ "$SECONDS" -ge "$DEADLINE" ] && fall_back_to_artifacts
+          deadline_reached && fall_back_to_artifacts
 
           if [ "$USE_REGISTRY" = "true" ] && \
              [ "$MARKERS_READY" = "true" ] && \
@@ -306,14 +339,14 @@ runs:
             echo "CI images ready from GHCR after $((SECONDS - START_TIME))s"
             exit 0
           fi
-          [ "$SECONDS" -ge "$DEADLINE" ] && fall_back_to_artifacts
+          deadline_reached && fall_back_to_artifacts
 
           if required_names_ready "$ARTIFACT_NAMES_AVAILABLE" ""; then
             echo "source=artifact" >> "$GITHUB_OUTPUT"
             echo "CI image artifacts ready after $((SECONDS - START_TIME))s"
             exit 0
           fi
-          [ "$SECONDS" -ge "$DEADLINE" ] && fall_back_to_artifacts
+          deadline_reached && fall_back_to_artifacts
 
           REMAINING=$((DEADLINE - SECONDS))
           SLEEP_SECONDS=$((REMAINING < POLL_INTERVAL_SECONDS ? REMAINING : POLL_INTERVAL_SECONDS))

@@ -45,7 +45,7 @@ public class TenantGroupApi extends RestBehavior {
   @Transactional
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.USER_GROUP)
   public Group createGroup(TxCtx ctx, @Valid @RequestBody TenantGroupCreateInput input) {
-    return tenantGroupService.createGroup(input);
+    return tenantGroupService.createGroup(writeScopeResolver.tenantForWrite(ctx, null), input);
   }
 
   @PostMapping("/{groupId}/grants")
@@ -56,7 +56,8 @@ public class TenantGroupApi extends RestBehavior {
       resourceType = ResourceType.USER_GROUP)
   public Group groupGrant(
       TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupGrantInput input) {
-    return tenantGroupService.addGrant(groupId, input);
+    return tenantGroupService.addGrant(
+        writeScopeResolver.tenantForWrite(ctx, null), groupId, input);
   }
 
   // -- READ --
@@ -91,7 +92,8 @@ public class TenantGroupApi extends RestBehavior {
       resourceType = ResourceType.USER_GROUP)
   public Group updateGroupUsers(
       TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateUsersInput input) {
-    return tenantGroupService.updateGroupUsers(groupId, input);
+    return tenantGroupService.updateGroupUsers(
+        writeScopeResolver.tenantForWrite(ctx, null), groupId, input);
   }
 
   @LogExecutionTime
@@ -111,7 +113,8 @@ public class TenantGroupApi extends RestBehavior {
       })
   public Group updateGroupRoles(
       TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateRolesInput input) {
-    return tenantGroupService.updateGroupRoles(groupId, input);
+    return tenantGroupService.updateGroupRoles(
+        writeScopeResolver.tenantForWrite(ctx, null), groupId, input);
   }
 
   @LogExecutionTime
@@ -121,37 +124,21 @@ public class TenantGroupApi extends RestBehavior {
       resourceId = "#groupId",
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
-  @Operation(
-      summary = "Replace the markings a group grants its members",
-      description =
-          "Replaces the whole set: an empty list revokes every grant. Requires ASSIGN_MARKING to"
-              + " add any marking the group does not already grant, and/or"
-              + " DELETE_MARKING_ASSIGNMENT to remove any it currently does - whichever of the two"
-              + " this request's payload actually does, checked independently and in addition to"
-              + " the group's own WRITE control above. A caller may only assign markings they hold"
-              + " themselves, and only markings defined in their own tenant. Every member's cached"
-              + " clearance is evicted, so the change takes effect on their next request.")
+  @Operation(summary = "Replace the whole set of markings a group grants its members")
   @ApiResponses(
       value = {
         @ApiResponse(responseCode = "200", description = "Group updated"),
         @ApiResponse(
             responseCode = "403",
             description =
-                "Missing ASSIGN_MARKING/DELETE_MARKING_ASSIGNMENT for what this payload changes,"
-                    + " or assigning a marking the caller lacks"),
+                "Missing MANAGE_MARKING_ASSIGNMENT, or assigning a marking the caller lacks"),
         @ApiResponse(responseCode = "404", description = "Group or marking not found")
       })
-  // The @AccessControl WRITE check above answers "may you change what this group grants" (same
-  // gate as updateGroupUsers/updateGroupRoles); it says nothing about markings specifically. Which
-  // of ASSIGN_MARKING / DELETE_MARKING_ASSIGNMENT this request additionally needs depends on the
-  // diff between the payload and the group's current markings, so that check is done in
-  // TenantGroupService.updateGroupMarkings, which already loads the group's current state - see
-  // its doc. Per-definition escalation (you may not grant a marking you do not hold yourself) is a
-  // separate, narrower check also enforced there, via MarkingEscalationValidator.
+  // MANAGE_MARKING_ASSIGNMENT and escalation are checked in TenantGroupService instead - see its
+  // doc.
   public TenantGroupMarkingsOutput updateGroupMarkings(
       TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody GroupUpdateMarkingsInput input) {
-    // Tenant resolved here and passed down, per the multi-tenancy convention: the service never
-    // touches TenantContext. It is the tenant whose clearance the caller is checked against.
+    // Tenant resolved here and passed down - the service never touches TenantContext directly.
     return TenantGroupMarkingsOutput.from(
         tenantGroupService.updateGroupMarkings(
             writeScopeResolver.tenantForWrite(ctx, null), groupId, input));
@@ -166,7 +153,8 @@ public class TenantGroupApi extends RestBehavior {
       resourceType = ResourceType.USER_GROUP)
   public Group updateGroupInformation(
       TxCtx ctx, @PathVariable String groupId, @Valid @RequestBody TenantGroupCreateInput input) {
-    return tenantGroupService.updateGroup(groupId, input);
+    return tenantGroupService.updateGroup(
+        writeScopeResolver.tenantForWrite(ctx, null), groupId, input);
   }
 
   // -- DELETE --
@@ -179,7 +167,8 @@ public class TenantGroupApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.USER_GROUP)
   public Group deleteGrant(TxCtx ctx, @PathVariable String groupId, @PathVariable String grantId) {
-    return tenantGroupService.removeGrant(groupId, grantId);
+    return tenantGroupService.removeGrant(
+        writeScopeResolver.tenantForWrite(ctx, null), groupId, grantId);
   }
 
   @DeleteMapping("/{groupId}")
@@ -189,6 +178,6 @@ public class TenantGroupApi extends RestBehavior {
       actionPerformed = Action.DELETE,
       resourceType = ResourceType.USER_GROUP)
   public void delete(TxCtx ctx, @PathVariable String groupId) {
-    tenantGroupService.delete(groupId);
+    tenantGroupService.delete(writeScopeResolver.tenantForWrite(ctx, null), groupId);
   }
 }

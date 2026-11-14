@@ -140,7 +140,8 @@ public interface AssetGroupRepository
     WHERE ag.asset_group_id IN (
         SELECT DISTINCT iag.asset_group_id
         FROM injects i
-        INNER JOIN findings f ON f.finding_inject_id = i.inject_id
+        INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
+        INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
         INNER JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
     ) AND (:name IS NULL OR LOWER(ag.asset_group_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
     """,
@@ -155,7 +156,8 @@ public interface AssetGroupRepository
     WHERE ag.asset_group_id IN (
         SELECT DISTINCT iag.asset_group_id
         FROM injects i
-        INNER JOIN findings f ON f.finding_inject_id = i.inject_id
+        INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
+        INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
         LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
         LEFT JOIN injects_asset_groups iag ON iag.inject_id = i.inject_id
         LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise

@@ -68,9 +68,9 @@
       "reason": "Paper pilot wave 1, warm-up lot — the lessons surfaces. Fully migrated files: both guards apply. LessonsObjectives and CrysisIntensity left this list in the header wave: they no longer own a surface, ConfigurationSection does, and it is guarded here in their place — coverage moved, not dropped.",
       "files": [
         "openaev-front/src/admin/components/common/ConfigurationSection.tsx",
-        "openaev-front/src/admin/components/lessons/simulations/LessonsCategories.jsx",
+        "openaev-front/src/admin/components/lessons/simulations/LessonsCategories.tsx",
         "openaev-front/src/admin/components/lessons/simulations/Lessons.tsx",
-        "openaev-front/src/admin/components/lessons/scenarios/LessonsCategories.jsx",
+        "openaev-front/src/admin/components/lessons/scenarios/LessonsCategories.tsx",
         "openaev-front/src/admin/components/lessons/scenarios/Lessons.tsx"
       ]
     },
@@ -234,7 +234,7 @@
         "openaev-front/src/admin/components/common/injects/status/traces/TraceStatusChip.tsx",
         "openaev-front/src/admin/components/components/challenges/Challenges.tsx",
         "openaev-front/src/admin/components/components/channels/Channel.tsx",
-        "openaev-front/src/admin/components/components/documents/Documents.tsx",
+        "openaev-front/src/admin/components/components/documents/DocumentLinkedChips.tsx",
         "openaev-front/src/admin/components/components/phishing/PhishingHtmlPreview.tsx",
         "openaev-front/src/admin/components/components/phishing/landing_pages/PhishingLandingPage.tsx",
         "openaev-front/src/admin/components/components/phishing/landing_pages/PhishingLandingPageHeader.tsx",
@@ -252,8 +252,8 @@
         "openaev-front/src/admin/components/integrations/common/MigrateButton.tsx",
         "openaev-front/src/admin/components/integrations/connector_instance/ConnectorInstanceForm.tsx",
         "openaev-front/src/admin/components/integrations/deployed/DeployedConnectors.tsx",
-        "openaev-front/src/admin/components/lessons/scenarios/LessonsCategories.jsx",
-        "openaev-front/src/admin/components/lessons/simulations/LessonsCategories.jsx",
+        "openaev-front/src/admin/components/lessons/scenarios/LessonsCategories.tsx",
+        "openaev-front/src/admin/components/lessons/simulations/LessonsCategories.tsx",
         "openaev-front/src/admin/components/nav/BulkOperationsIndicator.tsx",
         "openaev-front/src/admin/components/nav/TopBar.tsx",
         "openaev-front/src/admin/components/nav/TopBarNotifications.tsx",
@@ -360,7 +360,9 @@
         "openaev-front/src/components/fields/AddressesFieldComponent.tsx",
         "openaev-front/src/components/fields/AutocompleteField.tsx",
         "openaev-front/src/components/fields/CodeEditor.tsx",
-        "openaev-front/src/components/items/ItemTenants.tsx"
+        "openaev-front/src/components/items/ItemTenants.tsx",
+        "openaev-front/src/admin/components/nav/NewsFeedToastManager.tsx",
+        "openaev-front/src/admin/components/nav/NewsFeedToastItem.tsx"
       ]
     },
     {
@@ -415,10 +417,10 @@
         "openaev-front/src/admin/components/default_dashboard/DefaultHomeDashboard.tsx",
         "openaev-front/src/admin/components/injects/InjectTestReplayAll.tsx",
         "openaev-front/src/admin/components/integrations/injectors/injector_contracts/InjectorContractPopover.jsx",
-        "openaev-front/src/admin/components/lessons/ObjectivePopover.jsx",
-        "openaev-front/src/admin/components/lessons/categories/LessonsCategoryPopover.jsx",
-        "openaev-front/src/admin/components/lessons/categories/questions/CreateLessonsQuestion.jsx",
-        "openaev-front/src/admin/components/lessons/categories/questions/LessonsQuestionPopover.jsx",
+        "openaev-front/src/admin/components/lessons/ObjectivePopover.tsx",
+        "openaev-front/src/admin/components/lessons/categories/LessonsCategoryPopover.tsx",
+        "openaev-front/src/admin/components/lessons/categories/questions/CreateLessonsQuestion.tsx",
+        "openaev-front/src/admin/components/lessons/categories/questions/LessonsQuestionPopover.tsx",
         "openaev-front/src/admin/components/profile/XtmOneMcpAccess.tsx",
         "openaev-front/src/admin/components/profile/notifications/Notifications.tsx",
         "openaev-front/src/admin/components/profile/triggers/TriggerSubscribeButton.tsx",
@@ -480,7 +482,9 @@
         "openaev-front/src/components/common/terminal/Terminal.tsx",
         "openaev-front/src/components/fields/TagFieldSingle.tsx",
         "openaev-front/src/private/components/nav/TopBar.tsx",
-        "openaev-front/src/utils/ai/ResponseDialog.tsx"
+        "openaev-front/src/utils/ai/ResponseDialog.tsx",
+        "openaev-front/src/admin/components/nav/NewsFeedToastManager.tsx",
+        "openaev-front/src/admin/components/nav/NewsFeedToastItem.tsx"
       ]
     },
     {
@@ -517,8 +521,8 @@
         "openaev-front/src/admin/components/common/injects/status/traces/TraceStatusChip.tsx",
         "openaev-front/src/admin/components/components/challenges/Challenges.tsx",
         "openaev-front/src/admin/components/components/channels/ChannelHeader.tsx",
+        "openaev-front/src/admin/components/components/documents/DocumentLinkedChips.tsx",
         "openaev-front/src/admin/components/components/documents/DocumentType.tsx",
-        "openaev-front/src/admin/components/components/documents/Documents.tsx",
         "openaev-front/src/admin/components/components/lessons/categories/LessonsTemplateCategoryCard.tsx",
         "openaev-front/src/admin/components/components/phishing/PhishingAiGenerateButton.tsx",
         "openaev-front/src/admin/components/findings/FindingOverview.tsx",
@@ -529,8 +533,8 @@
         "openaev-front/src/admin/components/integrations/common/ConnectorStatus.tsx",
         "openaev-front/src/admin/components/integrations/common/DeployButton.tsx",
         "openaev-front/src/admin/components/integrations/injectors/InjectorContracts.jsx",
-        "openaev-front/src/admin/components/lessons/scenarios/LessonsCategories.jsx",
-        "openaev-front/src/admin/components/lessons/simulations/LessonsCategories.jsx",
+        "openaev-front/src/admin/components/lessons/scenarios/LessonsCategories.tsx",
+        "openaev-front/src/admin/components/lessons/simulations/LessonsCategories.tsx",
         "openaev-front/src/admin/components/payloads/PayloadDeprecatedChip.tsx",
         "openaev-front/src/admin/components/profile/notifications/NotificationOperationChip.tsx",
         "openaev-front/src/admin/components/profile/notifications/Notifications.tsx",
@@ -720,15 +724,15 @@
         "openaev-front/src/admin/components/integrations/injectors/injector_contracts/InjectorContractCustomForm.jsx",
         "openaev-front/src/admin/components/integrations/injectors/injector_contracts/InjectorContractPopover.jsx",
         "openaev-front/src/admin/components/lessons/LessonsApplyTemplateDialog.tsx",
-        "openaev-front/src/admin/components/lessons/ObjectiveEvaluations.jsx",
-        "openaev-front/src/admin/components/lessons/ObjectiveForm.jsx",
-        "openaev-front/src/admin/components/lessons/ObjectivePopover.jsx",
-        "openaev-front/src/admin/components/lessons/SendLessonsForm.jsx",
-        "openaev-front/src/admin/components/lessons/categories/LessonsCategoryAddTeams.jsx",
-        "openaev-front/src/admin/components/lessons/categories/LessonsCategoryForm.jsx",
-        "openaev-front/src/admin/components/lessons/categories/LessonsCategoryPopover.jsx",
-        "openaev-front/src/admin/components/lessons/categories/questions/LessonsQuestionForm.jsx",
-        "openaev-front/src/admin/components/lessons/categories/questions/LessonsQuestionPopover.jsx",
+        "openaev-front/src/admin/components/lessons/ObjectiveEvaluations.tsx",
+        "openaev-front/src/admin/components/lessons/ObjectiveForm.tsx",
+        "openaev-front/src/admin/components/lessons/ObjectivePopover.tsx",
+        "openaev-front/src/admin/components/lessons/SendLessonsForm.tsx",
+        "openaev-front/src/admin/components/lessons/categories/LessonsCategoryAddTeams.tsx",
+        "openaev-front/src/admin/components/lessons/categories/LessonsCategoryForm.tsx",
+        "openaev-front/src/admin/components/lessons/categories/LessonsCategoryPopover.tsx",
+        "openaev-front/src/admin/components/lessons/categories/questions/LessonsQuestionForm.tsx",
+        "openaev-front/src/admin/components/lessons/categories/questions/LessonsQuestionPopover.tsx",
         "openaev-front/src/admin/components/lessons/scenarios/Lessons.tsx",
         "openaev-front/src/admin/components/lessons/simulations/AnswersByQuestionDialog.tsx",
         "openaev-front/src/admin/components/lessons/simulations/Lessons.tsx",
@@ -912,6 +916,18 @@
       "files": [
         "openaev-front/src/components/ColorPickerField.tsx",
         "openaev-front/src/components/DeprecatedColorPickerField.jsx"
+      ]
+    },
+    {
+      "component": "Thumbnail",
+      "importFrom": "@filigran/design-system",
+      "guards": [
+        "imported-from-library",
+        "no-hardcoded-padding"
+      ],
+      "reason": "The type icon tile of the XTM Hub news feed toasts, tinted from the theme primary colour as on the OpenCTI news feed toasts.",
+      "files": [
+        "openaev-front/src/admin/components/nav/NewsFeedToastItem.tsx"
       ]
     }
   ],

@@ -1,10 +1,12 @@
-import { Button } from '@filigran/design-system';
-import { ChevronRight } from '@mui/icons-material';
+import { Button, IconButton } from '@filigran/design-system';
+import { ChevronRight, Close } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import type React from 'react';
 import { type ComponentProps } from 'react';
+import { Link } from 'react-router';
 
 import type { LoggedHelper } from '../../../actions/helper';
+import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { isNotEmptyField } from '../../../utils/utils';
 import { SYSTEM_BANNER_HEIGHT, TOP_BANNER_HEIGHT } from './constants';
@@ -45,10 +47,15 @@ interface TopBannerProps {
   /** Primitive token the action button is filled with, matching the band it sits on. */
   buttonColor?: BannerButtonColor;
   onButtonClick?: () => void;
+  /** In-app destination: renders the action as a router link (new tab, copy link) rather than a click handler. */
+  buttonTo?: string;
+  /** Adds a close control at the end of the strip; remembering the dismissal is up to the caller. */
+  onDismiss?: () => void;
 }
 
-const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, buttonColor, onButtonClick }: TopBannerProps) => {
+const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, buttonColor, onButtonClick, buttonTo, onDismiss }: TopBannerProps) => {
   const theme = useTheme();
+  const { t } = useFormatter();
   const { settings } = useHelper((helper: LoggedHelper) => {
     return { settings: helper.getPlatformSettings() };
   });
@@ -76,16 +83,47 @@ const TopBanner = ({ bannerText, bannerColor = 'gradient_blue', buttonText, butt
       <span>
         {bannerText}
       </span>
-      { buttonText && (
-        <Button
+      { buttonText && (buttonTo
+        ? (
+            // The icon sits inside the anchor: `endIcon` is ignored under `asChild`.
+            <Button
+              asChild
+              size="sm"
+              color={buttonColor}
+              style={{ marginLeft: theme.spacing(1) }}
+            >
+              <Link to={buttonTo} onClick={onButtonClick}>
+                {buttonText}
+                <ChevronRight fontSize="small" />
+              </Link>
+            </Button>
+          )
+        : (
+            <Button
+              size="sm"
+              color={buttonColor}
+              onClick={onButtonClick}
+              endIcon={<ChevronRight fontSize="small" />}
+              style={{ marginLeft: theme.spacing(1) }}
+            >
+              {buttonText}
+            </Button>
+          ))}
+      {onDismiss && (
+        <IconButton
+          icon={<Close fontSize="small" />}
+          aria-label={t('Close')}
+          priority="tertiary"
           size="sm"
-          color={buttonColor}
-          onClick={onButtonClick}
-          endIcon={<ChevronRight fontSize="small" />}
-          style={{ marginLeft: theme.spacing(1) }}
-        >
-          {buttonText}
-        </Button>
+          onClick={onDismiss}
+          style={{
+            position: 'absolute',
+            right: theme.spacing(1),
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'var(--text-negative-primary)',
+          }}
+        />
       )}
     </div>
   );

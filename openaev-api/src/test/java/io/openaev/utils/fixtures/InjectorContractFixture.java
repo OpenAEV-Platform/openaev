@@ -55,29 +55,37 @@ public class InjectorContractFixture {
   @Autowired private ManualInjectorIntegrationFactory manualInjectorIntegrationFactory;
 
   public InjectorContract getWellKnownSingleEmailContract() {
+    // injectors_contracts is tenant-active and the built-in id repeats across tenants (#8485): a
+    // bare findById sees every tenant's copy at once and throws once more than one tenant has
+    // registered it in the current scope. Resolve and create in the current tenant specifically.
+    String tenantId = TenantContext.getCurrentTenant();
     Optional<InjectorContract> injectorContract =
-        injectorContractRepository.findById(EMAIL_DEFAULT);
+        injectorContractRepository.findByContractIdAndTenant(EMAIL_DEFAULT, tenantId);
     if (injectorContract.isPresent()) {
       return injectorContract.get();
     }
     try {
-      builtinConnectorRegistration.register(
-          emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
-      return injectorContractRepository.findById(EMAIL_DEFAULT).orElseThrow();
+      builtinConnectorRegistration.register(emailInjectorIntegrationFactory, tenantId);
+      return injectorContractRepository
+          .findByContractIdAndTenant(EMAIL_DEFAULT, tenantId)
+          .orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
   public InjectorContract getWellKnownGlobalEmailContract() {
-    Optional<InjectorContract> injectorContract = injectorContractRepository.findById(EMAIL_GLOBAL);
+    String tenantId = TenantContext.getCurrentTenant();
+    Optional<InjectorContract> injectorContract =
+        injectorContractRepository.findByContractIdAndTenant(EMAIL_GLOBAL, tenantId);
     if (injectorContract.isPresent()) {
       return injectorContract.get();
     }
     try {
-      builtinConnectorRegistration.register(
-          emailInjectorIntegrationFactory, TenantContext.getCurrentTenant());
-      return injectorContractRepository.findById(EMAIL_GLOBAL).orElseThrow();
+      builtinConnectorRegistration.register(emailInjectorIntegrationFactory, tenantId);
+      return injectorContractRepository
+          .findByContractIdAndTenant(EMAIL_GLOBAL, tenantId)
+          .orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -428,15 +436,17 @@ public class InjectorContractFixture {
   }
 
   public InjectorContract getWellKnownSingleManualContract() {
+    String tenantId = TenantContext.getCurrentTenant();
     Optional<InjectorContract> injectorContract =
-        injectorContractRepository.findById(MANUAL_DEFAULT);
+        injectorContractRepository.findByContractIdAndTenant(MANUAL_DEFAULT, tenantId);
     if (injectorContract.isPresent()) {
       return injectorContract.get();
     }
     try {
-      builtinConnectorRegistration.register(
-          manualInjectorIntegrationFactory, TenantContext.getCurrentTenant());
-      return injectorContractRepository.findById(MANUAL_DEFAULT).orElseThrow();
+      builtinConnectorRegistration.register(manualInjectorIntegrationFactory, tenantId);
+      return injectorContractRepository
+          .findByContractIdAndTenant(MANUAL_DEFAULT, tenantId)
+          .orElseThrow();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

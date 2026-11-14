@@ -1,0 +1,19 @@
+# Active tables with no test class marked @CoversTenantIsolation, read by TenantIsolationCoverageArchTest.
+#
+# The gate requires every table of the production openaev.tenant.active-tables list to be covered by a
+# class that is runnable, runs on the real stack, declares the table in its activation list (a probe pin of
+# pinned-active-tables-baseline.txt, or a registration of the production list), seeds two tenants and asserts a
+# cross-tenant refusal on the table itself: a read, write or delete of the other tenant's row is refused, not
+# reached through a parent row. A table that no class meets that bar yet is named here.
+#
+# A line whose table becomes covered, or stops being active, fails the gate and
+# is removed in the same change, and the line count is frozen by TenantIsolationCoverageArchTest.BASELINE_SIZE.
+# A line is added only when a review finds that the class marked for a table does not assert the refusal on
+# the table itself, and that class loses its marker in the same change. An activation brings its isolation test
+# with it.
+#
+# Format: <table> | <what the existing tests lack> | <why the table is on the list>
+#   Where the only class that asserts the table's cross-tenant refusal is a drifts line of
+#   pinned-active-tables-baseline.txt, because its flow reads tables the class does not arm,
+#   converting that class to follow the production list, and marking it, removes the line here.
+organizations | no class on the production list or a probe pin asserts a cross-tenant refusal on organizations | its current classes are drifts lines, and the change that owns the table's activation is the one to convert and mark them

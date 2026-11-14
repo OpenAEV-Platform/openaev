@@ -1,0 +1,1154 @@
+package io.openaev.rest.inject;
+
+import static io.openaev.rest.inject.InjectApi.INJECT_URI;
+import static io.openaev.rest.inject.InjectApi.TENANT_INJECT_URI;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import io.openaev.IntegrationTest;
+import io.openaev.aop.audit_log.AuditEvent;
+import io.openaev.aop.audit_log.AuditLogger;
+import io.openaev.aop.lock.Lock;
+import io.openaev.aop.lock.LockResourceType;
+import io.openaev.config.ProductionActiveTables;
+import io.openaev.config.ShutdownService;
+import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
+import io.openaev.database.model.Capability;
+import io.openaev.database.model.EventType;
+import io.openaev.database.model.Tenant;
+import io.openaev.rest.exception.ForbiddenException;
+import io.openaev.rest.inject.form.InjectExecutionAction;
+import io.openaev.rest.inject.form.InjectExecutionCallback;
+import io.openaev.rest.inject.form.InjectExecutionInput;
+import io.openaev.rest.inject.service.InjectExecutionCallbackService;
+import io.openaev.rest.inject.service.InjectService;
+import io.openaev.service.LogService;
+import io.openaev.service.queue.BatchQueueService;
+import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.AgentFixture;
+import io.openaev.utils.fixtures.DomainFixture;
+import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utils.fixtures.InjectFixture;
+import io.openaev.utils.fixtures.InjectStatusFixture;
+import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.InjectorFixture;
+import io.openaev.utils.fixtures.PayloadFixture;
+import io.openaev.utils.fixtures.composers.AgentComposer;
+import io.openaev.utils.fixtures.composers.DomainComposer;
+import io.openaev.utils.fixtures.composers.EndpointComposer;
+import io.openaev.utils.fixtures.composers.InjectComposer;
+import io.openaev.utils.fixtures.composers.InjectStatusComposer;
+import io.openaev.utils.fixtures.composers.InjectorContractComposer;
+import io.openaev.utils.fixtures.composers.PayloadComposer;
+import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.KeepRabbit;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
+import javax.sql.DataSource;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * The two implant endpoints that take an inject id (the execution callback of an agent and the
+ * executable payload) load the inject in the request's tenant scope, besides checking that the
+ * agent targets it.
+ *
+ * <p>The platform hands the implant the token of the inject's own tenant: a service account that
+ * belongs to that tenant only, so the scope of its requests is that tenant on the prefixed route
+ * and on the non-prefixed one alike. Every request below carries such a caller: the {@code
+ * AGENT_RUNTIME_ACCESS} capability and one membership, never the admin shortcut.
+ *
+ * <p>The tenant tests are not {@code @Transactional}: the rows are committed in their own tenant
+ * and read back with plain SQL, the way production sees them.
+ */
+@KeepRabbit
+@Import(InjectImplantTenantScopeTest.LockHolderConfig.class)
+@DisplayName("Implant inject endpoints load the inject in the request's tenant scope")
+class InjectImplantTenantScopeTest extends IntegrationTest {
+
+  private enum Endpoint {
+    CALLBACK,
+    EXECUTABLE_PAYLOAD
+  }
+
+  private enum Route {
+    /** {@code /api/injects/...}: no path tenant, no selector, the scope is the memberships. */
+    NON_PREFIXED,
+    /** {@code /api/injects/...} with {@code X-Tenant-Ids}: the selector narrows the memberships. */
+    SELECTOR_HEADER,
+    /** {@code /api/tenants/{tenantId}/injects/...}: the path names the tenant. */
+    PREFIXED
+  }
+
+  private static final String UNPREFIXED_CALLS =
+      "io.openaev.rest.inject.InjectImplantTenantScopeTest#unprefixedCalls";
+
+  static Stream<Arguments> unprefixedCalls() {
+    return calls().filter(arguments -> arguments.get()[1] != Route.PREFIXED);
+  }
+
+  private static final String CALLS = "io.openaev.rest.inject.InjectImplantTenantScopeTest#calls";
+
+  static Stream<Arguments> calls() {
+    return Stream.of(Endpoint.values())
+        .flatMap(endpoint -> Stream.of(Route.values()).map(route -> Arguments.of(endpoint, route)));
+  }
+
+  private record Seeded(String agentId, String injectId, String endpointId) {}
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
+
+  @Autowired private MockMvc mvc;
+  @Autowired private LockHolder lockHolder;
+  @Autowired private DataSource dataSource;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private InjectExecutionCallbackService injectExecutionCallbackService;
+  @Autowired private InjectService injectService;
+  @Autowired private InjectComposer injectComposer;
+  @Autowired private InjectStatusComposer injectStatusComposer;
+  @Autowired private InjectorContractComposer injectorContractComposer;
+  @Autowired private EndpointComposer endpointComposer;
+  @Autowired private AgentComposer agentComposer;
+  @Autowired private DomainComposer domainComposer;
+  @Autowired private PayloadComposer payloadComposer;
+
+  private BatchQueueService<InjectExecutionCallback> savedQueueService;
+
+  @BeforeEach
+  void useTheSynchronousIngestion() {
+    // No queue: the callback is ingested inside the request, so its execution traces can be read
+    // back from the database when the response returns.
+    savedQueueService = injectExecutionCallbackService.getInjectTraceQueueService();
+    injectExecutionCallbackService.setInjectTraceQueueService(null);
+  }
+
+  @AfterEach
+  void restoreTheQueue() {
+    injectExecutionCallbackService.setInjectTraceQueueService(savedQueueService);
+    TenantContext.clearCurrentTenant();
+  }
+
+  /**
+   * The agent of a non-default tenant calls with its tenant's service-account token: the {@code
+   * AGENT_RUNTIME_ACCESS} capability in that tenant, and no other membership. The capability is
+   * checked in the ambient tenant, which only the prefixed route sets, so that is the route it
+   * calls (the command line the platform builds carries {@code --tenant-id}).
+   */
+  @Nested
+  @WithMockUser
+  @DisplayName("An agent of a non-default tenant, on the prefixed route")
+  class NonDefaultTenant {
+
+    /** The tenant of the agent's service account: the caller's only membership. */
+    private String memberTenant;
+
+    /** A tenant the caller does not belong to: saved bare, since onboarding enrols the caller. */
+    private String otherTenant;
+
+    @BeforeEach
+    void createTenants() throws Exception {
+      memberTenant =
+          tenantHelper
+              .createTenantWithCapabilities(
+                  "implant-member", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      otherTenant =
+          tenantRepository
+              .save(TenantFixture.getTenant("implant-other-" + UUID.randomUUID()))
+              .getId();
+    }
+
+    @AfterEach
+    void deleteTenants() {
+      tenantHelper.deleteCommittedTenants(memberTenant, otherTenant);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is served for an inject of its own tenant")
+    void given_agentAndInjectOfTheCallersTenant_should_beServed(Endpoint endpoint)
+        throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(memberTenant, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.PREFIXED, memberTenant, seeded);
+
+      // Assert
+      result.andExpect(status().is2xxSuccessful());
+      assertThat(executionTraceCount(seeded.injectId())).isPositive();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is refused, and writes nothing, for an inject of another tenant")
+    void given_injectOfAnotherTenantTargetingTheCallersAgent_should_refuseAndWriteNothing(
+        Endpoint endpoint) throws Exception {
+      // Arrange: the agent and its asset are in the caller's tenant, so the agent-to-inject check
+      // alone lets the request through; only the inject is in another tenant.
+      Seeded seeded = inTenant(otherTenant, InjectImplantTenantScopeTest.this::seed);
+      moveAgentAndAssetTo(seeded, memberTenant);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.PREFIXED, memberTenant, seeded);
+
+      // Assert
+      assertAgentAccessDenied(result);
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is refused for an agent and an inject of another tenant")
+    void given_agentAndInjectOfAnotherTenant_should_refuseAndWriteNothing(Endpoint endpoint)
+        throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(otherTenant, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.PREFIXED, memberTenant, seeded);
+
+      // Assert
+      assertAgentAccessDenied(result);
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName(
+        "is refused an unknown inject like an inject of another tenant, and writes nothing")
+    void given_unknownInject_should_refuseLikeAForeignInjectAndWriteNothing(Endpoint endpoint)
+        throws Exception {
+      // Arrange: the agent is the caller's, one inject belongs to another tenant, one does not
+      // exist
+      Seeded foreign = inTenant(otherTenant, InjectImplantTenantScopeTest.this::seed);
+      moveAgentAndAssetTo(foreign, memberTenant);
+      Seeded unknown = new Seeded(foreign.agentId(), UUID.randomUUID().toString(), null);
+      int tracesBefore = executionTraceCount();
+
+      // Act
+      ResultActions foreignResult = perform(endpoint, Route.PREFIXED, memberTenant, foreign);
+      ResultActions unknownResult = perform(endpoint, Route.PREFIXED, memberTenant, unknown);
+
+      // Assert
+      assertAgentAccessDenied(unknownResult);
+      assertThat(unknownResult.andReturn().getResponse().getContentAsString())
+          .isEqualTo(foreignResult.andReturn().getResponse().getContentAsString());
+      assertThat(executionTraceCount()).isEqualTo(tracesBefore);
+    }
+
+    @ParameterizedTest(name = "{0} on {1}")
+    @MethodSource(UNPREFIXED_CALLS)
+    @DisplayName("is refused on a route that sets no ambient tenant")
+    void given_nonPrefixedRoute_should_refuseAnAgentOfANonDefaultTenant(
+        Endpoint endpoint, Route route) throws Exception {
+      // Arrange: the capability is held in the caller's tenant, and the ambient tenant of this
+      // route is the default one.
+      Seeded seeded = inTenant(memberTenant, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result = perform(endpoint, route, memberTenant, seeded);
+
+      // Assert
+      result.andExpect(status().isForbidden());
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+  }
+
+  /**
+   * A caller whose only membership is the default tenant, on the three routes. It is an admin: the
+   * capability check lets it through, so the scope guard is the only tenant check it meets.
+   */
+  @Nested
+  @WithMockUser(isAdmin = true)
+  @DisplayName("A caller of the default tenant")
+  class DefaultTenantCaller {
+
+    private String otherTenant;
+    private final List<Seeded> moved = new ArrayList<>();
+
+    @BeforeEach
+    void createTenant() {
+      otherTenant =
+          tenantRepository
+              .save(TenantFixture.getTenant("implant-other-" + UUID.randomUUID()))
+              .getId();
+      tenantHelper.attachCurrentUserToTenant(Tenant.DEFAULT_TENANT_UUID);
+    }
+
+    @AfterEach
+    void deleteTenant() {
+      // The agents and assets moved into the default tenant go back before the tenant is deleted.
+      moved.forEach(seeded -> moveAgentAndAssetTo(seeded, otherTenant));
+      tenantHelper.detachCurrentUserFromTenant(Tenant.DEFAULT_TENANT_UUID);
+      tenantHelper.deleteCommittedTenants(otherTenant);
+    }
+
+    @ParameterizedTest(name = "{0} on {1}")
+    @MethodSource(CALLS)
+    @DisplayName("is refused, and writes nothing, for an inject of another tenant")
+    void given_injectOfAnotherTenantTargetingTheCallersAgent_should_refuseAndWriteNothing(
+        Endpoint endpoint, Route route) throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(otherTenant, InjectImplantTenantScopeTest.this::seed);
+      moveAgentAndAssetTo(seeded, Tenant.DEFAULT_TENANT_UUID);
+      moved.add(seeded);
+
+      // Act
+      ResultActions result = perform(endpoint, route, Tenant.DEFAULT_TENANT_UUID, seeded);
+
+      // Assert
+      assertAgentAccessDenied(result);
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+  }
+
+  /** The default tenant's agent, the one every pre-multi-tenancy installation holds. */
+  @Nested
+  @Transactional
+  @WithMockUser
+  @DisplayName("An agent of the default tenant")
+  class DefaultTenant {
+
+    @BeforeEach
+    void joinTheDefaultTenant() {
+      tenantHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.AGENT_RUNTIME_ACCESS));
+    }
+
+    @ParameterizedTest(name = "{0} on {1}")
+    @MethodSource(CALLS)
+    @DisplayName("is served for an inject of the default tenant")
+    void given_agentAndInjectOfTheDefaultTenant_should_beServed(Endpoint endpoint, Route route)
+        throws Exception {
+      // Arrange
+      Seeded seeded = seed();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      ResultActions result = perform(endpoint, route, Tenant.DEFAULT_TENANT_UUID, seeded);
+
+      // Assert
+      result.andExpect(status().is2xxSuccessful());
+      entityManager.flush();
+      assertThat(executionTraceCount(seeded.injectId())).isPositive();
+    }
+  }
+
+  /**
+   * A caller that holds the runtime capability in two tenants (A and B), with no capability in the
+   * default tenant. Only the prefixed route lets it past {@code @AccessControl}: the non-prefixed
+   * route checks the capability in the ambient tenant, which is the default one, before it looks at
+   * the scope. The scope on the prefixed route is the path tenant, never the union of the
+   * memberships.
+   */
+  @Nested
+  @WithMockUser
+  @DisplayName("A caller with the runtime capability in two tenants, none in the default one")
+  class MultiMembershipCaller {
+
+    private String tenantA;
+    private String tenantB;
+    private String tenantC;
+
+    @BeforeEach
+    void createTenants() throws Exception {
+      tenantA =
+          tenantHelper
+              .createTenantWithCapabilities("implant-a", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      tenantB =
+          tenantHelper
+              .createTenantWithCapabilities("implant-b", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      tenantC =
+          tenantRepository.save(TenantFixture.getTenant("implant-c-" + UUID.randomUUID())).getId();
+    }
+
+    @AfterEach
+    void deleteTenants() {
+      tenantHelper.deleteCommittedTenants(tenantA, tenantB, tenantC);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is served for an inject of the tenant of the path")
+    void given_prefixedRouteOfOneMembership_should_serveAnInjectOfThatTenant(Endpoint endpoint)
+        throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(tenantB, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.PREFIXED, tenantB, seeded);
+
+      // Assert
+      result.andExpect(status().is2xxSuccessful());
+      assertThat(executionTraceCount(seeded.injectId())).isPositive();
+    }
+
+    @ParameterizedTest(name = "{0} on an inject of tenant {1}")
+    @MethodSource("io.openaev.rest.inject.InjectImplantTenantScopeTest#endpointsAndOtherTenants")
+    @DisplayName("is refused, and writes nothing, for an inject outside the tenant of the path")
+    void given_prefixedRoute_should_refuseAnInjectOutsideThePathTenant(
+        Endpoint endpoint, String otherTenant) throws Exception {
+      // Arrange: the agent and its asset are in the path tenant, so only the inject is outside it.
+      // "A" is a tenant the caller belongs to, "C" one it does not.
+      String injectTenant = "A".equals(otherTenant) ? tenantA : tenantC;
+      Seeded seeded = inTenant(injectTenant, InjectImplantTenantScopeTest.this::seed);
+      moveAgentAndAssetTo(seeded, tenantB);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.PREFIXED, tenantB, seeded);
+
+      // Assert
+      assertAgentAccessDenied(result);
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+
+    @ParameterizedTest(name = "{0} on {1}")
+    @MethodSource(UNPREFIXED_CALLS)
+    @DisplayName("is refused on a route that sets no ambient tenant, even for its own tenant")
+    void given_nonPrefixedRoute_should_refuseBeforeTheScopeIsRead(Endpoint endpoint, Route route)
+        throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(tenantB, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result = perform(endpoint, route, tenantB, seeded);
+
+      // Assert
+      result.andExpect(status().isForbidden());
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+  }
+
+  /**
+   * The same caller with the capability in the default tenant too: the ambient tenant of the
+   * non-prefixed route then passes the capability check, and the scope is the whole membership set
+   * (no selector) or the tenant {@code X-Tenant-Ids} names.
+   */
+  @Nested
+  @WithMockUser
+  @DisplayName("A caller with the runtime capability in the default tenant and in two others")
+  class MultiMembershipCallerWithDefault {
+
+    private String tenantA;
+    private String tenantB;
+    private String tenantC;
+    private List<String> defaultGroupIds;
+    private List<String> defaultRoleIds;
+
+    @BeforeEach
+    void createTenants() throws Exception {
+      tenantA =
+          tenantHelper
+              .createTenantWithCapabilities("implant-a", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      tenantB =
+          tenantHelper
+              .createTenantWithCapabilities("implant-b", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      tenantC =
+          tenantRepository.save(TenantFixture.getTenant("implant-c-" + UUID.randomUUID())).getId();
+      tenantHelper.grantCapabilitiesInTenant(
+          Tenant.DEFAULT_TENANT_UUID, Set.of(Capability.AGENT_RUNTIME_ACCESS));
+      JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+      String userId = testUserHolder.get().getId();
+      defaultGroupIds =
+          jdbc.queryForList(
+              "SELECT g.group_id FROM groups g JOIN users_groups ug ON ug.group_id = g.group_id"
+                  + " WHERE g.tenant_id = ? AND ug.user_id = ?",
+              String.class,
+              Tenant.DEFAULT_TENANT_UUID,
+              userId);
+      defaultRoleIds =
+          defaultGroupIds.isEmpty()
+              ? List.of()
+              : jdbc.queryForList(
+                  "SELECT DISTINCT gr.role_id FROM groups_roles gr WHERE gr.group_id IN ("
+                      + String.join(",", Collections.nCopies(defaultGroupIds.size(), "?"))
+                      + ")",
+                  String.class,
+                  defaultGroupIds.toArray());
+    }
+
+    @AfterEach
+    void deleteTenants() {
+      // The role and group granted in the default tenant are committed: remove them.
+      JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+      defaultGroupIds.forEach(
+          id -> {
+            jdbc.update("DELETE FROM users_groups WHERE group_id = ?", id);
+            jdbc.update("DELETE FROM groups_roles WHERE group_id = ?", id);
+            jdbc.update("DELETE FROM groups WHERE group_id = ?", id);
+          });
+      defaultRoleIds.forEach(
+          id -> {
+            jdbc.update("DELETE FROM roles_capabilities WHERE role_id = ?", id);
+            jdbc.update("DELETE FROM roles WHERE role_id = ?", id);
+          });
+      tenantHelper.detachCurrentUserFromTenant(Tenant.DEFAULT_TENANT_UUID);
+      tenantHelper.deleteCommittedTenants(tenantA, tenantB, tenantC);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is served, with no selector, for an inject of one of its tenants")
+    void given_noSelector_should_serveAnInjectOfAMembershipTenant(Endpoint endpoint)
+        throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(tenantB, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.NON_PREFIXED, tenantB, seeded);
+
+      // Assert
+      result.andExpect(status().is2xxSuccessful());
+      assertThat(executionTraceCount(seeded.injectId())).isPositive();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is refused, with no selector, for an inject of a tenant it does not belong to")
+    void given_noSelector_should_refuseAnInjectOfAForeignTenant(Endpoint endpoint)
+        throws Exception {
+      // Arrange: the agent and its asset are in a membership tenant, so only the inject is foreign.
+      Seeded seeded = inTenant(tenantC, InjectImplantTenantScopeTest.this::seed);
+      moveAgentAndAssetTo(seeded, tenantB);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.NON_PREFIXED, tenantB, seeded);
+
+      // Assert
+      assertAgentAccessDenied(result);
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is refused when the selector names another tenant than the one of the inject")
+    void given_selectorOfOneTenant_should_refuseAnInjectOfAnotherMembershipTenant(Endpoint endpoint)
+        throws Exception {
+      // Arrange: both tenants are memberships of the caller, the selector narrows the scope to A.
+      Seeded seeded = inTenant(tenantB, InjectImplantTenantScopeTest.this::seed);
+      moveAgentAndAssetTo(seeded, tenantA);
+
+      // Act
+      ResultActions result = perform(endpoint, Route.SELECTOR_HEADER, tenantA, seeded);
+
+      // Assert
+      assertAgentAccessDenied(result);
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is served when the selector names two tenants, for an inject of one of them")
+    void given_selectorOfTwoTenants_should_serveAnInjectOfOneOfThem(Endpoint endpoint)
+        throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(tenantB, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result =
+          perform(endpoint, Route.SELECTOR_HEADER, tenantB, tenantA + "," + tenantB, seeded);
+
+      // Assert
+      result.andExpect(status().is2xxSuccessful());
+      assertThat(executionTraceCount(seeded.injectId())).isPositive();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName("is refused when the selector names two tenants, for an inject of a third one")
+    void given_selectorOfTwoTenants_should_refuseAnInjectOfAThirdTenant(Endpoint endpoint)
+        throws Exception {
+      // Arrange: the agent and its asset are in a selected tenant, so only the inject is outside.
+      Seeded seeded = inTenant(tenantC, InjectImplantTenantScopeTest.this::seed);
+      moveAgentAndAssetTo(seeded, tenantB);
+
+      // Act
+      ResultActions result =
+          perform(endpoint, Route.SELECTOR_HEADER, tenantB, tenantA + "," + tenantB, seeded);
+
+      // Assert
+      assertAgentAccessDenied(result);
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+  }
+
+  /**
+   * The refusal of the tenant gate logs the inject id the caller chose, on one line. The service is
+   * called directly: the servlet container and the HTTP firewall refuse a line break in a path
+   * before it reaches the endpoint, so this is the gate's own guarantee.
+   */
+  @Nested
+  @WithMockUser
+  @DisplayName("The log line of the tenant gate")
+  class GateLogLine {
+
+    private String memberTenant;
+    private final GateLog gateLog = new GateLog();
+
+    @BeforeEach
+    void captureTheLog() throws Exception {
+      memberTenant =
+          tenantHelper
+              .createTenantWithCapabilities("implant-log", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      gateLog.start();
+    }
+
+    @AfterEach
+    void releaseTheLog() {
+      gateLog.stop();
+      tenantHelper.deleteCommittedTenants(memberTenant);
+    }
+
+    @Test
+    @DisplayName("holds no line break of the inject id")
+    void given_lineBreakInTheInjectId_should_logOneLine() {
+      // Arrange
+      String injectId = "before\r\nWARN second line\nafter";
+
+      // Act
+      assertThatThrownBy(() -> refusedGate(injectId)).isInstanceOf(ForbiddenException.class);
+
+      // Assert
+      assertThat(gateLog.refusals())
+          .singleElement()
+          .satisfies(
+              message -> {
+                assertThat(message).contains("beforeWARN second lineafter");
+                assertThat(message).doesNotContain("\r").doesNotContain("\n");
+              });
+    }
+
+    @Test
+    @DisplayName("holds a bounded part of the inject id")
+    void given_longInjectId_should_logABoundedId() {
+      // Arrange
+      String injectId = "x".repeat(500);
+
+      // Act
+      assertThatThrownBy(() -> refusedGate(injectId)).isInstanceOf(ForbiddenException.class);
+
+      // Assert
+      assertThat(gateLog.refusals())
+          .singleElement()
+          .satisfies(message -> assertThat(message.length()).isLessThan(200));
+    }
+
+    private void refusedGate(String injectId) {
+      injectService.requireInScopeForAgent(TxCtx.forTenant(memberTenant), injectId);
+    }
+  }
+
+  /** The refusals of the tenant gate, read from its logger. */
+  private static class GateLog {
+    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private final Logger logger = (Logger) LoggerFactory.getLogger(InjectService.class);
+    private Level previousLevel;
+
+    void start() {
+      previousLevel = logger.getLevel();
+      // The test configuration keeps the root level at ERROR: the refusal is logged at WARN
+      logger.setLevel(Level.WARN);
+      appender.start();
+      logger.addAppender(appender);
+    }
+
+    void stop() {
+      logger.detachAppender(appender);
+      logger.setLevel(previousLevel);
+    }
+
+    List<String> refusals() {
+      return appender.list.stream()
+          .filter(event -> event.getLevel() == Level.WARN)
+          .map(ILoggingEvent::getFormattedMessage)
+          .filter(message -> message.contains("is not in the request's scope"))
+          .toList();
+    }
+  }
+
+  /**
+   * An administrator with no membership: the capability check lets it through and its scope is
+   * empty, so on the non-prefixed route the tenant gate falls back to the ambient tenant, the
+   * default one. The agent checks behind the gate read the agent and its asset under the same empty
+   * scope, which reads nothing.
+   */
+  @Nested
+  @Transactional
+  @WithMockUser(isAdmin = true)
+  @DisplayName(
+      "An administrator with no membership, on the non-prefixed route, for the default tenant")
+  class AdministratorWithoutMembershipOfTheDefaultTenant {
+
+    private final GateLog gateLog = new GateLog();
+
+    @BeforeEach
+    void captureTheLog() {
+      gateLog.start();
+    }
+
+    @AfterEach
+    void releaseTheLog() {
+      gateLog.stop();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName(
+        "passes the tenant gate for an inject of the default tenant, the agent checks refuse")
+    void given_injectOfTheDefaultTenant_should_passTheGateAndStopAtTheAgentChecks(Endpoint endpoint)
+        throws Exception {
+      // Arrange
+      Seeded seeded = seed();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      ResultActions result =
+          perform(endpoint, Route.NON_PREFIXED, Tenant.DEFAULT_TENANT_UUID, seeded);
+
+      // Assert
+      assertAgentAccessDenied(result);
+      assertThat(gateLog.refusals()).isEmpty();
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+  }
+
+  @Nested
+  @WithMockUser(isAdmin = true)
+  @DisplayName("An administrator with no membership, on the non-prefixed route, for another tenant")
+  class AdministratorWithoutMembershipOfAnotherTenant {
+
+    private String otherTenant;
+    private final GateLog gateLog = new GateLog();
+
+    @BeforeEach
+    void createTenant() {
+      otherTenant =
+          tenantRepository
+              .save(TenantFixture.getTenant("implant-other-" + UUID.randomUUID()))
+              .getId();
+      gateLog.start();
+    }
+
+    @AfterEach
+    void deleteTenant() {
+      gateLog.stop();
+      tenantHelper.deleteCommittedTenants(otherTenant);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(Endpoint.class)
+    @DisplayName(
+        "is refused by the tenant gate, and writes nothing, for an inject of another tenant")
+    void given_injectOfAnotherTenant_should_refuseAtTheGateAndWriteNothing(Endpoint endpoint)
+        throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(otherTenant, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result =
+          perform(endpoint, Route.NON_PREFIXED, Tenant.DEFAULT_TENANT_UUID, seeded);
+
+      // Assert
+      assertAgentAccessDenied(result);
+      assertThat(gateLog.refusals()).hasSize(1);
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+  }
+
+  /**
+   * The audit event of the agent callback is emitted inside the transaction that commits the
+   * callback's writes, so that with {@code halt-on-failure} a failing audit transport rolls them
+   * back. No test transaction surrounds the request: the commit is the one of the endpoint.
+   */
+  @Nested
+  @WithMockUser
+  @TestPropertySource(
+      properties = {
+        "openaev.audit-logs.transports=console",
+        "openaev.audit-logs.halt-on-failure=true"
+      })
+  @DisplayName("The audit event of the agent callback, with halt-on-failure")
+  class AuditInsideTheTransaction {
+
+    @MockitoSpyBean private AuditLogger auditLogger;
+    @MockitoSpyBean private LogService logService;
+    @MockitoSpyBean private ShutdownService shutdownService;
+
+    private String memberTenant;
+
+    @BeforeEach
+    void failTheAuditTransport() throws Exception {
+      reset(auditLogger, logService, shutdownService);
+      doReturn(true).when(auditLogger).isAuditLoggingEnabled();
+      // Only the event of the endpoint (a MUTATION) fails: the ingestion emits EXECUTION events of
+      // its own inside the service transaction, and those must not be what rolls it back
+      doAnswer(
+              invocation ->
+                  ((AuditEvent) invocation.getArgument(0)).getEventType() != EventType.MUTATION)
+          .when(logService)
+          .logGenericEvent(any(), any(), any());
+      // initiateShutdown() ends in System.exit(): the failing transport must not stop the JVM
+      doNothing().when(shutdownService).initiateShutdown();
+      memberTenant =
+          tenantHelper
+              .createTenantWithCapabilities(
+                  "implant-audit", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+    }
+
+    @AfterEach
+    void deleteTenant() {
+      tenantHelper.deleteCommittedTenants(memberTenant);
+    }
+
+    @Test
+    @DisplayName("is emitted before the commit: a failing transport leaves nothing of the callback")
+    void given_failingAuditTransport_should_commitNothingOfTheCallback() throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(memberTenant, InjectImplantTenantScopeTest.this::seed);
+
+      // Act
+      ResultActions result = perform(Endpoint.CALLBACK, Route.PREFIXED, memberTenant, seeded);
+
+      // Assert: the audit transport was asked, the request failed, nothing was committed
+      verify(logService, atLeastOnce()).logGenericEvent(any(), any(), any());
+      result.andExpect(status().isInternalServerError());
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+  }
+
+  /**
+   * The order of the aspects of the agent callback is the lock of the inject, then the transaction,
+   * then the audit event, then the access check, then the tenant gate. A call waits for the lock of
+   * its inject before anything else, and the callbacks of one inject are serialised from the access
+   * check to the commit.
+   */
+  @Nested
+  @WithMockUser
+  @DisplayName("The per-inject lock of the agent callback")
+  class PerInjectLock {
+
+    private String memberTenant;
+    private String otherTenant;
+
+    /** Taken before any request: a request clears the security context of the test thread. */
+    private Authentication callerAuthentication;
+
+    @BeforeEach
+    void createTenants() throws Exception {
+      callerAuthentication = SecurityContextHolder.getContext().getAuthentication();
+      memberTenant =
+          tenantHelper
+              .createTenantWithCapabilities("implant-lock", Set.of(Capability.AGENT_RUNTIME_ACCESS))
+              .getId();
+      otherTenant =
+          tenantRepository
+              .save(TenantFixture.getTenant("implant-other-" + UUID.randomUUID()))
+              .getId();
+    }
+
+    @AfterEach
+    void deleteTenants() {
+      tenantHelper.deleteCommittedTenants(memberTenant, otherTenant);
+    }
+
+    @Test
+    @DisplayName("is waited for by a refused callback, which is then answered 403")
+    void given_injectOutsideTheScope_should_refuseOnceTheLockIsReleased() throws Exception {
+      // Arrange: another thread holds the lock of the inject until the test releases it
+      Seeded seeded = inTenant(otherTenant, InjectImplantTenantScopeTest.this::seed);
+      moveAgentAndAssetTo(seeded, memberTenant);
+
+      // Act + Assert: the gate runs under the lock, so the refusal comes once it is released
+      withTheLockHeld(
+          seeded,
+          (request, holder) -> {
+            holder.letGo();
+
+            assertAgentAccessDenied(request.get(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+          });
+      assertThat(executionTraceCount(seeded.injectId())).isZero();
+    }
+
+    @Test
+    @DisplayName("is taken by a served callback")
+    void given_injectInTheScope_should_waitForTheLockOfTheInject() throws Exception {
+      // Arrange
+      Seeded seeded = inTenant(memberTenant, InjectImplantTenantScopeTest.this::seed);
+      // A first callback, on another inject, loads the classes and caches the held one will use,
+      // so that only the lock can keep the next one from completing within the short wait
+      Seeded warmUp = inTenant(memberTenant, InjectImplantTenantScopeTest.this::seed);
+      perform(Endpoint.CALLBACK, Route.PREFIXED, memberTenant, warmUp).andExpect(status().isOk());
+
+      // Act + Assert: the callback does not complete while the lock is held, then does once
+      // it is released. A short wait can only miss a late completion, never invent one.
+      withTheLockHeld(
+          seeded,
+          (request, holder) -> {
+            assertThatThrownBy(() -> request.get(SHORT_WAIT_MILLIS, TimeUnit.MILLISECONDS))
+                .as("the served callback waits for the lock")
+                .isInstanceOf(TimeoutException.class);
+            assertThat(executionTraceCount(seeded.injectId())).isZero();
+
+            holder.letGo();
+
+            request.get(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS).andExpect(status().isOk());
+          });
+      assertThat(executionTraceCount(seeded.injectId())).isPositive();
+    }
+
+    /** The test body, given the callback request in flight and the holder of the lock. */
+    @FunctionalInterface
+    private interface LockedScenario {
+      void run(Future<ResultActions> request, Holder holder) throws Exception;
+    }
+
+    /** The thread holding the lock: it holds until released, or until the safety timeout. */
+    private record Holder(CountDownLatch release) {
+      void letGo() {
+        release.countDown();
+      }
+    }
+
+    /**
+     * Holds the lock of the inject on another thread, sends the agent callback on a third one, and
+     * runs the scenario. The lock is released at the end whatever happens; the safety timeout of
+     * the holder only turns a broken lock order into a failure rather than a hang.
+     */
+    private void withTheLockHeld(Seeded seeded, LockedScenario scenario) throws Exception {
+      CountDownLatch held = new CountDownLatch(1);
+      CountDownLatch release = new CountDownLatch(1);
+      ExecutorService threads = Executors.newFixedThreadPool(2);
+      try {
+        threads.submit(
+            () -> {
+              lockHolder.hold(seeded.injectId(), held, release);
+              return null;
+            });
+        assertThat(held.await(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
+        Future<ResultActions> request =
+            threads.submit(
+                () -> {
+                  // The security context of the test user is thread-bound
+                  SecurityContext context = SecurityContextHolder.createEmptyContext();
+                  context.setAuthentication(callerAuthentication);
+                  SecurityContextHolder.setContext(context);
+                  return perform(Endpoint.CALLBACK, Route.PREFIXED, memberTenant, seeded);
+                });
+        scenario.run(request, new Holder(release));
+      } finally {
+        release.countDown();
+        threads.shutdown();
+        assertThat(threads.awaitTermination(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
+      }
+    }
+  }
+
+  private static final long CALL_TIMEOUT_SECONDS = 30;
+  private static final long SHORT_WAIT_MILLIS = 5000;
+
+  /** A bean that holds the per-inject lock of the callback, the way the service takes it. */
+  static class LockHolder {
+    private static final long SAFETY_TIMEOUT_SECONDS = 60;
+
+    @Lock(type = LockResourceType.INJECT, key = "#injectId")
+    public void hold(String injectId, CountDownLatch held, CountDownLatch release)
+        throws InterruptedException {
+      held.countDown();
+      release.await(SAFETY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    }
+  }
+
+  @TestConfiguration
+  static class LockHolderConfig {
+    @Bean
+    LockHolder lockHolder() {
+      return new LockHolder();
+    }
+  }
+
+  static Stream<Arguments> endpointsAndOtherTenants() {
+    return Stream.of(Endpoint.values())
+        .flatMap(endpoint -> Stream.of("A", "C").map(tenant -> Arguments.of(endpoint, tenant)));
+  }
+
+  // -- helpers --
+  // The fixtures stamp the tenant of the current context: call seed() inside inTenant().
+
+  private Seeded seed() {
+    // The domain belongs to the tenant of the context, as the other fixtures do.
+    DomainComposer.Composer domain = domainComposer.forDomain(DomainFixture.getRandomDomain());
+    domain.get().setTenant(new Tenant(TenantContext.getCurrentTenant()));
+    AgentComposer.Composer agent = agentComposer.forAgent(AgentFixture.createDefaultAgentService());
+    EndpointComposer.Composer endpoint =
+        endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).withAgent(agent);
+    InjectComposer.Composer inject =
+        injectComposer
+            .forInject(InjectFixture.getDefaultInject())
+            .withInjectStatus(
+                injectStatusComposer.forInjectStatus(
+                    InjectStatusFixture.createPendingInjectStatus()))
+            .withEndpoint(endpoint)
+            .withInjectorContract(
+                injectorContractComposer
+                    .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
+                    .withDomain(domain)
+                    .withInjector(InjectorFixture.createDefaultPayloadInjector())
+                    .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand())))
+            .persist();
+    return new Seeded(agent.get().getId(), inject.get().getId(), endpoint.get().getId());
+  }
+
+  /** The agent and its asset of another tenant than the inject that targets them. */
+  private void moveAgentAndAssetTo(Seeded seeded, String tenantId) {
+    JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+    jdbc.update("UPDATE agents SET tenant_id = ? WHERE agent_id = ?", tenantId, seeded.agentId());
+    jdbc.update(
+        "UPDATE assets SET tenant_id = ? WHERE asset_id = ?", tenantId, seeded.endpointId());
+  }
+
+  /** The refusal of the agent checks: an unknown inject gets the same one. */
+  private static void assertAgentAccessDenied(ResultActions result) throws Exception {
+    result
+        .andExpect(status().isForbidden())
+        .andExpect(
+            mvcResult ->
+                assertThat(mvcResult.getResolvedException())
+                    .isInstanceOf(ForbiddenException.class));
+  }
+
+  private int executionTraceCount() {
+    return new JdbcTemplate(dataSource)
+        .queryForObject("SELECT count(*) FROM execution_traces", Integer.class);
+  }
+
+  private int executionTraceCount(String injectId) {
+    return new JdbcTemplate(dataSource)
+        .queryForObject(
+            "SELECT count(*) FROM execution_traces t"
+                + " JOIN injects_statuses s ON t.execution_inject_status_id = s.status_id"
+                + " WHERE s.status_inject = ?",
+            Integer.class,
+            injectId);
+  }
+
+  /**
+   * The request an implant sends, on one of the three ways to reach the platform. No fixture leaves
+   * a tenant on the thread of the request: the non-prefixed route runs with no ambient tenant, as
+   * in production.
+   */
+  private ResultActions perform(Endpoint endpoint, Route route, String callerTenant, Seeded seeded)
+      throws Exception {
+    return perform(endpoint, route, callerTenant, callerTenant, seeded);
+  }
+
+  /** The same request, with {@code selector} as the value of {@code X-Tenant-Ids} on that route. */
+  private ResultActions perform(
+      Endpoint endpoint, Route route, String callerTenant, String selector, Seeded seeded)
+      throws Exception {
+    TenantContext.clearCurrentTenant();
+    String base = route == Route.PREFIXED ? tenantInjectUri(callerTenant) : INJECT_URI;
+    MockHttpServletRequestBuilder request =
+        switch (endpoint) {
+          case CALLBACK ->
+              post(base + "/execution/" + seeded.agentId() + "/callback/" + seeded.injectId())
+                  .content(asJsonString(traceInput()))
+                  .contentType(MediaType.APPLICATION_JSON);
+          case EXECUTABLE_PAYLOAD ->
+              get(base + "/" + seeded.injectId() + "/" + seeded.agentId() + "/executable-payload");
+        };
+    if (route == Route.SELECTOR_HEADER) {
+      request.header("X-Tenant-Ids", selector);
+    }
+    return mvc.perform(request.accept(MediaType.APPLICATION_JSON).with(csrf()));
+  }
+
+  private static String tenantInjectUri(String tenantId) {
+    return TENANT_INJECT_URI.replace("{tenantId}", tenantId);
+  }
+
+  private static InjectExecutionInput traceInput() {
+    InjectExecutionInput input = new InjectExecutionInput();
+    input.setMessage("trace");
+    input.setAction(InjectExecutionAction.command_execution);
+    input.setStatus("SUCCESS");
+    return input;
+  }
+
+  private <T> T inTenant(String tenantId, Supplier<T> work) {
+    TenantContext.setCurrentTenant(tenantId);
+    try {
+      return tenantTx.execute(TxCtx.forTenant(tenantId), work);
+    } finally {
+      TenantContext.clearCurrentTenant();
+    }
+  }
+}

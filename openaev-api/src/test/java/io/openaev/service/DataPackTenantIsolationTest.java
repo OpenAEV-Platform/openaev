@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
@@ -36,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
  * inspector never blocks, so seeding itself proves nothing about isolation; only the reads below
  * do.
  */
+@CoversTenantIsolation("datapacks")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=datapacks")
 @WithMockUser(isAdmin = true)

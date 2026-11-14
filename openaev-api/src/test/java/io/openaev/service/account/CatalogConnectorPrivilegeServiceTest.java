@@ -9,6 +9,8 @@ import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
 import io.openaev.api.groups.dto.TenantGroupCreateInput;
 import io.openaev.config.SessionManager;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
@@ -35,6 +37,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,6 +58,8 @@ class CatalogConnectorPrivilegeServiceTest {
   @Mock private UserService userService;
   @Mock private TenantUserService tenantUserService;
   @Mock private SessionManager sessionManager;
+  @Mock private MarkingClearanceCacheManager markingClearanceCacheManager;
+  @Spy private TenantWriteScopeResolver writeScopeResolver = new TenantWriteScopeResolver();
 
   @InjectMocks private CatalogConnectorPrivilegeService privilegeService;
 
@@ -103,7 +108,7 @@ class CatalogConnectorPrivilegeServiceTest {
       ArgumentCaptor<String> createdToken = ArgumentCaptor.forClass(String.class);
 
       // Act
-      String result = privilegeService.getOrCreateToken(TENANT_ID);
+      String result = privilegeService.getOrCreateToken(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
       // Assert
       verify(userService)
@@ -117,6 +122,7 @@ class CatalogConnectorPrivilegeServiceTest {
       assertThat(account.getUnscopedGroups()).containsExactly(group);
       verify(tenantUserService).attachToTenant(any(), eq(TENANT_ID));
       verify(userService).saveUser(account);
+      verify(tenantGroupService).receiveEveryMarking(TENANT_ID, group);
     }
 
     @Test
@@ -128,7 +134,7 @@ class CatalogConnectorPrivilegeServiceTest {
       when(userService.findByEmailIgnoreCase(ACCOUNT_EMAIL)).thenReturn(Optional.of(account));
 
       // Act
-      String result = privilegeService.getOrCreateToken(TENANT_ID);
+      String result = privilegeService.getOrCreateToken(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
       // Assert
       assertThat(result).isEqualTo("existing-token");
@@ -146,7 +152,7 @@ class CatalogConnectorPrivilegeServiceTest {
       when(userService.createUserToken(eq(account), anyString())).thenReturn(token("new-token"));
 
       // Act
-      String result = privilegeService.getOrCreateToken(TENANT_ID);
+      String result = privilegeService.getOrCreateToken(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
       // Assert
       assertThat(result).isEqualTo("new-token");
@@ -164,7 +170,7 @@ class CatalogConnectorPrivilegeServiceTest {
       when(userService.findByEmailIgnoreCase(ACCOUNT_EMAIL)).thenReturn(Optional.of(account));
 
       // Act
-      privilegeService.getOrCreateToken(TENANT_ID);
+      privilegeService.getOrCreateToken(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
       // Assert
       verify(tenantRoleService)
@@ -193,7 +199,7 @@ class CatalogConnectorPrivilegeServiceTest {
           ArgumentCaptor.forClass(TenantGroupCreateInput.class);
 
       // Act
-      privilegeService.getOrCreateToken(TENANT_ID);
+      privilegeService.getOrCreateToken(TxCtx.forTenant(TENANT_ID), TENANT_ID);
 
       // Assert
       verify(tenantRoleService)
@@ -205,7 +211,7 @@ class CatalogConnectorPrivilegeServiceTest {
               TENANT_ID);
       verify(tenantGroupService)
           .createInternalGroupWithRole(
-              eq(GROUP_ID), groupInput.capture(), eq(List.of(role)), eq(TENANT_ID));
+              eq(TENANT_ID), eq(GROUP_ID), groupInput.capture(), eq(List.of(role)));
       assertThat(groupInput.getValue().getName()).isEqualTo(CATALOG_CONNECTOR.access().groupName());
       assertThat(groupInput.getValue().getDescription())
           .isEqualTo(CATALOG_CONNECTOR.access().groupDescription());
@@ -282,7 +288,7 @@ class CatalogConnectorPrivilegeServiceTest {
     @DisplayName("Reserves the account group")
     void given_catalogConnectorGroupId_should_beRejected() {
       // Act & Assert
-      assertThatThrownBy(() -> ReservedKeyValidator.validateGroupId(GROUP_ID))
+      assertThatThrownBy(() -> ReservedKeyValidator.validateGroupId(GROUP_ID, TENANT_ID))
           .isInstanceOf(BadRequestException.class);
     }
   }

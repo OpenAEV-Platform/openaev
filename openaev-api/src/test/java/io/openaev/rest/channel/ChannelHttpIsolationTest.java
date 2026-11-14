@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.rest.channel.form.ChannelCreateInput;
 import io.openaev.rest.channel.form.ChannelUpdateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Each test stays on a single tenant path so the per-request scope is set once: re-applying the
  * same scope inside the test transaction is tolerated, changing it would hit the nesting guard.
  */
+@CoversTenantIsolation("channels")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=channels")
 @WithMockUser(isAdmin = true)

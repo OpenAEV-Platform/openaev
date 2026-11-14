@@ -4,11 +4,13 @@ import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.NewsFeedItem;
+import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.TenantXtmHubRegistration;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TenantRepository;
 import io.openaev.database.repository.TenantXtmHubRegistrationRepository;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.settings.response.PlatformSettings;
@@ -25,8 +27,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +78,7 @@ public class XtmHubService {
    */
   public Page<NewsFeedItem> searchMyNewsFeedItems(
       TxCtx ctx, @NotNull final SearchPaginationInput searchPaginationInput) {
-    if (!isAnyTenantRegistered(ctx)) {
+    if (!isNewsFeedServed(registrationStatuses(ctx))) {
       return new PageImpl<>(
           List.of(),
           PageRequest.of(searchPaginationInput.getPage(), searchPaginationInput.getSize()),
@@ -85,13 +87,86 @@ public class XtmHubService {
     return newsFeedItemService.searchMyItems(searchPaginationInput);
   }
 
-  private boolean isAnyTenantRegistered(TxCtx ctx) {
+  /**
+   * The number of unread news feed items of the current user. Like {@link #searchMyNewsFeedItems},
+   * it is 0 when no tenant in the scope of the request is registered on XTM Hub: the user cannot
+   * see the items there.
+   */
+  public long countMyUnreadNewsFeedItems(TxCtx ctx) {
+    if (!isNewsFeedServed(registrationStatuses(ctx))) {
+      return 0;
+    }
+    return newsFeedItemService.countMyUnreadItems();
+  }
+
+  /**
+   * Marks all the news feed items of the current user as read. Does nothing when no tenant in the
+   * scope of the request is registered on XTM Hub: the user cannot see the items there, so they
+   * must not be read for the tenants that do show them.
+   */
+  public void markMyNewsFeedItemsRead(TxCtx ctx) {
+    if (isNewsFeedServed(registrationStatuses(ctx))) {
+      newsFeedItemService.markMyItemsRead();
+    }
+  }
+
+  /**
+   * The news feed settings of the current user: the types they are subscribed to, whether their
+   * news feed is served by XTM Hub, and whether XTM Hub is connected.
+   */
+  public NewsFeedSettings getMyNewsFeedSettings(TxCtx ctx) {
+    Set<XtmHubRegistrationStatus> statuses = registrationStatuses(ctx);
+    return new NewsFeedSettings(
+        newsFeedItemService.getMySubscribedTypes(),
+        isNewsFeedServed(statuses),
+        isHubConnected(statuses));
+  }
+
+  /**
+   * Subscribes the current user to the given news feed types and only those. The preferences only
+   * make sense for a tenant registered on XTM Hub, as it is the one that delivers the items.
+   *
+   * @return the news feed settings of the user once updated
+   * @throws ForbiddenException when no tenant in the scope of the request is registered
+   */
+  public NewsFeedSettings updateMyNewsFeedSettings(
+      TxCtx ctx, @NotNull final Collection<NewsFeedType> subscribedTypes) {
+    Set<XtmHubRegistrationStatus> statuses = registrationStatuses(ctx);
+    if (!isNewsFeedServed(statuses)) {
+      throw new ForbiddenException("The tenant is not registered on XTM Hub");
+    }
+    return new NewsFeedSettings(
+        newsFeedItemService.updateMySubscribedTypes(subscribedTypes),
+        true,
+        isHubConnected(statuses));
+  }
+
+  /** The registration statuses of the tenants in the scope of the request, read at once. */
+  private Set<XtmHubRegistrationStatus> registrationStatuses(TxCtx ctx) {
     Set<String> tenantIds = TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx);
-    return !tenantIds.isEmpty()
-        && tenantXtmHubRegistrationRepository.existsByTenantIdInAndRegistrationStatusIn(
-            tenantIds,
-            EnumSet.of(
-                XtmHubRegistrationStatus.REGISTERED, XtmHubRegistrationStatus.LOST_CONNECTIVITY));
+    if (tenantIds.isEmpty()) {
+      return Set.of();
+    }
+    return tenantXtmHubRegistrationRepository.findByTenantIdIn(tenantIds).stream()
+        .map(TenantXtmHubRegistration::getRegistrationStatus)
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * Whether the news feed is served by XTM Hub, that is when a tenant in the scope of the request
+   * is registered (a tenant that lost its connectivity still is).
+   */
+  private static boolean isNewsFeedServed(Set<XtmHubRegistrationStatus> statuses) {
+    return statuses.contains(XtmHubRegistrationStatus.REGISTERED)
+        || statuses.contains(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+  }
+
+  /**
+   * Whether a tenant in the scope of the request is registered and still reaches XTM Hub, unlike
+   * {@link #isNewsFeedServed(Set)} that also holds for a tenant that lost its connectivity.
+   */
+  private static boolean isHubConnected(Set<XtmHubRegistrationStatus> statuses) {
+    return statuses.contains(XtmHubRegistrationStatus.REGISTERED);
   }
 
   public TenantXtmHubRegistration register(TxCtx ctx, @NotBlank final String token) {
@@ -184,7 +259,7 @@ public class XtmHubService {
               registration.getToken(), tenantSettingsService.buildTenantUrl(tenantId), tenantName));
     }
 
-    Map<String, XtmHubConnectivityStatus> statuses =
+    Map<String, XtmHubConnectivityResult> hubResults =
         xtmHubClient.refreshRegistrationStatusAllTenants(
             settings.getPlatformId(),
             settings.getPlatformVersion(),
@@ -204,10 +279,10 @@ public class XtmHubService {
             return;
           }
 
-          XtmHubConnectivityStatus status =
-              statuses.getOrDefault(tenantId, XtmHubConnectivityStatus.INACTIVE);
+          XtmHubConnectivityResult hubResult =
+              hubResults.getOrDefault(tenantId, XtmHubConnectivityResult.INACTIVE);
 
-          if (status == XtmHubConnectivityStatus.NOT_FOUND) {
+          if (hubResult.status() == XtmHubConnectivityStatus.NOT_FOUND) {
             log.warn("Platform was not found on XTM Hub for tenant {}", tenantId);
             tenantXtmHubRegistrationRepository.deleteByTenantId(tenantId);
             return;
@@ -215,7 +290,10 @@ public class XtmHubService {
 
           ConnectivityCheckResult checkResult =
               new ConnectivityCheckResult(
-                  status, parseLastConnectivityCheck(registration), registration);
+                  hubResult.status(),
+                  hubResult.commercialModel(),
+                  parseLastConnectivityCheck(registration),
+                  registration);
           updateRegistrationStatus(registration, checkResult);
           handleTenantConnectivityLossNotification(checkResult);
           allCheckResults.add(checkResult);
@@ -305,7 +383,7 @@ public class XtmHubService {
     String url = tenantSettingsService.buildTenantUrl(tenantId);
     String tenantName = registration.getTenant().getName();
 
-    XtmHubConnectivityStatus status =
+    XtmHubConnectivityResult hubResult =
         xtmHubClient.refreshRegistrationStatusSingleTenant(
             settings.getPlatformId(),
             settings.getPlatformVersion(),
@@ -317,7 +395,8 @@ public class XtmHubService {
 
     LocalDateTime lastCheck = parseLastConnectivityCheck(registration);
 
-    return new ConnectivityCheckResult(status, lastCheck, registration);
+    return new ConnectivityCheckResult(
+        hubResult.status(), hubResult.commercialModel(), lastCheck, registration);
   }
 
   public Boolean contactUs(String message) {
@@ -363,14 +442,25 @@ public class XtmHubService {
         checkResults.stream().anyMatch(r -> r.status() == XtmHubConnectivityStatus.ACTIVE);
 
     if (connectivityRestored) {
-      platformSettingsService.updateXTMHubEmailNotification(true);
+      updateEmailNotificationFlag(true);
       return;
     }
 
     if (shouldSendConnectivityLossEmail(settings, checkResults)) {
-      platformSettingsService.updateXTMHubEmailNotification(false);
+      updateEmailNotificationFlag(false);
       xtmHubEmailService.sendLostConnectivityEmail();
     }
+  }
+
+  /**
+   * The flag is a platform row of the settings table: the scheduled run has no request and no
+   * transaction around it, so the write opens its own platform-write one, kept apart from the HTTP
+   * and SMTP calls around it.
+   */
+  private void updateEmailNotificationFlag(boolean shouldSendConnectivityEmail) {
+    tenantTx.executeAsPlatformWrite(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> platformSettingsService.updateXTMHubEmailNotification(shouldSendConnectivityEmail));
   }
 
   private void handleTenantConnectivityLossNotification(ConnectivityCheckResult checkResult) {
@@ -429,6 +519,10 @@ public class XtmHubService {
 
     registration.setRegistrationStatus(newStatus);
     registration.setLastConnectivityCheck(updatedLastCheck);
+    // An older or unreachable hub returns no commercial model: keep the last known one.
+    if (checkResult.commercialModel() != null) {
+      registration.setCommercialModel(checkResult.commercialModel());
+    }
 
     return tenantXtmHubRegistrationRepository.save(registration);
   }
@@ -436,6 +530,7 @@ public class XtmHubService {
   /** Encapsulates the result of a connectivity check */
   private record ConnectivityCheckResult(
       XtmHubConnectivityStatus status,
+      XtmHubCommercialModel commercialModel,
       LocalDateTime lastCheck,
       TenantXtmHubRegistration registration) {}
 }

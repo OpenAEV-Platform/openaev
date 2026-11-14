@@ -1076,54 +1076,50 @@ public class InjectExpectationService {
   /**
    * Applies signatures emitted by structured output on matching technical expectations.
    *
-   * <p>The target is resolved using this priority: agent, then asset, then asset group.
+   * <p>The target is resolved using this priority: agent, then asset.
    *
    * <p>If signatures were never initialized for an expectation, existing signatures are cleared
    * once, then new signatures are appended. Otherwise, signatures are only appended.
    *
-   * <p>Only Detection and prevention expectations are supported for structured output signatures.
-   * Other types will be ignored with a warning.
+   * <p>Only detection, prevention and logging expectations are supported for structured output
+   * signatures. Other types will be ignored with a warning.
    *
    * @param injectId the inject ID
    * @param agentId optional agent ID target
    * @param assetId optional asset ID target
-   * @param assetGroupId optional asset group ID target
-   * @param expectationType the expectation type (DETECTION or PREVENTION)
+   * @param expectationType the expectation type (DETECTION, PREVENTION or LOGGING)
    * @param signatures signatures to append
    */
   public void appendExpectationSignatures(
       @NotBlank String injectId,
       @Nullable String agentId,
       @Nullable String assetId,
-      @Nullable String assetGroupId,
       @NotNull BaseInjectExpectation.EXPECTATION_TYPE expectationType,
       @NotNull List<ExpectationSignature> signatures) {
     if (signatures.isEmpty()) {
       return;
     }
-    if (!List.of(DETECTION, PREVENTION).contains(expectationType)) {
+    if (!List.of(DETECTION, PREVENTION, LOGGING).contains(expectationType)) {
       log.warn(
-          "Signature structured output is only supported for DETECTION and PREVENTION expectations (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
+          "Signature structured output is only supported for DETECTION, PREVENTION and LOGGING expectations (injectId={}, agentId={}, assetId={}, expectationType={})",
           injectId,
           agentId,
           assetId,
-          assetGroupId,
           expectationType);
       return;
     }
 
     List<TechnicalInjectExpectation> expectations =
-        findTechnicalExpectationsForTarget(injectId, agentId, assetId, assetGroupId).stream()
+        findTechnicalExpectationsForTarget(injectId, agentId, assetId).stream()
             .filter(expectation -> expectation.getType().equals(expectationType))
             .toList();
 
     if (expectations.isEmpty()) {
       log.warn(
-          "No inject expectation found for structured signatures (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
+          "No inject expectation found for structured signatures (injectId={}, agentId={}, assetId={}, expectationType={})",
           injectId,
           agentId,
           assetId,
-          assetGroupId,
           expectationType);
       return;
     }
@@ -1135,10 +1131,7 @@ public class InjectExpectationService {
   }
 
   private List<TechnicalInjectExpectation> findTechnicalExpectationsForTarget(
-      @NotBlank String injectId,
-      @Nullable String agentId,
-      @Nullable String assetId,
-      @Nullable String assetGroupId) {
+      @NotBlank String injectId, @Nullable String agentId, @Nullable String assetId) {
     if (agentId != null) {
       return filterTechnicalExpectations(
           injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId));
@@ -1146,10 +1139,6 @@ public class InjectExpectationService {
     if (assetId != null) {
       return filterTechnicalExpectations(
           injectExpectationRepository.findAllByInjectAndAsset(injectId, assetId));
-    }
-    if (assetGroupId != null) {
-      return filterTechnicalExpectations(
-          injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, assetGroupId));
     }
     return Collections.emptyList();
   }
@@ -1314,9 +1303,14 @@ public class InjectExpectationService {
    * expectations are never answered directly: like every parent, they are derived from their assets
    * once the per-asset verdicts land on the leaves.
    *
+   * <p>The verdicts are written through self-invocations, which bypass the Spring proxy: the {@link
+   * WorkflowUpdateEvent} of the update methods never runs for them. This method carries its own
+   * event instead, so the chaining step running the inject is notified of the verdicts.
+   *
    * @param ctx the execution processing context containing the inject and agent information
    * @param jsonNode the JSON node containing the output to check for vulnerabilities
    */
+  @WorkflowUpdateEvent(injectId = "#ctx.inject().getId()")
   public void matchesVulnerabilityExpectations(ExecutionProcessingContext ctx, JsonNode jsonNode) {
     boolean anyVulnerable =
         jsonNode != null
@@ -1376,7 +1370,8 @@ public class InjectExpectationService {
    * security platform (assessment injectors such as Nuclei) or to the generic Expectations
    * Vulnerability Manager collector: the verdict lands on the leaves of the expectation, then the
    * parents are recomputed (see {@link #updateInjectExpectationsFromExternalSource}). The result
-   * label is derived from the success flag.
+   * label is derived from the success flag. No workflow update event is published from here: see
+   * {@link #matchesVulnerabilityExpectations}.
    *
    * @param expectation the vulnerability expectation to conclude
    * @param vulnerable whether the target of this expectation was found vulnerable

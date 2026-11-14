@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.healthcheck.utils.HealthCheckUtils.READINESS_CHECK_TIMEOUT_SECONDS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.rest.exercise.ExerciseResponseHydrator.hydrateForResponse;
 import static io.openaev.rest.exercise.form.SimulationDetails.fromRawExercise;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static java.time.Instant.now;
@@ -49,6 +50,7 @@ import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
 import io.openaev.service.scenario.ScenarioService;
 import io.openaev.service.settings.TenantSettingsService;
@@ -124,6 +126,7 @@ public class ExerciseApi extends RestBehavior {
   private final UserService userService;
   private final TenantSettingsService tenantSettingsService;
   private final WorkflowService workflowService;
+  private final WorkflowOwnerScope workflowOwnerScope;
   private final ExpectationsDriftService expectationsDriftService;
   private final EnterpriseEditionService enterpriseEditionService;
   private final TenantWriteScopeResolver writeScopeResolver;
@@ -1034,7 +1037,11 @@ public class ExerciseApi extends RestBehavior {
       throws IOException {
     Exercise exercise = exerciseService.exercise(ctx, exerciseId);
     int exportOptionsMask = ExportOptions.mask(isWithPlayers, isWithTeams, isWithVariableValues);
-    boolean isChaining = workflowService.isSimulationChaining(exerciseId);
+    // The file name says whether the simulation is chained, read in the simulation's own tenant
+    // whatever the caller's scope. The export reads its workflow in that tenant too, and every
+    // other table it serialises under the request's scope, see ExportService#exportExerciseToZip.
+    boolean isChaining =
+        workflowOwnerScope.call(exercise, () -> workflowService.isSimulationChaining(exerciseId));
 
     byte[] zippedExport =
         exportService.exportExerciseToZip(exercise, exportOptionsMask, isWithScopeDefinition);
@@ -1222,19 +1229,6 @@ public class ExerciseApi extends RestBehavior {
     // Same open-in-view reason as hydrateForResponse: scenario_teams would serialize empty.
     Hibernate.initialize(scenario.getTeams());
     return scenario;
-  }
-
-  /**
-   * Hydrates, inside the scoped transaction, the lazy associations the response serializes. Both
-   * are read after the controller returns, through open-in-view, where the tenant scope is already
-   * gone: a lazy load at that point runs unscoped and fails closed, so {@code exercise_teams} comes
-   * back empty although the links exist. {@code exercise_kill_chain_phases} walks the injects down
-   * to the lazy attack-pattern phases, see {@link KillChainPhaseInitializer}.
-   */
-  private static Exercise hydrateForResponse(Exercise exercise) {
-    KillChainPhaseInitializer.initializeFromInjects(exercise.getInjects());
-    Hibernate.initialize(exercise.getTeams());
-    return exercise;
   }
 
   // end region

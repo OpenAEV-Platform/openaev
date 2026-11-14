@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
+import io.openaev.database.model.hash.FileFingerprint;
 import io.openaev.database.raw.RawDocument;
 import io.openaev.database.repository.*;
 import io.openaev.injectors.challenge.model.ChallengeContent;
@@ -20,7 +21,9 @@ import io.openaev.utils.TxCtxScopeUtils;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
@@ -30,7 +33,6 @@ import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
@@ -100,7 +102,8 @@ public class DocumentService {
     fileName = sanitizeFileName(fileName);
     byte[] content = fileIS.readAllBytes();
     String extension = FilenameUtils.getExtension(fileName);
-    String fileTarget = DigestUtils.md5Hex(new ByteArrayInputStream(content)) + "." + extension;
+    FileFingerprint fingerprint = FileFingerprint.of(content, extension);
+    String fileTarget = fingerprint.storageName();
     // Scope both duplicate lookups to the resolved write tenant: an unscoped lookup runs under the
     // ambient tenant filter, so on the header route an upsert scoped to B would find and mutate the
     // default tenant's document with the same bytes or name.
@@ -109,6 +112,7 @@ public class DocumentService {
     // Document already exists by hash
     if (targetDocument.isPresent()) {
       Document document = targetDocument.get();
+      document.describeFile(fingerprint);
       // Compute exercises
       if (!document.getExercises().isEmpty()) {
         Set<Exercise> exercises = new HashSet<>(document.getExercises());
@@ -127,7 +131,8 @@ public class DocumentService {
       }
       // Compute tags
       Set<Tag> tags = new HashSet<>(document.getTags());
-      List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
+      List<Tag> inputTags =
+          fromIterable(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId));
       tags.addAll(inputTags);
       document.setTags(tags);
       return save(document);
@@ -136,6 +141,8 @@ public class DocumentService {
           documentRepository.findFirstByNameAndTenantIdOrderByIdAsc(fileName, tenantId);
       if (existingDocument.isPresent()) {
         Document document = existingDocument.get();
+        // A generated report is read-only here: an upsert by name must not replace its content.
+        assertNotReportingGenerationOutput(document.getId());
         // Update doc: store the new bytes under the existing row's tenant so the object stays
         // co-located with the row that points at it, regardless of the ambient scope.
         fileService.uploadFile(
@@ -144,6 +151,7 @@ public class DocumentService {
             new ByteArrayInputStream(content),
             fileSize,
             fileContentType);
+        document.setTarget(fileTarget);
         document.setDescription(input.getDescription());
 
         // Compute exercises
@@ -164,7 +172,8 @@ public class DocumentService {
         }
         // Compute tags
         Set<Tag> tags = new HashSet<>(document.getTags());
-        List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
+        List<Tag> inputTags =
+            fromIterable(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId));
         tags.addAll(inputTags);
         document.setTags(tags);
         return save(document);
@@ -173,7 +182,7 @@ public class DocumentService {
             tenantId, fileTarget, new ByteArrayInputStream(content), fileSize, fileContentType);
         Document document = new Document();
         document.setTenant(new Tenant(tenantId));
-        document.setTarget(fileTarget);
+        document.describeFile(fingerprint);
         document.setName(fileName);
         document.setDescription(input.getDescription());
         if (!input.getExerciseIds().isEmpty()) {
@@ -184,7 +193,8 @@ public class DocumentService {
           document.setScenarios(
               iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
         }
-        document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+        document.setTags(
+            iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
         document.setType(fileContentType);
         return save(document);
       }
@@ -410,5 +420,23 @@ public class DocumentService {
 
   public Document save(Document document) {
     return documentRepository.save(document);
+  }
+
+  /** The hash of the document's bytes, read once from storage and kept; empty when unreadable. */
+  public Optional<String> contentHash(Document document) {
+    if (document.getContentHash() == null) {
+      String tenantId = document.getTenant() == null ? null : document.getTenant().getId();
+      Optional<InputStream> file = fileService.getFile(document, tenantId);
+      if (file.isEmpty()) {
+        return Optional.empty();
+      }
+      try (InputStream content = file.get()) {
+        document.setContentHash(FileFingerprint.contentHashOf(content));
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+      save(document);
+    }
+    return Optional.of(document.getContentHash());
   }
 }

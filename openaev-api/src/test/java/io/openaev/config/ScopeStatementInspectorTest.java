@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -56,6 +57,10 @@ class ScopeStatementInspectorTest {
     return inspector.inspect(sql).replaceAll("\\s+", " ").trim();
   }
 
+  private static int occurrences(String text, String part) {
+    return text.split(Pattern.quote(part), -1).length - 1;
+  }
+
   @Nested
   @DisplayName("with a single dimension")
   class SingleDimension {
@@ -87,6 +92,18 @@ class ScopeStatementInspectorTest {
               "DELETE FROM documents WHERE id = ?")) {
         assertEquals(tenantOnly.inspect(sql), inspector.inspect(sql), sql);
       }
+    }
+
+    @Test
+    @DisplayName("filters each table of a WITH query exactly once")
+    void filtersEachTableOfAWithQueryOnce() {
+      String out =
+          inspect(
+              inspector,
+              "WITH docs AS (SELECT d.group_id FROM documents d WHERE d.id = ?) "
+                  + "SELECT g.id FROM groups g JOIN docs ON docs.group_id = g.id");
+      assertEquals(1, occurrences(out, "can_access_tenant(d.tenant_id)"), out);
+      assertEquals(1, occurrences(out, "can_access_tenant(g.tenant_id, true)"), out);
     }
   }
 

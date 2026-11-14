@@ -8,7 +8,9 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.repository.InjectDocumentRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.InjectUtils;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,7 @@ public class InjectDuplicateService {
 
   private final InjectRepository injectRepository;
   private final InjectDocumentRepository injectDocumentRepository;
+  private final CredentialMetricCollector credentialMetricCollector;
 
   @Transactional
   public Inject duplicateInjectForScenario(Scenario scenario, Inject inject) {
@@ -62,21 +65,21 @@ public class InjectDuplicateService {
 
   private Inject getDuplicatedInjectWithScenario(Scenario scenario, Inject inject) {
     Inject duplicatedInject = InjectUtils.duplicateInject(inject);
-    duplicatedInject.setScenario(scenario);
-    duplicatedInject.setExercise(null);
+    InjectUtils.attachToScenario(duplicatedInject, scenario);
     return duplicatedInject;
   }
 
   private Inject getDuplicatedInjectWithExercise(Exercise exercise, Inject inject) {
     Inject duplicatedInject = InjectUtils.duplicateInject(inject);
-    duplicatedInject.setExercise(exercise);
-    duplicatedInject.setScenario(null);
+    InjectUtils.attachToExercise(duplicatedInject, exercise);
     return duplicatedInject;
   }
 
   private Inject saveInject(Inject inject, Inject duplicatedInject) {
     Inject savedInject = injectRepository.save(duplicatedInject);
     addInjectDocumentsToDuplicatedInject(inject, savedInject);
+    // A duplicated inject is a new inject: all its credentials count as attached
+    credentialMetricCollector.addNewlyAttachedCredentialsToInjectMetric(duplicatedInject, Set.of());
     return savedInject;
   }
 

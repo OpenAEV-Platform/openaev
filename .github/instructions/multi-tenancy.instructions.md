@@ -69,6 +69,20 @@ under-scopes an unrelated read.
    `shared-tenant-keys.txt` and the reasoned exceptions in `shared-tenant-key-join-waivers.txt`,
    whose `reaches-active-table:` and `until-active:` reasons are checked against the production
    activation list, so they expire with it
+9. A new endpoint on tenant-scoped data is mapped under `TENANT_PREFIX` only, never also under a
+   short `/api/...` route: without the tenant in the URI, a write is ambiguous for a user in
+   several tenants
+10. Ids named in a request body resolve with `findAllByIdInTenant(ids, tenantId)` (or
+    `findAllByIdInAndTenantId`) and the tenant of the entity written, never with `findAllById` or
+    `getReferenceById`: an id of another tenant is treated like an unknown id. `TagRepository` is the
+    model to copy. `LinkedIdResolutionArchTest` fails the build on a call that resolves ids without a
+    tenant on the repository of an active table, outside `linked-id-resolution-baseline.txt`. That
+    file pins the number of calls of each listed method, and its `link` lines are debt that only
+    shrinks. A newly activated table's link sites are converted in the change that activates it.
+    The guard does not see `findById` on a body id, calls through generic helpers, id lookups
+    declared under other names (`SecurityPlatformRepository.findAllByIds`,
+    `AiTargetRepository.findAiTargetsByIds`, `InjectorContractRepository.findAllByIdOrExternalIdIn`),
+    `deleteAllById`, `findAll(Specification)` or `entityManager.find`: a reviewer reads for them.
 
 ## Background Threads Carry Both Scopes
 
@@ -123,3 +137,5 @@ remaining code path is still v1 — otherwise its absence silently attributes in
 | Relying on the `TenantContext` default fallback | Pass the owning row's tenant explicitly |
 | Entrypoint reaching a v2-active table with no `TxCtx` param | Add `TxCtx ctx` and register it in `TenantScopedEntrypointsTxCtxArchTest` |
 | `@Filter("tenantFilter")` left in place after adding a table to `active-tables` | Remove it in the same commit — v1 and v2 never coexist |
+| New tenant-scoped endpoint also mapped on `/api/{entities}` | Map it on `TENANT_PREFIX + "/{entities}"` only |
+| `findAllById` / `getReferenceById` on ids named in a request body | `findAllByIdInTenant(ids, tenantId)` with the tenant of the entity written (rule 10) |

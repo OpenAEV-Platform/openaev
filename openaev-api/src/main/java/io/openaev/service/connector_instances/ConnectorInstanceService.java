@@ -20,6 +20,7 @@ import io.openaev.rest.connector_instance.dto.ConnectorInstanceOutput;
 import io.openaev.rest.connector_instance.dto.CreateConnectorInstanceInput;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.EndpointService;
+import io.openaev.service.InjectorService;
 import io.openaev.service.account.CatalogConnectorPrivilegeService;
 import io.openaev.service.connectors.ConnectorOrchestrationService;
 import io.openaev.service.connectors.HeartbeatWindow;
@@ -54,6 +55,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
   private final EncryptionFactory encryptionFactory;
   private final ManagerFactory managerFactory;
   private final EndpointService endpointService;
+  private final InjectorService injectorService;
   private final TenantScopedTransaction tenantTx;
 
   public ConnectorInstanceService(
@@ -67,6 +69,8 @@ public class ConnectorInstanceService implements AuditLoggedService {
       ExecutorRepository executorRepository,
       InjectorRepository injectorRepository,
       EndpointService endpointService,
+      // Lazy: InjectorService also depends on this service
+      @Lazy InjectorService injectorService,
       TenantScopedTransaction tenantTx,
       // Use lazy injection to break a circular dependency
       @Lazy ManagerFactory managerFactory) {
@@ -80,6 +84,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
     this.executorRepository = executorRepository;
     this.injectorRepository = injectorRepository;
     this.endpointService = endpointService;
+    this.injectorService = injectorService;
     this.tenantTx = tenantTx;
     this.managerFactory = managerFactory;
   }
@@ -211,24 +216,6 @@ public class ConnectorInstanceService implements AuditLoggedService {
       return Optional.empty();
     }
     return this.connectorInstanceRepository.findById(persistedId.getConnectorInstanceId());
-  }
-
-  /**
-   * Resolves the {@link ConnectorInstancePersisted} that owns the given executor entity, scoped to
-   * the executor's tenant.
-   *
-   * @param executorId the executor entity ID
-   * @param tenantId the tenant owning the executor
-   * @return the owning connector instance
-   * @throws EntityNotFoundException if no connector instance is found for the executor ID
-   */
-  @Transactional(readOnly = true)
-  public ConnectorInstancePersisted findByExecutorId(String executorId, String tenantId) {
-    return findPersistedByConnectorId(ConnectorType.EXECUTOR, executorId, tenantId)
-        .orElseThrow(
-            () ->
-                new EntityNotFoundException(
-                    "No connector instance found for executor ID: " + executorId));
   }
 
   /**
@@ -456,7 +443,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
           endpointService.removeSourceTagsForExecutor(connectorId, tenantId);
           executorRepository.deleteByExecutorId(connectorId);
         }
-        case INJECTOR -> injectorRepository.deleteByInjectorId(connectorId);
+        case INJECTOR -> injectorService.deleteInjectorAndQueue(connectorId);
         case COLLECTOR -> collectorRepository.deleteByCollectorId(connectorId);
       }
     }
@@ -660,8 +647,8 @@ public class ConnectorInstanceService implements AuditLoggedService {
   }
 
   private ConnectorInstanceConfiguration createTokenConfiguration(
-      ConnectorInstancePersisted instance, String tenantId) {
-    String token = catalogConnectorPrivilegeService.getOrCreateToken(tenantId);
+      TxCtx ctx, ConnectorInstancePersisted instance, String tenantId) {
+    String token = catalogConnectorPrivilegeService.getOrCreateToken(ctx, tenantId);
     return createConfiguration(
         OPENAEV_KEY_TOKEN, objectMapper.getNodeFactory().textNode(token), false, instance);
   }
@@ -684,11 +671,13 @@ public class ConnectorInstanceService implements AuditLoggedService {
   /**
    * Creates a connector instance from a catalog connector.
    *
+   * @param ctx the scope of the request; it must contain {@code tenantId}
    * @param catalogConnectorWithConfigMap the catalog connector with its configurations map
    * @param input the input data for creating the connector instance
    * @return the created connector instance
    */
   public ConnectorInstancePersisted createConnectorInstance(
+      TxCtx ctx,
       ConnectorOrchestrationService.CatalogConnectorWithConfigMap catalogConnectorWithConfigMap,
       CreateConnectorInstanceInput input,
       String tenantId) {
@@ -705,7 +694,7 @@ public class ConnectorInstanceService implements AuditLoggedService {
             catalogConnectorWithConfigMap.configurationsMap(), newInstance, input);
 
     // Add OpenAEV token
-    configurations.add(createTokenConfiguration(newInstance, tenantId));
+    configurations.add(createTokenConfiguration(ctx, newInstance, tenantId));
     configurations.add(createTenantIdConfiguration(newInstance, tenantId));
     // Add container ID if not already present (in case of a migration)
     if (input.getConfigurations().stream()

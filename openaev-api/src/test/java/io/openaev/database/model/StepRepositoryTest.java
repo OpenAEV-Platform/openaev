@@ -11,7 +11,9 @@ import io.openaev.utils.fixtures.tenants.TenantComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -403,7 +405,7 @@ class StepRepositoryTest extends IntegrationTest {
   }
 
   @Test
-  void whenExistsInjectorContractByWorkflowIdAndInjectorContractId_thenChecksBothJsonShapes() {
+  void whenFindWorkflowTenantIdIfReferencesInjectorContract_thenChecksBothJsonShapes() {
     // GIVEN
     String objectContractId = "contract-object";
     String stringContractId = "contract-string";
@@ -432,14 +434,49 @@ class StepRepositoryTest extends IntegrationTest {
             .get();
 
     // WHEN / THEN
-    Assertions.assertTrue(
-        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
-            workflow.getId(), objectContractId));
-    Assertions.assertTrue(
-        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
-            workflow.getId(), stringContractId));
-    Assertions.assertFalse(
-        stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
-            workflow.getId(), "contract-missing"));
+    String tenantId = workflow.getTenant().getId();
+    Assertions.assertEquals(
+        Optional.of(tenantId),
+        stepRepository.findWorkflowTenantIdIfReferencesInjectorContract(
+            workflow.getId(), objectContractId, Set.of(tenantId)));
+    Assertions.assertEquals(
+        Optional.of(tenantId),
+        stepRepository.findWorkflowTenantIdIfReferencesInjectorContract(
+            workflow.getId(), stringContractId, Set.of(tenantId)));
+    Assertions.assertEquals(
+        Optional.empty(),
+        stepRepository.findWorkflowTenantIdIfReferencesInjectorContract(
+            workflow.getId(), "contract-missing", Set.of(tenantId)));
+  }
+
+  @Test
+  void given_aWorkflowOutsideTheGivenTenants_should_answerNoTenant() {
+    // Arrange
+    String contractId = "contract-object";
+    Workflow workflow =
+        workflowComposer
+            .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
+            .withSimulation(simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+            .withStep(
+                stepComposer.forStep(
+                    Step.builder()
+                        .stepAction(StepActionClass.INJECT_EXECUTION)
+                        .status(StepStatus.TEMPLATE)
+                        .data(
+                            "{\"inject_injector_contract\": {\"injector_contract_id\": \""
+                                + contractId
+                                + "\"}}")
+                        .build()))
+            .persist()
+            .get();
+    String otherTenantId = UUID.randomUUID().toString();
+
+    // Act: the workflow references the contract, but its tenant is not one of the given ones
+    Optional<String> tenantId =
+        stepRepository.findWorkflowTenantIdIfReferencesInjectorContract(
+            workflow.getId(), contractId, Set.of(otherTenantId));
+
+    // Assert
+    Assertions.assertEquals(Optional.empty(), tenantId);
   }
 }

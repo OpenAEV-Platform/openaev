@@ -1,5 +1,6 @@
 package io.openaev.service;
 
+import static io.openaev.utils.TxCtxScopeUtils.requestReadScope;
 import static io.openaev.utils.TxCtxScopeUtils.tenantIdsFromHTTPCtx;
 
 import io.openaev.aop.AccessControlAspect;
@@ -17,6 +18,7 @@ import io.openaev.service.chaining.StepService;
 import io.openaev.service.chaining.WorkflowService;
 import jakarta.validation.constraints.NotNull;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -90,6 +92,14 @@ public class PermissionService {
   private final ConditionService conditionService;
   private final AmbientTenantBridge ambientTenantBridge;
 
+  /**
+   * Resolves the resource with {@link TxCtx#missing()}, which {@code
+   * TxCtxScopeUtils#requestReadScope} reads as the ambient tenant alone. An {@code INJECT} is
+   * loaded inside a tenant scope the caller names, so it is refused here for every caller, an admin
+   * included: use {@link #hasPermissionInTenant} with the tenant of the inject.
+   *
+   * @throws IllegalArgumentException when {@code resourceType} is {@link ResourceType#INJECT}
+   */
   @Transactional
   public boolean hasPermission(
       @NotNull final User user,
@@ -97,13 +107,18 @@ public class PermissionService {
       String resourceId,
       ResourceType resourceType,
       Action action) {
+    if (ResourceType.INJECT.equals(resourceType)) {
+      throw new IllegalArgumentException(
+          "An inject is resolved in a tenant scope: use hasPermissionInTenant");
+    }
     return checkPermission(
         user,
         httpMappingInfo,
         resourceId,
         resourceType,
         action,
-        () -> resolveTarget(resourceId, resourceType, action));
+        TxCtx.missing(),
+        () -> resolveTarget(TxCtx.missing(), resourceId, resourceType, action));
   }
 
   /**
@@ -112,19 +127,28 @@ public class PermissionService {
    * bypass follow the tenant of an evaluation. The parent of a sub-resource does not: loading it
    * goes through services that read through the ambient tenant and, for an autonomous run, settle
    * its status from its simulation. So the parent is resolved at most once, by the first evaluation
-   * that needs it, and always in {@code resolutionTenant}.
+   * that needs it, and always in {@code resolutionTenant}. A parent whose own table is not yet
+   * v2-active (an inject) is instead loaded in {@code ctx}'s read scope, resolving to not found
+   * when it is outside it, since the ambient-tenant wrapping below does not reach a bare {@code
+   * findById}.
    *
+   * @param ctx the request's tenant scope, used by a parent load that is not yet v2-active
    * @param resolutionTenant the tenant ambient for the request, in which the parent is resolved
    */
   public CheckedResource checkedResource(
-      String resolutionTenant, String resourceId, ResourceType resourceType, Action action) {
+      TxCtx ctx,
+      String resolutionTenant,
+      String resourceId,
+      ResourceType resourceType,
+      Action action) {
     return new CheckedResource(
         resourceId,
         resourceType,
         action,
+        ctx,
         () ->
             ambientTenantBridge.callInTenant(
-                resolutionTenant, () -> resolveTarget(resourceId, resourceType, action)));
+                resolutionTenant, () -> resolveTarget(ctx, resourceId, resourceType, action)));
   }
 
   /** The check of {@link #hasPermission(User, Optional, String, ResourceType, Action)}. */
@@ -139,13 +163,15 @@ public class PermissionService {
         resource.resourceId,
         resource.resourceType,
         resource.action,
+        resource.ctx,
         resource::parent);
   }
 
   /**
    * The same check, run in the tenant {@code ctx} names. For callers no request binds a {@code
    * TxCtx} for, such as the stream listeners: resolving a parent permission loads the child row (an
-   * inject, an autonomous run), which a v2-active table hides from an unscoped transaction.
+   * inject, an autonomous run), which a v2-active table hides from an unscoped transaction, and
+   * which a not-yet-active table (an inject) needs {@code ctx} for explicitly.
    */
   @Transactional(readOnly = true)
   public boolean hasPermissionInTenant(
@@ -160,7 +186,8 @@ public class PermissionService {
         resourceId,
         resourceType,
         action,
-        () -> resolveTarget(resourceId, resourceType, action));
+        ctx,
+        () -> resolveTarget(ctx, resourceId, resourceType, action));
   }
 
   /**
@@ -325,6 +352,7 @@ public class PermissionService {
       String resourceId,
       ResourceType resourceType,
       Action action,
+      TxCtx scope,
       Supplier<Target> parent) {
 
     // admin user bypasses all checks
@@ -373,7 +401,7 @@ public class PermissionService {
     }
     // if the user doesn't have the capa check if the user has a grant
     if (RESOURCES_MANAGED_BY_GRANTS.contains(resourceType)) {
-      return hasGrantPermission(user, resourceId, resourceType, action);
+      return hasGrantPermission(user, resourceId, resourceType, action, scope);
     }
 
     // Specific case: /options endpoints are used to filter tables.
@@ -389,7 +417,7 @@ public class PermissionService {
       // Retrieve the request param to check if a source ID is provided
       if (mappingInfo.args().containsKey("sourceId")) {
         String sourceId = mappingInfo.args().get("sourceId").toString();
-        return hasGrantPermission(user, sourceId, resourceType, action);
+        return hasGrantPermission(user, sourceId, resourceType, action, scope);
       }
     }
     return false;
@@ -399,19 +427,24 @@ public class PermissionService {
       @NotNull final User user,
       final String resourceId,
       @NotNull final ResourceType resourceType,
-      @NotNull final Action action) {
+      @NotNull final Action action,
+      @NotNull final TxCtx scope) {
     // user can access search apis but the result will be filtered
     if (Action.SEARCH.equals(action)) {
       return true;
     }
 
+    List<String> resourceIds =
+        ResourceType.THREAT_ARSENAL.equals(resourceType) && resourceId != null
+            ? grantService.threatArsenalGrantResources(resourceId, requestReadScope(scope))
+            : Collections.singletonList(resourceId);
     switch (action) {
       case READ:
-        return grantService.hasReadGrant(resourceId, user);
+        return resourceIds.stream().anyMatch(id -> grantService.hasReadGrant(id, user));
       case WRITE, DELETE:
-        return grantService.hasWriteGrant(resourceId, user);
+        return resourceIds.stream().anyMatch(id -> grantService.hasWriteGrant(id, user));
       case LAUNCH:
-        return grantService.hasLaunchGrant(resourceId, user);
+        return resourceIds.stream().anyMatch(id -> grantService.hasLaunchGrant(id, user));
       default:
         return false;
     }
@@ -480,12 +513,16 @@ public class PermissionService {
   }
 
   private Target resolveTarget(
+      @NotNull final TxCtx ctx,
       @NotNull final String resourceId,
       @NotNull final ResourceType resourceType,
       @NotNull final Action action) {
 
     return switch (resourceType) {
       case AUTONOMOUS_RUN -> {
+        // autonomous_runs is v2-active: this load is already scoped by the GUC the enclosing
+        // transaction carries from its own TxCtx (the controller's, or this method's own ctx
+        // when called from hasPermissionInTenant), so it needs no explicit ctx here.
         AutonomousRun run = autonomousRunService.get(resourceId);
         // Parent action rule: READ stays READ, LAUNCH stays LAUNCH, the rest becomes WRITE.
         Action parentAction =
@@ -497,7 +534,10 @@ public class PermissionService {
         yield new Target(run.getParentResourceId(), run.getParentResourceType(), parentAction);
       }
       case INJECT -> {
-        Inject inject = injectService.inject(resourceId);
+        // injects is not yet v2-active, so the table carries no scoping of its own (its @Filter
+        // does not apply to this find-by-id); load it in the request's read scope explicitly,
+        // resolving to not found when it is outside it.
+        Inject inject = injectService.inject(ctx, resourceId);
         // Parent action rule: READ stays READ, LAUNCH stays LAUNCH, the rest becomes WRITE.
         Action parentAction =
             switch (action) {
@@ -575,6 +615,7 @@ public class PermissionService {
     private final String resourceId;
     private final ResourceType resourceType;
     private final Action action;
+    private final TxCtx ctx;
     private final Supplier<Target> parentResolution;
     private Target parent;
 
@@ -582,10 +623,12 @@ public class PermissionService {
         String resourceId,
         ResourceType resourceType,
         Action action,
+        TxCtx ctx,
         Supplier<Target> parentResolution) {
       this.resourceId = resourceId;
       this.resourceType = resourceType;
       this.action = action;
+      this.ctx = ctx;
       this.parentResolution = parentResolution;
     }
 

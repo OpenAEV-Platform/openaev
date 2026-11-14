@@ -10,6 +10,7 @@ import static io.openaev.injector_contract.ContractCardinality.Multiple;
 import static io.openaev.injector_contract.ContractDef.contractBuilder;
 import static io.openaev.injector_contract.fields.ContractAsset.assetField;
 import static io.openaev.injector_contract.fields.ContractAssetGroup.assetGroupField;
+import static io.openaev.injector_contract.fields.ContractDocument.documentField;
 import static io.openaev.injector_contract.fields.ContractExpectations.expectationsField;
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openaev.injector_contract.fields.ContractText.textField;
@@ -48,10 +49,14 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
+import io.openaev.service.AuthorService;
 import io.openaev.service.PermissionService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
+import io.openaev.service.payload.PayloadContentHashService;
 import io.openaev.telemetry.metric_collectors.ResultsMetricCollector;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -83,10 +88,12 @@ public class PayloadService {
   @Resource protected ObjectMapper mapper;
 
   private final PayloadRepository payloadRepository;
+  private final PayloadContentHashService payloadContentHashService;
   private final InjectorRepository injectorRepository;
   private final InjectorContractRepository injectorContractRepository;
   private final ExpectationBuilderService expectationBuilderService;
   private final UserService userService;
+  private final AuthorService authorService;
   // PermissionService reaches the inject services, which reach this service through the threat
   // arsenal services: @Lazy setter injection breaks the cycle, as in TenantGroupService.
   private PermissionService permissionService;
@@ -99,6 +106,7 @@ public class PayloadService {
   private final ChainingStepCleanupService chainingStepCleanupService;
   private final InjectorContractService injectorContractService;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final PreviewFeatureService previewFeatureService;
 
   private final PayloadMapper payloadMapper;
 
@@ -109,6 +117,8 @@ public class PayloadService {
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
+    // Every payload write passes here.
+    payload.setContentHash(payloadContentHashService.hash(payload, attackPatterns).orElse(null));
     // A contract lives in its payload's tenant. findAllByPayloads is scoped only by the ambient
     // TxCtx, which for a global (non-selector) request authorizes every tenant the caller can see -
     // built-in payload injectors repeat across tenants, so the raw result can mix several tenants'
@@ -134,6 +144,9 @@ public class PayloadService {
                   String contractId = String.valueOf(UUID.randomUUID());
                   InjectorContract newContract = new InjectorContract();
                   newContract.setId(contractId);
+                  // InjectorContract has no listener that stamps a tenant, so the new contract
+                  // takes its payload's tenant here: a contract lives in its payload's tenant.
+                  newContract.setTenant(payload.getTenant());
                   return newContract;
                 });
 
@@ -248,6 +261,14 @@ public class PayloadService {
                   List<ContractElement> targetedAssetsFields =
                       targetedAssetFields(payloadArgument.getKey(), payloadArgument);
                   targetedAssetsFields.forEach(builder::mandatory);
+                } else if (PrimitiveType.Document == payloadArgument.getType()) {
+                  ContractElement documentField =
+                      documentField(
+                          payloadArgument.getKey(),
+                          payloadArgument.getKey(),
+                          payloadArgument.getDefaultValue());
+                  documentField.setArgumentType(payloadArgument.getType());
+                  builder.mandatory(documentField);
                 } else {
                   ContractElement textField =
                       textField(
@@ -287,6 +308,11 @@ public class PayloadService {
             this.expectationBuilderService.buildDetectionExpectation(),
             BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
             expectedSecurityPlatforms);
+    Expectation loggingExpectation =
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildLoggingExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.LOGGING,
+            expectedSecurityPlatforms);
     Expectation vulnerableExpectation =
         withExpectedSecurityPlatforms(
             this.expectationBuilderService.buildVulnerabilityExpectation(),
@@ -298,14 +324,22 @@ public class PayloadService {
         switch (type) {
           case DETECTION -> detectionExpectation.setPredefined(true);
           case PREVENTION -> preventionExpectation.setPredefined(true);
+          case LOGGING -> loggingExpectation.setPredefined(true);
           case VULNERABILITY -> vulnerableExpectation.setPredefined(true);
           default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
         }
       }
     }
 
-    return expectationsField(
-        List.of(detectionExpectation, preventionExpectation, vulnerableExpectation));
+    List<Expectation> expectations =
+        new ArrayList<>(List.of(detectionExpectation, preventionExpectation));
+    // The contract is stored at payload synchronisation: a contract built while the preview feature
+    // is off only offers LOGGING at its next synchronisation.
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION)) {
+      expectations.add(loggingExpectation);
+    }
+    expectations.add(vulnerableExpectation);
+    return expectationsField(expectations);
   }
 
   public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
@@ -383,15 +417,9 @@ public class PayloadService {
         injectorContractRepository.findInjectorContractByPayload(origin);
 
     Payload duplicatedPayload = generateDuplicatedPayload(origin);
-    // A duplicate is a new manual payload: it is authored by the user performing the
-    // duplication. System flows without an authenticated user keep the author copied
-    // from the origin.
-    User duplicatingUser = userService.currentUserOrNull();
-    if (duplicatingUser != null) {
-      duplicatedPayload.setAuthorUser(duplicatingUser);
-      duplicatedPayload.setAuthorTeam(null);
-      duplicatedPayload.setAuthorOrganization(null);
-    }
+    // A duplicate is a new manual payload, authored by the user duplicating it; without a user it
+    // keeps the author copied from the origin.
+    authorService.authorByCurrentUser(duplicatedPayload);
     Payload duplicated = payloadRepository.save(duplicatedPayload);
     InjectorContract injectorContract =
         this.synchroniseInjectorContractBasedOnPayload(
@@ -466,13 +494,16 @@ public class PayloadService {
   }
 
   public void deprecateNonProcessedPayloadsByCollector(
-      String collectorId, List<String> processedPayloadExternalIds) {
+      TxCtx ctx, String collectorId, List<String> processedPayloadExternalIds) {
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     List<String> payloadExternalIds =
-        payloadRepository.findAllExternalIdsByCollectorId(collectorId);
+        payloadRepository.findAllExternalIdsByCollectorId(collectorId, writeTenant);
     List<String> payloadExternalIdsToDeprecate =
         getExternalIdsToDeprecate(payloadExternalIds, processedPayloadExternalIds);
     payloadRepository.setPayloadStatusByExternalIds(
-        String.valueOf(Payload.PAYLOAD_STATUS.DEPRECATED), payloadExternalIdsToDeprecate);
+        String.valueOf(Payload.PAYLOAD_STATUS.DEPRECATED),
+        payloadExternalIdsToDeprecate,
+        writeTenant);
     log.info("Number of deprecated Payloads: {}", payloadExternalIdsToDeprecate.size());
   }
 

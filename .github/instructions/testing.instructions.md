@@ -5,6 +5,13 @@ description: "Testing conventions: integration tests, unit tests, fixtures, comp
 
 # Testing Conventions
 
+## How Many Tests
+
+- **The fewest tests that cover all the new code**: one integration test per flow, parameterized tests
+  for the list of refusal or error cases
+- No test that restates configuration (one test per enum value, per mapping entry)
+- Delete the tests of removed code in the same PR
+
 ## Integration Tests (API)
 
 - Extend `IntegrationTest`
@@ -88,3 +95,4 @@ For entities with nullable `tenant_id` (Settings, User, Role, Group):
 - E2E config: `tests_e2e/`, fixtures in `tests_e2e/fixtures/`
 - Locate by role and accessible name (`getByRole(..., { name, exact: true })` — the name match is a substring otherwise), not by `Mui*` classes: library fields have a different DOM. Field errors go through `MuiFormHelpers.getFieldError` (`tests_e2e/utils/MuiFormHelpers.ts`), which handles both MUI and library shapes
 - E2E is the only gate that sees some regressions (e.g. a `<button>` that became a submit inside a form) — run the relevant specs when converting interactive components
+- Import `test` from `tests_e2e/fixtures` (enforced by lint) and pick the user with `test.use({ persona })`. It defaults to admin; use `manager` or `observer` to verify permission rules (personas in `tests_e2e/utils/personas.ts`)

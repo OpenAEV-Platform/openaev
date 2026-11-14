@@ -3,9 +3,12 @@ package io.openaev.api.news_feed;
 import static io.openaev.api.news_feed.NewsFeedItemApi.TENANT_NEWS_FEED_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
@@ -45,6 +48,8 @@ import org.springframework.transaction.annotation.Transactional;
 class NewsFeedItemApiTest extends IntegrationTest {
 
   private static final String SEARCH_URI = TENANT_NEWS_FEED_URI + "/me/search";
+  private static final String UNREAD_COUNT_URI = TENANT_NEWS_FEED_URI + "/me/unread-count";
+  private static final String READ_ALL_URI = TENANT_NEWS_FEED_URI + "/me/read-all";
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -64,11 +69,15 @@ class NewsFeedItemApiTest extends IntegrationTest {
   }
 
   private void registerTenant(XtmHubRegistrationStatus status) {
+    registerTenant(tenantId, status);
+  }
+
+  private void registerTenant(String id, XtmHubRegistrationStatus status) {
     TenantXtmHubRegistration registration = new TenantXtmHubRegistration();
     registration.setToken("token");
     registration.setRegistrationDate(LocalDateTime.now());
     registration.setRegistrationStatus(status);
-    registration.setTenant(new Tenant(tenantId));
+    registration.setTenant(new Tenant(id));
     registrationRepository.save(registration);
   }
 
@@ -93,6 +102,30 @@ class NewsFeedItemApiTest extends IntegrationTest {
         .andReturn()
         .getResponse()
         .getContentAsString();
+  }
+
+  private NewsFeedItem saveItem(User user, String hubItemId, boolean read) {
+    NewsFeedItem item = NewsFeedItemFixture.createNewsFeedItem(user, hubItemId);
+    item.setRead(read);
+    return newsFeedItemRepository.save(item);
+  }
+
+  private String unreadCount() throws Exception {
+    return mvc.perform(get(UNREAD_COUNT_URI, tenantId))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+  }
+
+  private void markAllRead() throws Exception {
+    mvc.perform(put(READ_ALL_URI, tenantId).with(csrf())).andExpect(status().isNoContent());
+    entityManager.flush();
+    entityManager.clear();
+  }
+
+  private boolean isRead(NewsFeedItem item) {
+    return newsFeedItemRepository.findById(item.getId()).orElseThrow().isRead();
   }
 
   @Nested
@@ -212,6 +245,235 @@ class NewsFeedItemApiTest extends IntegrationTest {
                   .content(asJsonString(PaginationFixture.getDefault().build()))
                   .with(csrf()))
           .andExpect(status().isNotFound());
+    }
+  }
+
+  @Nested
+  @DisplayName("Count my unread news feed items")
+  class CountMyUnreadItems {
+
+    @Test
+    @DisplayName("Given a registered tenant, should count only my unread items")
+    void given_registeredTenant_should_countOnlyMyUnreadItems() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.REGISTERED);
+      User me = userService.currentUser();
+      User other = userRepository.save(UserFixture.getUserWithDefaultEmail());
+      saveItem(me, "hub-1", false);
+      saveItem(me, "hub-2", false);
+      saveItem(me, "hub-3", true);
+      saveItem(other, "hub-1", false);
+      saveItem(other, "hub-2", false);
+      saveItem(other, "hub-3", false);
+
+      // Act
+      String response = unreadCount();
+
+      // Assert
+      assertThat(response).isEqualTo("2");
+    }
+
+    @Test
+    @DisplayName("Given no item, should count none")
+    void given_noItem_should_countNone() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.REGISTERED);
+
+      // Act
+      String response = unreadCount();
+
+      // Assert
+      assertThat(response).isEqualTo("0");
+    }
+
+    @Test
+    @DisplayName("Given an unregistered tenant, should count none")
+    void given_unregisteredTenant_should_countNone() throws Exception {
+      // Arrange
+      saveItem(userService.currentUser(), "hub-1", false);
+
+      // Act
+      String response = unreadCount();
+
+      // Assert
+      assertThat(response).isEqualTo("0");
+    }
+
+    @Test
+    @DisplayName(
+        "Given another tenant registered but not the one of the request, should count none")
+    void given_otherTenantRegistered_should_countNone() throws Exception {
+      // Arrange
+      registerTenant(
+          tenantHelper.createTenant("other-news-feed-tenant").getId(),
+          XtmHubRegistrationStatus.REGISTERED);
+      saveItem(userService.currentUser(), "hub-1", false);
+
+      // Act
+      String response = unreadCount();
+
+      // Assert
+      assertThat(response).isEqualTo("0");
+    }
+
+    @Test
+    @DisplayName("Given a tenant that lost its connectivity, should still count the items")
+    void given_lostConnectivityTenant_should_stillCountItems() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+      saveItem(userService.currentUser(), "hub-1", false);
+
+      // Act
+      String response = unreadCount();
+
+      // Assert
+      assertThat(response).isEqualTo("1");
+    }
+
+    @Test
+    @DisplayName("Given the feature disabled, should not find the endpoint")
+    void given_featureDisabled_should_returnNotFound() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.REGISTERED);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED))
+          .thenReturn(false);
+
+      // Act & Assert
+      mvc.perform(get(UNREAD_COUNT_URI, tenantId)).andExpect(status().isNotFound());
+    }
+  }
+
+  @Nested
+  @DisplayName("Mark all my news feed items as read")
+  class MarkAllMyItemsRead {
+
+    @Test
+    @DisplayName("Given unread items, should read mine only and leave the ones of other users")
+    void given_unreadItems_should_readMineOnly() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.REGISTERED);
+      User me = userService.currentUser();
+      User other = userRepository.save(UserFixture.getUserWithDefaultEmail());
+      NewsFeedItem mine1 = saveItem(me, "hub-1", false);
+      NewsFeedItem mine2 = saveItem(me, "hub-2", false);
+      NewsFeedItem theirs = saveItem(other, "hub-1", false);
+
+      // Act
+      markAllRead();
+
+      // Assert
+      assertThat(isRead(mine1)).isTrue();
+      assertThat(isRead(mine2)).isTrue();
+      assertThat(isRead(theirs)).isFalse();
+      assertThat(unreadCount()).isEqualTo("0");
+    }
+
+    @Test
+    @DisplayName("Given a hundred and fifty unread items, should read them all")
+    void given_manyUnreadItems_should_readThemAll() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.REGISTERED);
+      User me = userService.currentUser();
+      String myId = me.getId();
+      for (int i = 0; i < 150; i++) {
+        saveItem(me, "hub-" + i, false);
+      }
+      assertThat(unreadCount()).isEqualTo("150");
+
+      // Act
+      markAllRead();
+
+      // Assert
+      assertThat(newsFeedItemRepository.countByUserIdAndReadFalse(myId)).isZero();
+      assertThat(unreadCount()).isEqualTo("0");
+    }
+
+    @Test
+    @DisplayName("Given the items already read, should stay read when called again")
+    void given_itemsAlreadyRead_should_beIdempotent() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.REGISTERED);
+      NewsFeedItem item = saveItem(userService.currentUser(), "hub-1", false);
+      markAllRead();
+
+      // Act
+      markAllRead();
+
+      // Assert
+      assertThat(isRead(item)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Given an unregistered tenant, should leave the items unread")
+    void given_unregisteredTenant_should_leaveItemsUnread() throws Exception {
+      // Arrange
+      NewsFeedItem item = saveItem(userService.currentUser(), "hub-1", false);
+
+      // Act
+      markAllRead();
+
+      // Assert
+      assertThat(isRead(item)).isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "Given another tenant registered but not the one of the request, should leave unread")
+    void given_otherTenantRegistered_should_leaveItemsUnread() throws Exception {
+      // Arrange
+      registerTenant(
+          tenantHelper.createTenant("other-news-feed-tenant").getId(),
+          XtmHubRegistrationStatus.REGISTERED);
+      NewsFeedItem item = saveItem(userService.currentUser(), "hub-1", false);
+
+      // Act
+      markAllRead();
+
+      // Assert
+      assertThat(isRead(item)).isFalse();
+    }
+
+    @Test
+    @DisplayName("Given a tenant that lost its connectivity, should still read the items")
+    void given_lostConnectivityTenant_should_stillReadItems() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.LOST_CONNECTIVITY);
+      NewsFeedItem item = saveItem(userService.currentUser(), "hub-1", false);
+
+      // Act
+      markAllRead();
+
+      // Assert
+      assertThat(isRead(item)).isTrue();
+    }
+
+    @Test
+    @WithMockUser(isAdmin = false)
+    @DisplayName("Given a user without any capability, should still read their items")
+    void given_userWithoutCapability_should_readTheirItems() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.REGISTERED);
+      NewsFeedItem item = saveItem(userService.currentUser(), "hub-1", false);
+
+      // Act
+      markAllRead();
+
+      // Assert
+      assertThat(isRead(item)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Given the feature disabled, should not find the endpoint")
+    void given_featureDisabled_should_returnNotFound() throws Exception {
+      // Arrange
+      registerTenant(XtmHubRegistrationStatus.REGISTERED);
+      NewsFeedItem item = saveItem(userService.currentUser(), "hub-1", false);
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED))
+          .thenReturn(false);
+
+      // Act & Assert
+      mvc.perform(put(READ_ALL_URI, tenantId).with(csrf())).andExpect(status().isNotFound());
+      assertThat(isRead(item)).isFalse();
     }
   }
 }

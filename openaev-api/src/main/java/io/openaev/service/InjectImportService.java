@@ -465,9 +465,9 @@ public class InjectImportService {
                 // We set the exercise or scenario
                 Inject inject = rowSummary.getInject();
                 if (scenario != null && inject != null) {
-                  inject.setScenario(scenario);
+                  InjectUtils.attachToScenario(inject, scenario);
                 } else if (exercise != null && inject != null) {
-                  inject.setExercise(exercise);
+                  InjectUtils.attachToExercise(inject, exercise);
                 }
                 rowSummary.setInject(inject);
 
@@ -650,6 +650,8 @@ public class InjectImportService {
 
     // Creating the inject
     Inject inject = new Inject();
+    // The inject belongs to the import's write tenant, whatever tenant the request runs in.
+    inject.setTenant(new Tenant(writeTenant));
     inject.setDependsDuration(0L);
 
     // Adding the description
@@ -927,7 +929,7 @@ public class InjectImportService {
       type = "expectation";
     }
     switch (type) {
-      case "text", "textarea":
+      case "text", "textarea", "document":
         // If it is a text, we get the columns, split by "+" if there is a concatenation of columns
         // and then joins the result of the cells
         String columnValue = Strings.EMPTY;

@@ -89,8 +89,9 @@ runs:
           playwright-${{ inputs.browser }}-${{ runner.os }}-${{ runner.arch }}-
     # Refresh system dependencies best-effort; GitHub runners provide the required libraries.
     - name: Install Playwright system dependencies
+      env:
+        BROWSER: ${{ inputs.browser }}
       run: |
-        BROWSER="${{ inputs.browser }}"
         [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
         sudo apt-get update || echo "⚠️ apt-get update failed; continuing"
         yarn playwright install-deps chromium $BROWSER \
@@ -99,8 +100,9 @@ runs:
       working-directory: openaev-front
     - name: Install Playwright browsers (${{ inputs.browser }} + chromium for setup)
       if: steps.playwright-cache.outputs.cache-hit != 'true'
+      env:
+        BROWSER: ${{ inputs.browser }}
       run: |
-        BROWSER="${{ inputs.browser }}"
         [[ "$BROWSER" == "edge" ]] && BROWSER="msedge"
         yarn playwright install chromium $BROWSER
       shell: bash
@@ -129,15 +131,17 @@ runs:
     - name: Load Docker image
       if: ${{ steps.image-source.outputs.source == 'artifact' }}
       shell: bash
+      env:
+        DOCKER_IMAGE: ${{ inputs.docker-image }}
       run: |
         cd /tmp/openaev-image
-        echo "🐳 Loading Docker image (${{ inputs.docker-image }})..."
-        gunzip -k ${{ inputs.docker-image }}.tar.gz
+        echo "🐳 Loading Docker image (${DOCKER_IMAGE})..."
+        gunzip -k "${DOCKER_IMAGE}.tar.gz"
         # Convert OCI archive → docker-archive (file-based, avoids pipe issues with docker-daemon)
         skopeo copy \
-          oci-archive:${{ inputs.docker-image }}.tar \
+          "oci-archive:${DOCKER_IMAGE}.tar" \
           docker-archive:docker-image.tar:openaev:ci
-        rm -f ${{ inputs.docker-image }}.tar ${{ inputs.docker-image }}.tar.gz
+        rm -f "${DOCKER_IMAGE}.tar" "${DOCKER_IMAGE}.tar.gz"
         docker load -i docker-image.tar
         rm -f docker-image.tar
         IMAGE_ID=$(docker images openaev:ci --format '{{.ID}}')
@@ -149,6 +153,8 @@ runs:
 
     - name: Wait for services
       shell: bash
+      env:
+        SEARCH_ENGINE: ${{ inputs.search-engine }}
       run: |
         echo "⏳ Waiting for PostgreSQL..."
         for i in $(seq 1 30); do
@@ -157,12 +163,12 @@ runs:
         done
         docker exec pgsql pg_isready -U openaev || { echo "❌ PostgreSQL failed to start"; exit 1; }
 
-        echo "⏳ Waiting for ${{ inputs.search-engine }}..."
+        echo "⏳ Waiting for ${SEARCH_ENGINE}..."
         for i in $(seq 1 30); do
           curl -sf http://localhost:9200/_cluster/health && break
           sleep 2
         done
-        curl -sf http://localhost:9200/_cluster/health || { echo "❌ ${{ inputs.search-engine }} failed to start"; exit 1; }
+        curl -sf http://localhost:9200/_cluster/health || { echo "❌ ${SEARCH_ENGINE} failed to start"; exit 1; }
 
         echo "⏳ Waiting for RabbitMQ..."
         for i in $(seq 1 30); do
@@ -260,8 +266,6 @@ runs:
     - name: Run E2E tests (${{ inputs.project || inputs.browser }})
       run: |
         set -euo pipefail
-        CONFIG="${{ inputs.playwright-config }}"
-        PROJECT="${{ inputs.project || inputs.browser }}"
         ARGS="--config $CONFIG --project=setup --project=$PROJECT"
 
         FILTERS=""
@@ -295,8 +299,25 @@ runs:
       env:
         APP_URL: http://localhost:8080
         E2E_COVERAGE: "true"
+        CONFIG: ${{ inputs.playwright-config }}
+        PROJECT: ${{ inputs.project || inputs.browser }}
         SHARD_INCLUDES: ${{ inputs.includes }}
         SHARD_EXCLUDES: ${{ inputs.excludes }}
+    # A Playwright trace shows what the browser saw, not why the backend, the
+    # integrations manager or a started injector did not act (a chaining step
+    # that never becomes an inject, an injector that never registers). Their
+    # logs go into test-results/ so the report artifact below carries them.
+    - name: Collect container logs on failure
+      if: ${{ failure() }}
+      shell: bash
+      run: |
+        LOG_DIR=openaev-front/test-results/container-logs
+        mkdir -p "$LOG_DIR"
+        docker ps -a --format '{{.Names}}\t{{.Image}}\t{{.Status}}' > "$LOG_DIR/containers.txt" 2>&1 || true
+        for name in $(docker ps -a --format '{{.Names}}'); do
+          docker logs --timestamps "$name" > "$LOG_DIR/$name.log" 2>&1 || true
+        done
+        echo "Collected logs of $(ls "$LOG_DIR" | grep -c '\.log$') container(s) into $LOG_DIR"
     - name: Upload Playwright report (${{ inputs.browser }})
       if: ${{ !cancelled() }}
       uses: actions/upload-artifact@v7

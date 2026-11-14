@@ -25,6 +25,7 @@ import lombok.Setter;
 import org.hibernate.Hibernate;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.Immutable;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -204,8 +205,20 @@ public class User implements Base {
   @Queryable(dynamicValues = true, filterable = true, path = "organizations.id")
   @Schema(description = "Organization ID of the user", type = "string")
   public Organization getOrganization() {
-    return organizationOfTenant(TenantContext.getCurrentTenant());
+    return organizationOfTenant(
+        organizationTenantId != null ? organizationTenantId : TenantContext.getCurrentTenant());
   }
+
+  /**
+   * The tenant whose organization {@link #getOrganization()} answers for, when it is not the
+   * ambient one. Only ever set on a response view built by {@code UserMapper#toResponseView}, never
+   * on an entity the persistence context or a lifecycle event holds. Never persisted, never
+   * serialized.
+   */
+  @Transient
+  @JsonIgnore
+  @Getter(NONE)
+  private String organizationTenantId;
 
   /**
    * Loads the organizations of the user. Call it inside the scoped transaction of an endpoint that
@@ -287,6 +300,7 @@ public class User implements Base {
    * cleanup before delete). Never serialize this — use {@link #getScopedGroups()} for API
    * responses.
    */
+  @JsonIgnore
   public List<Group> getUnscopedGroups() {
     return groups;
   }
@@ -316,8 +330,19 @@ public class User implements Base {
   @Queryable(dynamicValues = true, filterable = true, path = "teams.id")
   private List<Team> teams = new ArrayList<>();
 
+  /**
+   * Owning side of {@code users_tags}, but a user is platform-level and its tags may belong to
+   * several tenants, so the collection only holds the ones in the scope of the transaction. The
+   * tags of an existing user are never written through it: a flush of this collection deletes every
+   * row of the user as soon as it is empty, the links to the tags out of scope included. The links
+   * of an existing user are written by {@code UserService#replaceTags}; {@link #setTags} is for a
+   * user that is not saved yet and refuses a saved one. {@link Immutable} makes a change of the
+   * loaded collection in place ({@code clear}, {@code add}, {@code remove}) fail at flush instead
+   * of deleting links; Hibernate does not check a collection that is replaced, which is why the
+   * setter does.
+   */
   @ArraySchema(schema = @Schema(description = "Tag IDs of the user", implementation = String.class))
-  @Setter
+  @Immutable
   @ManyToMany(fetch = FetchType.LAZY)
   @JoinTable(
       name = "users_tags",
@@ -327,6 +352,20 @@ public class User implements Base {
   @JsonProperty("user_tags")
   @Queryable(dynamicValues = true, filterable = true, path = "tags.id")
   private Set<Tag> tags = new HashSet<>();
+
+  /**
+   * @throws IllegalStateException when the user is saved: replacing its collection deletes every
+   *     link of the user, the ones to the tags out of the scope of the transaction included
+   */
+  public void setTags(Set<Tag> tags) {
+    if (id != null) {
+      throw new IllegalStateException(
+          "The tags of the saved user "
+              + id
+              + " are changed with UserService#replaceTags, never by replacing the collection");
+    }
+    this.tags = tags;
+  }
 
   @ArraySchema(
       schema =
@@ -519,20 +558,31 @@ public class User implements Base {
     return capabilitiesOf(scopedGroups());
   }
 
+  /** The highest grant a user holds on one resource, with the type of that resource. */
+  public record UserGrant(
+      @JsonProperty("grant") @NotNull Grant.GRANT_TYPE grant,
+      @JsonProperty("type") @NotNull Grant.GRANT_RESOURCE_TYPE type) {}
+
   @JsonProperty("user_grants")
-  public Map<String, String> getGrants() {
+  public Map<String, UserGrant> getResourceGrants() {
     return scopedGroups().stream()
         .flatMap(group -> group.getGrants().stream())
         .filter(grant -> grant.getResourceId() != null)
         .collect(
             Collectors.toMap(
                 Grant::getResourceId,
-                grant -> grant.getName().toString(),
+                grant -> new UserGrant(grant.getName(), grant.getGrantResourceType()),
                 (grantA, grantB) ->
-                    Grant.GRANT_TYPE.valueOf(grantA).getPriority()
-                            >= Grant.GRANT_TYPE.valueOf(grantB).getPriority()
+                    grantA.grant().getPriority() >= grantB.grant().getPriority()
                         ? grantA
                         : grantB));
+  }
+
+  /** The highest grant name a user holds on each resource, by resource id. */
+  @JsonIgnore
+  public Map<String, String> getGrants() {
+    return getResourceGrants().entrySet().stream()
+        .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().grant().name()));
   }
 
   @Override

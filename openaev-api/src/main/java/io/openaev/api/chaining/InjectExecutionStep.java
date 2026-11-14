@@ -23,7 +23,7 @@ import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
-import io.openaev.execution.ExecutionExecutorException;
+import io.openaev.execution.UnexecutableInjectException;
 import io.openaev.executors.Executor;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
@@ -199,8 +199,9 @@ public class InjectExecutionStep implements ActionStep {
    * Executor}, and updates the step data with inject ID.
    *
    * @param readyStep the step currently in READY status
-   * @return the updated step with execution info, or an empty Optional if no agent could run the
-   *     inject: the inject is set to ERROR and the caller ends the step without retry
+   * @return the updated step with execution info, or an empty Optional if the inject cannot be
+   *     executed (see {@link UnexecutableInjectException}): the inject is set to ERROR and the
+   *     caller ends the step without retry
    * @throws ChainingException on any other failure: the transaction is rolled back and the event is
    *     retried
    */
@@ -212,20 +213,19 @@ public class InjectExecutionStep implements ActionStep {
     // CREATE & SAVE INJECT
     inject = injectService.createInject(inject);
     String injectId = inject.getId();
-    InjectorContract injectorContract =
-        inject
-            .getInjectorContract()
-            .orElseThrow(
-                () ->
-                    new ChainingException(
-                        "Injector contract missing on inject during run, step ID: "
-                            + readyStep.getId()));
-    prepareGetStatusPayloadFromInject(injectorContract);
+    readyStep.setData(setInjectId(injectId, readyStep.getData()));
+    Optional<InjectorContract> injectorContract = inject.getInjectorContract();
+    if (injectorContract.isEmpty()) {
+      return failUnexecutableInject(
+          inject,
+          new UnexecutableInjectException(
+              "Injector contract missing on inject during run, step ID: " + readyStep.getId()));
+    }
+    prepareGetStatusPayloadFromInject(injectorContract.get());
 
     recordAttackPathExecution(readyStep, inject);
 
     try {
-      readyStep.setData(setInjectId(injectId, readyStep.getData()));
       // Resolve the audience recipients (email/SMS players) from the inject's targeted teams and
       // the workflow scope's players. The standard queue path does this via InjectHelper; the
       // chaining path must do it here or the executor sees zero users and fails with "Email needs
@@ -251,19 +251,8 @@ public class InjectExecutionStep implements ActionStep {
       executor.directExecute(executableInject);
 
       return Optional.of(readyStep);
-    } catch (ExecutionExecutorException e) {
-      // No agent could run the inject (all inactive, agentless, or every executor call failed).
-      // That outcome is final, not transient: record it on the inject and end the step. Rolling
-      // back instead drops the inject with its traces and makes StepEventService re-publish the
-      // same event, which is what leaves RabbitMQ deliveries unacknowledged. The exception is
-      // thrown by the non-transactional ExecutionExecutorService, so the transaction is still
-      // sound, unless an inner transactional call failed earlier: keep the rollback then.
-      if (TransactionAspectSupport.currentTransactionStatus().isRollbackOnly()) {
-        throw new ChainingException(
-            "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
-      }
-      injectStatusService.failInjectStatus(inject, e.getMessage());
-      return Optional.empty();
+    } catch (UnexecutableInjectException e) {
+      return failUnexecutableInject(inject, e);
     } catch (Exception e) {
       throw new ChainingException(
           "Inject execution failed. Inject ID: " + injectId + " (transaction rolled back)", e);
@@ -271,14 +260,33 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   /**
+   * Records a final execution failure on the inject so the caller ends the step. Rolling back
+   * instead drops the inject with its traces and makes StepEventService re-publish the same event,
+   * only to fail the same way on every retry. The exception is thrown outside any transactional
+   * proxy, so the transaction is still sound, unless an inner transactional call failed earlier:
+   * keep the rollback then.
+   */
+  private Optional<Step> failUnexecutableInject(Inject inject, UnexecutableInjectException e)
+      throws ChainingException {
+    if (TransactionAspectSupport.currentTransactionStatus().isRollbackOnly()) {
+      throw new ChainingException(
+          "Inject execution failed. Inject ID: " + inject.getId() + " (transaction rolled back)",
+          e);
+    }
+    injectStatusService.failInjectStatus(inject, e.getMessage());
+    return Optional.empty();
+  }
+
+  /**
    * Resolves the recipient execution contexts for an audience-centric (email/SMS) chaining inject
    * from its targeted teams and the workflow scope's individual players.
    *
    * <p>A scope team chosen in the chaining Configure-action drawer - or pulled in by the scope
-   * audience fallback of {@link #getInjectFromDataStep(Step)} - is only in the workflow allowlist,
-   * not attached to the simulation audience with enabled players, so its members must first be
-   * enabled on the simulation (mirrors the autonomous path). All-teams injects already target the
-   * simulation audience, so only explicitly-targeted teams need enabling. Recipients are then built
+   * audience fallback or the all-teams mode of {@link #getInjectFromDataStep(Step)} - is only in
+   * the workflow allowlist, not attached to the simulation audience with enabled players, so its
+   * members must first be enabled on the simulation (mirrors the autonomous path). An inject still
+   * in all-teams mode (step without workflow) targets the simulation audience, whose members are
+   * already enabled, so only explicitly-targeted teams need enabling. Recipients are then built
    * from the targeted teams' members (deduplicated by user); resolving from the member set avoids
    * relying on a possibly-stale {@code exercise_teams_users} collection inside this transaction,
    * and scope teams have no per-player disable concept, so every member is a valid recipient -
@@ -290,7 +298,8 @@ public class InjectExecutionStep implements ActionStep {
    * audience configured in the drawer and no MAPPER condition feeding its audience (upstream
    * findings mapped into the raw "recipients" field): the drawer stays authoritative when the
    * operator picked an audience there, and a mapper-fed audience must not be widened with the
-   * scope's players.
+   * scope's players. All-teams mode always adds them: in a chained workflow it targets the whole
+   * scope audience, teams and individual players.
    *
    * <p>Asset/IP-centric injects (nmap, payloads) have no teams and never consume scope players, so
    * this returns an empty list and their execution is unchanged. Findings mapped as raw recipients
@@ -310,8 +319,10 @@ public class InjectExecutionStep implements ActionStep {
     List<User> scopePlayers =
         workflow != null
                 && !stepTargetingService.isAssetCentric(readyStep)
-                && !stepTargetingService.hasExplicitAudience(readyStep)
-                && !stepTargetingService.hasTargetFeedingMapperConditions(readyStep, false)
+                && (stepTargetingService.targetsAllTeams(readyStep)
+                    || (!stepTargetingService.hasExplicitAudience(readyStep)
+                        && !stepTargetingService.hasTargetFeedingMapperConditions(
+                            readyStep, false)))
             ? scopeService.getValidPlayers(workflow.getId())
             : List.<User>of();
 
@@ -698,6 +709,15 @@ public class InjectExecutionStep implements ActionStep {
           "Data step of new step (TEMPLATE) do not contain injector contract");
     }
 
+    if ((simulation == null && scenario == null) || (simulation != null && scenario != null)) {
+      throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
+    }
+
+    // Resolved in the parent's own tenant, not the request's ambient scope: a built-in contract id
+    // repeats across tenants (#8485), and a caller authoring this step can belong to several.
+    String parentTenantId =
+        simulation != null ? simulation.getTenant().getId() : scenario.getTenant().getId();
+
     // #7418: verify the referenced injector contract still exists in this tenant BEFORE baking it
     // into the step snapshot, under a pessimistic share lock so authoring serializes with the
     // contract-delete transaction (there is no FK from step_data to the contract for a database
@@ -706,14 +726,11 @@ public class InjectExecutionStep implements ActionStep {
     // execution can never drift. A missing contract is an invalid client-provided reference, so it
     // is rejected as a 400 (BadRequestException), matching the threat-arsenal 400-not-404
     // precedent.
-    assertInjectorContractExists(data.getInjectorContract());
-
-    if ((simulation == null && scenario == null) || (simulation != null && scenario != null)) {
-      throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
-    }
+    assertInjectorContractExists(data.getInjectorContract(), parentTenantId);
 
     InjectorContract injectorContract =
-        this.injectorContractService.injectorContract(data.getInjectorContract());
+        this.injectorContractService.injectorContractInTenant(
+            data.getInjectorContract(), parentTenantId);
 
     Injector injector = injectUtils.resolveInjector(data.getInjectorId(), injectorContract);
     Inject inject = data.toInject(injectorContract, injector);
@@ -734,7 +751,7 @@ public class InjectExecutionStep implements ActionStep {
     // EXERCISE
     if (simulation != null) {
       tags = simulation.getTags();
-      inject.setExercise(simulation);
+      InjectUtils.attachToExercise(inject, simulation);
       // Linked documents directly to the simulation
       inject
           .getDocuments()
@@ -793,13 +810,15 @@ public class InjectExecutionStep implements ActionStep {
    * only serializes when the row exists, which is exactly the window that mattered.
    *
    * @param injectorContractId the injector contract id referenced by the step data
-   * @throws BadRequestException if no such contract exists in the current tenant (400, not 404: an
-   *     invalid client-provided reference, per the threat-arsenal precedent)
+   * @param tenantId the step's parent (simulation or scenario) tenant, not the ambient scope: a
+   *     built-in contract id repeats across tenants (#8485)
+   * @throws BadRequestException if no such contract exists in that tenant (400, not 404: an invalid
+   *     client-provided reference, per the threat-arsenal precedent)
    */
-  private void assertInjectorContractExists(String injectorContractId) {
+  private void assertInjectorContractExists(String injectorContractId, String tenantId) {
     boolean exists =
         injectorContractRepository
-            .lockContractIdForAuthoring(injectorContractId, TenantContext.getCurrentTenant())
+            .lockContractIdForAuthoring(injectorContractId, tenantId)
             .isPresent();
     if (!exists) {
       throw new BadRequestException(
@@ -1304,8 +1323,16 @@ public class InjectExecutionStep implements ActionStep {
             inject.setAssets(scopedAssets);
           }
         }
+      } else if (step.getWorkflow() != null && inject.isAllTeams()) {
+        // All-teams mode: in a chained workflow it targets the whole scope audience (the drawer
+        // only offers the scope teams). The scope teams are not part of the simulation audience
+        // (exercise.getTeams()), so target them explicitly: resolveAudienceRecipients then enables
+        // their members and the tabletop expectations are built for them, as for teams picked
+        // one by one; it also adds the scope's individual players. With no team or player in the
+        // scope it targets nobody: the MISSING_AUDIENCE_TARGETS healthcheck flags that case.
+        inject.setTeams(new ArrayList<>(scopeService.getValidTeams(step.getWorkflow().getId())));
+        inject.setAllTeams(false);
       } else if (step.getWorkflow() != null
-          && !inject.isAllTeams()
           && (inject.getTeams() == null || inject.getTeams().isEmpty())
           && !stepTargetingService.hasTargetFeedingMapperConditions(step, false)) {
         // Audience fallback (tabletop compatibility): no audience was picked in the
@@ -1582,15 +1609,13 @@ public class InjectExecutionStep implements ActionStep {
   }
 
   private static boolean isTechnicalExpectation(BaseInjectExpectation expectation) {
-    return expectation instanceof PreventionInjectExpectation
-        || expectation instanceof DetectionInjectExpectation
-        || expectation instanceof VulnerabilityInjectExpectation;
+    return expectation instanceof TechnicalInjectExpectation;
   }
 
   /**
    * Enriches an output map entry with endpoint context (agent_id, asset_id, asset_group_id, plus
    * normalised target_type / target_id) when the expectation is a {@link
-   * TechnicalInjectExpectation} (i.e. PREVENTION or DETECTION).
+   * TechnicalInjectExpectation} (PREVENTION, DETECTION, LOGGING or VULNERABILITY).
    *
    * <p>Granularity priority:
    *

@@ -29,6 +29,8 @@ import io.openaev.injectors.email.service.SmtpService;
 import io.openaev.rest.collector.service.CollectorService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.CredentialResolutionException;
+import io.openaev.rest.exception.CredentialResolutionException.ErrorCode;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.*;
 import io.openaev.rest.inject.output.AgentsAndAssetsAgentless;
@@ -40,6 +42,7 @@ import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
+import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.InjectUtils;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.fixtures.AgentFixture;
@@ -91,6 +94,7 @@ class InjectServiceTest {
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
   @Mock private InjectStatusRepository injectStatusRepository;
   @Mock private InjectDocumentRepository injectDocumentRepository;
+  @Mock private GrantRepository grantRepository;
   @Mock private InjectUtils injectUtils;
   @Mock private InjectStatusMapper injectStatusMapper;
   @Mock private PayloadMapper payloadMapper;
@@ -131,6 +135,7 @@ class InjectServiceTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private ObjectProvider<PermissionService> permissionServiceProvider;
   @Mock private PermissionService permissionService;
+  @Mock private CredentialMetricCollector credentialMetricCollector;
 
   ObjectMapper mapper;
 
@@ -799,6 +804,8 @@ class InjectServiceTest {
   void given_inject_without_injectcontent_SHOULD_take_default() throws JsonProcessingException {
     InjectInput injectInput = new InjectInput();
     Scenario scenario = new Scenario();
+    String scenarioTenantId = "scenario-tenant-id";
+    scenario.setTenant(new Tenant(scenarioTenantId));
     String injectorContractId = "injectorContractId";
     String injectorContractString =
         """
@@ -828,9 +835,10 @@ class InjectServiceTest {
     injectorContract.setConvertedContent(injectorContractJson);
 
     injectInput.setInjectorContract(injectorContractId);
-    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorContractService.injectorContractInTenant(injectorContractId, scenarioTenantId))
+        .thenReturn(injectorContract);
 
-    injectService.createAndSaveInject(null, scenario, injectInput);
+    injectService.createAndSaveInject(TxCtx.missing(), null, scenario, injectInput);
 
     ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
     verify(injectRepository).save(injectCaptor.capture());
@@ -868,12 +876,15 @@ class InjectServiceTest {
     injectInput.setDependsDuration(0L);
 
     Scenario scenario = new Scenario();
+    String scenarioTenantId = "scenario-tenant-id";
+    scenario.setTenant(new Tenant(scenarioTenantId));
 
-    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorContractService.injectorContractInTenant(injectorContractId, scenarioTenantId))
+        .thenReturn(injectorContract);
     when(injectUtils.resolveInjector(injectorId, injectorContract)).thenReturn(explicitInjector);
 
     // -- ACT --
-    injectService.createAndSaveInject(null, scenario, injectInput);
+    injectService.createAndSaveInject(TxCtx.missing(), null, scenario, injectInput);
 
     // -- ASSERT --
     ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
@@ -912,12 +923,15 @@ class InjectServiceTest {
     injectInput.setDependsDuration(0L);
 
     Scenario scenario = new Scenario();
+    String scenarioTenantId = "scenario-tenant-id";
+    scenario.setTenant(new Tenant(scenarioTenantId));
 
-    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorContractService.injectorContractInTenant(injectorContractId, scenarioTenantId))
+        .thenReturn(injectorContract);
     when(injectUtils.resolveInjector(null, injectorContract)).thenReturn(contractInjector);
 
     // -- ACT --
-    injectService.createAndSaveInject(null, scenario, injectInput);
+    injectService.createAndSaveInject(TxCtx.missing(), null, scenario, injectInput);
 
     // -- ASSERT --
     ArgumentCaptor<Inject> injectCaptor = ArgumentCaptor.forClass(Inject.class);
@@ -950,8 +964,11 @@ class InjectServiceTest {
     injectInput.setDependsDuration(0L);
 
     Scenario scenario = new Scenario();
+    String scenarioTenantId = "scenario-tenant-id";
+    scenario.setTenant(new Tenant(scenarioTenantId));
 
-    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorContractService.injectorContractInTenant(injectorContractId, scenarioTenantId))
+        .thenReturn(injectorContract);
     when(injectUtils.resolveInjector(unknownInjectorId, injectorContract))
         .thenThrow(
             new ElementNotFoundException("Injector not found with id: " + unknownInjectorId));
@@ -959,7 +976,7 @@ class InjectServiceTest {
     // -- ACT & ASSERT --
     assertThrows(
         ElementNotFoundException.class,
-        () -> injectService.createAndSaveInject(null, scenario, injectInput));
+        () -> injectService.createAndSaveInject(TxCtx.missing(), null, scenario, injectInput));
     verify(injectUtils).resolveInjector(unknownInjectorId, injectorContract);
     verify(injectRepository, never()).save(any());
   }
@@ -1624,7 +1641,7 @@ class InjectServiceTest {
       when(userService.find(List.of("user-green"))).thenReturn(List.of(reloaded));
       doReturn(MarkingCtx.forMarkings(List.of("m-green")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-green", "tenant-1", false);
+          .findClearance("user-green", "tenant-1");
 
       // -- ACT --
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
@@ -1782,7 +1799,7 @@ class InjectServiceTest {
       Inject inject = injectTargeting(launcher, assetGreen);
       doReturn(MarkingCtx.forMarkings(List.of("m-green")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
 
@@ -1799,7 +1816,7 @@ class InjectServiceTest {
       Inject inject = injectTargeting(launcher, assetGreen, assetRed);
       doReturn(MarkingCtx.forMarkings(List.of("m-green")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-green", "tenant-1", false);
+          .findClearance("user-green", "tenant-1");
 
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
 
@@ -1815,7 +1832,7 @@ class InjectServiceTest {
       Inject inject = injectTargeting(launcher, assetRed);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
 
@@ -1831,7 +1848,7 @@ class InjectServiceTest {
       Inject inject = injectTargeting(launcher, assetUnmarked);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
 
@@ -1839,37 +1856,48 @@ class InjectServiceTest {
     }
 
     @Test
-    @DisplayName("bypass actor: the marked target is resolved regardless of clearance")
-    void given_bypassActor_should_resolveTarget() {
-      User admin = new User();
-      admin.setId("user-admin");
-      admin.setAdmin(true);
+    @DisplayName("first admin: the marked target is resolved")
+    void given_firstAdmin_should_resolveTarget() {
+      User firstAdmin = new User();
+      firstAdmin.setId(User.ADMIN_UUID);
+      firstAdmin.setAdmin(true);
       Asset assetRed = assetWithMarking("asset-red", "m-red");
-      Inject inject = injectTargeting(admin, assetRed);
+      Inject inject = injectTargeting(firstAdmin, assetRed);
       doReturn(MarkingCtx.forMarkings(List.of("m-red")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-admin", "tenant-1", true);
+          .findClearance(User.ADMIN_UUID, "tenant-1");
 
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
 
       assertThat(resolved).extracting(AssetToExecute::asset).containsExactly(assetRed);
-      verify(markingClearanceCacheManager).findClearance("user-admin", "tenant-1", true);
     }
 
     @Test
-    @DisplayName(
-        "guardrail: AGENT_RUNTIME_ACCESS alone does not bypass here - only "
-            + "isAdminOrBypass() does. The HttpMarkingScopeSupplier agent-callback bypass must never "
-            + "leak into this path")
+    @DisplayName("another admin: only the targets within their markings are resolved")
+    void given_otherAdmin_should_resolveOnlyTargetsWithinTheirMarkings() {
+      User admin = new User();
+      admin.setId("user-admin");
+      admin.setAdmin(true);
+      Asset assetGreen = assetWithMarking("asset-green", "m-green");
+      Asset assetRed = assetWithMarking("asset-red", "m-red");
+      Inject inject = injectTargeting(admin, assetGreen, assetRed);
+      doReturn(MarkingCtx.forMarkings(List.of("m-green")))
+          .when(markingClearanceCacheManager)
+          .findClearance("user-admin", "tenant-1");
+
+      List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
+
+      assertThat(resolved).extracting(AssetToExecute::asset).containsExactly(assetGreen);
+    }
+
+    @Test
+    @DisplayName("AGENT_RUNTIME_ACCESS does not widen the launch clearance")
     void given_agentRuntimeAccessOnlyActor_should_notBypass() {
       User agentCapableUser =
           new User() {
             @Override
             public Set<Capability> getCapabilities() {
-              // Deliberately holds AGENT_RUNTIME_ACCESS (the per-tenant agent/implant service
-              // account's capability) but is neither admin nor BYPASS - isAdminOrBypass() must
-              // still be false, and launchableUnderClearance() must call findClearance with
-              // bypass=false, never consulting getCapabilities() for this decision.
+              // The agent account's capability: the clearance comes from its group's markings.
               return Set.of(Capability.AGENT_RUNTIME_ACCESS);
             }
           };
@@ -1878,12 +1906,12 @@ class InjectServiceTest {
       Inject inject = injectTargeting(agentCapableUser, assetRed);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-agent", "tenant-1", false);
+          .findClearance("user-agent", "tenant-1");
 
       List<AssetToExecute> resolved = injectService.resolveAllAssetsToExecute(inject);
 
       assertThat(resolved).isEmpty();
-      verify(markingClearanceCacheManager).findClearance("user-agent", "tenant-1", false);
+      verify(markingClearanceCacheManager).findClearance("user-agent", "tenant-1");
     }
 
     @Test
@@ -1912,7 +1940,7 @@ class InjectServiceTest {
       Inject inject = injectTargeting(launcher, assetGreen, assetRed, assetUnmarked);
       doReturn(MarkingCtx.forMarkings(List.of("m-green")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-green", "tenant-1", false);
+          .findClearance("user-green", "tenant-1");
 
       ResolvedAssetsToExecute resolved = injectService.resolveAssetsToExecuteByClearance(inject);
 
@@ -1920,7 +1948,7 @@ class InjectServiceTest {
           .extracting(AssetToExecute::asset)
           .containsExactlyInAnyOrder(assetGreen, assetUnmarked);
       assertThat(resolved.withoutClearance()).containsExactly(assetRed);
-      verify(markingClearanceCacheManager, times(1)).findClearance("user-green", "tenant-1", false);
+      verify(markingClearanceCacheManager, times(1)).findClearance("user-green", "tenant-1");
     }
   }
 
@@ -1973,7 +2001,7 @@ class InjectServiceTest {
       Inject inject = injectTargetingEndpoints(launcher, endpointGreen, endpointRed);
       doReturn(MarkingCtx.forMarkings(List.of("m-green")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-green", "tenant-1", false);
+          .findClearance("user-green", "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
@@ -2010,17 +2038,17 @@ class InjectServiceTest {
     }
 
     @Test
-    @DisplayName("bypass actor: both agents are commanded to execute regardless of marking")
-    void given_bypassActor_should_includeBothAgentsInRealDispatch() {
+    @DisplayName("first admin: both agents are commanded to execute")
+    void given_firstAdmin_should_includeBothAgentsInRealDispatch() {
       User admin = new User();
-      admin.setId("user-admin");
+      admin.setId(User.ADMIN_UUID);
       admin.setAdmin(true);
       Endpoint endpointGreen = endpointWithAgent("endpoint-green", "agent-green", "m-green");
       Endpoint endpointRed = endpointWithAgent("endpoint-red", "agent-red", "m-red");
       Inject inject = injectTargetingEndpoints(admin, endpointGreen, endpointRed);
       doReturn(MarkingCtx.forMarkings(List.of("m-green", "m-red")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-admin", "tenant-1", true);
+          .findClearance(User.ADMIN_UUID, "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
@@ -2038,7 +2066,7 @@ class InjectServiceTest {
       Inject inject = injectTargetingEndpoints(launcher, endpointPlain);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
@@ -2058,7 +2086,7 @@ class InjectServiceTest {
       Inject inject = injectTargetingEndpoints(launcher, endpointRed);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
@@ -2082,7 +2110,7 @@ class InjectServiceTest {
       Inject inject = injectTargetingEndpoints(launcher, endpointRed);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
@@ -2109,13 +2137,13 @@ class InjectServiceTest {
       stubLauncher(launcher);
       doReturn(MarkingCtx.none())
           .when(markingClearanceCacheManager)
-          .findClearance("user-1", "tenant-1", false);
+          .findClearance("user-1", "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
       assertThat(result.assetsWithoutClearance()).containsExactly(assetRed);
       assertThat(result.agentsWithoutClearance()).isEmpty();
-      verify(markingClearanceCacheManager).findClearance("user-1", "tenant-1", false);
+      verify(markingClearanceCacheManager).findClearance("user-1", "tenant-1");
     }
 
     @Test
@@ -2134,7 +2162,7 @@ class InjectServiceTest {
           .thenReturn(List.of(endpointGreen, endpointRed));
       doReturn(MarkingCtx.forMarkings(List.of("m-green")))
           .when(markingClearanceCacheManager)
-          .findClearance("user-green", "tenant-1", false);
+          .findClearance("user-green", "tenant-1");
 
       AgentsAndAssetsAgentless result = injectService.getAgentsAndAgentlessAssetsByInject(inject);
 
@@ -2145,6 +2173,55 @@ class InjectServiceTest {
           .extracting(Agent::getExternalReference)
           .containsExactly("agent-red");
       assertThat(result.assetsWithoutClearance()).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Credential resolution failure telemetry")
+  class CredentialResolutionFailureTelemetry {
+
+    private InjectAttachmentInput attachmentInput() {
+      InjectAttachmentInput input = new InjectAttachmentInput();
+      input.setAttachmentId("credential-id");
+      input.setAuthorisation("auth-code");
+      return input;
+    }
+
+    @Test
+    @DisplayName("given an inject not in progress, should count an access denied refusal")
+    void given_injectNotInProgress_should_countAccessDeniedRefusal() {
+      // -- ARRANGE --
+      Inject inject = new Inject();
+      inject.setId("inject-draft");
+      InjectStatus status = new InjectStatus();
+      status.setName(ExecutionStatus.DRAFT);
+      inject.setStatus(status);
+      when(injectRepository.findById("inject-draft")).thenReturn(Optional.of(inject));
+
+      // -- ACT --
+      CredentialResolutionException thrown =
+          assertThrows(
+              CredentialResolutionException.class,
+              () -> injectService.getSecretReferenceOrThrow("inject-draft", attachmentInput()));
+
+      // -- ASSERT --
+      assertEquals(ErrorCode.CREDENTIAL_ACCESS_DENIED, thrown.getErrorCode());
+      verify(credentialMetricCollector).addResolutionFailure(ErrorCode.CREDENTIAL_ACCESS_DENIED);
+    }
+
+    @Test
+    @DisplayName("given an unknown inject, should not count a credential refusal")
+    void given_unknownInject_should_notCountCredentialRefusal() {
+      // -- ARRANGE --
+      when(injectRepository.findById("inject-unknown")).thenReturn(Optional.empty());
+
+      // -- ACT --
+      assertThrows(
+          ElementNotFoundException.class,
+          () -> injectService.getSecretReferenceOrThrow("inject-unknown", attachmentInput()));
+
+      // -- ASSERT --
+      verifyNoInteractions(credentialMetricCollector);
     }
   }
 }

@@ -104,6 +104,10 @@ public class Role implements DualScopeBase, Auditable {
 
   // -- UTILS --
 
+  public boolean hasBypass() {
+    return capabilities.contains(Capability.BYPASS);
+  }
+
   public static Set<Capability> capabilitiesOf(final Collection<Role> roles) {
     return roles.stream().flatMap(role -> role.getCapabilities().stream()).collect(toSet());
   }

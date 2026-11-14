@@ -1,11 +1,12 @@
 import { Checkbox } from '@filigran/design-system';
-import { HelpOutlineOutlined } from '@mui/icons-material';
+import { CenterFocusStrongOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
-import { bulkDeleteAssets, searchAssets } from '../../../../actions/assets/endpoint-actions';
+import { type EndpointHelper } from '../../../../actions/assets/asset-helper';
+import { bulkDeleteAssets, bulkReplaceAssetMarkings, searchAssets } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
 import ExportButton from '../../../../components/common/ExportButton';
@@ -23,7 +24,8 @@ import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
-import { type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
+import { useHelper } from '../../../../store';
+import { type AssetBulkProcessingInput, type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import useEntityToggle from '../../../../utils/hooks/useEntityToggle';
@@ -35,10 +37,12 @@ import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFr
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
 import ToolBar from '../../common/ToolBar';
 import { humanizeEnum } from '../asset-categories';
+import { keepStreamedChanges, patchRowsFromStore } from '../asset-stream-values';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import PostureScoreCell from '../PostureScoreCell';
 import usePostureScores from '../usePostureScores';
 import AssetPopover from './AssetPopover';
+import BulkMarkingsDrawer from './BulkMarkingsDrawer';
 import EndpointCreation from './EndpointCreation';
 import ImportUploaderEndpoints from './ImportUploaderEndpoints';
 
@@ -59,28 +63,27 @@ const inlineStyles: Record<string, CSSProperties> = {
   asset_markings: { width: '9%' },
 };
 
+const selectEndpointsMap = (helper: EndpointHelper) => helper.getEndpointsMap();
+
 const Endpoints = () => {
   // Standard hooks
   const { classes } = useStyles();
   const bodyItemsStyles = useBodyItemsStyles();
   const { t } = useFormatter();
   const dispatch = useAppDispatch();
-  // Gates the Markings column/filter (and the data fetch below) so a flag-off or unauthorized
-  // platform looks exactly as it did before this feature — mirrors the settings.config.tsx pattern
-  // used for the Marking Definitions menu.
-  const markingEnabled = isFeatureEnabled('MARKING');
   const ability = useAbility();
-  const canAccessMarkings = markingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
-  // Resolved once for the whole page; the Markings column maps ids per row. Skipped entirely when
-  // either gate is closed so the platform issues no marking-definitions request at all.
+  const markingEnabled = isFeatureEnabled('MARKING');
+  const canAccessMarkingDefinitions = markingEnabled && ability.can(ACTIONS.ACCESS, SUBJECTS.MARKING_DEFINITION);
+  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
+  const canManageMarkingAssignment = ability.can(ACTIONS.MANAGE, SUBJECTS.MARKING_ASSIGNMENT);
+  const canBulkEditMarkings = markingEnabled && canManage && canManageMarkingAssignment;
+  // Resolved once for the whole page; the Markings column maps ids per row.
   const markingDefinitions = useMarkingDefinitions({
     skip: !markingEnabled,
     assignableOnly: true,
   });
 
-  // Load the executors once for the whole page; the per-row Executors column
-  // reads them from the store (previously each row fetched them, firing
-  // GET /api/executors once per endpoint).
+  // Load executors once for the whole page; previously each row fetched its own.
   useDataLoader(() => {
     dispatch(fetchExecutors());
   });
@@ -89,8 +92,7 @@ const Endpoints = () => {
   const [searchParams] = useSearchParams();
   const [search] = searchParams.getAll('search');
 
-  // Base Asset facets only: the unified inventory queries the base assets table, so endpoint-only
-  // fields (platform / arch) cannot be resolved as filters here (single-table inheritance).
+  // Base Asset facets only: endpoint-only fields like platform/arch can't be resolved as filters here.
   const availableFilterNames = [
     'asset_category',
     'asset_subcategory',
@@ -99,7 +101,7 @@ const Endpoints = () => {
     'asset_cloud_provider',
     'asset_internet_facing',
     'asset_tags',
-    ...(canAccessMarkings ? ['asset_markings'] : []),
+    ...(canAccessMarkingDefinitions ? ['asset_markings'] : []),
   ];
 
   const [endpoints, setEndpoints] = useState<EndpointOutput[]>([]);
@@ -108,6 +110,20 @@ const Endpoints = () => {
     sorts: initSorting('asset_name'),
     textSearch: search,
   }));
+
+  // Sync the value retrieved from Redux store (that have been updated thro Streaming) into the state
+  // "endpoints" (direct axios call).
+  const endpointsMap = useHelper(selectEndpointsMap);
+  const [previousEndpointsMap, setPreviousEndpointsMap] = useState(endpointsMap);
+  if (endpointsMap !== previousEndpointsMap) {
+    setPreviousEndpointsMap(endpointsMap);
+    setEndpoints(rows => patchRowsFromStore(rows, previousEndpointsMap, endpointsMap));
+  }
+  // Read when a search answers, to keep what the stream changed while it ran.
+  const storedEndpoints = useRef(endpointsMap);
+  useEffect(() => {
+    storedEndpoints.current = endpointsMap;
+  }, [endpointsMap]);
 
   // Export
   const exportProps = {
@@ -122,11 +138,11 @@ const Endpoints = () => {
 
   const searchEndpointsToLoad = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchAssets(input).finally(() => setLoading(false));
+    return keepStreamedChanges<EndpointOutput>(searchAssets, () => storedEndpoints.current)(input)
+      .finally(() => setLoading(false));
   };
 
   // Bulk selection
-  const canManage = ability.can(ACTIONS.MANAGE, SUBJECTS.ASSETS);
   const {
     selectedElements,
     deSelectedElements,
@@ -143,17 +159,32 @@ const Endpoints = () => {
     endpoints.map(endpoint => endpoint.asset_id),
   );
 
+  // Select-all-with-exclusions scope shared by every bulk asset operation (delete, marking replacement).
+  const bulkSelectionInput: AssetBulkProcessingInput = {
+    search_pagination_input: selectAll ? searchPaginationInput : undefined,
+    asset_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
+    asset_ids_to_ignore: Object.keys(deSelectedElements),
+  };
+
   const bulkDelete = () => {
-    bulkDeleteAssets({
-      search_pagination_input: selectAll ? searchPaginationInput : undefined,
-      asset_ids_to_process: selectAll ? undefined : Object.keys(selectedElements),
-      asset_ids_to_ignore: Object.keys(deSelectedElements),
-    }).then((result) => {
+    bulkDeleteAssets(bulkSelectionInput).then((result) => {
       const deletedIds: string[] = result.data ?? [];
       const newTotal = Math.max(0, queryableHelpers.paginationHelpers.getTotalElements() - deletedIds.length);
       setEndpoints(endpoints.filter(e => !deletedIds.includes(e.asset_id)));
       queryableHelpers.paginationHelpers.handleChangeTotalElements(newTotal);
       handleClearSelectedElements();
+    });
+  };
+
+  const [openEditMarkings, setOpenEditMarkings] = useState(false);
+  const bulkEditMarkings = (markingIds: string[]) => {
+    return bulkReplaceAssetMarkings({
+      ...bulkSelectionInput,
+      marking_ids: markingIds,
+    }).then(() => {
+      setOpenEditMarkings(false);
+      handleClearSelectedElements();
+      setReloadCount(count => count + 1);
     });
   };
 
@@ -231,8 +262,6 @@ const Endpoints = () => {
       isSortable: false,
       value: (endpoint: EndpointOutput) => <ItemTags variant="list" tags={endpoint.asset_tags ?? []} />,
     },
-    // Rendered only when MARKING is enabled and the user can access marking definitions — with
-    // either gate closed, the list must look exactly as it did before this column was added.
     ...(markingEnabled
       ? [{
           field: 'asset_markings',
@@ -305,8 +334,7 @@ const Endpoints = () => {
           classes={{ root: classes.itemHead }}
           sx={numberOfSelectedElements > 0
             ? {
-                // Massive-operations toolbar: symmetric vertical padding keeps the
-                // checkbox and actions vertically centered in the accent band.
+                // Massive-operations toolbar: symmetric padding keeps checkbox and actions centered.
                 backgroundColor: 'background.accent',
                 paddingBlock: 0.5,
               }
@@ -332,6 +360,14 @@ const Endpoints = () => {
                   canManage={canManage}
                   deleteConfirmationSingular={t('Do you want to delete this asset?')}
                   deleteConfirmationPlural={t('Do you want to delete these {count} assets?', { count: String(numberOfSelectedElements) })}
+                  toolTasks={canBulkEditMarkings
+                    ? [{
+                        type: 'edit-markings',
+                        title: t('Edit markings'),
+                        icon: () => <CenterFocusStrongOutlined fontSize="small" />,
+                        onClick: () => setOpenEditMarkings(true),
+                      }]
+                    : []}
                 />
               )}
             />
@@ -415,6 +451,12 @@ const Endpoints = () => {
               })
         }
       </List>
+      {canBulkEditMarkings && openEditMarkings && (
+        <BulkMarkingsDrawer
+          onClose={() => setOpenEditMarkings(false)}
+          onSubmit={bulkEditMarkings}
+        />
+      )}
     </>
   );
 };

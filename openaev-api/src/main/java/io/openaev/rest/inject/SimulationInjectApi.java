@@ -29,6 +29,7 @@ import io.openaev.rest.inject.service.InjectDuplicateService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
 import io.openaev.rest.inject.service.SimulationInjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.service.BulkInjectService;
 import io.openaev.service.FaithfulCopyTransaction;
@@ -68,7 +69,7 @@ public class SimulationInjectApi extends RestBehavior {
 
   private final InjectSearchService injectSearchService;
   private final Executor executor;
-  private final InjectorContractRepository injectorContractRepository;
+  private final InjectorContractService injectorContractService;
   private final ExerciseService exerciseService;
   private final UserRepository userRepository;
   private final InjectRepository injectRepository;
@@ -221,6 +222,7 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   public Iterable<Team> exerciseInjectTeams(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
+    simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
     return simulationInjectService.findInjectTeamsForSimulation(exerciseId, injectId);
   }
 
@@ -235,6 +237,7 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   public Iterable<Communication> exerciseInjectCommunications(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
+    simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
     return simulationInjectService.findAndAckCommunicationsForSimulation(exerciseId, injectId);
   }
 
@@ -253,7 +256,7 @@ public class SimulationInjectApi extends RestBehavior {
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody InjectInput input) {
     Exercise exercise =
         exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
-    Inject persistedInject = this.injectService.createAndSaveInject(exercise, null, input);
+    Inject persistedInject = this.injectService.createAndSaveInject(ctx, exercise, null, input);
     return injectMapper.toInjectOutput(persistedInject, injectService.runChecks(persistedInject));
   }
 
@@ -270,7 +273,7 @@ public class SimulationInjectApi extends RestBehavior {
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody List<InjectInput> inputs) {
     Exercise exercise =
         exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
-    List<Inject> created = this.injectService.createAndSaveInjectList(exercise, null, inputs);
+    List<Inject> created = this.injectService.createAndSaveInjectList(ctx, exercise, null, inputs);
     KillChainPhaseInitializer.initializeFromInjects(created);
     return created;
   }
@@ -288,11 +291,13 @@ public class SimulationInjectApi extends RestBehavior {
       TxCtx ctx,
       @PathVariable @NotBlank final String exerciseId,
       @PathVariable @NotBlank final String injectId) {
-    // The exercise is resolved in the request scope first so an id outside it answers not found
-    // before any work. A faithful copy keeps the targets the user is not cleared for; the response
-    // is read back under their clearance. The copy starts from a cleared persistence context, so
-    // the exercise is reloaded by id inside it rather than reusing the entity resolved above.
+    // The exercise and the inject are resolved in the request scope first so an id outside it
+    // answers not found before any work. A faithful copy keeps the targets the user is not cleared
+    // for; the response is read back under their clearance. The copy starts from a cleared
+    // persistence context, so the exercise is reloaded by id inside it rather than reusing the
+    // entity resolved above.
     exerciseService.findInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
     String duplicateId =
         faithfulCopy.execute(
             ctx,
@@ -343,9 +348,12 @@ public class SimulationInjectApi extends RestBehavior {
 
   private InjectStatus executeInjectInTenant(
       Exercise exercise, DirectInjectInput input, Optional<MultipartFile> file) {
+    // Resolved in the simulation's own tenant, not the request's read scope: a built-in contract
+    // id repeats across tenants (#8485), and the read scope the simulation was found in can
+    // legitimately span several.
     InjectorContract injectorContract =
-        this.injectorContractRepository
-            .findById(input.getInjectorContract())
+        this.injectorContractService
+            .injectorContractByIdInTenant(input.getInjectorContract(), exercise.getTenant().getId())
             .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
     Injector injector = injectUtils.resolveInjector(input.getInjectorId(), injectorContract);
     Inject inject = input.toInject(injectorContract, injector);
@@ -353,7 +361,7 @@ public class SimulationInjectApi extends RestBehavior {
         this.userRepository
             .findById(currentUser().getId())
             .orElseThrow(() -> new ElementNotFoundException("Current user not found")));
-    inject.setExercise(exercise);
+    InjectUtils.attachToExercise(inject, exercise);
     inject.setDependsDuration(0L);
     Inject savedInject = this.injectRepository.save(inject);
     Iterable<User> users = this.userRepository.findAllById(input.getUserIds());
@@ -399,6 +407,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateActivationInput input) {
+    simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
     return hydrateKillChainPhases(
         simulationInjectService.updateInjectActivationForSimulation(exerciseId, injectId, input));
   }
@@ -414,6 +423,7 @@ public class SimulationInjectApi extends RestBehavior {
       resourceType = ResourceType.INJECT)
   public Inject updateInjectTrigger(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String injectId) {
+    simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
     return hydrateKillChainPhases(
         simulationInjectService.triggerInjectForSimulation(exerciseId, injectId));
   }
@@ -432,6 +442,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectUpdateStatusInput input) {
+    simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
     return hydrateKillChainPhases(
         simulationInjectService.setInjectStatusForSimulation(exerciseId, injectId, input));
   }
@@ -450,6 +461,7 @@ public class SimulationInjectApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String injectId,
       @Valid @RequestBody InjectTeamsInput input) {
+    simulationInjectService.requireInjectInSimulation(ctx, exerciseId, injectId);
     return hydrateKillChainPhases(
         simulationInjectService.updateInjectTeamsForSimulation(exerciseId, injectId, input));
   }

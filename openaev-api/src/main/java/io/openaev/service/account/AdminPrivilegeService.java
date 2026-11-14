@@ -1,13 +1,20 @@
 package io.openaev.service.account;
 
+import io.openaev.aop.PlatformWrite;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
+import io.openaev.processor.datapack.PresetTenantData;
 import io.openaev.service.*;
 import io.openaev.service.platform.groups.PlatformGroupService;
 import io.openaev.service.platform.roles.PlatformRoleService;
 import io.openaev.service.tenants.TenantUserService;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
@@ -16,9 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Ensures the platform admin user holds full administrative privileges through well-known
- * "Administrators" groups: a platform-scoped group (tenant = null) granting platform BYPASS and a
- * per-tenant group granting tenant BYPASS, with the admin user enrolled in both.
+ * Ensures the platform admin user holds full administrative privileges through admin groups: a
+ * platform-scoped group (tenant = null) granting platform BYPASS and a per-tenant "Admin" group
+ * granting tenant BYPASS, with the admin user enrolled in both.
  *
  * <p>New tenants get their default Admin/Manager/Observer groups seeded through the tenant
  * provisioning chain (see {@code V20260330_Default_tenant_data}). The default tenant, however, is
@@ -44,11 +51,11 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
   public static final WellKnownAccess ADMIN_ACCESS =
       new WellKnownAccess(
           "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
-          "Admin",
+          PresetTenantData.ADMIN,
           "Full administrative access to the tenant.",
           Set.of(Capability.BYPASS),
           "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e",
-          "Administrators",
+          PresetTenantData.ADMIN,
           "Tenant administrators.");
 
   /** Platform-scoped (tenant = null): its ids are stored as is, not derived per tenant. */
@@ -71,9 +78,17 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
       TenantGroupService tenantGroupService,
       UserService userService,
       TenantUserService tenantUserService,
+      MarkingClearanceCacheManager markingClearanceCacheManager,
+      TenantWriteScopeResolver writeScopeResolver,
       PlatformRoleService platformRoleService,
       PlatformGroupService platformGroupService) {
-    super(tenantRoleService, tenantGroupService, userService, tenantUserService);
+    super(
+        tenantRoleService,
+        tenantGroupService,
+        userService,
+        tenantUserService,
+        markingClearanceCacheManager,
+        writeScopeResolver);
     this.platformRoleService = platformRoleService;
     this.platformGroupService = platformGroupService;
   }
@@ -83,22 +98,30 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
     return ADMIN_ACCESS;
   }
 
+  @Override
+  protected boolean receivesEveryMarking() {
+    return true;
+  }
+
   /**
-   * Idempotently ensures the given tenant owns the admin group (with the BYPASS role), that the
-   * given user belongs to that tenant, and that the user is a member of the group. Safe to call on
-   * every platform startup.
+   * Idempotently ensures the given tenant owns an admin group (with a BYPASS role), that the given
+   * user belongs to that tenant, and that the user is a member of the group. Safe to call on every
+   * platform startup.
    *
    * <p>The caller passes the already-resolved admin {@link User} (the bootstrap runner has just
    * created or loaded it) rather than an id, so the membership check never depends on re-fetching
    * the user through {@code UserService} - a service that some test contexts replace with a mock.
    *
+   * @param ctx the scope the work runs under; it must contain {@code tenantId}, the tenant the role
+   *     is written in
    * @param tenantId the tenant the group belongs to
    * @param adminUser the user to enroll as an administrator
    * @return the (created or existing) admin group
    */
   @Transactional
-  public Group ensureAdminGroup(String tenantId, User adminUser) {
-    Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(tenantId), tenantId);
+  public Group ensureAdminGroup(TxCtx ctx, String tenantId, User adminUser) {
+    Group group = resolveAdminGroup(writeScopeResolver.tenantForWrite(ctx, tenantId));
+    tenantGroupService.receiveEveryMarking(tenantId, group);
     boolean alreadyMember =
         adminUser.getUnscopedGroups().stream().anyMatch(g -> g.getId().equals(group.getId()));
     if (!alreadyMember) {
@@ -107,7 +130,7 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
       log.info(
           "Enrolled admin user {} into the '{}' group for tenant {}",
           adminUser.getId(),
-          ADMIN_ACCESS.groupName(),
+          group.getName(),
           tenantId);
     }
     // Mirror AgentServiceAccountPrivilegeService: make sure the admin belongs to the tenant that
@@ -117,17 +140,64 @@ public class AdminPrivilegeService extends AbstractPrivilegeService {
     return group;
   }
 
+  /** The well-known group, else the tenant's Admin group, else one created for its Admin role. */
+  private Group resolveAdminGroup(String tenantId) {
+    String groupId = getUUIDFromName(ADMIN_ACCESS.groupId(), tenantId);
+    return tenantGroupService
+        .findByIdAndTenant(groupId, tenantId)
+        .or(
+            () ->
+                tenantGroupService
+                    .findByTenantIdAndName(tenantId, ADMIN_ACCESS.groupName())
+                    .stream()
+                    .filter(group -> group.getRoles().stream().anyMatch(Role::hasBypass))
+                    .min(Comparator.comparing(Group::getId)))
+        .orElseGet(
+            () -> {
+              Role role =
+                  tenantRoleService
+                      .findByNameOldestFirst(tenantId, ADMIN_ACCESS.roleName())
+                      .stream()
+                      .filter(Role::hasBypass)
+                      .findFirst()
+                      .orElseGet(() -> findOrCreateWellKnownRole(tenantId));
+              return tenantGroupService.createInternalGroupWithRole(
+                  tenantId, groupId, wellKnownGroupInput(), new ArrayList<>(List.of(role)));
+            });
+  }
+
+  /** The well-known Admin role as it is, or created when missing: never modified. */
+  private Role findOrCreateWellKnownRole(String tenantId) {
+    String roleId = getUUIDFromName(ADMIN_ACCESS.roleId(), tenantId);
+    return tenantRoleService
+        .findByIdAndTenant(roleId, tenantId)
+        .orElseGet(
+            () ->
+                tenantRoleService.createRoleInternal(
+                    roleId,
+                    ADMIN_ACCESS.roleName(),
+                    ADMIN_ACCESS.roleDescription(),
+                    ADMIN_ACCESS.capabilities(),
+                    tenantId));
+  }
+
   /**
    * Idempotently ensures a platform-scoped (tenant = null) admin group granting platform BYPASS
    * exists and that the given user is a member. Unlike a tenant BYPASS, a platform BYPASS expands
    * to the platform-only capabilities (tenants, platform settings, platform users/groups/roles).
    * Safe to call on every platform startup.
    *
+   * <p>Writes a platform row of {@code roles} ({@code tenant_id IS NULL}), so it runs as a
+   * platform-write transaction: the marker belongs to this method, and {@code ctx} is the scope the
+   * caller's transaction already carries.
+   *
+   * @param ctx the scope of the transaction, only read by the platform-write aspect
    * @param adminUser the user to enroll as a platform administrator
    * @return the (created or existing) platform admin group
    */
   @Transactional
-  public Group ensurePlatformAdminGroup(User adminUser) {
+  @PlatformWrite
+  public Group ensurePlatformAdminGroup(TxCtx ctx, User adminUser) {
     Role role =
         platformRoleService.ensureInternalPlatformRole(
             PLATFORM_ADMIN_ACCESS.roleId(),

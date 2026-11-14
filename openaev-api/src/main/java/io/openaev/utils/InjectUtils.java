@@ -51,10 +51,16 @@ public class InjectUtils {
   private final InjectorRepository injectorRepository;
 
   /**
-   * Resolves the {@link Injector} for an inject being created or updated.
+   * Resolves the {@link Injector} for an inject being created or updated, in the tenant of its
+   * contract.
    *
    * <p>If {@code injectorId} is provided (non-blank), it is looked up by ID. Otherwise, the
    * injector is auto-resolved from the contract's first linked injector (single-instance fallback).
+   *
+   * <p>Injectors have a composite key and built-in ids repeat across tenants, so the lookup names a
+   * tenant: the contract's, which is the one the inject is written in. The ambient tenant is the
+   * default one on the non-prefixed route, so it is only the fallback of a transient contract that
+   * carries none.
    *
    * @param injectorId explicit injector ID from the input (may be null/blank)
    * @param injectorContract the contract associated with the inject
@@ -63,14 +69,12 @@ public class InjectUtils {
    */
   public Injector resolveInjector(
       @Nullable String injectorId, @Nullable InjectorContract injectorContract) {
+    String tenantId =
+        injectorContract != null && injectorContract.getTenant() != null
+            ? injectorContract.getTenant().getId()
+            : TenantContext.getCurrentTenant();
     if (StringUtils.isNotBlank(injectorId)) {
-      // injectors has a composite PK (injector_id, tenant_id) and built-in ids repeat across
-      // tenants, so resolve by id AND tenant. TenantContext is the current tenant for this
-      // v1-scoped call site, consistent with the contract fallback below.
-      return injectorRepository
-          .findByIdAndTenantId(injectorId, TenantContext.getCurrentTenant())
-          .orElseThrow(
-              () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
+      return resolveInjectorInTenant(injectorId, tenantId);
     }
     // Auto-resolve from linked injectors (single-instance fallback)
     if (injectorContract != null
@@ -79,15 +83,24 @@ public class InjectUtils {
       return injectorContract.getInjectors().getFirst();
     }
     if (injectorContract != null) {
-      // The inject entity itself is still on multi-tenancy v1, so there is no TxCtx to read
-      // here yet; TenantContext is the legitimate source of the current tenant for this
-      // v1-scoped call site until injects are activated on v2.
       return injectorRepository
-          .findFirstByContractsCompositeIdIdAndTenantId(
-              injectorContract.getId(), TenantContext.getCurrentTenant())
+          .findFirstByContractsCompositeIdIdAndTenantId(injectorContract.getId(), tenantId)
           .orElse(null);
     }
     return null;
+  }
+
+  /**
+   * Resolves an explicit injector id in {@code tenantId}, for a caller that has no contract to take
+   * the tenant from.
+   *
+   * @throws ElementNotFoundException if the injector does not exist in that tenant
+   */
+  public Injector resolveInjectorInTenant(String injectorId, String tenantId) {
+    return injectorRepository
+        .findByIdAndTenantId(injectorId, tenantId)
+        .orElseThrow(
+            () -> new ElementNotFoundException("Injector not found with id: " + injectorId));
   }
 
   /**
@@ -316,6 +329,28 @@ public class InjectUtils {
 
   /** Shared ObjectMapper instance for JSON processing in inject duplication. */
   private static final ObjectMapper STATIC_MAPPER = ObjectMapperHelper.openAEVJsonMapper();
+
+  /**
+   * Gives an inject to a scenario, and to no simulation, and stamps it with the scenario's tenant:
+   * the owner of an inject decides its tenant, whatever tenant the request or the job that creates
+   * it runs in.
+   */
+  public static void attachToScenario(@NotNull Inject inject, @NotNull Scenario scenario) {
+    inject.setScenario(scenario);
+    inject.setExercise(null);
+    inject.setTenant(scenario.getTenant());
+  }
+
+  /**
+   * Gives an inject to a simulation, and to no scenario, and stamps it with the simulation's
+   * tenant: the owner of an inject decides its tenant, whatever tenant the request or the job that
+   * creates it runs in.
+   */
+  public static void attachToExercise(@NotNull Inject inject, @NotNull Exercise exercise) {
+    inject.setExercise(exercise);
+    inject.setScenario(null);
+    inject.setTenant(exercise.getTenant());
+  }
 
   /**
    * Creates a deep copy of an inject.

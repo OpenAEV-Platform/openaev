@@ -1,5 +1,6 @@
 package io.openaev.api.attackpath;
 
+import static io.openaev.api.attackpath.AttackPathApi.ATTACK_PATH_URI;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -9,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.rest.exception.TenantSingleScopeRequiredException;
 import io.openaev.utils.mockUser.WithMockUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -91,5 +93,29 @@ class AttackPathCausalSeedApiTest extends IntegrationTest {
     mvc.perform(get(tenantUri(TENANT_PREFIX + "/attack-path/simulations/" + sim + "/graph")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.attackPathExecutions").isNotEmpty());
+  }
+
+  @Test
+  @DisplayName(
+      "given_noSingleTenantInTheScope_should_refuseTheCausalSeedWithTheSharedSingleScopeBody")
+  void given_noSingleTenantInTheScope_should_refuseTheCausalSeedWithTheSharedSingleScopeBody()
+      throws Exception {
+    // Arrange: the short route with no X-Tenant-Ids header and a caller of no tenant, so the
+    // scope does not hold exactly one tenant
+
+    // Act + Assert
+    mvc.perform(post(ATTACK_PATH_URI + "/seed/causal").with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(TenantSingleScopeRequiredException.CODE));
+  }
+
+  @Test
+  @DisplayName("given_noSingleTenantInTheScope_should_refuseTheReplayWithTheSharedSingleScopeBody")
+  void given_noSingleTenantInTheScope_should_refuseTheReplayWithTheSharedSingleScopeBody()
+      throws Exception {
+    // Act + Assert
+    mvc.perform(post(ATTACK_PATH_URI + "/simulations/any-simulation/replay").with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value(TenantSingleScopeRequiredException.CODE));
   }
 }

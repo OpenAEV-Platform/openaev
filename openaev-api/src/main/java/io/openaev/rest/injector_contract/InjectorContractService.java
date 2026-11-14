@@ -2,6 +2,7 @@ package io.openaev.rest.injector_contract;
 
 import static io.openaev.database.criteria.GenericCriteria.countQuery;
 import static io.openaev.database.model.InjectorContract.*;
+import static io.openaev.database.specification.InjectorContractSpecification.withLatestInstalledPayload;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.utils.FilterUtilsJpa.computeFilterGroupJpa;
@@ -17,7 +18,7 @@ import io.openaev.api.threat_arsenal.dto.ThreatArsenalAction;
 import io.openaev.api.threat_arsenal.dto.ThreatArsenalActionWithContentOutput;
 import io.openaev.config.OpenAEVAnonymous;
 import io.openaev.config.SessionHelper;
-import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.raw.RawContractTenant;
 import io.openaev.database.raw.RawInjectorsContracts;
@@ -47,12 +48,15 @@ import io.openaev.rest.injector_contract.output.InjectorContractDomainCountOutpu
 import io.openaev.rest.injector_contract.output.InjectorContractFullOutput;
 import io.openaev.rest.payload.output.PayloadSimple;
 import io.openaev.rest.vulnerability.service.VulnerabilityService;
+import io.openaev.service.AuthorService;
 import io.openaev.service.InjectorService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.utils.TargetType;
 import io.openaev.utils.TriVoid;
+import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.Resource;
@@ -106,6 +110,7 @@ public class InjectorContractService implements DependenciesManager {
   private final DomainService domainService;
   private final InjectorRepository injectorRepository;
   private final UserService userService;
+  private final AuthorService authorService;
   private final AttackPatternRepository attackPatternRepository;
   private final TagRepository tagRepository;
   private final InjectorService injectorService;
@@ -113,6 +118,7 @@ public class InjectorContractService implements DependenciesManager {
   private final InjectIndexCleanupService injectIndexCleanupService;
   private final StepRepository stepRepository;
   private final ChainingStepCleanupService chainingStepCleanupService;
+  private final WorkflowOwnerScope workflowOwnerScope;
 
   /**
    * Built-in contracts whose injectors start with the platform through an autostart instance, so
@@ -162,6 +168,39 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
+   * Retrieves an injector contract by ID or external ID, constrained to a known parent's tenant (an
+   * exercise or a scenario the caller already resolved in scope). A built-in contract id repeats
+   * across tenants (#8485), so a lookup that relies on the request's own scope can match more than
+   * one tenant's copy; this stays inside the parent's tenant regardless.
+   *
+   * @param id the injector contract ID or external ID
+   * @param tenantId the parent row's tenant
+   * @return the injector contract
+   * @throws ElementNotFoundException if not found in that tenant
+   */
+  public InjectorContract injectorContractInTenant(
+      @NotBlank final String id, @NotBlank final String tenantId) {
+    return injectorContractRepository
+        .findByIdOrExternalIdAndTenant(id, id, tenantId)
+        // User-facing wording: the entity is exposed as "threat arsenal item" everywhere.
+        .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
+  }
+
+  /**
+   * Looks a contract up by its ID alone in one tenant, leaving the caller to decide what a missing
+   * contract means. A built-in contract id repeats across tenants (#8485), so the tenant of the
+   * parent row the contract is written into is passed explicitly.
+   *
+   * @param id the injector contract ID, not its external ID
+   * @param tenantId the tenant of the row the contract is used by
+   * @return the contract of that tenant, empty when it has none under that ID
+   */
+  public Optional<InjectorContract> injectorContractByIdInTenant(
+      @NotBlank final String id, @NotBlank final String tenantId) {
+    return injectorContractRepository.findByContractIdAndTenant(id, tenantId);
+  }
+
+  /**
    * Retrieves an injector contract by ID, only if it is referenced by one of the given workflow's
    * steps.
    *
@@ -171,18 +210,24 @@ public class InjectorContractService implements DependenciesManager {
    * both chaining contexts, and the caller's permission is checked on the workflow's parent
    * simulation or scenario.
    *
+   * @param ctx the request's scope: a workflow outside it is not found
    * @param injectorContractId the injector contract ID
    * @param workflowId the ID of the workflow the contract must be referenced by
    * @return the injector contract
    * @throws ElementNotFoundException if not found or not referenced by the workflow
    */
   public InjectorContract injectorContractForWorkflow(
-      @NotBlank final String injectorContractId, @NotBlank final String workflowId) {
-    if (!stepRepository.existsInjectorContractByWorkflowIdAndInjectorContractId(
-        workflowId, injectorContractId)) {
-      throw new ElementNotFoundException("Threat arsenal item not found");
-    }
-    return injectorContract(injectorContractId);
+      @NotNull final TxCtx ctx,
+      @NotBlank final String injectorContractId,
+      @NotBlank final String workflowId) {
+    // Resolved in the workflow's own tenant, not the request's ambient scope: a built-in contract
+    // id repeats across tenants (#8485), and the caller's scope can legitimately span several.
+    String tenantId =
+        stepRepository
+            .findWorkflowTenantIdIfReferencesInjectorContract(
+                workflowId, injectorContractId, TxCtxScopeUtils.requestReadScope(ctx))
+            .orElseThrow(() -> new ElementNotFoundException("Threat arsenal item not found"));
+    return injectorContractInTenant(injectorContractId, tenantId);
   }
 
   // -- OTHERS --
@@ -205,9 +250,15 @@ public class InjectorContractService implements DependenciesManager {
     Root<InjectorContract> injectorContractRoot = cq.from(InjectorContract.class);
     selector.apply(cb, cq, injectorContractRoot);
 
-    // Always apply access spec
-    Specification<InjectorContract> accessSpec =
+    // Always apply access spec, and read a contract id repeated across the scope's tenants once,
+    // through its best-ranked copy that matches the request (specificationCount carries no join
+    // shared with the page query, so it can also run on the competing copies)
+    Specification<InjectorContract> visible =
         InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+    Specification<InjectorContract> accessSpec =
+        visible.and(
+            InjectorContractSpecification.onePerContractId(
+                specificationCount == null ? visible : specificationCount.and(visible)));
 
     Specification<InjectorContract> combinedSpec =
         (specification == null ? accessSpec : specification.and(accessSpec));
@@ -244,12 +295,10 @@ public class InjectorContractService implements DependenciesManager {
 
   public Iterable<RawInjectorsContracts> getAllRawInjectContracts() {
     User currentUser = userService.currentUser();
-    String tenantId = TenantContext.getCurrentTenant();
-    if (currentUser.isAdminOrBypass()
-        || currentUser.getCapabilities().contains(Capability.ACCESS_THREAT_ARSENALS)) {
+    if (currentUser.isAdmin()) {
       return injectorContractRepository.getAllRawInjectorsContracts();
     }
-    return injectorContractRepository.getAllRawInjectorsContractsGranted(currentUser.getId());
+    return injectorContractRepository.getAllRawInjectorsContractsVisible(currentUser.getId());
   }
 
   /**
@@ -266,6 +315,11 @@ public class InjectorContractService implements DependenciesManager {
     InjectorContract injectorContract = new InjectorContract();
     injectorContract.setCustom(true);
     injectorContract.setUpdateAttributes(input);
+
+    // Resolve the injector specified in the input: its tenant is the tenant of the contract, in
+    // which the attack patterns named by the input resolve.
+    Injector injector = injectorService.injector(input.getInjectorId());
+
     List<AttackPattern> aps = new ArrayList<>();
     if (!input.getAttackPatternsExternalIds().isEmpty()) {
       aps =
@@ -274,14 +328,11 @@ public class InjectorContractService implements DependenciesManager {
     } else if (!input.getAttackPatternsIds().isEmpty()) {
       aps =
           attackPatternService.findAllByInternalIdsThrowIfMissing(
-              new HashSet<>(input.getAttackPatternsIds()));
+              new HashSet<>(input.getAttackPatternsIds()), injector.getTenantId());
     }
     injectorContract.setAttackPatterns(aps);
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
-
-    // Resolve the injector specified in the input
-    Injector injector = injectorService.injector(input.getInjectorId());
 
     // Link the contract to the specified injector only.
     // Custom contracts are user-defined for a specific instance —
@@ -289,11 +340,10 @@ public class InjectorContractService implements DependenciesManager {
     // during registration (InjectorService.registerBuiltinInjector).
     injectorContract.addInjector(injector);
 
-    // A contract lives in its injector's tenant. Stamp it explicitly instead of relying on
-    // TenantBaseListener's TenantContext fallback: injectors is on v2 isolation, so the injector
-    // lookup above follows the request's TxCtx while TenantContext is only populated from the
-    // tenant path - a header-selected tenant would otherwise link tenant A's injector to a
-    // contract stamped on the default tenant.
+    // A contract lives in its injector's tenant, and InjectorContract has no listener that stamps
+    // one, so the tenant is set here from the injector. The injector lookup above follows the
+    // request's TxCtx while TenantContext is only populated from the tenant path: a header-selected
+    // tenant takes the injector's tenant, not the default one.
     injectorContract.setTenant(new Tenant(injector.getTenantId()));
 
     // Authorship is a function of the creation's provenance (machine sync vs interactive),
@@ -306,7 +356,7 @@ public class InjectorContractService implements DependenciesManager {
 
     injectorContract.setDomains(
         injector != null && !injector.isPayloads()
-            ? this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant())
+            ? this.domainService.upserts(input.getDomains(), injector.getTenantId())
             : new HashSet<>());
     InjectorContract saved = injectorContractRepository.save(injectorContract);
     // The join row is persisted through the contract's cascade over the join entity (addInjector)
@@ -404,11 +454,13 @@ public class InjectorContractService implements DependenciesManager {
     injectorContract.setUpdateAttributes(input);
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(
-            new HashSet<>(input.getAttackPatternsIds())));
+            new HashSet<>(input.getAttackPatternsIds()), injectorContract.getTenant().getId()));
     setVulnerabilitiesFromExternalOrInternalIds(
         input.getVulnerabilityExternalIds(), input.getVulnerabilityIds(), injectorContract);
+    // The domains live in the contract's tenant: the ambient one is the default tenant on the
+    // non-prefixed route, whatever tenant the selector chose.
     injectorContract.setDomains(
-        this.domainService.upserts(input.getDomains(), TenantContext.getCurrentTenant()));
+        this.domainService.upserts(input.getDomains(), injectorContract.getTenant().getId()));
 
     reconcileExternalInjectorAuthorship(injectorContract);
 
@@ -454,9 +506,7 @@ public class InjectorContractService implements DependenciesManager {
 
   /** Attributes an interactively created contract to the authenticated human creating it. */
   private void attributeToCreatingUser(InjectorContract contract) {
-    if (!(SessionHelper.currentUser() instanceof OpenAEVAnonymous)) {
-      contract.setAuthorUser(userService.currentUser());
-    }
+    authorService.authorByCurrentUser(contract);
   }
 
   /**
@@ -471,11 +521,11 @@ public class InjectorContractService implements DependenciesManager {
    *       created contracts never carry one).
    * </ul>
    *
-   * <p>Payload-based contracts and contracts with a deliberate team/organization author are never
+   * <p>Payload-based contracts and contracts with a deliberate organization author are never
    * touched.
    */
   private void reconcileExternalInjectorAuthorship(InjectorContract contract) {
-    if (contract.getPayload() != null || contract.getAuthorTeam() != null) {
+    if (contract.getPayload() != null) {
       return;
     }
     boolean authorless =
@@ -527,7 +577,8 @@ public class InjectorContractService implements DependenciesManager {
     // instead of failing on new HashSet<>(null) / findAllById(null).
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(
-            new HashSet<>(emptyIfNull(input.getAttackPatternsIds()))));
+            new HashSet<>(emptyIfNull(input.getAttackPatternsIds())),
+            injectorContract.getTenant().getId()));
     injectorContract.setTags(
         iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
     injectorContract.setDomains(
@@ -566,21 +617,20 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   // Deliberately NOT annotated @Transactional: this overload is only reached through the
-  // transactional deleteInjectorContract(String) entry point, and annotating it would create a
-  // proxy-bypassing intra-class call (TenantBackgroundTransactionArchTest
-  // no_transactional_self_invocation). The entry point's transaction makes the contract delete
-  // and the chaining step sweep commit or roll back together.
+  // transactional deleteInjectorContract(String) and deleteInjectorContractById entry points, and
+  // annotating it would create a proxy-bypassing intra-class call
+  // (TenantBackgroundTransactionArchTest no_transactional_self_invocation). The entry point's
+  // transaction makes the contract delete and the chaining step sweep commit or roll back together.
   public void deleteInjectorContract(InjectorContract injectorContract) {
-    // Same compensation as deleteInjectorContractById: the injects FK on injectors_contracts is ON
-    // DELETE CASCADE, so the injects (and, one hop further, their expectations and findings) vanish
-    // at the database level without a single JPA lifecycle event. The engine cascade is single-hop:
-    // the contract delete event alone would never reach the expectation and finding documents,
-    // which reference the INJECT id in their dependencies - they would keep feeding every
-    // engine-backed statistic (dashboards, KPIs) after the contract is gone.
+    // The injects FK on injectors_contracts is ON DELETE CASCADE, so the injects (and, one hop
+    // further, their expectations and findings) vanish at the database level without a single JPA
+    // lifecycle event. The engine cascade is single-hop: the contract delete event alone would
+    // never reach the expectation and finding documents, which reference the INJECT id in their
+    // dependencies - they would keep feeding every engine-backed statistic (dashboards, KPIs) after
+    // the contract is gone.
     String tenantId =
-        injectorContract.getTenant() != null
-            ? injectorContract.getTenant().getId()
-            : TenantContext.getCurrentTenant();
+        Objects.requireNonNull(injectorContract.getTenant(), "a loaded contract carries its tenant")
+            .getId();
     List<String> cascadeDeletedInjectIds =
         injectIndexCleanupService.injectIdsByContractIds(
             List.of(injectorContract.getId()), tenantId);
@@ -589,19 +639,14 @@ public class InjectorContractService implements DependenciesManager {
     // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
     // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
     // The sweep is tenant-scoped: default contracts share their ids across tenants, so an unscoped
-    // sweep would wipe other tenants' authored logic-map nodes.
-    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
-        List.of(injectorContract.getId()), tenantId);
-  }
-
-  /**
-   * Checks whether the given injector contract is payload-based without loading the full entity.
-   *
-   * @param injectorContractId the contract ID to check
-   * @return true if the contract exists and has a non-null payload
-   */
-  public boolean isPayloadBased(String injectorContractId) {
-    return this.injectorContractRepository.existsByIdAndPayloadIsNotNull(injectorContractId);
+    // sweep would wipe other tenants' authored logic-map nodes. The contract was loaded through
+    // the statement inspector, in the request's tenant scope, so the tenant it carries is one that
+    // scope holds; the sweep runs in that tenant, read from the loaded contract.
+    workflowOwnerScope.run(
+        injectorContract,
+        () ->
+            chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
+                List.of(injectorContract.getId()), tenantId));
   }
 
   /**
@@ -629,26 +674,19 @@ public class InjectorContractService implements DependenciesManager {
   }
 
   /**
-   * Deletes an injector contract by its ID using a direct DELETE query (no entity loading).
+   * Deletes the copy of an injector contract held by the request's tenant, if there is one, with
+   * the same cleanup as {@link #deleteInjectorContract(InjectorContract)}: the step templates that
+   * reference it are swept in that contract's own tenant.
    *
    * @param injectorContractId the contract ID to delete
+   * @param tenantId the tenant of the contract copy to delete: a built-in id exists in every
+   *     tenant, so the id alone does not name the row, and the ambient tenant is not read
    */
   @Transactional(rollbackFor = Exception.class)
-  public void deleteInjectorContractById(String injectorContractId) {
-    // The injects FK on injectors_contracts is ON DELETE CASCADE: collect the doomed inject ids
-    // before the delete and de-index them explicitly (no JPA lifecycle fires for DB cascades).
-    String tenantId = TenantContext.getCurrentTenant();
-    List<String> cascadeDeletedInjectIds =
-        injectIndexCleanupService.injectIdsByContractIds(List.of(injectorContractId), tenantId);
-    this.injectorContractRepository.deleteById(
-        new InjectorContractId(injectorContractId, tenantId));
-    injectIndexCleanupService.notifyEngineOfDeletedInjects(cascadeDeletedInjectIds);
-    // Chaining steps reference the contract only through a JSON snapshot in step_data (no FK to
-    // cascade on), so sweep the orphaned step templates explicitly, mirroring the inject de-index.
-    // The sweep is tenant-scoped: default contracts share their ids across tenants, so an unscoped
-    // sweep would wipe other tenants' authored logic-map nodes.
-    chainingStepCleanupService.deleteTemplateStepsByInjectorContractIds(
-        List.of(injectorContractId), tenantId);
+  public void deleteInjectorContractById(String injectorContractId, String tenantId) {
+    this.injectorContractRepository
+        .findById(new InjectorContractId(injectorContractId, tenantId))
+        .ifPresent(this::deleteInjectorContract);
   }
 
   /**
@@ -725,6 +763,8 @@ public class InjectorContractService implements DependenciesManager {
       List<String> idsToProcess) {
     OutputMode safeMode = (mode == null) ? OutputMode.FULL : mode;
     OutputModeConfig config = CONFIGS.get(safeMode);
+    specification = specification.and(withLatestInstalledPayload());
+    specificationCount = specificationCount.and(withLatestInstalledPayload());
 
     if (!CollectionUtils.isEmpty(idsToIgnore)) {
       specification =
@@ -754,7 +794,7 @@ public class InjectorContractService implements DependenciesManager {
 
   private record InjectorContractQueryContext(
       Join<InjectorContract, Payload> payloadJoin,
-      Join<Payload, CollectorType> payloadCollectorTypeJoin,
+      Join<?, CollectorType> payloadCollectorTypeJoin,
       Join<?, Injector> injectorJoin,
       Expression<String[]> injectorIdsExpression,
       Expression<String[]> injectorNamesExpression,
@@ -765,8 +805,8 @@ public class InjectorContractService implements DependenciesManager {
   private InjectorContractQueryContext buildCommonInjectorContractContext(
       CriteriaBuilder cb, Root<InjectorContract> injectorContractRoot) {
     Join<InjectorContract, Payload> payloadJoin = createLeftJoin(injectorContractRoot, "payload");
-    Join<Payload, CollectorType> payloadCollectorTypeJoin =
-        payloadJoin.join("collectorType", JoinType.LEFT);
+    Join<?, CollectorType> payloadCollectorTypeJoin =
+        payloadJoin.join("identity", JoinType.LEFT).join("collectorType", JoinType.LEFT);
     Join<?, Injector> injectorContractInjectorJoin =
         injectorContractRoot.join("injectorLinks", JoinType.LEFT).join("injector", JoinType.LEFT);
 
@@ -950,47 +990,40 @@ public class InjectorContractService implements DependenciesManager {
       @NotNull final Root<InjectorContract> injectorContractRoot) {
     InjectorContractQueryContext ctx = buildCommonInjectorContractContext(cb, injectorContractRoot);
 
-    // The author is polymorphic (user / team / organization) and stored both on
+    // The author is polymorphic (user / organization) and stored both on
     // the contract (built-in => Filigran, custom => creator) and, for payload
     // contracts, on the payload. Resolve the id, a display label and a type by
     // coalescing contract-level author first, then payload-level author, so the
     // Threat Arsenal shows and filters by author in a single field.
-    Join<InjectorContract, User> cAuthorUserJoin =
-        injectorContractRoot.join("authorUser", JoinType.LEFT);
-    Join<InjectorContract, Team> cAuthorTeamJoin =
-        injectorContractRoot.join("authorTeam", JoinType.LEFT);
-    Join<InjectorContract, Organization> cAuthorOrgJoin =
-        injectorContractRoot.join("authorOrganization", JoinType.LEFT);
-    Join<Payload, User> authorUserJoin = ctx.payloadJoin().join("authorUser", JoinType.LEFT);
-    Join<Payload, Team> authorTeamJoin = ctx.payloadJoin().join("authorTeam", JoinType.LEFT);
-    Join<Payload, Organization> authorOrgJoin =
-        ctx.payloadJoin().join("authorOrganization", JoinType.LEFT);
+    Join<?, User> cAuthorUserJoin =
+        injectorContractRoot.join("author", JoinType.LEFT).join("user", JoinType.LEFT);
+    Join<?, Organization> cAuthorOrgJoin =
+        injectorContractRoot.join("author", JoinType.LEFT).join("organization", JoinType.LEFT);
+    Join<?, User> authorUserJoin =
+        ctx.payloadJoin().join("author", JoinType.LEFT).join("user", JoinType.LEFT);
+    Join<?, Organization> authorOrgJoin =
+        ctx.payloadJoin().join("author", JoinType.LEFT).join("organization", JoinType.LEFT);
 
     Expression<String> authorId =
         cb.<String>coalesce()
             .value(cAuthorUserJoin.get("id"))
-            .value(cAuthorTeamJoin.get("id"))
             .value(cAuthorOrgJoin.get("id"))
             .value(authorUserJoin.get("id"))
-            .value(authorTeamJoin.get("id"))
             .value(authorOrgJoin.get("id"));
     Expression<String> authorName =
         cb.<String>coalesce()
             .value(userAuthorDisplayName(cb, cAuthorUserJoin))
-            .value(cAuthorTeamJoin.get("name"))
             .value(cAuthorOrgJoin.get("name"))
             .value(userAuthorDisplayName(cb, authorUserJoin))
-            .value(authorTeamJoin.get("name"))
             .value(authorOrgJoin.get("name"));
     Expression<String> authorType =
         cb.<String>selectCase()
             .when(cb.isNotNull(cAuthorUserJoin.get("id")), cb.literal("user"))
-            .when(cb.isNotNull(cAuthorTeamJoin.get("id")), cb.literal("team"))
             .when(cb.isNotNull(cAuthorOrgJoin.get("id")), cb.literal("organization"))
             .when(cb.isNotNull(authorUserJoin.get("id")), cb.literal("user"))
-            .when(cb.isNotNull(authorTeamJoin.get("id")), cb.literal("team"))
             .when(cb.isNotNull(authorOrgJoin.get("id")), cb.literal("organization"))
             .otherwise(cb.nullLiteral(String.class));
+    Expression<String> payloadIdentityId = ctx.payloadJoin().get("identity").<String>get("id");
 
     cq.multiselect(
         injectorContractRoot.get("compositeId").get("id").alias("injector_contract_id"),
@@ -1008,23 +1041,22 @@ public class InjectorContractService implements DependenciesManager {
         injectorContractRoot.get("updatedAt").alias("injector_contract_updated_at"),
         authorId.alias("injector_contract_payload_author"),
         authorName.alias("injector_contract_payload_author_name"),
-        authorType.alias("injector_contract_payload_author_type"));
+        authorType.alias("injector_contract_payload_author_type"),
+        cb.coalesce(payloadIdentityId, injectorContractRoot.get("compositeId").<String>get("id"))
+            .alias("injector_contract_grant_resource_id"));
 
     List<Expression<?>> groupBy = new ArrayList<>(getCommonGroupBy(injectorContractRoot, ctx));
+    groupBy.add(payloadIdentityId);
     groupBy.add(cAuthorUserJoin.get("id"));
     groupBy.add(cAuthorUserJoin.get("email"));
     groupBy.add(cAuthorUserJoin.get("firstname"));
     groupBy.add(cAuthorUserJoin.get("lastname"));
-    groupBy.add(cAuthorTeamJoin.get("id"));
-    groupBy.add(cAuthorTeamJoin.get("name"));
     groupBy.add(cAuthorOrgJoin.get("id"));
     groupBy.add(cAuthorOrgJoin.get("name"));
     groupBy.add(authorUserJoin.get("id"));
     groupBy.add(authorUserJoin.get("email"));
     groupBy.add(authorUserJoin.get("firstname"));
     groupBy.add(authorUserJoin.get("lastname"));
-    groupBy.add(authorTeamJoin.get("id"));
-    groupBy.add(authorTeamJoin.get("name"));
     groupBy.add(authorOrgJoin.get("id"));
     groupBy.add(authorOrgJoin.get("name"));
     cq.groupBy(groupBy);
@@ -1078,7 +1110,8 @@ public class InjectorContractService implements DependenciesManager {
         dedupePreservingOrder(tuple.get("injector_contract_attack_patterns", String[].class)),
         tuple.get("injector_contract_payload_author", String.class),
         tuple.get("injector_contract_payload_author_name", String.class),
-        tuple.get("injector_contract_payload_author_type", String.class));
+        tuple.get("injector_contract_payload_author_type", String.class),
+        tuple.get("injector_contract_grant_resource_id", String.class));
   }
 
   private ThreatArsenalActionWithContentOutput mapThreatArsenalContent(Tuple tuple) {
@@ -1154,12 +1187,17 @@ public class InjectorContractService implements DependenciesManager {
   private Specification<InjectorContract> facetBaseSpec(SearchPaginationInput input) {
     Specification<InjectorContract> filterSpec = computeFilterGroupJpa(input.getFilterGroup());
     Specification<InjectorContract> searchSpec = computeSearchJpa(input.getTextSearch());
-    Specification<InjectorContract> accessSpec =
+    Specification<InjectorContract> visible =
         InjectorContractSpecification.hasAccessToInjectorContract(userService.currentUser());
+    Specification<InjectorContract> accessSpec =
+        visible.and(
+            InjectorContractSpecification.onePerContractId(
+                filterSpec.and(searchSpec).and(visible)));
     return Specification.<InjectorContract>unrestricted()
         .and(filterSpec)
         .and(searchSpec)
-        .and(accessSpec);
+        .and(accessSpec)
+        .and(withLatestInstalledPayload());
   }
 
   /**
@@ -1201,39 +1239,32 @@ public class InjectorContractService implements DependenciesManager {
     CriteriaQuery<InjectorContractAuthorCountOutput> q =
         cb.createQuery(InjectorContractAuthorCountOutput.class);
     Root<InjectorContract> root = q.from(InjectorContract.class);
-    Join<InjectorContract, User> cAuthorUserJoin = root.join("authorUser", JoinType.LEFT);
-    Join<InjectorContract, Team> cAuthorTeamJoin = root.join("authorTeam", JoinType.LEFT);
-    Join<InjectorContract, Organization> cAuthorOrgJoin =
-        root.join("authorOrganization", JoinType.LEFT);
+    Join<?, User> cAuthorUserJoin = root.join("author", JoinType.LEFT).join("user", JoinType.LEFT);
+    Join<?, Organization> cAuthorOrgJoin =
+        root.join("author", JoinType.LEFT).join("organization", JoinType.LEFT);
     Join<InjectorContract, Payload> payloadJoin = root.join("payload", JoinType.LEFT);
-    Join<Payload, User> pAuthorUserJoin = payloadJoin.join("authorUser", JoinType.LEFT);
-    Join<Payload, Team> pAuthorTeamJoin = payloadJoin.join("authorTeam", JoinType.LEFT);
-    Join<Payload, Organization> pAuthorOrgJoin =
-        payloadJoin.join("authorOrganization", JoinType.LEFT);
+    Join<?, User> pAuthorUserJoin =
+        payloadJoin.join("author", JoinType.LEFT).join("user", JoinType.LEFT);
+    Join<?, Organization> pAuthorOrgJoin =
+        payloadJoin.join("author", JoinType.LEFT).join("organization", JoinType.LEFT);
 
     Expression<String> authorId =
         cb.<String>coalesce()
             .value(cAuthorUserJoin.get("id"))
-            .value(cAuthorTeamJoin.get("id"))
             .value(cAuthorOrgJoin.get("id"))
             .value(pAuthorUserJoin.get("id"))
-            .value(pAuthorTeamJoin.get("id"))
             .value(pAuthorOrgJoin.get("id"));
     Expression<String> authorName =
         cb.<String>coalesce()
             .value(userAuthorDisplayName(cb, cAuthorUserJoin))
-            .value(cAuthorTeamJoin.get("name"))
             .value(cAuthorOrgJoin.get("name"))
             .value(userAuthorDisplayName(cb, pAuthorUserJoin))
-            .value(pAuthorTeamJoin.get("name"))
             .value(pAuthorOrgJoin.get("name"));
     Expression<String> authorType =
         cb.<String>selectCase()
             .when(cb.isNotNull(cAuthorUserJoin.get("id")), cb.literal("user"))
-            .when(cb.isNotNull(cAuthorTeamJoin.get("id")), cb.literal("team"))
             .when(cb.isNotNull(cAuthorOrgJoin.get("id")), cb.literal("organization"))
             .when(cb.isNotNull(pAuthorUserJoin.get("id")), cb.literal("user"))
-            .when(cb.isNotNull(pAuthorTeamJoin.get("id")), cb.literal("team"))
             .when(cb.isNotNull(pAuthorOrgJoin.get("id")), cb.literal("organization"))
             .otherwise(cb.nullLiteral(String.class));
 
