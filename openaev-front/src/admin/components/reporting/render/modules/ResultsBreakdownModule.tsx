@@ -5,6 +5,7 @@ import { type FunctionComponent } from 'react';
 import { useFormatter } from '../../../../../components/i18n';
 import { donutChartOptions } from '../../../../../utils/Charts';
 import expectationIconByType, { expectationTypeColor } from '../../../common/ExpectationIconByType';
+import { expectationTypeLabelKey } from '../../../common/injects/expectations/Expectation';
 import { type ModuleDataState, type PostureData } from '../useReportingRenderData';
 import { ModuleEmpty, ModuleError, ReportCell, ReportRow, ReportTable } from './ModuleSection';
 import PrintChart from './PrintChart';
@@ -23,13 +24,10 @@ const rateColor = (theme: Theme, ratePct: number): string => {
   return theme.palette.error.main;
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  PREVENTION: 'Prevention',
-  DETECTION: 'Detection',
-  VULNERABILITY: 'Vulnerability',
+// The report names the human expectation types after what they measure.
+const REPORT_TYPE_LABELS: Record<string, string> = {
   MANUAL: 'Human response',
   ARTICLE: 'Media pressure',
-  CHALLENGE: 'Challenge',
 };
 
 const ResultsBreakdownModule: FunctionComponent<Props> = ({ posture }) => {
@@ -115,7 +113,7 @@ const ResultsBreakdownModule: FunctionComponent<Props> = ({ posture }) => {
                       fontWeight: 500,
                     }}
                     >
-                      {t(TYPE_LABELS[entry.type] ?? entry.type)}
+                      {t(REPORT_TYPE_LABELS[entry.type] ?? expectationTypeLabelKey(entry.type) ?? entry.type)}
                     </Typography>
                   </Box>
                 </ReportCell>

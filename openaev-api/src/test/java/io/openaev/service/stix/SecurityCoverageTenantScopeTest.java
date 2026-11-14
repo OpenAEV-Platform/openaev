@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -47,6 +48,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+@CoversTenantIsolation("security_coverages")
 @TestPropertySource(properties = "openaev.tenant.active-tables=security_coverages")
 @WithMockUser(isAdmin = true)
 @DisplayName("security_coverages v2 tenant scope")
@@ -238,8 +240,8 @@ class SecurityCoverageTenantScopeTest extends IntegrationTest {
 
     // ExpectationApi#deleteInjectExpectationResult, ChallengeApi#tryChallenge,
     // SimulationChallengeApi#validateChallenge and InjectApi#injectExecutionCallback all cascade
-    // into InjectExpectationService's propagateTechnicalExpectation /
-    // propagateHumanResponseExpectation, which calls this exact service method. Proving the gate
+    // into InjectExpectationService's updateLeavesThenRecomputeParents, which calls this exact
+    // service method. Proving the gate
     // is scope-dependent here demonstrates why those four entrypoints needed TxCtx: without a
     // scope, exercise.getSecurityCoverage() reads as if the coverage did not exist, and the send
     // job is silently never created (fail-closed, not an error).

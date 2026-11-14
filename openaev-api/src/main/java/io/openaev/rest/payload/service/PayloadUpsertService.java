@@ -56,7 +56,10 @@ public class PayloadUpsertService {
     // Telemetry: one payload upserted by a collector (attempts semantics).
     resultsMetricCollector.recordPayloadUpserted();
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
-    Optional<Payload> payload = payloadRepository.findByExternalId(input.getExternalId());
+    // A collector updates its own payloads, never a catalogue version of the same external ID.
+    Optional<Payload> payload =
+        payloadRepository.findByIdentityExternalIdAndIdentityRepositoryIsNull(
+            input.getExternalId());
     if (enterpriseEditionService.isEnterpriseLicenseInactive(
         licenseCacheManager.getEnterpriseEditionInfo())) {
       input.setDetectionRemediations(null);

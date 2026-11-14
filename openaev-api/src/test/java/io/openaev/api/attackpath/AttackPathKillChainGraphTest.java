@@ -3,8 +3,10 @@ package io.openaev.api.attackpath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.Condition;
 import io.openaev.database.model.ConditionType;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.PrimitiveType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.attackpath.AttackPathExecution;
@@ -29,11 +31,14 @@ import io.openaev.utils.fixtures.composers.StepComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.time.Instant;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -43,6 +48,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 class AttackPathKillChainGraphTest extends IntegrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   private static final String SIM = "SIM-KILLCHAIN";
 
@@ -59,13 +70,13 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   @Test
   @DisplayName("the execution feed node carries the resolved kill-chain fields in full mode")
   void executionNodeCarriesKillChain() {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-killchain-tenant"));
+    Tenant tenant = tenantInScope("ap-killchain-tenant");
 
     // a step template with a DEPEND_ON and a consumed EQ key
     StepComposer.Composer step = stepComposer.forStep(StepFixture.getDefaultStepTemplate());
     workflowComposer
         .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-        .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withSimulation(exerciseComposer.forExercise(simulationIn(tenant)))
         .withStep(step)
         .persist();
     Condition dependOn = new Condition();
@@ -107,13 +118,13 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   @Test
   @DisplayName("a step that consumes an event gets its finding's producer added to dependsOn")
   void consumerGetsProducerInDependsOn() {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-tenant"));
+    Tenant tenant = tenantInScope("ap-eventdep-tenant");
 
     // Consumer step B: a filter condition on share_name IS_NOT_NULL (the SMB "share found" event).
     StepComposer.Composer stepB = stepComposer.forStep(StepFixture.getDefaultStepTemplate());
     workflowComposer
         .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-        .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withSimulation(exerciseComposer.forExercise(simulationIn(tenant)))
         .withStep(stepB)
         .persist();
     Condition consumed = ConditionFixture.getDefaultCondition(PrimitiveType.ShareName, null);
@@ -142,9 +153,9 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   @Test
   @DisplayName("explicit DEPEND_ON is preserved and every matching producer is merged in")
   void mergesExplicitDependOnAndMultipleProducers() {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-merge"));
+    Tenant tenant = tenantInScope("ap-eventdep-merge");
     StepComposer.Composer stepB =
-        consumerStep(PrimitiveType.ShareName, ConditionType.IS_NOT_NULL, null);
+        consumerStep(tenant, PrimitiveType.ShareName, ConditionType.IS_NOT_NULL, null);
     Condition dependOn = new Condition();
     dependOn.setType(ConditionType.DEPEND_ON);
     dependOn.setValue("explicit-prereq");
@@ -167,9 +178,9 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   @Test
   @DisplayName("a step that produces and consumes the same event does not depend on itself")
   void guardsSelfDependency() {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-self"));
+    Tenant tenant = tenantInScope("ap-eventdep-self");
     StepComposer.Composer selfStep =
-        consumerStep(PrimitiveType.ShareName, ConditionType.IS_NOT_NULL, null);
+        consumerStep(tenant, PrimitiveType.ShareName, ConditionType.IS_NOT_NULL, null);
     AttackPathExecution selfExec =
         saveExecution(
             tenant, "netexec", selfStep.get().getId(), Instant.parse("2026-06-18T08:00:00Z"));
@@ -182,9 +193,9 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   @Test
   @DisplayName("a producer that ran after the consumer is excluded (causality)")
   void guardsCausality() {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-causality"));
+    Tenant tenant = tenantInScope("ap-eventdep-causality");
     StepComposer.Composer stepB =
-        consumerStep(PrimitiveType.ShareName, ConditionType.IS_NOT_NULL, null);
+        consumerStep(tenant, PrimitiveType.ShareName, ConditionType.IS_NOT_NULL, null);
     saveExecution(tenant, "netexec", stepB.get().getId(), Instant.parse("2026-06-18T08:00:00Z"));
     AttackPathExecution later =
         saveExecution(tenant, "nmap", "later-prod", Instant.parse("2026-06-18T09:00:00Z"));
@@ -197,7 +208,7 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   @Test
   @DisplayName("EQ matches the exact producer value; IN matches a member; a non-match adds nothing")
   void operatorCoverageEqAndIn() {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-ops"));
+    Tenant tenant = tenantInScope("ap-eventdep-ops");
     AttackPathExecution hit =
         saveExecution(tenant, "nmap", "port-445", Instant.parse("2026-06-18T08:00:00Z"));
     saveFinding(tenant, "port", "445", hit.getId());
@@ -205,10 +216,11 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
         saveExecution(tenant, "nmap", "port-443", Instant.parse("2026-06-18T08:01:00Z"));
     saveFinding(tenant, "port", "443", miss.getId());
 
-    StepComposer.Composer eqStep = consumerStep(PrimitiveType.Port, ConditionType.EQ, "445");
+    StepComposer.Composer eqStep =
+        consumerStep(tenant, PrimitiveType.Port, ConditionType.EQ, "445");
     saveExecution(tenant, "netexec", eqStep.get().getId(), Instant.parse("2026-06-18T08:05:00Z"));
     StepComposer.Composer inStep =
-        consumerStep(PrimitiveType.Port, ConditionType.IN, "139,445,3389");
+        consumerStep(tenant, PrimitiveType.Port, ConditionType.IN, "139,445,3389");
     saveExecution(
         tenant, "crackmapexec", inStep.get().getId(), Instant.parse("2026-06-18T08:06:00Z"));
     entityManager.flush();
@@ -223,13 +235,14 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   @DisplayName(
       "a port key reaches a complex portscan finding (bucket portscan), not only a primitive port")
   void portKeyReachesPortscanBucket() {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-portscan"));
+    Tenant tenant = tenantInScope("ap-eventdep-portscan");
     // The nmap scan ingests a COMPLEX portscan finding "host:port (service)", bucket "portscan".
     AttackPathExecution producer =
         saveExecution(tenant, "nmap", "portscan-prod", Instant.parse("2026-06-18T08:00:00Z"));
     saveFinding(tenant, "portscan", "10.0.0.1:445 (microsoft-ds)", producer.getId());
     // The consumer filters on the PRIMITIVE key `port EQ 445`.
-    StepComposer.Composer consumer = consumerStep(PrimitiveType.Port, ConditionType.EQ, "445");
+    StepComposer.Composer consumer =
+        consumerStep(tenant, PrimitiveType.Port, ConditionType.EQ, "445");
     saveExecution(tenant, "netexec", consumer.get().getId(), Instant.parse("2026-06-18T08:05:00Z"));
     entityManager.flush();
 
@@ -239,11 +252,12 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   @Test
   @DisplayName("a consumed key carries the finding-node ids it matched (back-authoritative)")
   void consumerKeyCarriesMatchedFindingIds() {
-    Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-matched"));
+    Tenant tenant = tenantInScope("ap-eventdep-matched");
     AttackPathExecution producer =
         saveExecution(tenant, "nmap", "portscan-prod-m", Instant.parse("2026-06-18T08:00:00Z"));
     saveFinding(tenant, "portscan", "10.0.0.1:445 (microsoft-ds)", producer.getId());
-    StepComposer.Composer consumer = consumerStep(PrimitiveType.Port, ConditionType.EQ, "445");
+    StepComposer.Composer consumer =
+        consumerStep(tenant, PrimitiveType.Port, ConditionType.EQ, "445");
     saveExecution(tenant, "netexec", consumer.get().getId(), Instant.parse("2026-06-18T08:05:00Z"));
     entityManager.flush();
 
@@ -256,6 +270,7 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   @DisplayName("a delta's consuming execution carries the ids its key matched in earlier bumps")
   void deltaConsumerCarriesMatchedFindingIdsFromEarlierBumps() {
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-delta"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
 
     // Bump 1: the nmap scan and the portscan finding it produced.
     long v1 = versionService.bump(SIM, tenant.getId());
@@ -269,7 +284,8 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
     // Bump 2: the consumer runs. Its own row is the ONLY thing a delta from v1 can see — the
     // finding
     // it consumes was written a bump earlier, so an in-memory match over the batch finds nothing.
-    StepComposer.Composer consumer = consumerStep(PrimitiveType.Port, ConditionType.EQ, "445");
+    StepComposer.Composer consumer =
+        consumerStep(tenant, PrimitiveType.Port, ConditionType.EQ, "445");
     long v2 = versionService.bump(SIM, tenant.getId());
     stamp(
         saveExecution(
@@ -294,6 +310,7 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
   @DisplayName("a delta with no consuming step pays no candidate read")
   void deltaWithoutAConsumerResolvesNothing() {
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-eventdep-delta-none"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
     long v1 = versionService.bump(SIM, tenant.getId());
     stamp(saveExecution(tenant, "nmap", "no-consumer", Instant.parse("2026-06-18T08:00:00Z")), v1);
     entityManager.flush();
@@ -306,6 +323,20 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
             .findFirst()
             .orElseThrow();
     assertThat(node.getConsumedFindingKeys()).isNullOrEmpty();
+  }
+
+  /** A fresh tenant that is also the scope of the test transaction, the one the reads run under. */
+  private Tenant tenantInScope(String name) {
+    Tenant tenant = tenantRepository.save(TenantFixture.getTenant(name));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
+    return tenant;
+  }
+
+  /** A simulation owned by {@code tenant}, so its workflow, steps and conditions are too. */
+  private static Exercise simulationIn(Tenant tenant) {
+    Exercise simulation = ExerciseFixture.createDefaultExercise();
+    simulation.setTenant(tenant);
+    return simulation;
   }
 
   private AttackPathExecution stamp(AttackPathExecution execution, long version) {
@@ -354,11 +385,11 @@ class AttackPathKillChainGraphTest extends IntegrationTest {
    * A persisted consumer step template whose filter consumes {@code keyType} with {@code operator}.
    */
   private StepComposer.Composer consumerStep(
-      PrimitiveType keyType, ConditionType operator, String value) {
+      Tenant tenant, PrimitiveType keyType, ConditionType operator, String value) {
     StepComposer.Composer step = stepComposer.forStep(StepFixture.getDefaultStepTemplate());
     workflowComposer
         .forWorkflow(WorkflowFixture.getDefaultWorkflowTemplate())
-        .withSimulation(exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()))
+        .withSimulation(exerciseComposer.forExercise(simulationIn(tenant)))
         .withStep(step)
         .persist();
     Condition consumed = ConditionFixture.getDefaultCondition(keyType, value);

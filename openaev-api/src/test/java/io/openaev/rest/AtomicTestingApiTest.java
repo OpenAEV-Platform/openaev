@@ -16,6 +16,8 @@ import io.openaev.IntegrationTest;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.DocumentRepository;
+import io.openaev.database.repository.FindingOccurrenceRepository;
+import io.openaev.database.repository.FindingRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
@@ -59,6 +61,9 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @Autowired private InjectStatusComposer injectStatusComposer;
   @Autowired private InjectExpectationComposer injectExpectationComposer;
   @Autowired private ExecutorFixture executorFixture;
+  @Autowired private FindingComposer findingComposer;
+  @Autowired private FindingRepository findingRepository;
+  @Autowired private FindingOccurrenceRepository findingOccurrenceRepository;
 
   @Autowired private MockMvc mvc;
   @Autowired private InjectRepository injectRepository;
@@ -159,7 +164,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("Create and upadte an atomic testing")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void createAndUpdateAnAtomicTesting() throws Exception {
     String response =
         mvc.perform(
@@ -291,10 +296,86 @@ public class AtomicTestingApiTest extends IntegrationTest {
             .getContentAsString();
 
     String relaunchedInjectId = JsonPath.read(relaunchedInject, "$.inject_id");
+    // The relaunch deletes the original row with a native query, which leaves it in the
+    // persistence context: clear it so the next by-id read goes back to the database.
+    entityManager.flush();
+    entityManager.clear();
     mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId()).with(csrf()))
         .andExpect(status().is4xxClientError());
     mvc.perform(get(ATOMIC_TESTINGS_URI + "/" + relaunchedInjectId).with(csrf()))
         .andExpect(status().is2xxSuccessful());
+  }
+
+  @Nested
+  @DisplayName("Launch in place of an Atomic Testing that has findings")
+  @WithMockUser(isAdmin = true)
+  class LaunchInPlaceWithFindings {
+
+    @Test
+    @DisplayName("Should delete the findings the inject wrote, and their occurrences")
+    void given_injectWithFindings_should_deleteThemOnLaunch() throws Exception {
+      // Arrange
+      findingComposer.reset();
+      FindingComposer.Composer findingWrapper =
+          findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue());
+      Inject atomicTesting =
+          getAtomicTestingWrapper(null, null).withFinding(findingWrapper).persist().get();
+      String findingId = findingWrapper.get().getId();
+      entityManager.flush();
+      entityManager.clear();
+      // withFinding recorded the finding's occurrence on the inject
+      assertThat(findingRepository.findById(findingId)).isPresent();
+      assertThat(
+              findingOccurrenceRepository.findByFindingIdAndInjectId(
+                  findingId, atomicTesting.getId()))
+          .isPresent();
+
+      // Act
+      mvc.perform(post(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId() + "/launch").with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(findingRepository.findById(findingId)).isEmpty();
+      assertThat(
+              findingOccurrenceRepository.findByFindingIdAndInjectId(
+                  findingId, atomicTesting.getId()))
+          .isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Delete an Atomic Testing that has findings")
+  @WithMockUser(isAdmin = true)
+  class DeleteWithFindings {
+
+    @Test
+    @DisplayName("Should delete the findings of the inject, and their occurrences")
+    void given_injectWithFindings_should_deleteThemWithTheInject() throws Exception {
+      // Arrange
+      findingComposer.reset();
+      FindingComposer.Composer findingWrapper =
+          findingComposer.forFinding(FindingFixture.createDefaultTextFindingWithRandomValue());
+      Inject atomicTesting =
+          getAtomicTestingWrapper(null, null).withFinding(findingWrapper).persist().get();
+      String findingId = findingWrapper.get().getId();
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      mvc.perform(delete(ATOMIC_TESTINGS_URI + "/" + atomicTesting.getId()).with(csrf()))
+          .andExpect(status().is2xxSuccessful());
+
+      // Assert
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(findingRepository.findById(findingId)).isEmpty();
+      assertThat(
+              findingOccurrenceRepository.findByFindingIdAndInjectId(
+                  findingId, atomicTesting.getId()))
+          .isEmpty();
+    }
   }
 
   @Test

@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -28,7 +29,16 @@ public interface PayloadRepository
   Optional<Payload> findByIdAndTenantId(
       @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
-  Optional<Payload> findByExternalId(@NotNull String externalId);
+  List<Payload> findAllByTenantIdAndContentHash(String tenantId, String contentHash);
+
+  List<Payload> findAllByTenantIdAndNameAndContentHashIsNull(String tenantId, String name);
+
+  /** Where injects run this payload: their scenario, simulation, or atomic testing title. */
+  @Query(
+      "SELECT DISTINCT COALESCE(s.name, e.name, i.title) FROM Inject i"
+          + " LEFT JOIN i.scenario s LEFT JOIN i.exercise e"
+          + " WHERE i.injectorContract.payload.id = :payloadId")
+  List<String> findUsageNamesByPayloadId(@Param("payloadId") String payloadId, Limit limit);
 
   /**
    * Icon metadata for a batch of payloads in one read: {@code [id, payloadType,
@@ -37,25 +47,31 @@ public interface PayloadRepository
    * icon (the collector logo, e.g. netexec / atomic-red-team) instead of the generic agent icon.
    */
   @Query(
-      "SELECT p.id, p.type, ct.name FROM Payload p LEFT JOIN p.collectorType ct WHERE p.id IN :ids")
+      "SELECT p.id, p.type, ct.name FROM Payload p JOIN p.identity pi"
+          + " LEFT JOIN pi.collectorType ct WHERE p.id IN :ids")
   List<Object[]> findIconMetadataByIds(@Param("ids") Set<String> ids);
 
   @Query(
       value =
-          "SELECT p.payload_external_id FROM payloads p"
-              + " JOIN collectors c ON c.collector_type_id = p.payload_collector_type"
-              + " WHERE c.collector_id = :collectorId",
+          "SELECT pi.payload_external_id FROM payload_identities pi"
+              + " JOIN collectors c ON c.collector_type_id = pi.payload_collector_type"
+              + " WHERE c.collector_id = :collectorId"
+              + " AND pi.tenant_id = :tenantId AND c.tenant_id = :tenantId",
       nativeQuery = true)
-  List<String> findAllExternalIdsByCollectorId(@NotNull @Param("collectorId") String collectorId);
+  List<String> findAllExternalIdsByCollectorId(
+      @NotNull @Param("collectorId") String collectorId, @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
       value =
-          "UPDATE payloads SET payload_status = :payloadStatus WHERE payload_external_id IN :payloadExternalIds AND tenant_id = :#{#tenantContext.currentTenant}",
+          "UPDATE payloads p SET payload_status = :payloadStatus FROM payload_identities pi"
+              + " WHERE pi.payload_identity_id = p.payload_identity AND pi.payload_external_id IN :payloadExternalIds"
+              + " AND p.tenant_id = :tenantId AND pi.tenant_id = :tenantId",
       nativeQuery = true)
   void setPayloadStatusByExternalIds(
       @Param("payloadStatus") String payloadStatus,
-      @Param("payloadExternalIds") List<String> payloadExternalIds);
+      @Param("payloadExternalIds") List<String> payloadExternalIds,
+      @Param("tenantId") String tenantId);
 
   @Query(
       """
@@ -85,71 +101,12 @@ public interface PayloadRepository
   List<Payload> findOrphansByNameAndTenantId(
       @Param("name") String name, @Param("tenantId") String tenantId);
 
-  // -- Import de-duplication (chaining pipeline): find existing payloads equivalent to an imported
-  // one, matched by name + type-specific content, scoped to the current tenant. Return type is the
-  // base Payload so no subtype import is needed; the JPQL entity name selects the discriminator.
-  // These queries are a COARSE pre-filter only: the importer additionally compares the
-  // execution-relevant fields (platforms, arch, elevation, cleanup, arguments, prerequisites,
-  // expectations) in hasSameExecutionSemantics() before reusing a candidate.
+  // -- IDENTITY --
 
-  @Query(
-      "SELECT p FROM Command p "
-          + "WHERE p.name = :name AND p.executor = :executor AND p.content = :content "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findCommandDuplicates(
-      @Param("name") String name,
-      @Param("executor") String executor,
-      @Param("content") String content,
-      @Param("tenantId") String tenantId);
+  List<Payload> findAllByTenantIdAndIdentityExternalId(
+      @NotNull String tenantId, @NotNull String externalId);
 
-  /**
-   * Executable dedup candidates are matched on the attached document ID (the importer resolves the
-   * imported file to a TARGET document before deduplicating), never on {@code Document.name}:
-   * document names are explicitly non-unique, so a name match could reuse a payload wrapping a
-   * different binary.
-   */
-  @Query(
-      "SELECT p FROM Executable p "
-          + "WHERE p.name = :name AND p.executableFile.id = :documentId "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findExecutableDuplicates(
-      @Param("name") String name,
-      @Param("documentId") String documentId,
-      @Param("tenantId") String tenantId);
+  Optional<Payload> findByIdentityExternalIdAndIdentityRepositoryIsNull(@NotNull String externalId);
 
-  /**
-   * Same document-ID matching rationale as {@link #findExecutableDuplicates(String, String,
-   * String)}.
-   */
-  @Query(
-      "SELECT p FROM FileDrop p "
-          + "WHERE p.name = :name AND p.fileDropFile.id = :documentId "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findFileDropDuplicates(
-      @Param("name") String name,
-      @Param("documentId") String documentId,
-      @Param("tenantId") String tenantId);
-
-  @Query(
-      "SELECT p FROM DnsResolution p "
-          + "WHERE p.name = :name AND p.hostname = :hostname "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findDnsResolutionDuplicates(
-      @Param("name") String name,
-      @Param("hostname") String hostname,
-      @Param("tenantId") String tenantId);
-
-  @Query(
-      "SELECT p FROM NetworkTraffic p "
-          + "WHERE p.name = :name AND p.ipSrc = :ipSrc AND p.ipDst = :ipDst "
-          + "AND p.portSrc = :portSrc AND p.portDst = :portDst AND p.protocol = :protocol "
-          + "AND p.tenant.id = :tenantId")
-  List<Payload> findNetworkTrafficDuplicates(
-      @Param("name") String name,
-      @Param("ipSrc") String ipSrc,
-      @Param("ipDst") String ipDst,
-      @Param("portSrc") Integer portSrc,
-      @Param("portDst") Integer portDst,
-      @Param("protocol") String protocol,
-      @Param("tenantId") String tenantId);
+  List<Payload> findAllByIdentityId(String identityId);
 }

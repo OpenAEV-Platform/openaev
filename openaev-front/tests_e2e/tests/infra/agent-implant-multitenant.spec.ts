@@ -11,7 +11,7 @@ import TenantSwitcherComponent from '../../model/nav/TenantSwitcherComponent';
 import TenantsPage from '../../model/platform/TenantsPage';
 import ThreatArsenalHelper from '../../model/threat-arsenals/ThreatArsenalHelper';
 import { executeAgentInstall, getAgentPlatform } from '../../utils/agent';
-import { AUTH_FILE, TIMEOUT } from '../../utils/constants';
+import { AUTH_ADMIN, TIMEOUT } from '../../utils/constants';
 import { DEFAULT_TENANT_UUID, tenantUrl } from '../../utils/url';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
@@ -35,7 +35,7 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     const platform = getAgentPlatform();
 
     const context = await browser.newContext({
-      storageState: AUTH_FILE,
+      storageState: AUTH_ADMIN,
       baseURL: APP_URL,
     });
     const page = await context.newPage();
@@ -51,7 +51,19 @@ test.describe('Multi-tenancy — agent on new tenant', () => {
     await tenantsPage.openCreateDrawer();
     const tenantName = `Tenant Agent E2E ${Date.now()}`;
     await tenantsPage.fillTenantName(tenantName);
-    await tenantsPage.submitCreate();
+    // Tenant creation cascades through every onboarding dependency manager before the UI
+    // reloads GET /api/me/tenants, and the switcher only renders once that list holds more than
+    // one tenant. Wait for that refresh (listener attached before the click) instead of racing
+    // the switcher's fixed TIMEOUT, as tenant-management.spec.ts does.
+    await Promise.all([
+      page.waitForResponse(
+        response => response.url().includes('/api/me/tenants')
+          && response.request().method() === 'GET'
+          && response.ok(),
+        { timeout: 3 * TIMEOUT },
+      ),
+      tenantsPage.submitCreate(),
+    ]);
 
     const tenantSwitcher = new TenantSwitcherComponent(page);
     await tenantSwitcher.openSwitcher('Default');

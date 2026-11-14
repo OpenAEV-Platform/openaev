@@ -43,6 +43,9 @@ import org.springframework.test.util.ReflectionTestUtils;
  * <p>The ready queue is shared and live. Its consumer is swapped for one that acknowledges and
  * drops, so the readied step stays READY and no inject is created behind the assertions.
  */
+// Relies on Quartz being off in the test configuration: an InjectsExecutionTrigger tick landing
+// while a test calls execute() would start the same simulation a second time and ready the step
+// twice. The class drives the job directly and needs no scheduled trigger.
 @KeepRabbit
 @WithMockUser(isAdmin = true)
 @DisplayName("InjectsExecutionJob starting a scheduled chained simulation")

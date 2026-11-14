@@ -7,7 +7,6 @@ import static java.time.Instant.now;
 
 import io.openaev.aop.AccessControl;
 import io.openaev.aop.UrlAccessControl;
-import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
@@ -15,6 +14,7 @@ import io.openaev.database.specification.LessonsAnswerSpecification;
 import io.openaev.database.specification.LessonsCategorySpecification;
 import io.openaev.database.specification.LessonsQuestionSpecification;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.lessons.form.*;
 import io.openaev.security.error.AuthenticationError;
@@ -33,7 +33,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   public static final String EXERCISE_URL = "/api/exercises/";
   private static final String TENANT_EXERCISE_URL = TENANT_PREFIX + "/exercises/";
 
-  private final ExerciseRepository exerciseRepository;
+  private final ExerciseService exerciseService;
   private final TeamRepository teamRepository;
   private final LessonsTemplateRepository lessonsTemplateRepository;
   private final LessonsCategoryRepository lessonsCategoryRepository;
@@ -53,6 +53,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public Iterable<LessonsCategory> exerciseLessonsCategories(
       TxCtx ctx, @PathVariable String exerciseId) {
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     return hydrateForResponse(
         lessonsCategoryRepository.findAll(LessonsCategorySpecification.fromExercise(exerciseId)));
   }
@@ -70,9 +71,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   public Iterable<LessonsCategory> applyExerciseLessonsTemplate(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String lessonsTemplateId) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     LessonsTemplate lessonsTemplate =
         lessonsTemplateRepository
             .findById(lessonsTemplateId)
@@ -118,9 +117,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       @PathVariable String exerciseId,
       @Valid @RequestBody LessonsCategoryCreateInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     LessonsCategory lessonsCategory = new LessonsCategory();
     lessonsCategory.setUpdateAttributes(input);
     lessonsCategory.setExercise(exercise);
@@ -138,6 +135,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Iterable<LessonsCategory> resetExerciseLessonsAnswers(
       TxCtx ctx, @PathVariable String exerciseId) {
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     List<LessonsAnswer> lessonsAnswers =
         lessonsCategoryRepository
             .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
@@ -171,6 +169,7 @@ public class ExerciseLessonsApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Iterable<LessonsCategory> emptyExerciseLessons(
       TxCtx ctx, @PathVariable String exerciseId) {
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     List<LessonsCategory> lessonsCategories =
         lessonsCategoryRepository
             .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
@@ -199,10 +198,8 @@ public class ExerciseLessonsApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsCategoryUpdateInput input) {
-    LessonsCategory lessonsTemplateCategory =
-        lessonsCategoryRepository
-            .findById(lessonsCategoryId)
-            .orElseThrow(ElementNotFoundException::new);
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    LessonsCategory lessonsTemplateCategory = categoryOfExercise(exerciseId, lessonsCategoryId);
     lessonsTemplateCategory.setUpdateAttributes(input);
     lessonsTemplateCategory.setUpdated(now());
     return hydrateForResponse(lessonsCategoryRepository.save(lessonsTemplateCategory));
@@ -219,7 +216,8 @@ public class ExerciseLessonsApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public void deleteExerciseLessonsCategory(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String lessonsCategoryId) {
-    lessonsCategoryRepository.deleteById(lessonsCategoryId);
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    lessonsCategoryRepository.delete(categoryOfExercise(exerciseId, lessonsCategoryId));
   }
 
   @PutMapping({
@@ -236,10 +234,8 @@ public class ExerciseLessonsApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsCategoryTeamsInput input) {
-    LessonsCategory lessonsCategory =
-        lessonsCategoryRepository
-            .findById(lessonsCategoryId)
-            .orElseThrow(ElementNotFoundException::new);
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    LessonsCategory lessonsCategory = categoryOfExercise(exerciseId, lessonsCategoryId);
     Iterable<Team> lessonsCategoryTeams = teamRepository.findAllById(input.getTeamIds());
     lessonsCategory.setTeams(fromIterable(lessonsCategoryTeams));
     return hydrateForResponse(lessonsCategoryRepository.save(lessonsCategory));
@@ -256,6 +252,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public Iterable<LessonsQuestion> exerciseLessonsQuestions(
       TxCtx ctx, @PathVariable String exerciseId) {
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
         .stream()
@@ -278,6 +275,8 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public Iterable<LessonsQuestion> exerciseLessonsCategoryQuestions(
       TxCtx ctx, @PathVariable String exerciseId, @PathVariable String lessonsCategoryId) {
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    categoryOfExercise(exerciseId, lessonsCategoryId);
     return lessonsQuestionRepository.findAll(
         LessonsQuestionSpecification.fromCategory(lessonsCategoryId));
   }
@@ -296,10 +295,8 @@ public class ExerciseLessonsApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsQuestionCreateInput input) {
-    LessonsCategory lessonsCategory =
-        lessonsCategoryRepository
-            .findById(lessonsCategoryId)
-            .orElseThrow(ElementNotFoundException::new);
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    LessonsCategory lessonsCategory = categoryOfExercise(exerciseId, lessonsCategoryId);
     LessonsQuestion lessonsQuestion = new LessonsQuestion();
     lessonsQuestion.setUpdateAttributes(input);
     lessonsQuestion.setCategory(lessonsCategory);
@@ -320,12 +317,12 @@ public class ExerciseLessonsApi extends RestBehavior {
   public LessonsQuestion updateExerciseLessonsQuestion(
       TxCtx ctx,
       @PathVariable String exerciseId,
+      @PathVariable String lessonsCategoryId,
       @PathVariable String lessonsQuestionId,
       @Valid @RequestBody LessonsQuestionUpdateInput input) {
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     LessonsQuestion lessonsQuestion =
-        lessonsQuestionRepository
-            .findById(lessonsQuestionId)
-            .orElseThrow(ElementNotFoundException::new);
+        questionOfCategory(exerciseId, lessonsCategoryId, lessonsQuestionId);
     lessonsQuestion.setUpdateAttributes(input);
     lessonsQuestion.setUpdated(now());
     return lessonsQuestionRepository.save(lessonsQuestion);
@@ -343,8 +340,13 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   @Transactional(rollbackFor = Exception.class)
   public void deleteExerciseLessonsQuestion(
-      TxCtx ctx, @PathVariable String exerciseId, @PathVariable String lessonsQuestionId) {
-    lessonsQuestionRepository.deleteById(lessonsQuestionId);
+      TxCtx ctx,
+      @PathVariable String exerciseId,
+      @PathVariable String lessonsCategoryId,
+      @PathVariable String lessonsQuestionId) {
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    lessonsQuestionRepository.delete(
+        questionOfCategory(exerciseId, lessonsCategoryId, lessonsQuestionId));
   }
 
   @PostMapping({
@@ -363,9 +365,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       // association is empty and the send throws IllegalStateException).
       TxCtx ctx, @PathVariable String exerciseId, @Valid @RequestBody LessonsSendInput input) {
     Exercise exercise =
-        exerciseRepository
-            .findByIdAndTenantId(exerciseId, TenantContext.getCurrentTenant())
-            .orElseThrow(ElementNotFoundException::new);
+        exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     List<LessonsCategory> lessonsCategories =
         lessonsCategoryRepository
             .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
@@ -392,6 +392,7 @@ public class ExerciseLessonsApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public List<LessonsAnswer> exerciseLessonsAnswers(
       TxCtx ctx, @PathVariable String exerciseId, @RequestParam Optional<String> userId) {
+    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     return lessonsCategoryRepository
         .findAll(LessonsCategorySpecification.fromExercise(exerciseId))
         .stream()
@@ -525,5 +526,29 @@ public class ExerciseLessonsApi extends RestBehavior {
     lessonsAnswer.setNegative(input.getNegative());
 
     return lessonsAnswerRepository.save(lessonsAnswer);
+  }
+
+  /** The category, only when it belongs to the given simulation. */
+  private LessonsCategory categoryOfExercise(String exerciseId, String lessonsCategoryId) {
+    return lessonsCategoryRepository
+        .findById(lessonsCategoryId)
+        .filter(
+            category ->
+                category.getExercise() != null && exerciseId.equals(category.getExercise().getId()))
+        .orElseThrow(ElementNotFoundException::new);
+  }
+
+  /** The question, only when it belongs to the category of the path, itself in the simulation. */
+  private LessonsQuestion questionOfCategory(
+      String exerciseId, String lessonsCategoryId, String lessonsQuestionId) {
+    return lessonsQuestionRepository
+        .findById(lessonsQuestionId)
+        .filter(
+            question ->
+                question.getCategory() != null
+                    && lessonsCategoryId.equals(question.getCategory().getId())
+                    && question.getCategory().getExercise() != null
+                    && exerciseId.equals(question.getCategory().getExercise().getId()))
+        .orElseThrow(ElementNotFoundException::new);
   }
 }

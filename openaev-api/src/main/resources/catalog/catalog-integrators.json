@@ -1922,8 +1922,8 @@
         {
             "title": "Splunk Enterprise Security",
             "slug": "openaev_splunk_es",
-            "description": "Validate OpenAEV detection expectations against Splunk Enterprise Security by collecting the notable events your SIEM raises in response to simulated attacks.",
-            "short_description": "Collect notable events from Splunk Enterprise Security",
+            "description": "Validate OpenAEV detection and logging expectations against Splunk Enterprise Security by collecting the notable events your SIEM raises and the raw logs your endpoints send in response to simulated attacks.",
+            "short_description": "Collect notable events and raw logs from Splunk Enterprise Security",
             "use_cases": [
                 "Security response"
             ],
@@ -2031,6 +2031,25 @@
                     },
                     "SPLUNKES_QUERY_TEMPLATE": {
                         "description": "SPL query template for fetching alerts. Placeholders: {alerts_index} (configured index), {source_ips} (source IP values, quoted for IN operator; * if none), {target_ips} (target IP values, quoted for IN operator; * if none), {hostnames} (hostname values, quoted for IN operator; * if none), {start_date} (inject start date or relative time like -3600s), {end_date} (inject end date or 'now'). Implant names, URLs and other signatures are not query placeholders: they are matched afterwards in each alert's _raw text. The query MUST include '| table _time' for proper alert parsing. Leave empty to use the collector's built-in query.",
+                        "type": "string"
+                    },
+                    "SPLUNKES_LOGGING_ENABLED": {
+                        "default": false,
+                        "description": "Search raw-event indexes to answer LOGGING expectations. Requires LOGGING_EXPECTATION preview feature and SPLUNKES_LOGGING_INDEXES.",
+                        "type": "boolean"
+                    },
+                    "SPLUNKES_LOGGING_INDEXES": {
+                        "description": "Comma-separated raw-event indexes or patterns searched for LOGGING expectations (e.g. sysmon,wineventlog). Required when SPLUNKES_LOGGING_ENABLED is true.",
+                        "type": "string"
+                    },
+                    "SPLUNKES_LOGGING_QUERY_TEMPLATE": {
+                        "description": "SPL template of the Logging search, to adapt it to your data (sourcetypes, data models, field names). Placeholders: {indexes}, {earliest}, {latest}, {terms}, {source_ips}, {target_ips}. Must include '| table _time, index, _raw'. Leave empty to use the built-in search.",
+                        "type": "string"
+                    },
+                    "SPLUNKES_LOGGING_MAX_INTERVAL": {
+                        "default": "PT15M",
+                        "description": "Longest time between two Logging searches of the same expectation (ISO 8601, at most PT1H).",
+                        "format": "duration",
                         "type": "string"
                     }
                 },
@@ -3829,13 +3848,13 @@
                         "default": ".alerts-security.alerts-*"
                     },
                     "ELASTIC_QUERY_TEMPLATE": {
-                        "description": "Lucene query_string template used to correlate alerts with an expectation. Placeholders: {alerts_index} (configured index), {source_ips} (source IP values), {target_ips} (target IP values), {implant_urls} (implant callback URL paths), {implant_names} (implant process names), {start_date} (inject start date), {end_date} (inject end date), {time_window} (time window). Each list placeholder is rendered as an OR-joined set of quoted values, so write e.g. 'host.ip:({source_ips})'. The time range is always applied separately as an @timestamp filter. Leave empty to use the collector's built-in query.",
+                        "description": "Lucene query_string template used to correlate alerts with an expectation. Placeholders: {alerts_index} (configured index), {source_ips} (source IP values), {target_ips} (target IP values), {implant_urls} (implant callback URL paths), {implant_names} (implant process names), {start_date} (inject start date), {end_date} (inject end date), {time_window} (time window). Each list placeholder is rendered as an OR-joined set of quoted values, so write e.g. 'host.ip:({source_ips})'. The time range is always applied separately as an @timestamp filter. Leave empty to use the collector's built-in query, which then follows collector updates. To customize it, copy and edit the built-in query: (source.ip:({source_ips}) OR host.ip:({source_ips}) OR client.ip:({source_ips})) OR (destination.ip:({target_ips}) OR server.ip:({target_ips}) OR host.ip:({target_ips})) OR (url.path:({implant_urls}) OR url.original:({implant_urls})) OR (process.name:({implant_names}) OR process.parent.name:({implant_names}) OR process.command_line:({implant_names}))",
                         "type": "string"
                     },
                     "ELASTIC_EVENTS_INDEX": {
-                        "description": "Index pattern of raw endpoint/process events used to drill down from a detection alert to its source process and recover the OpenAEV implant marker. This enables deterministic per-inject correlation. Leave empty to disable the drilldown and fall back to host/IP + time correlation only.",
+                        "description": "Index pattern of raw endpoint/process events used to drill down from a detection alert to its source process and recover the OpenAEV implant marker. This enables deterministic per-inject correlation. The default covers Sysmon, Elastic Defend and the Windows Security channel (process creation auditing, event 4688); a host with no process-creation event in this index is correlated on host/IP + time. Leave empty to disable the drilldown and fall back to host/IP + time correlation only.",
                         "type": "string",
-                        "default": "logs-windows.sysmon_operational-*,logs-endpoint.events.process-*"
+                        "default": "logs-windows.sysmon_operational-*,logs-endpoint.events.process-*,logs-system.security-*"
                     },
                     "ELASTIC_KIBANA_URL": {
                         "description": "Kibana base URL used to build trace links. When unset, it is derived from the base URL.",

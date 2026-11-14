@@ -425,6 +425,12 @@ public class Asset implements TenantBase {
     return Objects.hash(id);
   }
 
+  @Override
+  @JsonIgnore
+  public String getStreamSchema() {
+    return category == AssetCategory.AI_TARGET ? "aitargets" : null;
+  }
+
   public Asset() {}
 
   public Asset(String id, String type, String name) {

@@ -1,7 +1,6 @@
 package io.openaev.rest.challenge;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
-import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 
 import io.openaev.aop.AccessControl;
@@ -83,8 +82,11 @@ public class ChallengeApi extends RestBehavior {
     challengeService.validateFlags(input.flags());
     Challenge challenge =
         challengeRepository.findById(challengeId).orElseThrow(ElementNotFoundException::new);
-    challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
-    challenge.setDocuments(fromIterable(documentRepository.findAllById(input.documentIds())));
+    challenge.setTags(
+        iterableToSet(
+            tagRepository.findAllByIdInTenant(input.tagIds(), challenge.getTenant().getId())));
+    challenge.setDocuments(
+        documentRepository.findAllByIdInTenant(input.documentIds(), challenge.getTenant().getId()));
     challenge.setUpdateAttributes(input);
     challenge.setUpdatedAt(Instant.now());
     // Clear all flags
@@ -116,8 +118,8 @@ public class ChallengeApi extends RestBehavior {
     Challenge challenge = new Challenge();
     challenge.setTenant(new Tenant(tenantId));
     challenge.setUpdateAttributes(input);
-    challenge.setTags(iterableToSet(tagRepository.findAllById(input.tagIds())));
-    challenge.setDocuments(fromIterable(documentRepository.findAllById(input.documentIds())));
+    challenge.setTags(iterableToSet(tagRepository.findAllByIdInTenant(input.tagIds(), tenantId)));
+    challenge.setDocuments(documentRepository.findAllByIdInTenant(input.documentIds(), tenantId));
     List<ChallengeFlag> challengeFlags =
         new ArrayList<>(
             input.flags().stream()

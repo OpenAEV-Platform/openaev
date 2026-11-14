@@ -3,11 +3,7 @@ import { useEffect, useState } from 'react';
 import { adHocSeries } from '../../../actions/dashboards/dashboard-action';
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import { type EsSeries, type Filter, type FilterGroup, type Widget } from '../../../utils/api-types';
-
-// Every expectation type the platform can validate (kept in sync with the
-// backend EXPECTATION_TYPE enum). Explicit per-type series are queried so the
-// totals never depend on how the engine keys a structural breakdown.
-const EXPECTATION_TYPES = ['PREVENTION', 'DETECTION', 'VULNERABILITY', 'MANUAL', 'ARTICLE', 'CHALLENGE'];
+import { POSTURE_EXPECTATION_TYPES } from '../common/injects/expectations/Expectation';
 
 export interface PostureBreakdownEntry {
   key: string;
@@ -74,7 +70,9 @@ const useExpectationPosture = (
     const config = {
       title: '',
       field: 'inject_expectation_type',
-      series: EXPECTATION_TYPES.flatMap(type => ['SUCCESS', 'FAILED'].map(status => ({
+      // Explicit per-type series, so the totals never depend on how the engine keys a
+      // structural breakdown.
+      series: POSTURE_EXPECTATION_TYPES.flatMap(type => ['SUCCESS', 'FAILED'].map(status => ({
         name: `${type}_${status}`,
         filter: expectation([
           filter('inject_expectation_type', [type]),
@@ -103,7 +101,7 @@ const useExpectationPosture = (
     };
   }, [scopeField, entityId, scopeOperator]);
 
-  const breakdown = EXPECTATION_TYPES
+  const breakdown = POSTURE_EXPECTATION_TYPES
     .map(type => ({
       key: type,
       success: namedTotal(series, `${type}_SUCCESS`),

@@ -4,22 +4,30 @@ import static io.openaev.config.SessionHelper.currentUser;
 import static io.openaev.database.audit.ModelBaseListener.DATA_DELETE;
 import static java.time.Instant.now;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.*;
 import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
+import io.openaev.service.stream.StreamClearanceService;
+import io.openaev.service.stream.StreamVisibility;
+import io.openaev.service.stream.StreamVisibilityService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Objects;
@@ -27,6 +35,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.scheduling.annotation.Async;
@@ -72,7 +81,12 @@ public class StreamService {
   private final PermissionService permissionService;
   private final UserService userService;
   private final AttackPathAccessControl attackPathAccessControl;
+  private final StreamClearanceService streamClearanceService;
+  private final StreamVisibilityService streamVisibilityService;
   private final ObjectMapper mapper;
+
+  // Built on the first user event: the stream's own mapper is untouched, REST keeps its output.
+  private volatile ObjectMapper userStreamMapper;
 
   private Instant lastUpdate = Instant.now();
 
@@ -117,10 +131,7 @@ public class StreamService {
   private boolean hasReadPermission(StreamConsumer consumer, User user, BaseEvent event) {
     String resourceId = event.getPermissionResourceId();
     ResourceType resourceType = event.getPermissionResourceType();
-    String checkTenantId =
-        Optional.ofNullable(tenantOf(event.getInstance()))
-            .or(() -> Optional.ofNullable(consumer.tenantId()).filter(id -> !id.isBlank()))
-            .orElse(null);
+    String checkTenantId = checkTenantOf(consumer, event);
     try {
       return hasReadPermission(
           consumer,
@@ -133,6 +144,15 @@ public class StreamService {
                       TxCtx.forTenant(checkTenantId), user, resourceId, resourceType, Action.READ)
                   : permissionService.hasPermission(
                       user, Optional.empty(), resourceId, resourceType, Action.READ));
+    } catch (IllegalArgumentException e) {
+      // PermissionService refuses a resource it cannot resolve in a scope: an inject with no tenant
+      // to resolve it in. Fails closed like any other failed check, but a refusal is not routine.
+      log.warn(
+          "Stream permission check refused for {} {}, treated as denied: {}",
+          resourceType,
+          resourceId,
+          e.getMessage());
+      return false;
     } catch (Exception e) {
       log.debug(
           "Stream permission check failed for {} {}, treated as denied",
@@ -141,6 +161,50 @@ public class StreamService {
           e);
       return false;
     }
+  }
+
+  /** The tenant the checks of an event run in: the row's, else the consumer's, else none. */
+  private static String checkTenantOf(StreamConsumer consumer, BaseEvent event) {
+    return Optional.ofNullable(tenantOf(event.getInstance()))
+        .or(() -> Optional.ofNullable(consumer.tenantId()).filter(id -> !id.isBlank()))
+        .orElse(null);
+  }
+
+  /**
+   * Once per event, after commit; on failure, only the readers who see everything get it. With the
+   * MARKING preview feature off, or assets not activated for marking, every event is unfiltered.
+   */
+  private StreamVisibility visibilityOf(BaseEvent event) {
+    if (!streamClearanceService.isFiltering()) {
+      return StreamVisibility.UNFILTERED;
+    }
+    try {
+      return streamVisibilityService.visibilityOf(event, markingTenantOf(event));
+    } catch (RuntimeException e) {
+      log.warn("Cannot read the markings of a {} event", event.getSchema(), e);
+      return StreamVisibility.unresolved();
+    }
+  }
+
+  /**
+   * The marking clearance the event is checked against for this consumer. Checked after the READ
+   * permission: reading assets does not mean reading every asset.
+   */
+  private MarkingCtx clearanceOf(StreamConsumer consumer, User user, BaseEvent event) {
+    String tenantId =
+        Optional.ofNullable(markingTenantOf(event))
+            .or(() -> Optional.ofNullable(consumer.tenantId()).filter(id -> !id.isBlank()))
+            .orElse(null);
+    return streamClearanceService.clearanceFor(user, tenantId);
+  }
+
+  /**
+   * The tenant an event's markings are read in, and its readers' clearance resolved in: the
+   * entity's, else the one the event was written in (an expectation has no tenant).
+   */
+  private static String markingTenantOf(BaseEvent event) {
+    String rowTenantId = tenantOf(event.getInstance());
+    return rowTenantId != null ? rowTenantId : event.getTenantId();
   }
 
   /**
@@ -208,10 +272,14 @@ public class StreamService {
       PermissionService permissionService,
       UserService userService,
       AttackPathAccessControl attackPathAccessControl,
+      StreamClearanceService streamClearanceService,
+      StreamVisibilityService streamVisibilityService,
       ObjectMapper mapper) {
     this.permissionService = permissionService;
     this.userService = userService;
     this.attackPathAccessControl = attackPathAccessControl;
+    this.streamClearanceService = streamClearanceService;
+    this.streamVisibilityService = streamVisibilityService;
     this.mapper = mapper;
   }
 
@@ -226,6 +294,37 @@ public class StreamService {
         ServerSentEvent.builder(event).event(EVENT_TYPE_MESSAGE).build();
     flux.next(message);
   }
+
+  private static final String USER_ORGANIZATION_FIELD = "user_organization";
+  private static final String USER_TEAMS_FIELD = "user_teams";
+  private static final String USER_TAGS_FIELD = "user_tags";
+  private static final String USER_COMMUNICATIONS_FIELD = "user_communications";
+  private static final String USER_EXERCISE_TEAM_USERS_FIELD = "team_exercises_users";
+  private static final String USER_IS_PLAYER_FIELD = "user_is_player";
+  private static final String USER_GRANTS_FIELD = "user_grants";
+  private static final String USER_HOME_DASHBOARD_FIELD = "user_home_dashboard";
+
+  /**
+   * The user as the stream serializes it: the fields that read a lazy collection are not
+   * serialized, so the serializer never touches {@code teams}, {@code tags}, {@code communications}
+   * nor {@code exerciseTeamUsers}, and a collection that was not loaded is never initialized from
+   * the stream thread. {@code user_teams} and {@code user_tags} are rebuilt from the collections
+   * when they are loaded, {@code user_is_player} from them, and the other two are never sent: their
+   * ids carry no tenant and no screen reads them from the stream. {@code unscopedGroups} is not
+   * serialized either.
+   *
+   * <p>That guarantee stops there: {@code user_organization} is still serialized, and reads {@code
+   * organizations}, which the writer of the event loads ({@code User#loadOrganizations}).
+   */
+  @JsonIgnoreProperties({
+    USER_TEAMS_FIELD,
+    USER_TAGS_FIELD,
+    USER_COMMUNICATIONS_FIELD,
+    USER_EXERCISE_TEAM_USERS_FIELD,
+    USER_IS_PLAYER_FIELD,
+    "unscopedGroups"
+  })
+  private abstract static class UserStreamMixIn {}
 
   private static final EnumSet<ResourceType> RESOURCES_STREAM_EXCLUSION =
       EnumSet.of(
@@ -253,11 +352,12 @@ public class StreamService {
       lastUpdate = Instant.now();
     }
 
+    StreamVisibility visibility = visibilityOf(event);
     consumers.forEach(
         (key, consumer) -> {
           // Isolated per consumer: one failing delivery must not stop the fan-out to the others.
           try {
-            streamDatabaseEvent(consumer, event);
+            streamDatabaseEvent(consumer, event, visibility);
           } catch (Exception e) {
             log.warn(
                 "Failed to stream {} event on {} to user {}",
@@ -269,7 +369,8 @@ public class StreamService {
         });
   }
 
-  private void streamDatabaseEvent(StreamConsumer consumer, BaseEvent event) {
+  private void streamDatabaseEvent(
+      StreamConsumer consumer, BaseEvent event, StreamVisibility visibility) {
     if (!isVisibleForTenant(event, consumer.tenantId())) {
       return;
     }
@@ -324,18 +425,125 @@ public class StreamService {
           String simpleName = event.getInstance().getClass().getSimpleName();
           log.warn(String.format("Class %s can't be streamed", simpleName), e);
         }
-      } else if (event.getInstance().getResourceType() == ResourceType.NOTIFIER
-          && !permissionService.hasCapabilityPermission(user, ResourceType.NOTIFIER, Action.READ)) {
-        ObjectNode instanceData = mapper.valueToTree(event.getInstance());
-        instanceData.putNull("notifier_configuration");
-        sendStreamEvent(fluxSink, event.clone(), instanceData);
       } else {
-        sendStreamEvent(fluxSink, event);
+        MarkingCtx clearance =
+            visibility.isUnfiltered() ? MarkingCtx.all() : clearanceOf(consumer, user, event);
+        if (!visibility.visibleUnder(clearance)) {
+          // Above the consumer's clearance: like a READ denial, nothing is sent, not even a
+          // tombstone, since the id and timing of a hidden asset are already a disclosure.
+          return;
+        }
+        if (event.getInstance().getResourceType() == ResourceType.NOTIFIER
+            && !permissionService.hasCapabilityPermission(
+                user, ResourceType.NOTIFIER, Action.READ)) {
+          ObjectNode instanceData = mapper.valueToTree(event.getInstance());
+          instanceData.putNull("notifier_configuration");
+          sendStreamEvent(fluxSink, event.clone(), instanceData);
+        } else if (event.getInstance() instanceof User streamedUser) {
+          sendStreamEvent(fluxSink, event.clone(), userInTenantOf(consumer, event, streamedUser));
+        } else if (visibility.filtersPayload() && !(clearance instanceof MarkingCtx.All)) {
+          sendStreamEvent(fluxSink, event.clone(), visibility.payloadFor(clearance));
+        } else {
+          sendStreamEvent(fluxSink, event);
+        }
       }
     } finally {
       // Reset tenant context unconditionally to avoid leaking into other
       // consumers in the loop or into later tasks on this pooled thread
       TenantContext.clearCurrentTenant();
+    }
+  }
+
+  /**
+   * The user as the consumer's tenant holds it, in a tree of its own: a user is platform-level, so
+   * its event is delivered to the consumers of each tenant, and the instance it holds was loaded in
+   * the scope of the write.
+   *
+   * <ul>
+   *   <li>{@code user_teams} and {@code user_tags} keep the ids of the consumer's tenant, read from
+   *       the entities already loaded, nothing is initialized. The field is left out, so the
+   *       consumer keeps what it holds, when a collection or one of its links was not loaded, or
+   *       when nothing of its tenant was loaded and the write was made in another tenant.
+   *   <li>{@code user_is_player} is true for an admin, a planner or an observer, as serialized for
+   *       the consumer's tenant, and otherwise follows the {@code user_teams} sent: true when it
+   *       holds an id, false when it is sent empty, left out when {@code user_teams} is.
+   *   <li>{@code user_organization} is left out when the write was made in another tenant, as the
+   *       user is only loaded with the organizations of the write.
+   *   <li>{@code user_communications}, {@code team_exercises_users} and {@code unscopedGroups} are
+   *       never sent.
+   *   <li>{@code user_grants} and {@code user_home_dashboard} hold ids of the tenant that set them,
+   *       and only the user reads them: they go to the consumer of that user.
+   * </ul>
+   *
+   * The groups, capabilities and the other flags are derived from the tenant context of the
+   * consumer, set by the caller, and need no trim.
+   *
+   * <p>When the consumer's tenant is null, the write is never in the consumer's tenant: no id is of
+   * its tenant, and {@code user_teams} and {@code user_tags} are left out, not sent empty.
+   *
+   * <p>A field added to {@code User} is ruled on here, and added to {@code STREAMED_USER_FIELDS} in
+   * {@code UserStreamEventConsumerTenantTest}.
+   */
+  private ObjectNode userInTenantOf(StreamConsumer consumer, BaseEvent event, User user) {
+    String consumerTenantId = consumer.tenantId();
+    boolean writtenInConsumerTenant =
+        consumerTenantId != null && consumerTenantId.equals(event.getTenantId());
+    ObjectNode data = userStreamMapper().valueToTree(user);
+    putIdsOfTenant(
+        data, USER_TEAMS_FIELD, user.getTeams(), consumerTenantId, writtenInConsumerTenant);
+    putIdsOfTenant(
+        data, USER_TAGS_FIELD, user.getTags(), consumerTenantId, writtenInConsumerTenant);
+    putIsPlayer(data);
+    if (!writtenInConsumerTenant) {
+      data.remove(USER_ORGANIZATION_FIELD);
+    }
+    if (!consumer.principal().getId().equals(user.getId())) {
+      data.remove(USER_GRANTS_FIELD);
+      data.remove(USER_HOME_DASHBOARD_FIELD);
+    }
+    return data;
+  }
+
+  private ObjectMapper userStreamMapper() {
+    ObjectMapper userMapper = userStreamMapper;
+    if (userMapper == null) {
+      userMapper = mapper.copy().addMixIn(User.class, UserStreamMixIn.class);
+      userStreamMapper = userMapper;
+    }
+    return userMapper;
+  }
+
+  private void putIdsOfTenant(
+      ObjectNode data,
+      String field,
+      Collection<? extends Base> links,
+      String tenantId,
+      boolean writtenInConsumerTenant) {
+    if (!Hibernate.isInitialized(links)) {
+      return;
+    }
+    ArrayNode ids = mapper.createArrayNode();
+    for (Base link : links) {
+      if (!Hibernate.isInitialized(link)) {
+        return;
+      }
+      if (tenantId != null && tenantId.equals(tenantOf(link))) {
+        ids.add(link.getId());
+      }
+    }
+    if (!ids.isEmpty() || writtenInConsumerTenant) {
+      data.set(field, ids);
+    }
+  }
+
+  /** The rule of {@code User#isPlayer}, over the flags and the teams as sent to the consumer. */
+  private void putIsPlayer(ObjectNode data) {
+    if (data.path("user_admin").asBoolean()
+        || data.path("user_is_planner").asBoolean()
+        || data.path("user_is_observer").asBoolean()) {
+      data.set(USER_IS_PLAYER_FIELD, BooleanNode.TRUE);
+    } else if (data.has(USER_TEAMS_FIELD)) {
+      data.set(USER_IS_PLAYER_FIELD, BooleanNode.valueOf(!data.path(USER_TEAMS_FIELD).isEmpty()));
     }
   }
 

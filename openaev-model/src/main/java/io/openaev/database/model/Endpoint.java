@@ -13,8 +13,7 @@ import jakarta.persistence.*;
 import java.util.*;
 import java.util.stream.StreamSupport;
 import lombok.*;
-import org.hibernate.annotations.Fetch;
-import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.BatchSize;
 
 // Identity comes from Asset (id only). Hashing the fields would initialize the lazy injects Set
 // (PersistentSet.hashCode reads it) and load every inject of the endpoint.
@@ -155,7 +154,9 @@ public class Endpoint extends Asset implements AuditStateCapturable {
       fetch = FetchType.EAGER,
       cascade = CascadeType.ALL,
       orphanRemoval = true)
-  @Fetch(FetchMode.SUBSELECT)
+  // Batch fetching, not @Fetch(SUBSELECT): same shape as Inject.expectations, which hits a
+  // Hibernate SubselectFetch bug on refresh.
+  @BatchSize(size = 1000)
   @JsonProperty("asset_agents")
   @JsonSerialize(using = MultiModelSerializer.class)
   private List<Agent> agents = new ArrayList<>();
@@ -192,6 +193,12 @@ public class Endpoint extends Asset implements AuditStateCapturable {
     if (this.getCategory() == null) {
       this.setCategory(AssetCategory.HOST);
     }
+  }
+
+  @Override
+  @JsonIgnore
+  public String getStreamSchema() {
+    return "endpoints";
   }
 
   public Endpoint() {}

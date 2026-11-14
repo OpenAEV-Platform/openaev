@@ -18,8 +18,10 @@ import io.openaev.database.model.User;
 import io.openaev.database.raw.RawNewsFeedItemKey;
 import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.repository.NewsFeedItemRepository;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.ReferenceResolver;
+import io.openaev.utils.fixtures.NewsFeedItemFixture;
 import io.openaev.xtmhub.ProvisionedNewsFeedItem;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -48,13 +50,19 @@ class NewsFeedItemServiceTest {
   @Mock private UserService userService;
   @Mock private ReferenceResolver referenceResolver;
   @Mock private TenantScopedTransaction tenantTx;
+  @Mock private PreviewFeatureService previewFeatureService;
 
   private NewsFeedItemService service;
 
   @BeforeEach
   void setUp() {
     service =
-        new NewsFeedItemService(newsFeedItemRepository, userService, referenceResolver, tenantTx);
+        new NewsFeedItemService(
+            newsFeedItemRepository,
+            userService,
+            referenceResolver,
+            tenantTx,
+            previewFeatureService);
     // runs the work inline: the transaction itself is covered by the integration tests
     lenient()
         .doAnswer(invocation -> invocation.<Supplier<Object>>getArgument(1).get())
@@ -279,5 +287,51 @@ class NewsFeedItemServiceTest {
     // Assert
     verifyNoInteractions(userService);
     verify(newsFeedItemRepository, never()).saveAllAndFlush(anyCollection());
+  }
+
+  @Test
+  @DisplayName("Given the current user, should count only their unread items")
+  void given_currentUser_should_countTheirUnreadItems() {
+    // Arrange
+    User me = new User();
+    me.setId("me");
+    when(userService.currentUser()).thenReturn(me);
+    when(newsFeedItemRepository.countByUserIdAndReadFalse("me")).thenReturn(3L);
+
+    // Act & Assert
+    assertThat(service.countMyUnreadItems()).isEqualTo(3L);
+  }
+
+  @Test
+  @DisplayName("Given unread items of the current user, should mark them all as read")
+  void given_unreadItems_should_markThemRead() {
+    // Arrange
+    User me = new User();
+    me.setId("me");
+    when(userService.currentUser()).thenReturn(me);
+    List<NewsFeedItem> unread =
+        List.of(
+            NewsFeedItemFixture.createNewsFeedItem(me, "hub-1"),
+            NewsFeedItemFixture.createNewsFeedItem(me, "hub-2"));
+    when(newsFeedItemRepository.findAllByUserIdAndReadFalse("me")).thenReturn(unread);
+
+    // Act
+    service.markMyItemsRead();
+
+    // Assert
+    assertThat(unread).allMatch(NewsFeedItem::isRead);
+    verify(newsFeedItemRepository).saveAll(unread);
+  }
+
+  @Test
+  @DisplayName("Given the feature flag, should tell whether the news feed is enabled")
+  void given_featureFlag_should_tellWhetherEnabled() {
+    // Arrange
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED))
+        .thenReturn(true, false);
+
+    // Act & Assert
+    assertThat(service.isFeatureEnabled()).isTrue();
+    assertThat(service.isFeatureEnabled()).isFalse();
   }
 }

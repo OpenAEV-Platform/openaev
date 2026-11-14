@@ -4,6 +4,7 @@ import io.openaev.database.model.Exercise;
 import io.openaev.database.raw.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -28,6 +29,15 @@ public interface ExerciseRepository
   Optional<Exercise> findByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
 
   boolean existsByIdAndTenantId(@NotNull String id, @NotNull String tenantId);
+
+  /**
+   * By-id read keyed on a request's resolved tenant scope rather than on the v1 ambient tenant,
+   * which is set only on the tenant-prefixed route.
+   */
+  Optional<Exercise> findByIdAndTenantIdIn(
+      @NotNull String id, @NotNull Collection<String> tenantIds);
+
+  boolean existsByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
 
   @Modifying
   @Query(value = "DELETE FROM exercises WHERE exercise_id = :simulationId", nativeQuery = true)
@@ -78,7 +88,7 @@ public interface ExerciseRepository
    */
   @Query(
       value =
-          " SELECT ex.exercise_id, "
+          " SELECT ex.exercise_id, ex.tenant_id, "
               + "ex.exercise_status, "
               + "ex.exercise_start_date, "
               + "ex.exercise_updated_at, "
@@ -104,7 +114,7 @@ public interface ExerciseRepository
    */
   @Query(
       value =
-          " SELECT ex.exercise_id, "
+          " SELECT ex.exercise_id, ex.tenant_id, "
               + "ex.exercise_status, "
               + "ex.exercise_start_date, "
               + "ex.exercise_updated_at, "
@@ -327,7 +337,8 @@ public interface ExerciseRepository
           """
                 SELECT DISTINCT e.exercise_id AS id, e.exercise_name AS label, e.exercise_created_at
                 FROM injects i
-                INNER JOIN findings f ON f.finding_inject_id = i.inject_id
+                INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
+                INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
                 INNER JOIN exercises e ON i.inject_exercise = e.exercise_id
                 WHERE (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
                 AND i.tenant_id = :#{#tenantContext.currentTenant}
@@ -341,7 +352,8 @@ public interface ExerciseRepository
           """
                 SELECT DISTINCT e.exercise_id AS id, e.exercise_name AS label, e.exercise_created_at
                 FROM injects i
-                INNER JOIN findings f ON f.finding_inject_id = i.inject_id
+                INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
+                INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
                 LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
                 LEFT JOIN exercises e ON i.inject_exercise = e.exercise_id
                 LEFT JOIN scenarios_exercises se ON se.exercise_id = e.exercise_id

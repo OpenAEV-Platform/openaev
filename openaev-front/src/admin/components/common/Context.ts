@@ -11,6 +11,7 @@ import {
   type Channel,
   type Evaluation,
   type EvaluationInput,
+  type ImportPostSummary,
   type ImportTestSummary,
   type Inject,
   type InjectBulkProcessingInput,
@@ -23,11 +24,9 @@ import {
   type LessonsCategoryCreateInput,
   type LessonsCategoryTeamsInput,
   type LessonsCategoryUpdateInput,
-  type LessonsQuestion,
   type LessonsQuestionCreateInput,
   type LessonsQuestionUpdateInput,
   type LessonsSendInput,
-  type Objective,
   type ObjectiveInput,
   type PublicExercise,
   type PublicScenario,
@@ -167,6 +166,7 @@ export type InjectContextType = {
   }>;
   onDeleteInject: (injectId: Inject['inject_id']) => Promise<void>;
   onImportInjectFromJson?: (file: File) => Promise<void>;
+  onStoreXlsFile?: (file: File) => Promise<ImportPostSummary>;
   onImportInjectFromXls?: (importId: string, input: InjectsImportInput) => Promise<ImportTestSummary>;
   onDryImportInjectFromXls?: (importId: string, input: InjectsImportInput) => Promise<ImportTestSummary>;
   onBulkDeleteInjects: (param: InjectBulkProcessingInput) => Promise<Inject[]>;
@@ -181,18 +181,18 @@ export type LessonContextType = {
   onEmptyLessonsCategories: () => Promise<LessonsCategory[]>;
   onUpdateSourceLessons: (data: boolean) => Promise<{ result: string }>;
   onSendLessons?: (data: LessonsSendInput) => void;
-  onAddLessonsCategory: (data: LessonsCategoryCreateInput) => Promise<LessonsCategory>;
-  onDeleteLessonsCategory: (data: string) => void;
-  onUpdateLessonsCategory: (lessonCategoryId: string, data: LessonsCategoryUpdateInput) => Promise<LessonsCategory>;
+  onAddLessonsCategory: (data: LessonsCategoryCreateInput) => Promise<{ result?: string }>;
+  onDeleteLessonsCategory: (data: string) => Promise<unknown>;
+  onUpdateLessonsCategory: (lessonCategoryId: string, data: LessonsCategoryUpdateInput) => Promise<{ result?: string }>;
   onUpdateLessonsCategoryTeams: (lessonCategoryId: string, data: LessonsCategoryTeamsInput) => Promise<LessonsCategory>;
-  onDeleteLessonsQuestion: (lessonsCategoryId: string, lessonsQuestionId: string) => void;
-  onUpdateLessonsQuestion: (lessonsCategoryId: string, lessonsQuestionId: string, data: LessonsQuestionUpdateInput) => Promise<LessonsQuestion>;
-  onAddLessonsQuestion: (lessonsCategoryId: string, data: LessonsQuestionCreateInput) => Promise<LessonsQuestion>;
-  onAddObjective: (data: ObjectiveInput) => Promise<Objective>;
-  onUpdateObjective: (objectiveId: string, data: ObjectiveInput) => Promise<Objective>;
-  onDeleteObjective: (objectiveId: string) => void;
-  onAddEvaluation: (objectiveId: string, data: EvaluationInput) => Promise<Evaluation>;
-  onUpdateEvaluation: (objectiveId: string, evaluationId: string, data: EvaluationInput) => Promise<Evaluation>;
+  onDeleteLessonsQuestion: (lessonsCategoryId: string, lessonsQuestionId: string) => Promise<unknown>;
+  onUpdateLessonsQuestion: (lessonsCategoryId: string, lessonsQuestionId: string, data: LessonsQuestionUpdateInput) => Promise<{ result?: string }>;
+  onAddLessonsQuestion: (lessonsCategoryId: string, data: LessonsQuestionCreateInput) => Promise<{ result?: string }>;
+  onAddObjective: (data: ObjectiveInput) => Promise<{ result?: string }>;
+  onUpdateObjective: (objectiveId: string, data: ObjectiveInput) => Promise<{ result?: string }>;
+  onDeleteObjective: (objectiveId: string) => Promise<unknown>;
+  onAddEvaluation: (objectiveId: string, data: EvaluationInput) => Promise<{ result?: string }>;
+  onUpdateEvaluation: (objectiveId: string, evaluationId: string, data: EvaluationInput) => Promise<{ result?: string }>;
   onFetchEvaluation: (objectiveId: string) => Promise<Evaluation[]>;
 };
 export type ViewLessonContextType = {
@@ -392,6 +392,10 @@ export const InjectContext = createContext<InjectContextType>({
   onDeleteInject(_injectId: Inject['inject_id']): Promise<void> {
     return Promise.resolve();
   },
+  onStoreXlsFile(_file: File): Promise<ImportPostSummary> {
+    return new Promise<ImportPostSummary>(() => {
+    });
+  },
   onImportInjectFromXls(_importId: string, _input: InjectsImportInput): Promise<ImportTestSummary> {
     return new Promise<ImportTestSummary>(() => {
     });
@@ -433,46 +437,49 @@ export const LessonContext = createContext<LessonContextType>({
   },
   onSendLessons(_data: LessonsSendInput): void {
   },
-  onAddLessonsCategory(_data: LessonsCategoryCreateInput): Promise<LessonsCategory> {
-    return new Promise<LessonsCategory>(() => {
+  onAddLessonsCategory(_data: LessonsCategoryCreateInput): Promise<{ result?: string }> {
+    return new Promise<{ result?: string }>(() => {
     });
   },
-  onDeleteLessonsCategory(_data: string): void {
+  onDeleteLessonsCategory(_data: string): Promise<unknown> {
+    return Promise.resolve();
   },
-  onUpdateLessonsCategory(_lessonCategoryId: string, _data: LessonsCategoryUpdateInput): Promise<LessonsCategory> {
-    return new Promise<LessonsCategory>(() => {
+  onUpdateLessonsCategory(_lessonCategoryId: string, _data: LessonsCategoryUpdateInput): Promise<{ result?: string }> {
+    return new Promise<{ result?: string }>(() => {
     });
   },
   onUpdateLessonsCategoryTeams(_lessonCategoryId: string, _data: LessonsCategoryTeamsInput): Promise<LessonsCategory> {
     return new Promise<LessonsCategory>(() => {
     });
   },
-  onDeleteLessonsQuestion(_lessonsCategoryId: string, _lessonsQuestionId: string): void {
+  onDeleteLessonsQuestion(_lessonsCategoryId: string, _lessonsQuestionId: string): Promise<unknown> {
+    return Promise.resolve();
   },
-  onUpdateLessonsQuestion(_lessonsCategoryId: string, _lessonsQuestionId: string, _data: LessonsQuestionUpdateInput): Promise<LessonsQuestion> {
-    return new Promise<LessonsQuestion>(() => {
+  onUpdateLessonsQuestion(_lessonsCategoryId: string, _lessonsQuestionId: string, _data: LessonsQuestionUpdateInput): Promise<{ result?: string }> {
+    return new Promise<{ result?: string }>(() => {
     });
   },
-  onAddLessonsQuestion(_lessonsCategoryId: string, _data: LessonsQuestionCreateInput): Promise<LessonsQuestion> {
-    return new Promise<LessonsQuestion>(() => {
+  onAddLessonsQuestion(_lessonsCategoryId: string, _data: LessonsQuestionCreateInput): Promise<{ result?: string }> {
+    return new Promise<{ result?: string }>(() => {
     });
   },
-  onAddObjective(_data: ObjectiveInput): Promise<Objective> {
-    return new Promise<Objective>(() => {
+  onAddObjective(_data: ObjectiveInput): Promise<{ result?: string }> {
+    return new Promise<{ result?: string }>(() => {
     });
   },
-  onUpdateObjective(_objectiveId: string, _data: ObjectiveInput): Promise<Objective> {
-    return new Promise<Objective>(() => {
+  onUpdateObjective(_objectiveId: string, _data: ObjectiveInput): Promise<{ result?: string }> {
+    return new Promise<{ result?: string }>(() => {
     });
   },
-  onDeleteObjective(_objectiveId: string): void {
+  onDeleteObjective(_objectiveId: string): Promise<unknown> {
+    return Promise.resolve();
   },
-  onAddEvaluation(_objectiveId: string, _data: EvaluationInput): Promise<Evaluation> {
-    return new Promise<Evaluation>(() => {
+  onAddEvaluation(_objectiveId: string, _data: EvaluationInput): Promise<{ result?: string }> {
+    return new Promise<{ result?: string }>(() => {
     });
   },
-  onUpdateEvaluation(_objectiveId: string, _evaluationId: string, _data: EvaluationInput): Promise<Evaluation> {
-    return new Promise<Evaluation>(() => {
+  onUpdateEvaluation(_objectiveId: string, _evaluationId: string, _data: EvaluationInput): Promise<{ result?: string }> {
+    return new Promise<{ result?: string }>(() => {
     });
   },
   onFetchEvaluation(_objectiveId: string): Promise<Evaluation[]> {

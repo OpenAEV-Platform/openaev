@@ -52,6 +52,12 @@ Key checks: Filigran Design System components wherever the library ships one (no
 Key checks: step lifecycle (TEMPLATE → READY → RUN → END), `workflowService.isWorkflowEnded()` guard before execution, queue interactions only via `QueueChainingService`, global state updated before local propagation, time delays via `StepDelayQueueService` (never `Thread.sleep()`), `@WorkflowUpdateEvent` on inject-mutating methods.
 EE check: chaining EE-only endpoints/operations are explicitly marked with `@AccessControl(..., isEnterpriseEdition = true)` so AccessControlAspect enforces Enterprise Edition license validation.
 
+## CI
+
+> Full rules: [ci.instructions.md](ci.instructions.md)
+
+Key checks: no `${{ }}` expression inside a `run:` script or a `github-script` `script:` (pass it through the step `env:` and read a quoted `"$VAR"`), secrets never written into script text, arguments built as bash arrays rather than pre-quoted strings passed between steps.
+
 ## Review Style
 
 - Use **conventional comments**: `suggestion:`, `issue:`, `todo:`, `nitpick:`, `praise:`

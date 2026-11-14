@@ -1,8 +1,10 @@
-import { expect, type Locator, test } from '@playwright/test';
+import { expect, type Locator } from '@playwright/test';
 
+import { test } from '../../fixtures';
 import LeftMenuComponent from '../../model/LeftMenuComponent';
 import ThreatArsenalFormComponent from '../../model/threat-arsenals/ThreatArsenalFormComponent';
 import ThreatArsenalListPage from '../../model/threat-arsenals/ThreatArsenalListPage';
+import { WEBKIT_PAGE_LOAD_TIMEOUT } from '../../utils/constants';
 import MuiFormHelpers from '../../utils/MuiFormHelpers';
 import {
   ArchitectureConfigs, Architectures,
@@ -17,7 +19,13 @@ test.describe('Threat Arsenal form', () => {
   let threatArsenalList: ThreatArsenalListPage;
   let threatArsenalForm: ThreatArsenalFormComponent;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, browserName }) => {
+    // The WebKit stall can hit any request of the page load, including the first
+    // navigation and the menu link, so the whole load gets the WebKit budget.
+    if (browserName === 'webkit') {
+      page.setDefaultNavigationTimeout(WEBKIT_PAGE_LOAD_TIMEOUT);
+      page.setDefaultTimeout(WEBKIT_PAGE_LOAD_TIMEOUT);
+    }
     // Initialize all page objects
     leftMenu = new LeftMenuComponent(page);
     threatArsenalList = new ThreatArsenalListPage(page);

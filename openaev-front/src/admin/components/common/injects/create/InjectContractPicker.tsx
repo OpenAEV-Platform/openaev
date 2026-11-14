@@ -20,10 +20,12 @@ import { useHelper } from '../../../../../store';
 import {
   type AttackPattern,
   type Domain,
+  type Filter,
   type FilterGroup,
   type InjectorContractFullOutput,
   type InjectorContractSearchPaginationInput,
   type KillChainPhase,
+  type SearchPaginationInput,
 } from '../../../../../utils/api-types';
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
@@ -50,6 +52,24 @@ const availableFilterNames = [
   'injector_contract_payload_status',
   'injector_contract_payload_author',
 ];
+
+// Only offer the contracts an injector of the tenant is registered for: the others fail at launch.
+// Added to each request rather than to the stored filters, so it is applied to filters already
+// saved in local storage, shows no chip, and never merges with the user's own injector filter.
+const REGISTERED_INJECTOR_FILTER: Filter = {
+  id: 'registered-injector',
+  key: 'injector_contract_injectors',
+  operator: 'not_empty',
+  values: [],
+  mode: 'and',
+};
+const withRegisteredInjector = <T extends SearchPaginationInput>(input: T): T => ({
+  ...input,
+  filterGroup: {
+    mode: input.filterGroup?.mode ?? 'and',
+    filters: [...(input.filterGroup?.filters ?? []), REGISTERED_INJECTOR_FILTER],
+  },
+});
 
 interface Props {
   title: string;
@@ -131,7 +151,7 @@ const InjectContractPicker: FunctionComponent<Props> = ({
   const fetchContracts = (input: InjectorContractSearchPaginationInput) => {
     const seq = ++fetchSeqRef.current;
     setLoading(true);
-    return searchInjectorContracts(input).finally(() => {
+    return searchInjectorContracts(withRegisteredInjector(input)).finally(() => {
       if (seq === fetchSeqRef.current) {
         setLoading(false);
       }
@@ -161,6 +181,7 @@ const InjectContractPicker: FunctionComponent<Props> = ({
     searchPaginationInput,
   } = useQueryableWithLocalStorage(isAtomic ? 'injector-contracts-picker-atomic' : 'injector-contracts-picker', initSearchPaginationInput());
   const totalElements = queryableHelpers.paginationHelpers.getTotalElements();
+  const facetSearchInput = useMemo(() => withRegisteredInjector(searchPaginationInput), [searchPaginationInput]);
 
   // Deep-link TTP scoping: replace (not merge) any attack pattern filter left
   // over from a previous session so the picker opens exactly on the requested
@@ -175,7 +196,7 @@ const InjectContractPicker: FunctionComponent<Props> = ({
   // Domain facet (live counts + toggling of the injector_contract_domains filter)
   const { iconBarOrderedDomains } = useDomainIconFilter({
     domainOptions,
-    searchPaginationInput,
+    searchPaginationInput: facetSearchInput,
     queryableHelpers,
   });
 
@@ -256,7 +277,7 @@ const InjectContractPicker: FunctionComponent<Props> = ({
       >
         <InjectContractSidebar
           domainElements={iconBarOrderedDomains}
-          searchPaginationInput={searchPaginationInput}
+          searchPaginationInput={facetSearchInput}
           filterHelpers={queryableHelpers.filterHelpers}
         />
         <Box sx={{

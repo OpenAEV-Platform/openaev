@@ -1,6 +1,9 @@
 package io.openaev.service.account;
 
 import io.openaev.config.SessionManager;
+import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -25,8 +28,16 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
       TenantGroupService tenantGroupService,
       UserService userService,
       TenantUserService tenantUserService,
+      MarkingClearanceCacheManager markingClearanceCacheManager,
+      TenantWriteScopeResolver writeScopeResolver,
       SessionManager sessionManager) {
-    super(tenantRoleService, tenantGroupService, userService, tenantUserService);
+    super(
+        tenantRoleService,
+        tenantGroupService,
+        userService,
+        tenantUserService,
+        markingClearanceCacheManager,
+        writeScopeResolver);
     this.sessionManager = sessionManager;
   }
 
@@ -35,9 +46,18 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
     return ReservedServiceAccount.AGENT.access();
   }
 
+  @Override
+  protected boolean receivesEveryMarking() {
+    return true;
+  }
+
+  /**
+   * Ensures the tenant's agent service account, its role and its group. {@code ctx} is the scope
+   * the work runs under and must contain {@code tenantId}, the tenant the role is written in.
+   */
   @Transactional
-  public void ensurePrivilegedUserExists(String tenantId) {
-    Group group = createWellKnownGroupWithRole(createWellKnownRole(tenantId), tenantId);
+  public void ensurePrivilegedUserExists(TxCtx ctx, String tenantId) {
+    Group group = ensureWellKnownGroupWithRole(ensureWellKnownRole(ctx, tenantId), tenantId);
     // UNIQUE by tenant
     String email = ReservedServiceAccount.AGENT.emailPattern().formatted(tenantId);
 
@@ -80,12 +100,28 @@ public class AgentServiceAccountPrivilegeService extends AbstractPrivilegeServic
 
   @Transactional(readOnly = true)
   public String getTokenUserServiceAccountByTenant(String tenantId) {
+    return findToken(tenantId)
+        .orElseThrow(() -> new UnsupportedOperationException("Token not found"));
+  }
 
+  /**
+   * Finds the token of the tenant's agent service account without throwing when it is missing. A
+   * caller already inside a transaction uses it to handle the missing token itself: an exception
+   * thrown through this proxy would mark the caller's transaction rollback-only even if caught.
+   *
+   * @param tenantId the tenant owning the service account
+   * @return the token, or empty if the service account or its token does not exist
+   */
+  @Transactional(readOnly = true)
+  public Optional<String> findTokenUserServiceAccountByTenant(String tenantId) {
+    return findToken(tenantId);
+  }
+
+  private Optional<String> findToken(String tenantId) {
     return getUserServiceAccountByTenant(tenantId)
         .map(User::getTokens)
         .filter(tokens -> !tokens.isEmpty())
-        .map(tokens -> tokens.getFirst().getValue())
-        .orElseThrow(() -> new UnsupportedOperationException("Token not found"));
+        .map(tokens -> tokens.getFirst().getValue());
   }
 
   /**

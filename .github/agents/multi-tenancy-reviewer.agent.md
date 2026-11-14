@@ -65,6 +65,16 @@ of the intended finding:
   carries a reasoned waiver, and the waiver's `reaches-active-table:` and
   `until-active:` reasons are themselves checked against the activation list,
   so an activation can expire one. Flag an unwaived one as 🟠 HIGH.
+- **Step 3b (ids named in a request body)**: a write that links rows by ids from the body
+  resolves them with `findAllByIdInTenant(ids, tenantId)` and the tenant of the entity written
+  (rule 10), so an id of another tenant is treated like an unknown id. `findAllById`,
+  `getReferenceById` or an unscoped `findAllByIdIn*` on the repository of an active table is
+  caught by `LinkedIdResolutionArchTest`; `linked-id-resolution-baseline.txt` only shrinks, and a
+  new `link` line is never accepted. Outside that guard, so look for them by reading and flag them
+  as 🟠 HIGH: `findById` on a body id, a call through a generic helper (`DatabaseHelper`), an id
+  lookup declared under another name (`findAllByIds`, `findAiTargetsByIds`,
+  `findAllByIdOrExternalIdIn`), `deleteAllById`, `findAll(Specification)` and
+  `entityManager.find`.
 
 ## Model Policy
 
@@ -94,6 +104,7 @@ When the Test Specialist writes isolation tests, flag this agent to verify the p
 | 🟠 **HIGH** | Global unique constraint on tenant-scoped entity (should be composite with `tenant_id`) | `issue (blocking):` — blocks multi-tenant usage |
 | 🟠 **HIGH** | Single service handling both platform and tenant scope for dual-scope entity | `issue (blocking):` — cross-scope data leak risk |
 | 🟠 **HIGH** | Unscoped `findAll()` / `findById()` on dual-scope entity (no `tenant_id` filter) | `issue (blocking):` — returns mixed platform + tenant data |
+| 🟠 **HIGH** | New endpoint on tenant-scoped data also mapped on a short `/api/...` route (rule 9) | `issue (blocking):` — a write without the tenant in the URI is ambiguous for a user in several tenants |
 | 🟡 **MEDIUM** | Service calling `TenantContext.getCurrentTenant()` directly (should receive tenant as argument from API layer) | `suggestion (blocking):` — hidden coupling, breaks testability and async safety |
 | 🔴 **CRITICAL** | Background job / queue consumer / async task reading or writing tenant rows without `TenantContext.setCurrentTenant()`, when it persists any `TenantBase` entity or touches a v1/not-yet-v2 code path (even when it sets `TxCtx`) | `issue (blocking):` — silently resolves the DEFAULT tenant via `TenantBaseListener`, see `multi-tenancy.instructions.md` > Background Threads Carry Both Scopes |
 | 🟡 **MEDIUM** | Background job already converted to `TenantScopedTransaction`, read-only, every touched table v2-active, no legacy path reached, but still calls `TenantContext.setCurrentTenant()` | `suggestion (non-blocking):` — dead v1 call, safe to remove; confirm the read-only/all-v2-active/no-legacy-path conditions before suggesting removal, a false positive here reintroduces the DEFAULT_TENANT_UUID attribution bug |

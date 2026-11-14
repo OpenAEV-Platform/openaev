@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.ratelimit.config.RateLimitConfig;
+import io.openaev.ratelimit.support.ManualTimeMeter;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
 import io.openaev.utils.mockConfig.WithMockRateLimitConfig;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -27,9 +29,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
 @WithMockRateLimitConfig(enabled = true, defaultRps = 10L)
+@Import(ManualTimeMeter.Config.class)
 public class RateLimitIntegrationTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private RateLimitConfig rateLimitConfig;
+  @Autowired private ManualTimeMeter clock;
   @MockitoBean private PreviewFeatureService previewFeatureService;
 
   @FunctionalInterface
@@ -44,11 +48,11 @@ public class RateLimitIntegrationTest extends IntegrationTest {
   }
 
   @BeforeEach
-  void before() throws InterruptedException {
-    // Force the test harness to wait for the bucket refills between tests.
-    // This allows using the same backend process for all tests, avoiding
-    // a context rebuild, thus globally speed up this test suite.
-    Thread.sleep(REFILL_PERIOD_1000MS);
+  void before() {
+    // Refill every bucket between tests by moving the bucket clock one full period.
+    // The clock only moves here and where a test says so, so the calls of a test
+    // always land in one refill window however long they take on the runner.
+    clock.advanceMillis(REFILL_PERIOD_1000MS);
     when(previewFeatureService.isFeatureEnabled(PreviewFeature.RATE_LIMITING)).thenReturn(true);
   }
 
@@ -65,7 +69,7 @@ public class RateLimitIntegrationTest extends IntegrationTest {
                         : status().isUnauthorized());
 
     loopCalls(boundary + 1, v);
-    Thread.sleep(REFILL_PERIOD_1000MS);
+    clock.advanceMillis(REFILL_PERIOD_1000MS);
     loopCalls(boundary + 1, v);
   }
 

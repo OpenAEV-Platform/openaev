@@ -8,7 +8,7 @@ import { z } from 'zod';
 import TextFieldController from '../../../../components/fields/TextFieldController';
 import { useFormatter } from '../../../../components/i18n';
 import { type KillChainPhaseCreateInput } from '../../../../utils/api-types';
-import { zodImplement } from '../../../../utils/Zod';
+import { requiredInteger, zodImplement } from '../../../../utils/Zod';
 
 interface Props {
   onSubmit: SubmitHandler<KillChainPhaseCreateInput>;
@@ -31,20 +31,13 @@ const KillChainPhaseForm: FunctionComponent<Props> = ({
   const { t } = useFormatter();
   const theme = useTheme();
 
-  // TextFieldController stores its value as a string, even with type="number":
-  // coerce it back to a number (undefined when emptied, which fails the
-  // required check) before validation.
-  const orderNumber = z.preprocess(
-    value => (value === '' || value === null ? undefined : value),
-    z.coerce.number({ message: t('This field is required.') }),
-  ) as unknown as z.ZodOptional<z.ZodNumber>;
-
   const schema = zodImplement<KillChainPhaseCreateInput>().with({
     phase_name: z.string().min(1, { message: t('This field is required.') }),
     phase_shortname: z.string().min(1, { message: t('This field is required.') }),
     phase_kill_chain_name: z.string().min(1, { message: t('This field is required.') }),
     phase_external_id: z.string().min(1, { message: t('This field is required.') }),
-    phase_order: orderNumber,
+    // Optional on the API input, required by the form.
+    phase_order: requiredInteger(t) as unknown as z.ZodOptional<z.ZodNumber>,
     phase_description: z.string().optional(),
     phase_stix_id: z.string().optional(),
   });

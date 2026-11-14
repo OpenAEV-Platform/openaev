@@ -5,7 +5,7 @@ import { type Browser, expect, type Page } from '@playwright/test';
 
 import AgentInstallPage from '../model/agents/AgentInstallPage';
 import EndpointListPage from '../model/assets/EndpointListPage';
-import { AUTH_FILE } from './constants';
+import { AUTH_ADMIN } from './constants';
 import { tenantUrl } from './url';
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:3001';
@@ -40,7 +40,7 @@ export const installAgent = async (browser: Browser): Promise<InstalledAgent> =>
   const platform = getAgentPlatform();
   const hostname = os.hostname().toLowerCase();
   const context = await browser.newContext({
-    storageState: AUTH_FILE,
+    storageState: AUTH_ADMIN,
     baseURL: APP_URL,
   });
 

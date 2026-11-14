@@ -1,0 +1,210 @@
+{
+  "realm": "openaev-dev",
+  "enabled": true,
+  "sslRequired": "none",
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "OpenAEV administrator, see openaev.provider.keycloak.roles_admin"
+      }
+    ]
+  },
+  "groups": [
+    {
+      "name": "platform-observers"
+    },
+    {
+      "name": "platform-managers"
+    },
+    {
+      "name": "platform-admins"
+    },
+    {
+      "name": "tenant-observers"
+    },
+    {
+      "name": "tenant-managers"
+    },
+    {
+      "name": "tenant-admins"
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "openaev",
+      "name": "OpenAEV local dev",
+      "enabled": true,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "openaev-dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3001/*",
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "+"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:3001/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "claim.name": "groups",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "full.path": "false"
+          }
+        },
+        {
+          "name": "roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "roles",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "true",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "platform-observer",
+      "email": "platform-observer@openaev.local",
+      "emailVerified": true,
+      "firstName": "Platform",
+      "lastName": "Observer",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "platform-observer",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/platform-observers"
+      ]
+    },
+    {
+      "username": "platform-manager",
+      "email": "platform-manager@openaev.local",
+      "emailVerified": true,
+      "firstName": "Platform",
+      "lastName": "Manager",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "platform-manager",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/platform-managers"
+      ]
+    },
+    {
+      "username": "platform-admin",
+      "email": "platform-admin@openaev.local",
+      "emailVerified": true,
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "platform-admin",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/platform-admins"
+      ]
+    },
+    {
+      "username": "tenant-observer",
+      "email": "tenant-observer@openaev.local",
+      "emailVerified": true,
+      "firstName": "Tenant",
+      "lastName": "Observer",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "tenant-observer",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/tenant-observers"
+      ]
+    },
+    {
+      "username": "tenant-manager",
+      "email": "tenant-manager@openaev.local",
+      "emailVerified": true,
+      "firstName": "Tenant",
+      "lastName": "Manager",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "tenant-manager",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/tenant-managers"
+      ]
+    },
+    {
+      "username": "tenant-admin",
+      "email": "tenant-admin@openaev.local",
+      "emailVerified": true,
+      "firstName": "Tenant",
+      "lastName": "Admin",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "tenant-admin",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/tenant-admins"
+      ]
+    },
+    {
+      "username": "super-admin",
+      "email": "super-admin@openaev.local",
+      "emailVerified": true,
+      "firstName": "Super",
+      "lastName": "Admin",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "super-admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ]
+    }
+  ]
+}

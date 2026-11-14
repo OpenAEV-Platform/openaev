@@ -12,6 +12,7 @@ import io.openaev.database.repository.InjectorRepository;
 import io.openaev.execution.ExecutableInject;
 import io.openaev.execution.ExecutableInjectDTOMapper;
 import io.openaev.execution.ExecutionExecutorService;
+import io.openaev.execution.UnexecutableInjectException;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.inject.service.InjectStatusService;
@@ -113,8 +114,7 @@ public class Executor {
     InjectorContract injectorContract =
         inject
             .getInjectorContract()
-            .orElseThrow(
-                () -> new UnsupportedOperationException("Inject does not have a contract"));
+            .orElseThrow(() -> new UnexecutableInjectException("Inject does not have a contract"));
 
     // Resolve the injector instance from the inject entity directly
     Injector injector = inject.getInjector();
@@ -126,8 +126,9 @@ public class Executor {
                   injectorContract.getId(), inject.getTenant().getId())
               .orElseThrow(
                   () ->
-                      new IllegalStateException(
-                          "Injector not found for type: " + inject.getType()));
+                      new UnexecutableInjectException(
+                          "No injector is registered for the injector contract "
+                              + injectorContract.getId()));
     }
 
     // Telemetry - We shouldn't have multiple injector type per executable inject but if it happens,
@@ -137,7 +138,7 @@ public class Executor {
     boolean hasStartedConnectorInstanceForInjector =
         this.connectorInstanceService.hasStartedConnectorInstanceForInjector(injector.getId());
     if (!hasStartedConnectorInstanceForInjector) {
-      throw new IllegalStateException(
+      throw new UnexecutableInjectException(
           "No started connector instance found for injector type: " + injector.getType());
     }
 
@@ -180,7 +181,7 @@ public class Executor {
     // If empty content, inject must be rejected
     Inject inject = executableInject.getInjection().getInject();
     if (inject.getContent() == null) {
-      throw new UnsupportedOperationException("Inject is empty");
+      throw new UnexecutableInjectException("Inject is empty");
     }
     // If inject is too old, reject the execution
     if (isScheduledInject

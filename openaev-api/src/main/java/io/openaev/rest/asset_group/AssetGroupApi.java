@@ -95,12 +95,13 @@ public class AssetGroupApi extends RestBehavior {
   @AccessControl(actionPerformed = Action.CREATE, resourceType = ResourceType.ASSET_GROUP)
   @Transactional(rollbackFor = Exception.class)
   public AssetGroup createAssetGroup(TxCtx ctx, @Valid @RequestBody final AssetGroupInput input) {
-    AssetGroup assetGroup = new AssetGroup();
-    assetGroup.setUpdateAttributes(input);
-    assetGroup.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
     // Resolves the single tenant this write belongs to, and refuses an ambiguous multi-tenant
     // scope with a 400 rather than picking one silently.
     String tenantId = this.writeScopeResolver.tenantForWrite(ctx, null);
+    AssetGroup assetGroup = new AssetGroup();
+    assetGroup.setUpdateAttributes(input);
+    assetGroup.setTags(
+        iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
     return withAssetsInitialized(this.assetGroupService.createAssetGroup(assetGroup, tenantId));
   }
 
@@ -187,7 +188,7 @@ public class AssetGroupApi extends RestBehavior {
       @PathVariable @NotBlank final String assetGroupId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
     return injectSearchService.getPageOfInjectResultsForAssetGroup(
-        assetGroupId, searchPaginationInput);
+        ctx, assetGroupId, searchPaginationInput);
   }
 
   @PostMapping({ASSET_GROUP_URI + "/find", TENANT_ASSET_GROUP_URI + "/find"})
@@ -220,7 +221,10 @@ public class AssetGroupApi extends RestBehavior {
       @Valid @RequestBody final AssetGroupInput input) {
     AssetGroup assetGroup = this.assetGroupService.assetGroup(assetGroupId);
     assetGroup.setUpdateAttributes(input);
-    assetGroup.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    assetGroup.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), assetGroup.getTenant().getId())));
     return withAssetsInitialized(this.assetGroupService.updateAssetGroup(assetGroup));
   }
 

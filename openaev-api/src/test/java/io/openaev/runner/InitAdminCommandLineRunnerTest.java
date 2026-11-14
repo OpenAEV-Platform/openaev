@@ -5,14 +5,17 @@ import static io.openaev.database.model.Token.ADMIN_TOKEN_UUID;
 import static io.openaev.database.model.User.ADMIN_UUID;
 import static io.openaev.database.specification.TokenSpecification.fromUser;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Token;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.TokenRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.rest.exception.TenantWriteScopeException;
 import io.openaev.service.UserService;
 import io.openaev.service.account.AbstractPrivilegeService;
 import io.openaev.service.account.AdminPrivilegeService;
@@ -100,10 +103,11 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
             AdminPrivilegeService.ADMIN_ACCESS.groupId(), DEFAULT_TENANT_UUID);
 
     // Act
+    TxCtx ctx = TxCtx.forTenant(DEFAULT_TENANT_UUID);
     this.adminPrivilegeService.ensureAdminGroup(
-        DEFAULT_TENANT_UUID, this.userRepository.findById(ADMIN_UUID).orElseThrow());
+        ctx, DEFAULT_TENANT_UUID, this.userRepository.findById(ADMIN_UUID).orElseThrow());
     this.adminPrivilegeService.ensureAdminGroup(
-        DEFAULT_TENANT_UUID, this.userRepository.findById(ADMIN_UUID).orElseThrow());
+        ctx, DEFAULT_TENANT_UUID, this.userRepository.findById(ADMIN_UUID).orElseThrow());
 
     // Assert
     User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
@@ -113,6 +117,20 @@ public class InitAdminCommandLineRunnerTest extends IntegrationTest {
             .count();
 
     assertThat(adminGroupCount).isEqualTo(1);
+  }
+
+  @DisplayName("Ensuring the admin group with no scope is refused")
+  @Test
+  void given_noScope_should_refuseToEnsureAdminGroup() {
+    // Arrange
+    User adminUser = this.userRepository.findById(ADMIN_UUID).orElseThrow();
+
+    // Act / Assert
+    assertThatThrownBy(
+            () ->
+                this.adminPrivilegeService.ensureAdminGroup(
+                    TxCtx.missing(), DEFAULT_TENANT_UUID, adminUser))
+        .isInstanceOf(TenantWriteScopeException.class);
   }
 
   @DisplayName("Admin user is enrolled in the platform admin group at bootstrap")

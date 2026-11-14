@@ -105,10 +105,11 @@ const ThemeDark = (
           color: FDS.colors.dark['--color-feedback-alert-primary'],
         }],
     ]),
+    // The AI accent is the design system's IA token, as in OpenCTI (fds-migration/TOKEN-MAPPING.md § 8.1).
     ai: {
-      main: '#B286FF',
-      light: '#D6C2FA',
-      dark: '#5E1AD5',
+      main: FDS.colors.dark['--color-filigran-ia-primary'],
+      light: FDS.colors.dark['--color-filigran-ia-secondary'],
+      dark: FDS.colors.dark['--color-filigran-ia-tertiary'],
       contrastText: '#000000',
       background: 'rgba(28, 47, 73, 0.94)',
     },
@@ -191,9 +192,9 @@ const ThemeDark = (
         dark: FDS.colors.dark['--color-feedback-error-secondary'],
       },
       ia: {
-        main: '#B286FF',
-        light: '#D6C2FA',
-        dark: '#5E1AD5',
+        main: FDS.colors.dark['--color-filigran-ia-primary'],
+        light: FDS.colors.dark['--color-filigran-ia-secondary'],
+        dark: FDS.colors.dark['--color-filigran-ia-tertiary'],
       },
       background: {
         main: THEME_DARK_DEFAULT_BACKGROUND,
@@ -226,7 +227,7 @@ const ThemeDark = (
       },
       gradient: {
         background: 'linear-gradient(100.35deg, #070D19 0%, #08101d 100%)',
-        ia: 'linear-gradient(90deg, #D6C2FA 0.67%, #B286FF 100.67%)',
+        ia: `linear-gradient(90deg, ${FDS.colors.dark['--color-filigran-ia-secondary']} 0.67%, ${FDS.colors.dark['--color-filigran-ia-primary']} 100.67%)`,
         focus: 'linear-gradient(90deg, #0FBCFF -3.68%, #00F1BD 106.62%)',
       },
       alert: {

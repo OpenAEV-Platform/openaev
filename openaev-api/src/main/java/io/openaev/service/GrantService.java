@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -53,38 +54,70 @@ public class GrantService {
       @NotBlank final String resourceId,
       @NotNull final User user,
       @NotNull final GRANT_TYPE grantType) {
-    return this.grantRepository.existsByUserIdAndResourceIdAndNameIn(
-        user.getId(), resourceId, grantType.andHigher());
+    return this.grantRepository.existsByUserIdAndGroupTenantAndResourceIdAndNameIn(
+        user.getId(), user.scopedTenantId(), resourceId, grantType.andHigher());
   }
 
   /**
-   * Validates that the resource ID is not blank and exists in one of the grantable resource
-   * repositories.
+   * Validates that the resource ID is not blank and names an existing resource of the declared
+   * grant resource type, so a grant can never point at a resource of another type (a scenario id
+   * declared as a simulation grant, for instance) or at a type that is not granted through a group.
    *
    * @param resourceId the resource ID to validate
-   * @throws IllegalArgumentException if the resource ID is blank or does not exist
+   * @param resourceType the declared grant resource type
+   * @param tenantId the tenant of the group the grant is for: a built-in contract id repeats across
+   *     tenants, so a contract only counts when it exists in that one
+   * @throws IllegalArgumentException if the resource ID is blank, the type is not grantable through
+   *     a group, or no resource of that type has this ID
    */
-  public void validateResourceIdForGrant(String resourceId) {
+  public void validateResourceIdForGrant(
+      String resourceId, GRANT_RESOURCE_TYPE resourceType, String tenantId) {
     if (StringUtils.isBlank(resourceId)) {
       throw new IllegalArgumentException("A valid resource ID should be present");
     }
+    if (resourceType == null) {
+      throw new IllegalArgumentException("A valid resource type should be present");
+    }
 
     boolean exists =
-        exerciseRepository.existsById(resourceId)
-            || scenarioRepository.existsById(resourceId)
-            // Atomic testings:
-            || injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(resourceId)
-            // Threat arsenal (grant on injector contract ID):
-            || injectorContractRepository.existsByContractId(resourceId);
+        switch (resourceType) {
+          case SCENARIO -> scenarioRepository.existsById(resourceId);
+          case SIMULATION -> exerciseRepository.existsById(resourceId);
+          case ATOMIC_TESTING ->
+              injectRepository.existsByIdAndScenarioIsNullAndExerciseIsNull(resourceId);
+          // Threat arsenal: on the payload identity, else on the injector contract ID.
+          case THREAT_ARSENAL ->
+              injectorContractRepository.existsByPayloadIdentityIdAndTenant(resourceId, tenantId)
+                  || injectorContractRepository.existsByContractIdAndTenant(resourceId, tenantId);
+          default -> false;
+        };
 
     if (!exists) {
-      throw new IllegalArgumentException("A valid resource ID should be present");
+      throw new IllegalArgumentException(
+          "A valid resource ID of type " + resourceType + " should be present");
     }
   }
 
-  public void updateGrantsForNewResource(
-      @NotBlank String currentId, @NotBlank String newId, @NotBlank GRANT_RESOURCE_TYPE grantType) {
-    grantRepository.updateGrantResourceIdAndType(currentId, newId, grantType);
+  /**
+   * Ids a THREAT_ARSENAL grant on this contract may target: the contract id and the payload
+   * identity of the contract's copy in the tenant of the request's scope. A contract id repeats
+   * across tenants, so a scope of several tenants names no single copy: it takes the contract id
+   * alone, and the handler refuses the request for want of one tenant.
+   *
+   * @param scopeTenants the tenants the request reads from
+   */
+  public List<String> threatArsenalGrantResources(
+      @NotBlank final String contractId, @NotNull final Set<String> scopeTenants) {
+    if (scopeTenants.size() != 1) {
+      return List.of(contractId);
+    }
+    return injectorContractRepository
+        .findByContractIdAndTenant(contractId, scopeTenants.iterator().next())
+        .map(contract -> List.of(contractId, contract.getGrantResourceId()))
+        .orElse(List.of(contractId))
+        .stream()
+        .distinct()
+        .toList();
   }
 
   // -- CRUD --

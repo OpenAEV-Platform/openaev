@@ -51,18 +51,24 @@ public interface InjectorContractRepository
    * built-in declarations), so joining on the id alone aggregates another tenant's mappings into
    * this tenant's contract.
    *
+   * <p>No predicate on the ambient tenant: the statement inspector scopes {@code
+   * injectors_contracts} to the request's tenant scope, which is the selector of {@code
+   * X-Tenant-Ids} on the non-prefixed route where the ambient tenant stays the default one. The
+   * projection carries no tenant, so a scope spanning several tenants answers one row per contract
+   * id: its attack patterns are the union of the mappings of every copy in the scope, each copy
+   * still joined to its own tenant's mappings only.
+   *
    * @return list of raw injector contract projections
    */
   @Query(
       value =
           "SELECT injcon.injector_contract_id, "
-              + "array_remove(array_agg(attpatt.attack_pattern_external_id), NULL) AS injector_contract_attack_patterns_external_id "
+              + "array_remove(array_agg(DISTINCT attpatt.attack_pattern_external_id), NULL) AS injector_contract_attack_patterns_external_id "
               + "FROM injectors_contracts injcon "
               + "LEFT JOIN injectors_contracts_attack_patterns injconatt "
               + "  ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "  AND injcon.tenant_id = injconatt.tenant_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
-              + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
   List<RawInjectorsContracts> getAllRawInjectorsContracts();
@@ -81,50 +87,78 @@ public interface InjectorContractRepository
       @Param("exerciseId") String exerciseId);
 
   /**
-   * Retrieves injector contracts that a specific user has been granted access to.
+   * Retrieves the injector contracts a specific user may see, decided per row in the tenant of the
+   * row: a contract id repeats across tenants, so a copy is visible on rights held in its own
+   * tenant.
    *
-   * <p>Returns only contracts where the user has a THREAT_ARSENAL grant on the injector contract ID
-   * through their group memberships.
+   * <p>A copy is visible when a role of one of the user's groups of the copy's tenant holds {@code
+   * ACCESS_THREAT_ARSENALS} or {@code BYPASS} (a platform group does not count), or when a
+   * THREAT_ARSENAL grant on the contract id or on its payload identity comes from a group of the
+   * copy's tenant or from a platform group.
    *
-   * <p>Same tenant-carrying mapping join as {@link #getAllRawInjectorsContracts()}.
+   * <p>Same tenant-carrying mapping join and one row per contract id as {@link
+   * #getAllRawInjectorsContracts()}; only the visible copies contribute their attack patterns.
    *
    * @param userId the ID of the user to check access for
-   * @return list of raw injector contract projections the user has been granted access to
+   * @return list of raw injector contract projections the user may see
    */
-  default List<RawInjectorsContracts> getAllRawInjectorsContractsGranted(String userId) {
-    return getAllRawInjectorsContractsGranted(userId, ResourceType.THREAT_ARSENAL.name());
+  default List<RawInjectorsContracts> getAllRawInjectorsContractsVisible(String userId) {
+    return getAllRawInjectorsContractsVisible(userId, ResourceType.THREAT_ARSENAL.name());
   }
 
+  // Native: array_agg over the attack pattern mapping; a read, no session side effect lost.
   @Query(
       value =
           "SELECT injcon.injector_contract_id, "
-              + "array_remove(array_agg(attpatt.attack_pattern_external_id), NULL) AS injector_contract_attack_patterns_external_id "
+              + "array_remove(array_agg(DISTINCT attpatt.attack_pattern_external_id), NULL) AS injector_contract_attack_patterns_external_id "
               + "FROM injectors_contracts injcon "
               + "LEFT JOIN injectors_contracts_attack_patterns injconatt "
               + "  ON injcon.injector_contract_id = injconatt.injector_contract_id "
               + "  AND injcon.tenant_id = injconatt.tenant_id "
               + "LEFT JOIN attack_patterns attpatt ON injconatt.attack_pattern_id = attpatt.attack_pattern_id "
-              + "WHERE injcon.tenant_id = :#{#tenantContext.currentTenant} "
-              + "AND EXISTS ( "
+              + "LEFT JOIN payloads p ON p.payload_id = injcon.injector_contract_payload "
+              + "  AND p.tenant_id = injcon.tenant_id "
+              + "WHERE EXISTS ( "
+              + "  SELECT 1 FROM users_groups ug "
+              + "  INNER JOIN groups g ON ug.group_id = g.group_id "
+              + "  INNER JOIN groups_roles gro ON gro.group_id = g.group_id "
+              + "  INNER JOIN roles_capabilities rc ON rc.role_id = gro.role_id "
+              + "  WHERE ug.user_id = :userId "
+              + "  AND g.tenant_id = injcon.tenant_id "
+              + "  AND rc.capability IN ('ACCESS_THREAT_ARSENALS', 'BYPASS') "
+              + ") OR EXISTS ( "
               + "  SELECT 1 FROM users u "
               + "  INNER JOIN users_groups ug ON u.user_id = ug.user_id "
               + "  INNER JOIN groups g ON ug.group_id = g.group_id "
               + "  INNER JOIN grants gr ON g.group_id = gr.grant_group "
               + "  WHERE u.user_id = :userId "
-              + "  AND gr.grant_resource = injcon.injector_contract_id "
+              + "  AND gr.grant_resource IN (injcon.injector_contract_id, p.payload_identity) "
               + "  AND gr.grant_resource_type = :resourceType "
+              + "  AND (g.tenant_id IS NULL OR g.tenant_id = injcon.tenant_id) "
               + ") "
               + "GROUP BY injcon.injector_contract_id",
       nativeQuery = true)
-  List<RawInjectorsContracts> getAllRawInjectorsContractsGranted(
+  List<RawInjectorsContracts> getAllRawInjectorsContractsVisible(
       @Param("userId") String userId, @Param("resourceType") String resourceType);
 
   @NotNull
   @Query("SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id = :id")
   Optional<InjectorContract> findById(@Param("id") @NotNull String id);
 
-  @Query("SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id")
-  boolean existsByContractId(@Param("id") @NotNull String id);
+  @Query(
+      "SELECT c.compositeId.id FROM InjectorContract c"
+          + " WHERE c.compositeId.id IN :contractIds AND c.compositeId.tenantId = :tenantId"
+          + " AND c.payload IS NOT NULL"
+          + " AND EXISTS (SELECT 1 FROM Inject i WHERE i.injectorContract = c)")
+  Set<String> findIdsInUse(
+      @Param("contractIds") Collection<String> contractIds,
+      @Param("tenantId") @NotNull String tenantId);
+
+  @Query(
+      "SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.payload.identity.id = :id"
+          + " AND ic.compositeId.tenantId = :tenantId")
+  boolean existsByPayloadIdentityIdAndTenant(
+      @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
   @Query(
       "SELECT COUNT(ic) > 0 FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.compositeId.tenantId = :tenantId")
@@ -147,12 +181,13 @@ public interface InjectorContractRepository
    * <p>Deliberately a scalar id projection, not an entity select: {@link InjectorContract} eagerly
    * loads several collections, and a {@code SELECT ic ... FOR SHARE} would outer-join them and fail
    * on Postgres ("FOR SHARE cannot be applied to the nullable side of an outer join"). Projecting a
-   * single column keeps the locking query on the {@code injectors_contracts} row alone. Tenant-
-   * scoped JPQL (so Hibernate's {@code tenantFilter} also applies) because the default contracts
-   * share their ids across every tenant.
+   * single column keeps the locking query on the {@code injectors_contracts} row alone. The query
+   * names the tenant in the composite key because the default contracts share their ids across
+   * every tenant; {@code injectors_contracts} is tenant-active, so the statement inspector also
+   * scopes the read to the transaction's tenant scope.
    *
    * @param id the injector contract id referenced by the step being authored
-   * @param tenantId the current tenant
+   * @param tenantId the tenant of the simulation or scenario the step is authored in
    * @return the contract id if it exists in the tenant, empty otherwise
    */
   @Lock(LockModeType.PESSIMISTIC_READ)
@@ -179,25 +214,44 @@ public interface InjectorContractRepository
       @Param("id") String id, @Param("externalId") String externalId);
 
   /**
-   * Batched form of {@link #findByIdOrExternalId}: every contract whose id OR external id is in the
-   * set.
+   * Tenant-scoped counterpart of {@link #findByIdOrExternalId}: a caller resolving a contract for a
+   * parent row it already holds (an exercise, a scenario) must stay in that parent's tenant
+   * regardless of the request's own scope, since a built-in contract id repeats across tenants
+   * (#8485) and the ambient scope can legitimately span several.
+   */
+  @NotNull
+  @Query(
+      "SELECT ic FROM InjectorContract ic WHERE (ic.compositeId.id = :id OR ic.externalId ="
+          + " :externalId) AND ic.compositeId.tenantId = :tenantId")
+  Optional<InjectorContract> findByIdOrExternalIdAndTenant(
+      @Param("id") String id,
+      @Param("externalId") String externalId,
+      @Param("tenantId") @NotNull String tenantId);
+
+  /**
+   * Batched form of {@link #findByIdOrExternalIdAndTenant}: every contract of the tenant whose id
+   * OR external id is in the set.
    */
   @Query(
-      "SELECT ic FROM InjectorContract ic WHERE ic.compositeId.id IN :ids OR ic.externalId IN :ids")
-  List<InjectorContract> findAllByIdOrExternalIdIn(@Param("ids") Collection<String> ids);
+      "SELECT ic FROM InjectorContract ic WHERE (ic.compositeId.id IN :ids OR ic.externalId IN :ids)"
+          + " AND ic.compositeId.tenantId = :tenantId")
+  List<InjectorContract> findAllByIdOrExternalIdInAndTenant(
+      @Param("ids") Collection<String> ids, @Param("tenantId") @NotNull String tenantId);
 
   /**
    * Batched ATT&CK techniques for the attack-path injector nodes: one flat query returning the
    * (contract external id, pattern) pairs for a set of contracts. A flat projection, not the
-   * entity, so it never pulls the contract's other eager collections into secondary selects.
+   * entity, so it never pulls the contract's other eager collections into secondary selects. Read
+   * in one tenant: an external id repeats across tenants, and each copy carries its own techniques.
    */
   @Query(
       "SELECT new io.openaev.database.model.attackpath.projection.AttackPathInjectorPatternRow("
           + "ic.externalId, ap.externalId, ap.name) "
           + "FROM InjectorContract ic JOIN ic.attackPatterns ap "
-          + "WHERE ic.externalId IN :externalIds")
-  List<AttackPathInjectorPatternRow> findInjectorAttackPatternsByExternalIdIn(
-      @Param("externalIds") Collection<String> externalIds);
+          + "WHERE ic.externalId IN :externalIds AND ic.compositeId.tenantId = :tenantId")
+  List<AttackPathInjectorPatternRow> findInjectorAttackPatternsByExternalIdInAndTenant(
+      @Param("externalIds") Collection<String> externalIds,
+      @Param("tenantId") @NotNull String tenantId);
 
   @NotNull
   @Query("SELECT ic FROM InjectorContract ic JOIN ic.injectorLinks l WHERE l.injector = :injector")
@@ -260,11 +314,6 @@ public interface InjectorContractRepository
           "SELECT ic.injector_contract_id AS injector_contract_id, ic.tenant_id AS tenant_id FROM injectors_contracts ic WHERE ic.injector_contract_payload = :payloadId",
       nativeQuery = true)
   List<RawContractTenant> findContractTenantPairsByPayloadId(@Param("payloadId") String payloadId);
-
-  @Query(
-      "SELECT CASE WHEN COUNT(ic) > 0 THEN true ELSE false END "
-          + "FROM InjectorContract ic WHERE ic.compositeId.id = :id AND ic.payload IS NOT NULL")
-  boolean existsByIdAndPayloadIsNotNull(@Param("id") String id);
 
   /**
    * Returns the ids of payload-bearing contracts that are not linked to any injector, scoped to a
@@ -334,17 +383,19 @@ public interface InjectorContractRepository
             FROM injectors_contracts ic
             JOIN injectors_contracts_vulnerabilities icv
               ON ic.injector_contract_id = icv.injector_contract_id
+              AND ic.tenant_id = icv.tenant_id
             JOIN vulnerabilities vulnerability
               ON icv.vulnerability_id = vulnerability.vulnerability_id
             WHERE LOWER(vulnerability.vulnerability_external_id) IN (:externalIds)
-              AND ic.tenant_id = :#{#tenantContext.currentTenant}
+              AND ic.tenant_id = :tenantId
         ) ranked
         WHERE ranked.rn <= :contractsPerVulnerability
         """,
       nativeQuery = true)
   Set<InjectorContract> findInjectorContractsByVulnerabilityIdIn(
       @Param("externalIds") Set<String> externalIds,
-      @Param("contractsPerVulnerability") Integer contractsPerVulnerability);
+      @Param("contractsPerVulnerability") Integer contractsPerVulnerability,
+      @Param("tenantId") @NotNull String tenantId);
 
   /**
    * Associates an injector contract to all injectors matching the given criteria, skipping those

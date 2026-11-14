@@ -1,5 +1,7 @@
 package io.openaev.service;
 
+import static io.openaev.utils.pagination.PaginationUtils.buildPaginationJPA;
+
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.NewsFeedItem;
@@ -7,9 +9,12 @@ import io.openaev.database.model.NewsFeedType;
 import io.openaev.database.model.User;
 import io.openaev.database.raw.RawNewsFeedRecipient;
 import io.openaev.database.repository.NewsFeedItemRepository;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.ReferenceResolver;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.xtmhub.ProvisionedNewsFeedItem;
+import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -20,6 +25,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -41,10 +48,72 @@ public class NewsFeedItemService {
   private final UserService userService;
   private final ReferenceResolver referenceResolver;
   private final TenantScopedTransaction tenantTx;
+  private final PreviewFeatureService previewFeatureService;
 
   private record UserItem(String userId, String hubItemId) {}
 
   private record TypedItem(ProvisionedNewsFeedItem item, NewsFeedType type) {}
+
+  // -- READ --
+
+  public boolean isFeatureEnabled() {
+    return previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED);
+  }
+
+  /** Searches the news feed items of the current user. */
+  public Page<NewsFeedItem> searchMyItems(
+      @NotNull final SearchPaginationInput searchPaginationInput) {
+    String userId = userService.currentUser().getId();
+    Specification<NewsFeedItem> ownerSpec =
+        (root, query, cb) -> cb.equal(root.get("user").get("id"), userId);
+    return buildPaginationJPA(
+        (specification, pageable) ->
+            newsFeedItemRepository.findAll(ownerSpec.and(specification), pageable),
+        searchPaginationInput,
+        NewsFeedItem.class);
+  }
+
+  /** The number of news feed items of the current user that are not read yet. */
+  public long countMyUnreadItems() {
+    return newsFeedItemRepository.countByUserIdAndReadFalse(userService.currentUser().getId());
+  }
+
+  /** The news feed types the current user is subscribed to. */
+  public List<NewsFeedType> getMySubscribedTypes() {
+    return NewsFeedUtils.subscribedTypes(
+        userService.findNewsFeedUnsubscribedTypes(userService.currentUser().getId()));
+  }
+
+  // -- UPDATE --
+
+  /**
+   * Subscribes the current user to the given news feed types and only those. Subscribing to none
+   * unsubscribes the user from everything.
+   *
+   * @return the types the user is now subscribed to
+   */
+  public List<NewsFeedType> updateMySubscribedTypes(
+      @NotNull final Collection<NewsFeedType> subscribedTypes) {
+    userService.updateNewsFeedUnsubscribedTypes(
+        userService.currentUser().getId(), NewsFeedUtils.toUnsubscribedTypes(subscribedTypes));
+    return getMySubscribedTypes();
+  }
+
+  /**
+   * Marks all the unread news feed items of the current user as read, and only theirs. Idempotent.
+   *
+   * <p>The items are updated through the session rather than by a bulk update: a bulk update would
+   * skip the listener chain, so the user's other open tabs would not be told over SSE that their
+   * items changed. Nothing is bounded: the unread items are loaded at once, and the events they
+   * publish all fire when the request transaction commits. This is accepted because a user only
+   * holds the items the Hub published since they joined, and this runs once per visit.
+   */
+  public void markMyItemsRead() {
+    List<NewsFeedItem> unreadItems =
+        newsFeedItemRepository.findAllByUserIdAndReadFalse(userService.currentUser().getId());
+    unreadItems.forEach(item -> item.setRead(true));
+    newsFeedItemRepository.saveAll(unreadItems);
+  }
 
   // -- CREATE --
 

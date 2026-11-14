@@ -18,7 +18,6 @@ import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.specification.AssetAgentJobSpecification;
 import io.openaev.database.specification.EndpointSpecification;
 import io.openaev.rest.asset.endpoint.form.*;
-import io.openaev.rest.asset.endpoint.output.EndpointTargetOutput;
 import io.openaev.rest.asset.form.AssetBulkProcessingInput;
 import io.openaev.rest.atomic_testing.form.InjectResultOutput;
 import io.openaev.rest.exception.BadRequestException;
@@ -57,7 +56,7 @@ public class EndpointApi extends RestBehavior {
   public static final String ENDPOINT_URI = "/api/endpoints";
   private static final String TENANT_ENDPOINT_URI = TENANT_PREFIX + "/endpoints";
   public static final String ASSET_URI = "/api/assets";
-  private static final String TENANT_ASSET_URI = TENANT_PREFIX + "/assets";
+  public static final String TENANT_ASSET_URI = TENANT_PREFIX + "/assets";
 
   private final EndpointService endpointService;
   private final AssetService assetService;
@@ -244,22 +243,6 @@ public class EndpointApi extends RestBehavior {
   }
 
   @LogExecutionTime
-  @PostMapping({ENDPOINT_URI + "/targets", TENANT_ENDPOINT_URI + "/targets"})
-  @Transactional
-  @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
-  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
-  // executors table (each endpoint's agents eager-load their executor).
-  public Page<EndpointTargetOutput> targetEndpoints(
-      TxCtx ctx, @RequestBody @Valid SearchPaginationInput searchPaginationInput) {
-
-    Page<Endpoint> endpointPage = endpointService.searchManagedEndpoints(searchPaginationInput);
-    List<EndpointTargetOutput> endpointTargetOutputs =
-        endpointPage.getContent().stream().map(endpointMapper::toEndpointTargetOutput).toList();
-    return new PageImpl<>(
-        endpointTargetOutputs, endpointPage.getPageable(), endpointPage.getTotalElements());
-  }
-
-  @LogExecutionTime
   @PostMapping({ENDPOINT_URI + "/find", TENANT_ENDPOINT_URI + "/find"})
   @AccessControl(actionPerformed = Action.SEARCH, resourceType = ResourceType.ASSET)
   @Transactional(readOnly = true)
@@ -334,14 +317,13 @@ public class EndpointApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.ASSET)
   @Transactional(readOnly = true)
-  // ctx is unused directly: the aspect reads it to scope this transaction against the v2-active
-  // injectors/executors tables (inject results resolve their injector and, through agents, their
-  // executor).
+  // The aspect also reads ctx to scope this transaction against the v2-active injectors/executors
+  // tables (inject results resolve their injector and, through agents, their executor).
   public Page<InjectResultOutput> searchInjectsForAsset(
       TxCtx ctx,
       @PathVariable @NotBlank final String assetId,
       @RequestBody @Valid final SearchPaginationInput searchPaginationInput) {
-    return injectSearchService.getPageOfInjectResultsForAsset(assetId, searchPaginationInput);
+    return injectSearchService.getPageOfInjectResultsForAsset(ctx, assetId, searchPaginationInput);
   }
 
   /**

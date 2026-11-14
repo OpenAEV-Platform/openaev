@@ -11,7 +11,7 @@ import Empty from '../../../../components/Empty';
 import { useFormatter } from '../../../../components/i18n';
 import Loader from '../../../../components/Loader';
 import { type InjectTarget, type SearchPaginationInput } from '../../../../utils/api-types';
-import { isAgentless } from '../../../../utils/target/TargetUtils';
+import { hasNoTarget, isAgentless } from '../../../../utils/target/TargetUtils';
 import { InjectResultOverviewOutputContext, type InjectResultOverviewOutputContextType } from '../InjectResultOverviewOutputContext';
 import PaginatedTargetTab from './PaginatedTargetTab';
 import TargetResultsDetail from './target_result/TargetResultsDetail';
@@ -70,6 +70,8 @@ const AtomicTesting = () => {
   const [hasAgentsChecked, setHasAgentsChecked] = useState(false);
   const [hasAiTargets, setHasAiTargets] = useState(false);
   const [hasAiTargetsChecked, setHasAiTargetsChecked] = useState(false);
+  const [hasManualTargets, setHasManualTargets] = useState(false);
+  const [hasManualTargetsChecked, setHasManualTargetsChecked] = useState(false);
   const [reloadContentCount, setReloadContentCount] = useState(0);
   const [hasTeams, setHasTeams] = useState(false);
   const [hasTeamsChecked, setHasTeamsChecked] = useState(false);
@@ -90,7 +92,7 @@ const AtomicTesting = () => {
   };
 
   const allTargetsChecked = hasAssetsGroupChecked && hasTeamsChecked && hasEndpointsChecked
-    && hasAgentsChecked && hasPlayersChecked && hasAiTargetsChecked;
+    && hasAgentsChecked && hasPlayersChecked && hasAiTargetsChecked && hasManualTargetsChecked;
 
   const tabConfig: TabConfig[] = useMemo(() => {
     let index: number = 0;
@@ -138,13 +140,21 @@ const AtomicTesting = () => {
     }
     if (hasAiTargets) {
       tabs.push({
-        key: index,
+        key: index++,
         // AI targets are assets too, so the tab carries the same label as the
         // endpoint-backed one; keep the specific label only in the (theoretical)
         // case where both tabs coexist, to avoid two tabs named "Assets".
         label: hasEndpoints ? t('AI targets') : t('Assets'),
         type: 'AI_TARGETS',
         entityPrefix: 'ai_target_target',
+      });
+    }
+    if (hasManualTargets) {
+      tabs.push({
+        key: index,
+        label: t('Manual targets'),
+        type: 'MANUAL',
+        entityPrefix: 'manual_target',
       });
     }
 
@@ -186,7 +196,7 @@ const AtomicTesting = () => {
     navigateToTab(tabs.find(tc => tc.type === storedType) ?? tabs[0]);
 
     return tabs;
-  }, [hasAssetsGroup, hasTeams, hasEndpoints, hasAgents, hasPlayers, hasAiTargets, allTargetsChecked, injectId]);
+  }, [hasAssetsGroup, hasTeams, hasEndpoints, hasAgents, hasPlayers, hasAiTargets, hasManualTargets, allTargetsChecked, injectId]);
 
   const activeTabKey: number = useMemo(() => {
     return activeTab?.key || 0;
@@ -264,6 +274,16 @@ const AtomicTesting = () => {
         setHasAiTargetsChecked(true);
       });
 
+    searchTargets(injectId, 'MANUAL', searchPaginationInput1Result)
+      .then((response) => {
+        if (response.data.content.length > 0) {
+          setHasManualTargets(true);
+        } else { setHasManualTargets(false); }
+      })
+      .finally(() => {
+        setHasManualTargetsChecked(true);
+      });
+
     setReloadContentCount(reloadContentCount + 1);
   }, [injectResultOverviewOutput]);
 
@@ -328,6 +348,19 @@ const AtomicTesting = () => {
     return <Loader variant="inElement" />;
   }
 
+  // Inject types with no target (no team, asset, asset group, agent, player or AI target) have
+  // nothing to show per target: one explanation replaces the two empty panes (#3842).
+  if (hasNoTarget(allTargetsChecked, tabConfig.length)) {
+    return (
+      <Box style={{ marginBottom: theme.spacing(3) }}>
+        <SectionLabel>{t('Targets')}</SectionLabel>
+        <Paper padding={16}>
+          <Empty message={t('This inject has no target. Its results are in the Execution details tab.')} />
+        </Paper>
+      </Box>
+    );
+  }
+
   return (
     <Grid
       container
@@ -347,7 +380,11 @@ const AtomicTesting = () => {
       >
         <SectionLabel>{t('Targets')}</SectionLabel>
         <Paper padding={16} style={{ flex: 1 }}>
-          {allTargetsChecked ? (
+          {!allTargetsChecked && <TargetsPaneSkeleton />}
+          {allTargetsChecked && tabConfig.length === 0 && (
+            <Empty message={t('No target configured.')} />
+          )}
+          {allTargetsChecked && tabConfig.length > 0 && (
             <>
               <Tabs
                 value={String(activeTabKey)}
@@ -363,8 +400,6 @@ const AtomicTesting = () => {
               </Tabs>
               {drawTabs()}
             </>
-          ) : (
-            <TargetsPaneSkeleton />
           )}
         </Paper>
       </Grid>

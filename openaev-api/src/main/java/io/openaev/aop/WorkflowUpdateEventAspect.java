@@ -22,7 +22,8 @@ import org.springframework.stereotype.Component;
  *
  * <p>This aspect uses SpEL expressions defined in the annotation to extract inject or expectation
  * IDs from method parameters, then hands them to the {@link WorkflowUpdateEventPublisher}, which
- * looks the steps up in the annotated method's transaction and sends the update events.
+ * looks the steps up on the annotated method's transaction, moved to the tenant that owns each
+ * inject, and sends the update events.
  */
 @Aspect
 @Component

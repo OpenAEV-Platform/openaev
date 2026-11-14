@@ -213,6 +213,7 @@ sequenceDiagram
     actor U as Live user
     participant SCHED as AtomicTestingExecutionJob<br/>(cron, no live user)
     participant API as AtomicTestingApi
+    participant FC as FaithfulCopyTransaction<br/>→ TenantScopedTransaction.withSystemClearance
     participant SVC as AtomicTestingService
     participant DUP as InjectUtils.duplicateInject()
     participant INJ as Inject (DB)
@@ -225,13 +226,19 @@ sequenceDiagram
         end
     else Manual relaunch
         U->>API: POST /atomic-testings/{id}/relaunch
-        API->>SVC: relaunch(id, checkLaunchable=true)
-        SVC->>DUP: duplicateInject(original)
-        DUP-->>SVC: new Inject<br/>(content + inject_user copied forward, as today)
+        API->>SVC: throwIfNotLaunchable(id)<br/>(checked on what the user sees)
         rect rgba(255, 0, 0, 0.15)
+            API->>FC: execute(ctx, relaunch)<br/>*** NEW (#8726) — every marking of the tenant ***
+            FC->>SVC: relaunchAsCurrentUser(id)
+            SVC->>DUP: duplicateInject(original)
+            DUP-->>SVC: new Inject<br/>(content + inject_user + every target, RED included)
             SVC->>INJ: newInject.setLaunchedBy(currentUser())<br/>*** NEW — do not copy old launched_by forward ***
+            SVC-->>FC: id of the new inject
+            FC-->>API: id, with the user's clearance back
         end
+        API->>SVC: findById(newId)<br/>(response under the user's clearance: RED hidden)
     else Scheduled relaunch
+        Note over SCHED,SVC: background transaction (TenantScopedTransaction.execute),<br/>already at system clearance: the copy keeps RED
         SCHED->>SVC: relaunch(id, checkLaunchable=false)
         SVC->>DUP: duplicateInject(original)
         DUP-->>SVC: new Inject
@@ -240,6 +247,12 @@ sequenceDiagram
         end
     end
 ```
+
+The manual relaunch is a **faithful copy** (#8726): the new inject keeps every target of the original,
+including the ones the user is not cleared for, because a relaunch deletes the original and would
+otherwise lose them for everyone. What the user may do is unchanged (`@AccessControl` on the original,
+the launchable check on what they see), and the dispatch below still runs only the targets the
+launcher is cleared for. See "Copying an inject: the faithful copy" for the mechanism.
 
 What happens to this `launched_by` value once dispatch actually starts — and why reaching
 `resolveAllAssetsToExecute` turned out not to be the whole story — is covered next, since it's shared
@@ -469,11 +482,17 @@ classDiagram
     class MarkingScopeSupplier {
         <<interface>>
         +clearanceFor(TxCtx) MarkingCtx
+        +systemClearanceFor(TxCtx.Restricted) MarkingCtx
     }
     class HttpMarkingScopeSupplier {
         -MarkingClearanceCacheManager clearanceCache
         -UserService userService
         +clearanceFor(TxCtx) MarkingCtx
+        +systemClearanceFor(TxCtx.Restricted) MarkingCtx
+    }
+    class TenantScopedTransaction {
+        -systemClearance(TxCtx) MarkingCtx
+        +withSystemClearance(TxCtx, work)
     }
     class TenantScopeTransactionAspect {
         -markingScopeFor(TxCtx) String
@@ -482,6 +501,7 @@ classDiagram
     class MarkingClearanceCacheManager {
         -MarkingScopeResolver resolver
         +findClearance(userId, tenantId, bypass) MarkingCtx
+        +findSystemClearance(tenantIds) MarkingCtx
     }
     class MarkingScopeResolver {
         +resolve(grantedIds, tenantDefinitions, bypass) MarkingCtx
@@ -493,6 +513,7 @@ classDiagram
     class Capability {
         <<enumeration>>
         AGENT_RUNTIME_ACCESS
+        MANAGE_STIX_BUNDLE
         BYPASS
     }
 
@@ -501,6 +522,8 @@ classDiagram
     HttpMarkingScopeSupplier --> User : isAdminOrBypass()\n+ getCapabilities()
     HttpMarkingScopeSupplier --> MarkingClearanceCacheManager : findClearance(userId, tenantId, bypass)
     MarkingClearanceCacheManager --> MarkingScopeResolver : resolve(granted, tenantDefinitions, bypass)
+    TenantScopedTransaction --> MarkingScopeSupplier : systemClearanceFor(ctx)\nevery background transaction
+    HttpMarkingScopeSupplier --> MarkingClearanceCacheManager : findSystemClearance(tenantIds)\none query, never cached
 ```
 
 **Runtime flow, both branches:**
@@ -521,7 +544,7 @@ sequenceDiagram
         SUP-->>ASP: MarkingCtx.none()
         Note right of SUP: Fail-closed but admits unmarked rows —<br/>narrower result, never wider.
     else user present
-        SUP->>SUP: bypass = isAdminOrBypass() OR has(AGENT_RUNTIME_ACCESS)
+        SUP->>SUP: bypass = isAdminOrBypass() OR has(AGENT_RUNTIME_ACCESS)<br/>OR has(MANAGE_STIX_BUNDLE)
         loop per tenantId in scope
             SUP->>CACHE: findClearance(userId, tenantId, bypass)
             alt bypass == true
@@ -567,6 +590,24 @@ sequenceDiagram
   as the resolved-clearance **snapshot on the entity** that this document rules out elsewhere — nothing
   would ever evict a value baked into an `Exercise`/`Inject` column when the actor's groups change,
   which is exactly why that approach isn't safe and this one is.
+
+**The system clearance shares the bypass resolution (#8726).** Background transactions
+(`TenantScopedTransaction`) and faithful copies (`withSystemClearance`) run at the system clearance:
+every marking of the tenants in scope. It used to come from its own query
+(`MarkingDefinitionRepository.findAllIdsByTenantIds`). It now comes from
+`MarkingScopeSupplier.systemClearanceFor`, which `HttpMarkingScopeSupplier` implements with the same
+`MarkingScopeResolver` bypass branch as `findClearance(…, bypass = true)`: "every marking of a tenant"
+has one definition, for a bypassing user and for a job. The definitions of every tenant in scope are
+read in one query (`tenant_id = any(?)`), not one per tenant: an `allTenants()` job spans every
+tenant, and runs often (`QueueChainingJob`, `AtomicTestingExecutionJob`).
+
+Unlike `findClearance`, `findSystemClearance` is **never cached**. It has no user to key on, so one
+entry would be shared by every job of the tenant, and a stale one would hide the rows marked with a
+just-created definition from executions until it expired. One indexed read per transaction, whatever
+the number of tenants, is the price of always being exact (pinned by `TenantScopedTransactionMarkingScopeTest` and
+`MarkingClearanceCacheManagerCachingTest`). The supplier is mandatory there: unlike the aspect, which
+falls back to `none()`, a background transaction without it fails rather than silently skipping
+marked targets.
 
 ## Clearance resolution at dispatch time (launchedBy)
 
@@ -646,6 +687,28 @@ public static final List<MarkedTable> FROM_ASSETS =
         linkedTo("execution_traces", "execution_agent_id", "agents", "agent_id"));    // (7)
 ```
 
+Why each entry is needed:
+
+- **(1) `findings_assets`**: the reads that skip the join to `assets` (asset ids, counts), the
+  collection rewrite of a finding's assets, and the `EXISTS` of (2).
+- **(2) `findings`**: visible when it has no asset, or at least one visible asset. A finding on GREEN
+  and RED stays visible, listing GREEN only; a finding on RED only is hidden.
+- **(3) `injects_expectations`**: the expectations on a hidden asset (and on its agents) are removed;
+  team, player and asset-group expectations have no `asset_id` and stay. Global scores are computed at
+  read time (`ResultUtils.computeGlobalExpectationResults`), so they cover the visible assets only.
+- **(4) `injects_assets`, (5) `asset_groups_assets`**: Hibernate rewrites a changed `List` with
+  `DELETE … WHERE inject_id = ?` then re-inserts what the user sent. Without (4), editing an inject
+  silently dropped a target the user could not see (`InjectAssetsMarkingUpdateTest`); with it, the
+  `DELETE` only reaches the visible links. Same for static asset groups with (5).
+- **(6) `agents`, (7) `execution_traces`**: the API takes any target id
+  (`GET /api/injects/execution-traces?targetId=…`, `GET /api/injects/{id}/execution-result?targetId=…`)
+  and `Inject` responses embed `inject_status.status_traces`, so the output of a RED agent was
+  reachable by anyone who knew its asset id. Traces with no agent (the inject's global traces) stay.
+
+The inspector itself is unchanged: `MarkingDimension.activeTables()` returns `assets` and its derived
+tables, so a statement on a derived table alone (e.g. `findings`) passes the fast gate and is
+rewritten; each table of the statement gets the predicate of its shape (table above).
+
 - **One property, one meaning.** `openaev.marking.active-tables` lists only tables that carry a
   `marking_ids` column (`assets`). Activating `assets` filters every table derived from it
   (`MarkedTables.withDerived`); if `assets` is not active, its derived tables stay unfiltered. Listing
@@ -660,150 +723,119 @@ public static final List<MarkedTable> FROM_ASSETS =
 - **Removed**: the `openaev.marking.linked-tables` property, its `child.fk>parent.key` /
   `table.key<link.fk` syntax and parser, and the startup column check that came with it.
 
-### How the inspector applies it
+### Copying an inject: the faithful copy
 
-Nothing changes in `ScopeStatementInspector`; it already works table by table:
+The `TLP:GREEN` user duplicates or relaunches an atomic testing that targets
+`ASSET_GREEN` and `ASSET_RED`. Built from what the user reads, the copy only sees `[GREEN]` and
+inserts a single link: **the copy silently dropped a target the user could not see**, and a relaunch,
+which deletes the original, lost it for everyone (#8726). The same held for every copy: duplicating
+a scenario, a simulation or an inject, and launching a scenario (scenario → simulation).
 
-1. **Fast gate, before parsing**: a regex on `activeTables()` of every dimension. `MarkingDimension`
-   returns `assets` **and** its derived tables, so a statement on `findings` alone is not skipped.
-   A statement naming none of them (`scenarios`, `tags`…) is returned unchanged, never parsed.
-2. **Per table, after parsing**: for each table of the statement, each dimension that `covers()` it
-   adds its predicate; several dimensions are ANDed.
+A copy is therefore a **faithful copy**: it keeps the RED target, which the dispatch will not execute
+for a `TLP:GREEN` launcher. The seven copy endpoints (atomic testing duplicate and relaunch; scenario
+duplicate and launch; simulation duplicate; scenario and simulation inject duplicate) run the copy
+through `FaithfulCopyTransaction`, which calls `TenantScopedTransaction.withSystemClearance`:
 
-| Statement touches | `TenantDimension` | `MarkingDimension` |
-|---|---|---|
-| `scenarios` only | — | — (stopped at the fast gate) |
-| `assets` | `can_access_tenant(…)` | own column |
-| `injects_expectations` | — | parent link (3) |
-| `findings` | `can_access_tenant(…)` | link rows (2) |
-| `findings_assets` | — | parent link (1) |
-| `injects_assets` / `asset_groups_assets` | — | parent link (4) / (5) |
-| `agents` | `can_access_tenant(…)` if v2-active | parent link (6) |
-| `execution_traces` | — | parent link (7), a two-hop chain: trace → agent → asset |
+1. The copy joins the request's transaction; the tenant scope is unchanged (refused if it differs).
+2. The persistence context is flushed and cleared, then `app.current_markings` is set to the system
+   clearance: every marking of the request's tenants.
+3. The copy reloads the original by id, sees `[GREEN, RED]` and writes both links. It returns only
+   the id of the copy.
+4. The persistence context is flushed and cleared again, and the user's clearance is restored.
+5. The controller reads the copy back under the user's clearance: the response shows `[GREEN]`.
 
-### Concrete example: a lower-clearance user opens a simulation run by an admin
+What the user may do is unchanged: `@AccessControl` is checked on the original, and the relaunch's
+launchable check runs on what the user sees, before the copy. Two rules keep the faithful copy from
+becoming a way to read hidden data: only the id comes out, and nothing loaded under one clearance is
+reused under the other. `FaithfulCopyCallersArchTest` limits its callers to the five copy controllers;
+`FaithfulCopyIntegrationTest` covers the seven copies (stored targets keep RED, responses hide it).
+Background copies (the scheduled relaunch, the scheduled scenario → simulation) already run at system
+clearance through `TenantScopedTransaction`, so they needed no change.
 
-An admin (full clearance) runs a scenario on `ASSET_GREEN` and `ASSET_RED`. A `TLP:GREEN` user then
-opens the simulation's results.
+**A shared service does not widen the request.** `ScenarioToExerciseService.toExercise` scopes its
+transaction to the scenario's tenant (`TenantScopedTransaction.setScopeOnCurrentTransaction`), which
+also sets the system clearance, as background callers need. It used to do so on HTTP too, so a
+manual launch ran the rest of its request at the system clearance. A transaction already scoped to
+exactly those tenants is now left as it is (#8726): an HTTP request keeps the user's clearance, and a
+faithful copy keeps the system clearance it set.
 
-**Findings.** `SELECT * FROM findings f`, as rewritten. `<findings_assets predicate>` in (2) is
-predicate (1) applied to the link row `l`:
+The autonomous-run endpoints (create, restart, promote) call `toExercise` outside
+`FaithfulCopyTransaction`: their simulation is built from what the user can see, so it does not
+carry the targets they are not cleared for. Open: route them through `FaithfulCopyTransaction`.
 
-```sql
-SELECT * FROM findings f
-WHERE (
-  -- a) the finding is attached to no asset → nothing marks it → visible
-  NOT EXISTS (SELECT 1 FROM findings_assets l WHERE l.finding_id = f.finding_id)
-  OR
-  -- b) at least one of its assets is visible to me: (2), with (1) inlined for the link row
-  EXISTS (SELECT 1 FROM findings_assets l
-          WHERE l.finding_id = f.finding_id
-            AND (l.asset_id IS NULL OR EXISTS (
-                   SELECT 1 FROM assets a
-                   WHERE a.asset_id = l.asset_id
-                     AND is_marking_set_allowed(a.marking_ids))))
-)
-```
+### The SSE stream: rules read from the registry and the JPA mapping
 
-`findings_assets.asset_id` is part of the primary key, so the `IS NULL` branch never matches here;
-it belongs to the generic parent-link shape, where a NULL foreign key is real. Branch b) is, by hand,
-`EXISTS (SELECT 1 FROM findings_assets l JOIN assets a ON a.asset_id = l.asset_id WHERE
-l.finding_id = f.finding_id AND is_marking_set_allowed(a.marking_ids))`.
+The stream sends, after commit, the entity as the publisher loaded it: no query runs for the reader, so the
+SQL rewrite does not apply. The stream applies the same rules in memory, read at startup from the active
+marked tables (registry included) and the JPA and JSON mapping. A table added to the registry, or
+activated for marking, is filtered on the stream too. Behind `MARKING` and `assets` active, like the SQL.
 
-| Finding | `findings_assets` rows | a) no link? | b) a visible asset? | `TLP:GREEN` user sees it |
-|---|---|---|---|---|
-| port 445 open | GREEN, RED | no | yes (GREEN) | ✅, with only GREEN in its asset list |
-| CVE-2024-xxxx | RED | no | no | ❌ |
-| finding with no asset | — | yes | — | ✅ |
-
-**Expectations and scores.** The rows computed on `ASSET_RED` (its asset expectation and its agents'
-expectations, which carry `asset_id` too) are removed by (3); team, player and asset-group rows have
-no `asset_id` and stay. Global scores are computed at read time from these rows
-(`ResultUtils.computeGlobalExpectationResults`), so they cover the GREEN asset only.
-
-**Execution traces (the RED agent's output).** A trace is derived from its agent (7), the agent from
-its asset (6):
-
-```sql
-(t.execution_agent_id IS NULL OR EXISTS (
-   SELECT 1 FROM agents ag WHERE ag.agent_id = t.execution_agent_id
-     AND (ag.agent_asset IS NULL OR EXISTS (
-          SELECT 1 FROM assets a WHERE a.asset_id = ag.agent_asset
-            AND is_marking_set_allowed(a.marking_ids)))))
-```
-
-In the UI the traces are reached by clicking a target in the target list (Atomic testing or
-Simulation inject → target → *Execution* and *Terminal view*, also the *Terminal view* of the attack
-path), which already hides `ASSET_RED`. But the API takes any target id
-(`GET /api/injects/execution-traces?targetId=…`, `GET /api/injects/{id}/execution-result?targetId=…`),
-and the raw `Inject` responses embed `inject_status.status_traces`: the RED agent's output was
-reachable for anyone who knew or guessed the RED asset id. With (6) and (7), the RED agent and its
-traces do not exist for the `TLP:GREEN` user. Global traces (no agent) stay visible.
-
-**Editing the targets of an inject.** The `TLP:GREEN` user adds `ASSET_NEW` to an inject that
-targets `ASSET_GREEN` and `ASSET_RED`. They load `[GREEN]` (the join to `assets` hides RED) and send
-`[GREEN, NEW]`. `Inject.assets` is a `List` (a Hibernate bag), so changing it emits:
-
-```sql
-DELETE FROM injects_assets WHERE inject_id = ?            -- 1. drop every link
-INSERT INTO injects_assets VALUES (?, GREEN), (?, NEW)     -- 2. re-insert what the user sent
-```
-
-Without (4), statement 1 deletes the RED link: **editing an inject silently removed a target the
-user could not see** (reproduced by `InjectAssetsMarkingUpdateTest`, both for scenario/simulation
-injects and atomic testings). With (4), the inspector narrows it:
-
-```sql
-DELETE FROM injects_assets WHERE inject_id = ?
-  AND (injects_assets.asset_id IS NULL OR EXISTS (SELECT 1 FROM assets a
-       WHERE a.asset_id = injects_assets.asset_id AND is_marking_set_allowed(a.marking_ids)))
-```
-
-The RED link is out of reach, so it survives; statement 2 re-inserts GREEN and NEW, with no
-conflict. Static asset groups (`AssetGroup.assets`, also a `List`) behave the same way, fixed by (5).
-Reading `inject.getAssets()` is unchanged (the joined `assets` already hides RED), so launch,
-duplication and the scenario → simulation copy behave exactly as before.
-
-**Loading a finding's asset list.** For `finding.getAssets()` Hibernate emits:
-
-```sql
-SELECT fa.finding_id, a.*
-FROM findings_assets fa
-JOIN assets a ON a.asset_id = fa.asset_id
-WHERE fa.finding_id = ?
-```
-
-| Table | `TenantDimension` | `MarkingDimension` | Rewrite |
+| Rule | Read from | Example | Decision |
 |---|---|---|---|
-| `findings_assets` (main) | not covered | parent link (1) | `AND (fa.asset_id IS NULL OR EXISTS (… assets …))` in the `WHERE` |
-| `assets` (joined) | `can_access_tenant(…)` | own column | `JOIN (SELECT * FROM assets a WHERE can_access_tenant(…) AND is_marking_set_allowed(…)) a` |
+| own markings | the `marking_ids` column | an asset | sent when the reader holds the markings |
+| parent row | `linkedTo(table, fk, …)`, the `@JoinColumn(fk)` field | an agent, an expectation, a trace (through its agent) | sent when the parent row is visible; no parent: sent |
+| link rows (*about*) | `throughLinkRows(…)`, the `@JoinTable` field | a finding | sent when it has no link or one visible link |
+| listing | a field serialized as ids of a marked or derived entity | `inject_assets`, `asset_group_dynamic_assets` | hidden ids removed |
+| embedded | a field serialized whole, objects of a marked or derived table | `inject_expectations`, `inject_status.status_traces` | hidden objects removed |
 
-Here the RED link already disappears through the joined `assets` (inner join, Task 3), so (1) is
-redundant for this query. (1) is what protects the statements that read `findings_assets` **without**
-joining `assets`:
+```mermaid
+classDiagram
+    class StreamService {
+        +listenDatabaseUpdate(BaseEvent)
+    }
+    class StreamClearanceService {
+        +isFiltering() boolean
+        +clearanceFor(User, tenantId) MarkingCtx
+    }
+    class StreamVisibilityService {
+        +visibilityOf(BaseEvent, tenantId) StreamVisibility
+    }
+    class StreamMarkingRules {
+        +forEntity(Class) EntityRule
+        +forTable(table) RowRule
+        +sourceOf(table) RowSource
+    }
+    class StreamVisibility {
+        +visibleUnder(MarkingCtx) boolean
+        +payloadFor(MarkingCtx) ObjectNode
+    }
+    StreamService --> StreamClearanceService : isFiltering() per event, clearanceFor() per reader
+    StreamService --> StreamVisibilityService : once per event
+    StreamService --> StreamVisibility : per reader
+    StreamVisibilityService --> StreamMarkingRules
+    StreamVisibilityService ..> StreamVisibility : builds
+    StreamMarkingRules --> MarkedTables : registry included
+```
 
-- ids or counts: `SELECT asset_id FROM findings_assets WHERE finding_id = ?` would return the RED id;
-- the collection rewrite: `DELETE FROM findings_assets WHERE finding_id = ?` when a lower-clearance
-  user changes the finding's assets is narrowed to visible links, so the RED link survives instead
-  of being silently dropped;
-- the `EXISTS` of predicate (2) itself.
+- **`StreamMarkingRules`** (bean of `MarkingFilteringConfig`): the rules of each entity class, computed once
+  and cached, and where to read a table's markings by id.
+- **`StreamVisibilityService`**, once per event: serializes the payload, collects the ids the rules need, and
+  reads their markings by id (one JPQL query per table and hop) at system clearance, in the entity's tenant,
+  else the event's (an expectation has no tenant).
+- **`StreamVisibility`**, per reader: whether their clearance sees the event, and their copy of the payload.
+- **`StreamClearanceService`**: whether the stream filters at all, and the reader's clearance (cached).
 
-### Semantics worth knowing
+```mermaid
+sequenceDiagram
+    participant P as Publisher transaction
+    participant S as StreamService (@Async)
+    participant V as StreamVisibilityService
+    actor R as Reader
+    P-->>S: BaseEvent, after commit
+    S->>V: visibilityOf(event, tenant)
+    V-->>S: StreamVisibility (markings read by id)
+    loop each reader
+        S->>S: tenant + READ gates, then clearanceFor(reader)
+        S-->>R: dropped, or the payload without what the clearance hides
+    end
+```
 
-- **A NULL foreign key is visible.** A row attached to no asset (a team expectation) has no marking
-  to inherit, exactly like an empty marking set.
-- **A hidden parent hides the row everywhere the table is read**, including as a joined table, a
-  sub-query, and a link table read on its own.
-- **Findings use a permissive rule**: visible when there is no link, or at least one visible asset.
-  A finding attached to a visible and to a restricted asset stays visible, and may carry information
-  that came from the restricted one. The strict alternative (hidden as soon as one asset is hidden)
-  is a one-branch change in `MarkingDimension.linkRowsPredicate`. To confirm with the PO.
-- **The parent's tenant is not re-checked inside the sub-select**: the foreign key already ties the
-  row to a parent of its own tenant, and the child is tenant-filtered on its own where it is a
-  tenant table.
-- **Who sees agents.** An HTTP transaction carrying a `TxCtx` gets the caller's clearance; the agent
-  callbacks (`/api/endpoints/register`, jobs, expectation updates) run as the agent service account,
-  whose `AGENT_RUNTIME_ACCESS` is a read bypass, so an agent always sees itself. The external
-  executors (CrowdStrike, MDE, SentinelOne, Tanium, Palo Alto Cortex, Caldera) sync agents through
-  `TenantScopedTransaction`, i.e. with system clearance. A transaction with no `TxCtx` has an empty
-  clearance and does not see agents of marked assets, exactly as it already does not see the assets.
+- **Fail-closed**: markings that cannot be read (no tenant, parent row gone, read failure) hide the row from
+  every restricted reader.
+- **Cost**: one indexed read per table and hop for an event with rules; none otherwise, none with `MARKING`
+  off.
+- **Known limits**: the payload is the publisher's view, so a reader with more clearance may receive a shorter
+  list until reload; a reader who loses access gets no event. Both go with the signal-only stream
+  (implementation plan, Chunk 5 §3).
+
+Tested by `StreamMarkingRulesTest` (rules per entity, a table out of the registry not filtered).

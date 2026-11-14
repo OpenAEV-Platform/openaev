@@ -7,11 +7,14 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import io.openaev.config.cache.LicenseCacheManager;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
+import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -26,12 +29,27 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class ExerciseServiceDuplicateUnitTest {
 
   private static final String EXERCISE_ID = "exercise-id";
+  private static final TxCtx TX = TxCtx.forTenant("tenant-1");
 
   @Mock private WorkflowService workflowService;
   @Mock private EnterpriseEditionService enterpriseEditionService;
   @Mock private LicenseCacheManager licenseCacheManager;
+  @Mock private WorkflowOwnerScope workflowOwnerScope;
 
   @Spy @InjectMocks private ExerciseService exerciseService;
+
+  // The owner's tenant scope is the integration tests' concern; here the work just runs.
+  @BeforeEach
+  void runScopedWorkInPlace() throws Exception {
+    lenient()
+        .doAnswer(
+            invocation -> {
+              invocation.<WorkflowOwnerScope.ScopedAction<?>>getArgument(1).run();
+              return null;
+            })
+        .when(workflowOwnerScope)
+        .run(any(Exercise.class), any());
+  }
 
   @Nested
   @DisplayName("Given a time-based simulation")
@@ -42,11 +60,11 @@ class ExerciseServiceDuplicateUnitTest {
     void given_a_simulation_with_no_workflow_should_duplicate_metadata_only() {
       // -- ARRANGE --
       Exercise duplicate = new Exercise();
-      doReturn(duplicate).when(exerciseService).copyExerciseContent(EXERCISE_ID);
+      doReturn(duplicate).when(exerciseService).copyExerciseContent(TX, EXERCISE_ID);
       when(workflowService.isSimulationChaining(EXERCISE_ID)).thenReturn(false);
 
       // -- ACT --
-      Exercise result = exerciseService.duplicateExercise(EXERCISE_ID);
+      Exercise result = exerciseService.duplicateExercise(TX, EXERCISE_ID);
 
       // -- ASSERT --
       assertSame(duplicate, result);
@@ -68,13 +86,13 @@ class ExerciseServiceDuplicateUnitTest {
       // -- ARRANGE --
       Exercise duplicate = new Exercise();
       License license = new License();
-      doReturn(duplicate).when(exerciseService).copyExerciseContent(EXERCISE_ID);
+      doReturn(duplicate).when(exerciseService).copyExerciseContent(TX, EXERCISE_ID);
       when(workflowService.isSimulationChaining(EXERCISE_ID)).thenReturn(true);
       when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
       when(enterpriseEditionService.isEnterpriseLicenseInactive(license)).thenReturn(false);
 
       // -- ACT --
-      Exercise result = exerciseService.duplicateExercise(EXERCISE_ID);
+      Exercise result = exerciseService.duplicateExercise(TX, EXERCISE_ID);
 
       // -- ASSERT --
       assertSame(duplicate, result);
@@ -86,14 +104,15 @@ class ExerciseServiceDuplicateUnitTest {
     void given_an_inactive_license_should_reject_instead_of_losing_the_logic_map() {
       // -- ARRANGE --
       License license = new License();
-      doReturn(new Exercise()).when(exerciseService).copyExerciseContent(EXERCISE_ID);
+      doReturn(new Exercise()).when(exerciseService).copyExerciseContent(TX, EXERCISE_ID);
       when(workflowService.isSimulationChaining(EXERCISE_ID)).thenReturn(true);
       when(licenseCacheManager.getEnterpriseEditionInfo()).thenReturn(license);
       when(enterpriseEditionService.isEnterpriseLicenseInactive(license)).thenReturn(true);
 
       // -- ACT & ASSERT --
       assertThrows(
-          EnterpriseEditionException.class, () -> exerciseService.duplicateExercise(EXERCISE_ID));
+          EnterpriseEditionException.class,
+          () -> exerciseService.duplicateExercise(TX, EXERCISE_ID));
       verify(workflowService, never())
           .duplicateSimulationWorkflow(anyString(), any(Exercise.class));
     }

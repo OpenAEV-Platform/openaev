@@ -190,6 +190,16 @@ public class AttackPathGraphService {
         : fullGraph(simulationId, 0);
   }
 
+  /**
+   * The tenant a graph's contracts are read in: the one its execution rows carry. A simulation
+   * belongs to one tenant, while the request scope can span several, and the contracts the graph
+   * names and tags its nodes from exist once per tenant. Null for no row, in which case no contract
+   * is named and none is read.
+   */
+  private static String tenantOf(List<AttackPathExecutionRow> executions) {
+    return executions.isEmpty() ? null : executions.get(0).tenantId();
+  }
+
   private boolean resolveCollapsed(String simulationId, String requestedMode) {
     if ("collapsed".equals(requestedMode)) {
       return true;
@@ -296,8 +306,12 @@ public class AttackPathGraphService {
     // so the external id is passed for both).
     List<AttackPathAttackPatternDTO> attackPatterns = new ArrayList<>();
     if (e.getContractExternalId() != null) {
+      // Resolved in the execution's own tenant, not the request's ambient scope: a built-in
+      // contract id repeats across tenants (#8485), and the caller's scope can legitimately span
+      // several.
       injectorContractRepository
-          .findByIdOrExternalId(e.getContractExternalId(), e.getContractExternalId())
+          .findByIdOrExternalIdAndTenant(
+              e.getContractExternalId(), e.getContractExternalId(), e.getTenant().getId())
           .ifPresent(
               contract ->
                   contract
@@ -376,9 +390,12 @@ public class AttackPathGraphService {
   private String injectorCommandLine(String injectId) {
     List<ExecutionTrace> traces =
         injectStatusRepository
-            .findInjectStatusWithGlobalExecutionTraces(injectId)
+            .findByInjectId(injectId)
             .map(InjectStatus::getTraces)
-            .orElse(List.of());
+            .orElse(List.of())
+            .stream()
+            .filter(ExecutionTrace::isGlobal)
+            .toList();
     String rawCommandLine = findCommandTraceMessage(traces);
     if (rawCommandLine == null) {
       return null;
@@ -638,10 +655,12 @@ public class AttackPathGraphService {
     for (AttackPathExecutionRow e : page) {
       feedByExecutionId.put(e.id(), executionFeedNode(e));
     }
-    applyContractNames(page, feedByExecutionId);
+    String tenantId = tenantOf(page);
+    applyContractNames(page, feedByExecutionId, tenantId);
     applyExecutionStatuses(page, feedByExecutionId);
     applyPayloadIconMetadata(page, feedByExecutionId);
-    applyFeedAttackPatterns(page, feedByExecutionId, loadPatternsByContract(feedContractIds(page)));
+    applyFeedAttackPatterns(
+        page, feedByExecutionId, loadPatternsByContract(feedContractIds(page), tenantId));
     return new AttackPathEndpointRelationsDTO(
         new ArrayList<>(feedByExecutionId.values()),
         new ArrayList<>(edges.values()),
@@ -656,6 +675,8 @@ public class AttackPathGraphService {
    * aggregates a subset of rows cannot compute (endpoint colour, edge counts, counters) are the
    * delta service's job to recompute over the whole affected endpoints.
    *
+   * <p>The contracts the graph names and tags its nodes from are read in the tenant the rows carry.
+   *
    * <p>{@code graphVersion} labels a snapshot; a delta passes 0, because it carries its own cursor
    * in {@code AttackPathDeltaDTO#newVersion} and never ships this record to a client.
    */
@@ -663,6 +684,7 @@ public class AttackPathGraphService {
       List<AttackPathExecutionRow> executions,
       List<AttackPathFindingRow> findings,
       long graphVersion) {
+    String tenantId = tenantOf(executions);
     Map<String, AttackPathNodeDTO> nodes = new LinkedHashMap<>();
     Map<String, AttackPathEdges> edges = new LinkedHashMap<>();
     Map<String, AttackPathNodeDTO> feedByExecutionId = new LinkedHashMap<>();
@@ -692,14 +714,14 @@ public class AttackPathGraphService {
     }
     applyKillChain(executions, feedByExecutionId);
     applyEventDependencies(executions, findings, feedByExecutionId);
-    Map<String, String> contractNames = applyContractNames(executions, feedByExecutionId);
+    Map<String, String> contractNames = applyContractNames(executions, feedByExecutionId, tenantId);
     applyExecutionStatuses(executions, feedByExecutionId);
     applyPayloadIconMetadata(executions, feedByExecutionId);
     // ONE batched technique read serves both the feed nodes (here) and the injector nodes
     // (resolveInjectorAttackPatterns below): the feed's contract set is a superset of the
     // injector-node one, so the full pass keeps its constant query count.
     Map<String, List<AttackPathAttackPatternDTO>> patternsByContract =
-        loadPatternsByContract(feedContractIds(executions));
+        loadPatternsByContract(feedContractIds(executions), tenantId);
     applyFeedAttackPatterns(executions, feedByExecutionId, patternsByContract);
     applyInjectorNodeLabels(nodes, contractsByInjectorNode, contractNames);
 
@@ -826,14 +848,34 @@ public class AttackPathGraphService {
   }
 
   /**
+   * The one tenant the metadata rows of a simulation carry, null for no row. A simulation belongs
+   * to one tenant, so rows of two tenants are an inconsistent store: the contracts of the graph are
+   * read in a single tenant, and the read refuses to pick one.
+   */
+  private static String singleTenantOf(String simulationId, List<AttackPathInjectorMetaRow> rows) {
+    Set<String> tenantIds = new LinkedHashSet<>();
+    for (AttackPathInjectorMetaRow meta : rows) {
+      tenantIds.add(meta.tenantId());
+    }
+    if (tenantIds.size() > 1) {
+      throw new IllegalStateException(
+          "The injector executions of simulation " + simulationId + " span more than one tenant");
+    }
+    return tenantIds.isEmpty() ? null : tenantIds.iterator().next();
+  }
+
+  /**
    * The collapsed injector nodes get the same type and techniques as the full graph, but their
    * source rows are never materialized (the edges are grouped), so a small distinct read supplies
    * the per-injector metadata before the shared technique resolution runs.
    */
-  private void enrichCollapsedInjectors(String simulationId, Map<String, AttackPathNodeDTO> nodes) {
+  void enrichCollapsedInjectors(String simulationId, Map<String, AttackPathNodeDTO> nodes) {
     Map<String, Set<String>> contractsByInjectorNode = new LinkedHashMap<>();
     Set<String> externalIds = new HashSet<>();
-    for (AttackPathInjectorMetaRow meta : executionRepository.findInjectorMetadata(simulationId)) {
+    List<AttackPathInjectorMetaRow> metaRows =
+        executionRepository.findInjectorMetadata(simulationId);
+    String tenantId = singleTenantOf(simulationId, metaRows);
+    for (AttackPathInjectorMetaRow meta : metaRows) {
       String nodeId = AttackPathIds.injectorNode(meta.sourceInjector(), meta.contractExternalId());
       AttackPathNodeDTO injectorNode = nodes.get(nodeId);
       if (injectorNode == null) {
@@ -849,9 +891,10 @@ public class AttackPathGraphService {
         externalIds.add(meta.contractExternalId());
       }
     }
-    applyInjectorNodeLabels(nodes, contractsByInjectorNode, resolveContractNames(externalIds));
+    applyInjectorNodeLabels(
+        nodes, contractsByInjectorNode, resolveContractNames(externalIds, tenantId));
     resolveInjectorAttackPatterns(
-        nodes, contractsByInjectorNode, loadPatternsByContract(externalIds));
+        nodes, contractsByInjectorNode, loadPatternsByContract(externalIds, tenantId));
   }
 
   /**
@@ -884,16 +927,18 @@ public class AttackPathGraphService {
   /**
    * The {@code contract external id -> ATT&CK techniques} map for a set of contracts, in one
    * batched read. Shared by the injector-node and feed-node technique resolutions so each graph
-   * pass pays for at most one such query per consumer. Empty input means no query at all.
+   * pass pays for at most one such query per consumer. Empty input means no query at all. Read in
+   * {@code tenantId}, the simulation's tenant: an external id repeats across tenants.
    */
   private Map<String, List<AttackPathAttackPatternDTO>> loadPatternsByContract(
-      Set<String> externalIds) {
+      Set<String> externalIds, String tenantId) {
     Map<String, List<AttackPathAttackPatternDTO>> patternsByContract = new HashMap<>();
     if (externalIds.isEmpty()) {
       return patternsByContract;
     }
+    Objects.requireNonNull(tenantId, "a graph that names contracts has execution rows");
     injectorContractRepository
-        .findInjectorAttackPatternsByExternalIdIn(externalIds)
+        .findInjectorAttackPatternsByExternalIdInAndTenant(externalIds, tenantId)
         .forEach(
             row ->
                 patternsByContract
@@ -1361,7 +1406,9 @@ public class AttackPathGraphService {
    * so the injector node labels can reuse it without a second read.
    */
   private Map<String, String> applyContractNames(
-      List<AttackPathExecutionRow> executions, Map<String, AttackPathNodeDTO> feedByExecutionId) {
+      List<AttackPathExecutionRow> executions,
+      Map<String, AttackPathNodeDTO> feedByExecutionId,
+      String tenantId) {
     Set<String> externalIds =
         executions.stream()
             .map(AttackPathExecutionRow::contractExternalId)
@@ -1370,7 +1417,7 @@ public class AttackPathGraphService {
     if (externalIds.isEmpty()) {
       return Map.of();
     }
-    Map<String, String> nameByExternalId = resolveContractNames(externalIds);
+    Map<String, String> nameByExternalId = resolveContractNames(externalIds, tenantId);
     if (nameByExternalId.isEmpty()) {
       return nameByExternalId;
     }
@@ -1541,14 +1588,16 @@ public class AttackPathGraphService {
   /**
    * Resolves the {@code externalId → contract name} map for a set of injector-contract external ids
    * in a single batched read. Shared by the feed-node contract names and the injector node labels
-   * so neither pays for a second read, and constant in the number of contracts.
+   * so neither pays for a second read, and constant in the number of contracts. The contracts are
+   * the ones of {@code tenantId}, the simulation's tenant: an external id repeats across tenants.
    */
-  private Map<String, String> resolveContractNames(Set<String> externalIds) {
+  private Map<String, String> resolveContractNames(Set<String> externalIds, String tenantId) {
     if (externalIds.isEmpty()) {
       return Map.of();
     }
+    Objects.requireNonNull(tenantId, "a graph that names contracts has execution rows");
     List<InjectorContract> contracts =
-        injectorContractRepository.findAllByIdOrExternalIdIn(externalIds);
+        injectorContractRepository.findAllByIdOrExternalIdInAndTenant(externalIds, tenantId);
     Map<String, String> nameByExternalId = new HashMap<>();
     for (String externalId : externalIds) {
       contracts.stream()

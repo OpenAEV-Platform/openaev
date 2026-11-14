@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.context.BulkOperationContext;
+import io.openaev.context.TenantContext;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.ResourceType;
 import jakarta.persistence.EmbeddedId;
@@ -12,6 +13,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.context.request.RequestAttributes;
@@ -55,6 +58,16 @@ public class BaseEvent implements Cloneable {
   @JsonIgnore private final String permissionResourceId;
 
   @JsonIgnore private final ResourceType permissionResourceType;
+
+  private static final String WRITE_TENANT_ATTRIBUTE = BaseEvent.class.getName() + ".writeTenant";
+
+  /**
+   * The tenant the change was made in: the one the request declared with {@link
+   * #attributeRequestEventsTo} for the type of the entity, else {@link
+   * TenantContext#getCurrentTenant()} when the event was built. A value that depends on the tenant,
+   * such as the organization of a user, is only valid for the consumers of this tenant.
+   */
+  @JsonIgnore private final String tenantId;
 
   /** The type of event (e.g., DATA_PERSIST, DATA_UPDATE, DATA_DELETE). */
   @JsonProperty("event_type")
@@ -102,6 +115,8 @@ public class BaseEvent implements Cloneable {
       // Falls back to the entity itself, which consumers resolve through its own resource type.
       log.debug("Cannot resolve permission resource of {}", data.getClass().getSimpleName(), e);
     }
+    String writeTenantId = attributedTenantOf(requestAttributes, data);
+    this.tenantId = writeTenantId != null ? writeTenantId : TenantContext.getCurrentTenant();
     this.permissionResourceId = resolvedPermissionResourceId;
     this.permissionResourceType = resolvedPermissionResourceType;
     Class<?> baseClass = data.getClass();
@@ -160,6 +175,63 @@ public class BaseEvent implements Cloneable {
         }
       }
     }
+
+    String streamSchema = data.getStreamSchema();
+    if (streamSchema != null) {
+      this.schema = streamSchema;
+    }
+  }
+
+  /**
+   * Declares the tenant the writes of the current request go to, for the events of the entities of
+   * one type. The ambient tenant is the default one when the request names another in {@code
+   * X-Tenant-Ids}, so it would attribute those events to the wrong tenant. Does nothing outside a
+   * request.
+   *
+   * <p>The attribution applies to the events of entities that are an instance of {@code
+   * entityType}, whenever in the request they are built. The events of every other entity keep the
+   * ambient tenant, so a writer names the type whose events carry a value that depends on the
+   * tenant, and never moves the events of other entities it touches.
+   *
+   * @param tenantId the tenant the request writes in
+   * @param entityType the type of the entities whose events are attributed to that tenant
+   */
+  public static void attributeRequestEventsTo(String tenantId, Class<? extends Base> entityType) {
+    RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+    if (requestAttributes != null) {
+      attributionsOf(requestAttributes).put(entityType, tenantId);
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Map<Class<? extends Base>, String> attributionsOf(
+      RequestAttributes requestAttributes) {
+    Object attributions =
+        requestAttributes.getAttribute(WRITE_TENANT_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST);
+    if (attributions == null) {
+      attributions = new LinkedHashMap<Class<? extends Base>, String>();
+      requestAttributes.setAttribute(
+          WRITE_TENANT_ATTRIBUTE, attributions, RequestAttributes.SCOPE_REQUEST);
+    }
+    return (Map<Class<? extends Base>, String>) attributions;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static String attributedTenantOf(RequestAttributes requestAttributes, Base data) {
+    if (requestAttributes == null) {
+      return null;
+    }
+    Object attributions =
+        requestAttributes.getAttribute(WRITE_TENANT_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST);
+    if (attributions == null) {
+      return null;
+    }
+    return ((Map<Class<? extends Base>, String>) attributions)
+        .entrySet().stream()
+            .filter(attribution -> attribution.getKey().isInstance(data))
+            .map(Map.Entry::getValue)
+            .findFirst()
+            .orElse(null);
   }
 
   /**
