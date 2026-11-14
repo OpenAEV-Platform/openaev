@@ -933,6 +933,30 @@ public class StreamServiceTest {
         captureWireEvent(adminSink, jsonMapper).path("instance").path("inject_title").asText());
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {DATA_UPDATE, DATA_DELETE})
+  public void given_rowDeletedWithItsParent_should_sendItsIdOnlyOnDeletion(String eventType) {
+    // Arrange: the agents of a deleted endpoint, whose markings are gone with it
+    ObjectMapper jsonMapper = useRealMapper();
+    Agent agent = restrictedAgent();
+    stubRead(mockUser, agent, true);
+    StreamVisibility visibility = hiddenFromAmber();
+    when(visibility.parentDeleted()).thenReturn(true);
+    readerHolds(mockUser, AMBER);
+
+    // Act
+    streamService.listenDatabaseUpdate(new BaseEvent(eventType, agent, jsonMapper));
+
+    // Assert
+    if (DATA_UPDATE.equals(eventType)) {
+      verify(mockSink, never()).next(any());
+      return;
+    }
+    JsonNode wire = captureWireEvent(mockSink, jsonMapper);
+    assertEquals(DATA_DELETE, wire.path("event_type").asText());
+    assertEquals(jsonMapper.createObjectNode().put("agent_id", RESOURCE_ID), wire.path("instance"));
+  }
+
   @Test
   public void given_markingsThatCannotBeRead_should_reachOnlyUnrestrictedReaders()
       throws Exception {
