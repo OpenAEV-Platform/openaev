@@ -107,11 +107,11 @@ public interface InjectRepository
       @Param("updatedAt") Instant updatedAt);
 
   /**
-   * Resolves the owning tenant of each given inject in one native, filter-exempt query, for
-   * background consumers that group a cross-tenant batch by tenant without an ambient {@code
-   * TenantContext} (mirrors {@code StepRepository.findTenantIdByStepId}, #6904). A native query is
-   * not rewritten by the Hibernate tenant {@code @Filter}, so the result is context-free. Each row
-   * is {@code [inject_id, tenant_id]}; an unknown inject is simply absent from the result.
+   * Resolves the owning tenant of each given inject in one query. {@code injects} is an active
+   * table, so the read is narrowed to the current tenant scope like any other: an inject outside it
+   * is absent from the result, exactly like an unknown one. A caller that must resolve owners
+   * across tenants, such as a background consumer grouping a mixed batch, runs it under {@code
+   * TxCtx.allTenants()}. Each row is {@code [inject_id, tenant_id]}.
    */
   @Query(
       value = "SELECT i.inject_id, i.tenant_id FROM injects i WHERE i.inject_id IN :injectIds",

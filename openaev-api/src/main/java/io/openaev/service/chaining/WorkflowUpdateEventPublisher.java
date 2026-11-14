@@ -110,9 +110,9 @@ public class WorkflowUpdateEventPublisher {
   }
 
   /**
-   * The tenants owning the given injects, read from their own {@code tenant_id} with a native
-   * projection that neither the Hibernate tenant filter nor an ambient tenant context changes, so
-   * it resolves the owner from a caller that may not be allowed to see it.
+   * The tenants owning the given injects, read from their own {@code tenant_id} in the caller's
+   * tenant scope: a caller whose scope lacks an inject's tenant gets no owner for it, and no step
+   * of that inject is notified.
    */
   private Set<String> ownerTenantsOfInjects(Set<String> injectIds) {
     if (injectIds == null || injectIds.isEmpty()) {

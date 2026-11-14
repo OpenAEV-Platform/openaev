@@ -303,8 +303,9 @@ public class InjectService {
 
   /**
    * The tenant of each given inject, as {@code [inject_id, tenant_id]} rows read from the inject's
-   * own column by a native projection that no tenant scope narrows. For the callers that resolve an
-   * inject's owner before acting in its tenant; an unknown inject is absent from the result.
+   * own column, in the caller's tenant scope. For the callers that resolve an inject's owner before
+   * acting in its tenant; an unknown inject and an inject outside the scope are absent from the
+   * result.
    */
   public List<Object[]> findTenantIdsByInjectIds(Collection<String> injectIds) {
     return injectRepository.findTenantIdsByInjectIds(injectIds);
@@ -390,9 +391,10 @@ public class InjectService {
   /**
    * Tenant gate of the implant endpoints, run before {@link #checkAgentTargetsInject} and {@link
    * #checkAgentMayReportOnInject}: the inject must belong to a tenant of the request's scope. Reads
-   * the inject's tenant column only, by primary key and outside the v1 tenant filter, then compares
-   * it with the scope in Java, the test {@link #findInScope} applies, without loading the inject:
-   * it runs on every implant callback, under the per-inject lock.
+   * the inject's tenant column only, by primary key, then compares it with the scope in Java, the
+   * test {@link #findInScope} applies, without loading the inject: it runs on every implant
+   * callback, under the per-inject lock. The read itself is narrowed to the request's scope, so an
+   * inject of another tenant is not found and is refused like an unknown one.
    *
    * <p>An unknown inject and an inject of another tenant are refused alike (403, the message of the
    * agent checks), so the implant endpoints do not reveal whether an inject id exists.
