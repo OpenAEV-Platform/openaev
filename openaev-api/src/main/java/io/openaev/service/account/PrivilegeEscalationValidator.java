@@ -3,7 +3,10 @@ package io.openaev.service.account;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.CapabilityScope;
 import io.openaev.database.model.Grant.GRANT_TYPE;
+import io.openaev.database.model.Group;
+import io.openaev.database.model.Role;
 import io.openaev.database.model.User;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.rest.exception.PrivilegeGrantException;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -37,6 +40,25 @@ public final class PrivilegeEscalationValidator {
   }
 
   // -- CAPABILITIES --
+
+  /**
+   * The capabilities a group already hands out, for a check that compares them with the caller's.
+   * Refuses when the roles read through the group are not the roles {@code groups_roles} links it
+   * to: a role the request scope hides would be missing from the answer, and a partial answer lets
+   * the caller through for a capability the check never saw. Applies to every caller, admin and
+   * bypass holders included.
+   *
+   * @param storedRoleIds the role ids of the links of the group, read from {@code groups_roles}
+   */
+  public static Set<Capability> capabilitiesOfAllRoles(
+      @NotNull final Group group, @NotNull final Set<String> storedRoleIds) {
+    Set<String> readRoleIds =
+        group.getRoles().stream().map(Role::getId).collect(Collectors.toSet());
+    if (!readRoleIds.equals(storedRoleIds)) {
+      throw new ForbiddenException("The roles of the group cannot all be read: " + group.getId());
+    }
+    return Role.capabilitiesOf(group.getRoles());
+  }
 
   public static void assertCanAssignCapabilities(
       @NotNull final User currentUser,
