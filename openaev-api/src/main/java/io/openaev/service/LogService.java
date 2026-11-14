@@ -20,7 +20,6 @@ import io.openaev.database.model.BannerMessage;
 import io.openaev.database.model.EventType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Tenant;
-import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.engine.model.log.LogEvent;
@@ -570,9 +569,10 @@ public class LogService {
       return false;
     }
     try {
-      User user = userService.user(userId);
-      if (user != null && user.getEmail() != null) {
-        meta.setUserEmail(hashWithSHA256(user.getEmail()));
+      // The email alone: loading the user would pull its EAGER groups and their users, in cascade.
+      String email = userService.findEmailById(userId).orElse(null);
+      if (email != null) {
+        meta.setUserEmail(hashWithSHA256(email));
         return true;
       }
     } catch (Exception e) {

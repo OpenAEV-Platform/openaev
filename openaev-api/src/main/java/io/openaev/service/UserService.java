@@ -241,6 +241,11 @@ public class UserService {
         .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
   }
 
+  /** Reads the email alone, without hydrating the user and its EAGER groups (and their users). */
+  public Optional<String> findEmailById(@NotBlank final String userId) {
+    return userRepository.findEmailById(userId);
+  }
+
   /** Finds users by IDs (platform scope, no tenant filtering). */
   @Transactional(readOnly = true)
   public List<User> find(@NotNull final List<String> userIds) {

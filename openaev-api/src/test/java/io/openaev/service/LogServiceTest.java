@@ -27,6 +27,7 @@ import io.openaev.utils.HttpReqRespUtils;
 import io.openaev.utils.log.dispatcher.AuditLogTransportDispatcherUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -65,6 +66,7 @@ class LogServiceTest {
       mock(io.openaev.engine.facade.EngineService.class);
   private final io.openaev.utils.object.ObjectNormalizationUtils objectNormalizationUtils =
       mock(io.openaev.utils.object.ObjectNormalizationUtils.class);
+  private final UserService userService = mock(UserService.class);
 
   @BeforeEach
   void setUp() {
@@ -91,7 +93,7 @@ class LogServiceTest {
         auditLogTransportDispatcherUtils,
         objectNormalizationUtils,
         engineService,
-        mock(UserService.class),
+        userService,
         enterpriseEditionService,
         licenseCacheManager,
         platformSettingsService,
@@ -303,6 +305,28 @@ class LogServiceTest {
       assertEquals("session-456", event.getUserMetadata().getSessionId());
       assertEquals("10.0.0.1", event.getUserMetadata().getIp());
       assertEquals("ua/1.0", event.getUserMetadata().getUserAgent());
+    }
+
+    @Test
+    @DisplayName("given_knownUser_should_hashItsEmailWithoutLoadingTheUser")
+    void given_knownUser_should_hashItsEmailWithoutLoadingTheUser() {
+      // -- PREPARE --
+      // Loading the user would pull its EAGER groups and their users, in cascade: the session kill
+      // of a user being deleted would then read most of the user base.
+      when(auditLogTransportDispatcherUtils.dispatch(any(LogEvent.class), any())).thenReturn(true);
+      when(userService.findEmailById("user-123")).thenReturn(Optional.of("user@test.invalid"));
+
+      // -- EXECUTE --
+      logService.logSessionExpiredEvent(
+          "user-123", "session-456", 3600L, "invalidated", "1.1.1.1", "test");
+
+      // -- VERIFY --
+      ArgumentCaptor<LogEvent> captor = ArgumentCaptor.forClass(LogEvent.class);
+      verify(auditLogTransportDispatcherUtils).dispatch(captor.capture(), any());
+      assertEquals(
+          CryptoHelper.hashWithSHA256("user@test.invalid"),
+          captor.getValue().getUserMetadata().getUserEmail());
+      verify(userService, never()).user(anyString());
     }
 
     @Test
