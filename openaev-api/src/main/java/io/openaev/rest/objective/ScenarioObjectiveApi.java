@@ -1,7 +1,6 @@
 package io.openaev.rest.objective;
 
 import static io.openaev.config.SessionHelper.currentUser;
-import static io.openaev.helper.DatabaseHelper.resolveRelation;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static java.time.Instant.now;
@@ -46,6 +45,7 @@ public class ScenarioObjectiveApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public Iterable<Objective> getMainObjectives(TxCtx ctx, @PathVariable String scenarioId) {
+    requireScenarioInScope(ctx, scenarioId);
     return objectiveRepository.findAll(ObjectiveSpecification.fromScenario(scenarioId));
   }
 
@@ -82,8 +82,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
       @PathVariable String scenarioId,
       @PathVariable String objectiveId,
       @Valid @RequestBody ObjectiveInput input) {
-    Objective objective =
-        objectiveRepository.findById(objectiveId).orElseThrow(ElementNotFoundException::new);
+    requireScenarioInScope(ctx, scenarioId);
+    Objective objective = objectiveOfScenario(scenarioId, objectiveId);
     objective.setUpdateAttributes(input);
     return objectiveRepository.save(objective);
   }
@@ -99,7 +99,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public void deleteObjective(
       TxCtx ctx, @PathVariable String scenarioId, @PathVariable String objectiveId) {
-    objectiveRepository.deleteById(objectiveId);
+    requireScenarioInScope(ctx, scenarioId);
+    objectiveRepository.delete(objectiveOfScenario(scenarioId, objectiveId));
   }
 
   // endregion
@@ -115,8 +116,12 @@ public class ScenarioObjectiveApi extends RestBehavior {
       actionPerformed = Action.READ,
       resourceType = ResourceType.SCENARIO)
   public Evaluation getEvaluation(
-      TxCtx ctx, @PathVariable String scenarioId, @PathVariable String evaluationId) {
-    return evaluationRepository.findById(evaluationId).orElseThrow(ElementNotFoundException::new);
+      TxCtx ctx,
+      @PathVariable String scenarioId,
+      @PathVariable String objectiveId,
+      @PathVariable String evaluationId) {
+    requireScenarioInScope(ctx, scenarioId);
+    return evaluationOfObjective(scenarioId, objectiveId, evaluationId);
   }
 
   @GetMapping({
@@ -130,6 +135,8 @@ public class ScenarioObjectiveApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public Iterable<Evaluation> getEvaluations(
       TxCtx ctx, @PathVariable String scenarioId, @PathVariable String objectiveId) {
+    requireScenarioInScope(ctx, scenarioId);
+    objectiveOfScenario(scenarioId, objectiveId);
     return evaluationRepository.findAll(EvaluationSpecification.fromObjective(objectiveId));
   }
 
@@ -147,9 +154,11 @@ public class ScenarioObjectiveApi extends RestBehavior {
       @PathVariable String scenarioId,
       @PathVariable String objectiveId,
       @Valid @RequestBody EvaluationInput input) {
+    Scenario scenario =
+        scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
     Evaluation evaluation = new Evaluation();
     evaluation.setUpdateAttributes(input);
-    Objective objective = resolveRelation(objectiveId, objectiveRepository);
+    Objective objective = objectiveOfScenario(scenarioId, objectiveId);
     evaluation.setObjective(objective);
     evaluation.setUser(
         userRepository
@@ -158,8 +167,6 @@ public class ScenarioObjectiveApi extends RestBehavior {
     Evaluation result = evaluationRepository.save(evaluation);
     objective.setUpdatedAt(now());
     objectiveRepository.save(objective);
-    Scenario scenario =
-        scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
     scenario.setUpdatedAt(now());
     scenarioRepository.save(scenario);
     return result;
@@ -180,16 +187,14 @@ public class ScenarioObjectiveApi extends RestBehavior {
       @PathVariable String objectiveId,
       @PathVariable String evaluationId,
       @Valid @RequestBody EvaluationInput input) {
-    Evaluation evaluation =
-        evaluationRepository.findById(evaluationId).orElseThrow(ElementNotFoundException::new);
-    evaluation.setUpdateAttributes(input);
-    Evaluation result = evaluationRepository.save(evaluation);
-    Objective objective =
-        objectiveRepository.findById(objectiveId).orElseThrow(ElementNotFoundException::new);
-    objective.setUpdatedAt(now());
-    objectiveRepository.save(objective);
     Scenario scenario =
         scenarioService.findInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
+    Evaluation evaluation = evaluationOfObjective(scenarioId, objectiveId, evaluationId);
+    evaluation.setUpdateAttributes(input);
+    Evaluation result = evaluationRepository.save(evaluation);
+    Objective objective = evaluation.getObjective();
+    objective.setUpdatedAt(now());
+    objectiveRepository.save(objective);
     scenario.setUpdatedAt(now());
     scenarioRepository.save(scenario);
     return result;
@@ -205,8 +210,42 @@ public class ScenarioObjectiveApi extends RestBehavior {
       actionPerformed = Action.WRITE,
       resourceType = ResourceType.SCENARIO)
   public void deleteEvaluation(
-      TxCtx ctx, @PathVariable String scenarioId, @PathVariable String evaluationId) {
-    evaluationRepository.deleteById(evaluationId);
+      TxCtx ctx,
+      @PathVariable String scenarioId,
+      @PathVariable String objectiveId,
+      @PathVariable String evaluationId) {
+    requireScenarioInScope(ctx, scenarioId);
+    evaluationRepository.delete(evaluationOfObjective(scenarioId, objectiveId, evaluationId));
   }
+
   // endregion
+
+  private void requireScenarioInScope(TxCtx ctx, String scenarioId) {
+    scenarioService.findByIdInScope(ctx, scenarioId).orElseThrow(ElementNotFoundException::new);
+  }
+
+  /** The objective, only when it belongs to the given scenario. */
+  private Objective objectiveOfScenario(String scenarioId, String objectiveId) {
+    return objectiveRepository
+        .findById(objectiveId)
+        .filter(
+            objective ->
+                objective.getScenario() != null
+                    && scenarioId.equals(objective.getScenario().getId()))
+        .orElseThrow(ElementNotFoundException::new);
+  }
+
+  /** The evaluation, only when it belongs to the objective of the path, itself in the scenario. */
+  private Evaluation evaluationOfObjective(
+      String scenarioId, String objectiveId, String evaluationId) {
+    return evaluationRepository
+        .findById(evaluationId)
+        .filter(
+            evaluation ->
+                evaluation.getObjective() != null
+                    && objectiveId.equals(evaluation.getObjective().getId())
+                    && evaluation.getObjective().getScenario() != null
+                    && scenarioId.equals(evaluation.getObjective().getScenario().getId()))
+        .orElseThrow(ElementNotFoundException::new);
+  }
 }
