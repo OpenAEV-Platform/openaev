@@ -351,6 +351,18 @@ public class TenantGroupService {
         .forEach(group -> grantMissingMarkings(group, List.of(marking)));
   }
 
+  /**
+   * Takes a marking out of every group of its tenant that holds it, before the marking is deleted.
+   * The {@code ON DELETE CASCADE} of {@code groups_markings} would drop the rows, but a group still
+   * loaded in the session (the caller's own groups load with the user) would keep referencing the
+   * deleted marking and fail the flush with a {@code TransientPropertyValueException}.
+   */
+  public void revokeFromEveryGroup(@NotNull final MarkingDefinition marking) {
+    groupRepository
+        .findAllByTenantIdAndMarkingsId(marking.getTenant().getId(), marking.getId())
+        .forEach(group -> group.getMarkings().remove(marking));
+  }
+
   /** Makes the group receive every marking of its tenant, existing and future. */
   public void receiveEveryMarking(@NotBlank final String tenantId, @NotNull final Group group) {
     receiveEveryMarking(group, markingDefinitionRepository.findAllByTenantId(tenantId));
