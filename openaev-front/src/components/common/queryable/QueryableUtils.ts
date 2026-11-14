@@ -12,6 +12,41 @@ export const buildSearchPagination = (searchPaginationInput: Partial<SearchPagin
   });
 };
 
+// Canonical form of the list state a user can change (text search, size, sort,
+// filters), so two inputs compare equal when they would load the same list:
+// filter ids are generated, an absent sort is the hooks' empty-property one, an
+// absent direction is DESC (useSortState) and an absent filter group is empty.
+const canonicalListState = (input: Partial<SearchPaginationInput>) => JSON.stringify({
+  textSearch: input.textSearch?.trim() ?? '',
+  size: input.size ?? DEFAULT_ROWS_PER_PAGE,
+  sorts: (input.sorts ?? [])
+    .filter(sort => !!sort.property)
+    .map(sort => ({
+      property: sort.property,
+      direction: sort.direction === 'ASC' ? 'ASC' : 'DESC',
+    })),
+  filterGroup: {
+    mode: input.filterGroup?.mode ?? 'and',
+    filters: (input.filterGroup?.filters ?? []).map(filter => ({
+      key: filter.key,
+      mode: filter.mode ?? 'and',
+      operator: filter.operator ?? 'eq',
+      values: filter.values ?? [],
+    })),
+  },
+});
+
+/**
+ * True when a list state is the list's own default (page ignored). Such a state
+ * is neither written to localStorage nor to the URL `query` parameter: storing
+ * it would pin today's defaults for the user, so a default changed in a later
+ * version (e.g. hiding deprecated payloads) would never reach them (#4181).
+ */
+export const isDefaultListState = (
+  input: Partial<SearchPaginationInput>,
+  defaults: Partial<SearchPaginationInput>,
+) => canonicalListState(input) === canonicalListState(defaults);
+
 // Resolved empty page for fetchers that must short-circuit without calling the
 // API - typically when scoping a list on an empty id set, where an empty
 // `contains` filter would match everything instead of nothing. Keeps the list
