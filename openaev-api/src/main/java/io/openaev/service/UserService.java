@@ -431,8 +431,12 @@ public class UserService {
 
   @Transactional(rollbackFor = Exception.class)
   public void delete(String userId) {
-    User existing = user(userId);
-    ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
+    // The email alone: loading the user would pull its EAGER groups and their users, in cascade.
+    String email =
+        userRepository
+            .findEmailById(userId)
+            .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
+    ReservedKeyValidator.validateUserEmailPattern(email);
     List<String> tenantIds = userRepository.findTenantIdsByUserId(userId);
     sessionManager.invalidateUserSession(userId);
     userRepository.deleteByIdNative(userId);
