@@ -31,9 +31,12 @@ import io.openaev.utils.fixtures.UserFixture;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.FlushModeType;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -50,6 +53,7 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.springframework.orm.jpa.EntityManagerHolder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -180,16 +184,39 @@ class ScopedCurrentUserLoadTest extends IntegrationTest {
       jdbc.update("DELETE FROM groups_roles WHERE group_id = ?", groupId);
       jdbc.update("DELETE FROM groups WHERE group_id = ?", groupId);
     }
-    for (String roleId : platformRoleIds) {
-      jdbc.update("DELETE FROM roles_capabilities WHERE role_id = ?", roleId);
-      jdbc.update("DELETE FROM roles WHERE role_id = ?", roleId);
-    }
+    deletePlatformRoles();
     for (String userId : users) {
       jdbc.update("DELETE FROM users_tenants WHERE user_id = ?", userId);
       jdbc.update("DELETE FROM users WHERE user_id = ?", userId);
     }
     tenantHelper.deleteCommittedTenants(tenantA, tenantB);
     TenantContext.clearCurrentTenant();
+  }
+
+  /**
+   * Deletes the platform roles and their capabilities in one committed transaction that sets {@code
+   * app.platform_write} first, the only kind of transaction in which the database guard of platform
+   * roles accepts the write.
+   */
+  private void deletePlatformRoles() {
+    try (Connection connection = Objects.requireNonNull(jdbc.getDataSource()).getConnection()) {
+      connection.setAutoCommit(false);
+      try {
+        JdbcTemplate writer = new JdbcTemplate(new SingleConnectionDataSource(connection, true));
+        writer.queryForObject(
+            "SELECT set_config('app.platform_write', 'true', true)", String.class);
+        for (String roleId : platformRoleIds) {
+          writer.update("DELETE FROM roles_capabilities WHERE role_id = ?", roleId);
+          writer.update("DELETE FROM roles WHERE role_id = ?", roleId);
+        }
+        connection.commit();
+      } catch (RuntimeException e) {
+        connection.rollback();
+        throw e;
+      }
+    } catch (SQLException e) {
+      throw new IllegalStateException("Could not delete the platform roles", e);
+    }
   }
 
   private User newUser(String label) {
