@@ -26,6 +26,10 @@ public interface UserRepository
 
   long countByIdIn(Set<String> ids);
 
+  /** Reads the email alone, without hydrating the user and its EAGER groups (and their users). */
+  @Query("SELECT u.email FROM User u WHERE u.id = :userId")
+  Optional<String> findEmailById(@Param("userId") String userId);
+
   Optional<User> findByEmailIgnoreCase(String email);
 
   @Query(
