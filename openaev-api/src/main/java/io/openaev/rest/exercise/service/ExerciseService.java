@@ -471,6 +471,16 @@ public class ExerciseService {
     return exerciseDuplicate;
   }
 
+  /**
+   * Whether the user plays the simulation: enabled in one of its teams, or member of a team its
+   * lessons questionnaire targets (the recipients of the lessons sending).
+   */
+  @Transactional(readOnly = true)
+  public boolean isLessonsPlayer(@NotBlank final String exerciseId, @NotBlank final String userId) {
+    return exerciseTeamUserRepository.existsByExercise_IdAndUser_Id(exerciseId, userId)
+        || lessonsCategoryRepository.existsByExercise_IdAndTeams_Users_Id(exerciseId, userId);
+  }
+
   public List<Document> getExercisePlayerDocuments(Exercise exercise) {
     List<Article> articles = exercise.getArticles();
     List<Inject> injects = exercise.getInjects();

@@ -25,6 +25,8 @@ public interface ExerciseTeamUserRepository
   @NotNull
   Optional<ExerciseTeamUser> findById(@NotNull ExerciseTeamUserId id);
 
+  boolean existsByExercise_IdAndUser_Id(String exerciseId, String userId);
+
   @Modifying
   @Query(
       value = "delete from exercises_teams_users i where i.team_id in :teamIds",
