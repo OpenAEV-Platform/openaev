@@ -74,4 +74,25 @@ public interface ConnectorInstanceConfigurationRepository
               """,
       nativeQuery = true)
   Optional<String> findStatusByKeyValue(@Param("key") String key, @Param("value") String value);
+
+  /**
+   * Ids of the connectors (the value of the {@code key} configuration, e.g. {@code COLLECTOR_ID})
+   * whose owning connector instance in {@code tenantId} is paused: stopped, or a stop requested.
+   * Native query, so the tenant is carried explicitly like {@link
+   * #findInstanceAndCatalogIdsByKeyValueAndTenantId}.
+   */
+  @Query(
+      value =
+          """
+              SELECT btrim(CAST(conf.connector_instance_configuration_value AS text), '"')
+              FROM connector_instance_configurations conf
+              JOIN connector_instances instance ON conf.connector_instance_id = instance.connector_instance_id
+              WHERE conf.connector_instance_configuration_key = :key
+              AND instance.tenant_id = :tenantId
+              AND (instance.connector_instance_current_status = 'stopped'
+                OR instance.connector_instance_requested_status = 'stopping')
+              """,
+      nativeQuery = true)
+  List<String> findConnectorIdsOfPausedInstancesByKeyAndTenantId(
+      @Param("key") String key, @Param("tenantId") String tenantId);
 }
