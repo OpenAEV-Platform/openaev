@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import io.openaev.database.model.Base;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.DualScopeBase;
+import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.TenantBase;
 import io.openaev.database.repository.DocumentRepository;
 import io.openaev.jsonapi.*;
@@ -97,6 +98,13 @@ public class ZipJsonService<T extends Base> {
         }
       } else if (value instanceof Document doc) {
         addDocumentToExtras(doc, extras, owningTenantId(entity));
+      }
+    }
+    // The file of a threat arsenal action belongs to its payload, one level down.
+    if (entity instanceof InjectorContract contract && contract.getPayload() != null) {
+      Optional<Document> payloadFile = contract.getPayload().getAttachedDocument();
+      if (payloadFile.isPresent()) {
+        addDocumentToExtras(payloadFile.get(), extras, owningTenantId(entity));
       }
     }
 
