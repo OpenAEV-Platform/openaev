@@ -57,6 +57,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.context.TestPropertySource;
@@ -297,21 +299,19 @@ class AttackObservationIndexingTest extends IntegrationTest {
       assertThat(attackObservationHandler.fetch(FROM, 5000)).isEmpty();
     }
 
-    @Test
-    @DisplayName("an asset-level VULNERABILITY expectation emits zero document")
-    void given_vulnerabilityExpectation_should_emitNoDocument() {
+    @ParameterizedTest(name = "an asset-level {0} expectation emits a document: {1}")
+    @CsvSource({"LOGGING, true", "VULNERABILITY, false"})
+    @DisplayName("only the security platform expectation types emit a document")
+    void given_assetExpectation_should_emitDocumentOnlyForSecurityPlatformTypes(
+        EXPECTATION_TYPE type, boolean emitsDocument) {
       // ARRANGE — same shape as a counted DETECTION, only the type differs, so this is the one
-      // case that actually exercises the IN ('PREVENTION', 'DETECTION') filter.
+      // case that actually exercises the IN ('PREVENTION', 'DETECTION', 'LOGGING') filter.
       EndpointComposer.Composer endpointWrapper =
           endpointComposer.forEndpoint(EndpointFixture.createEndpoint());
       AttackPatternComposer.Composer attackPatternWrapper =
           attackPatternComposer.forAttackPattern(newAttackPattern());
       InjectComposer.Composer injectWrapper =
-          buildAssetInject(
-              endpointWrapper,
-              attackPatternWrapper,
-              EXPECTATION_TYPE.VULNERABILITY,
-              EXPECTATION_STATUS.SUCCESS);
+          buildAssetInject(endpointWrapper, attackPatternWrapper, type, EXPECTATION_STATUS.SUCCESS);
       Scenario scenario = persistScenario();
       wireExercise(scenario, Instant.now(), injectWrapper);
       flushAndClear();
@@ -320,8 +320,12 @@ class AttackObservationIndexingTest extends IntegrationTest {
       List<EsAttackObservation> results = attackObservationHandler.fetch(FROM, 5000);
 
       // ASSERT
-      assertThat(results)
-          .noneMatch(es -> es.getBase_asset_side().equals(endpointWrapper.get().getId()));
+      assertThat(
+              results.stream()
+                  .filter(es -> es.getBase_asset_side().equals(endpointWrapper.get().getId()))
+                  .map(EsAttackObservation::getAttack_observation_expectation_type)
+                  .toList())
+          .isEqualTo(emitsDocument ? List.of(type.name()) : List.of());
     }
   }
 

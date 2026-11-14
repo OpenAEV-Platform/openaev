@@ -73,7 +73,7 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
         JOIN assets ta ON ta.asset_id = ie.asset_id
         WHERE ie.agent_id IS NULL
           AND ie.asset_id IS NOT NULL
-          AND ie.inject_expectation_type IN ('PREVENTION', 'DETECTION')
+          AND ie.inject_expectation_type IN ('PREVENTION', 'DETECTION', 'LOGGING')
           AND i.inject_exercise IS NOT NULL
           AND ie.inject_expectation_score IS NOT NULL
           AND (
@@ -339,7 +339,7 @@ public interface AttackObservationRepository extends JpaRepository<BaseInjectExp
       WHERE i.tenant_id = :tenantId
         AND ie.agent_id IS NULL
         AND ie.asset_id IS NOT NULL
-        AND ie.inject_expectation_type IN ('PREVENTION', 'DETECTION')
+        AND ie.inject_expectation_type IN ('PREVENTION', 'DETECTION', 'LOGGING')
         AND i.inject_exercise IS NOT NULL
         AND ie.inject_expectation_score IS NOT NULL
         AND GREATEST(ie.inject_expectation_updated_at, i.inject_updated_at, e.exercise_updated_at) <= :upperTs
