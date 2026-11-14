@@ -53,7 +53,7 @@ class PinnedActiveTablesArchTest {
   static final int DELIBERATE_SIZE = 95;
 
   /** How many lines are {@code drifts}. Lower it, never raise it. */
-  static final int DEBT_SIZE = 97;
+  static final int DEBT_SIZE = 96;
 
   @TestFactory
   @DisplayName("given the test tree, should pass every check of the guard")

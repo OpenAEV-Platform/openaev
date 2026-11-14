@@ -13,21 +13,13 @@
 # with it.
 #
 # Format: <table> | <what the existing tests lack> | <why the table is on the list>
-#   Most gaps below are one gap: the only class that asserts the table's cross-tenant refusal is a
-#   drifts line of pinned-active-tables-baseline.txt, because its flow reads tables the class does not
-#   arm. Converting that class to follow the production list, and marking it, removes the line here.
-cwes | no class on the production list or a probe pin asserts a cross-tenant refusal on cwes | CweHttpIsolationTest is a drifts line, its cross-tenant read expects 200 where production, with vulnerabilities armed, answers 404
-notification_events | no class asserts a cross-tenant refusal on notification_events itself | the probe classes on this table assert reach across every tenant or fail-closed reads, not that a scoped caller is refused another tenant's event
-asset_agent_jobs | no class on the production list or a probe pin asserts a cross-tenant refusal on asset_agent_jobs | AssetAgentJobDeletionScopeTest and EndpointApiTest are drifts lines, they join agents and read assets, executors, teams and asset groups that they leave disarmed
+#   Where the only class that asserts the table's cross-tenant refusal is a drifts line of
+#   pinned-active-tables-baseline.txt, because its flow reads tables the class does not arm,
+#   converting that class to follow the production list, and marking it, removes the line here.
 organizations | no class on the production list or a probe pin asserts a cross-tenant refusal on organizations | its current classes are drifts lines, and the change that owns the table's activation is the one to convert and mark them
 catalog_items | no test seeds two tenants and asserts a cross-tenant refusal on catalog_items | the catalog is read through the connector catalog endpoints, whose isolation test arms connector_instances only
 catalog_releases | no test seeds two tenants and asserts a cross-tenant refusal on catalog_releases | the sync endpoint test runs in the default tenant only and asserts release content rules
-payload_identities | no test seeds two tenants and asserts a cross-tenant refusal on payload_identities | the classes naming it test grants, id joins and inventories around the table, and none asserts a refusal on the table itself
 scope_variables | no class asserts a cross-tenant refusal on scope_variables itself | ChainingHttpIsolationTest runs on the production list and its cross-tenant cases address workflows, steps and conditions; no case asserts on a scope variable row, and the configuration read that loads them is refused on the parent workflow
 steps_delay_queue | no class asserts a cross-tenant refusal on steps_delay_queue itself | ChainingHttpIsolationTest runs on the production list and its cross-tenant cases address workflows, steps and conditions; no case asserts on a delay queue row
 workflow_scope_rules | no class asserts a cross-tenant refusal on workflow_scope_rules itself | ChainingHttpIsolationTest runs on the production list, but its scope reads resolve the rules into assets, teams and asset groups that are active, so the empty answer under another tenant is produced by those tables as well, and the configuration read and update of the rules are refused on the parent workflow
 workflow_states | no class asserts a cross-tenant refusal on workflow_states itself | ChainingHttpIsolationTest runs on the production list and its cross-tenant cases address workflows, steps and conditions; no case asserts on a workflow state row
-secrets | no class asserts a cross-tenant refusal on secrets itself, whether or not it declares a list | the CredentialApiTest endpoints reach a secrets row only through its credential reference, so the refusal is on secret_references and the class does not meet the bar for secrets even with a list
-autonomous_events | no class asserts a cross-tenant refusal on autonomous_events itself | the run classes get a 404 from the run lookup on autonomous_runs before any event row is read
-autonomous_directives | no class asserts a cross-tenant refusal on autonomous_directives itself | the run classes get a 404 from the run lookup on autonomous_runs before any directive row is read
-tenant_xtmhub_registrations | no class asserts a cross-tenant refusal on tenant_xtmhub_registrations itself | every per-tenant path on the table addresses it by tenant id (findByTenantId, deleteByTenantId), so a cross-tenant read or delete matches nothing whether the table is active or not, and the classes on it assert registration reads and write attribution
