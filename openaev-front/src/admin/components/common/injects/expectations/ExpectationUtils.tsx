@@ -5,9 +5,15 @@ import { ExpectationType, HUMAN_EXPECTATION_TYPES, type InjectExpectationsStore,
 export const FAILED = 'Failed';
 export const SUCCESS = 'Successful';
 
-export const isAutomatic = (type: string) => {
-  return [ExpectationType.ARTICLE.toString(), ExpectationType.PREVENTION.toString(), ExpectationType.DETECTION.toString(), ExpectationType.VULNERABILITY.toString()].includes(type);
-};
+const AUTOMATIC_EXPECTATION_TYPES: string[] = [
+  ExpectationType.ARTICLE,
+  ExpectationType.PREVENTION,
+  ExpectationType.DETECTION,
+  ExpectationType.LOGGING,
+  ExpectationType.VULNERABILITY,
+];
+
+export const isAutomatic = (type: string) => AUTOMATIC_EXPECTATION_TYPES.includes(type);
 
 // Single source of truth for expectation-type icons (shared coherent set).
 export const typeIcon = (type: string) => expectationIconByType(type);

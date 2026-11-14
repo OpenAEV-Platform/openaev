@@ -8,6 +8,7 @@ describe('Expectation type helpers', () => {
     it.each([
       ['PREVENTION', 'Prevention'],
       ['detection', 'Detection'],
+      ['LOGGING', 'Logging'],
       ['HUMAN_RESPONSE', 'Human Response'],
       ['ARTICLE', 'Article'],
       ['NOT_A_TYPE', undefined],
@@ -22,6 +23,7 @@ describe('Expectation type helpers', () => {
     it.each([
       ['PREVENTION', true, false],
       ['DETECTION', true, false],
+      ['LOGGING', true, false],
       ['VULNERABILITY', true, false],
       ['MANUAL', false, true],
       ['CHALLENGE', false, true],

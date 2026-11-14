@@ -4,6 +4,7 @@ import {
   GppGoodOutlined,
   HelpOutlineOutlined,
   NewspaperOutlined,
+  ReceiptLongOutlined,
   SensorsOutlined,
   SupportAgentOutlined,
   TaskAltOutlined,
@@ -15,6 +16,7 @@ import { type ComponentType, type CSSProperties, type ReactElement } from 'react
 const EXPECTATION_TYPE_ICON: Record<string, ComponentType<SvgIconProps>> = {
   PREVENTION: GppGoodOutlined,
   DETECTION: SensorsOutlined,
+  LOGGING: ReceiptLongOutlined,
   VULNERABILITY: BugReportOutlined,
   HUMAN_RESPONSE: SupportAgentOutlined,
   MANUAL: TaskAltOutlined,
