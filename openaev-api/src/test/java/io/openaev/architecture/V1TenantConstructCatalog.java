@@ -55,9 +55,12 @@ final class V1TenantConstructCatalog {
 
   private static final String ENTITY_LISTENERS = "jakarta.persistence.EntityListeners";
 
-  /** A SpEL expression {@code #{...}} that reads the tenant of the v1 extension. */
-  private static final Pattern TENANT_SPEL =
-      Pattern.compile("#\\{[^}]*\\b(?:tenantContext|currentTenant)\\b[^}]*}");
+  /**
+   * A read of the v1 SpEL extension: the variable {@code #tenantContext}, wherever it sits in the
+   * expression (an inline list or a nested expression included). A parameter of the query named
+   * {@code currentTenant} is not the extension and is not counted.
+   */
+  private static final Pattern TENANT_SPEL = Pattern.compile("#tenantContext\\b");
 
   private V1TenantConstructCatalog() {}
 

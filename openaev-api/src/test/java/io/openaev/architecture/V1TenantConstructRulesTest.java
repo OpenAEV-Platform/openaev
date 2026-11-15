@@ -66,6 +66,13 @@ class V1TenantConstructRulesTest {
 
           @Query("SELECT i FROM Item i WHERE i.tenant.id = :tenantId")
           Object findWithATenant(String tenantId);
+
+          @Query("SELECT i FROM Item i WHERE i.tenant.id = :#{#currentTenant}")
+          Object findWithAParameterNamedCurrentTenant(
+              @org.springframework.data.repository.query.Param("currentTenant") String currentTenant);
+
+          @Query("SELECT i FROM Item i WHERE i.tenant.id = :#{ {true}[0] ? #tenantContext.currentTenant : #tenantId}")
+          Object findWithANestedExpression(String tenantId);
         }
 
         /** Overrides a generic method, so javac adds a bridge method carrying the same @Query. */
@@ -216,6 +223,10 @@ class V1TenantConstructRulesTest {
                       "fixtures.QueryFixtures$QueriesTheAmbientTenant#findScoped",
                       "@Query(#tenantContext)"),
                   2,
+                  new Site(
+                      "fixtures.QueryFixtures$QueriesTheAmbientTenant#findWithANestedExpression",
+                      "@Query(#tenantContext)"),
+                  1,
                   new Site(
                       "fixtures.QueryFixtures$DeletesInTheAmbientTenant#deleteById",
                       "@Query(#tenantContext)"),
