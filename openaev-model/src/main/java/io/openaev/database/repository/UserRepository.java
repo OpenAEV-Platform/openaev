@@ -319,9 +319,9 @@ public interface UserRepository
   List<String> lockRowAgainstNewLinks(@Param("userId") String userId);
 
   // Native: a set-based delete scoped by tenant through a sub-query; removing it through the
-  // loaded collection would hydrate the user, its EAGER groups and their users, in cascade. The
-  // join table is not indexed, audited nor streamed, and a collection-only change of the
-  // unversioned User fires no update event, so no session side effect is lost.
+  // loaded collection would hydrate the user, its EAGER groups and their users, in cascade. No
+  // entity is dirtied: the collection path did not dirty the audited Group nor the unversioned
+  // User either, and the join table is not indexed nor streamed, so no side effect is lost.
   @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Query(
       value =

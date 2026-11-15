@@ -201,7 +201,7 @@ public class TenantUserService implements DependenciesManager {
     String tenantId = writeScopeResolver.tenantForWrite(ctx, null);
     // The email alone: loading the user would pull its EAGER groups and their users, in cascade.
     String email =
-        userRepository
+        userService
             .findEmailById(userId)
             .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
     ReservedKeyValidator.validateUserEmailPattern(email);

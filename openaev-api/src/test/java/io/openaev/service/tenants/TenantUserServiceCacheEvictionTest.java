@@ -64,7 +64,7 @@ class TenantUserServiceCacheEvictionTest {
     // -- ARRANGE --
     TenantUserService tenantUserService = newService();
     TenantContext.setCurrentTenant("tenant-1");
-    when(userRepository.findEmailById(anyString())).thenReturn(Optional.of("user-1@test.invalid"));
+    when(userService.findEmailById(anyString())).thenReturn(Optional.of("user-1@test.invalid"));
 
     try {
       // -- ACT --
