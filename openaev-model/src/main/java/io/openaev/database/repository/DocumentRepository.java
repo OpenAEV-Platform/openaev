@@ -44,6 +44,21 @@ public interface DocumentRepository
     return findByIdAndTenantId(id, tenantId);
   }
 
+  /** The documents among the given ids that belong to the given tenant. */
+  @NotNull
+  List<Document> findAllByIdInAndTenantId(
+      @NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The documents among the given ids that belong to the given tenant. Refuses a null id list, as
+   * {@code findAllById} does.
+   */
+  @NotNull
+  default List<Document> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
+
   List<Document> removeById(@NotNull String id);
 
   // Confined to the explicit write tenant: the statement inspector scopes these lookups to the
