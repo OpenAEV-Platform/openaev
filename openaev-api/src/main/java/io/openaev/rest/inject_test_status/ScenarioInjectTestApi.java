@@ -94,7 +94,7 @@ public class ScenarioInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SCENARIO)
   public void deleteInjectTest(
       TxCtx ctx, @PathVariable @NotBlank final String scenarioId, @PathVariable String testId) {
-    injectTestStatusService.deleteInjectTest(testId);
+    injectTestStatusService.deleteInjectTestOfScenario(scenarioId, testId);
   }
 
   @Operation(

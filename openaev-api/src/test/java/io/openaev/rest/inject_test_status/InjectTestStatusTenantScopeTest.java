@@ -3,9 +3,12 @@ package io.openaev.rest.inject_test_status;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
+import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -37,17 +40,22 @@ import org.springframework.test.web.servlet.ResultActions;
  * An inject test status read by id is answered only when its inject lies in the request scope. A
  * test status whose inject is outside it is answered like an unknown id: 404.
  *
+ * <p>An inject test status is deleted only when its inject belongs to the simulation or scenario of
+ * the path. A test status of any other inject, of another tenant or of another simulation or
+ * scenario of the same tenant, is answered like an unknown id (404) and its row is left in place.
+ *
  * <p>The class is deliberately NOT {@code @Transactional}: the rows are committed through an
  * auto-committing {@link JdbcTemplate}, so each request runs its own transaction with its own
  * tenant scope, as in production, and they are removed on teardown.
  */
 @WithMockUser(isAdmin = true)
-@DisplayName("An inject test status read by id is resolved in the request scope")
+@DisplayName("An inject test status read or deleted by id is resolved in the request scope")
 class InjectTestStatusTenantScopeTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
   private static final String TEST_STATUS_PATH = "/injects/test/{testId}";
+  private static final String PATH_TEST_STATUS_PATH = "/{pathId}/injects/test/{testId}";
 
   @DynamicPropertySource
   static void activeTables(DynamicPropertyRegistry registry) {
@@ -64,6 +72,8 @@ class InjectTestStatusTenantScopeTest extends IntegrationTest {
   private final List<Object[]> deletes = new ArrayList<>();
 
   private record SeededTestStatus(String injectId, String testId) {}
+
+  private record SeededParent(String tenantId, String parentId, String injectParentColumn) {}
 
   @BeforeEach
   void seedTenants() throws Exception {
@@ -191,6 +201,242 @@ class InjectTestStatusTenantScopeTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("Deleting through the simulation path")
+  class DeletingThroughSimulationPath {
+
+    @Test
+    @DisplayName(
+        "given a test status of a simulation of another tenant in the scope when deleting it through the path of a simulation then it is not found and left in place")
+    void given_testStatusOfSimulationOfOtherTenant_should_answerNotFoundAndLeaveIt()
+        throws Exception {
+      // Arrange
+      SeededParent pathSimulation = seedSimulation(DEFAULT_TENANT);
+      SeededTestStatus foreign = seedTestStatus(seedSimulation(tenantB));
+      clearAmbientTenant();
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              delete(
+                      EXERCISE_URI + PATH_TEST_STATUS_PATH,
+                      pathSimulation.parentId(),
+                      foreign.testId())
+                  .header(TENANT_HEADER, DEFAULT_TENANT + "," + tenantB)
+                  .with(csrf()));
+
+      // Assert
+      result.andExpect(status().isNotFound());
+      assertTestStatusPresent(foreign);
+    }
+
+    @Test
+    @DisplayName(
+        "given a test status of another simulation of the same tenant when deleting it through the path of a simulation then it is not found and left in place")
+    void given_testStatusOfOtherSimulationOfSameTenant_should_answerNotFoundAndLeaveIt()
+        throws Exception {
+      // Arrange
+      SeededParent pathSimulation = seedSimulation(DEFAULT_TENANT);
+      SeededTestStatus other = seedTestStatus(seedSimulation(DEFAULT_TENANT));
+      clearAmbientTenant();
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              delete(
+                      EXERCISE_URI + PATH_TEST_STATUS_PATH,
+                      pathSimulation.parentId(),
+                      other.testId())
+                  .header(TENANT_HEADER, DEFAULT_TENANT)
+                  .with(csrf()));
+
+      // Assert
+      result.andExpect(status().isNotFound());
+      assertTestStatusPresent(other);
+    }
+
+    @Test
+    @DisplayName(
+        "given a test status of the simulation of the path when deleting it then it is deleted")
+    void given_testStatusOfPathSimulation_should_deleteIt() throws Exception {
+      // Arrange
+      SeededParent pathSimulation = seedSimulation(DEFAULT_TENANT);
+      SeededTestStatus own = seedTestStatus(pathSimulation);
+      clearAmbientTenant();
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              delete(EXERCISE_URI + PATH_TEST_STATUS_PATH, pathSimulation.parentId(), own.testId())
+                  .header(TENANT_HEADER, DEFAULT_TENANT)
+                  .with(csrf()));
+
+      // Assert
+      result.andExpect(status().isOk());
+      assertTestStatusAbsent(own);
+    }
+
+    @Test
+    @DisplayName(
+        "given a test status of a simulation of another tenant when deleting it through the tenant path of a simulation then it is not found and left in place")
+    void given_testStatusOfSimulationOfOtherTenant_should_answerNotFoundThroughTenantPath()
+        throws Exception {
+      // Arrange
+      SeededParent pathSimulation = seedSimulation(tenantB);
+      SeededTestStatus foreign = seedTestStatus(seedSimulation(DEFAULT_TENANT));
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              delete(
+                      TENANT_EXERCISE_URI + PATH_TEST_STATUS_PATH,
+                      tenantB,
+                      pathSimulation.parentId(),
+                      foreign.testId())
+                  .with(csrf()));
+
+      // Assert
+      result.andExpect(status().isNotFound());
+      assertTestStatusPresent(foreign);
+    }
+  }
+
+  @Nested
+  @DisplayName("Deleting through the scenario path")
+  class DeletingThroughScenarioPath {
+
+    @Test
+    @DisplayName(
+        "given a test status of a scenario of another tenant in the scope when deleting it through the path of a scenario then it is not found and left in place")
+    void given_testStatusOfScenarioOfOtherTenant_should_answerNotFoundAndLeaveIt()
+        throws Exception {
+      // Arrange
+      SeededParent pathScenario = seedScenario(DEFAULT_TENANT);
+      SeededTestStatus foreign = seedTestStatus(seedScenario(tenantB));
+      clearAmbientTenant();
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              delete(
+                      SCENARIO_URI + PATH_TEST_STATUS_PATH,
+                      pathScenario.parentId(),
+                      foreign.testId())
+                  .header(TENANT_HEADER, DEFAULT_TENANT + "," + tenantB)
+                  .with(csrf()));
+
+      // Assert
+      result.andExpect(status().isNotFound());
+      assertTestStatusPresent(foreign);
+    }
+
+    @Test
+    @DisplayName(
+        "given a test status of another scenario of the same tenant when deleting it through the path of a scenario then it is not found and left in place")
+    void given_testStatusOfOtherScenarioOfSameTenant_should_answerNotFoundAndLeaveIt()
+        throws Exception {
+      // Arrange
+      SeededParent pathScenario = seedScenario(DEFAULT_TENANT);
+      SeededTestStatus other = seedTestStatus(seedScenario(DEFAULT_TENANT));
+      clearAmbientTenant();
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              delete(SCENARIO_URI + PATH_TEST_STATUS_PATH, pathScenario.parentId(), other.testId())
+                  .header(TENANT_HEADER, DEFAULT_TENANT)
+                  .with(csrf()));
+
+      // Assert
+      result.andExpect(status().isNotFound());
+      assertTestStatusPresent(other);
+    }
+
+    @Test
+    @DisplayName(
+        "given a test status of a simulation when deleting it through the path of a scenario then it is not found and left in place")
+    void given_testStatusOfSimulation_should_answerNotFoundThroughScenarioPath() throws Exception {
+      // Arrange
+      SeededParent pathScenario = seedScenario(DEFAULT_TENANT);
+      SeededTestStatus simulationTest = seedTestStatus(seedSimulation(DEFAULT_TENANT));
+      clearAmbientTenant();
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              delete(
+                      SCENARIO_URI + PATH_TEST_STATUS_PATH,
+                      pathScenario.parentId(),
+                      simulationTest.testId())
+                  .header(TENANT_HEADER, DEFAULT_TENANT)
+                  .with(csrf()));
+
+      // Assert
+      result.andExpect(status().isNotFound());
+      assertTestStatusPresent(simulationTest);
+    }
+
+    @Test
+    @DisplayName(
+        "given a test status of the scenario of the path when deleting it then it is deleted")
+    void given_testStatusOfPathScenario_should_deleteIt() throws Exception {
+      // Arrange
+      SeededParent pathScenario = seedScenario(DEFAULT_TENANT);
+      SeededTestStatus own = seedTestStatus(pathScenario);
+      clearAmbientTenant();
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              delete(SCENARIO_URI + PATH_TEST_STATUS_PATH, pathScenario.parentId(), own.testId())
+                  .header(TENANT_HEADER, DEFAULT_TENANT)
+                  .with(csrf()));
+
+      // Assert
+      result.andExpect(status().isOk());
+      assertTestStatusAbsent(own);
+    }
+
+    @Test
+    @DisplayName(
+        "given a test status of a scenario of another tenant when deleting it through the tenant path of a scenario then it is not found and left in place")
+    void given_testStatusOfScenarioOfOtherTenant_should_answerNotFoundThroughTenantPath()
+        throws Exception {
+      // Arrange
+      SeededParent pathScenario = seedScenario(tenantB);
+      SeededTestStatus foreign = seedTestStatus(seedScenario(DEFAULT_TENANT));
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              delete(
+                      TENANT_SCENARIO_URI + PATH_TEST_STATUS_PATH,
+                      tenantB,
+                      pathScenario.parentId(),
+                      foreign.testId())
+                  .with(csrf()));
+
+      // Assert
+      result.andExpect(status().isNotFound());
+      assertTestStatusPresent(foreign);
+    }
+  }
+
+  private void assertTestStatusPresent(SeededTestStatus testStatus) {
+    assertEquals(1, countTestStatus(testStatus));
+  }
+
+  private void assertTestStatusAbsent(SeededTestStatus testStatus) {
+    assertEquals(0, countTestStatus(testStatus));
+  }
+
+  private int countTestStatus(SeededTestStatus testStatus) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM injects_tests_statuses WHERE status_id = ?",
+        Integer.class,
+        testStatus.testId());
+  }
+
   private void clearAmbientTenant() {
     TenantContext.clearCurrentTenant();
     assertEquals(DEFAULT_TENANT, TenantContext.getCurrentTenant());
@@ -200,6 +446,10 @@ class InjectTestStatusTenantScopeTest extends IntegrationTest {
 
   /** A simulation, one of its injects and the inject's test status, all of the given tenant. */
   private SeededTestStatus seedTestStatus(String tenantId) {
+    return seedTestStatus(seedSimulation(tenantId));
+  }
+
+  private SeededParent seedSimulation(String tenantId) {
     String simulationId = UUID.randomUUID().toString();
     jdbc.update(
         "INSERT INTO exercises (exercise_id, exercise_name, exercise_status, tenant_id)"
@@ -208,7 +458,25 @@ class InjectTestStatusTenantScopeTest extends IntegrationTest {
         "inject-test-status-scope-" + simulationId,
         tenantId);
     trackDelete("DELETE FROM exercises WHERE exercise_id = ?", simulationId);
+    return new SeededParent(tenantId, simulationId, "inject_exercise");
+  }
 
+  private SeededParent seedScenario(String tenantId) {
+    String scenarioId = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO scenarios (scenario_id, scenario_name, tenant_id) VALUES (?, ?, ?)",
+        scenarioId,
+        "inject-test-status-scope-" + scenarioId,
+        tenantId);
+    trackDelete("DELETE FROM scenarios WHERE scenario_id = ?", scenarioId);
+    return new SeededParent(tenantId, scenarioId, "inject_scenario");
+  }
+
+  /**
+   * One inject of the given simulation or scenario, in its tenant, and the inject's test status.
+   */
+  private SeededTestStatus seedTestStatus(SeededParent parent) {
+    String tenantId = parent.tenantId();
     String contractId = UUID.randomUUID().toString();
     jdbc.update(
         "INSERT INTO injectors_contracts (injector_contract_id, tenant_id,"
@@ -221,13 +489,14 @@ class InjectTestStatusTenantScopeTest extends IntegrationTest {
     String injectId = UUID.randomUUID().toString();
     jdbc.update(
         "INSERT INTO injects (inject_id, tenant_id, inject_title, inject_all_teams, inject_enabled,"
-            + " inject_depends_duration, inject_injector_contract, inject_exercise)"
-            + " VALUES (?, ?, ?, false, true, 0, ?, ?)",
+            + " inject_depends_duration, inject_injector_contract, "
+            + parent.injectParentColumn()
+            + ") VALUES (?, ?, ?, false, true, 0, ?, ?)",
         injectId,
         tenantId,
         "inject-test-status-scope-" + injectId,
         contractId,
-        simulationId);
+        parent.parentId());
     trackDelete("DELETE FROM injects WHERE inject_id = ?", injectId);
 
     String testId = UUID.randomUUID().toString();

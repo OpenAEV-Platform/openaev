@@ -119,7 +119,7 @@ public class SimulationInjectTestApi extends RestBehavior {
       resourceType = ResourceType.SIMULATION)
   public void deleteInjectTest(
       TxCtx ctx, @PathVariable @NotBlank String simulationId, @PathVariable String testId) {
-    injectTestStatusService.deleteInjectTest(testId);
+    injectTestStatusService.deleteInjectTestOfSimulation(simulationId, testId);
   }
 
   @Operation(

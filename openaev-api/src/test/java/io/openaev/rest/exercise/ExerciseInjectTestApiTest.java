@@ -189,7 +189,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should return 200 when deleting an inject test status")
-    @WithMockUser(isAdmin = true)
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void should_return_200_when_fetching_deleting_an_inject_test_status() throws Exception {
       mvc.perform(
               delete(
