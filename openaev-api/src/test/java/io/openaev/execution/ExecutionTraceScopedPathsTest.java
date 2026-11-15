@@ -3,6 +3,7 @@ package io.openaev.execution;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -13,7 +14,6 @@ import io.openaev.scheduler.jobs.ExecutionTraceRetentionJob;
 import io.openaev.scheduler.jobs.InjectsFinalizationJob;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
-import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
@@ -33,15 +33,16 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
- * The execution trace readers, the retention job and the job writers with {@code execution_traces}
- * among the active tables, as the activation will have it. Two tenants each own a pending inject
- * and its traces; every path runs the way production runs it, with no transaction and no ambient
- * tenant of its own on the thread, and the answer is read back from the tenant column.
+ * The execution trace readers, the retention job and the job writers on the production list of
+ * active tables, which holds {@code execution_traces}. Two tenants each own a pending inject and
+ * its traces; every path runs the way production runs it, with no transaction and no ambient tenant
+ * of its own on the thread, and the answer is read back from the tenant column.
  *
  * <p>NOT {@code @Transactional}: the scoped primitive refuses to open inside an active transaction,
  * and the jobs commit their own transactions. The rows are committed through JDBC and swept after
  * each test.
  */
+@CoversTenantIsolation("execution_traces")
 @WithMockUser(isAdmin = true)
 @DisplayName("Execution traces with the table armed: readers, retention and job writers")
 class ExecutionTraceScopedPathsTest extends IntegrationTest {
@@ -51,15 +52,9 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
   private static final int RECENT_DAYS = 5;
 
   @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    // The production list with execution_traces on it, as the activation will have it
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
     registry.add(
-        "openaev.tenant.active-tables",
-        () -> {
-          TreeSet<String> tables = new TreeSet<>(ProductionActiveTables.names());
-          tables.add("execution_traces");
-          return String.join(",", tables);
-        });
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
   }
 
   @Autowired private ExecutionTraceRepository executionTraceRepository;
