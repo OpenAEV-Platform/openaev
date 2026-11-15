@@ -267,7 +267,7 @@ public class ProductInventoryMetricCollector {
     return tenantTx.<Long>execute(TxCtx.allTenants(), () -> findingRepository.count());
   }
 
-  /** Counts injects across the whole platform, ready for the injects activation. */
+  /** Counts injects across the whole platform (injects is v2-active). */
   long countInjects() {
     return countAcrossAllTenants(injectRepository::count);
   }

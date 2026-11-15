@@ -325,10 +325,8 @@ public class InjectService {
   /**
    * Looks an inject up by id inside the request's tenant scope: the path tenant on the tenant
    * route, the {@code X-Tenant-Ids} selector or the caller's memberships on the non-prefixed route.
-   * Loads by primary key, which Hibernate filters do not apply to, then keeps the row only when its
-   * tenant lies in the request's scope: a derived query such as {@code findByIdAndTenantIdIn} would
-   * instead run under Inject's still-active v1 filter, which the non-prefixed route keys on the
-   * default tenant regardless of the resolved scope.
+   * The by-id load runs under the transaction's tenant scope, and the row is kept only when its
+   * tenant lies in the request's scope.
    *
    * <p>Carries its own read-only transaction so the request's tenant scope reaches the lookup even
    * when the caller runs under {@code Propagation.SUPPORTS} with no transaction already open: the

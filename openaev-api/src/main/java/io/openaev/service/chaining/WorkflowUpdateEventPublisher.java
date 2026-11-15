@@ -24,13 +24,12 @@ import org.springframework.stereotype.Service;
  * changed, and keeps the events the queue refused so that a later publication sends them again.
  *
  * <p>The steps are looked up, and each event's tenant is read, in the tenant that owns the injects
- * named, whatever the scope the caller's transaction was opened with: a step belongs to the tenant
- * of the simulation, atomic testing or autonomous run that owns the inject, and a caller scoped to
- * another tenant would find none and leave the step waiting for the timeout job. That tenant is the
- * changed row's own, read with a projection that no tenant scope narrows, and the work runs in it
- * through {@link WorkflowOwnerScope}, on the caller's own transaction. A kept event carries the
- * tenant it was built with, so it is resent as is, from whatever scope the next publication runs
- * in.
+ * named: a step belongs to the tenant of the simulation, atomic testing or autonomous run that owns
+ * the inject. That tenant is the inject's own, read in the caller's tenant scope, and the work runs
+ * in it through {@link WorkflowOwnerScope}, on the caller's own transaction. A caller whose scope
+ * lacks an inject's tenant reads no owner for it and notifies no step: that step waits for {@code
+ * WorkflowTimeoutJob}. A kept event carries the tenant it was built with, so it is resent as is,
+ * from whatever scope the next publication runs in.
  *
  * <p>The caller must therefore run inside a transaction: the {@link WorkflowUpdateEvent} aspect
  * runs in the annotated method's transaction, and the batched callback handler publishes from each
