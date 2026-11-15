@@ -19,12 +19,14 @@ import io.openaev.utils.mockUser.TestUserHolder;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.FlushModeType;
+import jakarta.persistence.PersistenceException;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -49,6 +51,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * // assert data is NOT visible via GET /api/tenants/{tenantYYY}/scenarios/{id}
  * }</pre>
  */
+@Slf4j
 @Component
 public class TenantIsolationTestHelper {
 
@@ -354,6 +357,8 @@ public class TenantIsolationTestHelper {
    * referencing the tenant would otherwise hold a lock the delete waits on), the deletes commit in
    * a new transaction, and a new test-managed transaction starts in the test's ambient scope
    * without the removed tenants, for the cleanup that follows; the runner rolls it back as usual.
+   * When a failed statement left the test transaction aborted, its scope cannot be read: the
+   * tenants are removed all the same, and the new test-managed transaction starts with no scope.
    *
    * <p>One delete of the tenant row removes what the tenant owns: every foreign key to {@code
    * tenants} is {@code ON DELETE CASCADE}, and the {@code NO ACTION} keys into {@code
@@ -405,16 +410,23 @@ public class TenantIsolationTestHelper {
   }
 
   /**
-   * The test's ambient scope marker (see {@link DefaultTenantScopeTestListener}), empty if unset.
+   * The test's ambient scope marker (see {@link DefaultTenantScopeTestListener}), empty if unset or
+   * unreadable: in a transaction a failed statement aborted (PostgreSQL {@code 25P02}) every read
+   * fails until the rollback, and the cleanup must reach that rollback.
    */
   private String ambientScopeSetting() {
-    return (String)
-        entityManager
-            .createNativeQuery(
-                "SELECT coalesce(current_setting('"
-                    + DefaultTenantScopeTestListener.AMBIENT_SCOPE_SETTING
-                    + "', true), '')")
-            .setFlushMode(FlushModeType.COMMIT)
-            .getSingleResult();
+    try {
+      return (String)
+          entityManager
+              .createNativeQuery(
+                  "SELECT coalesce(current_setting('"
+                      + DefaultTenantScopeTestListener.AMBIENT_SCOPE_SETTING
+                      + "', true), '')")
+              .setFlushMode(FlushModeType.COMMIT)
+              .getSingleResult();
+    } catch (PersistenceException e) {
+      log.debug("Test ambient scope unreadable, no scope to restore after the cleanup", e);
+      return "";
+    }
   }
 }
