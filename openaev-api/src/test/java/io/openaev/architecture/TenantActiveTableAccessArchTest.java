@@ -464,7 +464,8 @@ class TenantActiveTableAccessArchTest {
           "payload_revocations",
           "exercises",
           "scenarios",
-          "injects");
+          "injects",
+          "execution_traces");
 
   @ArchTest
   static void every_active_table_is_guarded(JavaClasses classes) throws Exception {
@@ -4571,4 +4572,30 @@ class TenantActiveTableAccessArchTest {
           .because(
               "injects is tenant-active: an accessor without a tenant scope silently reads zero"
                   + " rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule execution_traces_repository_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // The four trace finders, behind the inject trace and execution result endpoints,
+              // reading in the scope the TxCtx-carrying entrypoint opened:
+              InjectService.class,
+              // The same finders behind the inject target search, options and options-by-ids
+              // endpoints of InjectApi, which carry a TxCtx:
+              io.openaev.service.targets.search.HelperTargetSearchAdaptor.class,
+              // Trace writers of the executor launch: inserts only, run inside the launch
+              // transaction of the inject's tenant (InjectsExecutionJob under runInTenant, or the
+              // TxCtx-carrying launch endpoint); the tenant comes from
+              // ExecutionTrace#attributeTenant:
+              io.openaev.execution.ExecutionExecutorService.class,
+              ExecutorService.class,
+              // Retention: each batch deletes under TxCtx.allTenants() through the primitive:
+              io.openaev.scheduler.jobs.ExecutionTraceRetentionJob.class)
+          .should()
+          .dependOnClassesThat()
+          .areAssignableTo(io.openaev.database.repository.ExecutionTraceRepository.class)
+          .because(
+              "execution_traces is tenant-active: an accessor without a tenant scope silently reads"
+                  + " zero rows. New accessors must carry a scope and be allowlisted here");
 }
