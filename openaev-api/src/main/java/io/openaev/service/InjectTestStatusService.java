@@ -203,8 +203,7 @@ public class InjectTestStatusService {
     InjectTestStatus injectTestStatus = findInjectTestStatus(testId);
     Exercise simulation = injectTestStatus.getInject().getExercise();
     if (simulation == null || !simulationId.equals(simulation.getId())) {
-      throw new ElementNotFoundException(
-          "Inject test not found with id: " + testId + " in simulation: " + simulationId);
+      throw injectTestNotFound(testId);
     }
     injectTestStatusRepository.delete(injectTestStatus);
   }
@@ -217,8 +216,7 @@ public class InjectTestStatusService {
     InjectTestStatus injectTestStatus = findInjectTestStatus(testId);
     Scenario scenario = injectTestStatus.getInject().getScenario();
     if (scenario == null || !scenarioId.equals(scenario.getId())) {
-      throw new ElementNotFoundException(
-          "Inject test not found with id: " + testId + " in scenario: " + scenarioId);
+      throw injectTestNotFound(testId);
     }
     injectTestStatusRepository.delete(injectTestStatus);
   }
@@ -226,7 +224,11 @@ public class InjectTestStatusService {
   private InjectTestStatus findInjectTestStatus(String testId) {
     return injectTestStatusRepository
         .findById(testId)
-        .orElseThrow(
-            () -> new ElementNotFoundException("Inject test not found with id: " + testId));
+        .orElseThrow(() -> injectTestNotFound(testId));
+  }
+
+  /** Same error for an unknown test and a test outside the parent, so both look alike. */
+  private static ElementNotFoundException injectTestNotFound(String testId) {
+    return new ElementNotFoundException("Inject test not found with id: " + testId);
   }
 }

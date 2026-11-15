@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -680,6 +681,47 @@ public class ScenarioInjectTestApiTest extends IntegrationTest {
                 injectTestStatusRepository.existsById(
                     otherScenarioInjectTestStatusWrapper.get().getId()))
             .isTrue();
+      }
+
+      @Test
+      @DisplayName("Deleting a test of another scenario answers like an unknown test")
+      @WithMockUser(withCapabilities = {Capability.MANAGE_ASSESSMENT})
+      void given_testOfAnotherScenario_should_answerLikeUnknownTest_when_deletingInjectTest()
+          throws Exception {
+        // Arrange
+        String scenarioId = scenarioWrapper.get().getId();
+        String unknownTestId = UUID.randomUUID().toString();
+        String otherTestId = otherScenarioInjectTestStatusWrapper.get().getId();
+
+        // Act
+        String unknownTestBody =
+            mvc.perform(
+                    delete(
+                            SCENARIO_URI + "/{scenarioId}/injects/test/{testId}",
+                            scenarioId,
+                            unknownTestId)
+                        .with(csrf()))
+                .andExpect(status().isNotFound())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String otherTestBody =
+            mvc.perform(
+                    delete(
+                            SCENARIO_URI + "/{scenarioId}/injects/test/{testId}",
+                            scenarioId,
+                            otherTestId)
+                        .with(csrf()))
+                .andExpect(status().isNotFound())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        // Assert: same message, only the requested id differs (the error id is random)
+        String unknownTestMessage = JsonPath.read(unknownTestBody, "$.message");
+        String otherTestMessage = JsonPath.read(otherTestBody, "$.message");
+        assertThat(otherTestMessage)
+            .isEqualTo(unknownTestMessage.replace(unknownTestId, otherTestId));
       }
     }
 

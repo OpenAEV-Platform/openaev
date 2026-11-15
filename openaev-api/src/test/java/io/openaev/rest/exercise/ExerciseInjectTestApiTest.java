@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
@@ -29,6 +30,7 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utilstest.RowTenantScope;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -331,6 +333,46 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
       // Assert
       assertThat(injectTestStatusRepository.existsById(otherSimulationInjectTestStatus.getId()))
           .isTrue();
+    }
+
+    @Test
+    @DisplayName("Deleting a test of another simulation answers like an unknown test")
+    @WithMockUser(isAdmin = true)
+    void given_testOfAnotherSimulation_should_answerLikeUnknownTest_when_deletingInjectTest()
+        throws Exception {
+      // Arrange
+      String unknownTestId = UUID.randomUUID().toString();
+      String otherTestId = otherSimulationInjectTestStatus.getId();
+
+      // Act
+      String unknownTestBody =
+          mvc.perform(
+                  delete(
+                          EXERCISE_URI + "/{simulationId}/injects/test/{testId}",
+                          simulation.getId(),
+                          unknownTestId)
+                      .with(csrf()))
+              .andExpect(status().isNotFound())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String otherTestBody =
+          mvc.perform(
+                  delete(
+                          EXERCISE_URI + "/{simulationId}/injects/test/{testId}",
+                          simulation.getId(),
+                          otherTestId)
+                      .with(csrf()))
+              .andExpect(status().isNotFound())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert: same message, only the requested id differs (the error id is random)
+      String unknownTestMessage = JsonPath.read(unknownTestBody, "$.message");
+      String otherTestMessage = JsonPath.read(otherTestBody, "$.message");
+      assertThat(otherTestMessage)
+          .isEqualTo(unknownTestMessage.replace(unknownTestId, otherTestId));
     }
   }
 }
