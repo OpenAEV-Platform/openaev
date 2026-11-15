@@ -43,9 +43,7 @@ public class ScenarioInjectService {
 
   /**
    * Resolves the inject inside the request's tenant scope and checks that it belongs to the given
-   * scenario, or answers not found. Loads by primary key, as {@link InjectService#inject(TxCtx,
-   * String)} does, rather than through {@code findByIdAndScenarioId}, which runs under Inject's
-   * still-active v1 filter keyed on the ambient tenant.
+   * scenario, or answers not found.
    */
   @Transactional(readOnly = true)
   public void requireInjectInScenario(
