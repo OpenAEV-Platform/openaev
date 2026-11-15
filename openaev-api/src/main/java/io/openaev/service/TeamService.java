@@ -92,11 +92,11 @@ public class TeamService {
   }
 
   /**
-   * Initializes the tags, simulations, scenarios, injects and communications of a team returned as
-   * a raw entity. It is serialized open-in-view after the commit, when a lazy load on a v2-active
-   * table fails closed to an empty array: the team edit form, filled from that response, then saved
-   * the empty tag list and erased the team's tags. Simulations and scenarios are tenant tables too,
-   * and the team page counts them from the same response.
+   * Initializes the tags, simulations, scenarios, injects and communications of a team that an
+   * endpoint answers as a raw entity. The entity is serialized open-in-view after the commit, when
+   * a lazy load on a v2-active table reads nothing; initializing the collections in the transaction
+   * gives the response the team's tags, which the team edit form saves back, and the simulations
+   * and scenarios the team page counts.
    *
    * <p>The team's injects are the ones of its simulations and scenarios that target it: each
    * inject's eager {@code teams} reads the isolated {@code teams} table, so loaded after the commit

@@ -140,7 +140,7 @@ class InjectTestStatusTenantScopeTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given a test status whose inject is in the scope when reading it then it is returned")
+        "given a test status whose inject is in the scope when reading it then the response holds it")
     void given_testStatusInScope_should_returnIt() throws Exception {
       // Arrange
       SeededTestStatus own = seedTestStatus(DEFAULT_TENANT);
