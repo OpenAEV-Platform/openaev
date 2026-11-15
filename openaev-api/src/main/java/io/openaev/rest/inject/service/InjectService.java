@@ -1192,9 +1192,7 @@ public class InjectService {
                   injectDependency
                       .getCompositeId()
                       .setInjectParent(
-                          injectRepository
-                              .findById(entry.getRelationship().getInjectParentId())
-                              .orElse(null));
+                          parentInTenantOf(inject, entry.getRelationship().getInjectParentId()));
                   injectDependency.setInjectDependencyCondition(
                       new InjectDependencyConditions.InjectDependencyCondition());
                   injectDependency
@@ -1294,6 +1292,19 @@ public class InjectService {
     inject.setDocuments(injectDocuments);
 
     return inject;
+  }
+
+  /**
+   * Resolves a dependency parent named in a request body in the tenant of the inject written. A
+   * parent of another tenant is answered like an unknown id.
+   *
+   * @throws ElementNotFoundException when no inject of that tenant carries the id
+   */
+  private Inject parentInTenantOf(final Inject inject, final String parentInjectId) {
+    return this.injectRepository
+        .findByIdAndTenantId(parentInjectId, inject.getTenant().getId())
+        .orElseThrow(
+            () -> new ElementNotFoundException("Inject not found with id: " + parentInjectId));
   }
 
   public Inject updateInjectActivation(
