@@ -274,12 +274,16 @@ class AttackPatternServiceTest {
     // Arrange
     AttackPattern found = new AttackPattern();
     found.setId("id-1");
-    when(attackPatternRepository.findAllById(anyList())).thenReturn(List.of(found));
+    when(attackPatternRepository.findAllByIdInTenant(
+            Set.of("id-1", "id-2"), Tenant.DEFAULT_TENANT_UUID))
+        .thenReturn(List.of(found));
 
     // Act / Assert
     assertThrows(
         ElementNotFoundException.class,
-        () -> attackPatternService.findAllByInternalIdsThrowIfMissing(Set.of("id-1", "id-2")));
+        () ->
+            attackPatternService.findAllByInternalIdsThrowIfMissing(
+                Set.of("id-1", "id-2"), Tenant.DEFAULT_TENANT_UUID));
   }
 
   @DisplayName("given_existingExternalId_should_returnExistingAttackPattern")

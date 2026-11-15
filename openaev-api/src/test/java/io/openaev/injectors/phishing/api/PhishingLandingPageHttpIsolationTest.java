@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.injectors.phishing.form.PhishingLandingPageInput;
@@ -35,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
  * #7901), on both routes: the tenant path and the {@code X-Tenant-Ids} header. Every row is seeded
  * with a raw native INSERT carrying an explicit tenant_id, never through v1 TenantContext.
  */
+@CoversTenantIsolation("phishing_landing_pages")
 @Transactional
 @io.openaev.utils.mockUser.WithMockUser(isAdmin = true)
 @DisplayName(

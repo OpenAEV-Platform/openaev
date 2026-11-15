@@ -561,9 +561,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@filigran/chatbot@npm:3.32.1":
-  version: 3.32.1
-  resolution: "@filigran/chatbot@npm:3.32.1"
+"@filigran/chatbot@npm:3.33.4":
+  version: 3.33.4
+  resolution: "@filigran/chatbot@npm:3.33.4"
   dependencies:
     remark-parse: "npm:^11.0.0"
     unified: "npm:^11.0.0"
@@ -574,13 +574,13 @@ __metadata:
     react-markdown: ">=10"
     remark-breaks: ">=4"
     remark-gfm: ">=4"
-  checksum: 10c0/d2775a8339bc93be7344a2b4024ec8829016351cfa46c4ce370bc5655951a704e5d515c272719c5c9e173f6eb313847b2e0a1f2ceaab2fdef6fce108b6b471c2
+  checksum: 10c0/d63d87e9c117f285d3395a5d0e248553c2606756cb3adc59dac3878c2e97725838de9c3c571f37d2ded046b6469169bd980ef6f6e73936be147f93ca521186a8
   languageName: node
   linkType: hard
 
-"@filigran/design-system@npm:1.5.1":
-  version: 1.5.1
-  resolution: "@filigran/design-system@npm:1.5.1"
+"@filigran/design-system@npm:1.5.2":
+  version: 1.5.2
+  resolution: "@filigran/design-system@npm:1.5.2"
   dependencies:
     "@dnd-kit/core": "npm:^6.3.1"
     "@dnd-kit/sortable": "npm:^10.0.0"
@@ -620,7 +620,7 @@ __metadata:
     react-dom: ^19.0.0
   bin:
     filigran-design-system: bin/install-skills.mjs
-  checksum: 10c0/9c08ad3311a8d2029c812b697d1fdba1d7e253d14d3901570b6479ce0e798fec00e4ddb2120e032031cfbc4f647abf1ac7fc9ce8b78605e0edc3b24a2dc0e8a9
+  checksum: 10c0/9f545dec18e49ea254315fdd9e9267924a95f27aeae06e331d6d66740ed5cdd138d44cb1cb4b9fd2e09663d56f7143c575a568e181a8172e47c5302f2cbb3136
   languageName: node
   linkType: hard
 
@@ -9672,8 +9672,8 @@ __metadata:
     "@emotion/styled": "npm:11.14.1"
     "@eslint/js": "npm:10.0.1"
     "@faker-js/faker": "npm:10.6.0"
-    "@filigran/chatbot": "npm:3.32.1"
-    "@filigran/design-system": "npm:1.5.1"
+    "@filigran/chatbot": "npm:3.33.4"
+    "@filigran/design-system": "npm:1.5.2"
     "@filigran/rich-text-editor": "npm:@filigran/rich-text-editor@1.2.2"
     "@fontsource/geologica": "npm:5.3.0"
     "@fontsource/ibm-plex-sans": "npm:5.3.0"

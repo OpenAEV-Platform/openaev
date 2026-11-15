@@ -13,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.service.MinioService;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -32,7 +34,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockPart;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,8 +56,8 @@ import org.springframework.transaction.annotation.Transactional;
  * statement inspector never rewrites, so a leaked request scope cannot mask the assertion. Objects
  * written to real storage are a side effect and are removed in teardown.
  */
+@CoversTenantIsolation("documents")
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("documents read and write isolation through the real HTTP endpoints, both routes")
 class DocumentHttpIsolationTest extends IntegrationTest {
@@ -62,6 +65,12 @@ class DocumentHttpIsolationTest extends IntegrationTest {
   private static final String DOCUMENTS = "/api/documents";
   private static final String TENANT_DOCUMENTS = "/api/tenants/{tenantId}/documents";
   private static final String DOCUMENT_BY_ID = "/api/tenants/{tenantId}/documents/{documentId}";
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
