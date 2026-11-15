@@ -247,9 +247,11 @@ public class TenantScopedTransaction {
    * transaction was opened with.
    *
    * <p>That tenant may lie outside the scope of the request that opened the transaction: this
-   * method does not check that the caller may see it. The caller must have checked its access to
-   * the row first, and pass that row's own tenant, never one taken from the request. The only
-   * caller is {@code WorkflowOwnerScope}, and an architecture test limits who may call it.
+   * method does not check that the caller may see it. So the work either runs in the tenant of a
+   * row whose access the caller checked first, that row's own tenant ({@code WorkflowOwnerScope}),
+   * or loads the caller's own user with its eager associations for a permission decision only
+   * ({@code CallerRightsInTenant}, in the ambient tenant of that decision). An architecture test
+   * limits the callers to these two.
    *
    * <p>One transaction throughout, unlike {@link #executeNew}: the work sees the uncommitted writes
    * made before it, its writes share the transaction's fate, and it never waits on a lock the

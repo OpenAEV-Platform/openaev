@@ -28,7 +28,7 @@ class WorkflowOwnerScopeCallerRulesTest {
   class MovingTheCurrentTransaction {
 
     @Test
-    @DisplayName("a class other than WorkflowOwnerScope calling the move violates the rule")
+    @DisplayName("an unlisted class calling the move violates the rule")
     void given_directCallerOfTheMove_should_violateTheRule() {
       // Arrange
       JavaClasses fixture =
@@ -36,7 +36,7 @@ class WorkflowOwnerScopeCallerRulesTest {
 
       // Act
       EvaluationResult result =
-          WorkflowOwnerScopeCallerRules.ONLY_OWNER_SCOPE_MOVES_THE_CURRENT_TRANSACTION.evaluate(
+          WorkflowOwnerScopeCallerRules.ONLY_LISTED_CLASSES_MOVE_THE_CURRENT_TRANSACTION.evaluate(
               fixture);
 
       // Assert

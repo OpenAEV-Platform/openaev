@@ -10,8 +10,9 @@ import com.tngtech.archunit.lang.ArchRule;
 import io.openaev.service.chaining.WorkflowOwnerScope;
 
 /**
- * Pins who may change the tenant scope of a transaction already open: {@link WorkflowOwnerScope}
- * alone calls {@code executeOnCurrentTransaction}, only the reasoned allowlist of {@link
+ * Pins who may change the tenant scope of a transaction already open: only the reasoned allowlist
+ * of {@link WorkflowOwnerScopeCallerRules#TRANSACTION_MOVERS} calls {@code
+ * executeOnCurrentTransaction}, only the reasoned allowlist of {@link
  * WorkflowOwnerScopeCallerRules#OWNER_SCOPE_CALLERS} calls {@link WorkflowOwnerScope}, and only the
  * baseline of {@link WorkflowOwnerScopeCallerRules#SCOPE_SETTERS} calls {@code
  * setScopeOnCurrentTransaction}. Each list is exact: a new caller fails its rule, and an entry
@@ -24,8 +25,16 @@ import io.openaev.service.chaining.WorkflowOwnerScope;
 class WorkflowOwnerScopeCallerArchTest {
 
   @ArchTest
-  static final ArchRule only_owner_scope_moves_the_current_transaction =
-      WorkflowOwnerScopeCallerRules.ONLY_OWNER_SCOPE_MOVES_THE_CURRENT_TRANSACTION;
+  static final ArchRule only_listed_classes_move_the_current_transaction =
+      WorkflowOwnerScopeCallerRules.ONLY_LISTED_CLASSES_MOVE_THE_CURRENT_TRANSACTION;
+
+  @ArchTest
+  static void given_productionClasses_should_moveTheTransactionFromExactlyTheAllowlist(
+      JavaClasses classes) {
+    assertThat(WorkflowOwnerScopeCallerRules.transactionMovers(classes))
+        .as("the classes calling TenantScopedTransaction.executeOnCurrentTransaction")
+        .containsExactlyInAnyOrderElementsOf(WorkflowOwnerScopeCallerRules.transactionMoverNames());
+  }
 
   @ArchTest
   static final ArchRule owner_scope_is_called_only_from_the_allowlist =

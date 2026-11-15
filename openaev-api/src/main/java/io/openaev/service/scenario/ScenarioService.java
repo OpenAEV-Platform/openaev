@@ -294,7 +294,8 @@ public class ScenarioService {
         .getObject()
         .listInEachTenant(
             ctx,
-            () -> canAccessEveryScenario(currentUser),
+            currentUser,
+            ScenarioService::canAccessEveryScenario,
             all,
             granted,
             RawScenarioSimpleIndexing::getTenant_id,
@@ -345,7 +346,8 @@ public class ScenarioService {
         .getObject()
         .filterInEachTenant(
             ctx,
-            () -> canAccessEveryScenario(currentUser),
+            currentUser,
+            ScenarioService::canAccessEveryScenario,
             accessRight ->
                 SpecificationUtils.hasGrantAccess(
                     currentUser.getId(), false, accessRight, Grant.GRANT_TYPE.OBSERVER));
@@ -907,9 +909,10 @@ public class ScenarioService {
                           .getObject()
                           .filterInEachTenant(
                               ctx,
-                              () ->
-                                  currentUser.isAdminOrBypass()
-                                      || currentUser
+                              currentUser,
+                              caller ->
+                                  caller.isAdminOrBypass()
+                                      || caller
                                           .getCapabilities()
                                           .contains(Capability.DELETE_ASSESSMENT),
                               deleteRight ->

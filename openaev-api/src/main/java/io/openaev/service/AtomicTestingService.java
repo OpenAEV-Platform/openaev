@@ -482,11 +482,10 @@ public class AtomicTestingService {
                     .getObject()
                     .filterInEachTenant(
                         ctx,
-                        () ->
-                            currentUser.isAdminOrBypass()
-                                || currentUser
-                                    .getCapabilities()
-                                    .contains(Capability.ACCESS_ASSESSMENT),
+                        currentUser,
+                        caller ->
+                            caller.isAdminOrBypass()
+                                || caller.getCapabilities().contains(Capability.ACCESS_ASSESSMENT),
                         accessRight ->
                             SpecificationUtils.hasGrantAccess(
                                 currentUser.getId(),
