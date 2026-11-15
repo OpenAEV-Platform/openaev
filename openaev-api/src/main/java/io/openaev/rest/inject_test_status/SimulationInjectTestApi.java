@@ -1,6 +1,7 @@
 package io.openaev.rest.inject_test_status;
 
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
+import static io.openaev.database.specification.InjectSpecification.fromSimulation;
 import static io.openaev.database.specification.InjectSpecification.testable;
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
@@ -91,7 +92,7 @@ public class SimulationInjectTestApi extends RestBehavior {
       @PathVariable @NotBlank String simulationId,
       @PathVariable @NotBlank String injectId)
       throws Exception {
-    return injectTestStatusService.testInject(injectId);
+    return injectTestStatusService.testInjectOfSimulation(simulationId, injectId);
   }
 
   @Transactional(rollbackFor = Exception.class)
@@ -157,6 +158,7 @@ public class SimulationInjectTestApi extends RestBehavior {
     Specification<Inject> filterSpecifications =
         this.injectService
             .getInjectSpecification(ctx, input, Grant.GRANT_TYPE.PLANNER)
+            .and(fromSimulation(simulationId))
             .and(testable());
 
     // Services calls
