@@ -14,6 +14,7 @@ import io.openaev.execution.ExecutionContext;
 import io.openaev.execution.ExecutionContextService;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.mapper.InjectStatusMapper;
@@ -126,9 +127,19 @@ public class InjectTestStatusService {
         .map(injectStatusMapper::toInjectTestStatusOutput);
   }
 
+  /**
+   * A test status carries no tenant of its own: it is answered only when its inject lies in the
+   * request scope, which leaves the inject association empty otherwise.
+   *
+   * @throws ElementNotFoundException when the id is unknown or its inject is outside the scope
+   */
   public InjectTestStatusOutput findInjectTestStatusById(String testId) {
     return injectStatusMapper.toInjectTestStatusOutput(
-        injectTestStatusRepository.findById(testId).orElseThrow());
+        injectTestStatusRepository
+            .findById(testId)
+            .filter(testStatus -> testStatus.getInject() != null)
+            .orElseThrow(
+                () -> new ElementNotFoundException("Inject test status not found: " + testId)));
   }
 
   // -- PRIVATE --
