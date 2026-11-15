@@ -14,6 +14,7 @@ import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.form.InjectTeamsInput;
 import io.openaev.rest.inject.form.InjectUpdateActivationInput;
 import io.openaev.rest.inject.form.InjectUpdateStatusInput;
+import io.openaev.service.TeamService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -35,6 +36,7 @@ public class SimulationInjectService {
   private final InjectRepository injectRepository;
   private final CommunicationRepository communicationRepository;
   private final TeamRepository teamRepository;
+  private final TeamService teamService;
 
   // -- READ --
 
@@ -67,11 +69,17 @@ public class SimulationInjectService {
     }
   }
 
-  /** Returns the teams assigned to an inject that belongs to the given simulation. */
+  /**
+   * Returns the teams assigned to an inject that belongs to the given simulation, with the
+   * collections their raw response serializes initialized, see {@link
+   * TeamService#withResponseCollections}.
+   */
   @Transactional(readOnly = true)
   public List<Team> findInjectTeamsForSimulation(
       @NotBlank final String simulationId, @NotBlank final String injectId) {
-    return findInjectForSimulation(simulationId, injectId).getTeams();
+    List<Team> teams = findInjectForSimulation(simulationId, injectId).getTeams();
+    teams.forEach(teamService::withResponseCollections);
+    return teams;
   }
 
   /**
