@@ -21,6 +21,7 @@ import io.openaev.runner.InitAdminCommandLineRunner;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.scheduler.jobs.QueueChainingJob;
 import io.openaev.service.ScenarioToExerciseService;
+import io.openaev.service.account.CallerRightsInTenant;
 import io.openaev.service.autonomous.AutonomousRunService;
 import io.openaev.service.chaining.WorkflowOwnerScope;
 import io.openaev.service.chaining.WorkflowUpdateEventPublisher;
@@ -41,11 +42,11 @@ import java.util.function.Predicate;
  *
  * <ul>
  *   <li>{@link TenantScopedTransaction#executeOnCurrentTransaction} moves the transaction to one
- *       tenant for the duration of some work. {@link WorkflowOwnerScope} is its only allowed
- *       caller, and passes the tenant of a simulation, a scenario or an injector contract. That is
- *       safe only when the caller was granted that owner before passing it, so the callers of
- *       {@link WorkflowOwnerScope} are an allowlist, each with the check the owner it passes went
- *       through.
+ *       tenant for the duration of some work. Its callers are an allowlist, each with the tenant it
+ *       passes. {@link WorkflowOwnerScope} passes the tenant of a simulation, a scenario or an
+ *       injector contract. That is safe only when the caller was granted that owner before passing
+ *       it, so the callers of {@link WorkflowOwnerScope} are an allowlist, each with the check the
+ *       owner it passes went through.
  *   <li>{@link TenantScopedTransaction#setScopeOnCurrentTransaction} sets the scope for the rest of
  *       the transaction. Its direct callers are a baseline, each with the scope it sets and where
  *       that scope comes from. The baseline may only shrink.
@@ -146,20 +147,46 @@ final class WorkflowOwnerScopeCallerRules {
           "the update-event bridge passes the tenant of the inject or expectation that changed,"
               + " read from its own row, after the change itself was granted and written");
 
+  /**
+   * The classes allowed to call {@link TenantScopedTransaction#executeOnCurrentTransaction}, each
+   * with the tenant it passes and what the work reads there. Every entry must still call it.
+   */
+  static final Map<Class<?>, String> TRANSACTION_MOVERS =
+      Map.of(
+          WorkflowOwnerScope.class,
+          "passes the tenant of a simulation, a scenario or an injector contract its allowlisted"
+              + " callers were granted",
+          CallerRightsInTenant.class,
+          "passes the ambient tenant of a permission decision of a request whose scope does not"
+              + " hold it, and loads there, in a session of its own, the caller's user with its"
+              + " eager associations, for that decision only");
+
   private WorkflowOwnerScopeCallerRules() {}
 
-  /** Only {@link WorkflowOwnerScope} moves the current transaction to another tenant. */
-  static final ArchRule ONLY_OWNER_SCOPE_MOVES_THE_CURRENT_TRANSACTION =
+  /** Only the classes of {@link #TRANSACTION_MOVERS} move the current transaction. */
+  static final ArchRule ONLY_LISTED_CLASSES_MOVE_THE_CURRENT_TRANSACTION =
       classes()
           .should(
               notAccessOutside(
-                  "not call TenantScopedTransaction." + MOVE_METHOD + " outside WorkflowOwnerScope",
+                  "not call TenantScopedTransaction." + MOVE_METHOD + " outside the allowlist",
                   WorkflowOwnerScopeCallerRules::movesTheCurrentTransaction,
-                  Set.of(WorkflowOwnerScope.class.getName())))
+                  transactionMoverNames()))
           .because(
               MOVE_METHOD
-                  + " moves the request's transaction to a tenant it does not check; only"
-                  + " WorkflowOwnerScope, whose callers are allowlisted, may call it");
+                  + " moves the request's transaction to a tenant it does not check; only the"
+                  + " allowlisted classes, each with the tenant it passes, may call it");
+
+  /** The allowlist of the move as class names. */
+  static Set<String> transactionMoverNames() {
+    Set<String> names = new TreeSet<>();
+    TRANSACTION_MOVERS.keySet().forEach(mover -> names.add(mover.getName()));
+    return names;
+  }
+
+  /** The top-level classes among {@code classes} that move the current transaction. */
+  static Set<String> transactionMovers(JavaClasses classes) {
+    return callers(classes, WorkflowOwnerScopeCallerRules::movesTheCurrentTransaction);
+  }
 
   /**
    * {@link TenantScopedTransaction#setScopeOnCurrentTransaction} is called only from the baseline.

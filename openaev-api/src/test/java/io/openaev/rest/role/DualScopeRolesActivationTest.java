@@ -5,6 +5,11 @@ import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -26,6 +31,7 @@ import io.openaev.database.repository.RoleRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.role.form.RoleInput;
 import io.openaev.service.account.AdminPrivilegeService;
+import io.openaev.service.account.CallerRightsInTenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
@@ -44,6 +50,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,8 +60,9 @@ import org.springframework.transaction.annotation.Transactional;
  * tenant_id IS NULL}) is read and written through {@link PlatformRoleApi}, a tenant role through
  * {@link TenantRoleApi}, on the tenant path and on the plain route with the {@code X-Tenant-Ids}
  * header. A tenant caller never reads or writes a role of another tenant, and every tenant reads
- * the platform roles. A request reads the roles of its caller in the scope of its transaction, so a
- * caller whose rights come from a role of a tenant outside that scope holds none of them there.
+ * the platform roles. On the plain route the caller's rights in the default tenant are read in the
+ * default tenant's scope for the permission check, while the request reads its rows in its own
+ * scope.
  *
  * <p>The roles of the two tenants are seeded by raw JDBC, which sets no scope; every ground truth
  * is read by raw JDBC on the test's connection, which the statement inspector does not rewrite.
@@ -89,6 +97,7 @@ class DualScopeRolesActivationTest extends IntegrationTest {
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @MockitoBean private EnterpriseEditionService enterpriseEditionService;
+  @MockitoSpyBean private CallerRightsInTenant callerRightsInTenant;
 
   private String tenantA;
   private String tenantB;
@@ -195,6 +204,7 @@ class DualScopeRolesActivationTest extends IntegrationTest {
       // Assert
       List<String> ids = JsonPath.read(response, "$[*].role_id");
       assertThat(ids).contains(roleA).doesNotContain(roleB, PLATFORM_ADMIN_ROLE_ID);
+      verify(callerRightsInTenant, never()).load(anyString(), anyString());
     }
 
     @Test
@@ -264,37 +274,50 @@ class DualScopeRolesActivationTest extends IntegrationTest {
 
     /**
      * The plain route checks the rights of the caller in the default tenant as well as in the
-     * tenants of the scope. The caller holds them there through a role of the default tenant, a row
-     * the scope of A does not read, so the request is refused.
+     * tenants of the scope. The caller holds them in the default tenant through a role of the
+     * default tenant, a row outside the scope of A that the check reads in the default tenant's
+     * scope, and in A through its role of A.
      */
     @Test
-    @DisplayName("given_aListSelectingAByHeader_should_refuseIt")
-    void given_aListSelectingAByHeader_should_refuseIt() throws Exception {
-      // Arrange
-      givenNoAmbientTenant();
-
-      // Act + Assert
-      mvc.perform(get(ROLES_ON_HEADER).header(TENANT_HEADER, tenantA))
-          .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @DisplayName("given_aCreateSelectingAByHeader_should_refuseItAndStoreNothing")
-    void given_aCreateSelectingAByHeader_should_refuseItAndStoreNothing() throws Exception {
+    @DisplayName("given_aListSelectingAByHeader_should_returnTheTenantRolesOfAOnly")
+    void given_aListSelectingAByHeader_should_returnTheTenantRolesOfAOnly() throws Exception {
       // Arrange
       givenNoAmbientTenant();
 
       // Act
-      mvc.perform(
-              post(ROLES_ON_HEADER)
-                  .header(TENANT_HEADER, tenantA)
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(asJsonString(newTenantRole("created-in-a-by-header")))
-                  .with(csrf()))
-          .andExpect(status().isForbidden());
+      String response =
+          body(
+              mvc.perform(
+                      get(ROLES_ON_HEADER)
+                          .header(TENANT_HEADER, tenantA)
+                          .accept(MediaType.APPLICATION_JSON))
+                  .andExpect(status().isOk()));
 
       // Assert
-      assertEquals(0L, rawCountByName("created-in-a-by-header"));
+      List<String> ids = JsonPath.read(response, "$[*].role_id");
+      assertThat(ids).contains(roleA).doesNotContain(roleB, PLATFORM_ADMIN_ROLE_ID);
+      verify(callerRightsInTenant).load(any(), eq(Tenant.DEFAULT_TENANT_UUID));
+    }
+
+    @Test
+    @DisplayName("given_aCreateSelectingAByHeader_should_storeTheRoleInA")
+    void given_aCreateSelectingAByHeader_should_storeTheRoleInA() throws Exception {
+      // Arrange
+      givenNoAmbientTenant();
+
+      // Act
+      String response =
+          body(
+              mvc.perform(
+                      post(ROLES_ON_HEADER)
+                          .header(TENANT_HEADER, tenantA)
+                          .contentType(MediaType.APPLICATION_JSON)
+                          .content(asJsonString(newTenantRole("created-in-a-by-header")))
+                          .with(csrf()))
+                  .andExpect(status().isOk()));
+
+      // Assert
+      assertEquals(tenantA, rawTenantOf(JsonPath.read(response, "$.role_id")));
     }
 
     @Test
@@ -315,6 +338,45 @@ class DualScopeRolesActivationTest extends IntegrationTest {
 
       // Assert
       assertEquals(0L, rawCountByName("platform-role-from-a"));
+    }
+  }
+
+  @Nested
+  @WithMockUser
+  @DisplayName("a caller without the admin flag, holding the role capabilities in A only")
+  class NonAdminCallerWithoutRightsInTheDefaultTenant {
+
+    @BeforeEach
+    void holdTheCapabilitiesInAOnly() {
+      tenantHelper.grantCapabilitiesInTenant(tenantA, ROLE_CAPABILITIES);
+      tenantHelper.detachCurrentUserFromTenant(tenantB);
+      givenNoAmbientTenant();
+    }
+
+    /**
+     * The plain route checks the rights of the caller in the default tenant as well as in the
+     * tenants of the scope, and the caller holds none in the default tenant.
+     */
+    @Test
+    @DisplayName("given_aListSelectingAByHeader_should_refuseIt")
+    void given_aListSelectingAByHeader_should_refuseIt() throws Exception {
+      // Act + Assert
+      mvc.perform(get(ROLES_ON_HEADER).header(TENANT_HEADER, tenantA))
+          .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("given_aListUnderThePathOfA_should_returnTheTenantRolesOfA")
+    void given_aListUnderThePathOfA_should_returnTheTenantRolesOfA() throws Exception {
+      // Act
+      String response =
+          body(
+              mvc.perform(get(ROLES_ON_PATH, tenantA).accept(MediaType.APPLICATION_JSON))
+                  .andExpect(status().isOk()));
+
+      // Assert
+      List<String> ids = JsonPath.read(response, "$[*].role_id");
+      assertThat(ids).contains(roleA).doesNotContain(roleB);
     }
   }
 
@@ -343,6 +405,7 @@ class DualScopeRolesActivationTest extends IntegrationTest {
       // Assert
       List<String> ids = JsonPath.read(response, "$[*].role_id");
       assertThat(ids).contains(roleA).doesNotContain(roleB, PLATFORM_ADMIN_ROLE_ID);
+      verify(callerRightsInTenant, never()).load(anyString(), anyString());
     }
 
     @Test
