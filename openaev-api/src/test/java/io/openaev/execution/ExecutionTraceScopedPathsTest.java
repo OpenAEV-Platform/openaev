@@ -1,10 +1,15 @@
 package io.openaev.execution;
 
+import static io.openaev.rest.inject.InjectApi.INJECT_URI;
+import static io.openaev.rest.inject.InjectApi.TENANT_INJECT_URI;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
 import io.openaev.IntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.ExecutionTrace;
@@ -12,10 +17,12 @@ import io.openaev.database.repository.ExecutionTraceRepository;
 import io.openaev.execution.ExecutionTraceScopeSeed.Tenant;
 import io.openaev.scheduler.jobs.ExecutionTraceRetentionJob;
 import io.openaev.scheduler.jobs.InjectsFinalizationJob;
+import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
@@ -31,12 +38,16 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
  * The execution trace readers, the retention job and the job writers on the production list of
  * active tables, which holds {@code execution_traces}. Two tenants each own a pending inject and
  * its traces; every path runs the way production runs it, with no transaction and no ambient tenant
- * of its own on the thread, and the answer is read back from the tenant column.
+ * of its own on the thread, and the answer is read back from the tenant column. The execution log
+ * of an inject is read over HTTP on the tenant route and on the {@code X-Tenant-Ids} route.
  *
  * <p>NOT {@code @Transactional}: the scoped primitive refuses to open inside an active transaction,
  * and the jobs commit their own transactions. The rows are committed through JDBC and swept after
@@ -62,6 +73,8 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
   @Autowired private InjectsFinalizationJob finalizationJob;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private DataSource dataSource;
+  @Autowired private MockMvc mvc;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   private ExecutionTraceScopeSeed seed;
   private Tenant tenantA;
@@ -116,6 +129,25 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
             "player",
             (BiFunction<ExecutionTraceRepository, Tenant, List<ExecutionTrace>>)
                 (repo, t) -> repo.findByInjectIdAndPlayerId(t.injectId(), t.playerId())));
+  }
+
+  /**
+   * The complete execution log of an inject, {@code GET .../injects/status-all-traces}, on the
+   * tenant route and on the non-prefixed route with an {@code X-Tenant-Ids} selector. Each route
+   * builds the request for a scope tenant and an inject.
+   */
+  static Stream<Arguments> executionLogRoutes() {
+    return Stream.of(
+        Arguments.of(
+            "tenant route",
+            (BinaryOperator<String>)
+                (scopeTenant, injectId) ->
+                    TENANT_INJECT_URI.replace("{tenantId}", scopeTenant) + "/status-all-traces",
+            false),
+        Arguments.of(
+            "X-Tenant-Ids route",
+            (BinaryOperator<String>) (scopeTenant, injectId) -> INJECT_URI + "/status-all-traces",
+            true));
   }
 
   @Nested
@@ -182,6 +214,75 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
 
       // Assert
       assertThat(ofAFromB).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("HTTP readers on both routes")
+  class HttpReaders {
+
+    @BeforeEach
+    void callerInBothTenants() {
+      tenantHelper.attachCurrentUserToTenant(tenantA.id());
+      tenantHelper.attachCurrentUserToTenant(tenantB.id());
+    }
+
+    @AfterEach
+    void callerLeavesBothTenants() {
+      tenantHelper.detachCurrentUserFromTenant(tenantA.id());
+      tenantHelper.detachCurrentUserFromTenant(tenantB.id());
+    }
+
+    /**
+     * Reads the execution log from an empty ambient tenant, as a production request thread starts:
+     * the fixtures leave a tenant on the test thread, which the non-prefixed route would read.
+     */
+    private MvcResult readExecutionLog(
+        BinaryOperator<String> uri, boolean header, String scopeTenant, String injectId)
+        throws Exception {
+      MockHttpServletRequestBuilder request =
+          get(uri.apply(scopeTenant, injectId)).param("injectId", injectId);
+      if (header) {
+        request.header("X-Tenant-Ids", scopeTenant);
+      }
+      TenantContext.clearCurrentTenant();
+      return mvc.perform(request).andReturn();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("io.openaev.execution.ExecutionTraceScopedPathsTest#executionLogRoutes")
+    @DisplayName("The execution log of an inject holds its trace in the scope of its tenant")
+    void given_scopeOfTheInjectTenant_should_returnItsTraceInTheExecutionLog(
+        String name, BinaryOperator<String> uri, boolean header) throws Exception {
+      // Arrange
+      seed.insertTrace(tenantA, null, "START", "INFO", RECENT_DAYS);
+      seed.insertTrace(tenantB, null, "COMPLETE", "EXECUTED", RECENT_DAYS);
+
+      // Act
+      MvcResult result = readExecutionLog(uri, header, tenantB.id(), tenantB.injectId());
+
+      // Assert
+      assertThat(result.getResponse().getStatus()).isEqualTo(200);
+      assertThatJson(result.getResponse().getContentAsString())
+          .inPath("$.status_main_traces[*].execution_action")
+          .isArray()
+          .containsExactly("COMPLETE");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("io.openaev.execution.ExecutionTraceScopedPathsTest#executionLogRoutes")
+    @DisplayName("The execution log of an inject is refused in the scope of another tenant")
+    void given_scopeOfAnotherTenant_should_refuseTheExecutionLog(
+        String name, BinaryOperator<String> uri, boolean header) throws Exception {
+      // Arrange
+      seed.insertTrace(tenantB, null, "COMPLETE", "EXECUTED", RECENT_DAYS);
+
+      // Act
+      MvcResult result = readExecutionLog(uri, header, tenantA.id(), tenantB.injectId());
+
+      // Assert
+      assertThat(result.getResponse().getStatus()).isEqualTo(404);
+      assertThat(result.getResponse().getContentAsString()).doesNotContain("EXECUTED");
     }
   }
 
