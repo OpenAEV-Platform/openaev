@@ -3,6 +3,7 @@ package io.openaev.database.repository;
 import io.openaev.database.model.Step;
 import io.openaev.database.model.StepStatus;
 import jakarta.persistence.LockModeType;
+import jakarta.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -12,6 +13,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 @Repository
 public interface StepRepository extends JpaRepository<Step, String> {
@@ -415,4 +417,18 @@ public interface StepRepository extends JpaRepository<Step, String> {
   List<Step> findTemplateStepsByInjectorContractIds(
       @Param("injectorContractIds") Collection<String> injectorContractIds,
       @Param("tenantId") String tenantId);
+
+  /** The steps among the given ids that belong to the given tenant. */
+  @NotNull
+  List<Step> findAllByIdInAndTenantId(@NotNull Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The steps among the given ids that belong to the given tenant. Refuses a null id list, as
+   * {@code findAllById} does.
+   */
+  @NotNull
+  default List<Step> findAllByIdInTenant(Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 }

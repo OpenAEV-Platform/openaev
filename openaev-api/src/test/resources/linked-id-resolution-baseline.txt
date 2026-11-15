@@ -23,7 +23,6 @@
 io.openaev.api.asset.AssetMarkingsService#bulkReplaceAssetMarkings -> AssetRepository | other | 1 | loads in chunks the assets named in the bulk request body, which are the rows whose markings are replaced, not linked rows
 io.openaev.engine.model.vulnerableendpoint.VulnerableEndpointHandler#fetch -> FindingRepository | other | 1 | indexing handler that loads the findings whose ids an endpoint search document stores, to build that document
 io.openaev.importer.V1_DataImporter#attackPatternsOf -> AttackPatternRepository | other | 1 | loads the attack patterns an imported payload names to hash its content and find an equal version, and writes nothing
-io.openaev.importer.V1_DataImporter#uploadNewDocument -> TagRepository | link | 1 | links the tags named in an imported archive to the document it uploads
 io.openaev.injectors.challenge.ChallengeExecutor#process -> ChallengeRepository | other | 1 | executor that loads the challenges stored in the content of the inject being executed to publish them
 io.openaev.injectors.phishing.service.PhishingTrackingService#createResult -> StepRepository | other | 1 | phishing executor attaches the step of the inject it is executing to the tracking row it writes; the id never comes from a request
 io.openaev.injectors.phishing.service.PhishingTrackingService#createResult -> TeamRepository | other | 1 | phishing executor attaches the team of the inject it is executing to the tracking row it writes; the id never comes from a request
@@ -35,12 +34,11 @@ io.openaev.rest.attack_pattern.service.AttackPatternService#getAttackPattern -> 
 io.openaev.rest.attack_pattern.service.AttackPatternService#getGlobalCoverage -> AttackPatternRepository | other | 1 | fetches the kill chain phases of attack patterns whose ids come from coverage counts already computed, for a read response
 io.openaev.rest.challenge.ScenarioChallengeApi#scenarioChallenges -> ChallengeRepository | other | 1 | lists the challenges that the publish injects of the scenario in the path name, for a read response
 io.openaev.rest.challenge.SimulationChallengeApi#exerciseChallenges -> ChallengeRepository | other | 1 | lists the challenges that the publish injects of the simulation in the path name, for a read response
-io.openaev.rest.comcheck.ComcheckApi#communicationCheck -> TeamRepository | link | 1 | loads the teams named in the request body and writes a status row for each of their players into the comcheck it creates
 io.openaev.rest.custom_dashboard.CustomDashboardService#customDashboards -> CustomDashboardRepository | other | 1 | fetches the widgets of the dashboards of a search page, by the ids of the rows the page already holds
 io.openaev.rest.custom_dashboard.CustomDashboardService#findAllByIdsAsOptions -> CustomDashboardRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.document.DocumentService#getPlayerDocuments -> ChallengeRepository | other | 1 | loads the challenges that the injects of a player view name, to list their documents in a read response
 io.openaev.rest.domain.DomainService#findAllAsOptionsById -> DomainRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
-io.openaev.rest.domain.DomainService#findAllById -> DomainRepository | link | 1 | service wrapper whose callers, InjectorContractService and PayloadCreationService, link the domains named in a request body
+io.openaev.rest.domain.DomainService#findAllById -> DomainRepository | link | 1 | service wrapper whose caller, PayloadCreationService, links the domains named in a request body
 io.openaev.rest.exercise.ExerciseApi#createExercise -> TagRepository | link | 1 | links the tags named in the request body to the simulation it creates
 io.openaev.rest.exercise.ExerciseApi#createLog -> TagRepository | link | 1 | links the tags named in the request body to the log it creates
 io.openaev.rest.exercise.ExerciseApi#updateExerciseInformation -> TagRepository | link | 1 | links the tags named in the request body to the simulation it updates
@@ -51,10 +49,7 @@ io.openaev.rest.inject.service.InjectService#buildInject -> TeamRepository | lin
 io.openaev.rest.inject.service.InjectService#bulkUpdateInject -> TeamRepository | link | 1 | loads the teams named in the bulk update body to add or remove them on the injects it updates
 io.openaev.rest.inject.service.InjectService#updateInject -> TagRepository | link | 1 | links the tags named in the request body to the inject it updates
 io.openaev.rest.inject.service.InjectService#updateInject -> TeamRepository | link | 1 | links the teams named in the request body to the inject it updates
-io.openaev.rest.injector_contract.InjectorContractService#updateInjectorContractTTPDomainsAndTags -> TagRepository | link | 1 | links the tags named in the request body to the injector contract it updates
 io.openaev.rest.kill_chain_phase.KillChainPhaseApi#optionsById -> KillChainPhaseRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
-io.openaev.rest.lessons.ExerciseLessonsApi#updateExerciseLessonsCategoryTeams -> TeamRepository | link | 1 | links the teams named in the request body to a lessons category of a simulation
-io.openaev.rest.lessons.ScenarioLessonsApi#updateScenarioLessonsCategoryTeams -> TeamRepository | link | 1 | links the teams named in the request body to a lessons category of a scenario
 io.openaev.rest.payload.service.PayloadCreationService#createInternal -> AttackPatternRepository | link | 1 | links the attack patterns named in the request body to the payload it creates
 io.openaev.rest.payload.service.PayloadUpdateService#update -> DomainRepository | link | 1 | links the domains named in the request body to the payload it updates
 io.openaev.rest.payload.service.PayloadUpdateService#updatePayload -> AttackPatternRepository | link | 1 | links the attack patterns named in the request body to the payload it updates
@@ -72,12 +67,6 @@ io.openaev.service.AssetGroupService#bulkDeleteAssetGroups -> AssetGroupReposito
 io.openaev.service.AssetService#assets -> AssetRepository | link | 1 | service wrapper whose callers link the assets named in an inject request body or in a chained step to the inject
 io.openaev.service.AssetService#bulkDeleteAssets -> AssetRepository | other | 1 | loads in chunks the assets named in the bulk delete body, which are the rows deleted, not linked rows
 io.openaev.service.AssetService#getOptionsByIds -> AssetRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
-io.openaev.service.AtomicTestingService#createOrUpdate -> AssetGroupRepository | link | 1 | links the asset groups named in the request body to the atomic testing inject it saves
-io.openaev.service.AtomicTestingService#createOrUpdate -> AssetRepository | link | 1 | links the assets named in the request body to the atomic testing inject it saves
-io.openaev.service.AtomicTestingService#createOrUpdate -> SecretReferenceRepository | link | 1 | links the secret references named in the request body to the atomic testing inject it saves
-io.openaev.service.AtomicTestingService#createOrUpdate -> TagRepository | link | 1 | links the tags named in the request body to the atomic testing inject it saves
-io.openaev.service.AtomicTestingService#createOrUpdate -> TeamRepository | link | 1 | links the teams named in the request body to the atomic testing inject it saves
-io.openaev.service.AtomicTestingService#updateAtomicTestingTags -> TagRepository | link | 1 | links the tags named in the request body to the atomic testing inject it updates
 io.openaev.service.ChallengeService#fetchTags -> ChallengeRepository | other | 1 | fetches the tags of challenges already loaded, by their own ids, so a response can serialize them
 io.openaev.service.ChallengeService#findAllByIdWithDocumentsAndTags -> ChallengeRepository | other | 1 | loads with their documents the challenges named in a read request, for a response; nothing is written
 io.openaev.service.ChallengeService#resolveChallenges -> ChallengeRepository | other | 1 | loads with their documents the challenges that stored injects name, to list them in a read response
@@ -92,8 +81,6 @@ io.openaev.service.attackpath.AttackPathGraphService#toDetectionRemediationOutpu
 io.openaev.service.autonomous.AutonomousRunService#playersOutsideAllowScope -> TeamRepository | other | 1 | loads the teams of the allow scope stored on a run to list their members, and writes nothing
 io.openaev.service.autonomous.AutonomousRunService#resolveScopeNames -> AssetGroupRepository | other | 1 | loads the asset groups of stored scope rules to display their names, and writes nothing
 io.openaev.service.autonomous.AutonomousRunService#resolveScopeNames -> TeamRepository | other | 1 | loads the teams of stored scope rules to display their names, and writes nothing
-io.openaev.service.chaining.ConditionService#linkStepsToRoot -> StepRepository | link | 1 | links the steps named in the condition input to the root condition it writes
-io.openaev.service.chaining.ScopeService#getValidTeams -> TeamRepository | link | 1 | resolves with findAllById the team ids of the stored scope rules of a workflow, which the write path stores as sent (only the display name is looked up in the tenant), and InjectExecutionStep sets the teams it returns on the inject it builds
 io.openaev.service.expectation.ChallengeBehavior#resolveChallenges -> ChallengeRepository | other | 1 | loads the challenges stored in the content of an inject, to compute its expectations
 io.openaev.service.inject.BatchingInjectStatusService#processTenantCallbacks -> AgentRepository | other | 1 | resolves by id the agents named by execution callbacks, inside the transaction scoped to the tenant that owns the injects of the group, so an agent of another tenant is not found, and binds the agent to the execution trace as its actor
 io.openaev.service.organization.OrganizationService#fetchTags -> OrganizationRepository | other | 1 | fetches the tags of organizations already loaded, by their own ids, so a response can serialize them
