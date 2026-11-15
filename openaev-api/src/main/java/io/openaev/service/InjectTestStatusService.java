@@ -22,7 +22,6 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -139,8 +138,31 @@ public class InjectTestStatusService {
         injectTestStatusRepository
             .findById(testId)
             .filter(testStatus -> testStatus.getInject() != null)
-            .orElseThrow(
-                () -> new ElementNotFoundException("Inject test status not found: " + testId)));
+            .orElseThrow(() -> testStatusNotFound(testId)));
+  }
+
+  /**
+   * Deletes the test status only when its inject belongs to the simulation.
+   *
+   * @throws ElementNotFoundException when the id is unknown or its inject is not of the simulation
+   */
+  public void deleteInjectTestOfSimulation(String simulationId, String testId) {
+    injectTestStatusRepository.delete(
+        injectTestStatusRepository
+            .findByIdAndInjectExerciseId(testId, simulationId)
+            .orElseThrow(() -> testStatusNotFound(testId)));
+  }
+
+  /**
+   * Deletes the test status only when its inject belongs to the scenario.
+   *
+   * @throws ElementNotFoundException when the id is unknown or its inject is not of the scenario
+   */
+  public void deleteInjectTestOfScenario(String scenarioId, String testId) {
+    injectTestStatusRepository.delete(
+        injectTestStatusRepository
+            .findByIdAndInjectScenarioId(testId, scenarioId)
+            .orElseThrow(() -> testStatusNotFound(testId)));
   }
 
   // -- PRIVATE --
@@ -206,40 +228,7 @@ public class InjectTestStatusService {
     return this.injectTestStatusRepository.save(injectTestStatus);
   }
 
-  /**
-   * @throws ElementNotFoundException when the test status does not exist or its inject is not in
-   *     the given simulation
-   */
-  public void deleteInjectTestOfSimulation(String simulationId, String testId) {
-    deleteInjectTestOfParent(simulationId, testId, Inject::getExercise);
-  }
-
-  /**
-   * @throws ElementNotFoundException when the test status does not exist or its inject is not in
-   *     the given scenario
-   */
-  public void deleteInjectTestOfScenario(String scenarioId, String testId) {
-    deleteInjectTestOfParent(scenarioId, testId, Inject::getScenario);
-  }
-
-  private void deleteInjectTestOfParent(
-      String parentId, String testId, Function<Inject, ? extends Base> parentOf) {
-    InjectTestStatus injectTestStatus = findInjectTestStatus(testId);
-    Base parent = parentOf.apply(injectTestStatus.getInject());
-    if (parent == null || !parentId.equals(parent.getId())) {
-      throw injectTestNotFound(testId);
-    }
-    injectTestStatusRepository.delete(injectTestStatus);
-  }
-
-  private InjectTestStatus findInjectTestStatus(String testId) {
-    return injectTestStatusRepository
-        .findById(testId)
-        .orElseThrow(() -> injectTestNotFound(testId));
-  }
-
-  /** Same error for an unknown test and a test outside the parent, so both look alike. */
-  private static ElementNotFoundException injectTestNotFound(String testId) {
-    return new ElementNotFoundException("Inject test not found with id: " + testId);
+  private static ElementNotFoundException testStatusNotFound(String testId) {
+    return new ElementNotFoundException("Inject test status not found: " + testId);
   }
 }
