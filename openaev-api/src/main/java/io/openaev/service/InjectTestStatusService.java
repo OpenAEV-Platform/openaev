@@ -22,6 +22,7 @@ import io.openaev.utils.pagination.SearchPaginationInput;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -200,12 +201,7 @@ public class InjectTestStatusService {
    *     the given simulation
    */
   public void deleteInjectTestOfSimulation(String simulationId, String testId) {
-    InjectTestStatus injectTestStatus = findInjectTestStatus(testId);
-    Exercise simulation = injectTestStatus.getInject().getExercise();
-    if (simulation == null || !simulationId.equals(simulation.getId())) {
-      throw injectTestNotFound(testId);
-    }
-    injectTestStatusRepository.delete(injectTestStatus);
+    deleteInjectTestOfParent(simulationId, testId, Inject::getExercise);
   }
 
   /**
@@ -213,9 +209,14 @@ public class InjectTestStatusService {
    *     the given scenario
    */
   public void deleteInjectTestOfScenario(String scenarioId, String testId) {
+    deleteInjectTestOfParent(scenarioId, testId, Inject::getScenario);
+  }
+
+  private void deleteInjectTestOfParent(
+      String parentId, String testId, Function<Inject, ? extends Base> parentOf) {
     InjectTestStatus injectTestStatus = findInjectTestStatus(testId);
-    Scenario scenario = injectTestStatus.getInject().getScenario();
-    if (scenario == null || !scenarioId.equals(scenario.getId())) {
+    Base parent = parentOf.apply(injectTestStatus.getInject());
+    if (parent == null || !parentId.equals(parent.getId())) {
       throw injectTestNotFound(testId);
     }
     injectTestStatusRepository.delete(injectTestStatus);
