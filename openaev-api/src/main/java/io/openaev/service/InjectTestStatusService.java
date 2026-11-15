@@ -51,23 +51,28 @@ public class InjectTestStatusService {
     this.context = context;
   }
 
-  public InjectTestStatusOutput testInject(String injectId) {
-    Inject inject =
-        this.injectRepository
-            .findById(injectId)
-            .orElseThrow(() -> new EntityNotFoundException("Inject not found"));
+  /**
+   * Tests the inject only when it belongs to the simulation.
+   *
+   * @throws ElementNotFoundException when the id is unknown or the inject is not of the simulation
+   */
+  public InjectTestStatusOutput testInjectOfSimulation(String simulationId, String injectId) {
+    return runTest(
+        injectRepository
+            .findByIdAndExerciseId(injectId, simulationId)
+            .orElseThrow(() -> injectNotFound(injectId)));
+  }
 
-    if (!inject.getInjectTestable()) {
-      throw new IllegalArgumentException("Inject: " + injectId + " is not testable");
-    }
-
-    User user =
-        this.userRepository
-            .findById(currentUser().getId())
-            .orElseThrow(() -> new EntityNotFoundException("User not found"));
-
-    InjectTestStatus injectStatus = testInject(inject, user);
-    return injectStatusMapper.toInjectTestStatusOutput(injectStatus);
+  /**
+   * Tests the inject only when it belongs to the scenario.
+   *
+   * @throws ElementNotFoundException when the id is unknown or the inject is not of the scenario
+   */
+  public InjectTestStatusOutput testInjectOfScenario(String scenarioId, String injectId) {
+    return runTest(
+        injectRepository
+            .findByIdAndScenarioId(injectId, scenarioId)
+            .orElseThrow(() -> injectNotFound(injectId)));
   }
 
   /**
@@ -166,6 +171,20 @@ public class InjectTestStatusService {
   }
 
   // -- PRIVATE --
+  private InjectTestStatusOutput runTest(Inject inject) {
+    if (!inject.getInjectTestable()) {
+      throw new IllegalArgumentException("Inject: " + inject.getId() + " is not testable");
+    }
+
+    User user =
+        this.userRepository
+            .findById(currentUser().getId())
+            .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+    InjectTestStatus injectStatus = testInject(inject, user);
+    return injectStatusMapper.toInjectTestStatusOutput(injectStatus);
+  }
+
   private InjectTestStatus testInject(Inject inject, User user) {
     ExecutionContext userInjectContext =
         this.executionContextService.executionContext(user, inject, "Direct test");
@@ -226,6 +245,10 @@ public class InjectTestStatusService {
                 });
 
     return this.injectTestStatusRepository.save(injectTestStatus);
+  }
+
+  private static ElementNotFoundException injectNotFound(String injectId) {
+    return new ElementNotFoundException("Inject not found: " + injectId);
   }
 
   private static ElementNotFoundException testStatusNotFound(String testId) {

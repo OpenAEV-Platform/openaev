@@ -1,6 +1,7 @@
 package io.openaev.rest.exercise;
 
 import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,9 +24,11 @@ import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectTestStatusFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectTestStatusComposer;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utilstest.RowTenantScope;
@@ -35,6 +38,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(PER_CLASS)
@@ -46,6 +50,7 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
   @Autowired private EmailInjectorIntegrationFactory emailInjectorIntegrationFactory;
   @Autowired private ManagerFactory managerFactory;
   @Autowired private ExerciseComposer simulationComposer;
+  @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectTestStatusComposer injectTestStatusComposer;
   @Autowired private InjectorContractFixture injectorContractFixture;
@@ -218,6 +223,82 @@ public class ExerciseInjectTestApiTest extends IntegrationTest {
                       injectTestStatus2.getId())
                   .with(csrf()))
           .andExpect(status().isOk());
+    }
+  }
+
+  @Nested
+  @DisplayName("Through the path of another simulation or scenario")
+  class ThroughOtherPath {
+
+    @Test
+    @DisplayName(
+        "given an inject of a simulation when testing it through the path of another simulation then it is not found")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_injectOfOtherSimulation_should_answerNotFound() throws Exception {
+      // Arrange
+      Exercise otherSimulation =
+          simulationComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              get(
+                      EXERCISE_URI + "/{simulationId}/injects/{injectId}/test",
+                      otherSimulation.getId(),
+                      inject1.getId())
+                  .with(csrf()));
+
+      // Assert
+      result.andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName(
+        "given an inject of a simulation when testing it through the path of a scenario then it is not found")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_injectOfSimulation_should_answerNotFoundThroughScenarioPath() throws Exception {
+      // Arrange
+      Scenario scenario =
+          scenarioComposer
+              .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+              .persist()
+              .get();
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              get(
+                      SCENARIO_URI + "/{scenarioId}/injects/{injectId}/test",
+                      scenario.getId(),
+                      inject1.getId())
+                  .with(csrf()));
+
+      // Assert
+      result.andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName(
+        "given a simulation id in the path of a scenario when bulk testing its injects then none is tested")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+    void given_simulationIdInScenarioPath_should_testNoInject() throws Exception {
+      // Arrange
+      InjectBulkProcessingInput input = new InjectBulkProcessingInput();
+      input.setInjectIDsToProcess(List.of(inject1.getId()));
+      input.setSimulationOrScenarioId(simulation.getId());
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              post(SCENARIO_URI + "/{scenarioId}/injects/test", simulation.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input))
+                  .with(csrf()));
+
+      // Assert
+      result
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value("No inject ID is testable"));
     }
   }
 

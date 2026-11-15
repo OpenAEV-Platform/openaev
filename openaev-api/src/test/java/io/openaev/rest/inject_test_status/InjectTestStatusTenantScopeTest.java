@@ -56,6 +56,7 @@ class InjectTestStatusTenantScopeTest extends IntegrationTest {
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
   private static final String TEST_STATUS_PATH = "/injects/test/{testId}";
   private static final String PATH_TEST_STATUS_PATH = "/{pathId}/injects/test/{testId}";
+  private static final String PATH_INJECT_TEST_PATH = "/{pathId}/injects/{injectId}/test";
 
   @DynamicPropertySource
   static void activeTables(DynamicPropertyRegistry registry) {
@@ -419,6 +420,77 @@ class InjectTestStatusTenantScopeTest extends IntegrationTest {
       // Assert
       result.andExpect(status().isNotFound());
       assertTestStatusPresent(foreign);
+    }
+  }
+
+  @Nested
+  @DisplayName("Testing an inject through the path of a simulation or scenario")
+  class TestingThroughPath {
+
+    @Test
+    @DisplayName(
+        "given an inject of a simulation of another tenant in the scope when testing it through the path of a simulation then it is not found")
+    void given_injectOfSimulationOfOtherTenant_should_answerNotFound() throws Exception {
+      // Arrange
+      SeededParent pathSimulation = seedSimulation(DEFAULT_TENANT);
+      SeededTestStatus foreign = seedTestStatus(seedSimulation(tenantB));
+      clearAmbientTenant();
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              get(
+                      EXERCISE_URI + PATH_INJECT_TEST_PATH,
+                      pathSimulation.parentId(),
+                      foreign.injectId())
+                  .header(TENANT_HEADER, DEFAULT_TENANT + "," + tenantB)
+                  .accept(MediaType.APPLICATION_JSON));
+
+      // Assert
+      result.andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName(
+        "given an inject of a scenario of another tenant in the scope when testing it through the path of a scenario then it is not found")
+    void given_injectOfScenarioOfOtherTenant_should_answerNotFound() throws Exception {
+      // Arrange
+      SeededParent pathScenario = seedScenario(DEFAULT_TENANT);
+      SeededTestStatus foreign = seedTestStatus(seedScenario(tenantB));
+      clearAmbientTenant();
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              get(SCENARIO_URI + PATH_INJECT_TEST_PATH, pathScenario.parentId(), foreign.injectId())
+                  .header(TENANT_HEADER, DEFAULT_TENANT + "," + tenantB)
+                  .accept(MediaType.APPLICATION_JSON));
+
+      // Assert
+      result.andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName(
+        "given an inject of a simulation of another tenant when testing it through the tenant path of a simulation then it is not found")
+    void given_injectOfSimulationOfOtherTenant_should_answerNotFoundThroughTenantPath()
+        throws Exception {
+      // Arrange
+      SeededParent pathSimulation = seedSimulation(tenantB);
+      SeededTestStatus foreign = seedTestStatus(seedSimulation(DEFAULT_TENANT));
+
+      // Act
+      ResultActions result =
+          mvc.perform(
+              get(
+                      TENANT_EXERCISE_URI + PATH_INJECT_TEST_PATH,
+                      tenantB,
+                      pathSimulation.parentId(),
+                      foreign.injectId())
+                  .accept(MediaType.APPLICATION_JSON));
+
+      // Assert
+      result.andExpect(status().isNotFound());
     }
   }
 
