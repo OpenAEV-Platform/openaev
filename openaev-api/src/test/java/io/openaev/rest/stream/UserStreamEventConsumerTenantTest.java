@@ -104,7 +104,9 @@ import reactor.core.Disposable;
  *       tenant and no screen reads them from the stream;
  *   <li>{@code user_grants}, {@code user_home_dashboard}: sent to the user they belong to only;
  *   <li>{@code user_groups}, {@code user_capabilities}, {@code user_is_*} but {@code
- *       user_is_player}: derived from the groups of tenant T and the platform groups.
+ *       user_is_player}: derived from the groups of tenant T and the platform groups;
+ *   <li>{@code user_groups}, {@code user_capabilities} and every {@code user_is_*}: left out when
+ *       the write was made in another tenant, so the consumer keeps what it holds.
  * </ul>
  *
  * <p>{@code unscopedGroups}, {@code user_communications} and {@code team_exercises_users} are never
@@ -817,6 +819,25 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     soft(() -> hardAssertFlags(consumer, planner, observer));
   }
 
+  /**
+   * The fields derived from the groups and their roles, left out when written in another tenant.
+   */
+  private static final List<String> GROUP_DERIVED_FIELDS =
+      List.of(
+          "user_groups",
+          "user_capabilities",
+          "user_is_planner",
+          "user_is_observer",
+          "user_is_manager",
+          "user_is_player",
+          "user_is_external",
+          "user_is_only_player",
+          "user_is_admin_or_bypass");
+
+  private void assertGroupDerivedFieldsLeftOut(Consumer consumer) {
+    GROUP_DERIVED_FIELDS.forEach(field -> assertLeftOut(consumer, field));
+  }
+
   /** {@code user_is_player} as the consumer received it: absent when {@code expected} is null. */
   private void assertIsPlayer(Consumer consumer, Boolean expected) {
     soft(() -> hardAssertIsPlayer(consumer, expected));
@@ -1119,14 +1140,16 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       assertGrants(self, Map.of(simulationA, "PLANNER", simulationB, "OBSERVER"));
       assertGrants(selfInB, Map.of(simulationB, "OBSERVER"));
       assertFlags(self, true, true);
-      assertFlags(selfInB, false, true);
+      assertGroupDerivedFieldsLeftOut(selfInB);
       assertValue(self, "user_home_dashboard", dashboardA);
       assertValue(selfInB, "user_home_dashboard", dashboardA);
       for (Consumer consumer : List.of(other, ofB, ofDefault)) {
         assertLeftOut(consumer, "user_grants");
         assertLeftOut(consumer, "user_home_dashboard");
-        assertFlags(consumer, consumer == other, true);
       }
+      assertFlags(other, true, true);
+      assertGroupDerivedFieldsLeftOut(ofB);
+      assertGroupDerivedFieldsLeftOut(ofDefault);
     }
 
     @Test
@@ -1145,11 +1168,10 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
         assertLeftOut(consumer, "user_teams");
         assertLeftOut(consumer, "user_tags");
         assertLeftOut(consumer, "user_organization");
-        assertIds(consumer, "user_groups", List.of(groupB, groupPlatform));
-        assertCapabilities(consumer, CAPABILITY_OF_B, CAPABILITY_OF_PLATFORM);
+        assertGroupDerivedFieldsLeftOut(consumer);
       }
-      assertNoIdOutsideTheScope(other, groupB, groupPlatform);
-      assertNoIdOutsideTheScope(self, groupB, groupPlatform, simulationB, dashboardA);
+      assertNoIdOutsideTheScope(other);
+      assertNoIdOutsideTheScope(self, simulationB, dashboardA);
     }
 
     @Test
@@ -1167,9 +1189,8 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       assertLeftOut(ofDefault, "user_teams");
       assertLeftOut(ofDefault, "user_tags");
       assertLeftOut(ofDefault, "user_organization");
-      assertIds(ofDefault, "user_groups", List.of(groupPlatform));
-      assertCapabilities(ofDefault, CAPABILITY_OF_PLATFORM);
-      assertNoIdOutsideTheScope(ofDefault, groupPlatform);
+      assertGroupDerivedFieldsLeftOut(ofDefault);
+      assertNoIdOutsideTheScope(ofDefault);
     }
 
     @Test
@@ -1191,14 +1212,14 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       // -- ASSERT --
       for (Consumer consumer : List.of(ofA, ofB, ofDefault)) {
         assertDelivered(consumer, teamMember, events, "user_firstname", NEW_NAME);
-        assertFlags(consumer, false, false);
       }
+      assertFlags(ofA, false, false);
       assertIds(ofA, "user_teams", List.of(teamA));
       assertIsPlayer(ofA, true);
       assertLeftOut(ofB, "user_teams");
-      assertIsPlayer(ofB, null);
+      assertGroupDerivedFieldsLeftOut(ofB);
       assertLeftOut(ofDefault, "user_teams");
-      assertIsPlayer(ofDefault, null);
+      assertGroupDerivedFieldsLeftOut(ofDefault);
     }
 
     @Test
@@ -1217,12 +1238,12 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       // -- ASSERT --
       for (Consumer consumer : List.of(ofA, ofB)) {
         assertDelivered(consumer, teamMemberOfB, events, "user_firstname", NEW_NAME);
-        assertFlags(consumer, false, false);
       }
+      assertFlags(ofA, false, false);
       assertIds(ofA, "user_teams", List.of());
       assertIsPlayer(ofA, false);
       assertLeftOut(ofB, "user_teams");
-      assertIsPlayer(ofB, null);
+      assertGroupDerivedFieldsLeftOut(ofB);
     }
 
     @Test
@@ -1445,8 +1466,9 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("A user with no role is a player for the tenant that holds a team of it only")
-    void given_platformUpdateOfARoleFreeUser_should_sendIsPlayerPerConsumerTenant()
+    @DisplayName(
+        "A user with no role updated from the platform: the consumers of the default tenant receive user_is_player, the others keep the value they hold")
+    void given_platformUpdateOfARoleFreeUser_should_sendIsPlayerToTheConsumersOfTheDefaultTenant()
         throws Exception {
       // -- PREPARE --
       User teamMember = roleFreeUserInTeams(List.of(Tenant.DEFAULT_TENANT_UUID, tenantA), teamA);
@@ -1462,12 +1484,12 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
       assertEquals(Tenant.DEFAULT_TENANT_UUID, events.getFirst().getTenantId());
       for (Consumer consumer : List.of(ofA, ofDefault)) {
         assertDelivered(consumer, teamMember, events, "user_firstname", NEW_NAME);
-        assertFlags(consumer, false, false);
       }
+      assertFlags(ofDefault, false, false);
       assertIds(ofDefault, "user_teams", List.of());
       assertIsPlayer(ofDefault, false);
       assertIds(ofA, "user_teams", List.of(teamA));
-      assertIsPlayer(ofA, true);
+      assertGroupDerivedFieldsLeftOut(ofA);
     }
   }
 
