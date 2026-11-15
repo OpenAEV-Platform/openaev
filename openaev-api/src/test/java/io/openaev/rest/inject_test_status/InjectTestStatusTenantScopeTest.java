@@ -4,12 +4,14 @@ import static io.openaev.rest.exercise.ExerciseApi.EXERCISE_URI;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
+import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
@@ -18,6 +20,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -44,12 +47,16 @@ import org.springframework.test.web.servlet.ResultActions;
  * the path. A test status of any other inject, of another tenant or of another simulation or
  * scenario of the same tenant, is answered like an unknown id (404) and its row is left in place.
  *
+ * <p>An inject is tested only when it belongs to the simulation or scenario of the path; any other
+ * inject answers 404. The test status list of a simulation or scenario holds only the test statuses
+ * whose inject is in the request scope.
+ *
  * <p>The class is deliberately NOT {@code @Transactional}: the rows are committed through an
  * auto-committing {@link JdbcTemplate}, so each request runs its own transaction with its own
  * tenant scope, as in production, and they are removed on teardown.
  */
 @WithMockUser(isAdmin = true)
-@DisplayName("An inject test status read or deleted by id is resolved in the request scope")
+@DisplayName("Inject tests are resolved in the request scope and the path")
 class InjectTestStatusTenantScopeTest extends IntegrationTest {
 
   private static final String TENANT_HEADER = "X-Tenant-Ids";
@@ -57,6 +64,7 @@ class InjectTestStatusTenantScopeTest extends IntegrationTest {
   private static final String TEST_STATUS_PATH = "/injects/test/{testId}";
   private static final String PATH_TEST_STATUS_PATH = "/{pathId}/injects/test/{testId}";
   private static final String PATH_INJECT_TEST_PATH = "/{pathId}/injects/{injectId}/test";
+  private static final String PATH_SEARCH_PATH = "/{pathId}/injects/test/search";
 
   @DynamicPropertySource
   static void activeTables(DynamicPropertyRegistry registry) {
@@ -491,6 +499,82 @@ class InjectTestStatusTenantScopeTest extends IntegrationTest {
 
       // Assert
       result.andExpect(status().isNotFound());
+    }
+  }
+
+  @Nested
+  @DisplayName("Listing through the path of a simulation or scenario")
+  class ListingThroughPath {
+
+    @Test
+    @DisplayName(
+        "given a test status whose inject is outside the scope in the simulation of the path when listing then the list holds only the test status in the scope")
+    void given_testStatusWithInjectOutsideScopeInSimulation_should_listOnlyTestStatusInScope()
+        throws Exception {
+      // Arrange
+      SeededParent pathSimulation = seedSimulation(DEFAULT_TENANT);
+      SeededTestStatus own = seedTestStatus(pathSimulation);
+      seedTestStatus(new SeededParent(tenantB, pathSimulation.parentId(), "inject_exercise"));
+      clearAmbientTenant();
+
+      // Act
+      String response = search(EXERCISE_URI, pathSimulation.parentId(), DEFAULT_TENANT);
+
+      // Assert
+      assertThatJson(response)
+          .inPath("$.content[*].status_id")
+          .isArray()
+          .containsExactly(own.testId());
+    }
+
+    @Test
+    @DisplayName(
+        "given a test status whose inject is outside the scope in the scenario of the path when listing then the list holds only the test status in the scope")
+    void given_testStatusWithInjectOutsideScopeInScenario_should_listOnlyTestStatusInScope()
+        throws Exception {
+      // Arrange
+      SeededParent pathScenario = seedScenario(DEFAULT_TENANT);
+      SeededTestStatus own = seedTestStatus(pathScenario);
+      seedTestStatus(new SeededParent(tenantB, pathScenario.parentId(), "inject_scenario"));
+      clearAmbientTenant();
+
+      // Act
+      String response = search(SCENARIO_URI, pathScenario.parentId(), DEFAULT_TENANT);
+
+      // Assert
+      assertThatJson(response)
+          .inPath("$.content[*].status_id")
+          .isArray()
+          .containsExactly(own.testId());
+    }
+
+    @Test
+    @DisplayName(
+        "given a simulation of a tenant outside the scope when listing its test statuses then the list is empty")
+    void given_simulationOfTenantOutsideScope_should_listNothing() throws Exception {
+      // Arrange
+      SeededParent foreignSimulation = seedSimulation(tenantB);
+      seedTestStatus(foreignSimulation);
+      clearAmbientTenant();
+
+      // Act
+      String response = search(EXERCISE_URI, foreignSimulation.parentId(), DEFAULT_TENANT);
+
+      // Assert
+      assertThatJson(response).inPath("$.content").isArray().isEmpty();
+    }
+
+    private String search(String uri, String pathId, String tenantIds) throws Exception {
+      return mvc.perform(
+              post(uri + PATH_SEARCH_PATH, pathId)
+                  .header(TENANT_HEADER, tenantIds)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(new SearchPaginationInput()))
+                  .with(csrf()))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
     }
   }
 
