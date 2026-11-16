@@ -8,7 +8,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -48,15 +47,14 @@ import org.springframework.stereotype.Component;
  *       estimated rows ({@code pg_class.reltuples}, read once). That makes about twenty vacuums
  *       whatever the size, and the space held by dead row versions stays near that share of the
  *       table;
- *   <li>a running instance can insert rows with no tenant behind the cursor, so a drain picks the
- *       rows with no tenant created since the start of the run (less {@value #DRAIN_MARGIN_HOURS}
- *       hours, read from the database clock before the backfill: the margin covers any offset
- *       between the time zone the rows are written in and the session's; the BRIN index on the
- *       creation date serves it) and fills them in committed batches, until none is left, then runs
- *       one {@code VACUUM} if it wrote rows;
- *   <li>one short transaction locks the table, fills the rows the drain did not reach (an older
- *       creation time, or none) and the last ones inserted, then sets {@code NOT NULL}, adds the
- *       foreign key and creates the index.
+ *   <li>a running instance can insert rows with no tenant behind the cursor, so a drain builds a
+ *       temporary partial index of the rows with no tenant ({@code CONCURRENTLY}, so inserts go
+ *       on), walks it in primary key order and fills them in committed batches, with the same
+ *       {@code VACUUM} interval and one {@code VACUUM} at the end if it wrote rows: each row is
+ *       read once, whatever the size of that backlog;
+ *   <li>one short transaction locks the table, fills the last rows with no tenant (served by the
+ *       partial index), drops the partial index, then sets {@code NOT NULL}, adds the foreign key
+ *       and creates the index.
  * </ol>
  *
  * <p>Every step is guarded ({@code IF NOT EXISTS}, {@code WHERE tenant_id IS NULL}), so a run
@@ -72,9 +70,9 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   static final int BATCH_SIZE = 10_000;
   static final int VACUUM_EVERY_BATCHES = 50;
   static final int VACUUM_SHARE_PERCENT = 5;
-  static final int DRAIN_MARGIN_HOURS = 24;
   static final String FOREIGN_KEY = "fk_" + TABLE + "_tenant_id";
   static final String INDEX = "idx_" + TABLE + "_tenant_id";
+  static final String PENDING_INDEX = "idx_" + TABLE + "_tenant_id_pending";
 
   /**
    * Fills the rows of {@code %s} (a predicate on the alias {@code x}) with the tenant of their
@@ -111,11 +109,12 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           + TABLE
           + " WHERE execution_trace_id > ? ORDER BY execution_trace_id LIMIT ?";
 
-  /** Picks rows with no tenant created since a point in time, served by the BRIN index. */
-  static final String NEXT_UNATTRIBUTED_IDS =
+  /** Picks the next rows with no tenant in primary key order, served by the partial index. */
+  static final String NEXT_PENDING_IDS =
       "SELECT execution_trace_id FROM "
           + TABLE
-          + " WHERE tenant_id IS NULL AND execution_created_at >= ? LIMIT ?";
+          + " WHERE tenant_id IS NULL AND execution_trace_id > ?"
+          + " ORDER BY execution_trace_id LIMIT ?";
 
   private final int batchSize;
   private final int minVacuumEveryBatches;
@@ -165,9 +164,16 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
       statement.execute(
           "ALTER TABLE " + TABLE + " ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255)");
     }
-    OffsetDateTime drainFrom = databaseNow(connection).minusHours(DRAIN_MARGIN_HOURS);
-    long orphans = backfillInBatches(connection);
-    orphans += drain(connection, drainFrom);
+    long estimatedRows = estimatedRows(connection);
+    long vacuumEvery = vacuumInterval(estimatedRows, batchSize, minVacuumEveryBatches);
+    log.info(
+        "{}: about {} row(s), batches of {}, a vacuum every {} batch(es)",
+        TABLE,
+        estimatedRows,
+        batchSize,
+        vacuumEvery);
+    long orphans = backfillInBatches(connection, vacuumEvery);
+    orphans += drain(connection, vacuumEvery);
     orphans += finish(connection);
     if (orphans > 0) {
       log.warn(
@@ -180,21 +186,13 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
 
   /**
    * Walks the primary key and fills each batch of ids in its own transaction. Rows inserted behind
-   * the cursor are left to {@link #finish}. Returns the orphans.
+   * the cursor are left to {@link #drain}. Returns the orphans.
    */
-  private long backfillInBatches(Connection connection) throws SQLException {
+  private long backfillInBatches(Connection connection, long vacuumEvery) throws SQLException {
     long scanned = 0;
     long orphans = 0;
     long batches = 0;
     long startedAt = System.nanoTime();
-    long estimatedRows = estimatedRows(connection);
-    long vacuumEvery = vacuumInterval(estimatedRows, batchSize, minVacuumEveryBatches);
-    log.info(
-        "{}: about {} row(s), batches of {}, a vacuum every {} batch(es)",
-        TABLE,
-        estimatedRows,
-        batchSize,
-        vacuumEvery);
     String lastId = "";
     try (PreparedStatement pick = connection.prepareStatement(NEXT_IDS);
         PreparedStatement update = connection.prepareStatement(BATCH_UPDATE)) {
@@ -239,16 +237,29 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
   }
 
   /**
-   * Fills, in committed batches, the rows with no tenant created since {@code from}: those inserted
-   * behind the cursor by a running instance. Returns the orphans.
+   * Fills, in committed batches, the rows with no tenant left after the walk: those inserted behind
+   * the cursor by a running instance. A temporary partial index holds only those rows, so each
+   * batch reads its rows and no other. Returns the orphans.
    */
-  private long drain(Connection connection, OffsetDateTime from) throws SQLException {
+  private long drain(Connection connection, long vacuumEvery) throws SQLException {
+    try (Statement statement = connection.createStatement()) {
+      // A leftover of an interrupted run can be invalid: rebuild it.
+      statement.execute("DROP INDEX CONCURRENTLY IF EXISTS " + PENDING_INDEX);
+      statement.execute(
+          "CREATE INDEX CONCURRENTLY "
+              + PENDING_INDEX
+              + " ON "
+              + TABLE
+              + " (execution_trace_id) WHERE tenant_id IS NULL");
+    }
     long drained = 0;
     long orphans = 0;
-    try (PreparedStatement pick = connection.prepareStatement(NEXT_UNATTRIBUTED_IDS);
+    long batches = 0;
+    String lastId = "";
+    try (PreparedStatement pick = connection.prepareStatement(NEXT_PENDING_IDS);
         PreparedStatement update = connection.prepareStatement(BATCH_UPDATE)) {
       while (true) {
-        pick.setObject(1, from);
+        pick.setString(1, lastId);
         pick.setInt(2, batchSize);
         List<String> ids = new ArrayList<>(batchSize);
         try (ResultSet result = pick.executeQuery()) {
@@ -262,7 +273,12 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
         update.setString(1, DEFAULT_TENANT_UUID);
         update.setArray(2, connection.createArrayOf("varchar", ids.toArray()));
         orphans += run(update)[1];
+        lastId = ids.getLast();
         drained += ids.size();
+        batches++;
+        if (batches % vacuumEvery == 0) {
+          vacuum(connection);
+        }
       }
     }
     if (drained > 0) {
@@ -270,14 +286,6 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
     log.info("{}: {} row(s) inserted during the backfill filled in batches", TABLE, drained);
     return orphans;
-  }
-
-  private static OffsetDateTime databaseNow(Connection connection) throws SQLException {
-    try (Statement statement = connection.createStatement();
-        ResultSet result = statement.executeQuery("SELECT now()")) {
-      result.next();
-      return result.getObject(1, OffsetDateTime.class);
-    }
   }
 
   /**
@@ -293,6 +301,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
         remaining.setString(1, DEFAULT_TENANT_UUID);
         orphans = run(remaining)[1];
       }
+      statement.execute("DROP INDEX IF EXISTS " + PENDING_INDEX);
       statement.execute("ALTER TABLE " + TABLE + " ALTER COLUMN tenant_id SET NOT NULL");
       statement.execute(
           "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '"

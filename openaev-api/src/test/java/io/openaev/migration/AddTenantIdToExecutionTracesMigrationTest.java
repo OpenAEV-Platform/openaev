@@ -391,8 +391,8 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "A row with an old creation time inserted behind the cursor is filled by the locked step")
-    void given_oldRowInsertedBehindTheCursor_should_beFilledByTheLockedStep() throws SQLException {
+        "A row with an old creation time inserted behind the cursor is filled by the drain")
+    void given_oldRowInsertedBehindTheCursor_should_beFilledByTheDrain() throws SQLException {
       // Arrange
       makePending();
       seedTrace("m-2", statusOfB, null, null);
@@ -420,7 +420,7 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     /**
      * A before-update trigger that runs {@code insertSql} when the row {@code m-3} is updated, and
      * raises when a seeded row other than {@code m-1} is written while the session holds an
-     * exclusive lock on the table (the row {@code m-1} is the one the locked step must fill).
+     * exclusive lock on the table (the row {@code m-1} is the one with an old creation time).
      */
     private void createInsertingTrigger(String insertSql) throws SQLException {
       execute(
