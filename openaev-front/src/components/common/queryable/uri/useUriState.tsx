@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router';
 
 import { type Filter, type SearchPaginationInput } from '../../../../utils/api-types';
 import { generateFilterId } from '../filter/FilterUtils';
-import { buildSearchPagination, isDefaultListState, SearchPaginationInputSchema } from '../QueryableUtils';
+import { buildSearchPagination, listStateFingerprint, SearchPaginationInputSchema } from '../QueryableUtils';
 import { type UriHelpers } from './UriHelpers';
 
 export const retrieveFromUri = (localStorageKey: string, searchParams: URLSearchParams): SearchPaginationInput | null => {
@@ -75,7 +75,7 @@ const useUriState = (
       if (
         defaultSearchPaginationInput
         && (initSearchPaginationInput.page ?? 0) === 0
-        && isDefaultListState(initSearchPaginationInput, defaultSearchPaginationInput)
+        && listStateFingerprint(initSearchPaginationInput) === listStateFingerprint(defaultSearchPaginationInput)
       ) {
         if (searchParams.has('query')) {
           setSearchParams((searchParams) => {

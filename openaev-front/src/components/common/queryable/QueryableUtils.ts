@@ -12,40 +12,38 @@ export const buildSearchPagination = (searchPaginationInput: Partial<SearchPagin
   });
 };
 
-// Canonical form of the list state a user can change (text search, size, sort,
-// filters), so two inputs compare equal when they would load the same list:
-// filter ids are generated, an absent sort is the hooks' empty-property one, an
-// absent direction is DESC (useSortState) and an absent filter group is empty.
-const canonicalListState = (input: Partial<SearchPaginationInput>) => JSON.stringify({
-  textSearch: input.textSearch?.trim() ?? '',
-  size: input.size ?? DEFAULT_ROWS_PER_PAGE,
-  sorts: (input.sorts ?? [])
-    .filter(sort => !!sort.property)
-    .map(sort => ({
-      property: sort.property,
-      direction: sort.direction === 'ASC' ? 'ASC' : 'DESC',
-    })),
-  filterGroup: {
-    mode: input.filterGroup?.mode ?? 'and',
-    filters: (input.filterGroup?.filters ?? []).map(filter => ({
-      key: filter.key,
-      mode: filter.mode ?? 'and',
-      operator: filter.operator ?? 'eq',
-      values: filter.values ?? [],
-    })),
-  },
-});
+// The list state a user can change (text search, size, sort, filters), as a
+// string: the page is left out (never persisted) and so are the generated
+// filter ids. No value is normalized here: two states are the same list state
+// only when they carry the same values.
+export const listStateFingerprint = (input: Partial<SearchPaginationInput>) => {
+  const state = buildSearchPagination(input);
+  return JSON.stringify({
+    textSearch: state.textSearch ?? '',
+    size: state.size,
+    sorts: state.sorts ?? [],
+    filterGroup: state.filterGroup
+      ? {
+          ...state.filterGroup,
+          filters: state.filterGroup.filters?.map(({ id: _id, ...rest }) => rest),
+        }
+      : null,
+  });
+};
 
-/**
- * True when a list state is the list's own default (page ignored). Such a state
- * is neither written to localStorage nor to the URL `query` parameter: storing
- * it would pin today's defaults for the user, so a default changed in a later
- * version (e.g. hiding deprecated payloads) would never reach them (#4181).
- */
-export const isDefaultListState = (
-  input: Partial<SearchPaginationInput>,
-  defaults: Partial<SearchPaginationInput>,
-) => canonicalListState(input) === canonicalListState(defaults);
+// Short, stable hash (polynomial, base 31 modulo 2^32, written in base 36) of a list's defaults. It is part
+// of the list's localStorage key, so a default changed in a later version gives
+// the list a new key: the change reaches every user (their saved preferences on
+// that list reset once) and the entries under the old key are simply no longer
+// read (#4181).
+export const listDefaultsHash = (defaults: Partial<SearchPaginationInput>) => {
+  const fingerprint = listStateFingerprint(defaults);
+  let hash = 0;
+  for (let i = 0; i < fingerprint.length; i += 1) {
+    hash = (hash * 31 + fingerprint.charCodeAt(i)) % 4294967296;
+  }
+  return hash.toString(36);
+};
 
 // Resolved empty page for fetchers that must short-circuit without calling the
 // API - typically when scoping a list on an empty id set, where an empty

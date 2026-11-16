@@ -7,7 +7,7 @@ import { getCurrentTenantId } from '../../../utils/url-helper';
 import useFiltersState from './filter/useFiltersState';
 import usePaginationState from './pagination/usePaginationState';
 import { type QueryableHelpers } from './QueryableHelpers';
-import { buildSearchPagination, isDefaultListState } from './QueryableUtils';
+import { buildSearchPagination, listDefaultsHash } from './QueryableUtils';
 import useSortState from './sort/useSortState';
 import useTextSearchState from './textSearch/useTextSearchState';
 import useUriState, { retrieveFromUri } from './uri/useUriState';
@@ -143,11 +143,13 @@ export const useQueryableWithLocalStorage = (localStorageKey: string, initSearch
   const finalSearchPaginationInput: SearchPaginationInput = buildSearchPagination(initSearchPaginationInput);
   const searchPaginationInputFromUri = retrieveFromUri(localStorageKey, searchParams);
 
-  const tenantScopedStorageKey = `${getCurrentTenantId()}:${localStorageKey}`;
+  // The key carries a hash of the list's defaults: a default changed in a
+  // later version gives a new key, so it reaches every user and the entries
+  // stored under the old key are no longer read (#4181).
+  const tenantScopedStorageKey = `${getCurrentTenantId()}:${localStorageKey}:${listDefaultsHash(finalSearchPaginationInput)}`;
   const [
     searchPaginationInputFromLocalStorage,
     setSearchPaginationInputFromLocalStorage,
-    removeSearchPaginationInputFromLocalStorage,
   ] = useLocalStorage<SearchPaginationInput>(
     tenantScopedStorageKey,
     sanitizeForStorage(searchPaginationInputFromUri ?? finalSearchPaginationInput),
@@ -170,11 +172,6 @@ export const useQueryableWithLocalStorage = (localStorageKey: string, initSearch
   const pendingInputRef = useRef(searchPaginationInput);
   pendingInputRef.current = searchPaginationInput;
 
-  // Callers pass a fresh literal every render: keep the latest without making
-  // the stable updater depend on it.
-  const initSearchPaginationInputRef = useRef(initSearchPaginationInput);
-  initSearchPaginationInputRef.current = initSearchPaginationInput;
-
   // Always write to both states together to keep them in sync
   const updateSearchPaginationInput = useCallback(
     (value: SetStateAction<SearchPaginationInput>) => {
@@ -188,16 +185,9 @@ export const useQueryableWithLocalStorage = (localStorageKey: string, initSearch
       pendingInputRef.current = newInput;
       isInternalUpdate.current = true;
       setSearchPaginationInput(newInput);
-      // The list's own default state is never stored (a reset clears the
-      // entry): only what the user changed is a preference worth persisting,
-      // so later changes to the defaults still reach them (#4181).
-      if (isDefaultListState(newInput, initSearchPaginationInputRef.current)) {
-        removeSearchPaginationInputFromLocalStorage();
-      } else {
-        setSearchPaginationInputFromLocalStorage(sanitizeForStorage(newInput));
-      }
+      setSearchPaginationInputFromLocalStorage(sanitizeForStorage(newInput));
     },
-    [setSearchPaginationInputFromLocalStorage, removeSearchPaginationInputFromLocalStorage],
+    [setSearchPaginationInputFromLocalStorage],
   );
 
   // On mount the stored value can legitimately differ from the adopted input
