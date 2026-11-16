@@ -123,7 +123,9 @@ public class RateLimitIntegrationTest extends IntegrationTest {
 
   @Nested
   @DisplayName("When authenticated")
-  @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
+  @WithMockUser(
+      withCapabilities = {Capability.AGENT_RUNTIME_ACCESS},
+      autoJoinDefaultTenant = true)
   class WhenAuthenticated {
     @Test
     @DisplayName("Calls are throttled on open endpoint")
