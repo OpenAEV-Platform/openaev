@@ -145,6 +145,7 @@ public class CredentialInputFixture {
         null,
         null,
         null,
+        null,
         List.of());
   }
 
@@ -215,6 +216,7 @@ public class CredentialInputFixture {
         gcpOauthClientId,
         gcpOauthClientSecret,
         gcpOauthRefreshToken,
+        null,
         null,
         null,
         null,

@@ -42,16 +42,11 @@ public class AiTargetInput extends AssetInput {
   @JsonProperty("ai_target_configuration")
   private Map<String, Object> aiTargetConfiguration = new HashMap<>();
 
-  @JsonProperty("ai_target_token")
+  @JsonProperty("ai_target_credential")
   @Schema(
       types = {"string", "null"},
-      accessMode = Schema.AccessMode.WRITE_ONLY,
-      description = "Blank keeps the stored token")
-  private String aiTargetToken;
-
-  @JsonProperty("ai_target_token_clear")
-  @Schema(description = "Removes the stored token")
-  private boolean aiTargetTokenClear;
+      description = "API token credential used to reach the target")
+  private String aiTargetCredentialId;
 
   // Criticality lives on the base Asset entity; AI targets are Assets so they support it too.
   // Property name matches Asset.criticality for BeanUtils.copyProperties.

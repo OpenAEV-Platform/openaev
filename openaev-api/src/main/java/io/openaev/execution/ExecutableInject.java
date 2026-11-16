@@ -9,6 +9,7 @@ import io.openaev.rest.inject.service.ResolvedAssetsToExecute;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import lombok.Getter;
 import org.hibernate.Hibernate;
 import org.springframework.web.multipart.MultipartFile;
@@ -129,6 +130,18 @@ public class ExecutableInject {
       boolean runtime, boolean direct, Injection injection, List<ExecutionContext> users) {
     this(
         runtime, direct, injection, List.of(), List.of(), List.of(), List.of(), users, false, null);
+  }
+
+  /**
+   * The credentials the injector may resolve: those attached to the inject, then those of the AI
+   * targets among the given targets.
+   */
+  public List<String> credentialReferenceIds(List<AssetToExecute> targets) {
+    return Stream.concat(
+            ofNullable(secretReferenceIds).stream().flatMap(List::stream),
+            AssetToExecute.aiTargetCredentials(targets).map(SecretReference::getId))
+        .distinct()
+        .toList();
   }
 
   public void addDirectAttachment(MultipartFile file) {
