@@ -11,8 +11,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTrigger;
 import io.openaev.database.model.NotificationTriggerEventType;
@@ -21,6 +19,7 @@ import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.NotifierType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.User;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -55,8 +54,8 @@ class NotificationDigestServiceTest {
               invocation.getArgument(1, Runnable.class).run();
               return null;
             })
-        .when(tenantTx)
-        .execute(any(TxCtx.class), any(Runnable.class));
+        .when(tenantJobRunner)
+        .runInTenant(any(), any(Runnable.class));
     markingResolver = mock(NotificationMarkingResolver.class);
     // Default: every event is visible, matching the real resolver's behavior with the MARKING
     // preview feature off - tests of marking narrowing override this per-event below.

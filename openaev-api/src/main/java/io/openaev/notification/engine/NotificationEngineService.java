@@ -15,6 +15,7 @@ import io.openaev.database.repository.NotificationEventRecordRepository;
 import java.util.LinkedHashMap;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -311,7 +312,7 @@ public class NotificationEngineService {
             userId -> {
               MarkingCtx clearance =
                   markingClearanceCacheManager.findClearance(userId, trigger.tenantId());
-              return markingSets.stream().anyMatch(clearance::coversMarkings);
+              return markingSets.stream().anyMatch(ids -> clearance.allows(Arrays.asList(ids)));
             })
         .toList();
   }

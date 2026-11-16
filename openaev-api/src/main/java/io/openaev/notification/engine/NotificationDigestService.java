@@ -1,11 +1,9 @@
 package io.openaev.notification.engine;
 
-import io.openaev.context.TenantContext;
-import io.openaev.context.TenantScopedTransaction;
-import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationEventRecord;
 import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerType;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -38,7 +36,7 @@ public class NotificationDigestService {
   private final NotificationTriggerLoader triggerLoader;
   private final NotificationDispatchService dispatchService;
   private final NotificationRecipientFilter recipientFilter;
-  private final TenantScopedTransaction tenantTx;
+  private final TenantScopedJobRunner tenantJobRunner;
   private final NotificationMarkingResolver markingResolver;
 
   public void runDigests(Instant now) {
