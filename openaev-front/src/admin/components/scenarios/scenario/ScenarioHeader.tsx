@@ -61,8 +61,8 @@ import {
   type HealthCheck,
   type Inject,
   type Scenario,
+  type ScenarioOutput,
   type Team,
-  type UserSimple,
 } from '../../../../utils/api-types';
 import { MESSAGING$, useQueryParameter } from '../../../../utils/Environment';
 import { useAppDispatch } from '../../../../utils/hooks';
@@ -166,7 +166,8 @@ const ScenarioHeader = ({
   }, [openScenarioAssistantQueryParam, scenarioId]);
   // Fetching data
   const { scenario, challenges, injects, teams, articles }: {
-    scenario: Scenario;
+    // The store entry is filled by the entity (ids) and by the ScenarioOutput DTO (resolved user).
+    scenario: Scenario & Pick<ScenarioOutput, 'scenario_scheduled_by_user'>;
     challenges: Challenge[];
     injects: Inject[];
     teams: Team[];
@@ -194,11 +195,8 @@ const ScenarioHeader = ({
   const hasChallenges = challenges.length > 0;
 
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
-  // scenario_scheduled_by is a resolved object on the real ScenarioOutput DTO but a plain id string on other endpoints that merge into the same store entry - guard the shape instead of rendering it raw.
-  const scheduledByRaw = (scenario as unknown as Record<string, unknown>).scenario_scheduled_by as UserSimple | string | undefined;
-  const scheduledByName = scheduledByRaw && typeof scheduledByRaw === 'object'
-    ? (scheduledByRaw.user_name ?? scheduledByRaw.user_email)
-    : undefined;
+  const scheduledBy = scenario.scenario_scheduled_by_user;
+  const scheduledByName = scheduledBy?.user_name ?? scheduledBy?.user_email;
   const isScenarioChaining = !!scenarioWorkflowId;
   const canOpenConfiguration = canManage && !isScenarioChaining;
 
@@ -450,11 +448,13 @@ const ScenarioHeader = ({
   const cronObject = useMemo(() => handle(scenario.scenario_recurrence), [scenario.scenario_recurrence]);
 
   const onSubmit = (cron: Cron, start: string, end?: string) => {
+    // The recurrence endpoint returns the entity, which carries no resolved user: refetch the
+    // ScenarioOutput so the "Scheduled by" chip shows who just scheduled it.
     dispatch(updateScenarioRecurrence(scenarioId, {
       scenario_recurrence: cron.toCronExpression(),
       scenario_recurrence_start: start,
       scenario_recurrence_end: end,
-    }));
+    })).then(() => dispatch(fetchScenario(scenarioId)));
     setOpenScheduling(false);
   };
 

@@ -11,6 +11,7 @@ import io.openaev.database.model.Objective;
 import io.openaev.database.model.Scenario.SEVERITY;
 import io.openaev.database.raw.RawSimulationIndexing;
 import io.openaev.rest.atomic_testing.form.UserSimple;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -85,7 +86,12 @@ public class SimulationDetails {
   @JsonProperty("exercise_scenario")
   private String scenario;
 
-  @JsonProperty("exercise_launched_by")
+  // Not "exercise_launched_by": the Exercise entity sends the bare user id under that key, and both
+  // shapes merge into the same frontend store entry.
+  @JsonProperty("exercise_launched_by_user")
+  @Schema(
+      description =
+          "User who launched this exercise, or who last scheduled it when created unattended")
   private UserSimple launchedBy;
 
   // -- AUDIT --

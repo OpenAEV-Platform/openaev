@@ -7183,7 +7183,7 @@ export interface InjectResultOverviewOutput {
   /** Kill chain phases */
   inject_kill_chain_phases?: KillChainPhaseSimple[];
   /** User who launched this inject */
-  inject_launched_by?: UserSimple;
+  inject_launched_by_user?: UserSimple;
   /** Indicates whether the inject is ready for use */
   inject_ready?: boolean;
   /** Recurrence cron expression for scheduled relaunch */
@@ -11494,7 +11494,7 @@ export interface ScenarioOutput {
    */
   scenario_recurrence_start?: string;
   /** User who last configured the scenario's recurrence */
-  scenario_scheduled_by?: UserSimple;
+  scenario_scheduled_by_user?: UserSimple;
   /** Severity of the scenario */
   scenario_severity?: string;
   /** Subtitle of the scenario */
@@ -12153,7 +12153,7 @@ export interface SimulationDetails {
   exercise_id: string;
   exercise_kill_chain_phases?: KillChainPhase[];
   /** User who launched this exercise, or who last scheduled it when created unattended */
-  exercise_launched_by?: UserSimple;
+  exercise_launched_by_user?: UserSimple;
   exercise_lessons_anonymized?: boolean;
   /** @format int64 */
   exercise_lessons_answers_number?: number;
@@ -13667,7 +13667,8 @@ export interface UserOutput {
 
 export interface UserSimple {
   user_email?: string;
-  user_id?: string;
+  /** @minLength 1 */
+  user_id: string;
   user_name?: string;
 }
 

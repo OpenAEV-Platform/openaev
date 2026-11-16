@@ -29,6 +29,7 @@ import { fetchExerciseArticles } from '../../../../actions/channels/article-acti
 import { type ArticlesHelper } from '../../../../actions/channels/article-helper';
 import {
   dismissExerciseExpectationsDrift,
+  fetchExercise,
   fetchExerciseExpectationsDrift,
   fetchExerciseTeams,
   realignExerciseExpectations,
@@ -108,6 +109,11 @@ export const Buttons = ({ exerciseId, exerciseStatus, exerciseName, onLoading, i
       // evicts on refetch — reconcile it or Execution keeps showing them.
       if (status.exercise_status === 'CANCELED' || status.exercise_status === 'SCHEDULED') {
         await dispatch(reconcileExerciseInjects(exerciseId));
+      }
+      // A manual start stamps the caller as launcher, but the status endpoint returns the entity
+      // (no resolved user): refetch the SimulationDetails so the "Launched by" chip follows.
+      if (status.exercise_status === 'RUNNING') {
+        await dispatch(fetchExercise(exerciseId));
       }
     } finally {
       onLoading(false);
@@ -413,11 +419,8 @@ const ExerciseHeader = ({ onLoading, isLoading, autonomousRun = null }: {
   // reload (it only appeared to work right after a create when the redux entity
   // was transiently patched). The injects list is what already feeds the asset
   // counters below, so this keeps every hero counter on the same source.
-  // exercise_launched_by is a resolved object on the SimulationDetails DTO but a plain id string on other endpoints that merge into the same store entry - guard the shape instead of rendering "undefined".
-  const launchedBy = exercise.exercise_launched_by;
-  const launchedByName = launchedBy && typeof launchedBy === 'object'
-    ? (launchedBy.user_name ?? launchedBy.user_email)
-    : undefined;
+  const launchedBy = exercise.exercise_launched_by_user;
+  const launchedByName = launchedBy?.user_name ?? launchedBy?.user_email;
 
   const injectsCount = injects?.length ?? 0;
   // Teams and articles are counted from their dedicated list fetches for the

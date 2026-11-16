@@ -111,7 +111,7 @@ const InjectHero: FunctionComponent<Props> = ({ injectResultOverview, actions })
   // so the hero stays light (no empty "-" rows like the old info tooltip).
   // The execution window (start / end / duration) lives here since the
   // dedicated "Execution details" tab was dropped.
-  const launchedBy = injectResultOverview.inject_launched_by;
+  const launchedBy = injectResultOverview.inject_launched_by_user;
   const startDate = injectResultOverview.inject_status?.tracking_sent_date;
   const endDate = injectResultOverview.inject_status?.tracking_end_date;
   const duration = startDate && endDate
