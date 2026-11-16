@@ -250,8 +250,9 @@ public class PermissionService {
    * {@code X-Tenant-Ids} header names a tenant other than the default one, the caller is loaded
    * again with its roles read in the ambient tenant ({@link CallerRightsInTenant}); the data reads
    * of the request keep their scope. The tenants of the scope need no such load, nor does an admin,
-   * whose flag is on its user row. With no transaction open, the caller was loaded in the scope of
-   * its memberships already.
+   * whose flag is on its user row. With no transaction open, as in the access check of an endpoint
+   * whose method opens none ({@code Propagation.SUPPORTS}), there is no transaction to move, and
+   * the caller was loaded in the scope of its memberships already.
    *
    * @param caller the caller, as the request loaded it
    * @param ctx the request scope
