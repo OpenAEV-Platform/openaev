@@ -1369,6 +1369,10 @@ export interface AttackPatternCoverageOutput {
   detection_total?: number;
   kill_chain_phases?: KillChainPhaseCoverage[];
   /** @format int64 */
+  logging_success?: number;
+  /** @format int64 */
+  logging_total?: number;
+  /** @format int64 */
   prevention_success?: number;
   /** @format int64 */
   prevention_total?: number;
