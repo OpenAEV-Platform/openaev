@@ -13,7 +13,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -115,8 +117,7 @@ public class BaseEvent implements Cloneable {
       // Falls back to the entity itself, which consumers resolve through its own resource type.
       log.debug("Cannot resolve permission resource of {}", data.getClass().getSimpleName(), e);
     }
-    String writeTenantId = attributedTenantOf(requestAttributes, data);
-    this.tenantId = writeTenantId != null ? writeTenantId : TenantContext.getCurrentTenant();
+    this.tenantId = attributedTenantOf(requestAttributes, data, TenantContext.getCurrentTenant());
     this.permissionResourceId = resolvedPermissionResourceId;
     this.permissionResourceType = resolvedPermissionResourceType;
     Class<?> baseClass = data.getClass();
@@ -197,41 +198,63 @@ public class BaseEvent implements Cloneable {
    * @param entityType the type of the entities whose events are attributed to that tenant
    */
   public static void attributeRequestEventsTo(String tenantId, Class<? extends Base> entityType) {
+    attributeRequestEventsToOneOf(tenantId == null ? List.of() : List.of(tenantId), entityType);
+  }
+
+  /**
+   * Declares the tenants a request reads the roles of a user in, for the events of the entities of
+   * one type: the value of such an event that depends on the roles is complete for the consumers of
+   * the tenant the event is attributed to, and for no other. The event is attributed to the ambient
+   * tenant when it is one of {@code tenantIds}, since the ambient tenant is what the events of the
+   * request take by default, and otherwise to the first of them in the order of their ids. Does
+   * nothing outside a request.
+   *
+   * @param tenantIds the tenants the request reads in
+   * @param entityType the type of the entities whose events are attributed
+   */
+  public static void attributeRequestEventsToOneOf(
+      Collection<String> tenantIds, Class<? extends Base> entityType) {
     RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
     if (requestAttributes != null) {
-      attributionsOf(requestAttributes).put(entityType, tenantId);
+      attributionsOf(requestAttributes).put(entityType, tenantIds.stream().sorted().toList());
     }
   }
 
   @SuppressWarnings("unchecked")
-  private static Map<Class<? extends Base>, String> attributionsOf(
+  private static Map<Class<? extends Base>, List<String>> attributionsOf(
       RequestAttributes requestAttributes) {
     Object attributions =
         requestAttributes.getAttribute(WRITE_TENANT_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST);
     if (attributions == null) {
-      attributions = new LinkedHashMap<Class<? extends Base>, String>();
+      attributions = new LinkedHashMap<Class<? extends Base>, List<String>>();
       requestAttributes.setAttribute(
           WRITE_TENANT_ATTRIBUTE, attributions, RequestAttributes.SCOPE_REQUEST);
     }
-    return (Map<Class<? extends Base>, String>) attributions;
+    return (Map<Class<? extends Base>, List<String>>) attributions;
   }
 
   @SuppressWarnings("unchecked")
-  private static String attributedTenantOf(RequestAttributes requestAttributes, Base data) {
+  private static String attributedTenantOf(
+      RequestAttributes requestAttributes, Base data, String ambientTenant) {
     if (requestAttributes == null) {
-      return null;
+      return ambientTenant;
     }
     Object attributions =
         requestAttributes.getAttribute(WRITE_TENANT_ATTRIBUTE, RequestAttributes.SCOPE_REQUEST);
     if (attributions == null) {
-      return null;
+      return ambientTenant;
     }
-    return ((Map<Class<? extends Base>, String>) attributions)
-        .entrySet().stream()
-            .filter(attribution -> attribution.getKey().isInstance(data))
-            .map(Map.Entry::getValue)
-            .findFirst()
-            .orElse(null);
+    List<String> tenantIds =
+        ((Map<Class<? extends Base>, List<String>>) attributions)
+            .entrySet().stream()
+                .filter(attribution -> attribution.getKey().isInstance(data))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(List.of());
+    if (tenantIds.isEmpty() || tenantIds.contains(ambientTenant)) {
+      return ambientTenant;
+    }
+    return tenantIds.getFirst();
   }
 
   /**

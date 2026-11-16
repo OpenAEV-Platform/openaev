@@ -1494,6 +1494,61 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("User updated from the platform with the scope of tenant A selected by the header")
+  class UpdatedFromThePlatformInA {
+
+    private static final String NEW_NAME = "Written-by-the-platform-in-a";
+
+    private List<BaseEvent> updateFromThePlatformScopedToA() throws Exception {
+      UserInput input =
+          new UserInput(
+              player.getEmail(),
+              NEW_NAME,
+              "User",
+              null,
+              null,
+              null,
+              null,
+              null,
+              List.of(tagA),
+              false,
+              List.of(Tenant.DEFAULT_TENANT_UUID, tenantA));
+      return writeAndStream(
+          player.getId(),
+          () ->
+              mvc.perform(
+                      json(
+                          put(PLATFORM_USER_URI + "/" + player.getId())
+                              .header(TENANT_HEADER, tenantA),
+                          input))
+                  .andExpect(status().is2xxSuccessful()));
+    }
+
+    @Test
+    @DisplayName(
+        "The event is attributed to A, where the roles were read: the consumers of A receive the groups, capabilities and flags, the consumers of the default tenant receive none of them")
+    void given_platformUpdateScopedToA_should_attributeTheEventToTheTenantTheRolesWereReadIn()
+        throws Exception {
+      // -- PREPARE --
+      Consumer ofA = consumerOfA();
+      Consumer ofDefault = consumerOfDefault();
+
+      // -- EXECUTE --
+      List<BaseEvent> events = updateFromThePlatformScopedToA();
+
+      // -- ASSERT --
+      assertEquals(tenantA, events.getFirst().getTenantId());
+      for (Consumer consumer : List.of(ofA, ofDefault)) {
+        assertDelivered(consumer, events, "user_firstname", NEW_NAME);
+      }
+      assertIds(ofA, "user_groups", List.of(groupA, groupPlatform));
+      assertCapabilities(ofA, CAPABILITY_OF_A, CAPABILITY_OF_PLATFORM);
+      assertFlags(ofA, true, true);
+      assertGroupDerivedFieldsLeftOut(ofDefault);
+    }
+  }
+
+  @Nested
   @DisplayName("Player created in tenant A")
   class CreatedInA {
 
