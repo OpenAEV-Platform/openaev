@@ -128,6 +128,16 @@ class ArchRuleRegistrationTest {
               WorkflowOwnerScopeCallerArchTest.class,
               "parameterised by the baseline, so the runner builds it from the baseline names"),
           new Helper(
+              WorkflowOwnerScopeCallerRules.class,
+              "callerRightsLoadedOnlyFrom",
+              WorkflowOwnerScopeCallerArchTest.class,
+              "parameterised by the allowlist, so the runner builds it from the allowlist names"),
+          new Helper(
+              WorkflowOwnerScopeCallerRules.class,
+              "ambientCallerReadOnlyFrom",
+              WorkflowOwnerScopeCallerArchTest.class,
+              "parameterised by the allowlist, so the runner builds it from the allowlist names"),
+          new Helper(
               TenantActiveTableAccessArchTest.class,
               "queryNamingTableIsCalledOnlyBy",
               TenantActiveTableAccessArchTest.class,

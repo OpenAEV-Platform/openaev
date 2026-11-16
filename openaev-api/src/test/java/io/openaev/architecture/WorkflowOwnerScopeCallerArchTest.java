@@ -41,6 +41,34 @@ class WorkflowOwnerScopeCallerArchTest {
       WorkflowOwnerScopeCallerRules.ownerScopeCalledOnlyFrom(
           WorkflowOwnerScopeCallerRules.ownerScopeCallerNames());
 
+  @ArchTest
+  static final ArchRule caller_rights_are_loaded_only_from_the_allowlist =
+      WorkflowOwnerScopeCallerRules.callerRightsLoadedOnlyFrom(
+          WorkflowOwnerScopeCallerRules.callerRightsLoaderNames());
+
+  @ArchTest
+  static void given_productionClasses_should_loadCallerRightsFromExactlyTheAllowlist(
+      JavaClasses classes) {
+    assertThat(WorkflowOwnerScopeCallerRules.callerRightsLoaders(classes))
+        .as("the classes calling CallerRightsInTenant, against the allowlist")
+        .containsExactlyInAnyOrderElementsOf(
+            WorkflowOwnerScopeCallerRules.callerRightsLoaderNames());
+  }
+
+  @ArchTest
+  static final ArchRule ambient_caller_is_read_only_from_the_allowlist =
+      WorkflowOwnerScopeCallerRules.ambientCallerReadOnlyFrom(
+          WorkflowOwnerScopeCallerRules.ambientCallerReaderNames());
+
+  @ArchTest
+  static void given_productionClasses_should_readTheAmbientCallerFromExactlyTheAllowlist(
+      JavaClasses classes) {
+    assertThat(WorkflowOwnerScopeCallerRules.ambientCallerReaders(classes))
+        .as("the classes calling PermissionService.callerInAmbientTenant, against the allowlist")
+        .containsExactlyInAnyOrderElementsOf(
+            WorkflowOwnerScopeCallerRules.ambientCallerReaderNames());
+  }
+
   /** Lowered when a caller leaves the baseline, never raised. */
   private static final int FROZEN_SCOPE_SETTERS = 10;
 

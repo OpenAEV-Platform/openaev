@@ -6,8 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -27,6 +26,7 @@ import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.rest.role.form.RoleInput;
@@ -39,6 +39,7 @@ import java.sql.ResultSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.hibernate.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -204,7 +205,7 @@ class DualScopeRolesActivationTest extends IntegrationTest {
       // Assert
       List<String> ids = JsonPath.read(response, "$[*].role_id");
       assertThat(ids).contains(roleA).doesNotContain(roleB, PLATFORM_ADMIN_ROLE_ID);
-      verify(callerRightsInTenant, never()).load(anyString(), anyString());
+      verify(callerRightsInTenant, never()).loadInAmbientTenant(any());
     }
 
     @Test
@@ -283,6 +284,18 @@ class DualScopeRolesActivationTest extends IntegrationTest {
     void given_aListSelectingAByHeader_should_returnTheTenantRolesOfAOnly() throws Exception {
       // Arrange
       givenNoAmbientTenant();
+      AtomicReference<String> ambientTenantOfTheLoad = new AtomicReference<>();
+      AtomicReference<Set<Capability>> loadedCapabilities = new AtomicReference<>();
+      doAnswer(
+              invocation -> {
+                User caller = invocation.getArgument(0);
+                ambientTenantOfTheLoad.set(caller.scopedTenantId());
+                User loaded = (User) invocation.callRealMethod();
+                loadedCapabilities.set(loaded.getCapabilities());
+                return loaded;
+              })
+          .when(callerRightsInTenant)
+          .loadInAmbientTenant(any());
 
       // Act
       String response =
@@ -296,7 +309,11 @@ class DualScopeRolesActivationTest extends IntegrationTest {
       // Assert
       List<String> ids = JsonPath.read(response, "$[*].role_id");
       assertThat(ids).contains(roleA).doesNotContain(roleB, PLATFORM_ADMIN_ROLE_ID);
-      verify(callerRightsInTenant).load(any(), eq(Tenant.DEFAULT_TENANT_UUID));
+      verify(callerRightsInTenant).loadInAmbientTenant(any());
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, ambientTenantOfTheLoad.get());
+      // The role of the caller's default-tenant group, unread in the scope of A, is read.
+      assertThat(loadedCapabilities.get())
+          .contains(Capability.DELETE_TENANT_USERS_GROUPS_AND_ROLES);
     }
 
     @Test
@@ -405,7 +422,7 @@ class DualScopeRolesActivationTest extends IntegrationTest {
       // Assert
       List<String> ids = JsonPath.read(response, "$[*].role_id");
       assertThat(ids).contains(roleA).doesNotContain(roleB, PLATFORM_ADMIN_ROLE_ID);
-      verify(callerRightsInTenant, never()).load(anyString(), anyString());
+      verify(callerRightsInTenant, never()).loadInAmbientTenant(any());
     }
 
     @Test

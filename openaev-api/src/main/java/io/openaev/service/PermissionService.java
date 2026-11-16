@@ -266,7 +266,7 @@ public class PermissionService {
         || !TransactionSynchronizationManager.isActualTransactionActive()) {
       return caller;
     }
-    return callerRightsInTenant.load(caller.getId(), ambientTenant);
+    return callerRightsInTenant.loadInAmbientTenant(caller);
   }
 
   /**

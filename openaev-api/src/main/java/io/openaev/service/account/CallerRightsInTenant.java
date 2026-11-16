@@ -36,11 +36,17 @@ public class CallerRightsInTenant {
   private final EntityManager entityManager;
 
   /**
-   * @throws ElementNotFoundException when no user has {@code userId}
+   * Loads {@code caller} again, in its ambient tenant ({@link User#scopedTenantId()}): the method
+   * takes no tenant, so it reads no tenant but the ambient one. It does not check which user it is
+   * given; an architecture test lets only {@code PermissionService} call this class, which passes
+   * the caller of its own permission decision.
+   *
+   * @throws ElementNotFoundException when {@code caller} has no user row
    */
-  public User load(String userId, String tenantId) {
+  public User loadInAmbientTenant(User caller) {
+    String callerId = caller.getId();
     return tenantTx.executeOnCurrentTransaction(
-        TxCtx.forTenant(tenantId), () -> loadInOwnSession(userId));
+        TxCtx.forTenant(caller.scopedTenantId()), () -> loadInOwnSession(callerId));
   }
 
   private User loadInOwnSession(String userId) {
