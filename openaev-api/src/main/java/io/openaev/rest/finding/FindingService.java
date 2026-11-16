@@ -100,8 +100,8 @@ public class FindingService {
   /**
    * Records the findings of a structured output: an agent execution locates them on the asset whose
    * host they name (its own asset when none is named), an injector on the assets of the output.
-   * Entries that fail {@code validator} are skipped: one malformed finding must not throw out of the
-   * execution callback, which would leave the inject stuck.
+   * Entries that fail {@code validator} are skipped: one malformed finding must not throw out of
+   * the execution callback, which would leave the inject stuck.
    *
    * @param executionContext The context of the execution, containing information about whether it's
    *     an agent execution and relevant data for processing.

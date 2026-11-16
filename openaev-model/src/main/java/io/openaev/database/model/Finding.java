@@ -43,7 +43,8 @@ public class Finding implements TenantBase {
   // It is redundant rather than load-bearing: the production create path,
   // FindingRecordingService, stamps the tenant of the transaction scope and refuses a scope that
   // names anything but one tenant. What #7844 still has to prepare is the test ground: test sites
-  // persist a Finding straight through a repository, and neither FindingFixture nor FindingComposer stamps a
+  // persist a Finding straight through a repository, and neither FindingFixture nor FindingComposer
+  // stamps a
   // tenant, so they all lean on this listener today.
 
   @Id

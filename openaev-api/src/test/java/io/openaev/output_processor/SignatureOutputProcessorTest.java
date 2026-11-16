@@ -322,11 +322,7 @@ class SignatureOutputProcessorTest {
 
   private ContractOutputContext buildContractCtx() {
     return new ContractOutputContext(
-        "signatures",
-        "signatures",
-        ContractOutputType.ExpectationSignature,
-        false,
-        new String[0]);
+        "signatures", "signatures", ContractOutputType.ExpectationSignature, false, new String[0]);
   }
 
   // -------------------------------------------------------------------------

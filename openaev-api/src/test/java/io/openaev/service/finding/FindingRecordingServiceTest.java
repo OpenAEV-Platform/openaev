@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.ContractOutputType;
@@ -74,6 +75,8 @@ class FindingRecordingServiceTest extends IntegrationTest {
 
   @Autowired private FindingRecordingService findingRecordingService;
   @Autowired private FindingService findingService;
+  @Autowired private FindingOccurrenceService findingOccurrenceService;
+  @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private DataSource dataSource;
   @Autowired private ApplicationEvents applicationEvents;
 
@@ -124,6 +127,7 @@ class FindingRecordingServiceTest extends IntegrationTest {
     jdbc.update("DELETE FROM users_tenants WHERE user_id = ?", userId);
     jdbc.update("DELETE FROM users WHERE user_id = ?", userId);
     jdbc.update("DELETE FROM injects WHERE tenant_id = ?", tenantId);
+    jdbc.update("DELETE FROM exercises WHERE tenant_id = ?", tenantId);
     jdbc.update("DELETE FROM tenants WHERE tenant_id = ?", tenantId);
   }
 
@@ -624,6 +628,59 @@ class FindingRecordingServiceTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("When the simulation is reset")
+  class WhenTheSimulationIsReset {
+
+    private String simulationId;
+    private String findingId;
+
+    @BeforeEach
+    void runThenReset() {
+      simulationId = seedSimulation(mondayInject);
+      findingId = record(mondayInject, openSsl()).get(0).getId();
+    }
+
+    @Test
+    @DisplayName("should detach the finding from the simulation and keep its history")
+    void given_aResetSimulation_should_detachTheFinding() {
+      // -- ARRANGE --
+      Instant recordedAt = updateDateOf(findingId);
+
+      // -- ACT --
+      reset();
+
+      // -- ASSERT --
+      assertThat(countOccurrences(findingId)).isEqualTo(1);
+      assertThat(countOccurrencesOn(findingId, mondayInject)).isZero();
+      assertThat(seenOf(findingId)).containsExactly(MONDAY, MONDAY);
+      assertThat(updateDateOf(findingId)).as("re-feeds its document").isAfter(recordedAt);
+    }
+
+    @Test
+    @DisplayName("should record the finding again on the next run")
+    void given_aNewRunAfterReset_should_recordTheFindingAgain() {
+      // -- ARRANGE --
+      reset();
+
+      // -- ACT --
+      record(injectSentAt(mondayInject.getId(), WEDNESDAY), openSsl());
+
+      // -- ASSERT --
+      assertThat(countOccurrences(findingId)).isEqualTo(2);
+      assertThat(countOccurrencesOn(findingId, mondayInject)).isEqualTo(1);
+      assertThat(seenOf(findingId)).containsExactly(MONDAY, WEDNESDAY);
+    }
+
+    private void reset() {
+      tenantTx.execute(ctx, () -> findingOccurrenceService.detachFromSimulation(simulationId));
+    }
+
+    private DetectedFinding openSsl() {
+      return cve(CVE, "cve", "OpenSSL", new AssetLocation(assetA));
+    }
+  }
+
+  @Nested
   @DisplayName("Statement count")
   class StatementCount {
 
@@ -701,12 +758,28 @@ class FindingRecordingServiceTest extends IntegrationTest {
             + " VALUES (?, 'record detections inject', now(), now(), 0, false, true, ?)",
         injectId,
         tenantId);
+    return injectSentAt(injectId, sentAt);
+  }
+
+  private static Inject injectSentAt(String injectId, Instant sentAt) {
     Inject inject = new Inject();
     inject.setId(injectId);
     InjectStatus status = new InjectStatus();
     status.setTrackingSentDate(sentAt);
     inject.setStatus(status);
     return inject;
+  }
+
+  private String seedSimulation(Inject inject) {
+    String simulationId = UUID.randomUUID().toString();
+    jdbc.update(
+        "INSERT INTO exercises (exercise_id, exercise_name, tenant_id) VALUES (?, ?, ?)",
+        simulationId,
+        "record detections simulation",
+        tenantId);
+    jdbc.update(
+        "UPDATE injects SET inject_exercise = ? WHERE inject_id = ?", simulationId, inject.getId());
+    return simulationId;
   }
 
   private String seedAsset() {
@@ -748,6 +821,22 @@ class FindingRecordingServiceTest extends IntegrationTest {
     return count(
         "SELECT count(*) FROM finding_occurrences WHERE finding_occurrence_finding_id = ?",
         findingId);
+  }
+
+  private long countOccurrencesOn(String findingId, Inject inject) {
+    return count(
+        "SELECT count(*) FROM finding_occurrences WHERE finding_occurrence_finding_id = ?"
+            + " AND finding_occurrence_inject_id = ?",
+        findingId,
+        inject.getId());
+  }
+
+  private Instant updateDateOf(String findingId) {
+    return jdbc.queryForObject(
+            "SELECT finding_updated_at FROM findings WHERE finding_id = ?",
+            Timestamp.class,
+            findingId)
+        .toInstant();
   }
 
   private String occurrenceFieldOf(String findingId, Inject inject) {

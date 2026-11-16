@@ -78,6 +78,25 @@ public class FindingOccurrenceService {
     findingOccurrenceRepository.saveAll(occurrences);
   }
 
+  // -- UPDATE --
+
+  /**
+   * Unlinks the occurrences from the simulation's injects: a reset simulation no longer shows its
+   * findings until a new run records them again. The findings keep their history.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void detachFromSimulation(String simulationId) {
+    List<FindingOccurrence> occurrences =
+        findingOccurrenceRepository.findAllBySimulationId(simulationId);
+    Instant now = Instant.now();
+    for (FindingOccurrence occurrence : occurrences) {
+      occurrence.setInject(null);
+      // Re-feeds the finding's document, which lists the simulations of its occurrences
+      occurrence.getFinding().setUpdateDate(now);
+    }
+    findingOccurrenceRepository.saveAll(occurrences);
+  }
+
   // -- READ --
 
   /** Returns the occurrence of a finding for one inject, if it was recorded. */

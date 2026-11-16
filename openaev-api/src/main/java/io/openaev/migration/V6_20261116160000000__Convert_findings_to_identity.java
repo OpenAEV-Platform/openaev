@@ -33,23 +33,22 @@ import org.springframework.stereotype.Component;
  * per (tenant, type, normalized value hash, location) (#7848, chunk 5).
  *
  * <p>Each old row becomes one finding per location: each of its assets, else each of its users,
- * else the unknown location. The first location without a stable finding converts the row in
- * place; another location gets a copy, and a location that already has one merges the row into
- * it. A finding fed by a row gets its occurrences (inject, date, field), tags, teams and its
- * location link; a row merged everywhere is deleted, its phishing results moved to the finding it
- * merged into. First and last seen are recomputed from the occurrences.
+ * else the unknown location. Each location's stable finding, created if missing, gets the row's
+ * occurrences (inject, date, field), tags, teams and its location link. The row is then deleted,
+ * its phishing results moved to its first finding. First and last seen are recomputed from the
+ * occurrences.
  *
  * <p>Also drops {@code finding_labels}, no longer mapped, and makes {@code finding_location_key} a
  * plain column written by the application ({@link FindingLocationKeys}). Deleting an inject now
  * keeps its findings: {@code finding_inject_id} goes from {@code ON DELETE CASCADE} to {@code SET
  * NULL}, like the inject of their occurrences. Drops the old unique key (inject, value, type,
- * field): the identity key {@code findings_identity_unique} exists since chunk 1. The search index of the
- * findings is reset, since merged rows lose their id. Runs outside a transaction, one commit per
- * batch: a rerun skips the rows already converted.
+ * field): the identity key {@code findings_identity_unique} exists since chunk 1. The search index
+ * of the findings is reset, since every finding gets a new id. Runs outside a transaction, one
+ * commit per batch: a rerun skips the rows already converted.
  */
 @Slf4j
 @Component
-public class V6_20261112160000000__Convert_findings_to_identity extends BaseJavaMigration {
+public class V6_20261116160000000__Convert_findings_to_identity extends BaseJavaMigration {
 
   private static final int BATCH_SIZE = 1000;
   private static final String FINDING_MODEL = "finding";
@@ -106,7 +105,8 @@ public class V6_20261112160000000__Convert_findings_to_identity extends BaseJava
             "ALTER TABLE finding_locations ALTER COLUMN finding_location_key"
                 + " DROP EXPRESSION IF EXISTS");
         statement.execute("ALTER TABLE findings DROP COLUMN IF EXISTS finding_labels");
-        statement.execute("ALTER TABLE findings DROP CONSTRAINT IF EXISTS unique_finding_constraint");
+        statement.execute(
+            "ALTER TABLE findings DROP CONSTRAINT IF EXISTS unique_finding_constraint");
       }
       connection.commit();
 
@@ -258,7 +258,6 @@ public class V6_20261112160000000__Convert_findings_to_identity extends BaseJava
       log.warn("Finding {} left unconverted: unknown type {}", row.id(), row.type());
       return;
     }
-    LocationIdentity convertedWith = null;
     String firstTarget = null;
     for (LocationIdentity location : row.locations()) {
       String hash;
@@ -270,31 +269,21 @@ public class V6_20261112160000000__Convert_findings_to_identity extends BaseJava
       }
       String locationId = locationId(connection, location, locationIdByKey);
       String target = findStableFinding(connection, row, hash, locationId);
-      if (target == null && convertedWith == null) {
-        convertInPlace(connection, row, hash, locationId);
-        convertedWith = location;
-        target = row.id();
+      if (target == null) {
+        target = copy(connection, row, hash, locationId);
       } else {
-        if (target == null) {
-          target = copy(connection, row, hash, locationId);
-        } else {
-          takeLatestValue(connection, row, target);
-        }
-        copyOccurrences(connection, row, target);
-        copyLinks(connection, "findings_tags", "tag_id", row.id(), target);
-        copyLinks(connection, "findings_teams", "team_id", row.id(), target);
+        takeLatestValue(connection, row, target);
       }
+      copyOccurrences(connection, row, target);
+      copyLinks(connection, "findings_tags", "tag_id", row.id(), target);
+      copyLinks(connection, "findings_teams", "team_id", row.id(), target);
       linkLocation(connection, location, target);
       touched.add(target);
       if (firstTarget == null) {
         firstTarget = target;
       }
     }
-    if (convertedWith != null) {
-      keepOnlyLocationLinks(connection, row.id(), convertedWith);
-    } else {
-      moveAndDelete(connection, row.id(), firstTarget);
-    }
+    moveAndDelete(connection, row.id(), firstTarget);
   }
 
   private static String locationId(
@@ -344,23 +333,6 @@ public class V6_20261112160000000__Convert_findings_to_identity extends BaseJava
       try (ResultSet resultSet = statement.executeQuery()) {
         return resultSet.next() ? resultSet.getString(1) : null;
       }
-    }
-  }
-
-  // The inject and the field moved to the occurrences in chunk 1
-  private static void convertInPlace(
-      Connection connection, OldFinding row, String hash, String locationId) throws SQLException {
-    try (PreparedStatement statement =
-        connection.prepareStatement(
-            "UPDATE findings SET finding_value_hash = ?, finding_location_id = ?,"
-                + " finding_inject_id = NULL, finding_field = NULL, finding_first_seen = ?,"
-                + " finding_last_seen = ? WHERE finding_id = ?")) {
-      statement.setString(1, hash);
-      statement.setString(2, locationId);
-      statement.setTimestamp(3, row.firstDate());
-      statement.setTimestamp(4, row.lastDate());
-      statement.setString(5, row.id());
-      statement.executeUpdate();
     }
   }
 
@@ -508,27 +480,7 @@ public class V6_20261112160000000__Convert_findings_to_identity extends BaseJava
     }
   }
 
-  // The row converted in place keeps the links of its own location only
-  private static void keepOnlyLocationLinks(
-      Connection connection, String findingId, LocationIdentity location) throws SQLException {
-    String keptAsset = location instanceof AssetLocation(String id) ? id : "";
-    String keptUser = location instanceof UserLocation(String id) ? id : "";
-    try (PreparedStatement assets =
-            connection.prepareStatement(
-                "DELETE FROM findings_assets WHERE finding_id = ? AND asset_id <> ?");
-        PreparedStatement users =
-            connection.prepareStatement(
-                "DELETE FROM findings_users WHERE finding_id = ? AND user_id <> ?")) {
-      assets.setString(1, findingId);
-      assets.setString(2, keptAsset);
-      assets.executeUpdate();
-      users.setString(1, findingId);
-      users.setString(2, keptUser);
-      users.executeUpdate();
-    }
-  }
-
-  // A phishing result follows the row to the finding it merged into, and to its occurrence there
+  // A phishing result follows the row to its first finding, and to its occurrence there
   private static void moveAndDelete(Connection connection, String findingId, String target)
       throws SQLException {
     try (PreparedStatement results =

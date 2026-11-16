@@ -29,8 +29,7 @@ class FindingCapableOutputProcessorTest {
   static Stream<Arguments> outputShapes() {
     return Stream.of(
         Arguments.of("no asset_id", "{}", List.of(UnknownLocation.INSTANCE)),
-        Arguments.of(
-            "an id as text", "{\"asset_id\": \"a1\"}", List.of(new AssetLocation("a1"))),
+        Arguments.of("an id as text", "{\"asset_id\": \"a1\"}", List.of(new AssetLocation("a1"))),
         Arguments.of(
             "an array of ids",
             "{\"asset_id\": [\"a1\", \"a2\"]}",

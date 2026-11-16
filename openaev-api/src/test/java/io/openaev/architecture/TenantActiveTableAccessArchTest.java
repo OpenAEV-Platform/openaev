@@ -250,7 +250,6 @@ import io.openaev.rest.vulnerability.service.VulnerabilityService;
 import io.openaev.scheduler.jobs.AgentInactivityMonitorJob;
 import io.openaev.scheduler.jobs.ComchecksExecutionJob;
 import io.openaev.search.FullTextSearchService;
-import io.openaev.service.finding.FindingRecordingService;
 import io.openaev.service.AgentService;
 import io.openaev.service.ChallengeService;
 import io.openaev.service.ChannelService;
