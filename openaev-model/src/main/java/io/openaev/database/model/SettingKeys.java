@@ -17,6 +17,7 @@ public enum SettingKeys {
   PLATFORM_INSTANCE("instance_id", ""),
   PLATFORM_INSTANCE_CREATION("instance_creation_date", ""),
   XTM_HUB_SHOULD_SEND_CONNECTIVITY_EMAIL("xtm_hub_should_send_connectivity_email", "true"),
+  XTM_HUB_KEY_VERSION("xtm_hub_key_version", "1"),
 
   XTM_COMPOSER_ID("xtm_composer_id", ""),
   XTM_COMPOSER_NAME("xtm_composer_name", ""),

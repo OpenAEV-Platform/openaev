@@ -7,12 +7,14 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.ResourceType;
 import io.openaev.rest.helper.RestBehavior;
+import io.openaev.xtmhub.XtmHubKeyService;
 import io.openaev.xtmhub.XtmHubService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,8 +30,10 @@ public class XtmHubApi extends RestBehavior {
 
   public static final String XTMHUB_URI = "/api/xtmhub";
   public static final String TENANT_XTMHUB_URI = TENANT_PREFIX + "/xtmhub";
+  public static final String XTMHUB_JWKS_URI = XTMHUB_URI + "/jwks";
 
   private final XtmHubService xtmHubService;
+  private final XtmHubKeyService xtmHubKeyService;
   private final XtmHubRegistrationMapper xtmHubRegistrationMapper;
 
   @GetMapping(
@@ -129,5 +133,17 @@ public class XtmHubApi extends RestBehavior {
   @Transactional(rollbackFor = Exception.class)
   public Boolean contactUs(TxCtx ctx, @Valid @RequestBody XtmHubContactUsInput request) {
     return this.xtmHubService.contactUs(request.getMessage());
+  }
+
+  @GetMapping(value = XTMHUB_JWKS_URI, produces = MediaType.APPLICATION_JSON_VALUE)
+  @Operation(
+      summary = "Get the XTM Hub public key",
+      description = "Public key that verifies the assertions this instance signs for XTM Hub")
+  @ApiResponses({@ApiResponse(responseCode = "200", description = "JWK Set with the public key")})
+  // Public: XTM Hub fetches it without credentials to check the key a SaaS host holds.
+  @AccessControl(skipRBAC = true)
+  @Transactional(readOnly = true)
+  public XtmHubJwksOutput jwks(TxCtx ctx) {
+    return new XtmHubJwksOutput(List.of(xtmHubKeyService.publicJwk()));
   }
 }
