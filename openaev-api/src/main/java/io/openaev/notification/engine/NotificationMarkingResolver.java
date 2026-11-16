@@ -10,6 +10,7 @@ import io.openaev.rest.finding.FindingService;
 import io.openaev.rest.inject.service.InjectService;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -85,6 +86,6 @@ public class NotificationMarkingResolver {
       return true;
     }
     MarkingCtx clearance = markingClearanceCacheManager.findClearance(userId, tenantId);
-    return markingSets.stream().anyMatch(clearance::coversMarkings);
+    return markingSets.stream().anyMatch(ids -> clearance.allows(Arrays.asList(ids)));
   }
 }

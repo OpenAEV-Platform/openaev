@@ -14,6 +14,7 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationEventRecordRepository;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -140,7 +141,7 @@ public class NotificationEngineService {
             userId -> {
               MarkingCtx clearance =
                   markingClearanceCacheManager.findClearance(userId, trigger.tenantId());
-              return markingSets.stream().anyMatch(clearance::coversMarkings);
+              return markingSets.stream().anyMatch(ids -> clearance.allows(Arrays.asList(ids)));
             })
         .toList();
   }
