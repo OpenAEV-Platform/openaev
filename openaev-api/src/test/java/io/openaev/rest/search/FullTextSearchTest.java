@@ -26,7 +26,6 @@ import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import io.openaev.utilstest.RowTenantScope;
 import java.util.*;
 import java.util.stream.Stream;
@@ -114,11 +113,12 @@ public class FullTextSearchTest extends IntegrationTest {
 
   /**
    * Persists a caller holding {@code capability} through a role of the default tenant, and makes it
-   * a member of that tenant, as a real holder of that role is. Its rows are written and flushed in
-   * the default tenant's scope before the request, which starts from a cleared scope.
+   * a member of that tenant, as a real holder of that role is. The test transaction already runs in
+   * the default tenant's scope (see {@link io.openaev.utilstest.DefaultTenantScopeTestListener}),
+   * and the flush in {@code attachUserToTenant} writes the rows in it before the request, which
+   * starts from a cleared scope.
    */
   private User persistDefaultTenantMemberWith(Capability capability) {
-    DefaultTenantScopeTestListener.setAmbientScope(entityManager, Tenant.DEFAULT_TENANT_UUID);
     TenantGroupComposer.Composer groupComposed =
         tenantGroupComposer
             .forGroup(TenantGroupFixture.getGroup())
@@ -134,7 +134,7 @@ public class FullTextSearchTest extends IntegrationTest {
             .withGroup(groupComposed)
             .persist()
             .get();
-    // Flushes the pending rows in the scope above, then adds the membership.
+    // Flushes the pending rows in the test transaction's scope, then adds the membership.
     tenantIsolationTestHelper.attachUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID);
     return user;
   }
