@@ -12,6 +12,8 @@ export interface PayloadVersionOption {
   revoked?: boolean;
   // Payload approval: a version that is not approved is labelled with its status.
   approvalStatus?: PayloadVersionOutput['payload_approval_status'];
+  /** Listed but not selectable, e.g. a version that cannot run a test. */
+  disabled?: boolean;
 }
 
 interface Props {
@@ -51,7 +53,7 @@ const PayloadVersionSelect: FunctionComponent<Props> = ({ value, options, onChan
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {shown.map(option => <SelectItem key={option.version} value={option.version}>{label(option)}</SelectItem>)}
+          {shown.map(option => <SelectItem key={option.version} value={option.version} disabled={option.disabled}>{label(option)}</SelectItem>)}
         </SelectContent>
       </Select>
     </div>
