@@ -86,7 +86,6 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private InjectStatusRepository injectStatusRepository;
   @Autowired private AgentRepository agentRepository;
   @Autowired private RowTenantScope rowTenantScope;
-  @Autowired private TenantScopedJobRunner tenantScopedJobRunner;
   @MockitoSpyBean private ManagerFactory managerFactory;
   @MockitoSpyBean private InjectStatusService injectStatusService;
 
