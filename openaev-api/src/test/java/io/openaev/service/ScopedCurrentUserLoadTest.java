@@ -511,6 +511,57 @@ class ScopedCurrentUserLoadTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("a load made with the user already held by the request's session")
+  class UserHeldByTheSession {
+
+    @Test
+    @DisplayName("given_theUserLoadedWithNoScope_should_loadTheCapabilitiesOfItsTenantRole")
+    void given_theUserLoadedWithNoScope_should_loadTheCapabilitiesOfItsTenantRole() {
+      // Arrange
+      EntityManager session = emf.createEntityManager();
+      TransactionSynchronizationManager.bindResource(emf, new EntityManagerHolder(session));
+      try {
+        User preloaded = session.find(User.class, memberOfAAndB.getId());
+        assertThat(preloaded.getUnscopedGroups().stream().flatMap(g -> g.getRoles().stream()))
+            .isEmpty();
+
+        // Act
+        Set<Capability> capabilities = asUser(memberOfAAndB, tenantB, userService::currentUser);
+
+        // Assert
+        assertThat(capabilities).contains(GUARD_CAPABILITY);
+      } finally {
+        TransactionSynchronizationManager.unbindResource(emf);
+        session.close();
+      }
+    }
+
+    @Test
+    @DisplayName("given_theUserLoadedUnderTheOtherTenant_should_loadTheCapabilitiesOfItsTenantRole")
+    void given_theUserLoadedUnderTheOtherTenant_should_loadTheCapabilitiesOfItsTenantRole() {
+      // Arrange
+      EntityManager session = emf.createEntityManager();
+      TransactionSynchronizationManager.bindResource(emf, new EntityManagerHolder(session));
+      try {
+        User preloaded =
+            tenantTx.executeReadOnly(
+                TxCtx.forTenant(tenantA), () -> session.find(User.class, memberOfAAndB.getId()));
+        assertThat(preloaded.getUnscopedGroups().stream().flatMap(g -> g.getRoles().stream()))
+            .isEmpty();
+
+        // Act
+        Set<Capability> capabilities = asUser(memberOfAAndB, tenantB, userService::currentUser);
+
+        // Assert
+        assertThat(capabilities).contains(GUARD_CAPABILITY);
+      } finally {
+        TransactionSynchronizationManager.unbindResource(emf);
+        session.close();
+      }
+    }
+  }
+
+  @Nested
   @DisplayName("a load made inside a transaction a job opened")
   class InsideAScopedTransaction {
 

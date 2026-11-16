@@ -982,7 +982,45 @@ public class UserService {
       return userRepository.findById(userId);
     }
     return tenantTx.executeReadOnly(
-        TxCtx.forTenants(tenantIds), () -> userRepository.findById(userId));
+        TxCtx.forTenants(tenantIds),
+        () -> {
+          Optional<User> user = userRepository.findById(userId);
+          user.ifPresent(this::reloadRolesReadInAnotherScope);
+          return user;
+        });
+  }
+
+  /**
+   * Reloads the roles of the groups of {@code user} that differ from the ones the transaction's
+   * scope reads. A load by id of a user or a group the session already holds, read with no scope or
+   * in another tenant's scope, hands out that instance with the roles of its first read: the eager
+   * associations are not read again.
+   *
+   * <p>One query reads the roles of all the groups in the scope; only a group whose roles differ is
+   * refreshed, in the read-only state of the load, so no pending change of the request is flushed.
+   */
+  private void reloadRolesReadInAnotherScope(User user) {
+    List<Group> groups = user.getUnscopedGroups();
+    if (groups.isEmpty()) {
+      return;
+    }
+    Map<String, Set<String>> inScope = new HashMap<>();
+    entityManager
+        .createQuery(
+            "select g.id, r.id from Group g join g.roles r where g.id in :groupIds", Object[].class)
+        .setParameter("groupIds", groups.stream().map(Group::getId).toList())
+        .getResultList()
+        .forEach(
+            row ->
+                inScope
+                    .computeIfAbsent((String) row[0], id -> new HashSet<>())
+                    .add((String) row[1]));
+    for (Group group : groups) {
+      Set<String> held = group.getRoles().stream().map(Role::getId).collect(Collectors.toSet());
+      if (!held.equals(inScope.getOrDefault(group.getId(), Set.of()))) {
+        entityManager.refresh(group);
+      }
+    }
   }
 
   /**
