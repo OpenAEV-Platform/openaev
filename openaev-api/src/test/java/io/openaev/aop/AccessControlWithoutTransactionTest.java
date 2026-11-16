@@ -2,6 +2,7 @@ package io.openaev.aop;
 
 import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -10,9 +11,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
+import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
+import io.openaev.service.UserService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
@@ -54,6 +58,8 @@ class AccessControlWithoutTransactionTest extends IntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private UserService userService;
+  @Autowired private AmbientTenantBridge ambientTenantBridge;
 
   private String tenantA;
 
@@ -91,6 +97,43 @@ class AccessControlWithoutTransactionTest extends IntegrationTest {
                   .with(csrf()))
           .andExpect(status().isOk())
           .andExpect(content().json("[]"));
+    }
+  }
+
+  @Nested
+  @DisplayName(
+      "a caller without the admin flag, holding the delete right in A and not in its default role")
+  class NonAdminCallerHoldingTheRightInAOnly {
+
+    @Test
+    @WithMockUser(
+        withCapabilities = {},
+        autoJoinDefaultTenant = true)
+    @DisplayName("given_aBulkDeleteSelectingAByHeader_should_refuseIt")
+    void given_aBulkDeleteSelectingAByHeader_should_refuseIt() throws Exception {
+      // Arrange
+      tenantA =
+          tenantHelper
+              .createTenantWithCapabilities("no-tx-access-check-a-only", DELETE_RIGHTS)
+              .getId();
+      TenantContext.clearCurrentTenant();
+      assertEquals(Tenant.DEFAULT_TENANT_UUID, TenantContext.getCurrentTenant());
+      User caller = userService.currentUser();
+      assertThat(caller.getCapabilities()).doesNotContainAnyElementsOf(DELETE_RIGHTS);
+      Set<Capability> capabilitiesInA =
+          ambientTenantBridge.callInTenant(tenantA, caller::getCapabilities);
+      assertThat(capabilitiesInA).containsAll(DELETE_RIGHTS);
+
+      // Act + Assert
+      mvc.perform(
+              delete(SCENARIO_URI)
+                  .header(TENANT_HEADER, tenantA)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      asJsonString(
+                          Map.of("scenario_ids_to_process", List.of(UUID.randomUUID().toString()))))
+                  .with(csrf()))
+          .andExpect(status().isForbidden());
     }
   }
 }
