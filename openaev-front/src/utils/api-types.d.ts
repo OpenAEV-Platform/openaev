@@ -1369,6 +1369,10 @@ export interface AttackPatternCoverageOutput {
   detection_total?: number;
   kill_chain_phases?: KillChainPhaseCoverage[];
   /** @format int64 */
+  logging_success?: number;
+  /** @format int64 */
+  logging_total?: number;
+  /** @format int64 */
   prevention_success?: number;
   /** @format int64 */
   prevention_total?: number;
@@ -2571,13 +2575,14 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
-export interface CatalogPayloadInstallAllOutput {
-  failed_payload_external_ids?: string[];
-  installed_payload_ids?: string[];
+export interface CatalogInstallAllOutput {
+  failed_external_ids?: string[];
+  installed_ids?: string[];
 }
 
-export interface CatalogPayloadInstallOutput {
-  installed_payload_ids?: string[];
+export interface CatalogInstallOutput {
+  /** @minLength 1 */
+  installed_id: string;
 }
 
 export interface CatalogPayloadOutput {
@@ -2586,6 +2591,10 @@ export interface CatalogPayloadOutput {
   catalog_payload_name?: string;
   /** @minLength 1 */
   catalog_payload_version: string;
+}
+
+export interface CatalogScenarioInstallInput {
+  scenario_type: string;
 }
 
 export interface CatalogScenarioOutput {
@@ -2598,10 +2607,12 @@ export interface CatalogScenarioOutput {
 
 export interface CatalogSettingsInput {
   payload_auto_install: boolean;
+  scenario_auto_install: boolean;
 }
 
 export interface CatalogSettingsOutput {
   payload_auto_install: boolean;
+  scenario_auto_install: boolean;
 }
 
 export interface CatalogSyncOutput {
@@ -2614,6 +2625,11 @@ export interface CatalogSyncOutput {
   /** @format int32 */
   unchanged?: number;
 }
+
+export type ChainedScenarioInstallInput = CatalogScenarioInstallInput & {
+  /** Input for creating or updating a workflow configuration. */
+  workflow_configuration?: WorkflowConfigurationInput;
+};
 
 export interface Challenge {
   challenge_category?: string;
@@ -5066,28 +5082,6 @@ export interface EndpointTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
-}
-
-export interface EndpointTargetOutput {
-  /**
-   * List agents installed
-   * @uniqueItems true
-   */
-  asset_agents?: AgentOutput[];
-  /** Hostname */
-  asset_hostname?: string;
-  /**
-   * Asset Id
-   * @minLength 1
-   */
-  asset_id: string;
-  /**
-   * List IPs
-   * @uniqueItems true
-   */
-  asset_ips?: string[];
-  /** Seen IP */
-  asset_seen_ip?: string;
 }
 
 export interface EngineSortField {
@@ -9159,25 +9153,6 @@ export interface PageEndpointOutput {
   totalPages?: number;
 }
 
-export interface PageEndpointTargetOutput {
-  content?: EndpointTargetOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject;
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
 export interface PageExerciseSimple {
   content?: ExerciseSimple[];
   empty?: boolean;
@@ -10102,6 +10077,11 @@ export interface PayloadPrerequisite {
   executor: string;
   /** @minLength 1 */
   get_command: string;
+}
+
+export interface PayloadRevocationInput {
+  /** @minLength 1 */
+  payload_revocation_reason: string;
 }
 
 export interface PayloadSimple {
@@ -11266,6 +11246,7 @@ export interface RoleInput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -11352,6 +11333,7 @@ export interface RoleOutput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -13508,6 +13490,13 @@ export interface ThreatArsenalFacetCountsOutput {
   statuses?: Record<string, number>;
 }
 
+export type TimeBasedScenarioInstallInput = CatalogScenarioInstallInput & {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  manual_targets?: string[];
+  team_ids?: string[];
+};
+
 export interface Token {
   listened?: boolean;
   /** @format date-time */
@@ -13651,6 +13640,7 @@ export interface User {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"

@@ -115,6 +115,8 @@ public class PayloadService {
     this.permissionService = permissionService;
   }
 
+  // -- INJECTOR CONTRACT --
+
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
     // Every payload write passes here.
@@ -342,49 +344,6 @@ public class PayloadService {
     return expectationsField(expectations);
   }
 
-  public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
-      PayloadCreationService.PayloadInjectorContractCreationResult result) {
-    return payloadMapper.toPayloadOutput(
-        result.payload(),
-        result.injectorContract().getAttackPatterns().stream()
-            .map(AttackPattern::getId)
-            .collect(Collectors.toList()),
-        result.injectorContract().getDomains().stream()
-            .map(Domain::getId)
-            .collect(Collectors.toList()),
-        result.injectorContract().getTags().stream().map(Tag::getId).collect(Collectors.toList()));
-  }
-
-  public record PayloadWithRelatedEntities(
-      Payload payload,
-      List<String> attackPatternIds,
-      List<String> domainIds,
-      List<String> tagIds) {}
-
-  public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {
-    Payload payload =
-        payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
-    RawPayloadRelatedIds relatedIds =
-        injectorContractRepository.findRelatedIdsByPayloadId(payloadId).orElse(null);
-
-    List<String> attackPatternIds =
-        relatedIds != null ? relatedIds.getAttack_pattern_ids() : List.of();
-    List<String> domainIds = relatedIds != null ? relatedIds.getDomain_ids() : List.of();
-    List<String> tagIds = relatedIds != null ? relatedIds.getTag_ids() : List.of();
-
-    return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
-  }
-
-  /**
-   * Applies the OpenAEV rule for available expectations: only MANUAL is multi-selectable, all other
-   * types are single-select.
-   */
-  private Expectation withExpectedMultiSelectableFlag(Expectation expectation) {
-    expectation.setMultiSelectable(
-        BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
-    return expectation;
-  }
-
   /**
    * Applies the payload's optional expected security platform types to the predefined expectation
    * of the given type. Absent / empty means "any platform" (legacy behaviour), so the expectation
@@ -403,6 +362,51 @@ public class PayloadService {
     }
     return expectation;
   }
+
+  // -- OUTPUT --
+
+  public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
+      PayloadCreationService.PayloadInjectorContractCreationResult result) {
+    return payloadMapper.toPayloadOutput(
+        result.payload(),
+        result.injectorContract().getAttackPatterns().stream()
+            .map(AttackPattern::getId)
+            .collect(Collectors.toList()),
+        result.injectorContract().getDomains().stream()
+            .map(Domain::getId)
+            .collect(Collectors.toList()),
+        result.injectorContract().getTags().stream().map(Tag::getId).collect(Collectors.toList()));
+  }
+
+  // -- READ --
+
+  public record PayloadWithRelatedEntities(
+      Payload payload,
+      List<String> attackPatternIds,
+      List<String> domainIds,
+      List<String> tagIds) {}
+
+  public Payload payload(String tenantId, String payloadId) {
+    return payloadRepository
+        .findByIdAndTenantId(payloadId, tenantId)
+        .orElseThrow(() -> new ElementNotFoundException("Payload not found"));
+  }
+
+  public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {
+    Payload payload =
+        payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
+    RawPayloadRelatedIds relatedIds =
+        injectorContractRepository.findRelatedIdsByPayloadId(payloadId).orElse(null);
+
+    List<String> attackPatternIds =
+        relatedIds != null ? relatedIds.getAttack_pattern_ids() : List.of();
+    List<String> domainIds = relatedIds != null ? relatedIds.getDomain_ids() : List.of();
+    List<String> tagIds = relatedIds != null ? relatedIds.getTag_ids() : List.of();
+
+    return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
+  }
+
+  // -- DUPLICATE --
 
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
       @NotBlank final String payloadId) {
@@ -493,6 +497,8 @@ public class PayloadService {
     };
   }
 
+  // -- COLLECTOR --
+
   public void deprecateNonProcessedPayloadsByCollector(
       TxCtx ctx, String collectorId, List<String> processedPayloadExternalIds) {
     String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
@@ -513,6 +519,8 @@ public class PayloadService {
         .filter(externalId -> !processedPayloadExternalIds.contains(externalId))
         .toList();
   }
+
+  // -- SEARCH --
 
   /**
    * Search payloads with pagination and architecture filter, where the user is granted. The user
@@ -566,6 +574,8 @@ public class PayloadService {
             SpecificationUtils.hasGrantAccess(
                 user.getId(), adminOrBypass, hasCapability, Grant.GRANT_TYPE.OBSERVER));
   }
+
+  // -- BUILT-IN PAYLOADS --
 
   /**
    * Retrieve the existing FileDrop Payload linked to the document id, or create a new one if it
@@ -705,6 +715,8 @@ public class PayloadService {
         tagService.findOrCreateTagsFromNames(ctx, new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
   }
+
+  // -- DELETE --
 
   // Transactional so the payload delete and the chaining step sweep commit or roll back together:
   // without it the deleteById commits first and a sweep failure would leave the ghost steps this

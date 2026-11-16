@@ -406,7 +406,8 @@ public class V1_DataImporter implements Importer {
             ctx, importNode, prefix, savedExercise, savedScenario, baseIds, resolvedContracts);
     List<MissingImportedAction> missingActions =
         skippedSteps.stream().map(V1_DataImporter::toMissingImportedAction).toList();
-    return new ImportResult(new ArrayList<>(missingActions));
+    return new ImportResult(
+        new ArrayList<>(missingActions), savedScenario == null ? null : savedScenario.getId());
   }
 
   private static MissingImportedAction toMissingImportedAction(SkippedWorkflowStep step) {
@@ -1066,7 +1067,7 @@ public class V1_DataImporter implements Importer {
             .filter(baseIds::containsKey)
             .map(tid -> baseIds.get(tid).getId())
             .toList();
-    document.setTags(iterableToSet(tagRepository.findAllById(tagIds)));
+    document.setTags(iterableToSet(tagRepository.findAllByIdInTenant(tagIds, writeTenant)));
     document.setType(contentType);
     Document savedDocument = this.documentRepository.save(document);
     baseIds.put(nodeDoc.get("document_id").textValue(), savedDocument);

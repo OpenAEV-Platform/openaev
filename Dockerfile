@@ -13,7 +13,7 @@ ADD --checksum=sha256:eae1d3aa50c48fb23b8cbdf4e369d0910dfc538566bfd09df89a774aa8
 
 FROM tini-${TARGETARCH} AS tini
 
-FROM node:24.22.2-alpine3.24 AS front-builder
+FROM node:24.22.3-alpine3.24 AS front-builder
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front/packages ./packages

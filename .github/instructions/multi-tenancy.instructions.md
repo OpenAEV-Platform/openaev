@@ -120,10 +120,18 @@ whose baseline only shrinks.
 
 **v2 activation does not retire `TenantContext.setCurrentTenant()` on its own.** Converting a job's
 reads to `TenantScopedTransaction` only changes read isolation; `TenantBaseListener.@PrePersist`
-still stamps `tenant_id` from `TenantContext.getCurrentTenant()` unconditionally, v1 or v2. Only
+still stamps `tenant_id` from `TenantContext.getCurrentTenant()` unconditionally, v1 or v2. A new
+job reaches the listener through `TenantScopedJobRunner`, not a direct `TenantContext` call (the next rule
+refuses a new call). Only
 drop `setCurrentTenant()` when the job is read-only, every table it touches is v2-active, and no
 remaining code path is still v1 — otherwise its absence silently attributes inserts to
 `Tenant.DEFAULT_TENANT_UUID`.
+
+**No new v1 construct in production code**: a call to `TenantContext` or `AmbientTenantBridge`, an
+`@EntityListeners` naming a listener that reads the ambient tenant, or a `#tenantContext` SpEL
+expression in a `@Query` fails `V1TenantConstructArchTest` unless its site is in
+`v1-tenant-construct-baseline.txt`, which lists the remaining sites and only shrinks. A job that writes a table
+stamped by the listener runs the write through `TenantScopedJobRunner`.
 
 ## Anti-Patterns
 
@@ -133,7 +141,7 @@ remaining code path is still v1 — otherwise its absence silently attributes in
 | `@Column(unique = true)` on tenant-scoped field | Composite `UNIQUE (field, tenant_id)` |
 | Single service for dual-scope entity | Split `PlatformXxxService` / `TenantXxxService` |
 | `tenant_id` in API response | `@JsonIgnore` on tenant relation |
-| Background job setting only `TxCtx` | Set `TenantContext` too, cleared in a `finally`, unless the job is read-only and fully v2-active (see above) |
+| Background job setting only `TxCtx` that writes a table stamped by `TenantBaseListener` | Run the write through `TenantScopedJobRunner` (it sets the tenant the listener reads and restores the previous value); a new direct call to `TenantContext` fails `V1TenantConstructArchTest` |
 | Relying on the `TenantContext` default fallback | Pass the owning row's tenant explicitly |
 | Entrypoint reaching a v2-active table with no `TxCtx` param | Add `TxCtx ctx` and register it in `TenantScopedEntrypointsTxCtxArchTest` |
 | `@Filter("tenantFilter")` left in place after adding a table to `active-tables` | Remove it in the same commit — v1 and v2 never coexist |

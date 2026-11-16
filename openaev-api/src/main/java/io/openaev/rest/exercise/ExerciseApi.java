@@ -5,6 +5,7 @@ import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.healthcheck.utils.HealthCheckUtils.READINESS_CHECK_TIMEOUT_SECONDS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.rest.exercise.ExerciseResponseHydrator.hydrateForResponse;
 import static io.openaev.rest.exercise.form.SimulationDetails.fromRawExercise;
 import static io.openaev.utils.pagination.PaginationUtils.buildPaginationCriteriaBuilder;
 import static java.time.Instant.now;
@@ -45,7 +46,7 @@ import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
+import io.openaev.rest.scenario.ScenarioResponseHydrator;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
@@ -1224,23 +1225,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable @NotBlank @Schema(description = "ID of the simulation")
           final String simulationId) {
     Scenario scenario = scenarioService.scenarioFromSimulationId(ctx, simulationId);
-    KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
-    // Same open-in-view reason as hydrateForResponse: scenario_teams would serialize empty.
-    Hibernate.initialize(scenario.getTeams());
-    return scenario;
-  }
-
-  /**
-   * Hydrates, inside the scoped transaction, the lazy associations the response serializes. Both
-   * are read after the controller returns, through open-in-view, where the tenant scope is already
-   * gone: a lazy load at that point runs unscoped and fails closed, so {@code exercise_teams} comes
-   * back empty although the links exist. {@code exercise_kill_chain_phases} walks the injects down
-   * to the lazy attack-pattern phases, see {@link KillChainPhaseInitializer}.
-   */
-  private static Exercise hydrateForResponse(Exercise exercise) {
-    KillChainPhaseInitializer.initializeFromInjects(exercise.getInjects());
-    Hibernate.initialize(exercise.getTeams());
-    return exercise;
+    return ScenarioResponseHydrator.hydrateForResponse(scenario);
   }
 
   // end region

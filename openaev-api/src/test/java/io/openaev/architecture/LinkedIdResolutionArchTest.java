@@ -48,10 +48,10 @@ import org.junit.jupiter.api.TestFactory;
 class LinkedIdResolutionArchTest {
 
   /** How many lines are {@code link}. Lower it as a site is converted, never raise it. */
-  static final int LINK_DEBT_SIZE = 49;
+  static final int LINK_DEBT_SIZE = 25;
 
   /** How many lines are {@code other}. Raising it is a review call, with the reason in the line. */
-  static final int OTHER_SIZE = 43;
+  static final int OTHER_SIZE = 42;
 
   @TestFactory
   @DisplayName("given the production classes, should pass every check of the guard")

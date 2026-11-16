@@ -108,7 +108,10 @@ public class ComcheckApi extends RestBehavior {
     // 02. Get users
     List<String> teamIds = comCheck.getTeamIds();
     List<Team> teams =
-        teamIds.isEmpty() ? exercise.getTeams() : fromIterable(teamRepository.findAllById(teamIds));
+        teamIds.isEmpty()
+            ? exercise.getTeams()
+            : fromIterable(
+                teamRepository.findAllByIdInTenant(teamIds, exercise.getTenant().getId()));
     List<User> users = teams.stream().flatMap(team -> team.getUsers().stream()).distinct().toList();
     List<ComcheckStatus> comcheckStatuses =
         users.stream()
