@@ -3,6 +3,7 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import io.openaev.database.model.Exercise;
@@ -138,8 +139,11 @@ class SimulationRateLimitServiceTest {
       when(injectStatusRepository.countLaunchedInjectsSince(anyString(), any(Instant.class)))
           .thenReturn(1L);
       String simulationId = workflow.getSimulation().getId();
-      when(stepRepository.countBySimulationAndStatusAndAction(
-              simulationId, StepStatus.READY, StepActionClass.INJECT_EXECUTION))
+      when(stepRepository.countBySimulationAndStatusAndActionSince(
+              eq(simulationId),
+              eq(StepStatus.READY),
+              eq(StepActionClass.INJECT_EXECUTION),
+              any(Instant.class)))
           .thenReturn(2L);
 
       boolean result = simulationRateLimitService.isExecutionAllowed(workflow, 0);

@@ -14,6 +14,10 @@ import io.openaev.utils.fixtures.StepFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
+import jakarta.persistence.EntityManager;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
  * {@link SimulationRateLimitService#isExecutionAllowed} against the database, for the READY inject
  * steps it counts. A step saved READY earlier in the same transaction (an earlier template of the
  * same evaluation cycle) is counted without an explicit flush, which is why the evaluation loop
- * passes no pending count for it; the READY steps of every run of the simulation count.
+ * passes no pending count for it; the READY steps of every run of the simulation count, when
+ * readied within the window.
  */
 @SpringBootTest
 @Transactional
@@ -36,6 +41,7 @@ class SimulationRateLimitReadyStepsIntegrationTest extends IntegrationTest {
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private StepRepository stepRepository;
   @Autowired private SimulationRateLimitService simulationRateLimitService;
+  @Autowired private EntityManager entityManager;
 
   private Workflow rateLimitedRun(Exercise simulation) {
     Workflow run = WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN);
@@ -46,14 +52,14 @@ class SimulationRateLimitReadyStepsIntegrationTest extends IntegrationTest {
     return workflowComposer.forWorkflow(run).persist().get();
   }
 
-  private void injectStep(Workflow run, StepStatus status) {
+  private Step injectStep(Workflow run, StepStatus status) {
     Step step = StepFixture.getDefaultStepExecution(status);
     step.setWorkflow(run);
-    stepRepository.save(step);
+    return stepRepository.save(step);
   }
 
-  private void readyInjectStep(Workflow run) {
-    injectStep(run, StepStatus.READY);
+  private Step readyInjectStep(Workflow run) {
+    return injectStep(run, StepStatus.READY);
   }
 
   private Exercise simulation() {
@@ -96,6 +102,23 @@ class SimulationRateLimitReadyStepsIntegrationTest extends IntegrationTest {
 
     readyInjectStep(otherSimulationRun);
     readyInjectStep(otherSimulationRun);
+
+    assertThat(simulationRateLimitService.isExecutionAllowed(run, 0)).isTrue();
+  }
+
+  @Test
+  @DisplayName("a step readied before the window and still READY does not count")
+  void given_readyStepOlderThanWindow_should_notCount() {
+    Workflow run = rateLimitedRun(simulation());
+    Step stuck = readyInjectStep(run);
+    Step otherStuck = readyInjectStep(run);
+    // Both steps were readied two windows ago and never ran (e.g. their READY event was lost).
+    stepRepository.flush();
+    entityManager
+        .createNativeQuery("UPDATE steps SET step_created_at = :createdAt WHERE step_id IN :ids")
+        .setParameter("createdAt", Instant.now().minus(120, ChronoUnit.SECONDS))
+        .setParameter("ids", List.of(stuck.getId(), otherStuck.getId()))
+        .executeUpdate();
 
     assertThat(simulationRateLimitService.isExecutionAllowed(run, 0)).isTrue();
   }

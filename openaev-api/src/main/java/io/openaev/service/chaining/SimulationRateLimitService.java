@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
  * to the workflow's simulation have been launched (i.e. have a tracking sent date) within a sliding
  * time window and compares against the configured maximum attempts. If the limit is reached,
  * further inject execution is denied until older launches fall outside the window. Inject steps
- * READY but not run yet count against the limit as well.
+ * readied in the same window and not run yet count against the limit as well.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -55,10 +55,11 @@ public class SimulationRateLimitService {
         Instant.now().minus(workflowRun.getMaxTemporalRateSeconds(), ChronoUnit.SECONDS);
     String simulationId = workflowRun.getSimulation().getId();
 
-    // Same scope as the launched injects: every workflow run of the simulation.
+    // Same scope and window as the launched injects: every workflow run of the simulation, steps
+    // readied in the window only, so a step left READY never holds a slot past the window.
     long readiedNotRun =
-        stepRepository.countBySimulationAndStatusAndAction(
-            simulationId, StepStatus.READY, StepActionClass.INJECT_EXECUTION);
+        stepRepository.countBySimulationAndStatusAndActionSince(
+            simulationId, StepStatus.READY, StepActionClass.INJECT_EXECUTION, since);
     long count =
         injectStatusRepository.countLaunchedInjectsSince(simulationId, since)
             + readiedNotRun
@@ -87,8 +88,8 @@ public class SimulationRateLimitService {
    * @param stepTemplate the step template to potentially delay
    * @param input the input data for the step
    * @param workflowRun the workflow run to evaluate
-   * @param pendingCount number of steps already scheduled in the current evaluation cycle but not
-   *     yet reflected in the database
+   * @param pendingCount number of batches accepted in the current call but not yet saved as READY
+   *     steps (a saved READY step is counted from the database)
    * @return {@code true} if the step was delayed (rate limit reached), {@code false} if execution
    *     can proceed
    */
