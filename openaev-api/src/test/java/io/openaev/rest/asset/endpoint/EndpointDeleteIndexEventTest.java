@@ -26,13 +26,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -84,6 +87,7 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
   private String tenantA;
   private String tenantB;
   private String endpointB;
+  private String otherTypeAssetA;
 
   enum Route {
     TENANT_PREFIXED,
@@ -98,6 +102,9 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
       steps.add(() -> jdbc.update("DELETE FROM assets WHERE asset_id = ?", endpointB));
       steps.add(() -> engineService.bulkDelete(List.of(endpointB)));
       steps.add(() -> jdbc.update("DELETE FROM engine_deletions WHERE deletion_id = ?", endpointB));
+    }
+    if (otherTypeAssetA != null) {
+      steps.add(() -> jdbc.update("DELETE FROM assets WHERE asset_id = ?", otherTypeAssetA));
     }
     steps.add(() -> tenantHelper.deleteCommittedTenants(tenantA, tenantB));
     runAll(steps);
@@ -223,21 +230,87 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("Delete of an id that is not an endpoint")
+  class IdOfAnotherAssetType {
+
+    /** The asset types, other than an endpoint, that share the assets table. */
+    enum OtherType {
+      SECURITY_PLATFORM("'SecurityPlatform', 'Crowdstrike', NULL"),
+      AI_TARGET("'Asset', NULL, 'AI_TARGET'");
+
+      final String typeColumns;
+
+      OtherType(String typeColumns) {
+        this.typeColumns = typeColumns;
+      }
+    }
+
+    static Stream<Arguments> typesAndRoutes() {
+      return Stream.of(OtherType.values())
+          .flatMap(type -> Stream.of(Route.values()).map(route -> Arguments.of(type, route)));
+    }
+
+    @ParameterizedTest(name = "{0} on {1}")
+    @MethodSource("typesAndRoutes")
+    @WithMockUser(isAdmin = true)
+    @DisplayName(
+        "given an id of another asset type in the caller's own tenant, should answer 404 and keep"
+            + " the row")
+    void given_idOfAnotherAssetTypeInOwnTenant_should_answerNotFoundAndKeepRow(
+        OtherType type, Route route) throws Exception {
+      // Arrange
+      tenantA = tenantHelper.createTenantWithCurrentUser("endpoint-del-a").getId();
+      otherTypeAssetA = seedOtherTypeAsset(tenantA, type);
+
+      // Act
+      int status = deleteAsset(route, tenantA, otherTypeAssetA);
+
+      // Assert
+      assertSoftly(
+          softly -> {
+            softly.assertThat(assetRowExists(otherTypeAssetA)).as("row").isTrue();
+            softly.assertThat(status).as("HTTP status").isEqualTo(404);
+          });
+    }
+  }
+
   /**
    * Deletes the endpoint of B on the given route, with {@code scopeTenant} as the request scope.
    */
   private int deleteEndpointB(Route route, String scopeTenant) throws Exception {
+    return deleteAsset(route, scopeTenant, endpointB);
+  }
+
+  /** Deletes the asset through the endpoint routes, with {@code scopeTenant} as the scope. */
+  private int deleteAsset(Route route, String scopeTenant, String assetId) throws Exception {
     TenantContext.clearCurrentTenant();
     MockHttpServletRequestBuilder request =
         switch (route) {
           case TENANT_PREFIXED ->
-              delete(TENANT_ENDPOINT_URI.replace("{tenantId}", scopeTenant) + "/" + endpointB);
-          case HEADER -> delete(ENDPOINT_URI + "/" + endpointB).header("X-Tenant-Ids", scopeTenant);
+              delete(TENANT_ENDPOINT_URI.replace("{tenantId}", scopeTenant) + "/" + assetId);
+          case HEADER -> delete(ENDPOINT_URI + "/" + assetId).header("X-Tenant-Ids", scopeTenant);
         };
     return mvc.perform(request.with(csrf()).accept(MediaType.APPLICATION_JSON))
         .andReturn()
         .getResponse()
         .getStatus();
+  }
+
+  /** Plain JDBC: a committed row of a type the endpoint routes do not serve. */
+  private String seedOtherTypeAsset(String tenantId, IdOfAnotherAssetType.OtherType type) {
+    String assetId = UUID.randomUUID().toString();
+    new JdbcTemplate(dataSource)
+        .update(
+            "INSERT INTO assets (asset_id, asset_name, asset_created_at, asset_updated_at,"
+                + " tenant_id, asset_type, security_platform_type, asset_category)"
+                + " VALUES (?, ?, now() - interval '1 day', now() - interval '1 day', ?, "
+                + type.typeColumns
+                + ")",
+            assetId,
+            "other-type-" + assetId,
+            tenantId);
+    return assetId;
   }
 
   /** Plain JDBC: committed and aged, so the indexer's grace window does not re-fetch it. */
@@ -274,10 +347,14 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
   }
 
   private boolean rowExists() {
+    return assetRowExists(endpointB);
+  }
+
+  private boolean assetRowExists(String assetId) {
     Integer count =
         new JdbcTemplate(dataSource)
             .queryForObject(
-                "SELECT count(*) FROM assets WHERE asset_id = ?", Integer.class, endpointB);
+                "SELECT count(*) FROM assets WHERE asset_id = ?", Integer.class, assetId);
     return count != null && count == 1;
   }
 }

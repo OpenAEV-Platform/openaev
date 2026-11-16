@@ -189,8 +189,14 @@ public interface EndpointRepository
   // are properly set in the database.
   // Returns the number of rows removed: a caller publishes follow-up events only for a deleted row.
   // Not named deleteById: the inherited CrudRepository method returns void and cannot be widened.
+  // Removes a row of type Endpoint only: the assets table also holds the other asset types.
   @Modifying
-  @Query(value = "DELETE FROM assets WHERE asset_id = :assetId", nativeQuery = true)
+  @Query(
+      value =
+          "DELETE FROM assets WHERE asset_id = :assetId AND asset_type = '"
+              + AssetType.Values.ENDPOINT_TYPE
+              + "'",
+      nativeQuery = true)
   int deleteEndpointById(@Param("assetId") @NotBlank String assetId);
 
   List<Endpoint> findDistinctByInjectsScenarioId(String scenarioId);
