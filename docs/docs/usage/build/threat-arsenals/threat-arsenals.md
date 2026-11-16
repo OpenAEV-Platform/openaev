@@ -78,7 +78,17 @@ How the status of a new version is set:
 
 Users without *Approve content* do not see **Approve**, **Reject** or **Move to pending approval** anywhere; every edit they make creates a new **Pending** version, and they cannot change the status of an existing version.
 
-To approve or reject, open the Action (the list shows its latest version), then use **Approve** or **Reject** in its *Approval* section. A rejection requires a reason. The *History* tab shows what the version changes compared with the previous one. The *Approval* section also shows the latest decision (who approved or rejected it, when, with the comment) and, as information, where the Action is used (*Used in*: Atomic Tests, Scenarios and Simulations still to run, with links for users who can open them). The list can be filtered by approval status, and the *Versions* tab shows the status of every version.
+### Reviewing a version
+
+Approvers find what waits for them in the **To review** tab of the Threat Arsenal, next to *Active* and *Available*; its count is the number of versions waiting. Users who submit content without *Approve content* get a **My changes** tab instead, listing what they submitted until it is decided. Both tabs have the same side filters as the other tabs, plus *Actions and versions* (new actions or new versions of actions in use), *Source* (people or collectors) and, in *To review*, *Submitted by*. Filters can be saved as **custom views**: up to three show as tabs, the others are under *Custom views*, and **Customize** chooses and orders them.
+
+To approve or reject, click **Review** on the Action, or open it and go to its *Versions* tab. The version waiting for approval shows:
+
+* who submitted it and when;
+* **what it runs**, line by line like a code diff: removed lines in red with "−", added lines in green with "+". A new version is compared with the approved version in use, and only its changed fields are shown. A **new Action** (no version approved yet) has nothing to compare with: everything it runs (command, cleanup, arguments, prerequisites, platforms…) is shown as added, so the approver sees all they approve;
+* what the decision does, then **Approve** (optional comment) and **Reject** (reason required).
+
+The *History* tab shows the same diff for each change. The list can be filtered by approval status, and the *Versions* tab shows the status of every version.
 
 ### Taking a decision back
 
@@ -218,7 +228,12 @@ The Action list view supports bulk operations, so you can act on several Actions
 ### Run a test from bulk selection
 
 When you click **Run a Test** in the bulk toolbar, a drawer opens with three execution options. The same drawer opens
-from the **Run a test** button of a card or of the Action details, for that single Action:
+from the **Run a test** button of a card or of the Action details, for that single Action.
+
+Only an **Approved** version can run (see [Approval of payloads](#approval-of-payloads)), so the version is settled before the drawer opens:
+
+* **One Action** (card, list or Action details): when the Action has several versions, a dialog asks which one runs. Only approved versions that are not revoked can be chosen, the latest approved one by default (or the version shown in the Action details, when it is approved); the others are listed greyed out with their status. An Action with a single approved version opens the drawer directly. An Action with no approved version shows a warning, and nothing runs.
+* **Several selected Actions**: an Action whose listed version is not approved runs its latest approved version. Actions with no approved version are named in a warning first; you can continue with the others. With **Select all**, the platform resolves the selection itself: it adds only approved Actions and tells you how many were skipped.
 
 | Option                       | Description                                                                          | Availability                 |
 |------------------------------|----------------------------------------------------------------------------------------|------------------------------|

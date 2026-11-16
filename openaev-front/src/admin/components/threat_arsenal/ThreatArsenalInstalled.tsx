@@ -1,5 +1,5 @@
 import { Box } from '@mui/material';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 
 import { type AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
@@ -20,7 +20,10 @@ import { useAppDispatch } from '../../../utils/hooks';
 import useDataLoader from '../../../utils/hooks/useDataLoader';
 import { Can, useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
+import { type ResolvedRunSelection, resolveRunSelection, runTestSearchInput } from './bulk/runTestVersions';
+import ThreatArsenalRunBlockedDialog from './bulk/ThreatArsenalRunBlockedDialog';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
+import ThreatArsenalRunVersionDialog from './bulk/ThreatArsenalRunVersionDialog';
 import ThreatArsenalCardGrid, { type ThreatArsenalItemsProps } from './ThreatArsenalCardGrid';
 import { ACTION_PARAM, toThreatArsenalAction } from './threatArsenalDeepLink';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
@@ -66,6 +69,16 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
   };
   const [isRunTestDrawerOpened, setRunTestDrawerOpened] = useState<boolean>(false);
   const [runTestAction, setRunTestAction] = useState<ThreatArsenalAction | null>(null);
+  // Payload approval: "Run a test" first asks which approved version runs (one action), or names the
+  // selected actions that have none (a selection).
+  const [runVersionRequest, setRunVersionRequest] = useState<{
+    action: ThreatArsenalAction;
+    preferredActionId?: string;
+  } | null>(null);
+  const [runSelection, setRunSelection] = useState<ResolvedRunSelection | null>(null);
+  const [runSelectionBlocked, setRunSelectionBlocked] = useState(false);
+  // The chosen versions may be older than the listed ones: the run drawer searches every version.
+  const runSearch = useMemo(runTestSearchInput, []);
   const [isBulkDeleteDialogOpened, setBulkDeleteDialogOpened] = useState<boolean>(false);
   const { viewMode, handleViewModeChange } = useMarketplaceView('threat-arsenal:view-mode-v2');
   const installed = useInstalledActions();
@@ -139,7 +152,30 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
       if (open) setOpenedAction(result);
     },
     onDelete: installed.removeAction,
-    onRunTest: setRunTestAction,
+    onRunTest: (action: ThreatArsenalAction) => setRunVersionRequest({ action }),
+  };
+  // "Run a test" on a selection: each action runs its approved version (its latest approved one when
+  // the listed version is not approved); those with none are named first. "Select all" is resolved
+  // by the server, which skips unapproved actions and says how many.
+  const startSelectionRun = () => {
+    if (selection.selectAll) {
+      setRunSelection(null);
+      setRunTestDrawerOpened(true);
+      return;
+    }
+    resolveRunSelection(Object.values(selection.selectedElements)).then((resolved) => {
+      setRunSelection(resolved);
+      if (resolved.blocked.length > 0) {
+        setRunSelectionBlocked(true);
+      } else {
+        setRunTestDrawerOpened(true);
+      }
+    });
+  };
+  const closeRunSelection = () => {
+    setRunTestDrawerOpened(false);
+    setRunSelectionBlocked(false);
+    setRunSelection(null);
   };
   const partiallySelected = (!selection.selectAll && selectionCount > 0)
     || (selection.selectAll && Object.keys(selection.deSelectedElements ?? {}).length > 0);
@@ -230,26 +266,64 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           // "See where it is used" (revoke dialog) opens the Versions tab, which lists every usage.
           initialTab={linkedActionId && searchParams.get('tab') === 'versions' ? 'versions' : undefined}
           focusMigration={!!linkedActionId && searchParams.get('focus') === 'migrate'}
-          onRunTest={setRunTestAction}
+          onRunTest={action => setRunVersionRequest({
+            action,
+            preferredActionId: action.injector_contract_id,
+          })}
         />
       )}
 
-      {isRunTestDrawerOpened && (
-        <ThreatArsenalRunTestDrawer
-          isExclusionMode={selection.selectAll}
-          isOnlyOneItemSelected={
-            selection.selectAll
-              ? Object.keys(selection.deSelectedElements).length === installed.totalElements - 1
-              : selectionCount === 1
-          }
-          selectionCount={selectionCount}
-          selectedElements={selection.selectedElements}
-          deSelectedElements={selection.deSelectedElements}
-          searchPaginationInput={installed.searchPaginationInput}
-          open={isRunTestDrawerOpened}
-          onClose={() => setRunTestDrawerOpened(false)}
+      {isRunTestDrawerOpened && (runSelection
+        ? (
+            <ThreatArsenalRunTestDrawer
+              isExclusionMode={false}
+              isOnlyOneItemSelected={Object.keys(runSelection.runnable).length === 1}
+              selectionCount={Object.keys(runSelection.runnable).length}
+              selectedElements={runSelection.runnable}
+              deSelectedElements={{}}
+              searchPaginationInput={runSearch}
+              open={isRunTestDrawerOpened}
+              onClose={closeRunSelection}
+            />
+          )
+        : (
+            <ThreatArsenalRunTestDrawer
+              isExclusionMode={selection.selectAll}
+              isOnlyOneItemSelected={
+                selection.selectAll
+                  ? Object.keys(selection.deSelectedElements).length === installed.totalElements - 1
+                  : selectionCount === 1
+              }
+              selectionCount={selectionCount}
+              selectedElements={selection.selectedElements}
+              deSelectedElements={selection.deSelectedElements}
+              searchPaginationInput={installed.searchPaginationInput}
+              open={isRunTestDrawerOpened}
+              onClose={closeRunSelection}
+            />
+          ))}
+
+      {runSelection && runSelectionBlocked && (
+        <ThreatArsenalRunBlockedDialog
+          blocked={runSelection.blocked}
+          runnableCount={Object.keys(runSelection.runnable).length}
+          onClose={closeRunSelection}
+          onContinue={() => {
+            setRunSelectionBlocked(false);
+            setRunTestDrawerOpened(true);
+          }}
         />
       )}
+
+      <ThreatArsenalRunVersionDialog
+        action={runVersionRequest?.action ?? null}
+        preferredActionId={runVersionRequest?.preferredActionId}
+        onClose={() => setRunVersionRequest(null)}
+        onChoose={(action) => {
+          setRunVersionRequest(null);
+          setRunTestAction(action);
+        }}
+      />
 
       {runTestAction && (
         <ThreatArsenalRunTestDrawer
@@ -258,7 +332,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
           selectionCount={1}
           selectedElements={{ [runTestAction.injector_contract_id]: runTestAction }}
           deSelectedElements={{}}
-          searchPaginationInput={installed.searchPaginationInput}
+          searchPaginationInput={runSearch}
           open
           onClose={() => setRunTestAction(null)}
         />
@@ -285,7 +359,7 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
         totalElements={installed.totalElements}
         hidden={isRunTestDrawerOpened}
         onClear={selection.handleClearSelectedElements}
-        onRunTest={() => setRunTestDrawerOpened(true)}
+        onRunTest={startSelectionRun}
         onDelete={canDelete ? () => setBulkDeleteDialogOpened(true) : undefined}
       />
     </Box>

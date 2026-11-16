@@ -48,32 +48,15 @@ const RejectedVersionPanel: FunctionComponent<Props> = ({ version, baseline }) =
           <Text variant="content-base">{rejection.approval_comment}</Text>
         </div>
       )}
-      {baseline && baselineDetails.content && details.content && (
+      {/* What was proposed: against the version in use, or, for a first version, everything as added. */}
+      {details.content && (!baseline || baselineDetails.content) && (
         <PayloadVersionComparison
           title={t('What was proposed')}
-          active={baselineDetails.content}
+          active={baseline ? baselineDetails.content : undefined}
           pending={details.content}
-          activeNumber={baseline.payload_version ?? '-'}
+          activeNumber={baseline?.payload_version ?? undefined}
           pendingNumber={version.payload_version ?? '-'}
         />
-      )}
-      {!baseline && details.content?.content && (
-        <div>
-          <Text variant="content-compact-bold">{t('First version — what it runs')}</Text>
-          <pre style={{
-            margin: '6px 0 0',
-            padding: 12,
-            borderRadius: 4,
-            border: '1px solid var(--border-elevation-subtle-soft)',
-            fontFamily: 'monospace',
-            fontSize: 12,
-            whiteSpace: 'pre-wrap',
-            overflowWrap: 'anywhere',
-          }}
-          >
-            {details.content.content}
-          </pre>
-        </div>
       )}
     </div>
   );

@@ -120,12 +120,13 @@ const VersionApprovalPanel: FunctionComponent<Props> = ({ version, baseline, onD
               {[submittedBy, version.payload_created_at ? nsdt(version.payload_created_at) : null].filter(Boolean).join(' · ')}
             </Text>
           )}
-      {/* 2. The evidence: what this version changes, read before deciding. */}
-      {baseline && baselineDetails.content && details.content && (
+      {/* 2. The evidence: what this version changes, read before deciding. A first version (nothing
+          approved yet) is compared with nothing: all it runs shows as added. */}
+      {details.content && (!baseline || baselineDetails.content) && (
         <PayloadVersionComparison
-          active={baselineDetails.content}
+          active={baseline ? baselineDetails.content : undefined}
           pending={details.content}
-          activeNumber={baseline.payload_version ?? '-'}
+          activeNumber={baseline?.payload_version ?? undefined}
           pendingNumber={version.payload_version ?? '-'}
         />
       )}
