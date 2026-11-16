@@ -88,6 +88,7 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
   @Autowired private InjectStatusComposer injectStatusComposer;
 
   private String tenantId;
+  private String otherTenantId;
   private String tagId;
   private String documentId;
 
@@ -99,6 +100,7 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
     exerciseComposer.reset();
     injectComposer.reset();
     injectStatusComposer.reset();
+    otherTenantId = null;
     tenantId =
         tenantHelper
             .createTenantWithCurrentUser("response-collections-" + UUID.randomUUID())
@@ -113,7 +115,7 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
             "DELETE FROM scenario_mails_reply_to WHERE scenario_id IN"
                 + " (SELECT scenario_id FROM scenarios WHERE tenant_id = ?)",
             tenantId);
-    tenantHelper.deleteCommittedTenants(tenantId);
+    tenantHelper.deleteCommittedTenants(tenantId, otherTenantId);
     TenantContext.clearCurrentTenant();
   }
 
@@ -166,6 +168,39 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
       // -- ASSERT --
       assertThat(ids(response, "$.scenario_tags")).containsExactly(tagId);
       assertThat(ids(response, "$.scenario_documents")).containsExactly(documentId);
+    }
+
+    @Test
+    @DisplayName(
+        "given a scenario linked to a tag of another tenant, should answer its own tag only")
+    void given_scenarioLinkedToATagOfAnotherTenant_should_answerItsOwnTagOnly() throws Exception {
+      // -- ARRANGE --
+      String scenarioId = inTenant(() -> taggedScenarioWithDocument().persist().get().getId());
+      String ownTagId = tagId;
+      otherTenantId = tenantHelper.createTenant("response-collections-other").getId();
+      String foreignTagId =
+          inTenant(otherTenantId, () -> tagComposer.forTag(tagOf(otherTenantId)).persist().get())
+              .getId();
+      // scenarios_tags carries no tenant_id: a link to another tenant's tag is a plain row.
+      new JdbcTemplate(dataSource)
+          .update(
+              "INSERT INTO scenarios_tags (scenario_id, tag_id) VALUES (?, ?)",
+              scenarioId,
+              foreignTagId);
+
+      // -- ACT --
+      String response =
+          call(
+              put(
+                      TENANT_SCENARIO_URI + "/{scenarioId}/teams/{teamId}/players/disable",
+                      tenantId,
+                      scenarioId,
+                      UUID.randomUUID().toString())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(new ScenarioTeamPlayersEnableInput())));
+
+      // -- ASSERT --
+      assertThat(ids(response, "$.scenario_tags")).containsExactly(ownTagId);
     }
   }
 
@@ -368,11 +403,15 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
   }
 
   private TagComposer.Composer tag() {
-    Tag tag = TagFixture.getTagWithText("response-collections-" + UUID.randomUUID());
-    tag.setTenant(new Tenant(tenantId));
-    TagComposer.Composer composer = tagComposer.forTag(tag);
+    TagComposer.Composer composer = tagComposer.forTag(tagOf(tenantId));
     tagId = composer.persist().get().getId();
     return composer;
+  }
+
+  private static Tag tagOf(String tenant) {
+    Tag tag = TagFixture.getTagWithText("response-collections-" + UUID.randomUUID());
+    tag.setTenant(new Tenant(tenant));
+    return tag;
   }
 
   private DocumentComposer.Composer document() {
@@ -388,9 +427,13 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
    * thread-local tenant to attribute some rows, so it is set too.
    */
   private <T> T inTenant(Supplier<T> work) {
-    TenantContext.setCurrentTenant(tenantId);
+    return inTenant(tenantId, work);
+  }
+
+  private <T> T inTenant(String tenant, Supplier<T> work) {
+    TenantContext.setCurrentTenant(tenant);
     try {
-      return tenantTx.execute(TxCtx.forTenant(tenantId), work);
+      return tenantTx.execute(TxCtx.forTenant(tenant), work);
     } finally {
       TenantContext.clearCurrentTenant();
     }
