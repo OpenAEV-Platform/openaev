@@ -18,8 +18,9 @@ export const assetKeys = {
 export const assetQueries = {
   // One page of the inventory. Refetched when an asset it shows, or one of their agents, changes,
   // and when an asset is created or deleted. An asset updated into the filter from another page
-  // shows at the next refetch. Every agent heartbeat (every 2 min) streams an update of the agent
-  // and its endpoint: throttled so that a page of agent-backed rows is not refetched every second.
+  // shows at the next refetch. Every agent heartbeat (every 2 min each) streams an update of the
+  // agent and its endpoint: a page of agent-backed rows gets one nearly all the time, so the list
+  // refetches at most every 30 s instead of on each of them.
   list: (input: SearchPaginationInput) => queryOptions({
     queryKey: assetKeys.list(input),
     queryFn: ({ signal }) => searchAssets({
@@ -28,7 +29,7 @@ export const assetQueries = {
     }),
     meta: liveMeta<Page<EndpointOutput>>({
       collections: [ENTITY_TYPES.ASSETS],
-      throttleMs: 10_000,
+      throttleMs: 30_000,
       refs: page => page.content.flatMap(asset => [
         {
           type: ENTITY_TYPES.ASSETS,

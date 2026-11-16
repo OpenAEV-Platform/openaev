@@ -8,6 +8,7 @@ import { type Page } from '../../../../components/common/queryable/Page';
 import { buildSearchPagination } from '../../../../components/common/queryable/QueryableUtils';
 import { retrieveFromUri } from '../../../../components/common/queryable/uri/useUriState';
 import usePaginatedQuery from '../../../../components/common/queryable/usePaginatedQuery';
+import { useQueryable, useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { type SearchPaginationInput } from '../../../../utils/api-types';
 
 vi.mock('../../../../utils/url-helper', async (importOriginal) => {
@@ -77,7 +78,7 @@ describe('usePaginatedQuery', () => {
   });
 
   const renderList = (init: Partial<SearchPaginationInput> = { size: 20 }) => renderHook(() => ({
-    list: usePaginatedQuery(STORAGE_KEY, buildSearchPagination(init), itemQueries),
+    list: usePaginatedQuery(useQueryableWithLocalStorage(STORAGE_KEY, buildSearchPagination(init)), itemQueries),
     searchParams: useSearchParams()[0],
   }), {
     wrapper: ({ children }: { children: ReactNode }) => (
@@ -144,7 +145,7 @@ describe('usePaginatedQuery', () => {
     return rendered;
   };
 
-  it('given_thePageLosingItsLastRows_should_moveToTheNewLastPage', async () => {
+  it('given_thePageLosingItsLastRows_should_goBackToTheFirstPage', async () => {
     // Arrange
     const { result } = await renderLastPage();
     search.mockImplementation(input => Promise.resolve(pageOf(input, 25)));
@@ -153,16 +154,16 @@ describe('usePaginatedQuery', () => {
     await act(() => queryClient.invalidateQueries());
 
     // Assert
-    await waitFor(() => expect(result.current.list.searchPaginationInput.page).toBe(1));
-    await waitFor(() => expect(result.current.list.items[0]).toEqual({ id: 'item-20' }));
+    await waitFor(() => expect(result.current.list.searchPaginationInput.page).toBe(0));
+    await waitFor(() => expect(result.current.list.items[0]).toEqual({ id: 'item-0' }));
   });
 
   it('given_aCachedPagePastTheEndThatRefetches_should_waitForItsNewRows', async () => {
-    // Arrange: page 2 emptied (back to page 1), then refilled while it sits in the cache
+    // Arrange: page 2 emptied (back to page 0), then refilled while it sits in the cache
     const { result } = await renderLastPage();
     search.mockImplementation(input => Promise.resolve(pageOf(input, 40)));
     await act(() => queryClient.invalidateQueries());
-    await waitFor(() => expect(result.current.list.searchPaginationInput.page).toBe(1));
+    await waitFor(() => expect(result.current.list.searchPaginationInput.page).toBe(0));
     search.mockImplementation(input => Promise.resolve(pageOf(input, 45)));
     await act(() => queryClient.invalidateQueries());
 
@@ -222,6 +223,29 @@ describe('usePaginatedQuery', () => {
     // Assert
     await waitFor(() => expect(next.result.current.list.items).toHaveLength(45));
     expect(next.result.current.list.searchPaginationInput.size).toBe(50);
+  });
+
+  it('given_anInMemoryInput_should_queryItWithoutWritingTheUriOrStorage', async () => {
+    // Arrange
+    const { result } = renderHook(() => ({
+      list: usePaginatedQuery(useQueryable(buildSearchPagination({ size: 20 })), itemQueries),
+      searchParams: useSearchParams()[0],
+    }), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/admin/items']}>{children}</MemoryRouter>
+        </QueryClientProvider>
+      ),
+    });
+    await waitFor(() => expect(result.current.list.items).toHaveLength(20));
+
+    // Act
+    act(() => result.current.list.queryableHelpers.paginationHelpers.handleChangePage(1));
+
+    // Assert
+    await waitFor(() => expect(result.current.list.items[0]).toEqual({ id: 'item-20' }));
+    expect(result.current.searchParams.toString()).toBe('');
+    expect(localStorage.length).toBe(0);
   });
 
   it('given_handWrittenTotals_should_keepTheTotalAndThePageOfTheData', async () => {

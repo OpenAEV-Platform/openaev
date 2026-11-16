@@ -18,6 +18,7 @@ import { buildSearchPagination } from '../../../../components/common/queryable/Q
 import SortHeadersComponentV2 from '../../../../components/common/queryable/sort/SortHeadersComponentV2';
 import useBodyItemsStyles from '../../../../components/common/queryable/style/style';
 import usePaginatedQuery from '../../../../components/common/queryable/usePaginatedQuery';
+import { useQueryableWithLocalStorage } from '../../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../../components/i18n';
 import ItemCriticality from '../../../../components/ItemCriticality';
 import ItemMarkings from '../../../../components/ItemMarkings';
@@ -104,10 +105,10 @@ const Endpoints = () => {
 
   // Live: assets created, updated or deleted elsewhere, or their agents changing, show without
   // reloading the page.
-  const { query, items: endpoints, queryableHelpers, searchPaginationInput } = usePaginatedQuery('asset', buildSearchPagination({
+  const { query, items: endpoints, queryableHelpers, searchPaginationInput } = usePaginatedQuery(useQueryableWithLocalStorage('asset', buildSearchPagination({
     sorts: initSorting('asset_name'),
     textSearch: search,
-  }), assetQueries.list);
+  })), assetQueries.list);
   const applyChanges = useApplyChanges();
   const assetChanged = (assetId: string, action: LiveChange['action']) => applyChanges([{
     type: ENTITY_TYPES.ASSETS,

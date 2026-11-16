@@ -19,6 +19,10 @@ import FakeEventSource from '../../../../utils/stream/fakeEventSource';
 const mocks = vi.hoisted(() => ({
   searchAssets: vi.fn(),
   bulkDeleteAssets: vi.fn(),
+  bulkReplaceAssetMarkings: vi.fn(),
+  markingEnabled: false,
+  editMarkings: undefined as (() => void) | undefined,
+  submitMarkings: undefined as ((markingIds: string[]) => Promise<void>) | undefined,
   onCreate: undefined as ((result: Endpoint) => void) | undefined,
   onAiTargetCreate: undefined as ((aiTargetId: string) => void) | undefined,
   onUpdate: new Map<string, (result: EndpointOutput) => void>(),
@@ -31,6 +35,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../../../actions/assets/endpoint-actions', () => ({
   searchAssets: mocks.searchAssets,
   bulkDeleteAssets: mocks.bulkDeleteAssets,
+  bulkReplaceAssetMarkings: mocks.bulkReplaceAssetMarkings,
   getAssetOverview: vi.fn(),
 }));
 vi.mock('../../../../../actions/executors/executor-action', () => ({ fetchExecutors: vi.fn() }));
@@ -50,7 +55,7 @@ vi.mock('../../../../../utils/hooks', () => ({ useAppDispatch: () => vi.fn() }))
 vi.mock('../../../../../utils/hooks/useDataLoader', () => ({ default: vi.fn() }));
 vi.mock('../../../../../utils/hooks/useMarkingDefinitions', () => ({ default: () => [] }));
 vi.mock('../../../../../utils/error/errorHandlerUtil', () => ({ notifyErrorHandler: vi.fn() }));
-vi.mock('../../../../../utils/utils', () => ({ isFeatureEnabled: () => false }));
+vi.mock('../../../../../utils/utils', () => ({ isFeatureEnabled: () => mocks.markingEnabled }));
 vi.mock('../../../../../utils/permissions/permissionsContext', () => ({
   useAbility: () => ({ can: () => true }),
   Can: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -101,15 +106,25 @@ vi.mock('../../../../../admin/components/assets/endpoints/AssetPopover', () => (
   },
 }));
 vi.mock('../../../../../admin/components/common/ToolBar', () => ({
-  default: ({ handleBulkDelete }: { handleBulkDelete?: () => void }) => {
+  default: ({ handleBulkDelete, toolTasks }: {
+    handleBulkDelete?: () => void;
+    toolTasks?: { onClick: () => void }[];
+  }) => {
     mocks.handleBulkDelete = handleBulkDelete;
+    mocks.editMarkings = toolTasks?.[0]?.onClick;
     return <div data-testid="toolbar" />;
+  },
+}));
+vi.mock('../../../../../admin/components/assets/endpoints/BulkMarkingsDrawer', () => ({
+  default: ({ onSubmit }: { onSubmit: (markingIds: string[]) => Promise<void> }) => {
+    mocks.submitMarkings = onSubmit;
+    return <div data-testid="markings-drawer" />;
   },
 }));
 vi.mock('@tanstack/react-query-devtools', () => ({ ReactQueryDevtools: () => null }));
 
 // The list query's throttle (`assetQueries.list`).
-const LIST_THROTTLE_MS = 10_000;
+const LIST_THROTTLE_MS = 30_000;
 
 const deferred = <T, >() => {
   let resolve: (value: T) => void = () => {};
@@ -218,6 +233,10 @@ describe('Endpoints', () => {
     mocks.searchAssets.mockReset();
     mocks.searchAssets.mockImplementation(({ input }: { input: SearchPaginationInput }) => Promise.resolve(pageOf([WEB, DB], input)));
     mocks.bulkDeleteAssets.mockReset();
+    mocks.bulkReplaceAssetMarkings.mockReset();
+    mocks.markingEnabled = false;
+    mocks.editMarkings = undefined;
+    mocks.submitMarkings = undefined;
     mocks.onCreate = undefined;
     mocks.onAiTargetCreate = undefined;
     mocks.onUpdate.clear();
@@ -435,6 +454,56 @@ describe('Endpoints', () => {
       await waitFor(() => expect(screen.queryByText('Web server')).not.toBeInTheDocument());
       expect(calls()).toBe(callsBefore + 1);
       expect(screen.queryByTestId('toolbar')).not.toBeInTheDocument();
+    });
+
+    it('given_selectAllAndAnExcludedRow_should_deleteBySearchInputWithTheExclusion', async () => {
+      // Arrange
+      await renderLivePage();
+      act(() => screen.getByRole('checkbox', { name: 'Select all' }).click());
+      act(() => screen.getByRole('checkbox', { name: 'Database' }).click());
+      await waitFor(() => expect(screen.getByTestId('toolbar')).toBeInTheDocument());
+      mocks.bulkDeleteAssets.mockResolvedValue({ data: ['asset-1'] });
+
+      // Act
+      await act(async () => mocks.handleBulkDelete?.());
+
+      // Assert: the whole search, minus the row left out, and no list of ids
+      expect(mocks.bulkDeleteAssets).toHaveBeenCalledWith(expect.objectContaining({
+        search_pagination_input: expect.objectContaining({ page: 0 }),
+        asset_ids_to_process: undefined,
+        asset_ids_to_ignore: ['asset-2'],
+      }));
+    });
+
+    it('given_aBulkMarkingsEdit_should_refetchOnceTheAssetsAreUpdatedAndClearTheSelection', async () => {
+      // Arrange: marking enabled, one asset selected, the drawer open
+      mocks.markingEnabled = true;
+      const callsBefore = await renderLivePage();
+      act(() => screen.getByRole('checkbox', { name: 'Web server' }).click());
+      await waitFor(() => expect(mocks.editMarkings).toBeDefined());
+      act(() => mocks.editMarkings?.());
+      await waitFor(() => expect(mocks.submitMarkings).toBeDefined());
+      const replaced = deferred<{ data: string[] }>();
+      mocks.bulkReplaceAssetMarkings.mockReturnValue(replaced.promise);
+
+      // Act
+      let submitted: Promise<void> | undefined;
+      act(() => {
+        submitted = mocks.submitMarkings?.(['marking-1']);
+      });
+      const callsBeforeTheUpdate = calls();
+      await act(async () => replaced.resolve({ data: ['asset-1'] }));
+      await act(async () => submitted);
+
+      // Assert: refetched once the server answered, not before
+      expect(mocks.bulkReplaceAssetMarkings).toHaveBeenCalledWith(expect.objectContaining({
+        asset_ids_to_process: ['asset-1'],
+        marking_ids: ['marking-1'],
+      }));
+      expect(callsBeforeTheUpdate).toBe(callsBefore);
+      expect(calls()).toBe(callsBefore + 1);
+      expect(screen.queryByTestId('toolbar')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('markings-drawer')).not.toBeInTheDocument();
     });
   });
 });

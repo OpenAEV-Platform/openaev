@@ -10,8 +10,8 @@ import { tenantUrl } from '../../utils/url';
  * token unique to the test, so the rows it creates are the only ones listed. A row is found by its
  * selection checkbox, named after the asset.
  */
-// Above the list's refetch throttle (10 s, `assetQueries.list`): changes close together wait for it.
-const LIVE_TIMEOUT = 20_000;
+// Above the list's refetch throttle (30 s, `assetQueries.list`): changes close together wait for it.
+const LIVE_TIMEOUT = 40_000;
 
 // Set on the window once the page is loaded: still there at the end means no reload happened.
 const markPage = (page: Page) => page.evaluate(() => {
