@@ -340,14 +340,14 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
   // -- HELPERS --
 
   private String createMarking() throws Exception {
-    // Order above GREEN and RED so no other grant implies it.
+    // The first definition of a type the tenant does not have yet: no other grant implies it, and
+    // the create guard lets it through whatever the caller's clearance (on an existing type, the
+    // caller may not define a marking above the highest one they hold).
+    String type = uniqueDefinition();
     String response =
         mvc.perform(
                 post("/api/tenants/{tenantId}/marking_definitions", tenantId)
-                    .content(
-                        asJsonString(
-                            createInput(
-                                MarkingDefinition.TYPE_TLP, uniqueDefinition(), 80, "#c62828")))
+                    .content(asJsonString(createInput(type, type + ":NEW", 80, "#c62828")))
                     .contentType(MediaType.APPLICATION_JSON)
                     .with(csrf()))
             .andExpect(status().isCreated())
