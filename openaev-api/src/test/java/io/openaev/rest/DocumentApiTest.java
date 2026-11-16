@@ -184,7 +184,7 @@ class DocumentApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Given a human user without ACCESS_DOCUMENTS should be forbidden")
-    @WithMockUser
+    @WithMockUser(autoJoinDefaultTenant = true)
     void given_human_user_without_access_documents_capability_should_be_forbidden()
         throws Exception {
       Document document = getSimpleDocumentWithInMemoryFile();
@@ -266,7 +266,7 @@ class DocumentApiTest extends IntegrationTest {
     /** A user without any relevant capability must be forbidden on the agent route. */
     @Test
     @DisplayName("Given a user without capabilities should be forbidden on /agent-file")
-    @WithMockUser
+    @WithMockUser(autoJoinDefaultTenant = true)
     void given_user_without_capabilities_should_be_forbidden() throws Exception {
       Document document = getSimpleDocumentWithInMemoryFile();
 
