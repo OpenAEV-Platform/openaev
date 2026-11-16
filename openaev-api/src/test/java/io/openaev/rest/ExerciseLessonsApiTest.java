@@ -13,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.LessonsCategory;
 import io.openaev.database.model.Team;
@@ -32,6 +34,7 @@ import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
 import io.openaev.utilstest.RowTenantScope;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -56,6 +59,7 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
 
   @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
   @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private MockMvc mvc;
   @Autowired private ExerciseService exerciseService;
   @Autowired private ExerciseRepository exerciseRepository;
@@ -128,11 +132,11 @@ public class ExerciseLessonsApiTest extends IntegrationTest {
         .andExpect(status().is2xxSuccessful());
 
     // -- ASSERT --
-    verify(mailingService)
-        .sendEmail(
-            lessonSubject,
-            lessonBody,
-            List.of(user),
-            exerciseRepository.findById(EXERCISE.getId()));
+    // The exercise is read in the scope of the tenant that owns it, as the request read it.
+    Optional<Exercise> exercise =
+        tenantTx.execute(
+            TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+            () -> exerciseRepository.findById(EXERCISE.getId()));
+    verify(mailingService).sendEmail(lessonSubject, lessonBody, List.of(user), exercise);
   }
 }
