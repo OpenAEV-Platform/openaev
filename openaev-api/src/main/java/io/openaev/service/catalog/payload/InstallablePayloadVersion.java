@@ -1,4 +1,4 @@
-package io.openaev.service.catalog;
+package io.openaev.service.catalog.payload;
 
 import io.openaev.database.model.catalog.CatalogPayload;
 

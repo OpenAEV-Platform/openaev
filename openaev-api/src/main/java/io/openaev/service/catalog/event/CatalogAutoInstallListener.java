@@ -3,7 +3,7 @@ package io.openaev.service.catalog.event;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
 import io.openaev.notification.catalog.CatalogEvents.CatalogReleaseApplied;
-import io.openaev.service.catalog.CatalogPayloadInstaller;
+import io.openaev.service.catalog.payload.CatalogPayloadInstaller;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;

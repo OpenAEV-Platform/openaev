@@ -1,5 +1,6 @@
 package io.openaev.utils.fixtures;
 
+import static io.openaev.service.ImportService.EXPORT_ENTRY_SCENARIO;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -15,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.StreamSupport;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -86,6 +88,30 @@ public class CatalogReleaseFixture {
       file.put("payload_external_id", PAYLOAD_ID);
       file.set("payload_attack_patterns", vector.path("attack_patterns"));
       return new ReleasedPayload(MAPPER.writeValueAsBytes(file), vector.path("sha256").asText());
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /** A scenario export holding one implant inject that runs the given payload file. */
+  public static byte[] scenarioPackage(byte[] payloadFile) {
+    try (InputStream in =
+        CatalogReleaseFixture.class.getResourceAsStream(
+            "/importer-v1/import-scenario-with-attack-pattern.json")) {
+      ObjectNode export = (ObjectNode) MAPPER.readTree(in);
+      ObjectNode contract =
+          (ObjectNode) export.get("scenario_injects").get(0).get("inject_injector_contract");
+      contract.put("injector_contract_id", UUID.randomUUID().toString());
+      contract.set("injector_contract_payload", MAPPER.readTree(payloadFile));
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      try (ZipOutputStream zip = new ZipOutputStream(out)) {
+        ZipEntry entry = new ZipEntry("scenario.json");
+        entry.setComment(EXPORT_ENTRY_SCENARIO);
+        zip.putNextEntry(entry);
+        zip.write(MAPPER.writeValueAsBytes(export));
+        zip.closeEntry();
+      }
+      return out.toByteArray();
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

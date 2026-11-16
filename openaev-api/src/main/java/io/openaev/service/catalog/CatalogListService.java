@@ -1,10 +1,12 @@
 package io.openaev.service.catalog;
 
 import io.openaev.api.catalog.CatalogItemMapper;
-import io.openaev.api.catalog.dto.CatalogPayloadOutput;
-import io.openaev.api.catalog.dto.CatalogScenarioOutput;
+import io.openaev.api.catalog.dto.payload.CatalogPayloadOutput;
+import io.openaev.api.catalog.dto.scenario.CatalogScenarioOutput;
 import io.openaev.database.model.catalog.CatalogItem;
 import io.openaev.database.repository.CatalogItemRepository;
+import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.util.Comparator;
 import java.util.List;
@@ -36,13 +38,26 @@ public class CatalogListService {
         .toList();
   }
 
+  /** A version the catalogue still offers; refused when it is unknown, deprecated or revoked. */
+  @Transactional(readOnly = true)
+  public <T extends CatalogItem> T offered(Class<T> type, String externalId, String version) {
+    T item =
+        catalogItemRepository
+            .findVersion(type, externalId, version)
+            .orElseThrow(() -> new ElementNotFoundException("Catalogue version not found"));
+    if (!isOffered(item)) {
+      throw new BadRequestException("This version is no longer offered");
+    }
+    return item;
+  }
+
   /** A deprecated or revoked version stays out of the catalogue; installed ones are untouched. */
   static boolean isOffered(CatalogItem item) {
     return item.getStatus().isOffered();
   }
 
   // The latest offered version of each item, sorted by name.
-  static <T extends CatalogItem> List<T> latestVersions(List<T> items) {
+  public static <T extends CatalogItem> List<T> latestVersions(List<T> items) {
     return items.stream()
         .filter(CatalogListService::isOffered)
         .collect(

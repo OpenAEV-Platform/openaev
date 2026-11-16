@@ -1,4 +1,4 @@
-package io.openaev.api.catalog.dto;
+package io.openaev.api.catalog.dto.payload;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;

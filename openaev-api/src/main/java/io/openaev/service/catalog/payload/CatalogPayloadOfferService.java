@@ -1,12 +1,13 @@
-package io.openaev.service.catalog;
+package io.openaev.service.catalog.payload;
 
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.catalog.CatalogIdentity;
 import io.openaev.database.model.catalog.CatalogPayload;
 import io.openaev.database.raw.RawInstalledPayloadVersion;
 import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.PayloadIdentityRepository;
-import io.openaev.rest.exception.BadRequestException;
-import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.catalog.CatalogListService;
+import io.openaev.service.catalog.CatalogSettingsService;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,20 +27,15 @@ public class CatalogPayloadOfferService {
   private final CatalogItemRepository catalogItemRepository;
   private final PayloadIdentityRepository payloadIdentityRepository;
   private final CatalogSettingsService catalogSettingsService;
+  private final CatalogListService catalogListService;
 
   // -- LIST --
 
   /** A released version the catalogue still offers. */
   @Transactional(readOnly = true)
   public InstallablePayloadVersion installable(TxCtx ctx, String externalId, String version) {
-    CatalogPayload item =
-        catalogItemRepository
-            .findPayload(externalId, version)
-            .orElseThrow(() -> new ElementNotFoundException("Catalogue payload not found"));
-    if (!item.getStatus().isOffered()) {
-      throw new BadRequestException("This version is no longer offered");
-    }
-    return InstallablePayloadVersion.of(item);
+    return InstallablePayloadVersion.of(
+        catalogListService.offered(CatalogPayload.class, externalId, version));
   }
 
   /** The latest offered version of every catalogue payload the tenant never installed. */
@@ -68,7 +64,7 @@ public class CatalogPayloadOfferService {
       String tenantId, List<CatalogPayload> items) {
     Set<String> known =
         payloadIdentityRepository.findAllByTenantIdAndRepositoryIsNotNull(tenantId).stream()
-            .map(identity -> key(identity.getRepository(), identity.getExternalId()))
+            .map(CatalogPayloadOfferService::key)
             .collect(Collectors.toSet());
     return CatalogListService.latestVersions(items).stream()
         .map(InstallablePayloadVersion::of)
@@ -96,6 +92,10 @@ public class CatalogPayloadOfferService {
             })
         .sorted(Comparator.comparing(InstallablePayloadVersion::version, SemanticVersion.ORDER))
         .toList();
+  }
+
+  private static String key(CatalogIdentity identity) {
+    return key(identity.getRepository(), identity.getExternalId());
   }
 
   private static String key(String repository, String externalId) {

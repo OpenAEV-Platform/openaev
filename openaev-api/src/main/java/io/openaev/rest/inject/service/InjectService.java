@@ -589,6 +589,10 @@ public class InjectService {
 
   // -- SPECIFIC GETTER --
 
+  public Set<Inject> findByScenarioId(String scenarioId) {
+    return injectRepository.findByScenarioId(scenarioId);
+  }
+
   public List<Inject> getExecutedAndNotFinished() {
     return this.injectRepository.findAll(
         hasStatus(List.of(EXECUTED, ERROR, MAYBE_PREVENTED, PARTIAL, MAYBE_PARTIAL_PREVENTED))
