@@ -2,6 +2,7 @@ package io.openaev.service.account;
 
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.User;
 import io.openaev.rest.exception.ElementNotFoundException;
 import jakarta.persistence.EntityManager;
@@ -28,9 +29,11 @@ import org.springframework.stereotype.Component;
  * request's to write: the load adds no entity to the request's persistence context. So the load
  * sees what the transaction wrote, takes no second connection, and leaves the scope of the
  * request's later reads as it was. The work loads the caller's user and what any load of a user
- * loads eagerly with it: its groups with their tenant, grants, members, roles and markings. The
- * user returned is detached, with only those associations loaded, and serves a permission decision:
- * no caller returns it to a client.
+ * loads eagerly with it: its groups with their tenant, grants, members, roles and markings. Those
+ * loads fire the entity listeners on the request thread, so the audit before-snapshots they store
+ * are put back afterwards as the request's own reads left them ({@link
+ * AuditLogContext#withBeforeSnapshotsRestored}). The user returned is detached, with only those
+ * associations loaded, and serves a permission decision: no caller returns it to a client.
  */
 @Component
 @RequiredArgsConstructor
@@ -50,7 +53,8 @@ public class CallerRightsInTenant {
   public User loadInAmbientTenant(User caller) {
     String callerId = caller.getId();
     return tenantTx.executeOnCurrentTransaction(
-        TxCtx.forTenant(caller.scopedTenantId()), () -> loadInOwnSession(callerId));
+        TxCtx.forTenant(caller.scopedTenantId()),
+        () -> AuditLogContext.withBeforeSnapshotsRestored(() -> loadInOwnSession(callerId)));
   }
 
   private User loadInOwnSession(String userId) {
