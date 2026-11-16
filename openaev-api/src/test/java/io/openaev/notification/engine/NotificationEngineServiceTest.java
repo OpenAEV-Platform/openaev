@@ -14,6 +14,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationEventRecord;
@@ -21,6 +23,8 @@ import io.openaev.database.model.NotificationTriggerEventType;
 import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.repository.NotificationEventRecordRepository;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +42,9 @@ class NotificationEngineServiceTest {
   private NotificationRecipientFilter recipientFilter;
   private NotificationEventRecordRepository eventRecordRepository;
   private TenantScopedTransaction tenantTx;
+  private MarkingClearanceCacheManager markingClearanceCacheManager;
+  private PreviewFeatureService previewFeatureService;
+  private NotificationMarkingResolver markingResolver;
   private NotificationEngineService engineService;
 
   private static final String TENANT_A = "tenant-a";
@@ -63,14 +70,23 @@ class NotificationEngineServiceTest {
             })
         .when(tenantTx)
         .execute(any(TxCtx.class), ArgumentMatchers.<Runnable>any());
+    markingClearanceCacheManager = mock(MarkingClearanceCacheManager.class);
+    previewFeatureService = mock(PreviewFeatureService.class);
+    markingResolver = mock(NotificationMarkingResolver.class);
+    // Default: no markings relevant to the event, matching the real resolver's "nothing to
+    // narrow" shape for every resource type not explicitly stubbed by a test.
+    when(markingResolver.resolveMarkingSets(any(), anyString(), anyString(), any()))
+        .thenReturn(List.of());
     engineService =
         new NotificationEngineService(
             cacheService,
             matchingService,
             dispatchService,
-            recipientFilter,
-            eventRecordRepository,
-            tenantTx);
+           recipientFilter, eventRecordRepository,
+            tenantTx,
+            markingClearanceCacheManager,
+            previewFeatureService,
+            markingResolver);
   }
 
   private ResolvedNotificationTrigger liveTrigger(
@@ -391,5 +407,114 @@ class NotificationEngineServiceTest {
     assertEquals(
         "[scenario] My scenario targets Restricted",
         user2.getValue().getFirst().events().getFirst().message());
+  }
+
+  @Test
+  @DisplayName("Live dispatch is narrowed to recipients cleared for the event's marking sets")
+  void dispatchIsNarrowedByMarkingClearance() {
+    ResolvedNotificationTrigger trigger =
+        liveTrigger(
+            Set.of(NotificationTriggerEventType.CREATE), TENANT_A, List.of("user-1", "user-2"));
+    when(cacheService.getLiveTriggers(ResourceType.ASSET)).thenReturn(List.of(trigger));
+    when(matchingService.matches(eq(trigger), any(), anyString())).thenReturn(true);
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)).thenReturn(true);
+    when(markingResolver.resolveMarkingSets(
+            ResourceType.ASSET, "asset-id", TENANT_A, NotificationTriggerEventType.CREATE))
+        .thenReturn(List.<String[]>of(new String[] {"tlp-red"}));
+    when(markingClearanceCacheManager.findClearance("user-1", TENANT_A))
+        .thenReturn(MarkingCtx.forMarkings(List.of("tlp-red")));
+    when(markingClearanceCacheManager.findClearance("user-2", TENANT_A))
+        .thenReturn(MarkingCtx.none());
+
+    engineService.handleEvent(
+        NotificationResourceCatalog.ASSET,
+        "asset-id",
+        TENANT_A,
+        NotificationTriggerEventType.CREATE,
+        "My asset");
+
+    verify(dispatchService)
+        .dispatch(eq(trigger), eq(NotificationTriggerType.LIVE), eq(List.of("user-1")), anyList());
+  }
+
+  @Test
+  @DisplayName("Dispatch stays unfiltered when the event carries no marking sets")
+  void dispatchIsUnfilteredWithoutMarkingSets() {
+    ResolvedNotificationTrigger trigger =
+        liveTrigger(
+            Set.of(NotificationTriggerEventType.CREATE), TENANT_A, List.of("user-1", "user-2"));
+    when(cacheService.getLiveTriggers(ResourceType.ASSET)).thenReturn(List.of(trigger));
+    when(matchingService.matches(eq(trigger), any(), anyString())).thenReturn(true);
+
+    engineService.handleEvent(
+        NotificationResourceCatalog.ASSET,
+        "asset-id",
+        TENANT_A,
+        NotificationTriggerEventType.CREATE,
+        "My asset");
+
+    verify(dispatchService)
+        .dispatch(
+            eq(trigger),
+            eq(NotificationTriggerType.LIVE),
+            eq(List.of("user-1", "user-2")),
+            anyList());
+    verify(markingClearanceCacheManager, never()).findClearance(anyString(), anyString());
+  }
+
+  @Test
+  @DisplayName("A finding is notifiable through its least-restricted linked asset (OR across them)")
+  void findingDispatchIsNarrowedByUnionOfLinkedAssetMarkings() {
+    ResolvedNotificationTrigger trigger =
+        liveTrigger(
+            Set.of(NotificationTriggerEventType.CREATE), TENANT_A, List.of("user-1", "user-2"));
+    when(cacheService.getLiveTriggers(ResourceType.FINDING)).thenReturn(List.of(trigger));
+    when(matchingService.matches(eq(trigger), any(), anyString())).thenReturn(true);
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)).thenReturn(true);
+    // Two linked assets: one TLP:RED, one unmarked - unmarked keeps the finding visible to all.
+    when(markingResolver.resolveMarkingSets(
+            ResourceType.FINDING, "finding-id", TENANT_A, NotificationTriggerEventType.CREATE))
+        .thenReturn(List.of(new String[] {"tlp-red"}, new String[0]));
+    when(markingClearanceCacheManager.findClearance(anyString(), eq(TENANT_A)))
+        .thenReturn(MarkingCtx.none());
+
+    engineService.handleEvent(
+        NotificationResourceCatalog.FINDING,
+        "finding-id",
+        TENANT_A,
+        NotificationTriggerEventType.CREATE,
+        "My finding");
+
+    verify(dispatchService)
+        .dispatch(
+            eq(trigger),
+            eq(NotificationTriggerType.LIVE),
+            eq(List.of("user-1", "user-2")),
+            anyList());
+  }
+
+  @Test
+  @DisplayName("An inject's recipients are narrowed by the resolved marking sets")
+  void injectDispatchIsNarrowedByResolvedMarkingSets() {
+    ResolvedNotificationTrigger trigger =
+        liveTrigger(Set.of(NotificationTriggerEventType.CREATE), TENANT_A, List.of("user-1"));
+    when(cacheService.getLiveTriggers(ResourceType.INJECT)).thenReturn(List.of(trigger));
+    when(matchingService.matches(eq(trigger), any(), anyString())).thenReturn(true);
+    when(previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)).thenReturn(true);
+    when(markingResolver.resolveMarkingSets(
+            ResourceType.INJECT, "inject-id", TENANT_A, NotificationTriggerEventType.CREATE))
+        .thenReturn(List.<String[]>of(new String[] {"tlp-red"}));
+    when(markingClearanceCacheManager.findClearance("user-1", TENANT_A))
+        .thenReturn(MarkingCtx.none());
+
+    engineService.handleEvent(
+        NotificationResourceCatalog.INJECT,
+        "inject-id",
+        TENANT_A,
+        NotificationTriggerEventType.CREATE,
+        "My inject");
+
+    verify(dispatchService)
+        .dispatch(eq(trigger), eq(NotificationTriggerType.LIVE), eq(List.of()), anyList());
   }
 }

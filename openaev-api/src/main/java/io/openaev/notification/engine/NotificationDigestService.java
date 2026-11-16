@@ -1,5 +1,6 @@
 package io.openaev.notification.engine;
 
+import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationEventRecord;
@@ -20,7 +21,9 @@ import org.springframework.stereotype.Service;
  * Digest stage of the notifications engine: evaluated every minute by the digest job. Digests due
  * at the current minute replay the {@link NotificationEventRecord} outbox over their period window
  * (the OpenAEV equivalent of OpenCTI re-reading {@code stream.notification}) and deliver one
- * aggregated notification per recipient.
+ * aggregated notification per recipient - each outbox record re-checked against the recipient's
+ * marking clearance at send time via {@link NotificationMarkingResolver}, since the outbox itself
+ * carries no marking snapshot.
  *
  * <p>Each row is re-checked at send time against the recipient's current rights ({@link
  * NotificationRecipientFilter}, in the digest's tenant): a row whose object the recipient no longer
@@ -36,6 +39,7 @@ public class NotificationDigestService {
   private final NotificationDispatchService dispatchService;
   private final NotificationRecipientFilter recipientFilter;
   private final TenantScopedTransaction tenantTx;
+  private final NotificationMarkingResolver markingResolver;
 
   public void runDigests(Instant now) {
     List<ResolvedNotificationTrigger> digests =
