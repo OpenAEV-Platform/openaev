@@ -16,6 +16,8 @@ import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.output.InjectTestStatusOutput;
+import io.openaev.rest.inject.service.ScenarioInjectService;
+import io.openaev.rest.inject.service.SimulationInjectService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import io.openaev.utils.mapper.InjectStatusMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -45,6 +47,8 @@ public class InjectTestStatusService {
   private final ManagerFactory managerFactory;
   private final ConnectorInstanceRepository connectorInstanceRepository;
   private final BulkOperationMonitor bulkOperationMonitor;
+  private final SimulationInjectService simulationInjectService;
+  private final ScenarioInjectService scenarioInjectService;
 
   @Autowired
   public void setContext(ApplicationContext context) {
@@ -57,10 +61,7 @@ public class InjectTestStatusService {
    * @throws ElementNotFoundException when the id is unknown or the inject is not of the simulation
    */
   public InjectTestStatusOutput testInjectOfSimulation(String simulationId, String injectId) {
-    return runTest(
-        injectRepository
-            .findByIdAndExerciseId(injectId, simulationId)
-            .orElseThrow(() -> injectNotFound(injectId)));
+    return runTest(simulationInjectService.findInjectForSimulation(simulationId, injectId));
   }
 
   /**
@@ -69,10 +70,7 @@ public class InjectTestStatusService {
    * @throws ElementNotFoundException when the id is unknown or the inject is not of the scenario
    */
   public InjectTestStatusOutput testInjectOfScenario(String scenarioId, String injectId) {
-    return runTest(
-        injectRepository
-            .findByIdAndScenarioId(injectId, scenarioId)
-            .orElseThrow(() -> injectNotFound(injectId)));
+    return runTest(scenarioInjectService.findInjectForScenario(scenarioId, injectId));
   }
 
   /**
@@ -245,10 +243,6 @@ public class InjectTestStatusService {
                 });
 
     return this.injectTestStatusRepository.save(injectTestStatus);
-  }
-
-  private static ElementNotFoundException injectNotFound(String injectId) {
-    return new ElementNotFoundException("Inject not found: " + injectId);
   }
 
   private static ElementNotFoundException testStatusNotFound(String testId) {
