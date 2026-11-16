@@ -30,6 +30,8 @@ public class HealthCheck {
     INEFFECTIVE_TECHNICAL_TARGETS,
     /** The scope allowlist has team/player entries but no step consumes them. */
     INEFFECTIVE_AUDIENCE_TARGETS,
+    /** An enabled inject runs a payload version revoked in its tenant. */
+    REVOKED,
   }
 
   public enum Type {
@@ -50,6 +52,7 @@ public class HealthCheck {
     MESSAGE("message"),
     SCOPE_DEFINITION("scope_definition"),
     CREDENTIAL_REFERENCE("credential_reference"),
+    PAYLOAD("payload"),
     UNKNOWN("unknown");
 
     private final String value;

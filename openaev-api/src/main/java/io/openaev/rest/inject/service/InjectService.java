@@ -1857,6 +1857,7 @@ public class InjectService {
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
+    healthChecks.addAll(healthCheckUtils.runRevocationChecks(List.of(inject)));
 
     return healthChecks;
   }
