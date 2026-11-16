@@ -75,7 +75,8 @@ public class Secret implements TenantBase {
     AZURE_SERVICE_PRINCIPAL,
     AZURE_MANAGED_IDENTITY,
     GCP_SERVICE_ACCOUNT,
-    GCP_OAUTH2;
+    GCP_OAUTH2,
+    API_TOKEN;
 
     public static final String USERNAME_PASSWORD_VALUE = "USERNAME_PASSWORD";
     public static final String HASH_VALUE = "HASH";
@@ -85,5 +86,6 @@ public class Secret implements TenantBase {
     public static final String AZURE_MANAGED_IDENTITY_VALUE = "AZURE_MANAGED_IDENTITY";
     public static final String GCP_SERVICE_ACCOUNT_VALUE = "GCP_SERVICE_ACCOUNT";
     public static final String GCP_OAUTH2_VALUE = "GCP_OAUTH2";
+    public static final String API_TOKEN_VALUE = "API_TOKEN";
   }
 }

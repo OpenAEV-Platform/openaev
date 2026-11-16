@@ -10,11 +10,14 @@ import io.openaev.context.TxCtx;
 import io.openaev.database.model.Action;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.AssetCategory;
+import io.openaev.database.model.CredentialSecretReference;
 import io.openaev.database.model.ResourceType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AiTargetRepository;
+import io.openaev.database.repository.CredentialSecretReferenceRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.rest.asset.ai_targets.form.AiTargetInput;
+import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.utils.FilterUtilsJpa;
 import io.openaev.utils.pagination.SearchPaginationInput;
@@ -44,6 +47,7 @@ public class AiTargetApi {
   private final TenantWriteScopeResolver writeScopeResolver;
   private final AiTargetRepository aiTargetRepository;
   private final TagRepository tagRepository;
+  private final CredentialSecretReferenceRepository credentialRepository;
 
   /** Restricts any search to AI target assets, on top of the caller-provided specification. */
   private Specification<Asset> aiTargetCategory() {
@@ -62,18 +66,29 @@ public class AiTargetApi {
   }
 
   private Asset prepareAiTarget(Asset aiTarget, AiTargetInput input) {
-    aiTarget.updateAiTargetToken(
-        input.getAiTargetProvider(),
-        input.getAiTargetEndpoint(),
-        input.getAiTargetToken(),
-        input.isAiTargetTokenClear());
     aiTarget.setUpdateAttributes(input);
+    aiTarget.setAiTargetCredential(apiTokenCredential(input.getAiTargetCredentialId()));
     aiTarget.setCategory(AssetCategory.AI_TARGET);
     aiTarget.setTags(
         iterableToSet(
             this.tagRepository.findAllByIdInTenant(
                 input.getTagIds(), aiTarget.getTenant().getId())));
     return aiTarget;
+  }
+
+  private CredentialSecretReference apiTokenCredential(String credentialId) {
+    if (credentialId == null) {
+      return null;
+    }
+    CredentialSecretReference credential =
+        credentialRepository
+            .findById(credentialId)
+            .orElseThrow(() -> new ElementNotFoundException("Credential not found"));
+    if (credential.getCredentialAuthMethod()
+        != CredentialSecretReference.CREDENTIAL_AUTH_METHOD.API_TOKEN) {
+      throw new BadRequestException("An AI target needs an API token credential");
+    }
+    return credential;
   }
 
   @GetMapping({AI_TARGET_URI, TENANT_AI_TARGET_URI})

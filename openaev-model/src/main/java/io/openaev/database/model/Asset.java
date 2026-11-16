@@ -15,7 +15,7 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditLogIgnore;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
-import io.openaev.exception.AiTargetTokenRequiredException;
+import io.openaev.helper.MonoIdSerializer;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -375,43 +375,20 @@ public class Asset implements TenantBase, Marked {
   /**
    * Free-form, provider-specific configuration for an AI target (extra generation parameters,
    * custom headers, tool / MCP definitions, agent routing, ...). Never put the credential here -
-   * use {@link #aiTargetToken}.
+   * use {@link #aiTargetCredential}.
    */
   @Type(JsonType.class)
   @Column(name = "ai_target_configuration", columnDefinition = "jsonb")
   @JsonProperty("ai_target_configuration")
   private Map<String, Object> aiTargetConfiguration = new HashMap<>();
 
-  /**
-   * Optional credential used to reach an AI target. Write-only: no read returns it; the injector
-   * gets it with the inject's one-time code.
-   */
-  @Column(name = "ai_target_token")
-  @JsonProperty(value = "ai_target_token", access = JsonProperty.Access.WRITE_ONLY)
-  @Setter(NONE)
-  private String aiTargetToken;
-
-  @JsonProperty("ai_target_token_set")
-  @Schema(accessMode = Schema.AccessMode.READ_ONLY)
-  public boolean isAiTargetTokenSet() {
-    return aiTargetToken != null && !aiTargetToken.isBlank();
-  }
-
-  /**
-   * Applies a write of the token: a blank token keeps the stored one, unless the provider or the
-   * endpoint changes, which would send the stored token to another server.
-   */
-  public void updateAiTargetToken(
-      AI_TARGET_PROVIDER provider, String endpoint, String token, boolean clear) {
-    if (clear) {
-      this.aiTargetToken = null;
-    } else if (token != null && !token.isBlank()) {
-      this.aiTargetToken = token;
-    } else if (isAiTargetTokenSet()
-        && (provider != aiTargetProvider || !Objects.equals(endpoint, aiTargetEndpoint))) {
-      throw new AiTargetTokenRequiredException();
-    }
-  }
+  /** Optional credential used to reach an AI target; empty for targets with no authentication. */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "ai_target_credential_id")
+  @JsonSerialize(using = MonoIdSerializer.class)
+  @JsonProperty("ai_target_credential")
+  @Schema(type = "string")
+  private CredentialSecretReference aiTargetCredential;
 
   /**
    * Free-form, category-specific attributes (cloud account id / resource id / ARN, vendor, model,

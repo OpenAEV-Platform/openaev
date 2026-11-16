@@ -2141,14 +2141,17 @@ public class InjectService {
   }
 
   /**
-   * Creates and stores a fresh authorisation code when the inject carries secret references or
-   * targets an AI target holding a token.
+   * Creates and stores a fresh authorisation code when the injector may resolve credentials.
    *
-   * @param executableInject the executable inject to check
-   * @return the raw authorisation code, or {@code null} when the injector needs no secret
+   * @param executableInject the executable inject to check for credentials
+   * @return the raw authorisation code, or {@code null} when there is no credential to resolve
    */
   public String getAuthorisationCodeIfNeeded(ExecutableInject executableInject) {
-    if (!hasSecretReferences(executableInject) && !targetsAiTargetWithToken(executableInject)) {
+    if (executableInject.getAssetsToExecute() == null) {
+      executableInject.cacheAssetsToExecute(
+          resolveAssetsToExecuteByClearance(executableInject.getInjection().getInject()));
+    }
+    if (executableInject.credentialReferenceIds(executableInject.getAssetsToExecute()).isEmpty()) {
       return null;
     }
     Inject inject = executableInject.getInjection().getInject();
@@ -2164,43 +2167,6 @@ public class InjectService {
     injectAuthorisationRepository.save(authorisation);
 
     return rawCode;
-  }
-
-  private boolean hasSecretReferences(ExecutableInject executableInject) {
-    return executableInject.getSecretReferenceIds() != null
-        && !executableInject.getSecretReferenceIds().isEmpty();
-  }
-
-  private boolean targetsAiTargetWithToken(ExecutableInject executableInject) {
-    if (executableInject.getAssetsToExecute() == null) {
-      executableInject.cacheAssetsToExecute(
-          resolveAssetsToExecuteByClearance(executableInject.getInjection().getInject()));
-    }
-    return executableInject.getAssetsToExecute().stream()
-        .anyMatch(target -> target.asset().isAiTargetTokenSet());
-  }
-
-  /**
-   * Gives the token of an AI target the running inject targets, to the injector holding the
-   * inject's authorisation code.
-   *
-   * @throws ForbiddenException when the inject is not running or the code is wrong
-   * @throws ElementNotFoundException when the asset is not an AI target the inject targets
-   */
-  public String getAiTargetTokenOrThrow(String injectId, String assetId, String authorisation) {
-    Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
-    if (!verifyInjectStatusIsInProgress(inject)
-        || !verifyAuthorisationCode(injectId, authorisation)) {
-      throw new ForbiddenException();
-    }
-    return resolveAllAssetsToExecute(inject).stream()
-        .map(AssetToExecute::asset)
-        .filter(
-            asset ->
-                asset.getId().equals(assetId) && asset.getCategory() == AssetCategory.AI_TARGET)
-        .findFirst()
-        .orElseThrow(ElementNotFoundException::new)
-        .getAiTargetToken();
   }
 
   private boolean verifyAuthorisationCode(String injectId, String code) {
@@ -2230,7 +2196,9 @@ public class InjectService {
   private SecretReference getResolvableInjectSecretReferenceOrThrow(
       Inject inject, String attachmentId) {
     SecretReference secretReference =
-        inject.getSecretReferences().stream()
+        Stream.concat(
+                inject.getSecretReferences().stream(),
+                AssetToExecute.aiTargetCredentials(resolveAllAssetsToExecute(inject)))
             .filter(ref -> ref.getId().equals(attachmentId))
             .findFirst()
             .orElseThrow(() -> new CredentialResolutionException(CREDENTIAL_NOT_FOUND));

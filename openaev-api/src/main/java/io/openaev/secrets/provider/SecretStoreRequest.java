@@ -46,6 +46,7 @@ import lombok.Builder;
  * @param azureScope optional scope a token is requested for, for both Azure auth methods
  * @param azureRequestsCertificate raw content of the uploaded certificate file, for both Azure auth
  *     methods; null means "left untouched by the client"
+ * @param apiToken plaintext token for API_TOKEN; null means "left untouched by the client"
  */
 @Builder(toBuilder = true)
 public record SecretStoreRequest(
@@ -87,4 +88,6 @@ public record SecretStoreRequest(
     String gcpCustomOauthAccessToken,
     String azureAuthorityHostUri,
     String azureScope,
-    byte[] azureRequestsCertificate) {}
+    byte[] azureRequestsCertificate,
+    // API TOKEN
+    String apiToken) {}

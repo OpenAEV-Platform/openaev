@@ -1605,7 +1605,8 @@ class InjectServiceTest {
       Injection injection = mock(Injection.class);
       when(injection.getInject()).thenReturn(inject);
       when(executableInject.getInjection()).thenReturn(injection);
-      when(executableInject.getSecretReferenceIds()).thenReturn(List.of("secret-1"));
+      when(executableInject.getAssetsToExecute()).thenReturn(List.of());
+      when(executableInject.credentialReferenceIds(List.of())).thenReturn(List.of("secret-1"));
 
       String code = injectService.getAuthorisationCodeIfNeeded(executableInject);
 
@@ -1621,7 +1622,8 @@ class InjectServiceTest {
     @DisplayName("Inject without secret references should not persist an authorisation code")
     void given_noSecretReferences_should_notPersistInjectAuthorisation() {
       ExecutableInject executableInject = mock(ExecutableInject.class);
-      when(executableInject.getSecretReferenceIds()).thenReturn(List.of());
+      when(executableInject.getAssetsToExecute()).thenReturn(List.of());
+      when(executableInject.credentialReferenceIds(List.of())).thenReturn(List.of());
 
       String code = injectService.getAuthorisationCodeIfNeeded(executableInject);
 

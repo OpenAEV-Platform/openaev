@@ -391,9 +391,7 @@ export interface AiTargetInput {
     | "AGENT_HTTP"
     | "XTM_ONE";
   ai_target_system_prompt?: string | null;
-  ai_target_token?: string | null;
-  /** Removes the stored token */
-  ai_target_token_clear?: boolean;
+  ai_target_credential?: string | null;
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
@@ -546,7 +544,7 @@ export interface Asset {
     | "AGENT_HTTP"
     | "XTM_ONE";
   ai_target_system_prompt?: string;
-  readonly ai_target_token_set?: boolean;
+  ai_target_credential?: string;
   asset_category?:
     | "HOST"
     | "CONTAINER_WORKLOAD"
@@ -3813,8 +3811,9 @@ export interface CredentialContractOutput {
     | "AZURE_SERVICE_PRINCIPAL"
     | "AZURE_MANAGED_IDENTITY"
     | "GCP_SERVICE_ACCOUNT"
-    | "GCP_OAUTH2";
-  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
+    | "GCP_OAUTH2"
+    | "API_TOKEN";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP" | "API";
   fields?: CredentialContractField[];
 }
 
@@ -3835,7 +3834,8 @@ export interface CredentialFullOutput {
     | "AZURE_SERVICE_PRINCIPAL"
     | "AZURE_MANAGED_IDENTITY"
     | "GCP_SERVICE_ACCOUNT"
-    | "GCP_OAUTH2";
+    | "GCP_OAUTH2"
+    | "API_TOKEN";
   /** AWS access key ID */
   credential_aws_access_key_id?: string;
   /** AWS account id */
@@ -3967,7 +3967,7 @@ export interface CredentialFullOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP" | "API";
   /** Secret username */
   credential_username?: string;
 }
@@ -4051,7 +4051,9 @@ export interface CredentialInput {
     | "AZURE_SERVICE_PRINCIPAL"
     | "AZURE_MANAGED_IDENTITY"
     | "GCP_SERVICE_ACCOUNT"
-    | "GCP_OAUTH2";
+    | "GCP_OAUTH2"
+    | "API_TOKEN";
+  credential_api_token?: string;
   credential_description?: string;
   credential_hash?: string;
   credential_hash_algorithm?: "SHA" | "NTLM";
@@ -4059,7 +4061,7 @@ export interface CredentialInput {
   credential_name: string;
   credential_password?: string;
   credential_tags?: string[];
-  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
+  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP" | "API";
   credential_username?: string;
   /**
    * @minLength 0
@@ -4099,7 +4101,8 @@ export interface CredentialOutput {
     | "AZURE_SERVICE_PRINCIPAL"
     | "AZURE_MANAGED_IDENTITY"
     | "GCP_SERVICE_ACCOUNT"
-    | "GCP_OAUTH2";
+    | "GCP_OAUTH2"
+    | "API_TOKEN";
   /**
    * Credential creation timestamp
    * @format date-time
@@ -4133,7 +4136,7 @@ export interface CredentialOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type?: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP";
+  credential_type?: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP" | "API";
 }
 
 export interface CustomDashboard {
@@ -4601,7 +4604,7 @@ export interface Endpoint {
     | "AGENT_HTTP"
     | "XTM_ONE";
   ai_target_system_prompt?: string;
-  readonly ai_target_token_set?: boolean;
+  ai_target_credential?: string;
   asset_agents?: Agent[];
   asset_category?:
     | "HOST"
@@ -12967,7 +12970,8 @@ export interface SecretResolvedValue {
     | "AZURE_SERVICE_PRINCIPAL"
     | "AZURE_MANAGED_IDENTITY"
     | "GCP_SERVICE_ACCOUNT"
-    | "GCP_OAUTH2";
+    | "GCP_OAUTH2"
+    | "API_TOKEN";
   value?:
     | AwsAccessKey
     | AwsAssumeRole
@@ -13023,7 +13027,7 @@ export interface SecurityPlatform {
     | "AGENT_HTTP"
     | "XTM_ONE";
   ai_target_system_prompt?: string;
-  readonly ai_target_token_set?: boolean;
+  ai_target_credential?: string;
   asset_category?:
     | "HOST"
     | "CONTAINER_WORKLOAD"

@@ -43,6 +43,7 @@ const AI_TARGET_INPUT_KEYS: (keyof AiTargetInput | 'asset_markings')[] = [
   'ai_target_endpoint',
   'ai_target_model',
   'ai_target_system_prompt',
+  'ai_target_credential',
   'ai_target_configuration',
   'asset_criticality',
   'asset_description',
@@ -75,7 +76,6 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
   const handleCloseEdit = () => setEdition(false);
 
   // AI target edit: fetch the full connection config lazily when the drawer opens.
-  const [aiTargetTokenSet, setAiTargetTokenSet] = useState(false);
   const [aiTargetValues, setAiTargetValues] = useState<(AiTargetInput & { asset_markings?: string[] | null }) | null>(null);
   useEffect(() => {
     if (edition && isAiTarget && !aiTargetValues) {
@@ -84,7 +84,6 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
         const values = Object.fromEntries(
           AI_TARGET_INPUT_KEYS.map(key => [key, asset[key]]),
         ) as unknown as AiTargetInput & { asset_markings?: string[] | null };
-        setAiTargetTokenSet(asset.ai_target_token_set === true);
         setAiTargetValues(values);
       });
     }
@@ -191,7 +190,6 @@ const AssetPopover: FunctionComponent<AssetPopoverProps> = ({
                 <AiTargetForm
                   initialValues={aiTargetValues}
                   editing
-                  tokenSet={aiTargetTokenSet}
                   onSubmit={submitEditAiTarget}
                   onMarkingsChange={onMarkingsChangeAiTarget}
                   handleClose={handleCloseEdit}
