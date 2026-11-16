@@ -142,13 +142,12 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
             setExpanded(!expanded);
           }
         }}
-        // The version is a Table group row of the DS: chevron, bold label, (count), then its chips.
+        // The version is a Table group row of the DS: bold label, (count), its chips, then the chevron on the right.
         style={{
           ...FDS_GROUP_ROW_STYLE,
           cursor: 'pointer',
         }}
       >
-        {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
         <Text variant="content-base-bold">{`v${source.payload_version ?? '-'}`}</Text>
         {source.payload_installed && (
           <Text variant="content-base" className="text-default-secondary">
@@ -160,6 +159,8 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
         {source.payload_approval_status && source.payload_approval_status !== 'APPROVED' && <ApprovalStatusChip status={source.payload_approval_status} />}
         <Box sx={{ flex: 1 }} />
         {!source.payload_installed && <span onClick={event => event.stopPropagation()}>{installAction}</span>}
+        {/* On the right, as the MUI Accordion and the DS Accordion, and as the History rows. */}
+        {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
       </Box>
       <Collapse in={expanded} unmountOnExit>
         {source.payload_installed && pending && (
