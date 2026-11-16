@@ -407,10 +407,10 @@ class UserServiceTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("given_userSharingAGroup_should_deleteWithoutLoadingAnyUser")
-  void given_userSharingAGroup_should_deleteWithoutLoadingAnyUser() {
+  @DisplayName("given_userSharingAGroup_should_deleteLoadingOnlyThatUser")
+  void given_userSharingAGroup_should_deleteLoadingOnlyThatUser() {
     // -- ARRANGE --
-    // User.groups and Group.users are both EAGER: loading the user to delete used to pull every
+    // Group.users used to be EAGER like User.groups: loading the user to delete pulled every
     // member of its groups, then their groups, and so on (the whole user base on a real platform).
     Group sharedGroup = tenantGroupComposer.forGroup(TenantGroupFixture.getGroup()).persist().get();
     User target =
@@ -442,7 +442,7 @@ class UserServiceTest extends IntegrationTest {
     }
 
     // -- ASSERT --
-    assertThat(loadedUsers).as("deleting a user must not hydrate any User entity").isZero();
+    assertThat(loadedUsers).as("deleting a user must not load its group peers").isEqualTo(1);
     assertThatThrownBy(() -> userService.user(target.getId()))
         .isInstanceOf(ElementNotFoundException.class);
   }

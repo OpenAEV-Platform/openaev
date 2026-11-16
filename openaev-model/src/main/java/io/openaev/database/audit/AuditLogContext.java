@@ -25,6 +25,12 @@ public final class AuditLogContext {
   private static final String REQUEST_ATTR_CLEANUP_REGISTERED = "openaev.audit.cleanupRegistered";
   private static final String REQUEST_ATTR_ENABLED = "openaev.audit.enabled";
 
+  /**
+   * Snapshot value of a not-loaded {@link io.openaev.annotation.AuditDiffUnloaded} collection; the
+   * diff skips a field holding it.
+   */
+  public static final String NOT_LOADED = "<not-loaded>";
+
   private AuditLogContext() {}
 
   // -- Before snapshot --

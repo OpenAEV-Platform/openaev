@@ -1,15 +1,25 @@
 package io.openaev.database.audit;
 
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationConfig;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.BeanPropertyWriter;
+import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
 import io.openaev.annotation.AuditDiffTracked;
+import io.openaev.annotation.AuditDiffUnloaded;
 import io.openaev.config.AuditLogProperties;
 import io.openaev.database.model.Base;
 import jakarta.annotation.Resource;
 import jakarta.persistence.*;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -67,6 +77,9 @@ public class ModelBaseListener {
   private final AuditLogProperties auditLogProperties;
   private final ApplicationEventPublisher appPublisher;
 
+  /** {@link #mapper} with not-loaded {@link AuditDiffUnloaded} collections left unloaded. */
+  private volatile ObjectMapper unloadedSafeMapper;
+
   // -- Standard lifecycle events --
 
   /**
@@ -80,7 +93,7 @@ public class ModelBaseListener {
     if (instance.getId() == null) return;
     try {
       registerCleanupIfNeeded();
-      AuditLogContext.storeBefore(instance.getId(), buildSnapshot(instance));
+      AuditLogContext.storeBefore(instance.getId(), buildSnapshot(unloadedSafeMapper(), instance));
     } catch (Exception e) {
       log.error(
           "[AuditDiff] Failed to store before-snapshot for {}: {}",
@@ -106,7 +119,7 @@ public class ModelBaseListener {
     if (!shouldCaptureAuditDiff(base)) return;
     try {
       registerCleanupIfNeeded();
-      Map<String, Object> snapshot = buildSnapshot(instance);
+      Map<String, Object> snapshot = buildSnapshot(mapper, instance);
       AuditLogContext.storeSnapshot(
           instance.getId(),
           new AuditLogContext.EntitySnapshot(
@@ -134,7 +147,7 @@ public class ModelBaseListener {
     try {
       Map<String, Object> before = AuditLogContext.getBefore(instance.getId());
       if (before == null) return;
-      Map<String, Object> after = buildSnapshot(instance);
+      Map<String, Object> after = buildSnapshot(unloadedSafeMapper(), instance);
       AuditLogContext.storeSnapshot(
           instance.getId(),
           new AuditLogContext.EntitySnapshot(
@@ -178,7 +191,7 @@ public class ModelBaseListener {
     if (!shouldCaptureAuditDiff(base)) return;
     try {
       registerCleanupIfNeeded();
-      Map<String, Object> snapshot = buildSnapshot(instance);
+      Map<String, Object> snapshot = buildSnapshot(mapper, instance);
       AuditLogContext.storeSnapshot(
           instance.getId(),
           new AuditLogContext.EntitySnapshot(
@@ -229,11 +242,57 @@ public class ModelBaseListener {
   /**
    * Serializes an entity to a {@code Map<String,Object>} using the same Jackson configuration as
    * the REST API (respects {@code @JsonIgnore}, {@code @JsonProperty}, custom serializers, etc.).
+   * The create and delete snapshots pass {@link #mapper}, which loads every collection; the load
+   * and update snapshots pass {@link #unloadedSafeMapper()}.
    */
-  private Map<String, Object> buildSnapshot(Base entity) {
+  private Map<String, Object> buildSnapshot(ObjectMapper snapshotMapper, Base entity) {
     // Let serialization failures propagate so callers skip storing/using a broken snapshot.
-    return mapper.convertValue(
-        mapper.valueToTree(entity), new TypeReference<Map<String, Object>>() {});
+    return snapshotMapper.convertValue(
+        snapshotMapper.valueToTree(entity), new TypeReference<Map<String, Object>>() {});
+  }
+
+  private ObjectMapper unloadedSafeMapper() {
+    ObjectMapper safeMapper = unloadedSafeMapper;
+    if (safeMapper == null) {
+      safeMapper =
+          mapper
+              .copy()
+              .registerModule(new SimpleModule().setSerializerModifier(new UnloadedModifier()));
+      unloadedSafeMapper = safeMapper;
+    }
+    return safeMapper;
+  }
+
+  /** Wraps the writer of each {@link AuditDiffUnloaded} property. */
+  private static final class UnloadedModifier extends BeanSerializerModifier {
+    @Override
+    public List<BeanPropertyWriter> changeProperties(
+        SerializationConfig config, BeanDescription beanDesc, List<BeanPropertyWriter> writers) {
+      writers.replaceAll(
+          writer ->
+              writer.getAnnotation(AuditDiffUnloaded.class) != null
+                  ? new UnloadedWriter(writer)
+                  : writer);
+      return writers;
+    }
+  }
+
+  /** Writes {@link AuditLogContext#NOT_LOADED} instead of loading a not-loaded collection. */
+  private static final class UnloadedWriter extends BeanPropertyWriter {
+    UnloadedWriter(BeanPropertyWriter base) {
+      super(base);
+    }
+
+    @Override
+    public void serializeAsField(Object bean, JsonGenerator gen, SerializerProvider prov)
+        throws Exception {
+      Object value = get(bean);
+      if (value != null && !Hibernate.isInitialized(value)) {
+        gen.writeStringField(getName(), AuditLogContext.NOT_LOADED);
+        return;
+      }
+      super.serializeAsField(bean, gen, prov);
+    }
   }
 
   private boolean shouldCaptureAuditDiff(Object entity) {

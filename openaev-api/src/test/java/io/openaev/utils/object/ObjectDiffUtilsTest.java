@@ -117,6 +117,29 @@ class ObjectDiffUtilsTest {
   class ComputeFieldChanges {
 
     @Test
+    @DisplayName("Should skip a field not loaded on either side, but keep a real null change")
+    void given_notLoadedField_should_skipIt() {
+      // -- ARRANGE --
+      Map<String, Object> before = new LinkedHashMap<>();
+      before.put("members", AuditLogContext.NOT_LOADED);
+      before.put("tags", List.of("a"));
+      before.put("description", null);
+      Map<String, Object> after = new LinkedHashMap<>();
+      after.put("members", List.of("user-1"));
+      after.put("tags", AuditLogContext.NOT_LOADED);
+      after.put("description", "set");
+
+      // -- ACT --
+      List<ObjectDiffUtils.FieldChange> changes =
+          ObjectDiffUtils.computeFieldChanges(before, after);
+
+      // -- ASSERT --
+      assertThat(changes)
+          .extracting(ObjectDiffUtils.FieldChange::field)
+          .containsExactly("description");
+    }
+
+    @Test
     @DisplayName("Should return empty list when both before and after are null")
     void given_bothNull_should_returnEmptyList() {
       // -- ACT & ASSERT --

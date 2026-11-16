@@ -328,10 +328,10 @@ class TenantUserServiceTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("given_userSharingATenantGroup_should_detachWithoutLoadingAnyUser")
-    void given_userSharingATenantGroup_should_detachWithoutLoadingAnyUser() {
+    @DisplayName("given_userSharingATenantGroup_should_detachLoadingOnlyThatUser")
+    void given_userSharingATenantGroup_should_detachLoadingOnlyThatUser() {
       // -- ARRANGE --
-      // User.groups and Group.users are both EAGER: loading the user to detach used to pull every
+      // Group.users used to be EAGER like User.groups: loading the user to detach pulled every
       // member of its groups, then their groups, and so on (the whole user base on a real
       // platform).
       Group sharedGroup =
@@ -366,7 +366,7 @@ class TenantUserServiceTest extends IntegrationTest {
       }
 
       // -- ASSERT --
-      assertThat(loadedUsers).as("detaching a user must not hydrate any User entity").isZero();
+      assertThat(loadedUsers).as("detaching a user must not load its group peers").isEqualTo(1);
       assertThat(groupRepository.findUserIdsByGroupId(sharedGroup.getId()))
           .hasSize(5)
           .doesNotContain(target.getId());

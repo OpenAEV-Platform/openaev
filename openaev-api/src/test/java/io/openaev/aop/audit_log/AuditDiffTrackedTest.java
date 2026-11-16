@@ -8,13 +8,24 @@ import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Role;
+import io.openaev.database.model.User;
+import io.openaev.service.platform.groups.PlatformGroupService;
 import io.openaev.utils.fixtures.PlatformRoleFixture;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.PlatformRoleComposer;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupComposer;
 import io.openaev.utils.fixtures.platform.PlatformGroupFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.object.ObjectDiffUtils;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.hibernate.Session;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +55,8 @@ class AuditDiffTrackedTest extends IntegrationTest {
 
   @Autowired private PlatformGroupComposer platformGroupComposer;
   @Autowired private PlatformRoleComposer platformRoleComposer;
+  @Autowired private UserComposer userComposer;
+  @Autowired private PlatformGroupService platformGroupService;
 
   @BeforeEach
   void setup() {
@@ -180,6 +193,105 @@ class AuditDiffTrackedTest extends IntegrationTest {
       // Assert
       Map<String, AuditLogContext.EntitySnapshot> snapshots = AuditLogContext.consumeAllSnapshots();
       assertThat(snapshots).doesNotContainKey(group.getId());
+    }
+  }
+
+  @Nested
+  @DisplayName("Group members (LAZY, left unloaded by the load and update snapshots)")
+  class GroupMembers {
+
+    private record GroupWithMembers(String groupId, List<String> memberIds) {}
+
+    private GroupWithMembers groupWithMembers(String name, int members) {
+      PlatformGroupComposer.Composer groupComposer =
+          platformGroupComposer.forPlatformGroup(PlatformGroupFixture.getPlatformGroup(name));
+      String groupId = groupComposer.persist().get().getId();
+      List<String> memberIds = new ArrayList<>();
+      for (int i = 0; i < members; i++) {
+        memberIds.add(
+            userComposer
+                .forUser(
+                    UserFixture.getUser("Member", "Audit", UUID.randomUUID() + "@test.invalid"))
+                .withGroup(groupComposer)
+                .persist()
+                .get()
+                .getId());
+      }
+      entityManager.flush();
+      entityManager.clear();
+      AuditLogContext.clear();
+      return new GroupWithMembers(groupId, memberIds);
+    }
+
+    @Test
+    @DisplayName("given_userSharingAGroup_should_loadOnlyThatUserWithAuditEnabled")
+    void given_userSharingAGroup_should_loadOnlyThatUserWithAuditEnabled() {
+      // Arrange
+      String userId = groupWithMembers("Shared audited group", 5).memberIds().getFirst();
+      Statistics stats = entityManager.unwrap(Session.class).getSessionFactory().getStatistics();
+      boolean statisticsWereEnabled = stats.isStatisticsEnabled();
+      stats.setStatisticsEnabled(true);
+      stats.clear();
+
+      // Act — the @PostLoad snapshot of each of its groups must not load the group's members
+      long loadedUsers;
+      try {
+        User user = entityManager.find(User.class, userId);
+        assertThat(user.getUnscopedGroups()).isNotEmpty();
+        loadedUsers = stats.getEntityStatistics(User.class.getName()).getLoadCount();
+      } finally {
+        stats.setStatisticsEnabled(statisticsWereEnabled);
+      }
+
+      // Assert
+      assertThat(loadedUsers).as("loading a user must not load its group peers").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_groupDeleted_should_listItsMembersInTheDeleteSnapshot")
+    void given_groupDeleted_should_listItsMembersInTheDeleteSnapshot() {
+      // Arrange
+      GroupWithMembers group = groupWithMembers("Deleted audited group", 2);
+
+      // Act — through the service, which unlinks the members before the delete
+      platformGroupService.delete(group.groupId());
+      entityManager.flush();
+
+      // Assert
+      AuditLogContext.EntitySnapshot snapshot =
+          AuditLogContext.consumeAllSnapshots().get(group.groupId());
+      assertThat(snapshot.operation()).isEqualTo("delete");
+      assertThat(snapshot.before().get("group_users"))
+          .asInstanceOf(InstanceOfAssertFactories.LIST)
+          .containsExactlyInAnyOrderElementsOf(group.memberIds());
+      assertThat(
+              ObjectDiffUtils.computeFieldChanges(snapshot.before(), snapshot.after()).stream()
+                  .map(ObjectDiffUtils.FieldChange::field))
+          .contains("group_users");
+    }
+
+    @Test
+    @DisplayName("given_membersReadDuringAnUpdate_should_notReportAMembersChange")
+    void given_membersReadDuringAnUpdate_should_notReportAMembersChange() {
+      // Arrange
+      String groupId = groupWithMembers("Updated audited group", 2).groupId();
+
+      // Act — the members are loaded after the before-snapshot, then a field changes
+      Group loaded = entityManager.find(Group.class, groupId);
+      assertThat(loaded.getUsers()).hasSize(2);
+      loaded.setName("Renamed audited group");
+      entityManager.flush();
+
+      // Assert
+      AuditLogContext.EntitySnapshot snapshot = AuditLogContext.consumeAllSnapshots().get(groupId);
+      assertThat(snapshot.before().get("group_users")).isEqualTo(AuditLogContext.NOT_LOADED);
+      assertThat(snapshot.after().get("group_users"))
+          .asInstanceOf(InstanceOfAssertFactories.LIST)
+          .hasSize(2);
+      assertThat(
+              ObjectDiffUtils.computeFieldChanges(snapshot.before(), snapshot.after()).stream()
+                  .map(ObjectDiffUtils.FieldChange::field))
+          .containsExactly("group_name");
     }
   }
 }

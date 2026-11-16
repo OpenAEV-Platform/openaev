@@ -26,10 +26,6 @@ public interface UserRepository
 
   long countByIdIn(Set<String> ids);
 
-  /** Reads the email alone, without hydrating the user and its EAGER groups (and their users). */
-  @Query("SELECT u.email FROM User u WHERE u.id = :userId")
-  Optional<String> findEmailById(@Param("userId") String userId);
-
   Optional<User> findByEmailIgnoreCase(String email);
 
   @Query(
@@ -330,19 +326,6 @@ public interface UserRepository
       value = "SELECT us.user_id FROM users us WHERE us.user_id = :userId FOR UPDATE",
       nativeQuery = true)
   List<String> lockRowAgainstNewLinks(@Param("userId") String userId);
-
-  // Native: a set-based delete scoped by tenant through a sub-query; removing it through the
-  // loaded collection would hydrate the user, its EAGER groups and their users, in cascade. No
-  // entity is dirtied: the collection path did not dirty the audited Group nor the unversioned
-  // User either, and the join table is not indexed nor streamed, so no side effect is lost.
-  @Modifying(flushAutomatically = true, clearAutomatically = true)
-  @Query(
-      value =
-          "DELETE FROM users_groups WHERE user_id = :userId AND group_id IN ("
-              + "SELECT group_id FROM groups WHERE tenant_id IN (:tenantIds))",
-      nativeQuery = true)
-  void removeGroupsOfTenants(
-      @Param("userId") String userId, @Param("tenantIds") Collection<String> tenantIds);
 
   // Native: a set-based delete scoped by tenant through a sub-query. It touches a join table that
   // is not indexed, audited nor streamed, so no session side effect is lost.

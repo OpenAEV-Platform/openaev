@@ -241,11 +241,6 @@ public class UserService {
         .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
   }
 
-  /** Reads the email alone, without hydrating the user and its EAGER groups (and their users). */
-  public Optional<String> findEmailById(@NotBlank final String userId) {
-    return userRepository.findEmailById(userId);
-  }
-
   /** Finds users by IDs (platform scope, no tenant filtering). */
   @Transactional(readOnly = true)
   public List<User> find(@NotNull final List<String> userIds) {
@@ -436,12 +431,8 @@ public class UserService {
 
   @Transactional(rollbackFor = Exception.class)
   public void delete(String userId) {
-    // The email alone: loading the user would pull its EAGER groups and their users, in cascade.
-    String email =
-        userRepository
-            .findEmailById(userId)
-            .orElseThrow(() -> new ElementNotFoundException("User not found with id: " + userId));
-    ReservedKeyValidator.validateUserEmailPattern(email);
+    User existing = user(userId);
+    ReservedKeyValidator.validateUserEmailPattern(existing.getEmail());
     List<String> tenantIds = userRepository.findTenantIdsByUserId(userId);
     sessionManager.invalidateUserSession(userId);
     userRepository.deleteByIdNative(userId);
@@ -949,13 +940,11 @@ public class UserService {
     if (tenantIds.isEmpty()) {
       return;
     }
-    // A targeted write: loading the user would pull its EAGER groups and their users, in cascade.
-    userRepository.removeGroupsOfTenants(userId, tenantIds);
+    User user = user(userId);
+    revokeTenantGroups(user, tenantIds);
+    User savedUser = userRepository.save(user);
     markingClearanceCacheManager.evictForUser(userId);
-    // Only a live session needs the user reloaded to be refreshed.
-    if (!sessionManager.findUserSessions(userId).isEmpty()) {
-      sessionManager.refreshUserSessions(user(userId));
-    }
+    sessionManager.refreshUserSessions(savedUser);
   }
 
   /**
