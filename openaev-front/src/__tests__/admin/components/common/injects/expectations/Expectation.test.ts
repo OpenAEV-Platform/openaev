@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { expectationTypeLabelKey } from '../../../../../../admin/components/common/injects/expectations/Expectation';
-import { isManualExpectation, isTechnicalExpectation } from '../../../../../../admin/components/common/injects/expectations/ExpectationUtils';
+import { defaultPayloadExpectations, expectationTypeLabelKey } from '../../../../../../admin/components/common/injects/expectations/Expectation';
+import {
+  enabledExpectations,
+  isManualExpectation,
+  isTechnicalExpectation,
+  predefinedExpectations,
+} from '../../../../../../admin/components/common/injects/expectations/ExpectationUtils';
 
 describe('Expectation type helpers', () => {
   describe('Function: expectationTypeLabelKey()', () => {
@@ -33,6 +38,52 @@ describe('Expectation type helpers', () => {
       // -- ACT & ASSERT --
       expect(isTechnicalExpectation(type)).toBe(technical);
       expect(isManualExpectation(type)).toBe(manual);
+    });
+  });
+
+  describe('Functions: enabledExpectations() and predefinedExpectations()', () => {
+    const contractExpectations = [
+      {
+        expectation_type: 'PREVENTION',
+        expectation_is_predefined: true,
+      },
+      {
+        expectation_type: 'DETECTION',
+        expectation_is_predefined: false,
+      },
+      {
+        expectation_type: 'LOGGING',
+        expectation_is_predefined: true,
+      },
+    ];
+
+    it.each([
+      [true, ['PREVENTION', 'DETECTION', 'LOGGING'], ['PREVENTION', 'LOGGING']],
+      [false, ['PREVENTION', 'DETECTION'], ['PREVENTION']],
+    ])('given Logging enabled: %s, should keep %j and predefine %j', (isLoggingEnabled, enabled, predefined) => {
+      // -- ACT --
+      const enabledTypes = enabledExpectations(contractExpectations, isLoggingEnabled).map(e => e.expectation_type);
+      const predefinedTypes = predefinedExpectations(contractExpectations, isLoggingEnabled).map(e => e.expectation_type);
+
+      // -- ASSERT --
+      expect(enabledTypes).toEqual(enabled);
+      expect(predefinedTypes).toEqual(predefined);
+    });
+
+    it('given no contract expectations, should return an empty list', () => {
+      // -- ACT & ASSERT --
+      expect(enabledExpectations(undefined, false)).toEqual([]);
+      expect(predefinedExpectations(undefined, true)).toEqual([]);
+    });
+  });
+
+  describe('Function: defaultPayloadExpectations()', () => {
+    it.each([
+      [true, ['PREVENTION', 'DETECTION', 'LOGGING']],
+      [false, ['PREVENTION', 'DETECTION']],
+    ])('given Logging enabled: %s, should return %j', (isLoggingEnabled, expected) => {
+      // -- ACT & ASSERT --
+      expect(defaultPayloadExpectations(isLoggingEnabled)).toEqual(expected);
     });
   });
 });

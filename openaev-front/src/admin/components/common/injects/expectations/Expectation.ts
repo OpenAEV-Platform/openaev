@@ -1,5 +1,5 @@
 import { SECURITY_PLATFORM_TYPE_LABELS, type SecurityPlatformType } from '../../../../../components/securityPlatformType';
-import { type InjectExpectationOutput } from '../../../../../utils/api-types';
+import { type InjectExpectationOutput, type ThreatArsenalActionCreateInput } from '../../../../../utils/api-types';
 
 export interface InjectExpectationsStore extends Omit<InjectExpectationOutput, 'inject_expectation_team' | 'inject_expectation_user' | 'inject_expectation_article' | 'inject_expectation_challenge' | 'inject_expectation_asset'> {
   inject_expectation_id: string;
@@ -72,6 +72,12 @@ export const POSTURE_EXPECTATION_TYPES: string[] = [
   ExpectationType.VULNERABILITY,
   ...HUMAN_EXPECTATION_TYPES,
 ];
+
+// The expectations a new payload starts with: Logging joins Prevention and Detection while its
+// preview feature is on.
+export const defaultPayloadExpectations = (isLoggingEnabled: boolean): ThreatArsenalActionCreateInput['action_expectations'] => (
+  isLoggingEnabled ? ['PREVENTION', 'DETECTION', 'LOGGING'] : ['PREVENTION', 'DETECTION']
+);
 
 // i18n key of each expectation type label, the HUMAN_RESPONSE result type included.
 const EXPECTATION_TYPE_LABELS: Record<string, string> = {
