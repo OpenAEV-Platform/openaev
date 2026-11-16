@@ -14,6 +14,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -22,10 +23,16 @@ import org.hibernate.annotations.UuidGenerator;
  *
  * <p>One row per user and Hub item: the Hub items are platform-wide, so the row carries no tenant.
  * Implements {@link UserScoped} so SSE delivery is restricted to the owning user.
+ *
+ * <p>{@link DynamicUpdate} because the user marking an item read and the collector refreshing its
+ * title run in separate transactions on the same row: with the default full-row update, whichever
+ * commits second would write back the stale value of the column the other changed (an item turned
+ * unread again, or a refreshed title lost).
  */
 @Entity
 @Getter
 @Setter
+@DynamicUpdate
 @Table(name = "news_feed_items")
 @EntityListeners({ModelBaseListener.class})
 public class NewsFeedItem implements Base, UserScoped {

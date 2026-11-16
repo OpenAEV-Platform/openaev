@@ -304,9 +304,12 @@ public class XtmHubService {
 
   /**
    * Synchronizes the news feed of the platform with XTM Hub: consumes the items the Hub provisioned
-   * for the platform, which is one call per run whatever the number of tenants, and creates them
-   * for the users of the registered tenants. Registered tenants are tried in registration order
-   * until one token is accepted.
+   * for the platform, which is one call per run whatever the number of tenants, and applies them to
+   * the users' items: new ones are created for the users of the registered tenants, changed ones
+   * are updated and deleted ones are removed (see {@link
+   * NewsFeedItemService#applyProvisionedItems}). Registered tenants are tried in registration order
+   * until one token is accepted. Nothing is consumed, hence nothing is created, updated nor
+   * deleted, while the {@link PreviewFeature#XTM_HUB_NEWS_FEED} feature flag is off.
    *
    * <p>Nothing is thrown: the Hub removes the items it returns, so those of a failed run are not
    * delivered again, and the run must not stop the scheduled task.
@@ -315,7 +318,7 @@ public class XtmHubService {
     try {
       consumeAndCreateNewsFeedItems();
     } catch (Exception e) {
-      log.error("The XTM Hub news feed items could not be created: {}", e.getMessage(), e);
+      log.error("The XTM Hub news feed items could not be applied: {}", e.getMessage(), e);
     }
   }
 
@@ -350,7 +353,7 @@ public class XtmHubService {
       switch (xtmHubClient.consumeProvisionedNewsFeedItems(registration.getToken(), platformId)) {
         case NewsFeedFetchResult.Fetched fetched -> {
           newsFeedTokensRejectedLogged.set(false);
-          newsFeedItemService.createMissingItems(fetched.payload().items(), registeredTenantIds);
+          newsFeedItemService.applyProvisionedItems(fetched.payload().items(), registeredTenantIds);
           return;
         }
         case NewsFeedFetchResult.TokenRejected rejected ->

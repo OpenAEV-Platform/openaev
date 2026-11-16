@@ -2,6 +2,7 @@ package io.openaev.database.model;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.groups.Tuple.tuple;
 
 import io.openaev.IntegrationTest;
 import io.openaev.database.repository.NewsFeedItemRepository;
@@ -10,12 +11,14 @@ import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.fixtures.NewsFeedItemFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -145,6 +148,98 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
 
       // Assert
       assertThat(indexes.intValue()).isEqualTo(1);
+    }
+  }
+
+  @Nested
+  @DisplayName("Rows of a Hub item")
+  class RowsOfAHubItem {
+
+    @Test
+    @DisplayName("Given rows of several users and items, should page the ids of one Hub item")
+    void given_rowsOfSeveralUsersAndItems_should_pageIdsOfOneHubItem() {
+      // Arrange
+      List<String> ids =
+          IntStream.range(0, 3)
+              .mapToObj(
+                  i ->
+                      newsFeedItemRepository
+                          .save(NewsFeedItemFixture.createNewsFeedItem(createUser(), "hub-1"))
+                          .getId())
+              .sorted()
+              .toList();
+      newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(createUser(), "hub-2"));
+      entityManager.flush();
+
+      // Act
+      List<String> firstPage =
+          newsFeedItemRepository.findIdsByHubItemIdAfter("hub-1", "", PageRequest.ofSize(2));
+      List<String> secondPage =
+          newsFeedItemRepository.findIdsByHubItemIdAfter(
+              "hub-1", firstPage.getLast(), PageRequest.ofSize(2));
+
+      // Assert
+      assertThat(firstPage).containsExactly(ids.get(0), ids.get(1));
+      assertThat(secondPage).containsExactly(ids.get(2));
+    }
+
+    @Test
+    @DisplayName("Given ids, should load their rows with their user")
+    void given_ids_should_loadRowsWithTheirUser() {
+      // Arrange
+      User first = createUser();
+      User second = createUser();
+      NewsFeedItem firstItem =
+          newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(first, "hub-1"));
+      NewsFeedItem secondItem =
+          newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(second, "hub-1"));
+      newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(first, "hub-2"));
+      entityManager.flush();
+      entityManager.clear();
+
+      // Act
+      List<NewsFeedItem> items =
+          newsFeedItemRepository.findAllWithUserByIdIn(
+              List.of(firstItem.getId(), secondItem.getId()));
+
+      // Assert
+      assertThat(items)
+          .extracting(NewsFeedItem::getId, NewsFeedItem::getOwnerUserId)
+          .containsExactlyInAnyOrder(
+              tuple(firstItem.getId(), first.getId()), tuple(secondItem.getId(), second.getId()));
+    }
+  }
+
+  @Nested
+  @DisplayName("Concurrent updates")
+  class ConcurrentUpdates {
+
+    @Test
+    @DisplayName("Given an item marked read meanwhile, updating its title should keep it read")
+    void given_itemMarkedReadMeanwhile_should_keepItReadWhenTitleChanges() {
+      // Arrange
+      NewsFeedItem item =
+          newsFeedItemRepository.saveAndFlush(
+              NewsFeedItemFixture.createDefaultNewsFeedItem(createUser()));
+      entityManager.clear();
+      NewsFeedItem loaded = newsFeedItemRepository.findById(item.getId()).orElseThrow();
+      // Another transaction marks the item read after the collector loaded it
+      entityManager
+          .createNativeQuery(
+              "update news_feed_items set news_feed_item_is_read = true"
+                  + " where news_feed_item_id = :id")
+          .setParameter("id", item.getId())
+          .executeUpdate();
+
+      // Act
+      loaded.setTitle("Renamed");
+      entityManager.flush();
+      entityManager.clear();
+
+      // Assert: only the title column was written
+      NewsFeedItem reloaded = newsFeedItemRepository.findById(item.getId()).orElseThrow();
+      assertThat(reloaded.getTitle()).isEqualTo("Renamed");
+      assertThat(reloaded.isRead()).isTrue();
     }
   }
 

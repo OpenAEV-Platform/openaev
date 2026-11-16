@@ -19,6 +19,7 @@ import { XTM_HUB_DEFAULT_URL } from '../../../../utils/Environment';
 import useAuth from '../../../../utils/hooks/useAuth';
 import TopBarIconLink from '../../nav/TopBarIconLink';
 import { buildHubUrl } from './newsFeedUtils';
+import useNewsFeedStreamRefresh from './useNewsFeedStreamRefresh';
 
 const MAX_DISPLAYED_TAGS = 3;
 
@@ -57,6 +58,27 @@ const NewsFeedList = () => {
       throw error;
     });
   };
+
+  // A change streamed to the user (the collector updated or deleted an item, or created one) is shown
+  // without a reload. The list is refetched in place, with no loading placeholders: the rows the user
+  // looks at do not blink out for a change elsewhere. A failed refetch keeps the rows shown.
+  useNewsFeedStreamRefresh(() => {
+    const requestId = ++latestRequest.current;
+    searchMyNewsFeedItems(searchPaginationInput, false)
+      .then(({ data }) => {
+        if (requestId !== latestRequest.current) {
+          return;
+        }
+        setFailed(false);
+        setItems(data.content);
+        queryableHelpers.paginationHelpers.handleChangeTotalElements(data.totalElements);
+        // The current page fell past the end because items were deleted: back to the first page.
+        if (data.pageable.pageNumber > 0 && data.totalPages <= data.pageable.pageNumber) {
+          queryableHelpers.paginationHelpers.handleChangePage(0);
+        }
+      })
+      .catch(() => {});
+  });
 
   const hubUrl = (item: NewsFeedItemOutput) => (
     item.news_feed_item_url_path
