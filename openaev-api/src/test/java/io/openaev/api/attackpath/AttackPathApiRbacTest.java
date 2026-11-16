@@ -3,6 +3,7 @@ package io.openaev.api.attackpath;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -112,22 +113,43 @@ class AttackPathApiRbacTest extends IntegrationTest {
   @AfterEach
   void tearDown() {
     // The class is not @Transactional: every fixture row is committed, so each test deletes its
-    // own,
-    // under the default tenant's scope they were written in. Memberships go with their users.
-    deleteInDefaultTenant(Grant.class, grantIds);
-    deleteInDefaultTenant(Group.class, groupIds);
-    deleteInDefaultTenant(Role.class, roleIds);
-    deleteInDefaultTenant(() -> userIds.forEach(userRepository::deleteByIdNative));
-    deleteInDefaultTenant(AttackPathExecution.class, executionIds);
-    deleteInDefaultTenant(() -> exerciseIds.forEach(exerciseRepository::deleteById));
-    deleteInDefaultTenant(Scenario.class, scenarioIds);
-    setDevFeatures(originalDevFeatures);
-    userComposer.reset();
-    grantComposer.reset();
-    tenantGroupComposer.reset();
-    tenantRoleComposer.reset();
-    exerciseComposer.reset();
-    scenarioComposer.reset();
+    // own, under the default tenant's scope they were written in. Every step runs even when an
+    // earlier one fails, so the settings and composers are restored in any case.
+    runAll(
+        () -> deleteInDefaultTenant(Grant.class, grantIds),
+        () -> deleteInDefaultTenant(Group.class, groupIds),
+        () -> deleteInDefaultTenant(Role.class, roleIds),
+        () -> deleteUsersInDefaultTenant(userIds),
+        () -> deleteInDefaultTenant(AttackPathExecution.class, executionIds),
+        () -> deleteInDefaultTenant(() -> exerciseIds.forEach(exerciseRepository::deleteById)),
+        () -> deleteInDefaultTenant(Scenario.class, scenarioIds),
+        () -> setDevFeatures(originalDevFeatures),
+        userComposer::reset,
+        grantComposer::reset,
+        tenantGroupComposer::reset,
+        tenantRoleComposer::reset,
+        exerciseComposer::reset,
+        scenarioComposer::reset);
+  }
+
+  // Runs every step in order, whatever an earlier one throws: the first failure is rethrown at the
+  // end, the others are attached to it as suppressed.
+  private static void runAll(Runnable... steps) {
+    Throwable failure = null;
+    for (Runnable step : steps) {
+      try {
+        step.run();
+      } catch (Throwable e) {
+        if (failure == null) {
+          failure = e;
+        } else {
+          failure.addSuppressed(e);
+        }
+      }
+    }
+    if (failure != null) {
+      throw new IllegalStateException("tearDown failed", failure);
+    }
   }
 
   // -- the 5 reads, keyed by simulationId, with the params each requires so the request reaches the
@@ -327,13 +349,13 @@ class AttackPathApiRbacTest extends IntegrationTest {
   // A user granted READ on each given simulation through resource grants only (empty-capability
   // role),
   // so the picker rows it sees come from grants, not a capability.
-  private Authentication grantedReadOn(String... exerciseIds) {
+  private Authentication grantedReadOn(String... grantedExerciseIds) {
     TenantGroupComposer.Composer group =
         tenantGroupComposer
             .forGroup(TenantGroupFixture.getGroup())
             .withRole(
                 tenantRoleComposer.forRole(TenantRoleFixture.getRole(new HashSet<>(Set.of()))));
-    for (String exerciseId : exerciseIds) {
+    for (String exerciseId : grantedExerciseIds) {
       Grant grant = new Grant();
       grant.setGrantResourceType(Grant.GRANT_RESOURCE_TYPE.SIMULATION);
       grant.setName(Grant.GRANT_TYPE.OBSERVER);
@@ -384,18 +406,36 @@ class AttackPathApiRbacTest extends IntegrationTest {
     return tenantTx.execute(TxCtx.forTenant(DEFAULT_TENANT_UUID), work);
   }
 
-  // A set-based delete by id: no entity is loaded, so no lazy collection is read or cascaded. The
-  // join table rows that reference a deleted row go with it (ON DELETE CASCADE).
+  // A set-based delete by id: no entity is loaded, so no lazy collection is read or cascaded. For a
+  // group or a role, Hibernate clears the collections the entity owns (groups_roles, users_groups,
+  // groups_markings, roles_capabilities) before the row itself, since those foreign keys do not
+  // cascade. The count must equal the ids: a scope that stops matching would delete nothing,
+  // silently.
   private void deleteInDefaultTenant(Class<?> entity, List<String> ids) {
-    if (ids.isEmpty()) {
+    List<String> distinctIds = ids.stream().distinct().toList();
+    if (distinctIds.isEmpty()) {
       return;
     }
     deleteInDefaultTenant(
-        () ->
-            entityManager
-                .createQuery("DELETE FROM " + entity.getSimpleName() + " e WHERE e.id IN :ids")
-                .setParameter("ids", ids)
-                .executeUpdate());
+        () -> {
+          int deleted =
+              entityManager
+                  .createQuery("DELETE FROM " + entity.getSimpleName() + " e WHERE e.id IN :ids")
+                  .setParameter("ids", distinctIds)
+                  .executeUpdate();
+          assertEquals(distinctIds.size(), deleted, entity.getSimpleName() + " rows deleted");
+        });
+  }
+
+  // Only the memberships (users_tenants, users_groups) go with a deleted user, through ON DELETE
+  // CASCADE; the user's groups, roles and grants are deleted by their own ids.
+  private void deleteUsersInDefaultTenant(List<String> ids) {
+    List<String> distinctIds = ids.stream().distinct().toList();
+    deleteInDefaultTenant(
+        () -> {
+          int deleted = distinctIds.stream().mapToInt(userRepository::deleteByIdNative).sum();
+          assertEquals(distinctIds.size(), deleted, "User rows deleted");
+        });
   }
 
   private void deleteInDefaultTenant(Runnable delete) {
@@ -406,13 +446,14 @@ class AttackPathApiRbacTest extends IntegrationTest {
   // and it is a member of it, as every real user is of the tenants it works in.
   private User memberOfDefaultTenant(UserComposer.Composer user) {
     User persisted = inDefaultTenant(() -> user.persist().get());
-    tenantHelper.attachUserToTenant(persisted.getId(), DEFAULT_TENANT_UUID);
+    // Recorded before the membership is added, so a failure there still leaves the rows deleted.
     userIds.add(persisted.getId());
     for (Group group : persisted.getUnscopedGroups()) {
       groupIds.add(group.getId());
       group.getRoles().stream().map(Role::getId).forEach(roleIds::add);
       group.getGrants().stream().map(Grant::getId).forEach(grantIds::add);
     }
+    tenantHelper.attachUserToTenant(persisted.getId(), DEFAULT_TENANT_UUID);
     return persisted;
   }
 
