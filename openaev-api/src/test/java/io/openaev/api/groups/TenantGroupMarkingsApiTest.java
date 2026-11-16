@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.api.groups.dto.GroupUpdateMarkingsInput;
+import io.openaev.config.TenantTables;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
@@ -35,7 +36,6 @@ import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -45,7 +45,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -81,7 +80,7 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
   @Autowired private MarkingClearanceCacheManager clearanceCache;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private UserComposer userComposer;
-  @Autowired private Environment environment;
+  @Autowired private TenantTables tenantTables;
   @PersistenceContext private EntityManager entityManager;
 
   private String tenantId;
@@ -336,11 +335,13 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
 
   // -- HELPERS --
 
-  /** Whether this test context runs with marking_definitions tenant-active. */
+  /**
+   * Whether this test context runs with marking_definitions tenant-active, as the statement
+   * inspector resolves it: the active set of the application's {@link TenantTables}, which expands
+   * the {@value TenantTables#ALL_STRICT} wildcard.
+   */
   private boolean isMarkingDefinitionsActive() {
-    return Arrays.stream(environment.getProperty("openaev.tenant.active-tables", "").split(","))
-        .map(String::trim)
-        .anyMatch("marking_definitions"::equals);
+    return tenantTables.family("marking_definitions") == TenantTables.Family.STRICT;
   }
 
   private String createMarking() throws Exception {
