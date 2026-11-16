@@ -146,7 +146,11 @@ public class ExecutableInjectService {
         throw new IllegalArgumentException(
             "Missing mandatory input '%s' for inject execution".formatted(argumentKey));
       }
-      binder.bind(argumentKey, resolvedArgument.value());
+      if (hasText(defaultValue) && defaultValue.equals(resolvedArgument.value())) {
+        binder.bindAuthored(argumentKey, resolvedArgument.value());
+      } else {
+        binder.bind(argumentKey, resolvedArgument.value());
+      }
     }
     return binder.render(command);
   }

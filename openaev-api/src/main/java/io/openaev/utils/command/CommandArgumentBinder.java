@@ -1,8 +1,16 @@
 package io.openaev.utils.command;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
+import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -62,6 +70,21 @@ public class CommandArgumentBinder {
   private static final Pattern POWERSHELL_SINGLE_QUOTES =
       Pattern.compile("['\\u2018\\u2019\\u201A\\u201B]");
 
+  /**
+   * Environment variable references kept live in an authored value, so a payload default such as
+   * {@code $env:TEMP\out} still points to the endpoint's folder. Only a plain variable name is
+   * accepted, which cannot change the structure of the command.
+   */
+  private static final Pattern POWERSHELL_ENVIRONMENT_REFERENCE =
+      Pattern.compile("\\$env:(?<name>[A-Za-z_][A-Za-z0-9_]*)", Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern SH_ENVIRONMENT_REFERENCE =
+      Pattern.compile(
+          "\\$(?:\\{(?<braced>[A-Za-z_][A-Za-z0-9_]*)}|(?<name>[A-Za-z_][A-Za-z0-9_]*))");
+
+  private static final Pattern CMD_ENVIRONMENT_REFERENCE =
+      Pattern.compile("%(?<name>[A-Za-z_][A-Za-z0-9_]*)%");
+
   private final ExecutorShell shell;
 
   /**
@@ -79,6 +102,8 @@ public class CommandArgumentBinder {
 
   /** generated variable name -> already escaped declaration value. */
   private final Map<String, String> valuesByVariable = new LinkedHashMap<>();
+
+  private final Set<String> authoredVariables = new HashSet<>();
 
   private CommandArgumentBinder(ExecutorShell shell, boolean rejectPlaceholders, String executor) {
     this.shell = shell;
@@ -114,6 +139,18 @@ public class CommandArgumentBinder {
    * @param value the resolved value, possibly attacker-controlled
    */
   public void bind(String argumentKey, String value) {
+    bind(argumentKey, value, false);
+  }
+
+  /**
+   * Registers a value written by the payload author, such as an unchanged argument default. Its
+   * environment variable references stay live, as they would in the command template itself.
+   */
+  public void bindAuthored(String argumentKey, String value) {
+    bind(argumentKey, value, true);
+  }
+
+  private void bind(String argumentKey, String value, boolean authored) {
     if (variablesByKey.containsKey(argumentKey)) {
       return;
     }
@@ -139,6 +176,9 @@ public class CommandArgumentBinder {
     String variable = allocateVariableName(argumentKey);
     variablesByKey.put(argumentKey, variable);
     valuesByVariable.put(variable, sanitized);
+    if (authored) {
+      authoredVariables.add(variable);
+    }
   }
 
   /**
@@ -235,11 +275,75 @@ public class CommandArgumentBinder {
 
   private String declaration(String variable, String value) {
     return switch (shell) {
-      case SH -> variable + "=" + quoteSh(value);
-      case POWERSHELL -> "$" + variable + " = " + quotePowerShell(value);
-      case CMD -> "set \"" + variable + "=" + escapeCmd(value) + "\"";
+      case SH ->
+          variable
+              + "="
+              + keepEnvironmentReferences(
+                  value,
+                  authoredVariables.contains(variable),
+                  SH_ENVIRONMENT_REFERENCE,
+                  CommandArgumentBinder::quoteSh,
+                  reference ->
+                      "\"${"
+                          + Objects.requireNonNullElse(
+                              reference.group("braced"), reference.group("name"))
+                          + "}\"",
+                  "");
+      case POWERSHELL ->
+          "$"
+              + variable
+              + " = "
+              + keepEnvironmentReferences(
+                  value,
+                  authoredVariables.contains(variable),
+                  POWERSHELL_ENVIRONMENT_REFERENCE,
+                  CommandArgumentBinder::quotePowerShell,
+                  reference -> "$env:" + reference.group("name"),
+                  " + ");
+      case CMD ->
+          "set \""
+              + variable
+              + "="
+              + keepEnvironmentReferences(
+                  value,
+                  authoredVariables.contains(variable),
+                  CMD_ENVIRONMENT_REFERENCE,
+                  CommandArgumentBinder::escapeCmd,
+                  reference -> "!" + reference.group("name") + "!",
+                  "")
+              + "\"";
       case NONE -> "";
     };
+  }
+
+  /**
+   * Renders an authored value as literal segments joined to live environment variable references,
+   * each written the way its shell expects. Any other value stays one literal segment.
+   */
+  private static String keepEnvironmentReferences(
+      String value,
+      boolean authored,
+      Pattern reference,
+      UnaryOperator<String> literal,
+      Function<MatchResult, String> variable,
+      String joiner) {
+    if (!authored) {
+      return literal.apply(value);
+    }
+    List<String> parts = new ArrayList<>();
+    Matcher matcher = reference.matcher(value);
+    int literalStart = 0;
+    while (matcher.find()) {
+      if (matcher.start() > literalStart) {
+        parts.add(literal.apply(value.substring(literalStart, matcher.start())));
+      }
+      parts.add(variable.apply(matcher));
+      literalStart = matcher.end();
+    }
+    if (literalStart < value.length() || parts.isEmpty()) {
+      parts.add(literal.apply(value.substring(literalStart)));
+    }
+    return String.join(joiner, parts);
   }
 
   private String reference(String variable) {
