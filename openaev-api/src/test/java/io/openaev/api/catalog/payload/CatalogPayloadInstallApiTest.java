@@ -4,8 +4,10 @@ import static io.openaev.api.catalog.CatalogApi.TENANT_CATALOG_URI;
 import static io.openaev.api.catalog.CatalogSettingsApi.CATALOG_SETTINGS_URI;
 import static io.openaev.api.threat_arsenal.ThreatArsenalApi.TENANT_THREAT_ARSENAL_URL;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
+import static io.openaev.database.model.payload.PayloadRevocation.REVOKED_BY_FILIGRAN;
 import static io.openaev.rest.payload.PayloadApi.TENANT_PAYLOAD_URI;
 import static io.openaev.service.catalog.payload.CatalogPayloadService.OTHER_TYPE_REFUSED;
+import static io.openaev.service.payload.PayloadRevocationService.LIFT_REFUSED;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.PAYLOAD_ID;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.manifest;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadFileName;
@@ -29,6 +31,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.IntegrationTest;
 import io.openaev.api.catalog.CatalogItemMapper;
 import io.openaev.api.catalog.dto.CatalogSettingsInput;
+import io.openaev.api.payload.dto.PayloadRevocationInput;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.DetectionRemediation;
 import io.openaev.database.model.InjectorContract;
@@ -36,14 +39,17 @@ import io.openaev.database.model.Payload;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.catalog.CatalogHistory;
+import io.openaev.database.model.payload.PayloadRevocation;
 import io.openaev.database.repository.CatalogHistoryRepository;
 import io.openaev.database.repository.DetectionRemediationRepository;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.PayloadRepository;
+import io.openaev.database.repository.PayloadRevocationRepository;
 import io.openaev.database.repository.SecurityPlatformRepository;
 import io.openaev.exception.CatalogPayloadReadOnlyException;
 import io.openaev.service.catalog.payload.CatalogPayloadInstaller;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.CatalogReleaseFixture.ReleasedPayload;
 import io.openaev.utils.fixtures.InjectFixture;
@@ -56,6 +62,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -65,6 +72,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
@@ -93,6 +101,8 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   @Autowired private CatalogPayloadInstaller catalogPayloadInstaller;
   @Autowired private SecurityPlatformRepository securityPlatformRepository;
   @Autowired private DetectionRemediationRepository detectionRemediationRepository;
+  @Autowired private PayloadRevocationService payloadRevocationService;
+  @Autowired private PayloadRevocationRepository payloadRevocationRepository;
 
   @BeforeEach
   void attachToDefaultTenant() {
@@ -480,6 +490,114 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
 
       // Assert
       assertThat(autoInstalledVersions()).isEqualTo(expected);
+    }
+  }
+
+  // -- REVOCATION --
+
+  @Nested
+  @DisplayName("Applying the revocations of a release")
+  class ApplyingCatalogueRevocations {
+
+    private String installed() throws Exception {
+      publish("1.261109.0", "VERIFIED", RELEASED, "1.0.0");
+      return installedIds(install(DEFAULT_TENANT_UUID, "1.0.0").andExpect(status().isCreated()))
+          .getFirst();
+    }
+
+    private void applyCatalogueRevocations() {
+      payloadRevocationService.applyCatalogueRevocations(
+          TxCtx.forTenant(DEFAULT_TENANT_UUID), DEFAULT_TENANT_UUID);
+      entityManager.flush();
+    }
+
+    private void revokeByAdmin(String payloadId) throws Exception {
+      committed(
+              post(TENANT_PAYLOAD_URI + "/{payloadId}/revocation", DEFAULT_TENANT_UUID, payloadId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(mapper.writeValueAsString(new PayloadRevocationInput("Too noisy"))))
+          .andExpect(status().isCreated());
+    }
+
+    private ResultActions lift(String payloadId) throws Exception {
+      return committed(
+          delete(TENANT_PAYLOAD_URI + "/{payloadId}/revocation", DEFAULT_TENANT_UUID, payloadId));
+    }
+
+    private Optional<PayloadRevocation> revocation(String payloadId) {
+      return payloadRevocationRepository.findByTenantIdAndPayloadId(DEFAULT_TENANT_UUID, payloadId);
+    }
+
+    @Test
+    @DisplayName("revokes an installed version the release revokes")
+    void given_installedVersionRevokedByRelease_should_revokeIt() throws Exception {
+      // Arrange
+      String payloadId = installed();
+      publish("1.261110.0", "REVOKED", RELEASED, "1.0.0");
+
+      // Act
+      applyCatalogueRevocations();
+
+      // Assert
+      assertThat(revocation(payloadId))
+          .get()
+          .extracting(PayloadRevocation::getReason, PayloadRevocation::isByCatalogue)
+          .containsExactly(REVOKED_BY_FILIGRAN, true);
+    }
+
+    static Stream<Arguments> laterReleases() {
+      return Stream.of(
+          Arguments.of("verified again, revoked by the release", false, "VERIFIED", false),
+          Arguments.of("verified again, revoked by a tenant admin", true, "VERIFIED", true),
+          Arguments.of("no longer listed, revoked by the release", false, null, true));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("laterReleases")
+    @DisplayName("lifts only its own revocations of the versions a later release clears")
+    void given_laterRelease_should_liftOnlyItsOwnRevocationsOfClearedVersions(
+        String description, boolean byAdmin, String laterStatus, boolean stillRevoked)
+        throws Exception {
+      // Arrange
+      String payloadId = installed();
+      if (byAdmin) {
+        revokeByAdmin(payloadId);
+      }
+      publish("1.261110.0", "REVOKED", RELEASED, "1.0.0");
+      applyCatalogueRevocations();
+      if (laterStatus == null) {
+        publish("1.261111.0", "VERIFIED", RELEASED, "1.1.0");
+      } else {
+        publish("1.261111.0", laterStatus, RELEASED, "1.0.0");
+      }
+
+      // Act
+      applyCatalogueRevocations();
+
+      // Assert
+      assertThat(revocation(payloadId).isPresent()).isEqualTo(stillRevoked);
+    }
+
+    @ParameterizedTest(name = "revoked by a tenant admin: {0}")
+    @ValueSource(booleans = {false, true})
+    @DisplayName("refuses to lift a version the release revokes, whoever revoked it")
+    void given_versionRevokedByRelease_should_refuseToLiftIt(boolean byAdmin) throws Exception {
+      // Arrange
+      String payloadId = installed();
+      if (byAdmin) {
+        revokeByAdmin(payloadId);
+      }
+      publish("1.261110.0", "REVOKED", RELEASED, "1.0.0");
+      applyCatalogueRevocations();
+
+      // Act
+      ResultActions result = lift(payloadId);
+
+      // Assert
+      result
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.message").value(LIFT_REFUSED));
+      assertThat(revocation(payloadId)).isPresent();
     }
   }
 

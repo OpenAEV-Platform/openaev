@@ -392,6 +392,11 @@ public class PayloadService {
         .orElseThrow(() -> new ElementNotFoundException("Payload not found"));
   }
 
+  /** Every version of a payload in the tenant. */
+  public List<Payload> versions(String tenantId, String externalId) {
+    return payloadRepository.findAllByTenantIdAndIdentityExternalId(tenantId, externalId);
+  }
+
   public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {
     Payload payload =
         payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);

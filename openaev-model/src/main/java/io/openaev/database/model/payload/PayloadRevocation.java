@@ -15,12 +15,36 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 
-/** A payload version a tenant admin revoked: it no longer runs in the tenant until lifted. */
+/**
+ * A payload version revoked in a tenant, by a tenant admin or by the catalogue: it no longer runs
+ * in the tenant until lifted.
+ */
 @Getter
 @Setter
 @Entity
 @Table(name = "payload_revocations")
 public class PayloadRevocation implements TenantBase {
+
+  public static final String REVOKED_BY_FILIGRAN = "Revoked by Filigran";
+
+  public static PayloadRevocation byAdmin(Payload payload, String reason, User user) {
+    return of(payload, reason, user, false);
+  }
+
+  public static PayloadRevocation byCatalogue(Payload payload) {
+    return of(payload, REVOKED_BY_FILIGRAN, null, true);
+  }
+
+  private static PayloadRevocation of(
+      Payload payload, String reason, User user, boolean byCatalogue) {
+    PayloadRevocation revocation = new PayloadRevocation();
+    revocation.setTenant(payload.getTenant());
+    revocation.setPayload(payload);
+    revocation.setReason(reason);
+    revocation.setUser(user);
+    revocation.setByCatalogue(byCatalogue);
+    return revocation;
+  }
 
   // -- ID --
 
@@ -47,6 +71,9 @@ public class PayloadRevocation implements TenantBase {
   @Column(name = "payload_revocation_reason", updatable = false)
   @NotBlank
   private String reason;
+
+  @Column(name = "payload_revocation_by_catalogue", updatable = false)
+  private boolean byCatalogue;
 
   // -- AUDIT --
 
