@@ -67,6 +67,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 
 /**
  * Service for managing user accounts and authentication.
@@ -443,10 +444,10 @@ public class UserService {
         openAEVConfig.getBaseUrl() + "/api/me/confirm-email-change/" + confirmationCode;
     String validityMinutes = String.valueOf(Math.ceilDivExact(tenMinutes, 60000));
 
-    // Send the confirmation link to the NEW address, so the change takes effect only once the
-    // person
-    // who controls that address confirms it. The recipient carries only the new address and has no
-    // platform account, which the email injector already supports for non-platform recipients.
+    // Send the confirmation link to the NEW address, so the change only takes effect once its
+    // holder
+    // confirms it. The recipient carries only the new address and no platform account, which the
+    // email injector already supports for non-platform recipients.
     User newAddressRecipient = new User();
     // Give the transient recipient an id so the email injector's execution traces can reference it,
     // as EmailExecutor.buildSyntheticRecipient does; it is never persisted.
@@ -528,8 +529,58 @@ public class UserService {
       throw new ElementNotFoundException("Could not find user");
     }
 
+    String previousEmail = user.get().getEmail();
     user.get().setEmail(ecr.getValue().newEmail());
-    return userRepository.save(user.get());
+    User saved = userRepository.save(user.get());
+    notifyPreviousAddressOfChange(previousEmail, saved.getEmail());
+    return saved;
+  }
+
+  // Escape a value embedded in an email body that is processed by FreeMarker and then rendered as
+  // HTML: htmlEscape neutralises tags and <#...>/<@...> directives (all start with '<'); breaking
+  // "${" and "#{" stops FreeMarker interpolation. The value is caller-controlled (a quoted
+  // @Email local part can carry these metacharacters).
+  static String escapeForEmailBody(String raw) {
+    if (raw == null) {
+      return "";
+    }
+    return HtmlUtils.htmlEscape(raw).replace("${", "&#36;{").replace("#{", "&#35;{");
+  }
+
+  // Tell the previous address that the change was applied, so the account owner can react if they
+  // did not start it. Independent delivery: a failure here must not undo a change that has already
+  // taken effect, so the whole body — recipient construction and the transactional send — is
+  // guarded
+  // (the executeNew begin/commit itself can throw, e.g. UnexpectedRollbackException).
+  private void notifyPreviousAddressOfChange(String previousEmail, String newEmail) {
+    // Nothing to warn about when there is no previous address or the address did not actually
+    // change
+    // (a replay of the confirmation code within its validity window yields previous == new).
+    if (previousEmail == null
+        || previousEmail.isBlank()
+        || previousEmail.equalsIgnoreCase(newEmail)) {
+      return;
+    }
+    try {
+      User previousAddressRecipient = new User();
+      previousAddressRecipient.setId(UUID.randomUUID().toString());
+      previousAddressRecipient.setEmail(previousEmail);
+      String subject = "OpenAEV account email changed";
+      String body =
+          """
+              Hi,<br/>
+              <br/>
+              Your OpenAEV account's email address was changed to %s.<br/>
+              <br/>
+              If you did not make this change, please take steps to secure your account.<br/>
+              """
+              .formatted(escapeForEmailBody(newEmail));
+      tenantTx.executeNew(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> mailingService.sendEmail(subject, body, List.of(previousAddressRecipient)));
+    } catch (RuntimeException e) {
+      log.warn("Email-change completion notice to the previous address could not be delivered", e);
+    }
   }
 
   public void sendEmailChangeConfirmationEmail(User user) {
