@@ -11,8 +11,8 @@ catch-all only runs the root `io/openaev/*Test.java` classes and the packages
 added since the last rebalance: it is the smallest API job, with headroom for
 new packages.
 
-The layout was repacked by `balance-api-shards.py 14` from the per-class times
-of the API jobs of four green `main` runs of 15 and 16 November 2026, so that the
+The layout was repacked by `balance-api-shards.py 14` from the median per-class
+times of eight runs of the API jobs on this layout (16 November 2026), so that the
 slowest shard decides the run length as little as possible. Shard `rest/*Test.java`
 stays one unit: `*` does not cross a `/`, so the package cannot be split further
 without listing files.
