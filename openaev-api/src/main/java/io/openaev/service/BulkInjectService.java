@@ -46,7 +46,8 @@ public class BulkInjectService {
   }
 
   public List<Inject> bulkDeleteWithMonitoring(TxCtx ctx, InjectBulkProcessingInput input) {
-    List<Inject> injectsToDelete = resolveTargets(ctx, input);
+    List<Inject> injectsToDelete = injectService.getInjectsToDeleteWithLinks(ctx, input);
+    refuseMissingTargets(input, injectsToDelete);
     String operationId = bulkOperationMonitor.start("delete", "injects", injectsToDelete.size());
     try {
       List<String> injectIds = injectsToDelete.stream().map(Inject::getId).toList();
@@ -72,6 +73,11 @@ public class BulkInjectService {
   private List<Inject> resolveTargets(TxCtx ctx, InjectBulkProcessingInput input) {
     List<Inject> injects =
         injectService.getInjectsAndCheckPermission(ctx, input, Grant.GRANT_TYPE.PLANNER);
+    refuseMissingTargets(input, injects);
+    return injects;
+  }
+
+  private void refuseMissingTargets(InjectBulkProcessingInput input, List<Inject> injects) {
     if (!CollectionUtils.isEmpty(input.getInjectIDsToProcess())) {
       Set<String> resolvedIds = injects.stream().map(Inject::getId).collect(Collectors.toSet());
       List<String> missingIds =
@@ -81,6 +87,5 @@ public class BulkInjectService {
             "Inject not found with id: " + String.join(", ", missingIds));
       }
     }
-    return injects;
   }
 }
