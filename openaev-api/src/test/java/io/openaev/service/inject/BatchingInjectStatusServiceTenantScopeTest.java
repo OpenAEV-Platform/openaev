@@ -16,10 +16,12 @@ import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
 import io.openaev.rest.inject.form.InjectExecutionInput;
 import io.openaev.utils.TenantIsolationTestHelper;
+import io.openaev.utils.fixtures.ExecutionTraceFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.InjectFixture;
 import io.openaev.utils.fixtures.InjectStatusFixture;
 import io.openaev.utils.fixtures.InjectorContractFixture;
+import io.openaev.utils.fixtures.composers.ExecutionTraceComposer;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectStatusComposer;
@@ -28,10 +30,12 @@ import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
@@ -64,6 +68,8 @@ class BatchingInjectStatusServiceTenantScopeTest extends IntegrationTest {
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private InjectComposer injectComposer;
   @Autowired private InjectStatusComposer injectStatusComposer;
+  @Autowired private ExecutionTraceComposer executionTraceComposer;
+  @Autowired private DataSource dataSource;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private InjectRepository injectRepository;
@@ -105,6 +111,66 @@ class BatchingInjectStatusServiceTenantScopeTest extends IntegrationTest {
     entityManager.clear();
     assertThat(statusOf(tenantA, injectA)).isNotEqualTo(ExecutionStatus.PENDING);
     assertThat(statusOf(tenantB, injectB)).isNotEqualTo(ExecutionStatus.PENDING);
+  }
+
+  @Test
+  @DisplayName(
+      "each tenant's batch merges the traces already stored for its inject and stamps the new"
+          + " trace with that tenant")
+  void crossTenantBatchMergesExistingTracesPerTenant() throws Exception {
+    // Arrange
+    tenantA = tenantHelper.createTenantWithCurrentUser("cb-traces-a").getId();
+    tenantB = tenantHelper.createTenantWithCurrentUser("cb-traces-b").getId();
+    String injectA = seedPendingInjectWithStoredError(tenantA);
+    String injectB = seedPendingInjectWithStoredError(tenantB);
+
+    // Act
+    TenantContext.clearCurrentTenant();
+    service.handleInjectExecutionCallback(
+        List.of(completeCallback(injectA), completeCallback(injectB)));
+
+    // Assert: the final status is computed from the stored error trace and the reported success,
+    // so it holds only when the stored trace is read in the inject's own tenant scope.
+    entityManager.clear();
+    assertThat(statusOf(tenantA, injectA)).isEqualTo(ExecutionStatus.PARTIAL);
+    assertThat(statusOf(tenantB, injectB)).isEqualTo(ExecutionStatus.PARTIAL);
+    assertThat(traceTenants(injectA)).containsExactly(tenantA, tenantA);
+    assertThat(traceTenants(injectB)).containsExactly(tenantB, tenantB);
+  }
+
+  /** The tenant of every trace of the inject's status, read with raw JDBC on its own connection. */
+  private List<String> traceTenants(String injectId) {
+    return new JdbcTemplate(dataSource)
+        .queryForList(
+            "SELECT t.tenant_id FROM execution_traces t JOIN injects_statuses s"
+                + " ON s.status_id = t.execution_inject_status_id WHERE s.status_inject = ?",
+            String.class,
+            injectId);
+  }
+
+  private String seedPendingInjectWithStoredError(String tenantId) {
+    TenantContext.setCurrentTenant(tenantId);
+    String[] injectId = new String[1];
+    rowTenantScope.write(
+        tenantId,
+        () -> {
+          InjectorContract contract = injectorContractFixture.getWellKnownSingleEmailContract();
+          InjectComposer.Composer injectC =
+              injectComposer
+                  .forInject(InjectFixture.createInject(contract, "cb-traces-probe"))
+                  .withInjectStatus(
+                      injectStatusComposer
+                          .forInjectStatus(InjectStatusFixture.createPendingInjectStatus())
+                          .withExecutionTrace(
+                              executionTraceComposer.forExecutionTrace(
+                                  ExecutionTraceFixture.createDefaultExecutionTraceError())));
+          exerciseComposer
+              .forExercise(ExerciseFixture.createDefaultExercise())
+              .withInjects(List.of(injectC))
+              .persist();
+          injectId[0] = injectC.get().getId();
+        });
+    return injectId[0];
   }
 
   private ExecutionStatus statusOf(String tenantId, String injectId) {
