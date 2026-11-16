@@ -57,6 +57,22 @@ phishing_landing_pages DEFAULT io.openaev.service.tenants.TenantService.create
 users_tenants OTHER io.openaev.service.tenants.TenantService.create
 domains OTHER io.openaev.service.tenants.TenantService.create
 
+# --- Platform user memberships. A platform administrator (MANAGE_PLATFORM_USERS_GROUPS_AND_ROLES
+# capability, enterprise edition) attaches or detaches a user's tenants from the platform screen;
+# PlatformUserApi is the only caller that writes memberships through these methods. The request
+# scope is the administrator's own memberships, so a users_tenants row for any other tenant is
+# OTHER by the detector's definition and correct by intent: the platform route owns every tenant's
+# membership list, and the row carries only the link, no tenant data. UserService.createUser honours
+# the input's tenants for the platform creation scope only, and UserService.updateUser has no other
+# caller. The service-level signatures come from UserServiceTest, the route signatures from
+# PlatformUserApiTest, whose administrator is a member of the default tenant only. Retired when the
+# detector reads the platform-write marker of the transaction (app.platform_write, which these
+# routes do not set today) and stops reporting a marked platform route's writes as OTHER.
+users_tenants OTHER io.openaev.service.UserService.createUser
+users_tenants OTHER io.openaev.service.UserService.updateUser
+users_tenants OTHER io.openaev.api.platform.users.PlatformUserApi.create
+users_tenants OTHER io.openaev.api.platform.users.PlatformUserApi.update
+
 # --- RETIRED by the documents activation (#7904), confirmed on a re-check
 # (KillChainPhaseImportAttributionTest under the shadow arguments produces neither the write-attribution
 # nor the fail-closed violation any more). The nine lines that used to sit here (scenarios, payloads,
