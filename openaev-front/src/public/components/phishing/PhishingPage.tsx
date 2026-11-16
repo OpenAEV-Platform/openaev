@@ -4,13 +4,8 @@ import { useParams } from 'react-router';
 
 import Loader from '../../../components/Loader';
 import { api } from '../../../network';
+import { type PhishingLandingPageReader } from '../../../utils/api-types';
 import { APP_BASE_PATH } from '../../../utils/Environment';
-
-interface PhishingLandingPageReader {
-  phishing_landing_page_name?: string;
-  phishing_landing_page_html?: string;
-  phishing_landing_page_css?: string;
-}
 
 /**
  * Public, unauthenticated renderer for a phishing landing page. Reached when the victim clicks the
@@ -47,8 +42,6 @@ const isSafeRedirect = (url: string): boolean => {
   return scheme === 'http' || scheme === 'https';
 };
 
-const MIN_DWELL_MS = 800;
-
 const PhishingPage = () => {
   const { tenantId, token } = useParams() as {
     tenantId?: string;
@@ -73,19 +66,22 @@ const PhishingPage = () => {
 
   // Loading the page is not a click: mail scanners render it too. The click is confirmed on the
   // visitor's first interaction (mouse, touch, keyboard, scroll, or a click from assistive
-  // technology) at least MIN_DWELL_MS after the page rendered; earlier ones are ignored and the
-  // page keeps listening. A beacon is used because the interaction may navigate away (a link in
-  // the landing page), which would cancel an ordinary request. Only the benign route confirms; the
-  // legacy one has no confirm endpoint and keeps counting the click on load.
+  // technology) once the minimum dwell has passed since the page rendered; earlier ones are ignored
+  // and the page keeps listening. A beacon is used because the interaction may navigate away (a
+  // link in the landing page), which would cancel an ordinary request. Only the benign route
+  // confirms; the legacy one has no confirm endpoint and keeps counting the click on load.
   useEffect(() => {
     if (!page || tenantId) return undefined;
+    // The backend sends the minimum dwell with the page: it flags any confirmation below that
+    // value as automated, so the page must wait exactly that long and never keeps its own copy.
+    const minDwellMs = page.phishing_landing_page_min_dwell_ms;
     const renderedAt = Date.now();
     const controller = new AbortController();
     const interactionEvents = ['pointermove', 'pointerdown', 'touchstart', 'keydown', 'scroll', 'click'];
 
     const onInteraction = () => {
       const dwellMs = Date.now() - renderedAt;
-      if (dwellMs < MIN_DWELL_MS) return;
+      if (dwellMs < minDwellMs) return;
       controller.abort();
       const body = JSON.stringify({
         dwell_ms: dwellMs,

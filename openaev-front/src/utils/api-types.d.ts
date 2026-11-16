@@ -10309,6 +10309,8 @@ export interface PhishingLandingPageReader {
   phishing_landing_page_html?: string;
   phishing_landing_page_logo_dark?: string;
   phishing_landing_page_logo_light?: string;
+  /** @format int64 */
+  phishing_landing_page_min_dwell_ms: number;
   phishing_landing_page_name?: string;
   phishing_landing_page_primary_color_dark?: string;
   phishing_landing_page_primary_color_light?: string;

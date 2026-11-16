@@ -1,6 +1,7 @@
 package io.openaev.injectors.phishing.api;
 
 import static io.openaev.injectors.phishing.api.HostedPublicApi.HOSTED_URI;
+import static io.openaev.injectors.phishing.api.HostedPublicApi.MIN_HUMAN_DWELL_MS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -168,6 +169,21 @@ class HostedPublicApiTest extends IntegrationTest {
       mvc.perform(get(HOSTED_URI + "/page/{token}", token))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.phishing_landing_page_name").value("Login page"));
+    }
+
+    @Test
+    @DisplayName(
+        "given a real token, should send the minimum dwell the confirmation endpoint applies")
+    void given_realToken_should_sendTheMinimumDwellOfTheConfirmation() throws Exception {
+      // Arrange
+      String landingPageId = seedLandingPage(Tenant.DEFAULT_TENANT_UUID, "Login page", null);
+      String token = seedPhishingResult(Tenant.DEFAULT_TENANT_UUID, landingPageId);
+
+      // Act & Assert
+      mvc.perform(get(HOSTED_URI + "/page/{token}", token))
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.phishing_landing_page_min_dwell_ms").value((int) MIN_HUMAN_DWELL_MS));
     }
 
     @Test

@@ -1,12 +1,20 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import PhishingPage from '../../../../public/components/phishing/PhishingPage';
 
+const DEFAULT_MIN_DWELL_MS = 800;
+
+// Landing page as the backend serves it; a test may change the minimum dwell before rendering.
+const landingPage = vi.hoisted(() => ({
+  phishing_landing_page_html: '<a href="#reset">Reset password</a>',
+  phishing_landing_page_min_dwell_ms: 0,
+}));
+
 vi.mock('../../../../network', async importOriginal => ({
   ...(await importOriginal<object>()),
-  api: () => ({ get: () => Promise.resolve({ data: { phishing_landing_page_html: '<a href="#reset">Reset password</a>' } }) }),
+  api: () => ({ get: () => Promise.resolve({ data: landingPage }) }),
 }));
 
 const RENDERED_AT = new Date('2026-11-10T10:00:00Z').getTime();
@@ -20,7 +28,11 @@ const renderPage = async (route: string) => {
       </Routes>
     </MemoryRouter>,
   );
-  return screen.findByText('Reset password');
+  const link = await screen.findByText('Reset password');
+  // The page starts its dwell clock in an effect, which React may run after the content shows:
+  // flush it before a test moves the time, or the dwell would start from the moved time.
+  await act(async () => {});
+  return link;
 };
 
 const waitMs = (ms: number) => vi.setSystemTime(RENDERED_AT + ms);
@@ -31,6 +43,7 @@ describe('PhishingPage', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(RENDERED_AT);
+    landingPage.phishing_landing_page_min_dwell_ms = DEFAULT_MIN_DWELL_MS;
     Object.defineProperty(navigator, 'sendBeacon', {
       value: sendBeacon,
       configurable: true,
@@ -78,6 +91,23 @@ describe('PhishingPage', () => {
       fireEvent.pointerMove(window);
       const beaconsBeforeDwell = sendBeacon.mock.calls.length;
       waitMs(900);
+      fireEvent.scroll(window);
+
+      // Assert
+      expect(beaconsBeforeDwell).toBe(0);
+      expect(sendBeacon).toHaveBeenCalledTimes(1);
+    });
+
+    it('given a longer minimum dwell sent by the backend, should wait for that one', async () => {
+      // Arrange
+      landingPage.phishing_landing_page_min_dwell_ms = 2000;
+      await renderPage('/auth/token-1');
+
+      // Act
+      waitMs(1500);
+      fireEvent.pointerMove(window);
+      const beaconsBeforeDwell = sendBeacon.mock.calls.length;
+      waitMs(2100);
       fireEvent.scroll(window);
 
       // Assert

@@ -90,7 +90,8 @@ public class PhishingPublicApi extends RestBehavior {
     }
     // The click route that led here already scored the open and the click.
     PhishingLandingPage landingPage = result.getLandingPage();
-    return new PhishingLandingPageReader(landingPage);
+    // The legacy page never confirms an interaction; the delay only matters on the hosted route.
+    return new PhishingLandingPageReader(landingPage, HostedPublicApi.MIN_HUMAN_DWELL_MS);
   }
 
   @PostMapping(PHISHING_TRACKING_URI + "/{tenantId}/s/{token}")

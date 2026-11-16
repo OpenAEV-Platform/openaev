@@ -59,8 +59,12 @@ public class HostedPublicApi extends RestBehavior {
   /** Benign, human-readable path segment used in the victim-facing landing URL. */
   public static final String LANDING_PATH_PREFIX = "auth";
 
-  /** A confirmation arriving sooner than this after the page rendered cannot be a human. */
-  private static final long MIN_HUMAN_DWELL_MS = 800L;
+  /**
+   * A confirmation arriving sooner than this after the page rendered cannot be a human. The landing
+   * page receives this value with its content and waits that long before confirming, so the page
+   * and {@link #confirm} can never disagree.
+   */
+  static final long MIN_HUMAN_DWELL_MS = 800L;
 
   /** 1x1 transparent GIF returned by the open-tracking pixel. */
   private static final byte[] TRACKING_PIXEL =
@@ -114,7 +118,7 @@ public class HostedPublicApi extends RestBehavior {
     }
     phishingTrackingService.markPageFetched(
         resolved, token, clientIp(request), request.getHeader("User-Agent"));
-    return new PhishingLandingPageReader(landingPage);
+    return new PhishingLandingPageReader(landingPage, MIN_HUMAN_DWELL_MS);
   }
 
   /**
