@@ -12,15 +12,23 @@ import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.Agent;
 import io.openaev.database.model.ExecutionTrace;
+import io.openaev.database.model.InjectStatus;
+import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.ExecutionTraceRepository;
+import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.execution.ExecutionTraceScopeSeed.Tenant;
 import io.openaev.scheduler.jobs.ExecutionTraceRetentionJob;
 import io.openaev.scheduler.jobs.InjectsFinalizationJob;
+import io.openaev.service.chaining.WorkflowEndService;
+import io.openaev.service.chaining.WorkflowEndService.WORKFLOW_END_CAUSE;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.stream.Stream;
@@ -71,6 +79,10 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
   @Autowired private ExecutionTraceRepository executionTraceRepository;
   @Autowired private ExecutionTraceRetentionJob retentionJob;
   @Autowired private InjectsFinalizationJob finalizationJob;
+  @Autowired private ExecutionExecutorService executionExecutorService;
+  @Autowired private WorkflowEndService workflowEndService;
+  @Autowired private InjectStatusRepository injectStatusRepository;
+  @Autowired private AgentRepository agentRepository;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private DataSource dataSource;
   @Autowired private MockMvc mvc;
@@ -109,6 +121,20 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
     if (failure.get() != null) {
       throw new AssertionError("the work failed", failure.get());
     }
+  }
+
+  /**
+   * The messages of the traces of a tenant's inject status, read through the status's eager trace
+   * collection under {@code ctx}. The status table is not active, so the status is found in any
+   * scope and only the trace rows depend on it.
+   */
+  private List<String> statusTraceMessages(TxCtx ctx, Tenant tenant) {
+    return tenantTx.execute(
+        ctx,
+        () ->
+            injectStatusRepository.findById(tenant.statusId()).orElseThrow().getTraces().stream()
+                .map(ExecutionTrace::getMessage)
+                .toList());
   }
 
   static Stream<Arguments> finders() {
@@ -340,6 +366,98 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
       // Assert
       assertThat(seed.traceTenantsOfStatus(tenantA.statusId())).containsExactly(tenantA.id());
       assertThat(seed.traceTenantsOfStatus(tenantB.statusId())).containsExactly(tenantB.id());
+    }
+  }
+
+  @Nested
+  @DisplayName("Executor launch writers")
+  class LaunchWriters {
+
+    /**
+     * Runs a launch writer on the seeded status and agent of a tenant, both loaded in that tenant's
+     * scope, from an empty ambient tenant: the trace must take its tenant from its inject.
+     */
+    private void launchInScopeOf(Tenant tenant, BiConsumer<Set<Agent>, InjectStatus> writer) {
+      TenantContext.clearCurrentTenant();
+      tenantTx.execute(
+          TxCtx.forTenants(List.of(tenant.id())),
+          () -> {
+            InjectStatus status = injectStatusRepository.findById(tenant.statusId()).orElseThrow();
+            Agent agent = agentRepository.findById(tenant.agentId()).orElseThrow();
+            writer.accept(Set.of(agent), status);
+          });
+    }
+
+    private List<String> agentTraceIds(TxCtx ctx, Tenant tenant) {
+      return tenantTx.execute(
+          ctx,
+          () ->
+              executionTraceRepository
+                  .findByInjectIdAndAgentId(tenant.injectId(), tenant.agentId())
+                  .stream()
+                  .map(ExecutionTrace::getId)
+                  .toList());
+    }
+
+    @Test
+    @DisplayName("Stores the trace of an inactive agent in the tenant of its inject")
+    void given_inactiveAgentOfTheInjectTenant_should_storeItsTraceInThatTenant() {
+      // Arrange
+      TxCtx scopeA = TxCtx.forTenants(List.of(tenantA.id()));
+      TxCtx scopeB = TxCtx.forTenants(List.of(tenantB.id()));
+
+      // Act
+      launchInScopeOf(tenantA, executionExecutorService::saveInactiveAgentsTraces);
+
+      // Assert
+      assertThat(seed.traceTenantsOfStatus(tenantA.statusId())).containsExactly(tenantA.id());
+      assertThat(agentTraceIds(scopeA, tenantA)).hasSize(1);
+      assertThat(agentTraceIds(scopeB, tenantA)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Stores the agentless distribution trace in the tenant of its inject")
+    void given_agentsOfTheInjectTenant_should_storeTheDistributionTraceInThatTenant() {
+      // Arrange
+      TxCtx scopeA = TxCtx.forTenants(List.of(tenantA.id()));
+      TxCtx scopeB = TxCtx.forTenants(List.of(tenantB.id()));
+
+      // Act
+      launchInScopeOf(tenantA, executionExecutorService::saveDistributionTrace);
+
+      // Assert
+      assertThat(seed.traceTenantsOfStatus(tenantA.statusId())).containsExactly(tenantA.id());
+      assertThat(statusTraceMessages(scopeA, tenantA))
+          .containsExactly("Distributing inject to 1 agent(s) across 1 endpoint(s)");
+      assertThat(statusTraceMessages(scopeB, tenantA)).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("Chaining end writer")
+  class ChainingEndWriter {
+
+    @Test
+    @DisplayName("Stores the timeout trace of a pending inject in the tenant of that inject")
+    void given_pendingInjectAtWorkflowTimeout_should_storeTheTimeoutTraceInItsTenant() {
+      // Arrange
+      TxCtx scopeA = TxCtx.forTenants(List.of(tenantA.id()));
+      TxCtx scopeB = TxCtx.forTenants(List.of(tenantB.id()));
+      TenantContext.clearCurrentTenant();
+
+      // Act
+      tenantTx.execute(
+          scopeA,
+          () ->
+              workflowEndService.stopActiveInjects(
+                  tenantA.simulationId(), WORKFLOW_END_CAUSE.TIMEOUT));
+
+      // Assert
+      assertThat(seed.traceTenantsOfStatus(tenantA.statusId())).containsExactly(tenantA.id());
+      assertThat(seed.traceTenantsOfStatus(tenantB.statusId())).isEmpty();
+      assertThat(statusTraceMessages(scopeA, tenantA))
+          .containsExactly("Inject stopped due to simulation timeout.");
+      assertThat(statusTraceMessages(scopeB, tenantA)).isEmpty();
     }
   }
 }
