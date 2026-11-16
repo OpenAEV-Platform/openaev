@@ -806,16 +806,26 @@ describe('NewsFeedList', () => {
       expect(screen.queryByText('Before the deletion')).not.toBeInTheDocument();
     });
 
-    it('does not search again for a refetch that ends after the list is gone', async () => {
-      // Arrange
-      await renderLoadedList(buildPage([buildItem()]));
+    it('does not reset the page, nor store it, for a refetch that ends after the list is gone', async () => {
+      // Arrange: the user is on page 1 and a change is being refetched
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem()], 120));
+      renderList();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /next page/i }));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(lastSearch().page).toBe(1);
       const refetch = deferred();
       mockSearchMyNewsFeedItems.mockReturnValue(refetch.promise);
       await pushEvents(streamEvent(DATA_DELETE_SUCCESS));
-      mockSearchMyNewsFeedItems.mockClear();
-
-      // Act: the page is left, then the refetch ends past the end of the data
       cleanup();
+      mockSearchMyNewsFeedItems.mockClear();
+      const store = vi.spyOn(window.localStorage, 'setItem');
+
+      // Act: the page is left, then the refetch ends with the page past the end of the data
       await act(async () => {
         refetch.resolve({
           data: {
@@ -828,8 +838,12 @@ describe('NewsFeedList', () => {
         await vi.advanceTimersByTimeAsync(0);
       });
 
-      // Assert
+      // Assert: the reset to the first page, which would be stored, is not made
+      expect(store).not.toHaveBeenCalled();
       expect(mockSearchMyNewsFeedItems).not.toHaveBeenCalled();
+
+      // Cleanup
+      store.mockRestore();
     });
 
     it('stops listening to the stream once the list is gone', async () => {

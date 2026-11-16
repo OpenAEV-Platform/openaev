@@ -217,20 +217,28 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
       List<String> ids = List.of(firstItem.getId(), secondItem.getId());
       Statistics stats =
           entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+      // The statistics belong to the session factory shared by every test: put them back as found
+      boolean statisticsWereEnabled = stats.isStatisticsEnabled();
       stats.setStatisticsEnabled(true);
-
-      // Act: the same rows without the join fetch, the users being EAGER, load them afterwards
-      entityManager.clear();
-      stats.clear();
-      entityManager
-          .createQuery("select n from NewsFeedItem n where n.id in :ids", NewsFeedItem.class)
-          .setParameter("ids", ids)
-          .getResultList();
-      long withoutJoinFetch = stats.getPrepareStatementCount();
-      entityManager.clear();
-      stats.clear();
-      List<NewsFeedItem> items = newsFeedItemRepository.findAllWithUserByIdIn(ids);
-      long withJoinFetch = stats.getPrepareStatementCount();
+      long withoutJoinFetch;
+      long withJoinFetch;
+      List<NewsFeedItem> items;
+      try {
+        // Act: the same rows without the join fetch, the users being EAGER, load them afterwards
+        entityManager.clear();
+        stats.clear();
+        entityManager
+            .createQuery("select n from NewsFeedItem n where n.id in :ids", NewsFeedItem.class)
+            .setParameter("ids", ids)
+            .getResultList();
+        withoutJoinFetch = stats.getPrepareStatementCount();
+        entityManager.clear();
+        stats.clear();
+        items = newsFeedItemRepository.findAllWithUserByIdIn(ids);
+        withJoinFetch = stats.getPrepareStatementCount();
+      } finally {
+        stats.setStatisticsEnabled(statisticsWereEnabled);
+      }
 
       // Assert
       assertThat(items)

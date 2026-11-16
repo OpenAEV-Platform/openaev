@@ -490,6 +490,46 @@ class NewsFeedItemServiceTest {
     }
 
     @Test
+    @DisplayName("Given a lookup of the items with rows that fails, should still delete their rows")
+    void given_failingLookup_should_stillDeleteTheRows() {
+      // Arrange
+      givenRows("hub-1", row("row-1", "hub-1"));
+      when(newsFeedItemRepository.findHubItemIdsWithRows(anyCollection()))
+          .thenThrow(new IllegalStateException("boom"));
+
+      // Act
+      service.applyProvisionedItems(
+          List.of(
+              deletedItem("hub-1", "RESOURCE_SCENARIO"), deletedItem("hub-2", "RESOURCE_SCENARIO")),
+          TENANTS);
+
+      // Assert: every item of the chunk is paged, the one with rows is deleted
+      assertThat(deletedBatches(1).getFirst()).hasSize(1);
+      verify(newsFeedItemRepository, times(2)).findIdsByHubItemIdAfter(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Given a lookup rejected once by a concurrent change, should retry it")
+    void given_lookupRejectedOnce_should_retryIt() {
+      // Arrange
+      givenRows("hub-1", row("row-1", "hub-1"));
+      when(newsFeedItemRepository.findHubItemIdsWithRows(anyCollection()))
+          .thenThrow(new OptimisticLockingFailureException("concurrent"))
+          .thenReturn(List.of("hub-1"));
+
+      // Act
+      service.applyProvisionedItems(
+          List.of(
+              deletedItem("hub-1", "RESOURCE_SCENARIO"), deletedItem("hub-2", "RESOURCE_SCENARIO")),
+          TENANTS);
+
+      // Assert: the retried lookup answered, so the item nobody holds is not paged
+      assertThat(deletedBatches(1).getFirst()).hasSize(1);
+      verify(newsFeedItemRepository, times(2)).findHubItemIdsWithRows(anyCollection());
+      verify(newsFeedItemRepository, times(1)).findIdsByHubItemIdAfter(any(), any(), any());
+    }
+
+    @Test
     @DisplayName("Given a deleted item nobody holds, should delete nothing")
     void given_deletedItemWithoutRows_should_deleteNothing() {
       // Act
@@ -693,6 +733,31 @@ class NewsFeedItemServiceTest {
       // Assert
       verify(newsFeedItemRepository, times(1)).findIdsByHubItemIdAfter(any(), any(), any());
       assertThat(held.getTitle()).isEqualTo("New title");
+    }
+
+    @Test
+    @DisplayName("Given a lookup of the items with rows that fails, should still update their rows")
+    void given_failingLookup_should_stillUpdateTheRows() {
+      // Arrange
+      NewsFeedItem stale = row("row-1", "hub-1");
+      stale.setTitle("Old title");
+      givenRows("hub-1", stale);
+      when(newsFeedItemRepository.findHubItemIdsWithRows(anyCollection()))
+          .thenThrow(new IllegalStateException("boom"));
+
+      // Act
+      service.applyProvisionedItems(
+          List.of(
+              changed(
+                  "Renamed",
+                  List.of("phishing", "ransomware"),
+                  "/scenarios/hub-1",
+                  "RESOURCE_SCENARIO")),
+          TENANTS);
+
+      // Assert
+      assertThat(savedBatches(1).getFirst()).containsExactly(stale);
+      assertThat(stale.getTitle()).isEqualTo("Renamed");
     }
 
     @Test

@@ -267,24 +267,29 @@ public class NewsFeedItemService {
   }
 
   /**
-   * The given Hub items that at least one user holds, in the given order, looked up by chunks of
+   * The given Hub items that at least one user may hold, in the given order, looked up by chunks of
    * {@link #ITEM_CHUNK_SIZE} so that the items nobody holds (the fresh ones, in most runs) cost one
-   * query per chunk instead of a transaction and a query each. A chunk that cannot be looked up is
-   * logged and left out.
+   * query per chunk instead of a transaction and a query each. The lookup is only a shortcut: a
+   * chunk that cannot be looked up, even after the retry, is logged and all its items are kept, so
+   * that their rows are still paged, and deleted or updated, one item at a time.
    */
   private List<String> withRows(Collection<String> hubItemIds) {
     Set<String> found = new HashSet<>();
     for (List<String> chunk : chunks(List.copyOf(hubItemIds), ITEM_CHUNK_SIZE)) {
       try {
         found.addAll(
-            tenantTx.execute(
-                TxCtx.allTenants(), () -> newsFeedItemRepository.findHubItemIdsWithRows(chunk)));
+            withRetry(
+                () ->
+                    tenantTx.execute(
+                        TxCtx.allTenants(),
+                        () -> newsFeedItemRepository.findHubItemIdsWithRows(chunk))));
       } catch (Exception e) {
         log.error(
-            "Could not look up the rows of {} news feed items: {}",
+            "Could not look up the rows of {} news feed items, handling them one by one: {}",
             chunk.size(),
             e.getMessage(),
             e);
+        found.addAll(chunk);
       }
     }
     return hubItemIds.stream().filter(found::contains).toList();
