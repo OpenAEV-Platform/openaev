@@ -146,7 +146,11 @@ public class ExecutableInjectService {
         throw new IllegalArgumentException(
             "Missing mandatory input '%s' for inject execution".formatted(argumentKey));
       }
-      binder.bind(argumentKey, resolvedArgument.value());
+      if (isUnchangedTextDefault(defaultPayloadArgument, resolvedArgument.value())) {
+        binder.bindAuthored(argumentKey, resolvedArgument.value());
+      } else {
+        binder.bind(argumentKey, resolvedArgument.value());
+      }
     }
     return binder.render(command);
   }
@@ -510,6 +514,13 @@ public class ExecutableInjectService {
       return field.get(DEFAULT_VALUE_FIELD).asText("");
     }
     return defaultPayloadArgument != null ? defaultPayloadArgument.getDefaultValue() : "";
+  }
+
+  private static boolean isUnchangedTextDefault(PayloadArgument argument, String value) {
+    return argument != null
+        && PrimitiveType.Text == argument.getType()
+        && hasText(value)
+        && value.equals(argument.getDefaultValue());
   }
 
   private record ResolvedArgument(String value, boolean missing, boolean mandatory) {}
