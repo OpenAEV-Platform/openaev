@@ -41,6 +41,7 @@ import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.InjectUtils;
@@ -90,6 +91,7 @@ class InjectServiceTest {
   @Mock private AgentRepository agentRepository;
   @Mock private SecretReferenceService secretReferenceService;
   @Mock private PreviewFeatureService previewFeatureService;
+  @Mock private PayloadRevocationService payloadRevocationService;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
   @Mock private InjectStatusRepository injectStatusRepository;
@@ -177,7 +179,8 @@ class InjectServiceTest {
             new ExecutorUtils(assetAgentJobRepository),
             stepTargetingService,
             conditionService,
-            previewFeatureService));
+            previewFeatureService,
+            payloadRevocationService));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -190,7 +193,8 @@ class InjectServiceTest {
                 new ExecutorUtils(assetAgentJobRepository),
                 stepTargetingService,
                 conditionService,
-                previewFeatureService)));
+                previewFeatureService,
+                payloadRevocationService)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }
@@ -804,6 +808,8 @@ class InjectServiceTest {
   void given_inject_without_injectcontent_SHOULD_take_default() throws JsonProcessingException {
     InjectInput injectInput = new InjectInput();
     Scenario scenario = new Scenario();
+    String scenarioTenantId = "scenario-tenant-id";
+    scenario.setTenant(new Tenant(scenarioTenantId));
     String injectorContractId = "injectorContractId";
     String injectorContractString =
         """
@@ -833,7 +839,8 @@ class InjectServiceTest {
     injectorContract.setConvertedContent(injectorContractJson);
 
     injectInput.setInjectorContract(injectorContractId);
-    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorContractService.injectorContractInTenant(injectorContractId, scenarioTenantId))
+        .thenReturn(injectorContract);
 
     injectService.createAndSaveInject(TxCtx.missing(), null, scenario, injectInput);
 
@@ -873,8 +880,11 @@ class InjectServiceTest {
     injectInput.setDependsDuration(0L);
 
     Scenario scenario = new Scenario();
+    String scenarioTenantId = "scenario-tenant-id";
+    scenario.setTenant(new Tenant(scenarioTenantId));
 
-    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorContractService.injectorContractInTenant(injectorContractId, scenarioTenantId))
+        .thenReturn(injectorContract);
     when(injectUtils.resolveInjector(injectorId, injectorContract)).thenReturn(explicitInjector);
 
     // -- ACT --
@@ -917,8 +927,11 @@ class InjectServiceTest {
     injectInput.setDependsDuration(0L);
 
     Scenario scenario = new Scenario();
+    String scenarioTenantId = "scenario-tenant-id";
+    scenario.setTenant(new Tenant(scenarioTenantId));
 
-    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorContractService.injectorContractInTenant(injectorContractId, scenarioTenantId))
+        .thenReturn(injectorContract);
     when(injectUtils.resolveInjector(null, injectorContract)).thenReturn(contractInjector);
 
     // -- ACT --
@@ -955,8 +968,11 @@ class InjectServiceTest {
     injectInput.setDependsDuration(0L);
 
     Scenario scenario = new Scenario();
+    String scenarioTenantId = "scenario-tenant-id";
+    scenario.setTenant(new Tenant(scenarioTenantId));
 
-    when(injectorContractService.injectorContract(injectorContractId)).thenReturn(injectorContract);
+    when(injectorContractService.injectorContractInTenant(injectorContractId, scenarioTenantId))
+        .thenReturn(injectorContract);
     when(injectUtils.resolveInjector(unknownInjectorId, injectorContract))
         .thenThrow(
             new ElementNotFoundException("Injector not found with id: " + unknownInjectorId));

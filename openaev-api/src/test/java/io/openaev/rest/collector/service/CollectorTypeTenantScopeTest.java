@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -42,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Rows are seeded with a native {@code INSERT ... VALUES}, which the inspector never rewrites,
  * so the seeding itself proves nothing; only the reads do.
  */
+@CoversTenantIsolation("collector_types")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=collector_types")
 @WithMockUser(isAdmin = true)

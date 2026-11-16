@@ -337,7 +337,8 @@ public interface ExerciseRepository
           """
                 SELECT DISTINCT e.exercise_id AS id, e.exercise_name AS label, e.exercise_created_at
                 FROM injects i
-                INNER JOIN findings f ON f.finding_inject_id = i.inject_id
+                INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
+                INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
                 INNER JOIN exercises e ON i.inject_exercise = e.exercise_id
                 WHERE (:name IS NULL OR LOWER(e.exercise_name) LIKE LOWER(CONCAT('%', COALESCE(:name, ''), '%')))
                 AND i.tenant_id = :#{#tenantContext.currentTenant}
@@ -351,7 +352,8 @@ public interface ExerciseRepository
           """
                 SELECT DISTINCT e.exercise_id AS id, e.exercise_name AS label, e.exercise_created_at
                 FROM injects i
-                INNER JOIN findings f ON f.finding_inject_id = i.inject_id
+                INNER JOIN finding_occurrences fo ON fo.finding_occurrence_inject_id = i.inject_id
+                INNER JOIN findings f ON f.finding_id = fo.finding_occurrence_finding_id
                 LEFT JOIN findings_assets fa ON fa.finding_id = f.finding_id
                 LEFT JOIN exercises e ON i.inject_exercise = e.exercise_id
                 LEFT JOIN scenarios_exercises se ON se.exercise_id = e.exercise_id

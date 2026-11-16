@@ -34,7 +34,6 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,7 +44,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @EnableAsync
 @RequiredArgsConstructor
-@Slf4j
 public class MeApi extends RestBehavior {
 
   public static final String ME_URI = "/api/me";
@@ -151,16 +149,7 @@ public class MeApi extends RestBehavior {
     User user = userService.confirmEmailChange(confirmationCode);
     sessionManager.invalidateOtherUserSessions(user.getId(), httpRequest.getSession().getId());
 
-    // The change is already applied and committed at this point; a failed confirmation email to the
-    // new address must not roll it back, which would leave the previous address with a false "your
-    // email was changed" alert for a change that was reverted.
-    try {
-      userService.sendEmailChangeConfirmationEmail(user);
-    } catch (RuntimeException e) {
-      log.warn(
-          "Confirmation email to the new address could not be delivered after the change was applied",
-          e);
-    }
+    userService.sendEmailChangeConfirmationEmail(user);
 
     HttpHeaders headers = new HttpHeaders();
     headers.add("Location", openAEVConfig.getBaseUrl());

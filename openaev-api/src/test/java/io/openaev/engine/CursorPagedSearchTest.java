@@ -446,7 +446,10 @@ class CursorPagedSearchTest extends IntegrationTest {
     @Test
     @DisplayName("a document past windowEnd is never returned; the bound is inclusive")
     void given_documentPastWindowEnd_should_neverBeReturned() {
-      Instant windowEnd = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MILLIS);
+      // A whole-second bound on purpose: it is the case Instant.toString writes without a fraction
+      // and the engine used to round up to .999, letting windowEnd + 1 ms through (issue/9095).
+      // It was hit only when now() landed on .000, about once in a thousand runs.
+      Instant windowEnd = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
       Grain withinWindow = newGrain();
       Grain pastWindow = newGrain();
       indexAll();

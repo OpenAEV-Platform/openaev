@@ -15,7 +15,10 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.openaev.database.model.BaseInjectExpectation;
+import io.openaev.database.model.Collector;
 import io.openaev.database.model.Command;
+import io.openaev.database.model.Inject;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.ScopeRuleSelectedMode;
@@ -28,11 +31,15 @@ import io.openaev.healthcheck.utils.HealthCheckUtils;
 import io.openaev.injectors.channel.ChannelContract;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.service.PreviewFeatureService;
+import io.openaev.utils.fixtures.CollectorFixture;
+import io.openaev.utils.fixtures.SecurityPlatformFixture;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -1158,6 +1165,69 @@ public class HealthCheckUtilsTest {
 
       // -- ASSERT --
       assertTrue(healthChecks.isEmpty());
+    }
+  }
+
+  @Nested
+  class CollectorChecks {
+
+    @ParameterizedTest(
+        name =
+            "{0} expectation, logging enabled: {1}, collector declaring [{2}] on {3}, expected"
+                + " platform: {4} -> error: {5}")
+    @CsvSource({
+      // Logging: only a collector declaring LOGGING, on the expected platform, answers it.
+      "LOGGING, true, LOGGING, SIEM, , false",
+      "LOGGING, true, , SIEM, , true",
+      "LOGGING, true, LOGGING, SIEM, SIEM, false",
+      "LOGGING, true, LOGGING, EDR, SIEM, true",
+      "LOGGING, false, , SIEM, , false",
+      // Detection and Prevention: a collector declaring no type still answers them.
+      "DETECTION, true, , EDR, , false",
+      "DETECTION, true, LOGGING, SIEM, , true",
+      "DETECTION, true, DETECTION, SIEM, EDR, true",
+      "PREVENTION, true, PREVENTION, EDR, EDR, false",
+      // An unknown expected platform type is skipped instead of breaking the check.
+      "LOGGING, true, LOGGING, SIEM, NOT_A_PLATFORM, false",
+      // Vulnerability is answered by its injector, not by a collector.
+      "VULNERABILITY, true, LOGGING, SIEM, , false"
+    })
+    void given_collector_fulfilled_expectation_should_require_a_collector_able_to_answer_it(
+        String expectationType,
+        boolean loggingEnabled,
+        String declaredType,
+        String collectorPlatformType,
+        String expectedPlatformType,
+        boolean expectError) {
+      // -- ARRANGE --
+      when(previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION))
+          .thenReturn(loggingEnabled);
+      Inject inject = new Inject();
+      ObjectNode content = mapper.createObjectNode();
+      ObjectNode expectation =
+          content.putArray("expectations").addObject().put("expectation_type", expectationType);
+      if (expectedPlatformType != null) {
+        expectation
+            .putArray("expectation_expected_security_platform_types")
+            .add(expectedPlatformType);
+      }
+      inject.setContent(content);
+      Collector collector = CollectorFixture.createDefaultCollector("collector");
+      collector.setSecurityPlatform(
+          SecurityPlatformFixture.createDefault("platform", collectorPlatformType));
+      if (declaredType != null) {
+        collector.setSupportedExpectationTypes(
+            new BaseInjectExpectation.EXPECTATION_TYPE[] {
+              BaseInjectExpectation.EXPECTATION_TYPE.valueOf(declaredType)
+            });
+      }
+
+      // -- ACT --
+      List<HealthCheck> healthChecks =
+          healthCheckUtils.runCollectorChecks(inject, List.of(collector));
+
+      // -- ASSERT --
+      assertEquals(expectError, !healthChecks.isEmpty());
     }
   }
 }

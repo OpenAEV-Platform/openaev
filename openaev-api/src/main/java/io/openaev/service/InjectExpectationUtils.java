@@ -229,13 +229,7 @@ public class InjectExpectationUtils {
       return collectors;
     }
     List<Collector> matching =
-        collectors.stream()
-            .filter(
-                c ->
-                    c.getSecurityPlatform() != null
-                        && expectedTypes.contains(
-                            c.getSecurityPlatform().getSecurityPlatformType()))
-            .toList();
+        collectors.stream().filter(c -> isOnExpectedPlatform(c, expectedTypes)).toList();
     Set<SecurityPlatform.SECURITY_PLATFORM_TYPE> connectedTypes =
         collectors.stream()
             .map(Collector::getSecurityPlatform)
@@ -250,6 +244,21 @@ public class InjectExpectationUtils {
                     "Expectation expects security platform type {} but no connected collector of that type exists; it will only be finalized by the expiration manager",
                     type));
     return matching;
+  }
+
+  /**
+   * @param collector the candidate collector
+   * @param expectedTypes the expectation's expected security platform types (may be null/empty)
+   * @return whether the collector is connected to one of the expected platform types; an
+   *     expectation that expects no type accepts any platform
+   */
+  public static boolean isOnExpectedPlatform(
+      final Collector collector,
+      final List<SecurityPlatform.SECURITY_PLATFORM_TYPE> expectedTypes) {
+    return expectedTypes == null
+        || expectedTypes.isEmpty()
+        || (collector.getSecurityPlatform() != null
+            && expectedTypes.contains(collector.getSecurityPlatform().getSecurityPlatformType()));
   }
 
   /**

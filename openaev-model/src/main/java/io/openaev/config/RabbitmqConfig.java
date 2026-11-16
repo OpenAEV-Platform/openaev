@@ -71,7 +71,8 @@ public class RabbitmqConfig {
   @Value("${openbas.rabbitmq.queue-type:${openaev.rabbitmq.queue-type:#{null}}}")
   private String queueType;
 
-  /** Whether to allow insecure connections to the management API. */
+  /** No effect, kept for compatibility: nothing reads it. */
+  @Deprecated
   @JsonProperty("rabbitmq_management_insecure")
   @Value("${openbas.rabbitmq.management-insecure:${openaev.rabbitmq.management-insecure:false}}")
   private boolean managementInsecure;

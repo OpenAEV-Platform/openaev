@@ -24,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ConnectorInstanceConfigurationRepository;
 import io.openaev.database.repository.ConnectorInstanceLogRepository;
@@ -229,7 +230,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     void givenExistingInstance_creatingAnotherInstance_shouldSucceed() throws Exception {
       when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
-      when(catalogConnectorPrivilegeService.getOrCreateToken(anyString()))
+      when(catalogConnectorPrivilegeService.getOrCreateToken(any(TxCtx.class), anyString()))
           .thenReturn("fake-token-value");
 
       CatalogConnectorConfiguration confDef1 =
@@ -301,7 +302,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
         throws Exception {
       when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
-      when(catalogConnectorPrivilegeService.getOrCreateToken(anyString()))
+      when(catalogConnectorPrivilegeService.getOrCreateToken(any(TxCtx.class), anyString()))
           .thenReturn("fake-token-value");
 
       CatalogConnectorConfiguration confDef1 =
@@ -438,7 +439,7 @@ public class ConnectorInstanceApiTest extends IntegrationTest {
     void should_successfullyCreateConnectorInstance() throws Exception {
       when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
       when(xtmComposerEncryptionService.encrypt(any())).thenReturn("fake-encrypted-value");
-      when(catalogConnectorPrivilegeService.getOrCreateToken(anyString()))
+      when(catalogConnectorPrivilegeService.getOrCreateToken(any(TxCtx.class), anyString()))
           .thenReturn("fake-token-value");
 
       Set<String> enumList = Set.of("info", "debug", "warn");

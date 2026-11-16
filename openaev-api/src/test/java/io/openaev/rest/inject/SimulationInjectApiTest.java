@@ -107,6 +107,9 @@ public class SimulationInjectApiTest extends IntegrationTest {
   }
 
   @Test
+  // The injector contract is read in the caller's tenant scope: the caller is a member of the
+  // tenant the fixtures are written in.
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName(
       "Given an external injector, direct execute should publish the inject to the RabbitMQ queue")
   void given_externalInjector_directExecute_should_publishToQueue() throws Exception {

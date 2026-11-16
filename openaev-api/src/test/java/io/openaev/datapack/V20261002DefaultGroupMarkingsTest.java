@@ -146,13 +146,23 @@ class V20261002DefaultGroupMarkingsTest extends IntegrationTest {
   }
 
   @Test
-  @DisplayName("given_defaultTenantWithNoGroups_should_registerPackByDesign")
-  void given_defaultTenantWithNoGroups_should_registerPackByDesign() throws Exception {
+  @DisplayName("given_defaultTenantWithOnlyAdminGroup_should_registerPack")
+  void given_defaultTenantWithOnlyAdminGroup_should_registerPack() throws Exception {
     tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
 
-    // Arrange: no groups, no markings — V20260330_Default_tenant_data deliberately never creates
-    // Admin/Manager/Observer groups for the default tenant, so this absence is already the desired
-    // end state, not a prerequisite pack still pending.
+    // Arrange: the startup creates the default tenant's Admin group; Manager and Observer are
+    // absent.
+    tenantTx.execute(
+        TxCtx.forTenant(tenant.getId()),
+        () -> {
+          if (markingDefinitionRepository
+              .findByTypeAndDefinitionAndTenantId(
+                  MarkingDefinition.TYPE_TLP, "TLP:RED", tenant.getId())
+              .isEmpty()) {
+            seedMarking(tenant, "TLP:RED", 5);
+          }
+          return null;
+        });
 
     MigrationProcessor processor =
         new MigrationProcessor(
@@ -161,8 +171,7 @@ class V20261002DefaultGroupMarkingsTest extends IntegrationTest {
     // Act
     processor.createDependencyForTenant(tenant);
 
-    // Assert: registered despite no groups/markings existing, since the default tenant's missing
-    // groups are by design, not a transient ordering issue to retry later.
+    // Assert: registered, since the default tenant's missing groups are by design.
     assertThat(dataPackService.findByIdAndTenant(groupMarkingsDataPack.getPackId(), tenant))
         .isPresent();
   }

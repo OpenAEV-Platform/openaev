@@ -8,6 +8,7 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.service.attackpath.dto.AttackPathDTO;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.util.List;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +37,7 @@ class AttackPathCausalSeedChainTest extends IntegrationTest {
   @DisplayName("the exploit's port key resolves the recon's portscan finding as its producer")
   void chain_renders_a_causal_edge() {
     Tenant tenant = tenantRepository.save(TenantFixture.getTenant("ap-seed-causal-chain-tenant"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
 
     causalSeedService.seedMinimalCausalChain(SIM, tenant.getId());
 
@@ -54,6 +56,7 @@ class AttackPathCausalSeedChainTest extends IntegrationTest {
   void chain_stamps_a_coherent_version() {
     Tenant tenant =
         tenantRepository.save(TenantFixture.getTenant("ap-seed-causal-chain-version-tenant"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
 
     causalSeedService.seedMinimalCausalChain(SIM, tenant.getId());
 

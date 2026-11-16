@@ -10,6 +10,7 @@ import static io.openaev.injector_contract.ContractCardinality.Multiple;
 import static io.openaev.injector_contract.ContractDef.contractBuilder;
 import static io.openaev.injector_contract.fields.ContractAsset.assetField;
 import static io.openaev.injector_contract.fields.ContractAssetGroup.assetGroupField;
+import static io.openaev.injector_contract.fields.ContractDocument.documentField;
 import static io.openaev.injector_contract.fields.ContractExpectations.expectationsField;
 import static io.openaev.injector_contract.fields.ContractSelect.selectFieldWithDefault;
 import static io.openaev.injector_contract.fields.ContractText.textField;
@@ -48,9 +49,11 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.rest.injector_contract.form.InjectorContractDomainDTO;
 import io.openaev.rest.payload.PayloadUtils;
 import io.openaev.rest.payload.output.PayloadOutput;
+import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.rest.tag.TagService;
 import io.openaev.service.AuthorService;
 import io.openaev.service.PermissionService;
+import io.openaev.service.PreviewFeatureService;
 import io.openaev.service.UserService;
 import io.openaev.service.chaining.ChainingStepCleanupService;
 import io.openaev.service.payload.PayloadContentHashService;
@@ -103,6 +106,7 @@ public class PayloadService {
   private final ChainingStepCleanupService chainingStepCleanupService;
   private final InjectorContractService injectorContractService;
   private final TenantWriteScopeResolver writeScopeResolver;
+  private final PreviewFeatureService previewFeatureService;
 
   private final PayloadMapper payloadMapper;
 
@@ -110,6 +114,8 @@ public class PayloadService {
   public void setPermissionService(@Lazy PermissionService permissionService) {
     this.permissionService = permissionService;
   }
+
+  // -- INJECTOR CONTRACT --
 
   public InjectorContract synchroniseInjectorContractBasedOnPayload(
       Payload payload, List<AttackPattern> attackPatterns, Set<Domain> domains, Set<Tag> tags) {
@@ -140,6 +146,9 @@ public class PayloadService {
                   String contractId = String.valueOf(UUID.randomUUID());
                   InjectorContract newContract = new InjectorContract();
                   newContract.setId(contractId);
+                  // InjectorContract has no listener that stamps a tenant, so the new contract
+                  // takes its payload's tenant here: a contract lives in its payload's tenant.
+                  newContract.setTenant(payload.getTenant());
                   return newContract;
                 });
 
@@ -254,6 +263,14 @@ public class PayloadService {
                   List<ContractElement> targetedAssetsFields =
                       targetedAssetFields(payloadArgument.getKey(), payloadArgument);
                   targetedAssetsFields.forEach(builder::mandatory);
+                } else if (PrimitiveType.Document == payloadArgument.getType()) {
+                  ContractElement documentField =
+                      documentField(
+                          payloadArgument.getKey(),
+                          payloadArgument.getKey(),
+                          payloadArgument.getDefaultValue());
+                  documentField.setArgumentType(payloadArgument.getType());
+                  builder.mandatory(documentField);
                 } else {
                   ContractElement textField =
                       textField(
@@ -293,6 +310,11 @@ public class PayloadService {
             this.expectationBuilderService.buildDetectionExpectation(),
             BaseInjectExpectation.EXPECTATION_TYPE.DETECTION,
             expectedSecurityPlatforms);
+    Expectation loggingExpectation =
+        withExpectedSecurityPlatforms(
+            this.expectationBuilderService.buildLoggingExpectation(),
+            BaseInjectExpectation.EXPECTATION_TYPE.LOGGING,
+            expectedSecurityPlatforms);
     Expectation vulnerableExpectation =
         withExpectedSecurityPlatforms(
             this.expectationBuilderService.buildVulnerabilityExpectation(),
@@ -304,57 +326,22 @@ public class PayloadService {
         switch (type) {
           case DETECTION -> detectionExpectation.setPredefined(true);
           case PREVENTION -> preventionExpectation.setPredefined(true);
+          case LOGGING -> loggingExpectation.setPredefined(true);
           case VULNERABILITY -> vulnerableExpectation.setPredefined(true);
           default -> throw new IllegalArgumentException("Unsupported expectation type: " + type);
         }
       }
     }
 
-    return expectationsField(
-        List.of(detectionExpectation, preventionExpectation, vulnerableExpectation));
-  }
-
-  public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
-      PayloadCreationService.PayloadInjectorContractCreationResult result) {
-    return payloadMapper.toPayloadOutput(
-        result.payload(),
-        result.injectorContract().getAttackPatterns().stream()
-            .map(AttackPattern::getId)
-            .collect(Collectors.toList()),
-        result.injectorContract().getDomains().stream()
-            .map(Domain::getId)
-            .collect(Collectors.toList()),
-        result.injectorContract().getTags().stream().map(Tag::getId).collect(Collectors.toList()));
-  }
-
-  public record PayloadWithRelatedEntities(
-      Payload payload,
-      List<String> attackPatternIds,
-      List<String> domainIds,
-      List<String> tagIds) {}
-
-  public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {
-    Payload payload =
-        payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
-    RawPayloadRelatedIds relatedIds =
-        injectorContractRepository.findRelatedIdsByPayloadId(payloadId).orElse(null);
-
-    List<String> attackPatternIds =
-        relatedIds != null ? relatedIds.getAttack_pattern_ids() : List.of();
-    List<String> domainIds = relatedIds != null ? relatedIds.getDomain_ids() : List.of();
-    List<String> tagIds = relatedIds != null ? relatedIds.getTag_ids() : List.of();
-
-    return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
-  }
-
-  /**
-   * Applies the OpenAEV rule for available expectations: only MANUAL is multi-selectable, all other
-   * types are single-select.
-   */
-  private Expectation withExpectedMultiSelectableFlag(Expectation expectation) {
-    expectation.setMultiSelectable(
-        BaseInjectExpectation.EXPECTATION_TYPE.MANUAL.equals(expectation.getType()));
-    return expectation;
+    List<Expectation> expectations =
+        new ArrayList<>(List.of(detectionExpectation, preventionExpectation));
+    // The contract is stored at payload synchronisation: a contract built while the preview feature
+    // is off only offers LOGGING at its next synchronisation.
+    if (previewFeatureService.isFeatureEnabled(PreviewFeature.LOGGING_EXPECTATION)) {
+      expectations.add(loggingExpectation);
+    }
+    expectations.add(vulnerableExpectation);
+    return expectationsField(expectations);
   }
 
   /**
@@ -375,6 +362,56 @@ public class PayloadService {
     }
     return expectation;
   }
+
+  // -- OUTPUT --
+
+  public PayloadOutput convertPayloadInjectorContractCreationToPayloadOutput(
+      PayloadCreationService.PayloadInjectorContractCreationResult result) {
+    return payloadMapper.toPayloadOutput(
+        result.payload(),
+        result.injectorContract().getAttackPatterns().stream()
+            .map(AttackPattern::getId)
+            .collect(Collectors.toList()),
+        result.injectorContract().getDomains().stream()
+            .map(Domain::getId)
+            .collect(Collectors.toList()),
+        result.injectorContract().getTags().stream().map(Tag::getId).collect(Collectors.toList()));
+  }
+
+  // -- READ --
+
+  public record PayloadWithRelatedEntities(
+      Payload payload,
+      List<String> attackPatternIds,
+      List<String> domainIds,
+      List<String> tagIds) {}
+
+  public Payload payload(String tenantId, String payloadId) {
+    return payloadRepository
+        .findByIdAndTenantId(payloadId, tenantId)
+        .orElseThrow(() -> new ElementNotFoundException("Payload not found"));
+  }
+
+  /** Every version of a payload in the tenant. */
+  public List<Payload> versions(String tenantId, String externalId) {
+    return payloadRepository.findAllByTenantIdAndIdentityExternalId(tenantId, externalId);
+  }
+
+  public PayloadWithRelatedEntities findPayloadWithRelatedEntities(String payloadId) {
+    Payload payload =
+        payloadRepository.findById(payloadId).orElseThrow(ElementNotFoundException::new);
+    RawPayloadRelatedIds relatedIds =
+        injectorContractRepository.findRelatedIdsByPayloadId(payloadId).orElse(null);
+
+    List<String> attackPatternIds =
+        relatedIds != null ? relatedIds.getAttack_pattern_ids() : List.of();
+    List<String> domainIds = relatedIds != null ? relatedIds.getDomain_ids() : List.of();
+    List<String> tagIds = relatedIds != null ? relatedIds.getTag_ids() : List.of();
+
+    return new PayloadWithRelatedEntities(payload, attackPatternIds, domainIds, tagIds);
+  }
+
+  // -- DUPLICATE --
 
   public PayloadCreationService.PayloadInjectorContractCreationResult duplicate(
       @NotBlank final String payloadId) {
@@ -465,14 +502,19 @@ public class PayloadService {
     };
   }
 
+  // -- COLLECTOR --
+
   public void deprecateNonProcessedPayloadsByCollector(
-      String collectorId, List<String> processedPayloadExternalIds) {
+      TxCtx ctx, String collectorId, List<String> processedPayloadExternalIds) {
+    String writeTenant = writeScopeResolver.tenantForWrite(ctx, null);
     List<String> payloadExternalIds =
-        payloadRepository.findAllExternalIdsByCollectorId(collectorId);
+        payloadRepository.findAllExternalIdsByCollectorId(collectorId, writeTenant);
     List<String> payloadExternalIdsToDeprecate =
         getExternalIdsToDeprecate(payloadExternalIds, processedPayloadExternalIds);
     payloadRepository.setPayloadStatusByExternalIds(
-        String.valueOf(Payload.PAYLOAD_STATUS.DEPRECATED), payloadExternalIdsToDeprecate);
+        String.valueOf(Payload.PAYLOAD_STATUS.DEPRECATED),
+        payloadExternalIdsToDeprecate,
+        writeTenant);
     log.info("Number of deprecated Payloads: {}", payloadExternalIdsToDeprecate.size());
   }
 
@@ -482,6 +524,8 @@ public class PayloadService {
         .filter(externalId -> !processedPayloadExternalIds.contains(externalId))
         .toList();
   }
+
+  // -- SEARCH --
 
   /**
    * Search payloads with pagination and architecture filter, where the user is granted. The user
@@ -535,6 +579,8 @@ public class PayloadService {
             SpecificationUtils.hasGrantAccess(
                 user.getId(), adminOrBypass, hasCapability, Grant.GRANT_TYPE.OBSERVER));
   }
+
+  // -- BUILT-IN PAYLOADS --
 
   /**
    * Retrieve the existing FileDrop Payload linked to the document id, or create a new one if it
@@ -674,6 +720,8 @@ public class PayloadService {
         tagService.findOrCreateTagsFromNames(ctx, new HashSet<>(Set.of(OPENCTI_TAG_NAME))));
     return saved;
   }
+
+  // -- DELETE --
 
   // Transactional so the payload delete and the chaining step sweep commit or roll back together:
   // without it the deleteById commits first and a sweep failure would leave the ghost steps this

@@ -11,6 +11,7 @@ import io.openaev.service.attackpath.dto.AttackPathDeltaDTO;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionService;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import java.time.Instant;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +45,7 @@ class AttackPathDeltaThresholdTest extends IntegrationTest {
   @BeforeEach
   void setUp() {
     tenant = tenantRepository.save(TenantFixture.getTenant("ap-delta-bound-tenant"));
+    DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenant.getId());
   }
 
   @Test

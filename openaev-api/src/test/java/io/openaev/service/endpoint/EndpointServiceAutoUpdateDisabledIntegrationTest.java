@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.AssetAgentJob;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AssetAgentJobRepository;
@@ -64,7 +65,8 @@ class EndpointServiceAutoUpdateDisabledIntegrationTest extends IntegrationTest {
   }
 
   private void ensureServiceAccount(String tenantId) {
-    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(tenantId);
+    agentServiceAccountPrivilegeService.ensurePrivilegedUserExists(
+        TxCtx.forTenant(tenantId), tenantId);
     entityManager.flush();
     entityManager.clear();
   }

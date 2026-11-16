@@ -848,4 +848,37 @@ class BackgroundEntrypointDetectionTest {
       }
     }
   }
+
+  @Test
+  @DisplayName("a v1-scoped background path names every table it reaches outside the primitive")
+  void v1ScopedWaiversNameEveryTableTheyReach() {
+    // A path that runs under the v1 TenantContext, not the v2 primitive, turns its reads and
+    // writes into wrong-tenant accesses the day a table it reaches outside the primitive is
+    // activated. So it carries an until-active tag for every such table: the day one activates,
+    // the expiry check fails and forces the conversion. A revert to an incomplete reason fails
+    // here. The pattern is pinned on the waiver of that shape left in the baseline; a new one is
+    // held by no_baseline_waiver_outlives_its_table, which fails on any until-active tag whose
+    // table is active, but the completeness of its tags is only this test's, so add it here.
+    Map<String, String> baseline = BackgroundEntrypointTenantScopeArchTest.loadBaseline();
+    assertUntilActive(
+        baseline, "io.openaev.scheduler.jobs.InjectsFinalizationJob", "injects", "exercises");
+  }
+
+  private static void assertUntilActive(
+      Map<String, String> baseline, String fqcn, String... tables) {
+    String reason = baseline.get(fqcn);
+    assertTrue(reason != null, fqcn + " must be listed in the baseline");
+    Set<String> tagged = BackgroundEntrypointTenantScopeArchTest.untilActiveTables(reason);
+    for (String table : tables) {
+      assertTrue(
+          tagged.contains(table),
+          fqcn
+              + " reaches '"
+              + table
+              + "' outside the primitive and must carry until-active:"
+              + table
+              + ", got: "
+              + reason);
+    }
+  }
 }

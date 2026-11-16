@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -19,7 +20,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,12 +35,17 @@ import org.springframework.transaction.annotation.Transactional;
  * rows, one per tenant, never a shared or cross-tenant one.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=collector_types")
 @WithMockUser(isAdmin = true)
 @DisplayName("collector_types write isolation through the real HTTP endpoint, both routes")
 class CollectorTypeHttpIsolationTest extends IntegrationTest {
 
   private static final String TENANT_COLLECTOR_URI = "/api/tenants/{tenantId}/collectors";
+
+  @DynamicPropertySource
+  static void activeTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.Assert;
 
 @Repository
 public interface KillChainPhaseRepository
@@ -17,6 +18,20 @@ public interface KillChainPhaseRepository
 
   @NotNull
   Optional<KillChainPhase> findById(@NotNull String id);
+
+  List<KillChainPhase> findAllByIdInAndTenantId(Collection<String> ids, @NotNull String tenantId);
+
+  /**
+   * The kill chain phases among the given ids that belong to the given tenant; the id of a phase of
+   * another tenant is skipped, as {@code findAllById} skips an unknown id. Refuses a null id list,
+   * as {@code findAllById} does, with an {@link IllegalArgumentException} (answered by a 400); the
+   * derived query alone accepts a null list.
+   */
+  default List<KillChainPhase> findAllByIdInTenant(
+      Collection<String> ids, @NotNull String tenantId) {
+    Assert.notNull(ids, "Ids must not be null");
+    return findAllByIdInAndTenantId(ids, tenantId);
+  }
 
   List<KillChainPhase> findAllByExternalIdInIgnoreCaseAndTenantId(
       List<String> externalIds, @NotNull String tenantId);

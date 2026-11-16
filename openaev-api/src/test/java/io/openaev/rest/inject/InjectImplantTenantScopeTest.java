@@ -1044,6 +1044,9 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
   // The fixtures stamp the tenant of the current context: call seed() inside inTenant().
 
   private Seeded seed() {
+    // The domain belongs to the tenant of the context, as the other fixtures do.
+    DomainComposer.Composer domain = domainComposer.forDomain(DomainFixture.getRandomDomain());
+    domain.get().setTenant(new Tenant(TenantContext.getCurrentTenant()));
     AgentComposer.Composer agent = agentComposer.forAgent(AgentFixture.createDefaultAgentService());
     EndpointComposer.Composer endpoint =
         endpointComposer.forEndpoint(EndpointFixture.createEndpoint()).withAgent(agent);
@@ -1057,7 +1060,7 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
             .withInjectorContract(
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
-                    .withDomain(domainComposer.forDomain(DomainFixture.getRandomDomain()))
+                    .withDomain(domain)
                     .withInjector(InjectorFixture.createDefaultPayloadInjector())
                     .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand())))
             .persist();

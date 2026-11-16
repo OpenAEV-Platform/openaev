@@ -156,6 +156,12 @@ export interface AgentTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -404,6 +410,12 @@ export interface AiTargetTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -755,6 +767,12 @@ export interface AssetGroupTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -1350,6 +1368,10 @@ export interface AttackPatternCoverageOutput {
   /** @format int64 */
   detection_total?: number;
   kill_chain_phases?: KillChainPhaseCoverage[];
+  /** @format int64 */
+  logging_success?: number;
+  /** @format int64 */
+  logging_total?: number;
   /** @format int64 */
   prevention_success?: number;
   /** @format int64 */
@@ -2100,6 +2122,12 @@ interface BaseInjectTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_prevention_status?:
     | "FAILED"
     | "PENDING"
@@ -2547,6 +2575,16 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface CatalogInstallAllOutput {
+  failed_external_ids?: string[];
+  installed_ids?: string[];
+}
+
+export interface CatalogInstallOutput {
+  /** @minLength 1 */
+  installed_id: string;
+}
+
 export interface CatalogPayloadOutput {
   /** @minLength 1 */
   catalog_payload_external_id: string;
@@ -2555,12 +2593,26 @@ export interface CatalogPayloadOutput {
   catalog_payload_version: string;
 }
 
+export interface CatalogScenarioInstallInput {
+  scenario_type: string;
+}
+
 export interface CatalogScenarioOutput {
   /** @minLength 1 */
   catalog_scenario_external_id: string;
   catalog_scenario_name?: string;
   /** @minLength 1 */
   catalog_scenario_version: string;
+}
+
+export interface CatalogSettingsInput {
+  payload_auto_install: boolean;
+  scenario_auto_install: boolean;
+}
+
+export interface CatalogSettingsOutput {
+  payload_auto_install: boolean;
+  scenario_auto_install: boolean;
 }
 
 export interface CatalogSyncOutput {
@@ -2573,6 +2625,11 @@ export interface CatalogSyncOutput {
   /** @format int32 */
   unchanged?: number;
 }
+
+export type ChainedScenarioInstallInput = CatalogScenarioInstallInput & {
+  /** Input for creating or updating a workflow configuration. */
+  workflow_configuration?: WorkflowConfigurationInput;
+};
 
 export interface Challenge {
   challenge_category?: string;
@@ -5002,6 +5059,12 @@ export interface EndpointTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -5019,28 +5082,6 @@ export interface EndpointTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
-}
-
-export interface EndpointTargetOutput {
-  /**
-   * List agents installed
-   * @uniqueItems true
-   */
-  asset_agents?: AgentOutput[];
-  /** Hostname */
-  asset_hostname?: string;
-  /**
-   * Asset Id
-   * @minLength 1
-   */
-  asset_id: string;
-  /**
-   * List IPs
-   * @uniqueItems true
-   */
-  asset_ips?: string[];
-  /** Seen IP */
-  asset_seen_ip?: string;
 }
 
 export interface EngineSortField {
@@ -5265,15 +5306,19 @@ export interface EsFinding {
   base_endpoint_side?: string[];
   base_entity?: string;
   base_id?: string;
-  base_inject_side?: string;
+  /** @uniqueItems true */
+  base_inject_side?: string[];
   base_representative?: string;
   base_restrictions?: string[];
-  base_scenario_side?: string;
-  base_simulation_side?: string;
+  /** @uniqueItems true */
+  base_scenario_side?: string[];
+  /** @uniqueItems true */
+  base_simulation_side?: string[];
   base_tenant_side?: string;
   /** @format date-time */
   base_updated_at?: string;
-  finding_field?: string;
+  /** @uniqueItems true */
+  finding_field?: string[];
   /** @format int64 */
   finding_masking_version?: number;
   finding_type?: string;
@@ -6493,7 +6538,8 @@ export interface HealthCheck {
     | "MISSING_TECHNICAL_TARGETS"
     | "MISSING_AUDIENCE_TARGETS"
     | "INEFFECTIVE_TECHNICAL_TARGETS"
-    | "INEFFECTIVE_AUDIENCE_TARGETS";
+    | "INEFFECTIVE_AUDIENCE_TARGETS"
+    | "REVOKED";
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
@@ -6515,6 +6561,7 @@ export interface HealthCheck {
     | "MESSAGE"
     | "SCOPE_DEFINITION"
     | "CREDENTIAL_REFERENCE"
+    | "PAYLOAD"
     | "UNKNOWN";
 }
 
@@ -8226,6 +8273,12 @@ export interface ManualTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -8483,6 +8536,24 @@ export interface NewsFeedItemOutput {
   news_feed_item_type?: "RESOURCE_SCENARIO";
   /** Path of the item in XTM Hub, to append to the XTM Hub URL, absent when XTM Hub sent none */
   news_feed_item_url_path?: string;
+}
+
+export interface NewsFeedSettingsInput {
+  /**
+   * The news feed types the current user wants to receive, and only those. An empty list unsubscribes the user from everything
+   * @maxItems 50
+   * @minItems 0
+   */
+  news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
+}
+
+export interface NewsFeedSettingsOutput {
+  /** Whether a tenant in scope is registered on XTM Hub and has not lost its connectivity. A registered tenant that lost it still gets its news feed, but should be invited to reconnect */
+  news_feed_settings_hub_connected: boolean;
+  /** Whether the news feed is served by XTM Hub, that is a tenant in scope is registered. The preferences can only be changed when it is */
+  news_feed_settings_hub_registered: boolean;
+  /** The news feed types the current user is subscribed to */
+  news_feed_settings_subscribed_types: "RESOURCE_SCENARIO"[];
 }
 
 export interface NotificationBulkProcessingInput {
@@ -9067,25 +9138,6 @@ export interface PageCustomDomain {
 
 export interface PageEndpointOutput {
   content?: EndpointOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject;
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PageEndpointTargetOutput {
-  content?: EndpointTargetOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -10029,6 +10081,11 @@ export interface PayloadPrerequisite {
   get_command: string;
 }
 
+export interface PayloadRevocationInput {
+  /** @minLength 1 */
+  payload_revocation_reason: string;
+}
+
 export interface PayloadSimple {
   payload_collector_type?: string;
   payload_id?: string;
@@ -10544,6 +10601,12 @@ export interface PlayerTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -11185,6 +11248,7 @@ export interface RoleInput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -11271,6 +11335,7 @@ export interface RoleOutput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -12846,6 +12911,12 @@ export interface TeamTarget {
     | "SUCCESS";
   /** @minLength 1 */
   target_id: string;
+  target_logging_status?:
+    | "FAILED"
+    | "PENDING"
+    | "PARTIAL"
+    | "UNKNOWN"
+    | "SUCCESS";
   target_name?: string;
   target_prevention_status?:
     | "FAILED"
@@ -13421,6 +13492,13 @@ export interface ThreatArsenalFacetCountsOutput {
   statuses?: Record<string, number>;
 }
 
+export type TimeBasedScenarioInstallInput = CatalogScenarioInstallInput & {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  manual_targets?: string[];
+  team_ids?: string[];
+};
+
 export interface Token {
   listened?: boolean;
   /** @format date-time */
@@ -13543,7 +13621,6 @@ export interface User {
   user_phone2?: string;
   listened?: boolean;
   team_exercises_users?: string[];
-  unscopedGroups?: Group[];
   /** True if the user is admin */
   user_admin?: boolean;
   /** @uniqueItems true */
@@ -13565,6 +13642,7 @@ export interface User {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -13643,7 +13721,7 @@ export interface User {
   user_email: string;
   /** First name of the user */
   user_firstname?: string;
-  user_grants?: Record<string, string>;
+  user_grants?: Record<string, UserGrant>;
   /** Gravatar of the user */
   user_gravatar?: string;
   user_groups?: string[];
@@ -13693,6 +13771,18 @@ export interface User {
    * @format date-time
    */
   user_updated_at: string;
+}
+
+export interface UserGrant {
+  grant: "OBSERVER" | "PLANNER" | "LAUNCHER";
+  type:
+    | "SCENARIO"
+    | "SIMULATION"
+    | "ATOMIC_TESTING"
+    | "AUTONOMOUS_RUN"
+    | "THREAT_ARSENAL"
+    | "PAYLOAD"
+    | "UNKNOWN";
 }
 
 export interface UserInput {

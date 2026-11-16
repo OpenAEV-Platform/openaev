@@ -19,6 +19,7 @@ import io.openaev.rest.settings.form.TenantSettingsUpdateInput;
 import io.openaev.rest.settings.form.ThemeInput;
 import io.openaev.rest.settings.response.TenantSettingsOutput;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -94,6 +95,11 @@ public class TenantSettingsService {
     upsert(tenant, TENANT_SCENARIO_DASHBOARD.key(), input.platformScenarioDashboard());
     upsert(tenant, TENANT_SIMULATION_DASHBOARD.key(), input.platformSimulationDashboard());
     return findSettings(tenantId);
+  }
+
+  public void updateCatalogAutoInstall(
+      @NotBlank String tenantId, @NotNull TenantSettingKeys setting, boolean enabled) {
+    upsert(new Tenant(tenantId), setting.key(), String.valueOf(enabled));
   }
 
   /** Update theme settings for a tenant. */

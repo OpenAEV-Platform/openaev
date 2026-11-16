@@ -7,7 +7,12 @@ const SYSTEM_BANNER_HEIGHT_PER_MESSAGE = 18;
 // Extra breathing space kept below the system banner messages.
 const SYSTEM_BANNER_VERTICAL_PADDING = 16;
 export type BannerMessage = Record<'debug' | 'info' | 'warn' | 'error' | 'fatal', string[]>;
-export const computeBannerSettings = (settings: PlatformSettings) => {
+interface BannerSettingsOptions {
+  /** The banner inviting to connect the product to XTM Hub is displayed: a top banner like the trial one. */
+  isRegisterBannerShown?: boolean;
+}
+
+export const computeBannerSettings = (settings: PlatformSettings, { isRegisterBannerShown = false }: BannerSettingsOptions = {}) => {
   const bannerByLevel = settings.platform_banner_by_level;
 
   let numberOfElements = 0;
@@ -23,7 +28,8 @@ export const computeBannerSettings = (settings: PlatformSettings) => {
   const isSystemBannerActivated = numberOfElements > 0;
   // Trial / demo / license banner displayed at the very top of the platform.
   const isTopBannerActivated = settings.platform_license?.license_type === LICENSE_OPTION_TRIAL
-    || isDemoInstance(settings);
+    || isDemoInstance(settings)
+    || isRegisterBannerShown;
 
   // Reserve the actual height of each displayed banner so the top bar (logo,
   // search) is never glued to / hidden behind them. The top banner has a fixed

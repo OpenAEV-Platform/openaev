@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
@@ -40,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
  * PlaywrightReportingRenderer}) is never exercised here: generations and schedules are seeded
  * directly, and only endpoints that do not dispatch a render are called.
  */
+@CoversTenantIsolation("reportings")
 @Transactional
 @TestPropertySource(
     properties =

@@ -3,6 +3,7 @@ package io.openaev.injectors.phishing.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Inject;
@@ -46,6 +47,7 @@ import org.springframework.test.context.TestPropertySource;
  * own {@code REQUIRES_NEW} transaction, which cannot see rows still uncommitted in a test-managed
  * one. Seeding and cleanup run through auto-committed JDBC.
  */
+@CoversTenantIsolation("phishing_results")
 @TestPropertySource(properties = "openaev.tenant.active-tables=phishing_results")
 @DisplayName("phishing_results isolation when the scope does not match the token's tenant")
 class PhishingResultTenantScopeTest extends IntegrationTest {

@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.Capability;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
  * non-admin that is a member of two tenants and holds only the channel read capability, and proves
  * the rewriter still returns one tenant's channels under its path.
  */
+@CoversTenantIsolation("channels")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=channels")
 @WithMockUser(isAdmin = false)

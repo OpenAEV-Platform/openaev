@@ -28,6 +28,7 @@ import io.openaev.utils.fixtures.PlayerFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utils.pagination.SearchPaginationInput;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -207,6 +208,33 @@ public class TenantMembershipOrganizationScopeTest extends IntegrationTest {
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.user_organization_id").value(organizationOfB.getId()))
           .andExpect(jsonPath("$.user_organization_name").value(organizationOfB.getName()));
+    }
+
+    @Test
+    @WithMockUser(isAdmin = true)
+    @DisplayName("A search shows the organization of the tenant the header names")
+    void given_headerNamingTenantB_should_searchWithTheOrganizationOfB() throws Exception {
+      // -- PREPARE --
+      User member = memberWithAnOrganizationInEachTenant();
+      SearchPaginationInput search = new SearchPaginationInput();
+      search.setSize(100);
+
+      // -- EXECUTE --
+      mvc.perform(
+              post(USER_URI + "/search")
+                  .header(TENANT_HEADER, tenantB)
+                  .content(asJsonString(search))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .accept(MediaType.APPLICATION_JSON)
+                  .with(csrf()))
+          // -- ASSERT --
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.content[?(@.user_id=='" + member.getId() + "')].user_organization_id")
+                  .value(organizationOfB.getId()))
+          .andExpect(
+              jsonPath("$.content[?(@.user_id=='" + member.getId() + "')].user_organization_name")
+                  .value(organizationOfB.getName()));
     }
 
     @Test

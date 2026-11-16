@@ -29,15 +29,13 @@ public interface PayloadRepository
   Optional<Payload> findByIdAndTenantId(
       @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
-  Optional<Payload> findByIdentityExternalId(@NotNull String externalId);
-
   List<Payload> findAllByTenantIdAndContentHash(String tenantId, String contentHash);
 
   List<Payload> findAllByTenantIdAndNameAndContentHashIsNull(String tenantId, String name);
 
-  /** Scenario or simulation name per inject running this payload; null for an atomic testing. */
+  /** Where injects run this payload: their scenario, simulation, or atomic testing title. */
   @Query(
-      "SELECT DISTINCT COALESCE(s.name, e.name) FROM Inject i"
+      "SELECT DISTINCT COALESCE(s.name, e.name, i.title) FROM Inject i"
           + " LEFT JOIN i.scenario s LEFT JOIN i.exercise e"
           + " WHERE i.injectorContract.payload.id = :payloadId")
   List<String> findUsageNamesByPayloadId(@Param("payloadId") String payloadId, Limit limit);
@@ -57,20 +55,23 @@ public interface PayloadRepository
       value =
           "SELECT pi.payload_external_id FROM payload_identities pi"
               + " JOIN collectors c ON c.collector_type_id = pi.payload_collector_type"
-              + " WHERE c.collector_id = :collectorId",
+              + " WHERE c.collector_id = :collectorId"
+              + " AND pi.tenant_id = :tenantId AND c.tenant_id = :tenantId",
       nativeQuery = true)
-  List<String> findAllExternalIdsByCollectorId(@NotNull @Param("collectorId") String collectorId);
+  List<String> findAllExternalIdsByCollectorId(
+      @NotNull @Param("collectorId") String collectorId, @Param("tenantId") String tenantId);
 
   @Modifying
   @Query(
       value =
           "UPDATE payloads p SET payload_status = :payloadStatus FROM payload_identities pi"
               + " WHERE pi.payload_identity_id = p.payload_identity AND pi.payload_external_id IN :payloadExternalIds"
-              + " AND p.tenant_id = :#{#tenantContext.currentTenant}",
+              + " AND p.tenant_id = :tenantId AND pi.tenant_id = :tenantId",
       nativeQuery = true)
   void setPayloadStatusByExternalIds(
       @Param("payloadStatus") String payloadStatus,
-      @Param("payloadExternalIds") List<String> payloadExternalIds);
+      @Param("payloadExternalIds") List<String> payloadExternalIds,
+      @Param("tenantId") String tenantId);
 
   @Query(
       """
@@ -99,4 +100,13 @@ public interface PayloadRepository
           + "AND NOT EXISTS (SELECT ic FROM InjectorContract ic WHERE ic.payload = p)")
   List<Payload> findOrphansByNameAndTenantId(
       @Param("name") String name, @Param("tenantId") String tenantId);
+
+  // -- IDENTITY --
+
+  List<Payload> findAllByTenantIdAndIdentityExternalId(
+      @NotNull String tenantId, @NotNull String externalId);
+
+  Optional<Payload> findByIdentityExternalIdAndIdentityRepositoryIsNull(@NotNull String externalId);
+
+  List<Payload> findAllByIdentityId(String identityId);
 }

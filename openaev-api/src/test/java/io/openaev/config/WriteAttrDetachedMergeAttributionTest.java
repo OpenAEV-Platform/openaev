@@ -7,12 +7,10 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.config.WriteAttrDetectorRecorder.Violation;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
-import io.openaev.rest.role.TenantRoleApi;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.List;
@@ -25,7 +23,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,18 +35,18 @@ import org.springframework.transaction.annotation.Transactional;
  * the write falls back to the flush stack. Flushed from a test frame, it is then waived as
  * test-driven: a real production wrong-tenant write dropped in silence.
  *
- * <p>The production shape is the tenant role create on the non-prefixed route: the service assigns
+ * <p>The shape is the {@link AmbientTenantRoleWriter} create on the non-prefixed route: it assigns
  * the id, takes the tenant from the ambient context (the default tenant, since the header route
  * does not set it) and saves, while the request scope is tenant B.
  */
 @Transactional
-@Import(WriteAttrDetectorTestConfig.class)
+@Import({WriteAttrDetectorTestConfig.class, AmbientTenantRoleWriter.Config.class})
 @WithMockUser(isAdmin = true)
 @DisplayName("Write-attribution: a merged transient entity is attributed to the asking request")
 class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
 
   private static final String DEFAULT_TENANT = Tenant.DEFAULT_TENANT_UUID;
-  private static final String CONTROLLER = "io.openaev.rest.role.TenantRoleApi.create";
+  private static final String CONTROLLER = AmbientTenantRoleWriter.CONTROLLER;
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
@@ -116,19 +113,12 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
   }
 
   private String postRole() throws Exception {
-    String response =
-        mvc.perform(
-                post(TenantRoleApi.ROLE_URI)
-                    .header("X-Tenant-Ids", tenantB)
-                    .with(csrf())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        "{\"role_name\":\"wattr-merge\",\"role_description\":\"wattr-merge\",\"role_capabilities\":[]}"))
-            .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-    return JsonPath.read(response, "$.role_id");
+    return mvc.perform(
+            post(AmbientTenantRoleWriter.URI).header("X-Tenant-Ids", tenantB).with(csrf()))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
   }
 
   /**

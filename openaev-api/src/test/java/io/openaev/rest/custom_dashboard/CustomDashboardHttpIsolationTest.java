@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.Widget;
@@ -42,6 +43,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+@CoversTenantIsolation("custom_dashboards")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=custom_dashboards,widgets")
 @WithMockUser(isAdmin = true)

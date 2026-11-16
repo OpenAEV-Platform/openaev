@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -51,6 +52,7 @@ import org.springframework.transaction.annotation.Transactional;
  * PlatformSettingsApi.settings()}, which resolves its scope the same way every other
  * non-tenant-prefixed, authenticated endpoint does.
  */
+@CoversTenantIsolation("parameters")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @DisplayName("parameters active, dual-scope write rule")

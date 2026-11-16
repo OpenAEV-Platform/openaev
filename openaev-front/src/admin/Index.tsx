@@ -14,7 +14,7 @@ import { fetchTags } from '../actions/tags/tag-action';
 import { errorWrapper } from '../components/Error';
 import Loader from '../components/Loader';
 import NotFound from '../components/NotFound';
-import { computeBannerSettings } from '../public/components/systembanners/utils';
+import useBannerSettings from '../public/components/systembanners/useBannerSettings';
 import { useHelper } from '../store';
 import { useAppDispatch } from '../utils/hooks';
 import useAuth from '../utils/hooks/useAuth';
@@ -144,7 +144,7 @@ const Index = () => {
     dispatch(fetchTags());
     dispatch(fetchDomains());
   }, [currentUserTenant?.tenant_id]);
-  const { bannerHeight, bannerHeightNumber } = computeBannerSettings(settings);
+  const { bannerHeight, bannerHeightNumber } = useBannerSettings(settings);
   const [goToGettingStarted, setGoToGettingStarted] = useLocalStorage<boolean>(GETTING_STARTED_LOCAL_STORAGE_KEY, true);
   useEffect(() => {
     if (goToGettingStarted) {
@@ -178,7 +178,8 @@ const Index = () => {
             {/* Static segments rank above the profile wildcard in React Router */}
             <Route path="profile/notifications" element={errorWrapper(ProfileNotifications)()} />
             <Route path="profile/triggers" element={errorWrapper(ProfileTriggers)()} />
-            <Route path="profile/news-feed" element={errorWrapper(ProfileNewsFeed)()} />
+            <Route path="profile/news-feed" element={errorWrapper(ProfileNewsFeed)({ tab: 'items' })} />
+            <Route path="profile/news-feed/settings" element={errorWrapper(ProfileNewsFeed)({ tab: 'settings' })} />
             <Route path="profile/*" element={errorWrapper(IndexProfile)()} />
             <Route path="" element={errorWrapper(Home)()} />
             <Route path="results" element={errorWrapper(DashboardResults)()} />

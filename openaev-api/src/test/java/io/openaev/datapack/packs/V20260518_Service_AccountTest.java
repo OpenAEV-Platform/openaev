@@ -4,12 +4,14 @@ import static io.openaev.service.account.ReservedServiceAccount.AGENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Tenant;
 import io.openaev.processor.datapack.V20260518_Service_Account;
 import io.openaev.service.DataPackService;
@@ -94,7 +96,7 @@ public class V20260518_Service_AccountTest extends IntegrationTest {
         mock(AgentServiceAccountPrivilegeService.class);
     doThrow(new RuntimeException("DB error"))
         .when(mockPrivilegeService)
-        .ensurePrivilegedUserExists(anyString());
+        .ensurePrivilegedUserExists(any(TxCtx.class), anyString());
     V20260518_Service_Account datapack =
         new V20260518_Service_Account(dataPackService, mockPrivilegeService);
 

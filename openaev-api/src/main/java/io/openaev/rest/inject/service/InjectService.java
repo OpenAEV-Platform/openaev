@@ -208,8 +208,13 @@ public class InjectService {
       throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
     }
 
+    // Resolved in the parent's own tenant, not the request's ambient scope: a built-in contract id
+    // repeats across tenants (#8485), and a caller creating this inject can belong to several.
+    String parentTenantId =
+        exercise != null ? exercise.getTenant().getId() : scenario.getTenant().getId();
     InjectorContract injectorContract =
-        this.injectorContractService.injectorContract(input.getInjectorContract());
+        this.injectorContractService.injectorContractInTenant(
+            input.getInjectorContract(), parentTenantId);
 
     if (injectorContract.getConvertedContent() == null) {
       injectorContract.setConvertedContent(convertContent(injectorContract.getContent()));
@@ -292,6 +297,15 @@ public class InjectService {
     }
 
     return inject;
+  }
+
+  /**
+   * The tenant of each given inject, as {@code [inject_id, tenant_id]} rows read from the inject's
+   * own column by a native projection that no tenant scope narrows. For the callers that resolve an
+   * inject's owner before acting in its tenant; an unknown inject is absent from the result.
+   */
+  public List<Object[]> findTenantIdsByInjectIds(Collection<String> injectIds) {
+    return injectRepository.findTenantIdsByInjectIds(injectIds);
   }
 
   /**
@@ -575,6 +589,10 @@ public class InjectService {
 
   // -- SPECIFIC GETTER --
 
+  public Set<Inject> findByScenarioId(String scenarioId) {
+    return injectRepository.findByScenarioId(scenarioId);
+  }
+
   public List<Inject> getExecutedAndNotFinished() {
     return this.injectRepository.findAll(
         hasStatus(List.of(EXECUTED, ERROR, MAYBE_PREVENTED, PARTIAL, MAYBE_PARTIAL_PREVENTED))
@@ -695,11 +713,7 @@ public class InjectService {
    */
   private boolean isVisibleUnderClearance(Asset asset, MarkingCtx clearance) {
     String[] assetMarkingIds = asset.getMarkingIds();
-    if (assetMarkingIds == null || assetMarkingIds.length == 0) {
-      return true;
-    }
-    return clearance instanceof MarkingCtx.Restricted restricted
-        && restricted.markingIds().containsAll(Arrays.asList(assetMarkingIds));
+    return clearance.allows(assetMarkingIds == null ? List.of() : Arrays.asList(assetMarkingIds));
   }
 
   /**
@@ -1081,7 +1095,8 @@ public class InjectService {
 
     // Resolve injector explicitly (BeanUtils cannot copy String → Injector)
     if (StringUtils.isNotBlank(input.getInjectorId())) {
-      inject.setInjector(injectUtils.resolveInjector(input.getInjectorId(), null));
+      inject.setInjector(
+          injectUtils.resolveInjectorInTenant(input.getInjectorId(), inject.getTenant().getId()));
     }
 
     // Set dependencies
@@ -1842,6 +1857,7 @@ public class InjectService {
     healthChecks.addAll(healthCheckUtils.runCollectorChecks(inject, collectors));
     healthChecks.addAll(healthCheckUtils.runAllInjectorChecks(inject, injectors));
     healthChecks.addAll(healthCheckUtils.runContentChecks(inject));
+    healthChecks.addAll(healthCheckUtils.runRevocationChecks(List.of(inject)));
 
     return healthChecks;
   }

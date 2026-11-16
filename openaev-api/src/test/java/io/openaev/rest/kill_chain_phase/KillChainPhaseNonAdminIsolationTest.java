@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.database.model.Capability;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
  * only the capability that grants reading kill chain phases, so isolation — not RBAC — is what the
  * assertions exercise.
  */
+@CoversTenantIsolation("kill_chain_phases")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=kill_chain_phases")
 @WithMockUser(isAdmin = false)

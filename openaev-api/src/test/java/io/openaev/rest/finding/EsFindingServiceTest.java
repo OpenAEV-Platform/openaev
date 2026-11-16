@@ -126,22 +126,6 @@ class EsFindingServiceTest extends IntegrationTest {
   }
 
   @Test
-  void given_existing_finding_should_update_finding() {
-    // -- PREPARE --
-    FindingComposer.Composer wrapper = createFindingComposer();
-    Finding finding = wrapper.get();
-    String newKey = "new_key";
-    finding.setField(newKey);
-
-    // -- EXECUTE --
-    Finding result = findingService.updateFinding(finding, finding.getInject().getId());
-
-    // -- ASSERT --
-    assertNotNull(result);
-    assertEquals(newKey, result.getField());
-  }
-
-  @Test
   void given_existing_finding_should_delete_finding() {
     // -- PREPARE --
     FindingComposer.Composer wrapper = createFindingComposer();

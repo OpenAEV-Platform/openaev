@@ -17,6 +17,7 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.database.repository.*;
 import io.openaev.ee.EnterpriseEditionException;
 import io.openaev.ee.EnterpriseEditionService;
@@ -71,6 +72,7 @@ class V1_DataImporterTest extends IntegrationTest {
   @Autowired private TagRepository tagRepository;
   @Autowired private ScenarioRepository scenarioRepository;
   @Autowired private PayloadRepository payloadRepository;
+  @Autowired private PayloadIdentityRepository payloadIdentityRepository;
   @Autowired private AttackPatternRepository attackPatternRepository;
   @Autowired private KillChainPhaseRepository killChainPhaseRepository;
   @Autowired private InjectorRepository injectorRepository;
@@ -4638,6 +4640,112 @@ class V1_DataImporterTest extends IntegrationTest {
             Files.readAllBytes(
                 Paths.get(
                     "src/test/resources/importer-v1/import-scenario-workflow-step-missing-contract-with-payload.json")));
+  }
+
+  enum ExportedVersion {
+    IDENTICAL_TO_AN_OLD_ONE(node -> {}),
+    OTHER_CONTENT(node -> node.put("command_content", "whoami /all")),
+    OTHER_CONTENT_OLDER_FORMAT(
+        node -> {
+          node.put("command_content", "whoami /all");
+          node.remove("payload_cleanup_command");
+        });
+
+    final Consumer<ObjectNode> change;
+
+    ExportedVersion(Consumer<ObjectNode> change) {
+      this.change = change;
+    }
+  }
+
+  @ParameterizedTest
+  @EnumSource(ExportedVersion.class)
+  @Transactional
+  @WithMockUser
+  void given_payloadWithSeveralVersions_should_linkTheIdenticalOneElseCopyOrTakeTheHighest(
+      ExportedVersion exported) throws Exception {
+    // Arrange
+    builtinConnectorRegistration.register(
+        openaevInjectorIntegrationFactory, TenantContext.getCurrentTenant());
+    Payload oldVersion = importWhoami(node -> {});
+    Payload newVersion =
+        importWhoami(
+            node -> {
+              node.put("command_content", "whoami /priv");
+              node.put("payload_external_id", PAYLOAD_EXTERNAL_ID + "-2");
+            });
+    makeCatalogueVersions(oldVersion, newVersion);
+    long payloads = payloadRepository.count();
+
+    // Act
+    Payload linked = importWhoami(exported.change);
+
+    // Assert
+    switch (exported) {
+      case IDENTICAL_TO_AN_OLD_ONE -> assertEquals(oldVersion.getId(), linked.getId());
+      case OTHER_CONTENT -> {
+        assertEquals(payloads + 1, payloadRepository.count(), "the zip's content is kept");
+        assertNull(linked.getIdentity().getRepository(), "as a local copy");
+      }
+      case OTHER_CONTENT_OLDER_FORMAT -> assertEquals(newVersion.getId(), linked.getId());
+    }
+  }
+
+  // Imports the whoami scenario alone; returns the payload its inject runs.
+  private Payload importWhoami(Consumer<ObjectNode> change) throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode importData =
+        (ObjectNode)
+            mapper.readTree(
+                Files.readAllBytes(
+                    Paths.get(
+                        "src/test/resources/importer-v1/import-scenario-with-attack-pattern.json")));
+    ObjectNode contract =
+        (ObjectNode) importData.get("scenario_injects").get(0).get("inject_injector_contract");
+    contract.put("injector_contract_id", UUID.randomUUID().toString());
+    ObjectNode payload = (ObjectNode) contract.get("injector_contract_payload");
+    // Every hashed field, as a recent export writes them.
+    payload.set("payload_detection_remediations", mapper.createArrayNode());
+    payload.set("payload_output_parsers", mapper.createArrayNode());
+    payload.set("payload_expectations", mapper.createArrayNode());
+    payload.set("payload_expected_security_platforms", mapper.createObjectNode());
+    change.accept(payload);
+    injectRepository.deleteAll();
+    this.importer.importData(
+        txCtx(),
+        importData,
+        Map.of(),
+        null,
+        null,
+        null,
+        null,
+        Constants.IMPORTED_OBJECT_NAME_SUFFIX);
+    entityManager.flush();
+    entityManager.clear();
+    Inject inject = injectRepository.findAll().iterator().next();
+    return inject.getInjectorContract().orElseThrow().getPayload();
+  }
+
+  // Both payloads become versions of one catalogue payload, the second the highest.
+  private void makeCatalogueVersions(Payload oldVersion, Payload newVersion) {
+    PayloadIdentity identity = oldVersion.getIdentity();
+    oldVersion.setVersion("1.0.0");
+    newVersion.setIdentity(identity);
+    newVersion.setVersion("2.0.0");
+    payloadRepository.saveAll(List.of(oldVersion, newVersion));
+    entityManager.flush();
+    identity.setExternalId(PAYLOAD_EXTERNAL_ID);
+    identity.setLatestVersion(newVersion);
+    payloadIdentityRepository.save(identity);
+    entityManager.flush();
+    // The repository is set once, when the catalogue creates the identity.
+    entityManager
+        .createNativeQuery(
+            "UPDATE payload_identities SET payload_identity_repository = 'filigran/openaev-payloads'"
+                + " WHERE payload_identity_id = :id")
+        .setParameter("id", identity.getId())
+        .executeUpdate();
+    entityManager.clear();
   }
 
   private Payload findSinglePayloadByName(String name) {

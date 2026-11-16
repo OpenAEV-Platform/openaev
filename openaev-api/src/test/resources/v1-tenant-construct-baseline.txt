@@ -1,0 +1,254 @@
+# The production sites of the multi-tenancy v1 constructs, read by V1TenantConstructArchTest: the calls and
+# method references to TenantContext and AmbientTenantBridge, the @EntityListeners naming a listener that reads
+# the ambient tenant, and the SpEL expressions of a query that read it (#tenantContext).
+#
+# The v1 layer keeps the tenant of the request or of the job in a per-thread value that falls back to the
+# default tenant when nobody set it. v2 scopes every read and write from an explicit scope (TxCtx, the
+# background primitive), so each line below is a site the removal of the v1 layer comes back for.
+#
+# Format: <location> | <construct> | <count> | <what the site does with the ambient tenant>
+#   location   fully.qualified.Class#method for a call or a query (lambdas belong to the method that creates
+#              them, overloads are one site), the entity class for an @EntityListeners.
+#   construct  TenantContext.<method>, AmbientTenantBridge.<method>, @EntityListeners(<Listener>) or
+#              @Query(#tenantContext).
+#   count      source lines of the method holding a call or a reference to the construct, SpEL expressions of
+#              its query annotations, or 1 for a listener.
+#   why        at least six words.
+#
+# This list only shrinks. A removed site takes its line out and lowers BASELINE_SIZE in the same change; a new
+# site takes its tenant from an explicit scope rather than a line here.
+io.openaev.aop.AccessControlAspect#methodRBACVerification | AmbientTenantBridge.callInTenant | 1 | authorization aligns the ambient tenant on the resource tenant before checking
+io.openaev.aop.AccessControlAspect#methodRBACVerification | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
+io.openaev.aop.HibernateFilterTransactionAspect#enableFilters | TenantContext.getCurrentTenant | 1 | v1 filter seam reads the ambient tenant to arm the filter or stamp rows
+io.openaev.api.chaining.InjectExecutionStep#getInjectFromDataStep | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
+io.openaev.api.payload.PayloadImportService#importPayload | AmbientTenantBridge.callInTenantChecked | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob#run | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.collectors.expectations_expiration_manager.ExpectationsExpirationManagerJob#run | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.config.OrchestratorRunTenantInterceptor#afterCompletion | TenantContext.clearCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
+io.openaev.config.OrchestratorRunTenantInterceptor#afterConcurrentHandlingStarted | TenantContext.clearCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
+io.openaev.config.OrchestratorRunTenantInterceptor#preHandle | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
+io.openaev.config.TenantInterceptor#afterCompletion | TenantContext.clearCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
+io.openaev.config.TenantInterceptor#afterConcurrentHandlingStarted | TenantContext.clearCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
+io.openaev.config.TenantInterceptor#preHandle | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
+io.openaev.context.AmbientTenantBridge#callInTenantChecked | TenantContext.clearCurrentTenant | 1 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
+io.openaev.context.AmbientTenantBridge#callInTenantChecked | TenantContext.getCurrentTenant | 2 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
+io.openaev.context.AmbientTenantBridge#callInTenantChecked | TenantContext.hasCurrentTenant | 1 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
+io.openaev.context.AmbientTenantBridge#callInTenantChecked | TenantContext.setCurrentTenant | 2 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
+io.openaev.database.audit.BaseEvent#<init> | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
+io.openaev.database.audit.TenantBaseListener#manageTenant | TenantContext.getCurrentTenant | 1 | v1 filter seam reads the ambient tenant to arm the filter or stamp rows
+io.openaev.database.audit.TenantBaseListener#manageTenant | TenantContext.hasCurrentTenant | 1 | v1 filter seam reads the ambient tenant to arm the filter or stamp rows
+io.openaev.database.audit.TenantIdBaseListener#manageTenant | TenantContext.getCurrentTenant | 1 | v1 filter seam reads the ambient tenant to arm the filter or stamp rows
+io.openaev.database.model.BaseConnectorEntity#resolveCompositeId | TenantContext.getCurrentTenant | 1 | storage key or connector id derives from the ambient tenant
+io.openaev.database.model.ConnectorInstancePersisted | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.model.Cwe | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.model.Exercise | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.model.Finding | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.model.ImportMapper | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.model.Inject | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.model.InjectorContract#resolveCompositeId | TenantContext.getCurrentTenant | 1 | entity getter reads the ambient tenant as the owning tenant
+io.openaev.database.model.InjectorInjectorContract#<init> | TenantContext.getCurrentTenant | 1 | entity getter reads the ambient tenant as the owning tenant
+io.openaev.database.model.Mitigation | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.model.Scenario | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.model.Secret | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.model.SecretReference | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.model.User#getOrganization | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
+io.openaev.database.model.User#hasTenantBypass | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
+io.openaev.database.model.User#scopedTenantId | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
+io.openaev.database.model.attackpath.AttackPathExecution | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.model.attackpath.AttackPathFinding | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.model.attackpath.AttackPathGraphVersion | @EntityListeners(TenantBaseListener) | 1 | entity insert stamps tenant_id from the ambient tenant through the listener
+io.openaev.database.repository.AssetGroupRepository#findAllBySimulationOrScenarioIdAndName | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.EndpointRepository#findAllBySimulationOrScenarioIdAndName | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ExerciseRepository#findAllOptionByNameLinkedToFindings | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ExerciseRepository#findAllOptionByNameLinkedToFindingsWithContext | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ExerciseRepository#findLatestExerciseIdsByStatus | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ExerciseRepository#rawAll | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ExerciseRepository#rawAllByScenarioIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ExerciseRepository#rawAllGranted | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ExerciseRepository#rawByExerciseIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ExerciseRepository#rawDetailsById | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ExerciseRepository#rawGrantedByExerciseIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ExerciseRepository#rawLatestFinishedExercisesWithInjectsByScenarioId | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.InjectRepository#findAllByTitleLinkedToFindings | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.InjectRepository#findAllByTitleLinkedToFindingsWithContext | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.InjectRepository#findAllIdsForChallengeId | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.InjectRepository#findContentTargetContentsByExerciseIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ScenarioRepository#findDistinctCategoriesBySearchTerm | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ScenarioRepository#getScenarioByIdAndTenantId | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ScenarioRepository#rawAll | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ScenarioRepository#rawAllByExternalReference | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ScenarioRepository#rawAllGranted | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ScenarioRepository#rawByScenarioIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.ScenarioRepository#rawGrantedByScenarioIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.database.repository.UserRepository#adminsOrUsersHavingCapabilities | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
+io.openaev.debug.DebugTenantSource#currentTenant | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
+io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.crowdstrike.service.CrowdStrikeExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.crowdstrike.service.CrowdStrikeGarbageCollectorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.crowdstrike.service.CrowdStrikeGarbageCollectorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.mde.service.MdeExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.mde.service.MdeExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.paloaltocortex.service.PaloAltoCortexExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.paloaltocortex.service.PaloAltoCortexGarbageCollectorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.paloaltocortex.service.PaloAltoCortexGarbageCollectorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.sentinelone.service.SentinelOneExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.sentinelone.service.SentinelOneExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.sentinelone.service.SentinelOneGarbageCollectorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.tanium.service.TaniumExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.tanium.service.TaniumExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.tanium.service.TaniumGarbageCollectorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.executors.tanium.service.TaniumGarbageCollectorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
+io.openaev.export.WorkflowExportInitializer#enrichWorkflowScopeRuleTeamMembers | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#buildStepTtpFromInjectorContract | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#createWorkflowScopePlayer | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#handleInjectContent | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#importData | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.importer.V1_DataImporter#importInjects | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#importPayload | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#resolveStepData | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#resolveTagIds | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#resolveWorkflowScopePlayer | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#rewriteImportedTagIds | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#rewriteImportedTeamIds | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#rewriteInjectInjector | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#shouldResolveContractFromStepData | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.importer.V1_DataImporter#upsertDomainFromNode | TenantContext.getCurrentTenant | 1 | import and export read the ambient tenant as the target tenant
+io.openaev.injectors.phishing.api.HostedPublicApi#bindTenant | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
+io.openaev.injectors.phishing.api.PhishingPublicApi#click | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
+io.openaev.injectors.phishing.api.PhishingPublicApi#open | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
+io.openaev.injectors.phishing.api.PhishingPublicApi#page | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
+io.openaev.injectors.phishing.api.PhishingPublicApi#submit | TenantContext.setCurrentTenant | 1 | request entry sets and clears the ambient tenant from the path or token
+io.openaev.injectors.phishing.service.PhishingLandingPageService#resolveTenantId | TenantContext.getCurrentTenant | 1 | tenant resolution falls back to the ambient tenant when the landing page has none
+io.openaev.jsonapi.GenericJsonApiImporter#handleImportEntity | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.notification.engine.NotificationEngineService#handleEventWithMessage | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.notification.engine.NotificationEngineService#handleEventWithMessage | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.processor.MigrationProcessor#init | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.rest.asset.endpoint.EndpointApi#endpoint | TenantContext.getCurrentTenant | 1 | access-controlled route loads the endpoint with the ambient tenant of the request
+io.openaev.rest.asset.endpoint.EndpointApi#updateEndpoint | TenantContext.getCurrentTenant | 1 | access-controlled route updates the endpoint with the ambient tenant of the request
+io.openaev.rest.document.DocumentApi#updateDocumentInformation | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.rest.document.DocumentApi#uploadDocument | AmbientTenantBridge.callInTenantChecked | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.rest.document.DocumentService#upsert | AmbientTenantBridge.callInTenantChecked | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.rest.domain.DomainService#upsert | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
+io.openaev.rest.executor.ExecutorApi#getOpenAevAgentInstaller | TenantContext.getCurrentTenant | 2 | access-controlled route looks up the service account token and builds the install command with the ambient tenant
+io.openaev.rest.executor.ExecutorApi#getOpenAevAgentInstallerToken | TenantContext.getCurrentTenant | 1 | access-controlled route looks up the agent service account token with the ambient tenant
+io.openaev.rest.exercise.service.ExerciseService#exercise | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
+io.openaev.rest.exercise.service.ExerciseService#existsByIdAndTenantId | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
+io.openaev.rest.expectation.ExpectationApi#getAiDefenseExpectationsNotFilledForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the AI defense expectation query with the ambient tenant
+io.openaev.rest.expectation.ExpectationApi#getInjectDetectionExpectationsNotFilled | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the detection expectation query with the ambient tenant
+io.openaev.rest.expectation.ExpectationApi#getInjectDetectionExpectationsNotFilledForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the detection expectation query by source with the ambient tenant
+io.openaev.rest.expectation.ExpectationApi#getInjectExpectationsAssetsNotFilledAndNotExpiredForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the asset expectation queries by source with the ambient tenant
+io.openaev.rest.expectation.ExpectationApi#getInjectExpectationsNotFilledAndNotExpired | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the pending expectation queries with the ambient tenant
+io.openaev.rest.expectation.ExpectationApi#getInjectExpectationsNotFilledForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the pending expectation queries by source with the ambient tenant
+io.openaev.rest.expectation.ExpectationApi#getInjectLoggingExpectationsNotFilledForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the logging expectation query by source with the ambient tenant
+io.openaev.rest.expectation.ExpectationApi#getInjectPreventionExpectationsNotFilled | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the prevention expectation query with the ambient tenant
+io.openaev.rest.expectation.ExpectationApi#getInjectPreventionExpectationsNotFilledForSource | TenantContext.getCurrentTenant | 1 | access-controlled collector route scopes the prevention expectation query by source with the ambient tenant
+io.openaev.rest.finding.FindingService#deleteFinding | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
+io.openaev.rest.finding.FindingService#finding | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
+io.openaev.rest.finding.FindingService#findingSummary | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
+io.openaev.rest.inject.SimulationInjectApi#executeInject | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.rest.payload.DetectionRemediationUtils#copy | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
+io.openaev.rest.reporting.service.PlaywrightReportingRenderer#execute | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.rest.reporting.service.PlaywrightReportingRenderer#execute | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.rest.reporting.service.PlaywrightReportingRenderer#submit | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.rest.reporting.service.PlaywrightReportingRenderer#submit | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.rest.reporting.service.ReportingScheduleService#executeSchedule | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.rest.reporting.service.ReportingScheduleService#executeSchedule | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.rest.scenario.ScenarioApi#createScenarioWithInjectorContracts | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.rest.security.SecurityExpression#isExercisePlayer | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
+io.openaev.rest.security.SecurityExpression#isSimulationObserver | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
+io.openaev.rest.security.SecurityExpression#isSimulationPlanner | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
+io.openaev.rest.session.SessionApi#tenantUserIds | TenantContext.getCurrentTenant | 1 | users, roles and groups read the ambient tenant as the request tenant
+io.openaev.rest.user.MeApi#updateProfile | TenantContext.getCurrentTenant | 1 | users, roles and groups read the ambient tenant as the request tenant
+io.openaev.scheduler.TenantScopedJobRunner#runInTenant | TenantContext.clearCurrentTenant | 1 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
+io.openaev.scheduler.TenantScopedJobRunner#runInTenant | TenantContext.getCurrentTenant | 1 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
+io.openaev.scheduler.TenantScopedJobRunner#runInTenant | TenantContext.hasCurrentTenant | 1 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
+io.openaev.scheduler.TenantScopedJobRunner#runInTenant | TenantContext.setCurrentTenant | 2 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
+io.openaev.scheduler.TenantScopedJobRunner#supplyInTenant | TenantContext.clearCurrentTenant | 1 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
+io.openaev.scheduler.TenantScopedJobRunner#supplyInTenant | TenantContext.getCurrentTenant | 1 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
+io.openaev.scheduler.TenantScopedJobRunner#supplyInTenant | TenantContext.hasCurrentTenant | 1 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
+io.openaev.scheduler.TenantScopedJobRunner#supplyInTenant | TenantContext.setCurrentTenant | 2 | scope primitive bridges its explicit tenant to the ambient tenant and restores it
+io.openaev.scheduler.jobs.AgentInactivityMonitorJob#markInactiveAgentsForTenant | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.AgentInactivityMonitorJob#markInactiveAgentsForTenant | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.AtomicTestingExecutionJob#clearRecurrencesInTenant | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.AtomicTestingExecutionJob#clearRecurrencesInTenant | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.AtomicTestingExecutionJob#relaunchInTenant | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.AtomicTestingExecutionJob#relaunchInTenant | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob#monitorTenantIntegrations | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.ManagerIntegrationsSyncJob#monitorTenantIntegrations | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.QueueChainingJob#execute | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.QueueChainingJob#execute | TenantContext.getCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item
+io.openaev.scheduler.jobs.QueueChainingJob#execute | TenantContext.hasCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item
+io.openaev.scheduler.jobs.QueueChainingJob#execute | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.QueueChainingJob#processDueEntries | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.QueueChainingJob#processDueEntries | TenantContext.setCurrentTenant | 2 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.ScenarioExecutionJob#executeInTenant | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.ScenarioExecutionJob#executeInTenant | TenantContext.getCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item
+io.openaev.scheduler.jobs.ScenarioExecutionJob#executeInTenant | TenantContext.hasCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item
+io.openaev.scheduler.jobs.ScenarioExecutionJob#executeInTenant | TenantContext.setCurrentTenant | 2 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.SecurityCoverageJob#execute | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.scheduler.jobs.SecurityCoverageJob#execute | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.search.FullTextSearchService#searchSpecification | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
+io.openaev.service.AtomicTestingService#findInject | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
+io.openaev.service.InjectExpectationService#findAllByInjectId | TenantContext.getCurrentTenant | 1 | service method scopes the technical expectation lookup of an inject with the ambient tenant
+io.openaev.service.InjectorService#injectorTypeExists | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
+io.openaev.service.LogService#buildBaseAuditLog | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
+io.openaev.service.MapperService#createImportMapper | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
+io.openaev.service.MinioService#getTenantPath | TenantContext.getCurrentTenant | 1 | storage key or connector id derives from the ambient tenant
+io.openaev.service.PermissionService#checkedResource | AmbientTenantBridge.callInTenant | 1 | authorization aligns the ambient tenant on the resource tenant before checking
+io.openaev.service.PermissionService#inTenant | AmbientTenantBridge.callInTenant | 1 | authorization aligns the ambient tenant on the resource tenant before checking
+io.openaev.service.StreamService#listenAttackPathVersion | TenantContext.clearCurrentTenant | 1 | stream consumer sets the ambient tenant of each event before reading it
+io.openaev.service.StreamService#listenAttackPathVersion | TenantContext.setCurrentTenant | 1 | stream consumer sets the ambient tenant of each event before reading it
+io.openaev.service.StreamService#makeDataFlux | TenantContext.getCurrentTenant | 1 | stream consumer reads the ambient tenant as the subscriber tenant
+io.openaev.service.StreamService#streamDatabaseEvent | TenantContext.clearCurrentTenant | 2 | stream consumer sets the ambient tenant of each event before reading it
+io.openaev.service.StreamService#streamDatabaseEvent | TenantContext.setCurrentTenant | 1 | stream consumer sets the ambient tenant of each event before reading it
+io.openaev.service.TenantGroupService#findByIdInTenant | TenantContext.getCurrentTenant | 1 | users, roles and groups read the ambient tenant as the request tenant
+io.openaev.service.TenantGroupService#search | TenantContext.getCurrentTenant | 1 | users, roles and groups read the ambient tenant as the request tenant
+io.openaev.service.account.ReservedKeyValidator#validateRoleId | TenantContext.getCurrentTenant | 1 | users, roles and groups read the ambient tenant as the request tenant
+io.openaev.service.autonomous.AutonomousRunService#create | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.service.autonomous.AutonomousRunService#deleteAttackPathStep | TenantContext.clearCurrentTenant | 1 | autonomous run sets the ambient tenant of the run and restores the previous one
+io.openaev.service.autonomous.AutonomousRunService#deleteAttackPathStep | TenantContext.getCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
+io.openaev.service.autonomous.AutonomousRunService#deleteAttackPathStep | TenantContext.hasCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
+io.openaev.service.autonomous.AutonomousRunService#deleteAttackPathStep | TenantContext.setCurrentTenant | 2 | autonomous run sets the ambient tenant of the run and restores the previous one
+io.openaev.service.autonomous.AutonomousRunService#doAppendAttackPathStep | TenantContext.clearCurrentTenant | 1 | autonomous run sets the ambient tenant of the run and restores the previous one
+io.openaev.service.autonomous.AutonomousRunService#doAppendAttackPathStep | TenantContext.getCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
+io.openaev.service.autonomous.AutonomousRunService#doAppendAttackPathStep | TenantContext.hasCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
+io.openaev.service.autonomous.AutonomousRunService#doAppendAttackPathStep | TenantContext.setCurrentTenant | 2 | autonomous run sets the ambient tenant of the run and restores the previous one
+io.openaev.service.autonomous.AutonomousRunService#probeSimulationStatus | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.service.autonomous.AutonomousRunService#setRunScope | TenantContext.clearCurrentTenant | 1 | autonomous run sets the ambient tenant of the run and restores the previous one
+io.openaev.service.autonomous.AutonomousRunService#setRunScope | TenantContext.getCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
+io.openaev.service.autonomous.AutonomousRunService#setRunScope | TenantContext.hasCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
+io.openaev.service.autonomous.AutonomousRunService#setRunScope | TenantContext.setCurrentTenant | 2 | autonomous run sets the ambient tenant of the run and restores the previous one
+io.openaev.service.autonomous.AutonomousRunService#updateAttackPathStep | TenantContext.clearCurrentTenant | 1 | autonomous run sets the ambient tenant of the run and restores the previous one
+io.openaev.service.autonomous.AutonomousRunService#updateAttackPathStep | TenantContext.getCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
+io.openaev.service.autonomous.AutonomousRunService#updateAttackPathStep | TenantContext.hasCurrentTenant | 1 | autonomous run saves the ambient tenant before moving to the run tenant
+io.openaev.service.autonomous.AutonomousRunService#updateAttackPathStep | TenantContext.setCurrentTenant | 2 | autonomous run sets the ambient tenant of the run and restores the previous one
+io.openaev.service.autonomous.AutonomousTimeoutService#sweep | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.service.autonomous.AutonomousTimeoutService#sweep | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.service.catalog.event.CatalogAutoInstallListener#onReleaseApplied | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.service.chaining.ScopeService#getValidPlayers | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
+io.openaev.service.chaining.ScopeSnapshotService#resolvePlayerSnapshot | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
+io.openaev.service.chaining.ScopeSnapshotService#resolveTeamSnapshot | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
+io.openaev.service.chaining.StepEventService#handleExternalUpdateEvent | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.service.chaining.StepEventService#handleExternalUpdateEvent | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.service.chaining.StepEventService#handleReadyStepEvent | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.service.chaining.StepEventService#handleReadyStepEvent | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.service.chaining.WorkflowService#resolveValueLabel | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
+io.openaev.service.connector_instances.ConnectorInstanceService#getConnectorInstancesInMemoryByConnectorType | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
+io.openaev.service.inject.BatchingInjectStatusService#handleInjectExecutionCallback | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.service.inject.BatchingInjectStatusService#handleInjectExecutionCallback | TenantContext.setCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.service.scenario.ScenarioService#copyScenarioContent | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
+io.openaev.service.scenario.ScenarioService#scenario | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
+io.openaev.service.stix.SecurityCoverageService#handleSecurityCoverageProcessing | TenantContext.clearCurrentTenant | 1 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.service.stix.SecurityCoverageService#handleSecurityCoverageProcessing | TenantContext.getCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item
+io.openaev.service.stix.SecurityCoverageService#handleSecurityCoverageProcessing | TenantContext.hasCurrentTenant | 1 | background job saves the ambient tenant to restore it after the item
+io.openaev.service.stix.SecurityCoverageService#handleSecurityCoverageProcessing | TenantContext.setCurrentTenant | 2 | background job sets the ambient tenant of each item for v1 writes
+io.openaev.service.stream.StreamVisibilityService#read | TenantContext.clearCurrentTenant | 1 | stream consumer sets the ambient tenant of each event before reading it
+io.openaev.service.stream.StreamVisibilityService#read | TenantContext.setCurrentTenant | 1 | stream consumer sets the ambient tenant of each event before reading it
+io.openaev.service.threat_arsenal.ThreatArsenalService#bulkDelete | AmbientTenantBridge.callInTenant | 1 | write path aligns the ambient tenant on the write tenant for v1 tables
+io.openaev.service.utils.BulkOperationMonitor#start | TenantContext.getCurrentTenant | 1 | service default reads the ambient tenant as the request tenant
+io.openaev.utils.InjectUtils#resolveInjector | TenantContext.getCurrentTenant | 1 | simulation and chaining services read the ambient tenant as the request tenant
+io.openaev.utils.TxCtxScopeUtils#requestReadScope | TenantContext.getCurrentTenant | 1 | request read scope falls back to the ambient tenant without a header

@@ -18,9 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Guards where {@link WorkflowUpdateEvent} may go. The aspect looks the chaining steps up, and
- * reads each event's tenant, in the annotated method's transaction. On a method that runs with no
- * transaction it would read with no tenant scope, find no step once the chaining tables are
- * tenant-active, and publish nothing, without any error. Such a method publishes through {@link
+ * reads each event's tenant, on the annotated method's transaction, moved to the tenant that owns
+ * each inject. A method that runs with no transaction has none to move, so the publication fails
+ * where the change it announces has already been written. Such a method publishes through {@link
  * WorkflowUpdateEventPublisher} from a transaction scoped to its injects' tenant instead.
  *
  * <p>The rule sees a propagation declared on the method that runs without a transaction, or may. It
@@ -54,8 +54,8 @@ class WorkflowUpdateEventPlacementArchTest {
                                           + " carries @WorkflowUpdateEvent but runs with"
                                           + " propagation "
                                           + tx.propagation()
-                                          + ": the aspect would look the steps up with no"
-                                          + " tenant scope. Publish through"
+                                          + ": the aspect would have no transaction to move"
+                                          + " to the owning tenant. Publish through"
                                           + " WorkflowUpdateEventPublisher from a scoped"
                                           + " transaction instead")));
                 }

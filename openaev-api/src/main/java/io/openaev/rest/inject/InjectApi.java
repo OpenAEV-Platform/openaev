@@ -392,6 +392,7 @@ public class InjectApi extends RestBehavior {
     injectStatus.setName(ExecutionStatus.PENDING);
     Inject saved = injectRepository.save(inject);
     KillChainPhaseInitializer.initializeFromInjects(List.of(saved));
+    InjectLinksInitializer.initialize(List.of(saved));
     return saved;
   }
 
@@ -551,6 +552,7 @@ public class InjectApi extends RestBehavior {
             // Collect the result
             .toList();
     KillChainPhaseInitializer.initializeFromInjects(next);
+    InjectLinksInitializer.initialize(next);
     return next;
   }
 

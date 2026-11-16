@@ -3541,7 +3541,7 @@ public class AutonomousRunService {
     AutonomousRun run = require(runId);
     Finding finding =
         findingRepository
-            .findById(findingId)
+            .findByIdAndTenantId(findingId, runTenantId(run))
             .orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Finding not found"));
     // Promotion mints a brand-new endpoint, so it is a discovery-creation gated by the acting

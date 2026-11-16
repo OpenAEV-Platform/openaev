@@ -136,7 +136,7 @@ describe('contract default values', () => {
   } as ContractElement);
 
   describe('getPlaceholderDefault', () => {
-    it.each(['text', 'number'] as const)('returns the default of a %s field', (type) => {
+    it.each(['text', 'number', 'document'] as const)('returns the default of a %s field', (type) => {
       // Arrange
       const contractField = field({ type });
 
@@ -167,6 +167,10 @@ describe('contract default values', () => {
         key: 'count',
         type: 'number',
         defaultValue: ['3'],
+      }), field({
+        key: 'doc',
+        type: 'document',
+        defaultValue: ['document-id'],
       })];
 
       // Act & Assert

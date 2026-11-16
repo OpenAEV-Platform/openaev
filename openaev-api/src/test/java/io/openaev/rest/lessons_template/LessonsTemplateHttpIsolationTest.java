@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.rest.lessons_template.form.LessonsTemplateCategoryInput;
 import io.openaev.rest.lessons_template.form.LessonsTemplateInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -31,6 +32,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+@CoversTenantIsolation("lessons_templates")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=lessons_templates")
 @WithMockUser(isAdmin = true)

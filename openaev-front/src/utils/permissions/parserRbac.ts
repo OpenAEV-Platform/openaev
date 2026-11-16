@@ -1,3 +1,4 @@
+import { type UserGrant } from '../api-types';
 import { ACTIONS, type Actions, SUBJECTS, type Subjects } from './types';
 
 export default function parseCapability(cap: string): [Actions, Subjects] | null {
@@ -23,25 +24,32 @@ const ROLE_TO_ACTION: Record<string, Actions[]> = {
 
 type ParsedGrantByAction = [Actions, Subjects, string[] ] [];
 
-export function parseGrants(grants: Record<string, string>): ParsedGrantByAction | null {
-  const grouped: Record<string, string[]> = {};
+// Grant resource types that live in the Threat Arsenal (PAYLOAD is the deprecated name)
+const THREAT_ARSENAL_RESOURCE_TYPES: UserGrant['type'][] = ['THREAT_ARSENAL', 'PAYLOAD'];
 
-  for (const [id, role] of Object.entries(grants)) {
-    const actions = ROLE_TO_ACTION[role];
+export function parseGrants(grants: Record<string, UserGrant>): ParsedGrantByAction | null {
+  const grouped: Partial<Record<Subjects, Partial<Record<Actions, string[]>>>> = {};
+  const add = (subject: Subjects, action: Actions, id: string) => {
+    const bySubject = grouped[subject] ?? {};
+    grouped[subject] = bySubject;
+    bySubject[action] = [...(bySubject[action] ?? []), id];
+  };
+
+  for (const [id, { grant, type }] of Object.entries(grants)) {
+    const actions = ROLE_TO_ACTION[grant];
     if (!actions) {
       return null;
     }
     for (const action of actions) {
-      if (!grouped[action]) {
-        grouped[action] = [];
+      // Use "RESOURCE" as a generic subject for grants
+      add(SUBJECTS.RESOURCE, action, id);
+      if (THREAT_ARSENAL_RESOURCE_TYPES.includes(type)) {
+        add(SUBJECTS.THREAT_ARSENAL_RESOURCE, action, id);
       }
-      grouped[action].push(id);
     }
   }
 
-  // Use "RESOURCE" as a generic subject for grants
-  return Object.entries(grouped).map(([action, ids]) => [
-    action as Actions,
-    SUBJECTS.RESOURCE, ids,
-  ]);
+  return Object.entries(grouped).flatMap(([subject, byAction]) => Object.entries(byAction).map(
+    ([action, ids]): [Actions, Subjects, string[]] => [action as Actions, subject as Subjects, ids],
+  ));
 }

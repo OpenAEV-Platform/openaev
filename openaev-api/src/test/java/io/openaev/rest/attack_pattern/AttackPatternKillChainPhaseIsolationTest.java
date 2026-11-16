@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -41,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
  * pattern's own tenant's, the list is never empty for the owner (the #7025 empty-list regression),
  * and the search projection agrees with the by-id read.
  */
+@CoversTenantIsolation("attack_patterns")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=kill_chain_phases,attack_patterns")
 @WithMockUser(isAdmin = true)

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -46,6 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
  * the parent dashboard load fail closed first, so the assertion would no longer be attributable to
  * this table.
  */
+@CoversTenantIsolation("widgets")
 @Transactional
 @TestPropertySource(properties = "openaev.tenant.active-tables=widgets")
 @WithMockUser(isAdmin = true)

@@ -147,7 +147,8 @@ public class DocumentApi extends RestBehavior {
       }
       // Compute tags
       Set<Tag> tags = new HashSet<>(document.getTags());
-      List<Tag> inputTags = fromIterable(tagRepository.findAllById(input.getTagIds()));
+      List<Tag> inputTags =
+          fromIterable(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId));
       tags.addAll(inputTags);
       document.setTags(tags);
       return documentService.save(document);
@@ -169,7 +170,8 @@ public class DocumentApi extends RestBehavior {
         document.setScenarios(
             iterableToSet(scenarioRepository.findAllById(input.getScenarioIds())));
       }
-      document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+      document.setTags(
+          iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
       document.setType(file.getContentType());
       return documentService.save(document);
     }
@@ -286,7 +288,9 @@ public class DocumentApi extends RestBehavior {
     // the scoped lookup above, so a caller outside the document's tenant gets the same 404 as for a
     // missing document, not the 400 that discloses the id is a report output.
     documentService.assertNotReportingGenerationOutput(documentId);
-    document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    document.setTags(
+        new HashSet<>(
+            tagRepository.findAllByIdInTenant(input.getTagIds(), document.getTenant().getId())));
     return documentService.withSerializedLinks(documentService.save(document));
   }
 
@@ -316,7 +320,9 @@ public class DocumentApi extends RestBehavior {
   private Document updateDocumentInTenant(Document document, DocumentUpdateInput input) {
     String documentId = document.getId();
     document.setUpdateAttributes(input);
-    document.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
+    document.setTags(
+        new HashSet<>(
+            tagRepository.findAllByIdInTenant(input.getTagIds(), document.getTenant().getId())));
 
     // Get removed exercises
     Stream<String> askExerciseIdsStream =

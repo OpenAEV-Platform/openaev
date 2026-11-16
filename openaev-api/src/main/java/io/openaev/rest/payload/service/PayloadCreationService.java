@@ -113,7 +113,9 @@ public class PayloadCreationService {
             fromIterable(
                 attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds()))),
             iterableToSet(domainService.findAllById(emptyIfNull(input.getDomainIds()))),
-            iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
+            iterableToSet(
+                tagRepository.findAllByIdInTenant(
+                    emptyIfNull(input.getTagIds()), payloadSaved.getTenant().getId())));
     // Telemetry: one payload created, by type - recorded only once the payload and
     // its injector contract are persisted (a rollback would otherwise inflate the counter).
     resultsMetricCollector.recordPayloadCreated(payloadType.key);

@@ -10,11 +10,13 @@ import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
 
 /**
- * Forbids repository-layer annotations: {@code @Repository}, {@code @Query}, {@code @Modifying},
- * and {@code @EntityGraph}. These must live in {@code openaev-model}, not in the API layer.
+ * Forbids repository-layer annotations: {@code @Repository}, {@code @Query}, {@code @NativeQuery},
+ * {@code @Modifying}, and {@code @EntityGraph}. These must live in {@code openaev-model}, not in
+ * the API layer.
  *
  * <p>When this rule is active, {@link NoSpelTenantRule} is redundant since {@code @Query} itself is
- * already forbidden.
+ * already forbidden. {@code @NativeQuery} declares a query with no {@code @Query} on the method, so
+ * it is listed on its own.
  *
  * <pre>
  *   -Aio.openaev.annotation.processor.NoRepositoryRule=true   (default: false)
@@ -23,6 +25,7 @@ import javax.tools.Diagnostic;
 @SupportedAnnotationTypes({
   "org.springframework.stereotype.Repository",
   "org.springframework.data.jpa.repository.Query",
+  "org.springframework.data.jpa.repository.NativeQuery",
   "org.springframework.data.jpa.repository.Modifying",
   "org.springframework.data.jpa.repository.EntityGraph"
 })
