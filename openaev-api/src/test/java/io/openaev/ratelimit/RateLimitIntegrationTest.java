@@ -123,9 +123,7 @@ public class RateLimitIntegrationTest extends IntegrationTest {
 
   @Nested
   @DisplayName("When authenticated")
-  @WithMockUser(
-      withCapabilities = {Capability.AGENT_RUNTIME_ACCESS},
-      autoJoinDefaultTenant = true)
+  @WithMockUser(withCapabilities = {Capability.AGENT_RUNTIME_ACCESS})
   class WhenAuthenticated {
     @Test
     @DisplayName("Calls are throttled on open endpoint")
@@ -142,6 +140,9 @@ public class RateLimitIntegrationTest extends IntegrationTest {
 
     @Test
     @DisplayName("Calls are throttled on protected endpoint")
+    @WithMockUser(
+        withCapabilities = {Capability.AGENT_RUNTIME_ACCESS},
+        autoJoinDefaultTenant = true)
     void callsThrottledOnProtectedEndpoint() throws Exception {
       loopCalls(
           THROTTLED_ENDPOINT_AUTHED_RPS + 1,
