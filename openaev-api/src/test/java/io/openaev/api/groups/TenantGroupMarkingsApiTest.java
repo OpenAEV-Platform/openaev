@@ -31,9 +31,11 @@ import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -43,6 +45,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -60,10 +63,9 @@ import org.springframework.transaction.annotation.Transactional;
  * the seeded low orders into any clearance. Asserting an exact set would be asserting the seed.
  *
  * <p>Also pins the {@code TenantGroupService} entry in {@code TenantActiveTableAccessArchTest}: the
- * cross-tenant case below is what makes checkable, rather than a claim in a comment, that the
- * escalation guard alone refuses a foreign marking in the configuration this class exercises
- * (marking_definitions left ungated); see that case's own comment for what the inspector does once
- * the table is actually active.
+ * cross-tenant case below checks that a foreign marking is refused, by the statement inspector when
+ * marking_definitions is tenant-active and by the escalation guard alone when it is not; see that
+ * case's own comment.
  */
 @TestInstance(PER_CLASS)
 @Transactional
@@ -79,6 +81,7 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
   @Autowired private MarkingClearanceCacheManager clearanceCache;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private UserComposer userComposer;
+  @Autowired private Environment environment;
   @PersistenceContext private EntityManager entityManager;
 
   private String tenantId;
@@ -215,6 +218,8 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
     void given_markingFromAnotherTenant_should_refuse() throws Exception {
       // -- ARRANGE --
       String otherTenantId = tenantHelper.createTenant("marking-assign-other").getId();
+      // The foreign marking is written in its own tenant's scope, as that tenant's caller would.
+      DefaultTenantScopeTestListener.setAmbientScope(entityManager, otherTenantId);
       MarkingDefinition foreign =
           markingDefinitionComposer
               .forMarkingDefinition(
@@ -223,32 +228,24 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
               .withTenantId(otherTenantId)
               .persist()
               .get();
+      entityManager.flush();
+      DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenantId);
 
       // -- ACT --
-      assignMarkings(List.of(foreign.getId())).andExpect(status().isForbidden());
+      // Two independent guards refuse a foreign marking, and the running configuration decides
+      // which one answers:
+      //
+      //   1. the statement inspector, when marking_definitions is tenant-active (the properties the
+      //      application ships): TenantGroupService's findAllById query is rewritten with
+      //      can_access_tenant, the foreign row never comes back, and the size check answers 404;
+      //   2. the escalation guard, when the table is not active (the shipped test properties
+      //      declare no active tables): the row is found unfiltered, and since a clearance is per
+      //      tenant, nobody, admin included, holds another tenant's marking, so it answers 403.
+      assignMarkings(List.of(foreign.getId()))
+          .andExpect(isMarkingDefinitionsActive() ? status().isNotFound() : status().isForbidden());
 
       // -- ASSERT --
-      // 🔴 403, not 404, and the difference is the point. Two independent guards could cover this:
-      //
-      //   1. the statement inspector, when marking_definitions is tenant-active: it would hide the
-      //      row and the size check would 404;
-      //   2. the escalation guard, because a clearance is per tenant, so nobody, admin included,
-      //      holds another tenant's marking.
-      //
-      // Guard 1 does NOT fire in the configuration this class actually exercises: it carries no
-      // @TestPropertySource of its own, so in the default run, with no active-tables system
-      // property on the JVM, the shipped test properties declare no active tables and the inspector
-      // gates nothing here, which is why the row above is found unfiltered and the case reaches
-      // guard 2. That is not marking_definitions' real configuration: the table is unconditionally
-      // active in the properties the application ships, and under the production shadow shard,
-      // which hands that same list to every class with no narrower one of its own,
-      // TenantGroupService's findAllById query is rewritten with can_access_tenant and the foreign
-      // row never comes back, so the size mismatch 404s before guard 2 is ever reached. Confirmed
-      // by running this class with that shard's exact system properties: this assertion then
-      // fails with 404, not 403. So this case pins guard 2 in isolation from the inspector, in a
-      // configuration that does not match how marking_definitions actually ships; either way the
-      // assignment is refused, since a clearance is per tenant and nobody holds another tenant's
-      // marking regardless of which guard catches it first.
+      // 🔴 Whichever guard answers, nothing is attached.
       assertTrue(reloadedGroup().getMarkings().isEmpty());
     }
   }
@@ -338,6 +335,13 @@ class TenantGroupMarkingsApiTest extends IntegrationTest {
   }
 
   // -- HELPERS --
+
+  /** Whether this test context runs with marking_definitions tenant-active. */
+  private boolean isMarkingDefinitionsActive() {
+    return Arrays.stream(environment.getProperty("openaev.tenant.active-tables", "").split(","))
+        .map(String::trim)
+        .anyMatch("marking_definitions"::equals);
+  }
 
   private String createMarking() throws Exception {
     // Order above GREEN and RED so no other grant implies it.
