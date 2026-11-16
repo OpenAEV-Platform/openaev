@@ -51,6 +51,8 @@ import io.openaev.utils.fixtures.composers.DocumentComposer;
 import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.fixtures.composers.InjectorContractComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
+import io.openaev.utils.fixtures.files.BaseFile;
+import io.openaev.utils.fixtures.files.BinaryFile;
 import io.openaev.utils.mockUser.WithMockUser;
 import jakarta.servlet.ServletException;
 import java.io.ByteArrayInputStream;
@@ -384,16 +386,28 @@ class ThreatArsenalApiImporterTest extends IntegrationTest {
     @Test
     @DisplayName("Importing a file drop payload export should restore its file")
     void given_fileDropPayloadExport_should_restoreItsFileOnImport() throws Exception {
+      assertFileDropFileRestoredOnImport(FileFixture.getPlainTextFileContent(), ".txt");
+    }
+
+    @Test
+    @DisplayName("Importing a file drop payload export should restore its JSON file")
+    void given_fileDropPayloadExportWithJsonFile_should_restoreItsFileOnImport() throws Exception {
+      // A JSON file must not be read as the JSON:API document of the archive
+      assertFileDropFileRestoredOnImport(
+          new BinaryFile(
+              "{\"key\":\"value\"}".getBytes(StandardCharsets.UTF_8),
+              "config.json",
+              "application/json"),
+          ".json");
+    }
+
+    private void assertFileDropFileRestoredOnImport(BaseFile<?> file, String extension)
+        throws Exception {
       // Arrange: export a file drop payload, then remove its object so only the archive holds it
       DocumentComposer.Composer document =
-          documentComposer
-              .forDocument(DocumentFixture.getDocument(FileFixture.getPlainTextFileContent()))
-              .withInMemoryFile(FileFixture.getPlainTextFileContent());
+          documentComposer.forDocument(DocumentFixture.getDocument(file)).withInMemoryFile(file);
       // Content-addressed, as every document created by the platform: md5.ext
-      document
-          .get()
-          .setTarget(
-              DigestUtils.md5Hex(FileFixture.getPlainTextFileContent().getContentBytes()) + ".txt");
+      document.get().setTarget(DigestUtils.md5Hex(file.getContentBytes()) + extension);
       Payload payload =
           payloadComposer
               .forPayload(PayloadFixture.createDefaultFileDrop())

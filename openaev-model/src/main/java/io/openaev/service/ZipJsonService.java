@@ -213,25 +213,24 @@ public class ZipJsonService<T extends Base> {
     // Read only the JSON:API document entries to resolve the root type, without materializing the
     // attachments: import dispatch reads the root type before handleImport parses the whole archive
     // again, and a full readZip here would decompress and buffer every attachment a second time.
-    // The last JSON entry wins, exactly as readZip resolves the document handleImport imports, so
+    // The first JSON entry wins, exactly as readZip resolves the document handleImport imports, so
     // dispatch and import always agree on the root.
-    String rootType = null;
     try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(fileBytes))) {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
-        if (entry.getName().endsWith(".json") && !META_ENTRY.equals(entry.getName())) {
+        if (isDocumentEntry(entry)) {
           JsonApiDocument<ResourceObject> doc =
               mapper.readValue(
                   readAll(zis),
                   mapper
                       .getTypeFactory()
                       .constructParametricType(JsonApiDocument.class, ResourceObject.class));
-          rootType = doc.data() != null ? doc.data().type() : null;
+          return doc.data() != null ? doc.data().type() : null;
         }
         zis.closeEntry();
       }
     }
-    return rootType;
+    return null;
   }
 
   private void addDocumentToExtras(Document doc, Map<String, byte[]> out, String owningTenantId) {
@@ -298,7 +297,9 @@ public class ZipJsonService<T extends Base> {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
         byte[] content = readAll(zis);
-        if (entry.getName().endsWith(".json") && !META_ENTRY.equals(entry.getName())) {
+        // The JSON:API document is the first JSON entry (writeZip writes it first): a later JSON
+        // entry is a document file, such as a JSON payload attachment.
+        if (doc == null && isDocumentEntry(entry)) {
           try {
             doc =
                 mapper.readValue(
@@ -321,6 +322,10 @@ public class ZipJsonService<T extends Base> {
       throw new IllegalArgumentException("ZIP must contain a json file");
     }
     return new ParsedZip(doc, extras);
+  }
+
+  private static boolean isDocumentEntry(ZipEntry entry) {
+    return entry.getName().endsWith(".json") && !META_ENTRY.equals(entry.getName());
   }
 
   private static byte[] readAll(InputStream in) throws IOException {
