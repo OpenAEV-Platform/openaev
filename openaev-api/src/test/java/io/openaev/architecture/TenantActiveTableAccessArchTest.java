@@ -3375,6 +3375,10 @@ class TenantActiveTableAccessArchTest {
         at(io.openaev.service.UserService.class, "requestEmailChange", Scope.OPENED_AROUND_LAMBDA),
         at(
             io.openaev.service.UserService.class,
+            "notifyPreviousAddressOfChange",
+            Scope.OPENED_AROUND_LAMBDA),
+        at(
+            io.openaev.service.UserService.class,
             "sendEmailChangeConfirmationEmail",
             Scope.OPENED_AROUND_LAMBDA),
         at(
