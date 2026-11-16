@@ -1,0 +1,11 @@
+io/openaev/api/attack_pattern/**/*Test.java
+io/openaev/api/attackpath/**/*Test.java
+io/openaev/api/credentials/**/*Test.java
+io/openaev/api/notification/**/*Test.java
+io/openaev/api/stix_process/**/*Test.java
+io/openaev/api/users/**/*Test.java
+io/openaev/api/xtm_composer/**/*Test.java
+io/openaev/database/audit/**/*Test.java
+io/openaev/diagnostics/**/*Test.java
+io/openaev/rest/tag/**/*Test.java
+io/openaev/service/stix/**/*Test.java

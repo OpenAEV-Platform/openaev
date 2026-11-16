@@ -1,0 +1,12 @@
+io/openaev/api/chaining/**/*Test.java
+io/openaev/api/secrets_providers/**/*Test.java
+io/openaev/debug/**/*Test.java
+io/openaev/integration/**/*Test.java
+io/openaev/output_processor/**/*Test.java
+io/openaev/rest/challenge/**/*Test.java
+io/openaev/rest/injector/**/*Test.java
+io/openaev/rest/reporting/**/*Test.java
+io/openaev/rest/tag_rule/**/*Test.java
+io/openaev/service/period/**/*Test.java
+io/openaev/service/stream/**/*Test.java
+io/openaev/service/targets/**/*Test.java

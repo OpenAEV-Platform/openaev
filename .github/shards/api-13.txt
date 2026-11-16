@@ -1,0 +1,12 @@
+io/openaev/api/custom_domain/**/*Test.java
+io/openaev/api/snapshot/**/*Test.java
+io/openaev/ee/**/*Test.java
+io/openaev/export/**/*Test.java
+io/openaev/rest/comcheck/**/*Test.java
+io/openaev/rest/finding/**/*Test.java
+io/openaev/rest/mapper/**/*Test.java
+io/openaev/rest/scenario/**/*Test.java
+io/openaev/rest/stream/**/*Test.java
+io/openaev/rest/user/**/*Test.java
+io/openaev/service/user_event/**/*Test.java
+io/openaev/utilstest/**/*Test.java
