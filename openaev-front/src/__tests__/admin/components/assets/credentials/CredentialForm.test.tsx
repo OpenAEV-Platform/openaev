@@ -16,6 +16,16 @@ const optionalField = (field_name: string, field_type: 'text' | 'password' | 'fi
   accepted_formats,
 });
 
+const endpointField = (field_name: string) => ({
+  ...optionalField(field_name),
+  endpoint: true,
+});
+
+const resetField = (field_name: string) => ({
+  ...optionalField(field_name, 'password'),
+  reset_on_endpoint_change: true,
+});
+
 const CERTIFICATE_FORMATS = ['.pem', '.crt', '.cer', 'application/x-x509-ca-cert', 'application/x-pem-file'];
 
 const contracts: CredentialContractOutput[] = [
@@ -29,16 +39,16 @@ const contracts: CredentialContractOutput[] = [
         required: true,
       },
       optionalField('aws_account_id', 'text', 'This value is mandatory for some injectors'),
-      optionalField('aws_endpoint_url'),
-      optionalField('aws_session_token', 'password'),
+      endpointField('aws_endpoint_url'),
+      resetField('aws_session_token'),
     ],
   },
   {
     credential_type: 'CLOUD_AZURE',
     credential_auth_method: 'AZURE_SERVICE_PRINCIPAL',
     fields: [
-      optionalField('azure_client_secret', 'password'),
-      optionalField('azure_authority_host_uri'),
+      resetField('azure_client_secret'),
+      endpointField('azure_authority_host_uri'),
       optionalField('azure_requests_certificate', 'file', undefined, CERTIFICATE_FORMATS),
     ],
   },
@@ -46,8 +56,8 @@ const contracts: CredentialContractOutput[] = [
     credential_type: 'CLOUD_GCP',
     credential_auth_method: 'GCP_OAUTH2',
     fields: [
-      optionalField('gcp_custom_token_uri'),
-      optionalField('gcp_custom_oauth_access_token', 'password'),
+      endpointField('gcp_custom_token_uri'),
+      resetField('gcp_custom_oauth_access_token'),
     ],
   },
 ];

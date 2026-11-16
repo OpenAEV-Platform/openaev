@@ -3449,12 +3449,14 @@ export interface CredentialContractField {
   accepted_formats?: string[];
   choices?: string[];
   default_value?: string;
+  endpoint?: boolean;
   field_description?: string;
   field_name: string;
   field_type?: "text" | "password" | "select" | "number" | "checkbox" | "file";
   mandatory_condition_field?: string;
   mandatory_condition_value?: string;
   required?: boolean;
+  reset_on_endpoint_change?: boolean;
   visible_condition_field?: string;
   visible_condition_value?: string;
 }

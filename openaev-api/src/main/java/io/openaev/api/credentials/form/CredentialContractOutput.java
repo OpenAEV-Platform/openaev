@@ -26,6 +26,13 @@ public record CredentialContractOutput(
     file,
   }
 
+  /**
+   * One field of a credential form.
+   *
+   * <p>{@code endpoint} marks a URL, URI or authority host: pointing it elsewhere than the stored
+   * value would replay the stored secrets there. {@code resetOnEndpointChange} marks a write-only
+   * secret the handler then requires to be sent again, so the form empties it.
+   */
   @Builder
   public record CredentialContractField(
       @JsonProperty("field_name") @NotNull String fieldName,
@@ -38,5 +45,7 @@ public record CredentialContractOutput(
       @JsonProperty("visible_condition_value") String visibleConditionValue,
       @JsonProperty("default_value") String defaultValue,
       @JsonProperty("field_description") String fieldDescription,
-      @JsonProperty("accepted_formats") List<String> acceptedFormats) {}
+      @JsonProperty("accepted_formats") List<String> acceptedFormats,
+      @JsonProperty("endpoint") boolean endpoint,
+      @JsonProperty("reset_on_endpoint_change") boolean resetOnEndpointChange) {}
 }

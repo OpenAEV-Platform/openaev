@@ -128,11 +128,13 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("aws_secret_access_key")
+                    .resetOnEndpointChange(true)
                     .fieldType(CredentialContractFieldType.password)
                     .required(true)
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("aws_session_token")
+                    .resetOnEndpointChange(true)
                     .fieldType(CredentialContractFieldType.password)
                     .required(false)
                     .build(),
@@ -144,6 +146,7 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("aws_endpoint_url")
+                    .endpoint(true)
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
                     .build())),
@@ -164,6 +167,7 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("aws_external_id")
+                    .resetOnEndpointChange(true)
                     .fieldType(CredentialContractFieldType.password)
                     .required(false)
                     .build(),
@@ -189,6 +193,7 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("aws_source_profile_secret_access_key")
+                    .resetOnEndpointChange(true)
                     .fieldType(CredentialContractFieldType.password)
                     .required(false)
                     .mandatoryConditionField("aws_source_identity_type")
@@ -206,6 +211,7 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("aws_endpoint_url")
+                    .endpoint(true)
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
                     .build())),
@@ -226,6 +232,7 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("azure_client_secret")
+                    .resetOnEndpointChange(true)
                     .fieldType(CredentialContractFieldType.password)
                     .required(true)
                     .build(),
@@ -241,6 +248,7 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("azure_authority_host_uri")
+                    .endpoint(true)
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
                     .build(),
@@ -293,6 +301,7 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("gcp_private_key_json")
+                    .resetOnEndpointChange(true)
                     .fieldType(CredentialContractFieldType.file)
                     .required(true)
                     .acceptedFormats(GCP_PRIVATE_KEY_FORMATS)
@@ -304,11 +313,13 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("gcp_custom_resource_manager_uri")
+                    .endpoint(true)
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("gcp_custom_projects_uri")
+                    .endpoint(true)
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
                     .build())),
@@ -329,11 +340,13 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("gcp_oauth_client_secret")
+                    .resetOnEndpointChange(true)
                     .fieldType(CredentialContractFieldType.password)
                     .required(true)
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("gcp_oauth_refresh_token")
+                    .resetOnEndpointChange(true)
                     .fieldType(CredentialContractFieldType.password)
                     .required(true)
                     .build(),
@@ -344,21 +357,25 @@ public class CredentialService {
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("gcp_custom_token_uri")
+                    .endpoint(true)
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("gcp_custom_projects_uri")
+                    .endpoint(true)
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("gcp_custom_iam_uri")
+                    .endpoint(true)
                     .fieldType(CredentialContractFieldType.text)
                     .required(false)
                     .build(),
                 CredentialContractField.builder()
                     .fieldName("gcp_custom_oauth_access_token")
+                    .resetOnEndpointChange(true)
                     .fieldType(CredentialContractFieldType.password)
                     .required(false)
                     .build())));

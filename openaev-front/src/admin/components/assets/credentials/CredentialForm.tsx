@@ -228,7 +228,7 @@ const CredentialForm: FunctionComponent<Props> = ({
     });
   }, [getValues, selectedContract, setValue]);
 
-  const endpointFields = endpointFieldsOf(selectedAuthMethod);
+  const endpointFields = useMemo(() => endpointFieldsOf(selectedContract?.fields), [selectedContract]);
   const watchedEndpointValues = useWatch({
     control: methods.control,
     name: endpointFields as (keyof CredentialInput)[],
@@ -237,10 +237,10 @@ const CredentialForm: FunctionComponent<Props> = ({
   // Pointing an endpoint elsewhere must not replay a stored secret there: the untouched secrets are
   // emptied, so the user has to type them again, like the backend requires.
   useEffect(() => {
-    fieldsToResetOnEndpointChange(selectedAuthMethod, getValues(), initialValues).forEach((name) => {
+    fieldsToResetOnEndpointChange(selectedContract?.fields, getValues(), initialValues).forEach((name) => {
       setValue(name, '', { shouldDirty: true });
     });
-  }, [getValues, initialValues, selectedAuthMethod, setValue, watchedEndpointValues]);
+  }, [getValues, initialValues, selectedContract, setValue, watchedEndpointValues]);
 
   const fieldsToSubscribe = useMemo(() => {
     const names = new Set<string>();
