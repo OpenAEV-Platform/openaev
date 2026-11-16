@@ -197,6 +197,15 @@ const ScenarioHeader = ({
   const scenarioWorkflowId = (scenario as unknown as Record<string, unknown>).scenario_workflow_id as string | undefined;
   const scheduledBy = scenario.scenario_scheduled_by_user;
   const scheduledByName = scheduledBy?.user_name ?? scheduledBy?.user_email;
+  // The resolved user only comes with GET /scenarios/{id}, while the bare id is kept fresh by the
+  // entity the recurrence endpoint returns and the SSE stream pushes: refetch when they disagree,
+  // so the chip follows a reschedule made here or from another browser.
+  const scheduledById = scenario.scenario_scheduled_by;
+  useEffect(() => {
+    if (scheduledById && scheduledById !== scenario.scenario_scheduled_by_user?.user_id) {
+      dispatch(fetchScenario(scenarioId));
+    }
+  }, [scheduledById]);
   const isScenarioChaining = !!scenarioWorkflowId;
   const canOpenConfiguration = canManage && !isScenarioChaining;
 
@@ -448,13 +457,11 @@ const ScenarioHeader = ({
   const cronObject = useMemo(() => handle(scenario.scenario_recurrence), [scenario.scenario_recurrence]);
 
   const onSubmit = (cron: Cron, start: string, end?: string) => {
-    // The recurrence endpoint returns the entity, which carries no resolved user: refetch the
-    // ScenarioOutput so the "Scheduled by" chip shows who just scheduled it.
     dispatch(updateScenarioRecurrence(scenarioId, {
       scenario_recurrence: cron.toCronExpression(),
       scenario_recurrence_start: start,
       scenario_recurrence_end: end,
-    })).then(() => dispatch(fetchScenario(scenarioId)));
+    }));
     setOpenScheduling(false);
   };
 

@@ -3,7 +3,7 @@ import { UpdateOutlined } from '@mui/icons-material';
 import { Dialog, DialogContent, DialogTitle } from '@mui/material';
 import { type FunctionComponent, useState } from 'react';
 
-import { fetchExercise, updateExerciseStartDate } from '../../../../actions/Exercise';
+import { updateExerciseStartDate } from '../../../../actions/Exercise';
 import Transition from '../../../../components/common/Transition';
 import { useFormatter } from '../../../../components/i18n';
 import { type Exercise, type SimulationDetails } from '../../../../utils/api-types';
@@ -43,9 +43,6 @@ const ExerciseDatePopover: FunctionComponent<Props> = ({ exercise, open, onOpenC
   const dispatch = useAppDispatch();
   const onSubmitEdit = async (data: Pick<Exercise, 'exercise_start_date'>) => {
     await dispatch(updateExerciseStartDate(exercise.exercise_id, data));
-    // Changing the start date re-stamps the launcher; the endpoint returns the entity (no resolved
-    // user), so refetch the SimulationDetails for the header's "Scheduled by" chip.
-    await dispatch(fetchExercise(exercise.exercise_id));
     setOpenEdit(false);
   };
   const initialValues = { exercise_start_date: exercise.exercise_start_date };
