@@ -60,7 +60,7 @@ microdnf clean all
 RUN set -eux; \
     microdnf install -y nss nspr dbus-libs expat glib2 atk at-spi2-atk at-spi2-core \
         cups-libs libdrm libX11 libXcomposite libXdamage libXext libXfixes libXrandr \
-        libxcb libxkbcommon alsa-lib mesa-libgbm; \
+        libxcb libxkbcommon alsa-lib mesa-libgbm libatomic; \
     microdnf clean all
 
 RUN set -eux; \
