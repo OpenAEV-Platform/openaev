@@ -5,6 +5,7 @@ import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execut
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.INDEX;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.NEXT_IDS;
 import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.TABLE;
+import static io.openaev.migration.V6_20261112060000000__Add_tenant_id_to_execution_traces.vacuumInterval;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -191,7 +192,8 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("A trace that already has a tenant holds the same tenant after the run, whatever its status's inject")
+    @DisplayName(
+        "A trace that already has a tenant holds the same tenant after the run, whatever its status's inject")
     void given_traceAlreadyAttributed_should_leaveItsTenantUnchanged() throws Exception {
       // Arrange
       makePending();
@@ -255,8 +257,9 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("A run that fails after some batches leaves them committed, and a second run finishes")
-    void given_failureAfterSomeBatches_should_keepCommittedBatchesAndFinishOnRerun()
+    @DisplayName(
+        "A run that fails after some batches leaves them committed, and a second run finishes")
+    void given_failureAfterSomeBatches_should_leaveCommittedBatchesAndFinishOnRerun()
         throws SQLException {
       // Arrange
       makePending();
@@ -300,6 +303,34 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Vacuum interval")
+  class VacuumInterval {
+
+    @Test
+    @DisplayName("An unknown estimate gives the fixed interval")
+    void given_unknownEstimate_should_useTheFixedInterval() {
+      // Act + Assert
+      assertThat(vacuumInterval(-1, 10_000, 50)).isEqualTo(50);
+      assertThat(vacuumInterval(0, 10_000, 50)).isEqualTo(50);
+    }
+
+    @Test
+    @DisplayName("A small table gives the fixed interval")
+    void given_smallTable_should_useTheFixedInterval() {
+      // Act + Assert
+      assertThat(vacuumInterval(2_000_000, 10_000, 50)).isEqualTo(50);
+    }
+
+    @Test
+    @DisplayName("A large table gives the batches that cover five percent of its rows")
+    void given_largeTable_should_coverFivePercentOfRowsPerInterval() {
+      // Act + Assert
+      assertThat(vacuumInterval(100_000_000, 10_000, 50)).isEqualTo(500);
+      assertThat(vacuumInterval(100_000_001, 10_000, 50)).isEqualTo(501);
+    }
+  }
+
+  @Nested
   @DisplayName("Batch picker")
   class BatchPicker {
 
@@ -321,29 +352,60 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
         execute("RESET enable_seqscan");
       }
     }
+  }
+
+  @Nested
+  @DisplayName("Rows inserted behind the cursor")
+  class BehindTheCursor {
 
     @Test
-    @DisplayName("Rows inserted behind the cursor while the loop runs are filled by the last step")
-    void given_rowInsertedBehindTheCursor_should_beFilledByTheLockedStep() throws SQLException {
-      // Arrange: with a batch of one row and a trace that sorts before the others, the cursor has
-      // left it when the trigger inserts a row below it
+    @DisplayName(
+        "Recent rows inserted while the loop runs are filled by the drain, in several batches, and the locked step writes none")
+    void given_rowsInsertedDuringTheLoop_should_beFilledByTheDrainInBatches() throws SQLException {
+      // Arrange: with a batch of one row, the trigger inserts five rows that sort before the
+      // cursor when the cursor reaches m-3; it then refuses any write made under the table lock
       makePending();
       seedTrace("m-2", statusOfB, null, null);
       seedTrace("m-3", statusOfB, null, null);
-      execute(
-          "CREATE FUNCTION test_trace_fail() RETURNS trigger AS $$ BEGIN"
-              + " IF NEW.execution_trace_id = 'm-3' THEN INSERT INTO "
+      createInsertingTrigger(
+          "INSERT INTO "
               + TABLE
               + " (execution_trace_id, execution_inject_status_id, execution_message,"
-              + " execution_status) VALUES ('m-1', '"
+              + " execution_status) SELECT 'm-0-' || g, '"
               + statusWithoutInject
               + "', '"
               + SEED_MESSAGE
-              + "', 'INFO') ON CONFLICT DO NOTHING; END IF; RETURN NEW; END $$ LANGUAGE plpgsql");
-      execute(
-          "CREATE TRIGGER test_trace_fail BEFORE UPDATE ON "
+              + "', 'INFO' FROM generate_series(1, 5) g ON CONFLICT DO NOTHING");
+
+      // Act: a failure of the trigger in the locked step would fail the run
+      new V6_20261112060000000__Add_tenant_id_to_execution_traces(1, 50).migrate(connection);
+
+      // Assert
+      for (int i = 1; i <= 5; i++) {
+        assertThat(tenantOf("m-0-" + i)).isEqualTo(DEFAULT_TENANT_UUID);
+      }
+      assertThat(tenantOf("m-2")).isEqualTo(tenantB);
+      assertThat(tenantOf("m-3")).isEqualTo(tenantB);
+      assertFullSchema();
+    }
+
+    @Test
+    @DisplayName(
+        "A row with an old creation time inserted behind the cursor is filled by the locked step")
+    void given_oldRowInsertedBehindTheCursor_should_beFilledByTheLockedStep() throws SQLException {
+      // Arrange
+      makePending();
+      seedTrace("m-2", statusOfB, null, null);
+      seedTrace("m-3", statusOfB, null, null);
+      createInsertingTrigger(
+          "INSERT INTO "
               + TABLE
-              + " FOR EACH ROW EXECUTE FUNCTION test_trace_fail()");
+              + " (execution_trace_id, execution_inject_status_id, execution_message,"
+              + " execution_status, execution_created_at) VALUES ('m-1', '"
+              + statusWithoutInject
+              + "', '"
+              + SEED_MESSAGE
+              + "', 'INFO', now() - interval '1 hour') ON CONFLICT DO NOTHING");
 
       // Act
       new V6_20261112060000000__Add_tenant_id_to_execution_traces(1, 50).migrate(connection);
@@ -353,6 +415,32 @@ class AddTenantIdToExecutionTracesMigrationTest extends IntegrationTest {
       assertThat(tenantOf("m-2")).isEqualTo(tenantB);
       assertThat(tenantOf("m-3")).isEqualTo(tenantB);
       assertFullSchema();
+    }
+
+    /**
+     * A before-update trigger that runs {@code insertSql} when the row {@code m-3} is updated, and
+     * raises when a seeded row other than {@code m-1} is written while the session holds an
+     * exclusive lock on the table (the row {@code m-1} is the one the locked step must fill).
+     */
+    private void createInsertingTrigger(String insertSql) throws SQLException {
+      execute(
+          "CREATE FUNCTION test_trace_fail() RETURNS trigger AS $$ BEGIN"
+              + " IF NEW.execution_trace_id = 'm-3' THEN "
+              + insertSql
+              + "; END IF;"
+              + " IF EXISTS (SELECT 1 FROM pg_locks WHERE pid = pg_backend_pid()"
+              + " AND locktype = 'relation' AND relation = '"
+              + TABLE
+              + "'::regclass AND mode = 'AccessExclusiveLock' AND granted) AND"
+              + " NEW.execution_message = '"
+              + SEED_MESSAGE
+              + "' AND NEW.execution_trace_id NOT LIKE 'm-1%' THEN"
+              + " RAISE EXCEPTION 'locked step wrote %', NEW.execution_trace_id; END IF;"
+              + " RETURN NEW; END $$ LANGUAGE plpgsql");
+      execute(
+          "CREATE TRIGGER test_trace_fail BEFORE UPDATE ON "
+              + TABLE
+              + " FOR EACH ROW EXECUTE FUNCTION test_trace_fail()");
     }
   }
 
