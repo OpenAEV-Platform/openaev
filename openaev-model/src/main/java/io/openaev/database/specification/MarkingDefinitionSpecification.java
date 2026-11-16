@@ -3,7 +3,6 @@ package io.openaev.database.specification;
 import io.openaev.context.MarkingCtx;
 import io.openaev.database.model.MarkingDefinition;
 import java.util.Collection;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.domain.Specification;
@@ -45,13 +44,5 @@ public class MarkingDefinitionSpecification {
 
   public static Specification<MarkingDefinition> typeSpecification(String type) {
     return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("type"), type);
-  }
-
-  public static Specification<MarkingDefinition> byNameSpecification(String searchText) {
-    String pattern = "%" + searchText.trim().toLowerCase(Locale.ROOT) + "%";
-    return (root, query, criteriaBuilder) ->
-        criteriaBuilder.or(
-            criteriaBuilder.like(criteriaBuilder.lower(root.get("type")), pattern),
-            criteriaBuilder.like(criteriaBuilder.lower(root.get("definition")), pattern));
   }
 }
