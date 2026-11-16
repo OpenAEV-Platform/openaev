@@ -79,11 +79,12 @@ public class InjectHelperTest extends IntegrationTest {
     this.injectRepository.save(inject);
 
     // -- EXECUTE --
-    List<ExecutableInject> executableInjects = this.injectHelper.getInjectsToRun();
+    List<InjectToRun> injectsToRun = this.injectHelper.getInjectsToRun();
 
     // -- ASSERT --
-    assertFalse(executableInjects.isEmpty());
-    ExecutableInject executableInject = executableInjects.get(0);
+    assertFalse(injectsToRun.isEmpty());
+    ExecutableInject executableInject =
+        this.injectHelper.executableInject(injectsToRun.get(0).injectId()).orElseThrow();
     assertEquals(1, executableInject.getTeamSize());
     assertEquals(1, executableInject.getUsers().size());
     assertEquals(USER_EMAIL, executableInject.getUsers().get(0).getUser().getEmail());
