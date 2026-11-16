@@ -204,16 +204,17 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
   @DisplayName("Delete of an id that matches a row of the request scope")
   class MatchedId {
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(Route.class)
     @WithMockUser(isAdmin = true)
     @DisplayName(
         "given a member of B deleting an endpoint of B, should remove the row and the document")
-    void given_memberOfB_should_removeRowAndDocument() throws Exception {
+    void given_memberOfB_should_removeRowAndDocument(Route route) throws Exception {
       // Arrange
       givenTwoTenantsAndIndexedEndpointOfB(true);
 
       // Act
-      int status = deleteEndpointB(Route.TENANT_PREFIXED, tenantB);
+      int status = deleteEndpointB(route, tenantB);
 
       // Assert
       assertThat(status).as("HTTP status").isEqualTo(200);
