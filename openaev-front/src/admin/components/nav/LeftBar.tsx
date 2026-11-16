@@ -44,6 +44,9 @@ const LeftBar = () => {
   // clean and avoids an orphan divider above the first entry (Home).
   const hasTenantSwitcher = (userTenants ?? []).length > 1;
   const isCredentialAssetEnabled = isFeatureEnabled('CREDENTIAL_ASSET');
+  // Users with grants only still reach the scenarios, simulations and atomic testings granted to them
+  const canAccessAssessments = ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT)
+    || ability.can(ACTIONS.ACCESS, SUBJECTS.ASSESSMENT_RESOURCE);
 
   const entries: NavMenuEntries[] = [
     {
@@ -82,19 +85,19 @@ const LeftBar = () => {
           path: `/admin/scenarios`,
           icon: () => (<RouteOutlined />),
           label: 'Scenarios',
-          userRight: true,
+          userRight: canAccessAssessments,
         },
         {
           path: `/admin/simulations`,
           icon: () => (<PlayCircleOutlineOutlined />),
           label: 'Simulations',
-          userRight: true,
+          userRight: canAccessAssessments,
         },
         {
           path: `/admin/atomic_testings`,
           icon: () => (<Target />),
           label: 'Atomic testings',
-          userRight: true,
+          userRight: canAccessAssessments,
         },
         {
           path: `/admin/threat-arsenal`,
