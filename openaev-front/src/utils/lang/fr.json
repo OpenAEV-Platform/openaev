@@ -407,6 +407,8 @@
   "API key variable": "Variable de clé API",
   "API specifications": "Spécifications de l'API",
   "API token (optional)": "Jeton API (optionnel)",
+  "API token removed on save": "Jeton API retiré à l'enregistrement",
+  "API token set": "Jeton API enregistré",
   "Apply": "Appliquer",
   "Apply a lessons learned template": "Appliquer un modèle de retour d'expérience",
   "Apply a template": "Appliquer un modèle",

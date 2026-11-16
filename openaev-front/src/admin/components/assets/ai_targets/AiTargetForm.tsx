@@ -1,6 +1,6 @@
 import { Button, Select, SelectContent, SelectHelperText, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@filigran/design-system';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type FunctionComponent } from 'react';
+import { type FunctionComponent, useState } from 'react';
 import { Controller, type SubmitHandler, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -19,7 +19,7 @@ import { CRITICALITY_OPTIONS, humanizeEnum } from '../asset-categories';
 // so they cannot ride along in the same payload. This form still hosts the field (an AI target
 // already being edited has an id to assign markings against) but reports changes to it
 // separately, through `onMarkingsChange`, instead of folding them into `onSubmit`'s AiTargetInput.
-type AiTargetFormValues = AiTargetInput & { asset_markings?: string[] | null };
+type AiTargetFormValues = Omit<AiTargetInput, 'ai_target_token_clear'> & { asset_markings?: string[] | null };
 
 interface Props {
   /**
@@ -30,6 +30,7 @@ interface Props {
   onSubmit: SubmitHandler<AiTargetInput>;
   handleClose: () => void;
   editing?: boolean;
+  tokenSet?: boolean;
   initialValues?: AiTargetInput & { asset_markings?: string[] | null };
   /**
    * Called on submit with the full replacement marking id list, and awaited before `onSubmit`
@@ -88,6 +89,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
   onSubmit,
   handleClose,
   editing,
+  tokenSet = false,
   onMarkingsChange,
   initialValues = {
     asset_name: '',
@@ -109,6 +111,9 @@ const AiTargetForm: FunctionComponent<Props> = ({
   // exists - gated on `editing` the same way the field itself is only reported through
   // `onMarkingsChange`, and on the flag the rest of the marking UI is gated on.
   const showMarkings = editing && isFeatureEnabled('MARKING');
+
+  // The stored token is never read back: the form keeps it, replaces it or removes it.
+  const [tokenAction, setTokenAction] = useState<'keep' | 'replace' | 'remove'>(tokenSet ? 'keep' : 'replace');
 
   const {
     register,
@@ -162,7 +167,10 @@ const AiTargetForm: FunctionComponent<Props> = ({
       }
     }
 
-    const saved = await onSubmit(aiTargetData);
+    const saved = await onSubmit({
+      ...aiTargetData,
+      ai_target_token_clear: tokenAction === 'remove',
+    });
 
     // The markings PUT already committed but the rest of the save didn't - compensate by
     // reverting markings to what the form opened with, rather than leaving the AI target with new
@@ -286,17 +294,39 @@ const AiTargetForm: FunctionComponent<Props> = ({
         helperText={errors.ai_target_system_prompt?.message}
         {...register('ai_target_system_prompt')}
       />
-      <TextFieldFds
-        type="password"
-        label={t('API token (optional)')}
-        style={{ marginTop: 20 }}
-        error={!!errors.ai_target_token}
-        helperText={
-          errors.ai_target_token?.message
-          ?? t('Credential used to reach the target. Leave empty for targets that require no authentication.')
-        }
-        {...register('ai_target_token')}
-      />
+      {tokenAction === 'replace' ? (
+        <TextFieldFds
+          type="password"
+          label={t('API token (optional)')}
+          style={{ marginTop: 20 }}
+          error={!!errors.ai_target_token}
+          helperText={
+            errors.ai_target_token?.message
+            ?? t('Credential used to reach the target. Leave empty for targets that require no authentication.')
+          }
+          {...register('ai_target_token')}
+        />
+      ) : (
+        <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ flexGrow: 1 }}>
+            {tokenAction === 'keep' ? t('API token set') : t('API token removed on save')}
+          </span>
+          {tokenAction === 'keep' ? (
+            <>
+              <Button type="button" priority="secondary" onClick={() => setTokenAction('replace')}>
+                {t('Replace')}
+              </Button>
+              <Button type="button" priority="secondary" onClick={() => setTokenAction('remove')}>
+                {t('Remove')}
+              </Button>
+            </>
+          ) : (
+            <Button type="button" priority="secondary" onClick={() => setTokenAction('keep')}>
+              {t('Cancel')}
+            </Button>
+          )}
+        </div>
+      )}
       <TextFieldFds
         multiline
         rows={2}
@@ -342,7 +372,7 @@ const AiTargetForm: FunctionComponent<Props> = ({
         <Button type="button" priority="secondary" onClick={handleClose} disabled={isSubmitting} style={{ marginRight: 10 }}>
           {t('Cancel')}
         </Button>
-        <Button type="submit" disabled={!isDirty || isSubmitting}>
+        <Button type="submit" disabled={(!isDirty && tokenAction !== 'remove') || isSubmitting}>
           {editing ? t('Update') : t('Create')}
         </Button>
       </div>

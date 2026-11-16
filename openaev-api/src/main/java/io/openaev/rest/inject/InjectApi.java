@@ -721,4 +721,23 @@ public class InjectApi extends RestBehavior {
     return credentialService.resolveCredentialSecret(
         injectService.getSecretReferenceOrThrow(injectId, input));
   }
+
+  @PostMapping({
+    INJECT_URI + "/{injectId}/targets/{assetId}/ai-token",
+    TENANT_INJECT_URI + "/{injectId}/targets/{assetId}/ai-token"
+  })
+  @Transactional(readOnly = true)
+  @AccessControl(
+      resourceId = "#injectId",
+      actionPerformed = Action.RESOLVE,
+      resourceType = ResourceType.INJECT_SECRET)
+  public AiTargetTokenOutput resolveInjectAiTargetToken(
+      TxCtx ctx,
+      @PathVariable @NotBlank String injectId,
+      @PathVariable @NotBlank String assetId,
+      @RequestBody @Valid InjectAuthorisationInput input) {
+    requireInjectInScope(ctx, injectId);
+    return new AiTargetTokenOutput(
+        injectService.getAiTargetTokenOrThrow(injectId, assetId, input.authorisation()));
+  }
 }

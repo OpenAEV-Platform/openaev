@@ -407,6 +407,8 @@
   "API key variable": "API 키 변수",
   "API specifications": "API 사양",
   "API token (optional)": "API 토큰(선택 사항)",
+  "API token removed on save": "저장 시 API 토큰이 제거됩니다",
+  "API token set": "API 토큰 설정됨",
   "Apply": "신청",
   "Apply a lessons learned template": "교훈 템플릿 적용",
   "Apply a template": "템플릿 적용",

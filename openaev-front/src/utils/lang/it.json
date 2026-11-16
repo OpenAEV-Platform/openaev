@@ -407,6 +407,8 @@
   "API key variable": "Variabile della chiave API",
   "API specifications": "Specifiche API",
   "API token (optional)": "Token API (opzionale)",
+  "API token removed on save": "Il token API verrà rimosso al salvataggio",
+  "API token set": "Token API salvato",
   "Apply": "Applicare",
   "Apply a lessons learned template": "Applicare un modello di lezioni apprese",
   "Apply a template": "Applicare un modello",

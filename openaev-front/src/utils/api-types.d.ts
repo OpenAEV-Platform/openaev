@@ -392,6 +392,8 @@ export interface AiTargetInput {
     | "XTM_ONE";
   ai_target_system_prompt?: string | null;
   ai_target_token?: string | null;
+  /** Removes the stored token */
+  ai_target_token_clear?: boolean;
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
@@ -544,7 +546,7 @@ export interface Asset {
     | "AGENT_HTTP"
     | "XTM_ONE";
   ai_target_system_prompt?: string;
-  ai_target_token?: string;
+  readonly ai_target_token_set?: boolean;
   asset_category?:
     | "HOST"
     | "CONTAINER_WORKLOAD"
@@ -4599,7 +4601,7 @@ export interface Endpoint {
     | "AGENT_HTTP"
     | "XTM_ONE";
   ai_target_system_prompt?: string;
-  ai_target_token?: string;
+  readonly ai_target_token_set?: boolean;
   asset_agents?: Agent[];
   asset_category?:
     | "HOST"
@@ -13021,7 +13023,7 @@ export interface SecurityPlatform {
     | "AGENT_HTTP"
     | "XTM_ONE";
   ai_target_system_prompt?: string;
-  ai_target_token?: string;
+  readonly ai_target_token_set?: boolean;
   asset_category?:
     | "HOST"
     | "CONTAINER_WORKLOAD"
