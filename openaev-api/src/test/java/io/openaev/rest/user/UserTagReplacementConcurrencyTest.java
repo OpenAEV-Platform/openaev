@@ -13,7 +13,8 @@ import io.openaev.database.repository.TagRepository;
 import io.openaev.database.repository.UserRepository;
 import io.openaev.service.UserService;
 import io.openaev.utils.fixtures.UserFixture;
-import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,10 +24,11 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import javax.sql.DataSource;
-import org.hibernate.SessionFactory;
-import org.hibernate.stat.Statistics;
+import org.hibernate.Session;
+import org.hibernate.SessionEventListener;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,7 +54,7 @@ class UserTagReplacementConcurrencyTest extends ProductionTablesIntegrationTest 
   @Autowired private TagRepository tagRepository;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private DataSource dataSource;
-  @Autowired private EntityManagerFactory entityManagerFactory;
+  @PersistenceContext private EntityManager entityManager;
 
   private JdbcTemplate jdbc;
   private String tenantId;
@@ -251,31 +253,39 @@ class UserTagReplacementConcurrencyTest extends ProductionTablesIntegrationTest 
   @DisplayName("Tags added by a replacement")
   class AddedTags {
 
+    // Counts the statements of the replacement's own session: the statistics of the session factory
+    // also count the ones other threads of the shared context run meanwhile.
     private long statementsOfReplacementBy(Set<String> wantedIds) {
-      Statistics stats = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
       return tenantTx.execute(
           TxCtx.forTenant(tenantId),
           () -> {
             User user = userRepository.findById(userId).orElseThrow();
             Set<Tag> wanted = iterableToSet(tagRepository.findAllById(wantedIds));
-            stats.clear();
+            AtomicLong prepared = new AtomicLong();
+            entityManager
+                .unwrap(Session.class)
+                .addEventListeners(
+                    new SessionEventListener() {
+                      @Override
+                      public void jdbcPrepareStatementStart() {
+                        prepared.incrementAndGet();
+                      }
+                    });
             userService.replaceTags(user, wanted);
-            return stats.getPrepareStatementCount();
+            return prepared.get();
           });
     }
 
     @Test
     @DisplayName("given_severalTagsToAdd_should_insertThemWithTheStatementsOfASingleOne")
     void given_severalTagsToAdd_should_insertThemWithTheStatementsOfASingleOne() {
-      // Arrange
-      entityManagerFactory.unwrap(SessionFactory.class).getStatistics().setStatisticsEnabled(true);
-
       // Act
       long forOneAddition = statementsOfReplacementBy(Set.of(tagA, tagB));
       jdbc.update("DELETE FROM users_tags WHERE user_id = ? AND tag_id <> ?", userId, tagA);
       long forThreeAdditions = statementsOfReplacementBy(Set.of(tagA, tagB, tagC, tagD));
 
       // Assert
+      assertThat(forOneAddition).isPositive();
       assertThat(forThreeAdditions).isEqualTo(forOneAddition);
       assertThat(linksOfTheUser()).containsExactlyInAnyOrder(tagA, tagB, tagC, tagD);
     }
