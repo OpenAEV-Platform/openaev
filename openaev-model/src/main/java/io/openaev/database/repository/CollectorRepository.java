@@ -31,21 +31,14 @@ public interface CollectorRepository
   void deleteByCollectorId(@Param("id") String id);
 
   /**
-   * Native query with an explicit tenant, so no Hibernate filter applies. This is called from
+   * Security-platform collectors of the tenant, without the collectors whose connector instance in
+   * the tenant (configuration {@code idKey}) is stopped or stopping. A collector with no connector
+   * instance is kept.
+   *
+   * <p>Native query with an explicit tenant, so no Hibernate filter applies. This is called from
    * InjectsExecutionJob (background scheduler) via buildAndSaveInjectExpectations(), whose
    * {@code @Transactional} arms the v1 filter through HibernateFilterTransactionAspect with
    * whatever TenantContext the thread holds.
-   */
-  @Query(
-      nativeQuery = true,
-      value =
-          "SELECT * FROM collectors WHERE tenant_id = :tenantId AND collector_security_platform IS NOT NULL")
-  List<Collector> findAllByTenantIdAndSecurityPlatformIsNotNull(
-      @Param("tenantId") @NotNull String tenantId);
-
-  /**
-   * Same as {@link #findAllByTenantIdAndSecurityPlatformIsNotNull}, without the collectors whose
-   * connector instance in the tenant (configuration {@code idKey}) is stopped or stopping.
    */
   @Query(
       nativeQuery = true,

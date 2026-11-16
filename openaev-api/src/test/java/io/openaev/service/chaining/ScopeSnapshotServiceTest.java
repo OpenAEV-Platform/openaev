@@ -3,6 +3,7 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -409,7 +410,8 @@ class ScopeSnapshotServiceTest {
       SecurityPlatform platform = securityPlatform("sp1", "CrowdStrike", LAUNCH_TIME);
       Collector collector = new Collector();
       collector.setSecurityPlatform(platform);
-      when(collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull("tenant-1"))
+      when(collectorRepository.findAllActiveByTenantIdAndSecurityPlatformIsNotNull(
+              eq("tenant-1"), anyString()))
           .thenReturn(List.of(collector));
       when(assetService.asset("sp1")).thenReturn(platform);
 
@@ -441,7 +443,8 @@ class ScopeSnapshotServiceTest {
     void shouldFreezeLaunchPhotoAndDegradeMissingTarget() {
       when(assetService.asset("a1")).thenReturn(asset("a1", "Prod server"));
       when(assetService.asset("gone")).thenThrow(new ElementNotFoundException("gone"));
-      when(collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(anyString()))
+      when(collectorRepository.findAllActiveByTenantIdAndSecurityPlatformIsNotNull(
+              anyString(), anyString()))
           .thenReturn(List.of());
 
       WorkflowScopeRule resolvable = assetRule("a1", null, null);
@@ -486,7 +489,8 @@ class ScopeSnapshotServiceTest {
     void shouldFreezeAudiencePhotosWithResolvedNames() {
       TenantContext.setCurrentTenant("tenant-1");
       try {
-        when(collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(anyString()))
+        when(collectorRepository.findAllActiveByTenantIdAndSecurityPlatformIsNotNull(
+                anyString(), anyString()))
             .thenReturn(List.of());
         when(teamRepository.findByIdAndTenantId("t1", "tenant-1"))
             .thenReturn(Optional.of(team("t1", "It team")));

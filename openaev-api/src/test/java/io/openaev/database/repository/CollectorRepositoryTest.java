@@ -96,15 +96,10 @@ class CollectorRepositoryTest extends IntegrationTest {
     List<Collector> active =
         collectorRepository.findAllActiveByTenantIdAndSecurityPlatformIsNotNull(
             tenantId, ConnectorType.COLLECTOR.getIdKeyName());
-    List<Collector> all =
-        collectorRepository.findAllByTenantIdAndSecurityPlatformIsNotNull(tenantId);
 
     assertThat(active)
         .extracting(Collector::getId)
         .contains(running.getId(), unmanaged.getId())
         .doesNotContain(stopped.getId(), stopping.getId());
-    assertThat(all)
-        .extracting(Collector::getId)
-        .contains(running.getId(), stopped.getId(), stopping.getId(), unmanaged.getId());
   }
 }
