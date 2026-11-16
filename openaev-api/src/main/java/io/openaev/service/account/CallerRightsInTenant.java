@@ -57,6 +57,31 @@ public class CallerRightsInTenant {
         () -> AuditLogContext.withBeforeSnapshotsRestored(() -> loadInOwnSession(callerId)));
   }
 
+  /**
+   * Reads again, in the ambient tenant ({@link User#scopedTenantId()}), the roles of the groups of
+   * {@code user} that belong to that tenant, in the persistence context that holds {@code user}.
+   * For a response that describes the user in the ambient tenant: its capabilities and flags are
+   * derived from those roles, and a load that ran in a scope without the ambient tenant read none
+   * of them. The transaction moves to the ambient tenant for the reads and back, as {@link
+   * #loadInAmbientTenant} does, and the audit before-snapshots are put back after them.
+   */
+  public void loadGroupRolesInAmbientTenant(User user) {
+    String ambientTenant = user.scopedTenantId();
+    tenantTx.executeOnCurrentTransaction(
+        TxCtx.forTenant(ambientTenant),
+        () ->
+            AuditLogContext.withBeforeSnapshotsRestored(
+                () -> {
+                  user.getUnscopedGroups().stream()
+                      .filter(
+                          group ->
+                              group.getTenant() != null
+                                  && ambientTenant.equals(group.getTenant().getId()))
+                      .forEach(entityManager::refresh);
+                  return null;
+                }));
+  }
+
   private User loadInOwnSession(String userId) {
     try (Session session =
         entityManager
