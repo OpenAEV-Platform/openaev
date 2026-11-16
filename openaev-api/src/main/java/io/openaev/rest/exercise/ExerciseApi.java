@@ -46,7 +46,7 @@ import io.openaev.rest.exercise.service.ExportService;
 import io.openaev.rest.helper.RestBehavior;
 import io.openaev.rest.inject.form.InjectExpectationResultsByAttackPattern;
 import io.openaev.rest.inject.service.InjectService;
-import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
+import io.openaev.rest.scenario.ScenarioResponseHydrator;
 import io.openaev.rest.team.output.TeamOutput;
 import io.openaev.service.*;
 import io.openaev.service.account.ReservedKeyValidator;
@@ -1225,10 +1225,7 @@ public class ExerciseApi extends RestBehavior {
       @PathVariable @NotBlank @Schema(description = "ID of the simulation")
           final String simulationId) {
     Scenario scenario = scenarioService.scenarioFromSimulationId(ctx, simulationId);
-    KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
-    // Same open-in-view reason as hydrateForResponse: scenario_teams would serialize empty.
-    Hibernate.initialize(scenario.getTeams());
-    return scenario;
+    return ScenarioResponseHydrator.hydrateForResponse(scenario);
   }
 
   // end region
