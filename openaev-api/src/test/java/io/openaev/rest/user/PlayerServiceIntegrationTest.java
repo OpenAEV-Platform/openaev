@@ -63,7 +63,8 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     input.setSorts(List.of(new SortField("user_email", null, null)));
 
     // EXECUTE
-    Page<PlayerOutput> result = playerService.playerPagination(input);
+    Page<PlayerOutput> result =
+        playerService.playerPagination(Set.of(TenantContext.getCurrentTenant()), input);
 
     // ASSERT
     Assertions.assertNotNull(result);
@@ -103,7 +104,8 @@ class PlayerServiceIntegrationTest extends IntegrationTest {
     input.setSorts(List.of(new SortField("user_email", null, null)));
 
     // When
-    Page<PlayerOutput> result = playerService.playerPagination(input);
+    Page<PlayerOutput> result =
+        playerService.playerPagination(Set.of(TenantContext.getCurrentTenant()), input);
 
     // Then
     Assertions.assertNotNull(result);
