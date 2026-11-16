@@ -4581,8 +4581,9 @@ class TenantActiveTableAccessArchTest {
               // The four trace finders, behind the inject trace and execution result endpoints,
               // reading in the scope the TxCtx-carrying entrypoint opened:
               InjectService.class,
-              // The same finders behind the inject target search, options and options-by-ids
-              // endpoints of InjectApi, which carry a TxCtx:
+              // The same finders behind the inject target search endpoint of InjectApi
+              // (injectTargetSearch), which carries a TxCtx; the target options endpoints read no
+              // trace:
               io.openaev.service.targets.search.HelperTargetSearchAdaptor.class,
               // Trace writers of the executor launch: inserts only, run inside the launch
               // transaction of the inject's tenant (InjectsExecutionJob under runInTenant, or the

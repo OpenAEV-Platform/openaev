@@ -159,8 +159,10 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
 
   /**
    * The complete execution log of an inject, {@code GET .../injects/status-all-traces}, on the
-   * tenant route and on the non-prefixed route with an {@code X-Tenant-Ids} selector. Each route
-   * builds the request for a scope tenant and an inject.
+   * tenant route and on the non-prefixed route with an {@code X-Tenant-Ids} selector. No lambda
+   * reads the inject id, which travels in the {@code injectId} query parameter: the tenant route
+   * puts the scope tenant in its path, and the other route reads it from the {@code X-Tenant-Ids}
+   * header that {@code readExecutionLog} adds.
    */
   static Stream<Arguments> executionLogRoutes() {
     return Stream.of(
@@ -305,6 +307,11 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
       return mvc.perform(request).andReturn();
     }
 
+    /**
+     * Pins the eager trace collection of the inject's status, read in the request scope: in the
+     * scope of the inject's tenant it comes back non-empty on both routes, holding that tenant's
+     * trace and not the other tenant's.
+     */
     @ParameterizedTest(name = "{0}")
     @MethodSource("io.openaev.execution.ExecutionTraceScopedPathsTest#executionLogRoutes")
     @DisplayName("The execution log of an inject holds its trace in the scope of its tenant")
