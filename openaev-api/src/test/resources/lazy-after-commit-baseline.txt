@@ -819,7 +819,7 @@ ScenarioInjectApi.bulkUpdateInjectsForScenario -> Communication.getExercise() | 
 ScenarioInjectApi.bulkUpdateInjectsForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.bulkUpdateInjectsForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.bulkUpdateInjectsForScenario -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-ScenarioInjectApi.bulkUpdateInjectsForScenario -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.bulkUpdateInjectsForScenario -> Inject.tags | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioInjectApi.createInjectForScenario -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.createInjectForScenario -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.createInjectForScenario -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
@@ -865,7 +865,7 @@ ScenarioInjectApi.createInjectsForScenario -> Communication.getExercise() | NOT 
 ScenarioInjectApi.createInjectsForScenario -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.createInjectsForScenario -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.createInjectsForScenario -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-ScenarioInjectApi.createInjectsForScenario -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+ScenarioInjectApi.createInjectsForScenario -> Inject.tags | ATTENUATED | measured: initialised inside the transaction whenever written
 ScenarioInjectApi.duplicateInjectForScenario -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.duplicateInjectForScenario -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
 ScenarioInjectApi.duplicateInjectForScenario -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
@@ -1048,7 +1048,7 @@ SimulationInjectApi.bulkUpdateInjectsForSimulation -> Communication.getExercise(
 SimulationInjectApi.bulkUpdateInjectsForSimulation -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.bulkUpdateInjectsForSimulation -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.bulkUpdateInjectsForSimulation -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-SimulationInjectApi.bulkUpdateInjectsForSimulation -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.bulkUpdateInjectsForSimulation -> Inject.tags | ATTENUATED | measured: initialised inside the transaction whenever written
 SimulationInjectApi.createInjectForExercise -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.createInjectForExercise -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.createInjectForExercise -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response
@@ -1094,7 +1094,7 @@ SimulationInjectApi.createInjectsForExercise -> Communication.getExercise() | NO
 SimulationInjectApi.createInjectsForExercise -> Communication.users | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.createInjectsForExercise -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.createInjectsForExercise -> Inject.getType() | NOT ESTABLISHED | not written by any measured test response
-SimulationInjectApi.createInjectsForExercise -> Inject.tags | NOT ESTABLISHED | not written by any measured test response
+SimulationInjectApi.createInjectsForExercise -> Inject.tags | ATTENUATED | measured: initialised inside the transaction whenever written
 SimulationInjectApi.duplicateInjectForExercise -> Asset.tags | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.duplicateInjectForExercise -> AssetGroup.assets | NOT ESTABLISHED | not written by any measured test response
 SimulationInjectApi.duplicateInjectForExercise -> AssetGroup.tags | NOT ESTABLISHED | not written by any measured test response

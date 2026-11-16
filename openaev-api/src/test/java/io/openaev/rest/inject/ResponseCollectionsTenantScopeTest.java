@@ -1,5 +1,6 @@
 package io.openaev.rest.inject;
 
+import static io.openaev.injectors.email.EmailContract.EMAIL_DEFAULT;
 import static io.openaev.rest.exercise.ExerciseApi.TENANT_EXERCISE_URI;
 import static io.openaev.rest.inject.InjectApi.TENANT_INJECT_URI;
 import static io.openaev.rest.scenario.ScenarioApi.TENANT_SCENARIO_URI;
@@ -24,6 +25,11 @@ import io.openaev.database.model.Tag;
 import io.openaev.database.model.Tenant;
 import io.openaev.rest.exercise.form.ExerciseTeamPlayersEnableInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
+import io.openaev.rest.inject.form.InjectBulkUpdateInputs;
+import io.openaev.rest.inject.form.InjectBulkUpdateOperation;
+import io.openaev.rest.inject.form.InjectBulkUpdateSupportedFields;
+import io.openaev.rest.inject.form.InjectBulkUpdateSupportedOperations;
+import io.openaev.rest.inject.form.InjectInput;
 import io.openaev.rest.inject.form.InjectReceptionInput;
 import io.openaev.rest.inject.form.InjectTeamsInput;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -361,6 +367,86 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
     }
   }
 
+  @Nested
+  @DisplayName("Inject list responses")
+  class InjectListResponses {
+
+    @Test
+    @DisplayName("given the bulk update of a tagged simulation inject, should answer its tags")
+    void given_bulkUpdateOfATaggedSimulationInject_should_answerItsTags() throws Exception {
+      // -- ARRANGE --
+      Inject inject = inTenant(() -> taggedInject().withExercise(simulation()).persist().get());
+
+      // -- ACT --
+      String response =
+          call(
+              put(
+                      TENANT_EXERCISE_URI + "/{exerciseId}/injects",
+                      tenantId,
+                      inject.getExercise().getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(bulkUpdateOf(inject))));
+
+      // -- ASSERT --
+      assertThat(ids(response, "$[0].inject_tags")).containsExactly(tagId);
+    }
+
+    @Test
+    @DisplayName("given the bulk update of a tagged scenario inject, should answer its tags")
+    void given_bulkUpdateOfATaggedScenarioInject_should_answerItsTags() throws Exception {
+      // -- ARRANGE --
+      List<String> ids = scenarioWithTaggedInject();
+      Inject inject = new Inject();
+      inject.setId(ids.get(1));
+
+      // -- ACT --
+      String response =
+          call(
+              put(TENANT_SCENARIO_URI + "/{scenarioId}/injects", tenantId, ids.get(0))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(bulkUpdateOf(inject))));
+
+      // -- ASSERT --
+      assertThat(ids(response, "$[0].inject_tags")).containsExactly(tagId);
+    }
+
+    @Test
+    @DisplayName("given tagged injects created in a simulation, should answer their tags")
+    void given_taggedInjectsCreatedInASimulation_should_answerTheirTags() throws Exception {
+      // -- ARRANGE --
+      String simulationId = inTenant(() -> simulation().persist().get().getId());
+      InjectInput input = taggedInjectInput(inTenant(() -> tag().get().getId()));
+
+      // -- ACT --
+      String response =
+          call(
+              post(TENANT_EXERCISE_URI + "/{exerciseId}/injects/bulk", tenantId, simulationId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(List.of(input))));
+
+      // -- ASSERT --
+      assertThat(ids(response, "$[0].inject_tags")).containsExactly(tagId);
+    }
+
+    @Test
+    @DisplayName("given tagged injects created in a scenario, should answer their tags")
+    void given_taggedInjectsCreatedInAScenario_should_answerTheirTags() throws Exception {
+      // -- ARRANGE --
+      String scenarioId = inTenant(() -> taggedScenarioWithDocument().persist().get().getId());
+      InjectInput input = taggedInjectInput(tagId);
+
+      // -- ACT --
+      String response =
+          call(
+              post(TENANT_SCENARIO_URI + "/{scenarioId}/injects/bulk", tenantId, scenarioId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(List.of(input))));
+
+      // -- ASSERT --
+      assertThat(ids(response, "$[0].inject_tags")).containsExactly(tagId);
+    }
+  }
+
   // -- SEEDING --
 
   /** A scenario carrying a tag and a document of the tenant; not persisted yet. */
@@ -383,6 +469,29 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
               scenarioComposer.forScenario(scenario).withInject(inject).persist().get().getId();
           return List.of(scenarioId, inject.get().getId());
         });
+  }
+
+  /**
+   * A bulk update of one inject that adds no team: the update runs, the fields stay as they are.
+   */
+  private static InjectBulkUpdateInputs bulkUpdateOf(Inject inject) {
+    InjectBulkUpdateOperation operation = new InjectBulkUpdateOperation();
+    operation.setOperation(InjectBulkUpdateSupportedOperations.ADD);
+    operation.setField(InjectBulkUpdateSupportedFields.TEAMS);
+    operation.setValues(List.of());
+    InjectBulkUpdateInputs input = new InjectBulkUpdateInputs();
+    input.setInjectIDsToProcess(List.of(inject.getId()));
+    input.setUpdateOperations(List.of(operation));
+    return input;
+  }
+
+  private static InjectInput taggedInjectInput(String tag) {
+    InjectInput input = new InjectInput();
+    input.setTitle("response-collections-" + UUID.randomUUID());
+    input.setInjectorContract(EMAIL_DEFAULT);
+    input.setDependsDuration(0L);
+    input.setTagIds(List.of(tag));
+    return input;
   }
 
   private InjectComposer.Composer taggedInject() {
