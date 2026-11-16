@@ -3,6 +3,7 @@ package io.openaev.service.inject;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.openaev.IntegrationTest;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -31,6 +32,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * #6357: end-to-end proof that a cross-tenant batch of inject-execution callbacks is processed with
@@ -48,6 +51,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 @WithMockUser(isAdmin = true)
 @DisplayName("batched callbacks are processed under each inject's own tenant (#6357)")
 class BatchingInjectStatusServiceTenantScopeTest extends IntegrationTest {
+
+  // The test classpath declares no active table: the owner lookup and the per-tenant scope only
+  // matter once the statement inspector rewrites the reads, so the production list is armed.
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
 
   @Autowired private BatchingInjectStatusService service;
   @Autowired private TenantIsolationTestHelper tenantHelper;
