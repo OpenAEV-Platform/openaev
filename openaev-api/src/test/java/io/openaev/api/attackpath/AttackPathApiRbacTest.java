@@ -1,5 +1,6 @@
 package io.openaev.api.attackpath;
 
+import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -10,11 +11,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
-import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Grant;
 import io.openaev.database.model.Scenario;
-import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.model.attackpath.AttackPathExecution;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
@@ -36,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -66,7 +68,8 @@ class AttackPathApiRbacTest extends IntegrationTest {
   @Autowired private TenantRoleComposer tenantRoleComposer;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private AttackPathExecutionRepository executionRepository;
-  @Autowired private TenantIsolationTestHelper tenantIsolationTestHelper;
+  @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private TenantIsolationTestHelper tenantHelper;
 
   private String simulationId;
   private Authentication withGrant;
@@ -78,7 +81,12 @@ class AttackPathApiRbacTest extends IntegrationTest {
     // Store and restore platform settings around the test (the Spring context is shared).
     originalDevFeatures = openAEVConfig.getEnabledDevFeatures();
     Exercise simulation =
-        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+        inDefaultTenant(
+            () ->
+                exerciseComposer
+                    .forExercise(ExerciseFixture.createDefaultExercise())
+                    .persist()
+                    .get());
     simulationId = simulation.getId();
     withGrant = buildAuthenticationToken(userGrantedReadOn(simulationId));
     withoutGrant = buildAuthenticationToken(plainUser());
@@ -232,9 +240,6 @@ class AttackPathApiRbacTest extends IntegrationTest {
 
   private List<String> pickerSimulationIds(MockHttpServletRequestBuilder request, Authentication as)
       throws Exception {
-    // The picker reads in the caller's tenant scope: a composed user needs the membership.
-    tenantIsolationTestHelper.attachUserToTenant(
-        ((OpenAEVPrincipal) as.getPrincipal()).getId(), Tenant.DEFAULT_TENANT_UUID);
     String body =
         mvc.perform(request.with(authentication(as)).with(csrf()))
             .andExpect(status().isOk())
@@ -247,10 +252,12 @@ class AttackPathApiRbacTest extends IntegrationTest {
   // -- fixtures --
 
   private Scenario scenario() {
-    return scenarioComposer
-        .forScenario(ScenarioFixture.createDefaultCrisisScenario())
-        .persist()
-        .get();
+    return inDefaultTenant(
+        () ->
+            scenarioComposer
+                .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+                .persist()
+                .get());
   }
 
   // A committed simulation (exercise) attached to the scenario, with one attack-path execution row
@@ -259,7 +266,8 @@ class AttackPathApiRbacTest extends IntegrationTest {
   private String simWithAttackDataInScenario(Scenario scenario) {
     Exercise exercise = ExerciseFixture.createDefaultExercise();
     exercise.setScenario(scenario);
-    String simId = exerciseComposer.forExercise(exercise).persist().get().getId();
+    String simId =
+        inDefaultTenant(() -> exerciseComposer.forExercise(exercise).persist().get()).getId();
     saveExecutionRow(simId);
     return simId;
   }
@@ -275,14 +283,13 @@ class AttackPathApiRbacTest extends IntegrationTest {
     row.setTargetKind("ASSET");
     row.setTargetKey("target-" + simulationId);
     row.setExecutedAt(Instant.now());
-    executionRepository.save(row);
+    inDefaultTenant(() -> executionRepository.save(row));
   }
 
   private User adminUser() {
-    return userComposer
-        .forUser(UserFixture.getAdminUser("Ap", "Admin", UUID.randomUUID() + "@unittests.invalid"))
-        .persist()
-        .get();
+    return memberOfDefaultTenant(
+        userComposer.forUser(
+            UserFixture.getAdminUser("Ap", "Admin", UUID.randomUUID() + "@unittests.invalid")));
   }
 
   // A user granted READ on each given simulation through resource grants only (empty-capability
@@ -302,19 +309,18 @@ class AttackPathApiRbacTest extends IntegrationTest {
       group = group.withGrant(grantComposer.forGrant(grant));
     }
     User user =
-        userComposer
-            .forUser(UserFixture.getUser("Ap", "Picker", UUID.randomUUID() + "@unittests.invalid"))
-            .withGroup(group)
-            .persist()
-            .get();
+        memberOfDefaultTenant(
+            userComposer
+                .forUser(
+                    UserFixture.getUser("Ap", "Picker", UUID.randomUUID() + "@unittests.invalid"))
+                .withGroup(group));
     return buildAuthenticationToken(user);
   }
 
   private User plainUser() {
-    return userComposer
-        .forUser(UserFixture.getUser("Ap", "NoGrant", UUID.randomUUID() + "@unittests.invalid"))
-        .persist()
-        .get();
+    return memberOfDefaultTenant(
+        userComposer.forUser(
+            UserFixture.getUser("Ap", "NoGrant", UUID.randomUUID() + "@unittests.invalid")));
   }
 
   // A user granted READ on the simulation ONLY through a resource grant — deliberately NO
@@ -334,11 +340,24 @@ class AttackPathApiRbacTest extends IntegrationTest {
             .withRole(
                 tenantRoleComposer.forRole(TenantRoleFixture.getRole(new HashSet<>(Set.of()))))
             .withGrant(grantComposer.forGrant(grant));
-    return userComposer
-        .forUser(UserFixture.getUser("Ap", "Granted", UUID.randomUUID() + "@unittests.invalid"))
-        .withGroup(group)
-        .persist()
-        .get();
+    return memberOfDefaultTenant(
+        userComposer
+            .forUser(UserFixture.getUser("Ap", "Granted", UUID.randomUUID() + "@unittests.invalid"))
+            .withGroup(group));
+  }
+
+  // The class is not @Transactional, so each fixture write commits on its own. It runs under the
+  // default tenant's scope, as the write of a request in that tenant does.
+  private <T> T inDefaultTenant(Supplier<T> work) {
+    return tenantTx.execute(TxCtx.forTenant(DEFAULT_TENANT_UUID), work);
+  }
+
+  // A caller of the default tenant: its user, groups, roles and grants are written in that tenant,
+  // and it is a member of it, as every real user is of the tenants it works in.
+  private User memberOfDefaultTenant(UserComposer.Composer user) {
+    User persisted = inDefaultTenant(() -> user.persist().get());
+    tenantHelper.attachUserToTenant(persisted.getId(), DEFAULT_TENANT_UUID);
+    return persisted;
   }
 
   // Sets the raw dev-features value (may be the stored original, which can be null) and evicts the
