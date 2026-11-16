@@ -16,6 +16,7 @@ public final class ScenarioResponseHydrator {
 
   private ScenarioResponseHydrator() {}
 
+  /** A lazy load after the commit reads zero rows, so the response would carry an empty array. */
   public static Scenario hydrateForResponse(Scenario scenario) {
     KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
     Hibernate.initialize(scenario.getTeams());

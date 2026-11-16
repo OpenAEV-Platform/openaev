@@ -16,6 +16,7 @@ public final class ExerciseResponseHydrator {
 
   private ExerciseResponseHydrator() {}
 
+  /** A lazy load after the commit reads zero rows, so the response would carry an empty array. */
   public static Exercise hydrateForResponse(Exercise exercise) {
     KillChainPhaseInitializer.initializeFromInjects(exercise.getInjects());
     Hibernate.initialize(exercise.getTeams());
