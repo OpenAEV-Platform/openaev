@@ -9,6 +9,7 @@ import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import io.openaev.aop.AccessControlAspect;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.integration.ManagerCreator;
 import io.openaev.opencti.connectors.service.OpenCTIConnectorPrivilegeService;
@@ -20,6 +21,7 @@ import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.runner.InitAdminCommandLineRunner;
 import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.scheduler.jobs.QueueChainingJob;
+import io.openaev.service.PermissionService;
 import io.openaev.service.ScenarioToExerciseService;
 import io.openaev.service.account.CallerRightsInTenant;
 import io.openaev.service.autonomous.AutonomousRunService;
@@ -46,13 +48,18 @@ import java.util.function.Predicate;
  *       passes. {@link WorkflowOwnerScope} passes the tenant of a simulation, a scenario or an
  *       injector contract. That is safe only when the caller was granted that owner before passing
  *       it, so the callers of {@link WorkflowOwnerScope} are an allowlist, each with the check the
- *       owner it passes went through.
+ *       owner it passes went through. {@link CallerRightsInTenant} passes the ambient tenant of the
+ *       user it is given. Only the allowlist of {@link #CALLER_RIGHTS_LOADERS} calls it, and only
+ *       the allowlist of {@link #AMBIENT_CALLER_READERS} calls {@link
+ *       PermissionService#callerInAmbientTenant}, which passes it the user it is given. No rule
+ *       checks that user: the callers of the {@link PermissionService} methods that pass on a
+ *       caller are not followed.
  *   <li>{@link TenantScopedTransaction#setScopeOnCurrentTransaction} sets the scope for the rest of
  *       the transaction. Its direct callers are a baseline, each with the scope it sets and where
  *       that scope comes from. The baseline may only shrink.
  * </ul>
  *
- * A new caller of either is a deliberate change to its list, reviewed as such.
+ * A new caller of any of them is a deliberate change to its list, reviewed as such.
  *
  * <p>Detection (bytecode level): every call and method reference whose target is declared on, or
  * inherited by, the guarded class, from any code of the calling class including its lambdas. A call
@@ -149,7 +156,9 @@ final class WorkflowOwnerScopeCallerRules {
 
   /**
    * The classes allowed to call {@link TenantScopedTransaction#executeOnCurrentTransaction}, each
-   * with the tenant it passes and what the work reads there. Every entry must still call it.
+   * with the tenant it passes and what the work reads there. Every entry must still call it. The
+   * rule checks the calling class, not the tenant: the callers of each entry are an allowlist of
+   * their own ({@link #OWNER_SCOPE_CALLERS}, {@link #CALLER_RIGHTS_LOADERS}).
    */
   static final Map<Class<?>, String> TRANSACTION_MOVERS =
       Map.of(
@@ -157,11 +166,100 @@ final class WorkflowOwnerScopeCallerRules {
           "passes the tenant of a simulation, a scenario or an injector contract its allowlisted"
               + " callers were granted",
           CallerRightsInTenant.class,
-          "passes the ambient tenant of a permission decision of a request whose scope does not"
-              + " hold it, and loads there, in a session of its own, the caller's user with its"
-              + " eager associations, for that decision only");
+          "passes the ambient tenant of the user it is given, and loads that user there, in a"
+              + " session of its own, with its eager associations; only the classes of"
+              + " CALLER_RIGHTS_LOADERS call it");
+
+  /** The method of {@link PermissionService} that reaches {@link CallerRightsInTenant}. */
+  static final String AMBIENT_CALLER_METHOD = "callerInAmbientTenant";
+
+  /**
+   * The classes allowed to call {@link CallerRightsInTenant}, each with the user it passes. {@link
+   * CallerRightsInTenant} itself is allowed too. Every entry must call it.
+   */
+  static final Map<Class<?>, String> CALLER_RIGHTS_LOADERS =
+      Map.of(
+          PermissionService.class,
+          AMBIENT_CALLER_METHOD
+              + " passes the user it is given, whose rights in the ambient tenant the scope of"
+              + " the request does not hold");
+
+  /**
+   * The classes allowed to call {@link PermissionService#callerInAmbientTenant}, each with the user
+   * it passes. Every entry must call it. The callers of the {@link PermissionService} methods that
+   * call it are not followed.
+   */
+  static final Map<Class<?>, String> AMBIENT_CALLER_READERS =
+      Map.of(
+          AccessControlAspect.class,
+          "the endpoint check passes the request's principal, read by"
+              + " UserService#currentUser, and the request's TxCtx",
+          PermissionService.class,
+          "holdsInScope and decideInEachTenant pass the caller and the TxCtx they are given;"
+              + " their own callers are not followed");
 
   private WorkflowOwnerScopeCallerRules() {}
+
+  /** {@link CallerRightsInTenant} is called only from the reasoned allowlist. */
+  static ArchRule callerRightsLoadedOnlyFrom(Set<String> allowedCallers) {
+    Set<String> allowed = new TreeSet<>(allowedCallers);
+    allowed.add(CallerRightsInTenant.class.getName());
+    return classes()
+        .should(
+            notAccessOutside(
+                "not call CallerRightsInTenant outside the reasoned allowlist",
+                WorkflowOwnerScopeCallerRules::reachesCallerRights,
+                allowed))
+        .because(
+            "CallerRightsInTenant moves the request's transaction to the ambient tenant to load"
+                + " the user it is given, which it does not check");
+  }
+
+  /** The allowlist of {@link CallerRightsInTenant} as class names. */
+  static Set<String> callerRightsLoaderNames() {
+    return namesOf(CALLER_RIGHTS_LOADERS);
+  }
+
+  /** The top-level classes among {@code classes}, but itself, that call it. */
+  static Set<String> callerRightsLoaders(JavaClasses classes) {
+    Set<String> callers = callers(classes, WorkflowOwnerScopeCallerRules::reachesCallerRights);
+    callers.remove(CallerRightsInTenant.class.getName());
+    return callers;
+  }
+
+  /** {@link PermissionService#callerInAmbientTenant} is called only from the reasoned allowlist. */
+  static ArchRule ambientCallerReadOnlyFrom(Set<String> allowedCallers) {
+    Set<String> allowed = new TreeSet<>(allowedCallers);
+    allowed.add(PermissionService.class.getName());
+    return classes()
+        .should(
+            notAccessOutside(
+                "not call PermissionService."
+                    + AMBIENT_CALLER_METHOD
+                    + " outside the reasoned allowlist",
+                WorkflowOwnerScopeCallerRules::readsTheAmbientCaller,
+                allowed))
+        .because(
+            AMBIENT_CALLER_METHOD
+                + " loads the user it is given in the ambient tenant, outside the scope of the"
+                + " request");
+  }
+
+  /** The allowlist of {@link PermissionService#callerInAmbientTenant} as class names. */
+  static Set<String> ambientCallerReaderNames() {
+    return namesOf(AMBIENT_CALLER_READERS);
+  }
+
+  /** The top-level classes among {@code classes} that call it. */
+  static Set<String> ambientCallerReaders(JavaClasses classes) {
+    return callers(classes, WorkflowOwnerScopeCallerRules::readsTheAmbientCaller);
+  }
+
+  private static Set<String> namesOf(Map<Class<?>, String> reasoned) {
+    Set<String> names = new TreeSet<>();
+    reasoned.keySet().forEach(caller -> names.add(caller.getName()));
+    return names;
+  }
 
   /** Only the classes of {@link #TRANSACTION_MOVERS} move the current transaction. */
   static final ArchRule ONLY_LISTED_CLASSES_MOVE_THE_CURRENT_TRANSACTION =
@@ -269,6 +367,15 @@ final class WorkflowOwnerScopeCallerRules {
 
   static boolean reachesOwnerScope(JavaCodeUnitAccess<?> access) {
     return access.getTargetOwner().isAssignableTo(WorkflowOwnerScope.class);
+  }
+
+  static boolean reachesCallerRights(JavaCodeUnitAccess<?> access) {
+    return access.getTargetOwner().isAssignableTo(CallerRightsInTenant.class);
+  }
+
+  static boolean readsTheAmbientCaller(JavaCodeUnitAccess<?> access) {
+    return AMBIENT_CALLER_METHOD.equals(access.getName())
+        && access.getTargetOwner().isAssignableTo(PermissionService.class);
   }
 
   // A lambda or a nested class belongs to the top-level class that declares it.

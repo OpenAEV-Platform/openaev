@@ -5,10 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.EvaluationResult;
+import io.openaev.architecture.fixture.CallerRightsOutsideAllowlistFixture;
 import io.openaev.architecture.fixture.CurrentTransactionMoveFixture;
 import io.openaev.architecture.fixture.OwnerScopeOutsideAllowlistFixture;
 import io.openaev.architecture.fixture.OwnerScopeSubclassFixture;
 import io.openaev.architecture.fixture.ScopeSetterOutsideBaselineFixture;
+import io.openaev.service.PermissionService;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -168,6 +170,100 @@ class WorkflowOwnerScopeCallerRulesTest {
 
       // Assert
       assertThat(callers).containsExactly(ScopeSetterOutsideBaselineFixture.class.getName());
+    }
+  }
+
+  @Nested
+  @DisplayName("Loading the caller's rights in the ambient tenant")
+  class LoadingTheCallersRightsInTheAmbientTenant {
+
+    @Test
+    @DisplayName("a call and a method reference to CallerRightsInTenant from an unlisted class")
+    void given_unlistedCallerOfTheLoader_should_violateTheRuleForEachAccess() {
+      // Arrange
+      JavaClasses fixture =
+          new ClassFileImporter().importClasses(CallerRightsOutsideAllowlistFixture.class);
+
+      // Act
+      EvaluationResult result =
+          WorkflowOwnerScopeCallerRules.callerRightsLoadedOnlyFrom(Set.of()).evaluate(fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().getDetails())
+          .anyMatch(line -> line.contains("rightsOf"))
+          .anyMatch(line -> line.contains("rightsAsReference"))
+          .noneMatch(line -> line.contains("ambientCaller"));
+    }
+
+    @Test
+    @DisplayName("an allowlisted class passes the loader rule")
+    void given_allowlistedCallerOfTheLoader_should_passTheRule() {
+      // Arrange
+      JavaClasses fixture =
+          new ClassFileImporter().importClasses(CallerRightsOutsideAllowlistFixture.class);
+
+      // Act
+      EvaluationResult result =
+          WorkflowOwnerScopeCallerRules.callerRightsLoadedOnlyFrom(
+                  Set.of(CallerRightsOutsideAllowlistFixture.class.getName()))
+              .evaluate(fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("a call and a method reference to callerInAmbientTenant from an unlisted class")
+    void given_unlistedCallerOfTheAmbientCaller_should_violateTheRuleForEachAccess() {
+      // Arrange
+      JavaClasses fixture =
+          new ClassFileImporter().importClasses(CallerRightsOutsideAllowlistFixture.class);
+
+      // Act
+      EvaluationResult result =
+          WorkflowOwnerScopeCallerRules.ambientCallerReadOnlyFrom(Set.of()).evaluate(fixture);
+
+      // Assert
+      assertThat(result.hasViolation()).isTrue();
+      assertThat(result.getFailureReport().getDetails())
+          .anyMatch(line -> line.contains("ambientCaller("))
+          .anyMatch(line -> line.contains("ambientCallerAsReference"))
+          .noneMatch(line -> line.contains("rightsOf"));
+    }
+
+    @Test
+    @DisplayName("PermissionService itself and an allowlisted class pass the ambient caller rule")
+    void given_allowlistedCallerOfTheAmbientCaller_should_passTheRule() {
+      // Arrange
+      JavaClasses classes =
+          new ClassFileImporter()
+              .importClasses(CallerRightsOutsideAllowlistFixture.class, PermissionService.class);
+
+      // Act
+      EvaluationResult result =
+          WorkflowOwnerScopeCallerRules.ambientCallerReadOnlyFrom(
+                  Set.of(CallerRightsOutsideAllowlistFixture.class.getName()))
+              .evaluate(classes);
+
+      // Assert
+      assertThat(result.hasViolation()).isFalse();
+    }
+
+    @Test
+    @DisplayName("the inventories name the calling class once, method references included")
+    void given_callerWithCallsAndReferences_should_beInventoriedOnce() {
+      // Arrange
+      JavaClasses fixture =
+          new ClassFileImporter().importClasses(CallerRightsOutsideAllowlistFixture.class);
+
+      // Act
+      Set<String> loaders = WorkflowOwnerScopeCallerRules.callerRightsLoaders(fixture);
+      Set<String> readers = WorkflowOwnerScopeCallerRules.ambientCallerReaders(fixture);
+
+      // Assert
+      assertThat(loaders).containsExactly(CallerRightsOutsideAllowlistFixture.class.getName());
+      assertThat(readers).containsExactly(CallerRightsOutsideAllowlistFixture.class.getName());
     }
   }
 }
