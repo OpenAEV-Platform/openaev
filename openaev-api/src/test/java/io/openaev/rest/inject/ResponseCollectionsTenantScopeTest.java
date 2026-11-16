@@ -25,6 +25,7 @@ import io.openaev.database.model.Tenant;
 import io.openaev.rest.exercise.form.ExerciseTeamPlayersEnableInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.inject.form.InjectReceptionInput;
+import io.openaev.rest.inject.form.InjectTeamsInput;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.DocumentFixture;
 import io.openaev.utils.fixtures.ExerciseFixture;
@@ -222,6 +223,29 @@ class ResponseCollectionsTenantScopeTest extends ProductionTablesIntegrationTest
                   tenantId,
                   inject.getExercise().getId(),
                   inject.getId()));
+
+      // -- ASSERT --
+      assertThat(ids(response, "$.inject_tags")).containsExactly(tagId);
+    }
+
+    @Test
+    @DisplayName("given the teams of a tagged simulation inject are set, should answer its tags")
+    void given_teamsOfATaggedSimulationInjectSet_should_answerItsTags() throws Exception {
+      // -- ARRANGE --
+      Inject inject = inTenant(() -> taggedInject().withExercise(simulation()).persist().get());
+      InjectTeamsInput input = new InjectTeamsInput();
+      input.setTeamIds(List.of());
+
+      // -- ACT --
+      String response =
+          call(
+              put(
+                      TENANT_EXERCISE_URI + "/{exerciseId}/injects/{injectId}/teams",
+                      tenantId,
+                      inject.getExercise().getId(),
+                      inject.getId())
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(asJsonString(input)));
 
       // -- ASSERT --
       assertThat(ids(response, "$.inject_tags")).containsExactly(tagId);
