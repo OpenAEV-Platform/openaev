@@ -330,7 +330,7 @@ class QueueChainingJobTest extends IntegrationTest {
                 return List.of(new Step());
               })
           .when(stepService)
-          .createReadySteps(any(), any(), any(), anyInt());
+          .createReadySteps(any(), any(), any());
       doNothing().when(stepService).enqueueReadySteps(any(), any());
       TenantContext.clearCurrentTenant();
 
