@@ -51,11 +51,14 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
- * The execution trace readers, the retention job and the job writers on the production list of
- * active tables, which holds {@code execution_traces}. Two tenants each own a pending inject and
- * its traces; every path runs the way production runs it, with no transaction and no ambient tenant
- * of its own on the thread, and the answer is read back from the tenant column. The execution log
- * of an inject is read over HTTP on the tenant route and on the {@code X-Tenant-Ids} route.
+ * The execution trace readers, the retention job, the job writers, the executor launch writers and
+ * the chaining end writer on the production list of active tables, which holds {@code
+ * execution_traces}. Two tenants each own a pending inject and its traces. The jobs run the way
+ * production runs them, with no transaction and no ambient tenant of their own on the thread; the
+ * readers, the by-id read and the launch and chaining end writers run inside a transaction scoped
+ * to one tenant, as their callers open it. The answer is read back from the tenant column. The
+ * execution log of an inject is read over HTTP on the tenant route and on the {@code X-Tenant-Ids}
+ * route.
  *
  * <p>NOT {@code @Transactional}: the scoped primitive refuses to open inside an active transaction,
  * and the jobs commit their own transactions. The rows are committed through JDBC and swept after
@@ -63,7 +66,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  */
 @CoversTenantIsolation("execution_traces")
 @WithMockUser(isAdmin = true)
-@DisplayName("Execution traces with the table armed: readers, retention and job writers")
+@DisplayName("Execution traces with the table armed: readers, retention and writers")
 class ExecutionTraceScopedPathsTest extends IntegrationTest {
 
   private static final int RETENTION_DAYS = 30;
@@ -450,6 +453,7 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
       assertThat(seed.traceTenantsOfStatus(tenantA.statusId())).containsExactly(tenantA.id());
       assertThat(agentTraceIds(scopeA, tenantA)).hasSize(1);
       assertThat(agentTraceIds(scopeB, tenantA)).isEmpty();
+      assertThat(statusTraceMessages(scopeB, tenantA)).isEmpty();
     }
 
     @Test
