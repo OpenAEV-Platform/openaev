@@ -1,5 +1,7 @@
 package io.openaev.notification.engine;
 
+import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -10,6 +12,8 @@ import io.openaev.database.model.NotificationTriggerType;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.database.repository.NotificationEventRecordRepository;
+import io.openaev.rest.settings.PreviewFeature;
+import io.openaev.service.PreviewFeatureService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +34,9 @@ public class NotificationEngineService {
   private final NotificationDispatchService dispatchService;
   private final NotificationEventRecordRepository notificationEventRecordRepository;
   private final TenantScopedTransaction tenantTx;
+  private final MarkingClearanceCacheManager markingClearanceCacheManager;
+  private final PreviewFeatureService previewFeatureService;
+  private final NotificationMarkingResolver markingResolver;
 
   /**
    * Processes one entity lifecycle event.
@@ -93,10 +100,13 @@ public class NotificationEngineService {
                         List.of(
                             new NotificationContent.Event(
                                 eventType, message, entry.getResourceType(), entityId)));
+                List<String[]> markingSets =
+                    markingResolver.resolveMarkingSets(
+                        entry.getResourceType(), entityId, trigger.tenantId(), eventType);
                 dispatchService.dispatch(
                     trigger,
                     NotificationTriggerType.LIVE,
-                    trigger.recipientUserIds(),
+                    recipientsUnderClearance(trigger, markingSets),
                     List.of(group));
               });
         } finally {
@@ -111,6 +121,28 @@ public class NotificationEngineService {
             e);
       }
     }
+  }
+
+  /**
+   * Narrows a trigger's recipients to those cleared for at least one of the event's marking sets
+   * (OR across them, see {@link NotificationMarkingResolver#resolveMarkingSets}) - unchanged when
+   * there are none or the MARKING preview feature is off. Only gates live dispatch: the digest
+   * outbox ({@link #recordEvents}) still records one row per configured recipient regardless of
+   * clearance - {@link NotificationDigestService} re-checks it per record at send time instead.
+   */
+  private List<String> recipientsUnderClearance(
+      ResolvedNotificationTrigger trigger, List<String[]> markingSets) {
+    if (markingSets.isEmpty() || !previewFeatureService.isFeatureEnabled(PreviewFeature.MARKING)) {
+      return trigger.recipientUserIds();
+    }
+    return trigger.recipientUserIds().stream()
+        .filter(
+            userId -> {
+              MarkingCtx clearance =
+                  markingClearanceCacheManager.findClearance(userId, trigger.tenantId());
+              return markingSets.stream().anyMatch(clearance::coversMarkings);
+            })
+        .toList();
   }
 
   private void recordEvents(

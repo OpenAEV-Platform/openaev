@@ -82,6 +82,21 @@ public interface InjectRepository
   }
 
   /**
+   * Marking ids of every asset directly linked through {@code injects_assets}, one array per asset.
+   */
+  @Query("SELECT a.markingIds FROM Inject i JOIN i.assets a WHERE i.id = :injectId")
+  List<String[]> findDirectAssetMarkingIdsByInjectId(@Param("injectId") String injectId);
+
+  /**
+   * Marking ids of every asset reached through a targeted asset group ({@code injects_asset_groups}
+   * joined to {@code asset_group_assets}), one array per asset.
+   */
+  @Query(
+      "SELECT a.markingIds FROM Inject i JOIN i.assetGroups ag JOIN ag.assets a"
+          + " WHERE i.id = :injectId")
+  List<String[]> findAssetGroupMarkingIdsByInjectId(@Param("injectId") String injectId);
+
+  /**
    * Updates only an inject's {@code updated_at} timestamp, through Hibernate so the tenant
    * statement inspector covers it (a previous raw-JDBC helper bypassed it). Returns the number of
    * rows updated.
