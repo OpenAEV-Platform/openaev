@@ -1,12 +1,13 @@
 package io.openaev.service.catalog.payload;
 
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.catalog.CatalogIdentity;
 import io.openaev.database.model.catalog.CatalogPayload;
+import io.openaev.database.model.catalog.ContentType;
 import io.openaev.database.raw.RawInstalledPayloadVersion;
 import io.openaev.database.repository.CatalogItemRepository;
 import io.openaev.database.repository.PayloadIdentityRepository;
 import io.openaev.service.catalog.CatalogListService;
+import io.openaev.service.catalog.CatalogOffer;
 import io.openaev.service.catalog.CatalogSettingsService;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.util.ArrayList;
@@ -22,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 /** The released catalogue payload versions a tenant can install. */
 @Service
 @RequiredArgsConstructor
-public class CatalogPayloadOfferService {
+public class CatalogPayloadOfferService implements CatalogOffer<InstallablePayloadVersion> {
 
   private final CatalogItemRepository catalogItemRepository;
   private final PayloadIdentityRepository payloadIdentityRepository;
@@ -39,6 +40,7 @@ public class CatalogPayloadOfferService {
   }
 
   /** The latest offered version of every catalogue payload the tenant never installed. */
+  @Override
   @Transactional(readOnly = true)
   public List<InstallablePayloadVersion> neverInstalled(TxCtx ctx, String tenantId) {
     return neverInstalled(tenantId, catalogItemRepository.findAllPayloads());
@@ -48,11 +50,12 @@ public class CatalogPayloadOfferService {
    * What installs itself after a release: every newer offered version of an installed payload, in
    * order, and the payloads never installed when the tenant asks for it.
    */
+  @Override
   @Transactional(readOnly = true)
   public List<InstallablePayloadVersion> toAutoInstall(TxCtx ctx, String tenantId) {
     List<CatalogPayload> items = catalogItemRepository.findAllPayloads();
     List<InstallablePayloadVersion> versions = new ArrayList<>(newerVersions(tenantId, items));
-    if (catalogSettingsService.isPayloadAutoInstall(ctx, tenantId)) {
+    if (catalogSettingsService.isAutoInstall(ctx, tenantId, ContentType.PAYLOAD)) {
       versions.addAll(neverInstalled(tenantId, items));
     }
     return versions;
@@ -64,11 +67,13 @@ public class CatalogPayloadOfferService {
       String tenantId, List<CatalogPayload> items) {
     Set<String> known =
         payloadIdentityRepository.findAllByTenantIdAndRepositoryIsNotNull(tenantId).stream()
-            .map(CatalogPayloadOfferService::key)
+            .map(CatalogOffer::key)
             .collect(Collectors.toSet());
     return CatalogListService.latestVersions(items).stream()
         .map(InstallablePayloadVersion::of)
-        .filter(released -> !known.contains(key(released.repository(), released.externalId())))
+        .filter(
+            released ->
+                !known.contains(CatalogOffer.key(released.repository(), released.externalId())))
         .toList();
   }
 
@@ -79,26 +84,19 @@ public class CatalogPayloadOfferService {
         payloadIdentityRepository.findInstalledVersions(tenantId).stream()
             .collect(
                 Collectors.toMap(
-                    v -> key(v.getRepository(), v.getExternalId()),
+                    v -> CatalogOffer.key(v.getRepository(), v.getExternalId()),
                     RawInstalledPayloadVersion::getVersion));
     return items.stream()
         .filter(item -> item.getStatus().isOffered())
         .map(InstallablePayloadVersion::of)
         .filter(
             released -> {
-              String latest = installed.get(key(released.repository(), released.externalId()));
+              String latest =
+                  installed.get(CatalogOffer.key(released.repository(), released.externalId()));
               return latest != null
                   && SemanticVersion.ORDER.compare(released.version(), latest) > 0;
             })
         .sorted(Comparator.comparing(InstallablePayloadVersion::version, SemanticVersion.ORDER))
         .toList();
-  }
-
-  private static String key(CatalogIdentity identity) {
-    return key(identity.getRepository(), identity.getExternalId());
-  }
-
-  private static String key(String repository, String externalId) {
-    return repository + "/" + externalId;
   }
 }

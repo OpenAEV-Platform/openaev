@@ -38,6 +38,12 @@ public class CatalogListService {
         .toList();
   }
 
+  /** The latest offered version of every catalogue item of a type. */
+  @Transactional(readOnly = true)
+  public <T extends CatalogItem> List<T> latestOffered(Class<T> type) {
+    return latestVersions(catalogItemRepository.findAllOfType(type));
+  }
+
   /** A version the catalogue still offers; refused when it is unknown, deprecated or revoked. */
   @Transactional(readOnly = true)
   public <T extends CatalogItem> T offered(Class<T> type, String externalId, String version) {

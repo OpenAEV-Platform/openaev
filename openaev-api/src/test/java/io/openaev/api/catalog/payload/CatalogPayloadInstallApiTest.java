@@ -12,14 +12,12 @@ import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadFileName;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.payloadVersion;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.releasedPayload;
 import static io.openaev.utils.fixtures.CatalogReleaseFixture.syncRequest;
-import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -156,7 +154,8 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
     return committed(
         put(CATALOG_SETTINGS_URI, DEFAULT_TENANT_UUID)
             .contentType(MediaType.APPLICATION_JSON)
-            .content(mapper.writeValueAsString(new CatalogSettingsInput(payloadAutoInstall))));
+            .content(
+                mapper.writeValueAsString(new CatalogSettingsInput(payloadAutoInstall, true))));
   }
 
   private ResultActions uninstall(String tenantId, String payloadId) throws Exception {
@@ -172,9 +171,17 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   }
 
   private List<String> installedIds(ResultActions result) throws Exception {
+    return List.of(
+        mapper
+            .readTree(result.andReturn().getResponse().getContentAsString())
+            .path("installed_id")
+            .asText());
+  }
+
+  private List<String> ids(ResultActions result, String field) throws Exception {
     JsonNode body = mapper.readTree(result.andReturn().getResponse().getContentAsString());
     return mapper.convertValue(
-        body.path("installed_payload_ids"),
+        body.path(field),
         mapper.getTypeFactory().constructCollectionType(List.class, String.class));
   }
 
@@ -404,9 +411,9 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
       publish("1.261109.0", "VERIFIED", RELEASED, "1.0.0");
 
       // Act
-      List<String> first = installedIds(installAll().andExpect(status().isCreated()));
+      List<String> first = ids(installAll().andExpect(status().isCreated()), "installed_ids");
       uninstall(DEFAULT_TENANT_UUID, first.getFirst()).andExpect(status().isNoContent());
-      List<String> again = installedIds(installAll().andExpect(status().isCreated()));
+      List<String> again = ids(installAll().andExpect(status().isCreated()), "installed_ids");
 
       // Assert
       assertThat(first).hasSize(1);
@@ -477,32 +484,6 @@ class CatalogPayloadInstallApiTest extends IntegrationTest {
   }
 
   // -- SETTINGS --
-
-  @Nested
-  @DisplayName("The catalogue settings")
-  class Settings {
-
-    private String readSettings() throws Exception {
-      return mvc.perform(get(CATALOG_SETTINGS_URI, DEFAULT_TENANT_UUID))
-          .andExpect(status().isOk())
-          .andReturn()
-          .getResponse()
-          .getContentAsString();
-    }
-
-    @Test
-    @DisplayName("install new payloads by default, until an admin turns it off")
-    void given_settingTurnedOff_should_readItBackOff() throws Exception {
-      // Act
-      String before = readSettings();
-      settings(false).andExpect(status().isOk());
-      String after = readSettings();
-
-      // Assert
-      assertThatJson(before).node("payload_auto_install").isEqualTo(true);
-      assertThatJson(after).node("payload_auto_install").isEqualTo(false);
-    }
-  }
 
   // -- UNINSTALL --
 

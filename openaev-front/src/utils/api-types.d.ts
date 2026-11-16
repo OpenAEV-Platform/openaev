@@ -2575,13 +2575,14 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
-export interface CatalogPayloadInstallAllOutput {
-  failed_payload_external_ids?: string[];
-  installed_payload_ids?: string[];
+export interface CatalogInstallAllOutput {
+  failed_external_ids?: string[];
+  installed_ids?: string[];
 }
 
-export interface CatalogPayloadInstallOutput {
-  installed_payload_ids?: string[];
+export interface CatalogInstallOutput {
+  /** @minLength 1 */
+  installed_id: string;
 }
 
 export interface CatalogPayloadOutput {
@@ -2599,11 +2600,6 @@ export interface CatalogScenarioInstallInput {
   team_ids?: string[];
 }
 
-export interface CatalogScenarioInstallOutput {
-  /** @minLength 1 */
-  installed_scenario_id: string;
-}
-
 export interface CatalogScenarioOutput {
   /** @minLength 1 */
   catalog_scenario_external_id: string;
@@ -2614,10 +2610,12 @@ export interface CatalogScenarioOutput {
 
 export interface CatalogSettingsInput {
   payload_auto_install: boolean;
+  scenario_auto_install: boolean;
 }
 
 export interface CatalogSettingsOutput {
   payload_auto_install: boolean;
+  scenario_auto_install: boolean;
 }
 
 export interface CatalogSyncOutput {
