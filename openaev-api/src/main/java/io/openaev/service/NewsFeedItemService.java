@@ -18,6 +18,7 @@ import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -42,9 +43,10 @@ import org.springframework.stereotype.Service;
 public class NewsFeedItemService {
 
   /**
-   * Users handled per transaction. Together with {@link #ITEM_CHUNK_SIZE} it bounds the entities
-   * held in memory (at most their product) and the work lost on error, whatever the number of users
-   * or of items the Hub accumulated.
+   * Users handled per transaction when creating items, and rows of one Hub item handled per
+   * transaction when updating or deleting them (one row per user). Together with {@link
+   * #ITEM_CHUNK_SIZE} it bounds the entities held in memory (at most their product) and the work
+   * lost on error, whatever the number of users or of items the Hub accumulated.
    */
   public static final int USER_CHUNK_SIZE = 500;
 
@@ -114,6 +116,13 @@ public class NewsFeedItemService {
    * items changed. Nothing is bounded: the unread items are loaded at once, and the events they
    * publish all fire when the request transaction commits. This is accepted because a user only
    * holds the items the Hub published since they joined, and this runs once per visit.
+   *
+   * <p>Accepted race: if the collector deletes an item between its load and the commit of the
+   * request, the update of that row matches nothing and the commit fails with an optimistic locking
+   * error. It cannot be retried here: the failure surfaces at the commit of the request
+   * transaction, which is then rolled back, so nothing is half done. The call only marks items read
+   * as a side effect of visiting the page: the client ignores its failure and the next visit marks
+   * the items again, the deleted one no longer being there.
    */
   public void markMyItemsRead() {
     List<NewsFeedItem> unreadItems =
@@ -144,6 +153,14 @@ public class NewsFeedItemService {
    *
    * <p>The rows are handled by chunks, each in its own transaction: the Hub no longer holds the
    * items, so a failing chunk is logged and the others are still handled.
+   *
+   * <p>Accepted risk: the collector runs on every node without a cluster-wide lock, as the creation
+   * of items always did. Each run only handles the payload the Hub gave it, and the Hub removes
+   * what it returns, so two runs never get the same delivery. The one case left is two nodes
+   * consuming two consecutive deliveries of the same item at the same moment, the deletion being
+   * applied before the creation of the previous delivery commits: rows of a deleted item would then
+   * stay. It takes two runs of the scheduled collector to overlap that closely on the same item, so
+   * a cluster-wide lock is not worth its cost here.
    *
    * @param provisionedItems the items consumed from XTM Hub
    * @param recipientTenantIds the tenants registered on XTM Hub, whose users receive new items
@@ -190,12 +207,13 @@ public class NewsFeedItemService {
   }
 
   /**
-   * Deletes the rows of the given Hub items through the session, one by one: a bulk delete would
-   * skip the listener chain, so the open sessions of the users would not be told over SSE.
+   * Deletes the rows of the given Hub items, those of every user, through the session and one by
+   * one: a bulk delete would skip the listener chain, so the open sessions of the users would not
+   * be told over SSE.
    */
   private int deleteItems(Collection<String> hubItemIds) {
     int deleted = 0;
-    for (String hubItemId : hubItemIds) {
+    for (String hubItemId : withRows(hubItemIds)) {
       try {
         deleted +=
             forEachChunkOfRows(
@@ -213,9 +231,21 @@ public class NewsFeedItemService {
     return deleted;
   }
 
+  /**
+   * Updates the existing rows of the given items with what the Hub sent, the rows of every user
+   * whatever their subscriptions. Only the rows that differ are written, so the others publish no
+   * event.
+   *
+   * @return how many rows were updated
+   */
   private int updateItems(List<TypedItem> items) {
+    Set<String> withRows =
+        new HashSet<>(withRows(items.stream().map(typed -> typed.item().id()).toList()));
     int updated = 0;
     for (TypedItem typed : items) {
+      if (!withRows.contains(typed.item().id())) {
+        continue;
+      }
       try {
         updated +=
             forEachChunkOfRows(
@@ -234,6 +264,30 @@ public class NewsFeedItemService {
       }
     }
     return updated;
+  }
+
+  /**
+   * The given Hub items that at least one user holds, in the given order, looked up by chunks of
+   * {@link #ITEM_CHUNK_SIZE} so that the items nobody holds (the fresh ones, in most runs) cost one
+   * query per chunk instead of a transaction and a query each. A chunk that cannot be looked up is
+   * logged and left out.
+   */
+  private List<String> withRows(Collection<String> hubItemIds) {
+    Set<String> found = new HashSet<>();
+    for (List<String> chunk : chunks(List.copyOf(hubItemIds), ITEM_CHUNK_SIZE)) {
+      try {
+        found.addAll(
+            tenantTx.execute(
+                TxCtx.allTenants(), () -> newsFeedItemRepository.findHubItemIdsWithRows(chunk)));
+      } catch (Exception e) {
+        log.error(
+            "Could not look up the rows of {} news feed items: {}",
+            chunk.size(),
+            e.getMessage(),
+            e);
+      }
+    }
+    return hubItemIds.stream().filter(found::contains).toList();
   }
 
   /**

@@ -722,6 +722,116 @@ describe('NewsFeedList', () => {
       expect(screen.getByText('Renamed while offline')).toBeInTheDocument();
     });
 
+    it('goes back to the first page when deletions leave the current page past the end', async () => {
+      // Arrange
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem()], 120));
+      renderList();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /next page/i }));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(lastSearch().page).toBe(1);
+      // Everything left fits on one page: the page the user is on no longer exists
+      mockSearchMyNewsFeedItems.mockResolvedValue({
+        data: {
+          content: [],
+          totalElements: 0,
+          totalPages: 1,
+          pageable: { pageNumber: 1 },
+        },
+      });
+
+      // Act
+      await pushEvents(streamEvent(DATA_DELETE_SUCCESS));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Assert
+      expect(lastSearch().page).toBe(0);
+    });
+
+    it('stays on the current page when it still exists after a change', async () => {
+      // Arrange
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem()], 120));
+      renderList();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /next page/i }));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      mockSearchMyNewsFeedItems.mockResolvedValue({
+        data: {
+          content: [buildItem()],
+          totalElements: 120,
+          totalPages: 6,
+          pageable: { pageNumber: 1 },
+        },
+      });
+
+      // Act
+      await pushEvents(streamEvent(DATA_UPDATE_SUCCESS));
+
+      // Assert
+      expect(lastSearch().page).toBe(1);
+    });
+
+    it('refetches once the load in flight ends, so that a slower load cannot put back removed rows', async () => {
+      // Arrange
+      const slowLoad = deferred();
+      mockSearchMyNewsFeedItems.mockReturnValueOnce(slowLoad.promise);
+      renderList();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      mockSearchMyNewsFeedItems.mockResolvedValue(buildPage([buildItem({ news_feed_item_title: 'After the deletion' })]));
+
+      // Act: a change streams while the load is in flight, which then ends with the older rows
+      await pushEvents(streamEvent(DATA_DELETE_SUCCESS));
+      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        slowLoad.resolve(buildPage([buildItem({ news_feed_item_title: 'Before the deletion' })]));
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Assert
+      expect(mockSearchMyNewsFeedItems).toHaveBeenCalledTimes(2);
+      expect(screen.getByText('After the deletion')).toBeInTheDocument();
+      expect(screen.queryByText('Before the deletion')).not.toBeInTheDocument();
+    });
+
+    it('does not search again for a refetch that ends after the list is gone', async () => {
+      // Arrange
+      await renderLoadedList(buildPage([buildItem()]));
+      const refetch = deferred();
+      mockSearchMyNewsFeedItems.mockReturnValue(refetch.promise);
+      await pushEvents(streamEvent(DATA_DELETE_SUCCESS));
+      mockSearchMyNewsFeedItems.mockClear();
+
+      // Act: the page is left, then the refetch ends past the end of the data
+      cleanup();
+      await act(async () => {
+        refetch.resolve({
+          data: {
+            content: [],
+            totalElements: 0,
+            totalPages: 1,
+            pageable: { pageNumber: 1 },
+          },
+        } as ReturnType<typeof buildPage>);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      // Assert
+      expect(mockSearchMyNewsFeedItems).not.toHaveBeenCalled();
+    });
+
     it('stops listening to the stream once the list is gone', async () => {
       // Arrange
       await renderLoadedList(buildPage([buildItem()]));

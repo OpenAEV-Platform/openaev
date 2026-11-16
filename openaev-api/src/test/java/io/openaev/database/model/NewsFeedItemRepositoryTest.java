@@ -12,6 +12,8 @@ import io.openaev.utils.fixtures.NewsFeedItemFixture;
 import io.openaev.utils.fixtures.UserFixture;
 import java.util.List;
 import java.util.stream.IntStream;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -184,8 +186,25 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Given ids, should load their rows with their user")
-    void given_ids_should_loadRowsWithTheirUser() {
+    @DisplayName("Given Hub items some of which are held, should tell which ones have rows")
+    void given_hubItems_should_tellWhichOnesHaveRows() {
+      // Arrange
+      newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(createUser(), "hub-1"));
+      newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(createUser(), "hub-1"));
+      newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(createUser(), "hub-3"));
+      entityManager.flush();
+
+      // Act
+      List<String> held =
+          newsFeedItemRepository.findHubItemIdsWithRows(List.of("hub-1", "hub-2", "hub-3"));
+
+      // Assert: once each, and none for the item nobody holds
+      assertThat(held).containsExactlyInAnyOrder("hub-1", "hub-3");
+    }
+
+    @Test
+    @DisplayName("Given ids, should load their rows with their user in fewer statements")
+    void given_ids_should_loadRowsWithTheirUserInFewerStatements() {
       // Arrange
       User first = createUser();
       User second = createUser();
@@ -195,18 +214,32 @@ class NewsFeedItemRepositoryTest extends IntegrationTest {
           newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(second, "hub-1"));
       newsFeedItemRepository.save(NewsFeedItemFixture.createNewsFeedItem(first, "hub-2"));
       entityManager.flush();
-      entityManager.clear();
+      List<String> ids = List.of(firstItem.getId(), secondItem.getId());
+      Statistics stats =
+          entityManager.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+      stats.setStatisticsEnabled(true);
 
-      // Act
-      List<NewsFeedItem> items =
-          newsFeedItemRepository.findAllWithUserByIdIn(
-              List.of(firstItem.getId(), secondItem.getId()));
+      // Act: the same rows without the join fetch, the users being EAGER, load them afterwards
+      entityManager.clear();
+      stats.clear();
+      entityManager
+          .createQuery("select n from NewsFeedItem n where n.id in :ids", NewsFeedItem.class)
+          .setParameter("ids", ids)
+          .getResultList();
+      long withoutJoinFetch = stats.getPrepareStatementCount();
+      entityManager.clear();
+      stats.clear();
+      List<NewsFeedItem> items = newsFeedItemRepository.findAllWithUserByIdIn(ids);
+      long withJoinFetch = stats.getPrepareStatementCount();
 
       // Assert
       assertThat(items)
           .extracting(NewsFeedItem::getId, NewsFeedItem::getOwnerUserId)
           .containsExactlyInAnyOrder(
               tuple(firstItem.getId(), first.getId()), tuple(secondItem.getId(), second.getId()));
+      assertThat(withJoinFetch)
+          .as("the users come with the rows instead of in statements of their own")
+          .isLessThan(withoutJoinFetch);
     }
   }
 

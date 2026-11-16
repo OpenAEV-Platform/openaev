@@ -7,6 +7,11 @@ import { NEWS_FEED_STREAM_BATCH_MS, parseNewsFeedItemStreamEvent } from '../../n
  * Calls `onChange` when the stream tells that a news feed item of the user changed, whatever the change
  * (created, updated or deleted by the collector, or marked read), and when the stream reconnects, since the
  * events missed meanwhile are not replayed. The events of a burst are folded into one call.
+ *
+ * The burst folding and the reconnect guard mirror `useNewsFeedUnreadCount`, on purpose: that hook
+ * also reacts to the refreshes of the news feed page and fetches on mount, and the toasts only keep
+ * the created items, so a shared trigger would have to take their differences as options. Both are
+ * covered by their own tests; if a third consumer appears, extract the trigger then.
  */
 const useNewsFeedStreamRefresh = (onChange: () => void) => {
   // The latest callback, so that the subscription is not renewed at each render.

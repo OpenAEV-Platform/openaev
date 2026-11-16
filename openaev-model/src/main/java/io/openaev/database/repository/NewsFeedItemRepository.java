@@ -40,7 +40,19 @@ public interface NewsFeedItemRepository
   List<String> findIdsByHubItemIdAfter(
       @Param("hubItemId") String hubItemId, @Param("afterId") String afterId, Pageable pageable);
 
-  /** The rows with their users in one query, instead of one per user (EAGER). */
+  /**
+   * Which of the given Hub items at least one user holds. Served by the Hub item index.
+   *
+   * <p>Not paged: the Hub items are the ones of one chunk of a sync run.
+   */
+  @Query("select distinct n.hubItemId from NewsFeedItem n where n.hubItemId in :hubItemIds")
+  List<String> findHubItemIdsWithRows(@Param("hubItemIds") Collection<String> hubItemIds);
+
+  /**
+   * The rows with their users in one query, instead of one per user (EAGER). The users' own EAGER
+   * associations are still loaded with them: callers pass a bounded chunk of ids, never every row
+   * of an item.
+   */
   @Query("select n from NewsFeedItem n join fetch n.user where n.id in :ids")
   List<NewsFeedItem> findAllWithUserByIdIn(@Param("ids") Collection<String> ids);
 }

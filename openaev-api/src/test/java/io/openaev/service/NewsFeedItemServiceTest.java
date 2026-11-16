@@ -31,6 +31,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -64,6 +65,9 @@ class NewsFeedItemServiceTest {
 
   private NewsFeedItemService service;
 
+  /** The Hub items some user holds a row of, as the lookup of the items with rows finds them. */
+  private final Set<String> hubItemIdsWithRows = new HashSet<>();
+
   @BeforeEach
   void setUp() {
     service =
@@ -78,6 +82,14 @@ class NewsFeedItemServiceTest {
         .doAnswer(invocation -> invocation.<Supplier<Object>>getArgument(1).get())
         .when(tenantTx)
         .execute(any(TxCtx.class), ArgumentMatchers.<Supplier<Object>>any());
+    hubItemIdsWithRows.clear();
+    lenient()
+        .when(newsFeedItemRepository.findHubItemIdsWithRows(anyCollection()))
+        .thenAnswer(
+            invocation ->
+                invocation.<Collection<String>>getArgument(0).stream()
+                    .filter(hubItemIdsWithRows::contains)
+                    .toList());
     lenient()
         .when(referenceResolver.resolve(any(), ArgumentMatchers.eq(User.class)))
         .thenReturn(new User());
@@ -329,6 +341,7 @@ class NewsFeedItemServiceTest {
 
   /** The rows a Hub item has, found in one chunk. */
   private void givenRows(String hubItemId, NewsFeedItem... rows) {
+    hubItemIdsWithRows.add(hubItemId);
     List<String> ids = Arrays.stream(rows).map(NewsFeedItem::getId).toList();
     when(newsFeedItemRepository.findIdsByHubItemIdAfter(eq(hubItemId), eq(""), any(Pageable.class)))
         .thenReturn(ids);
@@ -337,6 +350,7 @@ class NewsFeedItemServiceTest {
 
   /** {@code count} rows of a Hub item, found by keyset chunks of {@link #USER_CHUNK_SIZE}. */
   private void givenManyRows(String hubItemId, int count) {
+    hubItemIdsWithRows.add(hubItemId);
     List<String> ids = IntStream.range(0, count).mapToObj(i -> "row-%05d".formatted(i)).toList();
     when(newsFeedItemRepository.findIdsByHubItemIdAfter(
             eq(hubItemId), anyString(), any(Pageable.class)))
@@ -481,7 +495,8 @@ class NewsFeedItemServiceTest {
       // Act
       service.applyProvisionedItems(List.of(deletedItem("hub-1", "RESOURCE_SCENARIO")), TENANTS);
 
-      // Assert
+      // Assert: the lookup of the items with rows tells there is nothing to page
+      verify(newsFeedItemRepository, never()).findIdsByHubItemIdAfter(any(), any(), any());
       verify(newsFeedItemRepository, never()).deleteAll(anyCollection());
       verify(newsFeedItemRepository, never()).findAllWithUserByIdIn(anyCollection());
     }
@@ -646,6 +661,38 @@ class NewsFeedItemServiceTest {
                 assertThat(created.getTitle()).isEqualTo("Renamed");
                 assertThat(created.isRead()).isFalse();
               });
+    }
+
+    @Test
+    @DisplayName("Given fresh items nobody holds, should look the rows up once, not per item")
+    void given_freshItems_should_lookRowsUpOnceForTheChunk() {
+      // Act
+      service.applyProvisionedItems(items(NewsFeedItemService.ITEM_CHUNK_SIZE), TENANTS);
+
+      // Assert
+      verify(newsFeedItemRepository, times(1)).findHubItemIdsWithRows(anyCollection());
+      verify(newsFeedItemRepository, never()).findIdsByHubItemIdAfter(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Given items of which only one is held, should page only the rows of that one")
+    void given_oneItemHeld_should_pageOnlyItsRows() {
+      // Arrange
+      NewsFeedItem held = row("row-1", "hub-1");
+      held.setTitle("Old title");
+      givenRows("hub-1", held);
+
+      // Act
+      service.applyProvisionedItems(
+          List.of(
+              item("hub-0", "Title 0", "RESOURCE_SCENARIO"),
+              item("hub-1", "New title", "RESOURCE_SCENARIO"),
+              item("hub-2", "Title 2", "RESOURCE_SCENARIO")),
+          TENANTS);
+
+      // Assert
+      verify(newsFeedItemRepository, times(1)).findIdsByHubItemIdAfter(any(), any(), any());
+      assertThat(held.getTitle()).isEqualTo("New title");
     }
 
     @Test

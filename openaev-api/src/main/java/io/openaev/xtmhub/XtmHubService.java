@@ -316,13 +316,13 @@ public class XtmHubService {
    */
   public void syncNewsFeed() {
     try {
-      consumeAndCreateNewsFeedItems();
+      consumeAndApplyNewsFeedItems();
     } catch (Exception e) {
       log.error("The XTM Hub news feed items could not be applied: {}", e.getMessage(), e);
     }
   }
 
-  private void consumeAndCreateNewsFeedItems() {
+  private void consumeAndApplyNewsFeedItems() {
     if (!previewFeatureService.isFeatureEnabled(PreviewFeature.XTM_HUB_NEWS_FEED)) {
       return;
     }
