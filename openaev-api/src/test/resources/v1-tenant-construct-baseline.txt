@@ -80,7 +80,6 @@ io.openaev.database.repository.ScenarioRepository#rawAllByExternalReference | @Q
 io.openaev.database.repository.ScenarioRepository#rawAllGranted | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
 io.openaev.database.repository.ScenarioRepository#rawByScenarioIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
 io.openaev.database.repository.ScenarioRepository#rawGrantedByScenarioIds | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
-io.openaev.database.repository.UserRepository#adminsOrUsersHavingCapabilities | @Query(#tenantContext) | 1 | repository query scopes rows with the ambient tenant through SpEL
 io.openaev.debug.DebugTenantSource#currentTenant | TenantContext.getCurrentTenant | 1 | authorization and entity state read the ambient tenant as the request tenant
 io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.clearCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
 io.openaev.executors.caldera.service.CalderaExecutorService#run | TenantContext.setCurrentTenant | 1 | executor job sets the ambient tenant from the executor row for v1 writes
