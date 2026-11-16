@@ -204,7 +204,8 @@ class DocumentApiTest extends IntegrationTest {
     @Test
     @DisplayName("Given a service-account capability set should no longer download via /file")
     @WithMockUser(
-        withCapabilities = {Capability.AGENT_RUNTIME_ACCESS, Capability.AGENT_DOCUMENT_ACCESS})
+        withCapabilities = {Capability.AGENT_RUNTIME_ACCESS, Capability.AGENT_DOCUMENT_ACCESS},
+        autoJoinDefaultTenant = true)
     void given_service_account_token_should_no_longer_download_via_original_endpoint()
         throws Exception {
       Document document = getSimpleDocumentWithInMemoryFile();
@@ -253,7 +254,9 @@ class DocumentApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Given a human user with ACCESS_DOCUMENTS should be forbidden on /agent-file")
-    @WithMockUser(withCapabilities = {Capability.ACCESS_DOCUMENTS})
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_DOCUMENTS},
+        autoJoinDefaultTenant = true)
     void given_human_user_with_access_documents_capability_should_be_forbidden() throws Exception {
       Document document = getSimpleDocumentWithInMemoryFile();
 

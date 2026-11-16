@@ -175,7 +175,9 @@ public class TagApiCapabilityTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.ACCESS_TAGS})
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TAGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given ACCESS_TAGS only, should be forbidden to create a tag")
     void given_accessTagsOnly_should_forbidCreateTag() throws Exception {
       // -------- Arrange --------
@@ -228,7 +230,9 @@ public class TagApiCapabilityTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.ACCESS_TAGS})
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_TAGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given ACCESS_TAGS only, should be forbidden to update a tag")
     void given_accessTagsOnly_should_forbidUpdateTag() throws Exception {
       // -------- Arrange --------
@@ -268,7 +272,9 @@ public class TagApiCapabilityTest extends IntegrationTest {
     }
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TAGS})
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_TAGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given MANAGE_TAGS only, should be forbidden to delete a tag")
     void given_manageTagsOnly_should_forbidDeleteTag() throws Exception {
       // -------- Arrange --------
