@@ -126,6 +126,11 @@ class PlatformUserApiTest extends IntegrationTest {
     assertThat(notifiedEmails).contains(input.email());
   }
 
+  // The administrator of these cases is a member of the default tenant only
+  // (autoJoinDefaultTenant), so attaching a user to another tenant writes outside the request's
+  // scope: the write-attribution baseline lines of PlatformUserApi.create and .update apply to
+  // exactly that write. An administrator with no membership has an empty scope, which the gate
+  // does not check.
   @Nested
   @DisplayName("Membership of a tenant outside the administrator's own")
   class MembershipOutsideAdministratorTenants {
