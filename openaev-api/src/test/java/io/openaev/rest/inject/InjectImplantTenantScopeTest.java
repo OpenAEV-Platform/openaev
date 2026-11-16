@@ -21,12 +21,11 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.aop.audit_log.AuditEvent;
 import io.openaev.aop.audit_log.AuditLogger;
 import io.openaev.aop.lock.Lock;
 import io.openaev.aop.lock.LockResourceType;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.config.ShutdownService;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
@@ -94,8 +93,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -119,7 +116,7 @@ import org.springframework.transaction.annotation.Transactional;
 @KeepRabbit
 @Import(InjectImplantTenantScopeTest.LockHolderConfig.class)
 @DisplayName("Implant inject endpoints load the inject in the request's tenant scope")
-class InjectImplantTenantScopeTest extends IntegrationTest {
+class InjectImplantTenantScopeTest extends ProductionTablesIntegrationTest {
 
   private enum Endpoint {
     CALLBACK,
@@ -150,12 +147,6 @@ class InjectImplantTenantScopeTest extends IntegrationTest {
   }
 
   private record Seeded(String agentId, String injectId, String endpointId) {}
-
-  @DynamicPropertySource
-  static void productionActiveTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
 
   @Autowired private MockMvc mvc;
   @Autowired private LockHolder lockHolder;
