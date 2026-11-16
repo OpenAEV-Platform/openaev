@@ -244,6 +244,36 @@ class ExecutionTraceScopedPathsTest extends IntegrationTest {
   }
 
   @Nested
+  @DisplayName("Read by id")
+  class ReadById {
+
+    private boolean foundUnder(TxCtx ctx, String traceId) {
+      return tenantTx.execute(ctx, () -> executionTraceRepository.findById(traceId).isPresent());
+    }
+
+    /**
+     * A read of the trace row alone, with no join on its inject: only the table's own tenant column
+     * decides the answer.
+     */
+    @Test
+    @DisplayName("Finds a trace by id in its tenant's scope and not in another tenant's scope")
+    void given_traceOfAnotherTenant_should_notBeFoundById() {
+      // Arrange
+      String traceOfB = seed.insertTrace(tenantB, null, "EXECUTION", "INFO", RECENT_DAYS);
+      TxCtx scopeA = TxCtx.forTenants(List.of(tenantA.id()));
+      TxCtx scopeB = TxCtx.forTenants(List.of(tenantB.id()));
+
+      // Act
+      boolean foundFromA = foundUnder(scopeA, traceOfB);
+      boolean foundFromB = foundUnder(scopeB, traceOfB);
+
+      // Assert
+      assertThat(foundFromA).isFalse();
+      assertThat(foundFromB).isTrue();
+    }
+  }
+
+  @Nested
   @DisplayName("HTTP readers on both routes")
   class HttpReaders {
 
