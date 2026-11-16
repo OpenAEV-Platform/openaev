@@ -76,7 +76,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
 
   /**
    * Fills the rows of {@code %s} (a predicate on the alias {@code x}) with the tenant of their
-   * parent. Returns the rows written and how many had no parent tenant.
+   * parent. Returns how many of the rows written had no parent tenant.
    */
   private static final String BACKFILL =
       "WITH written AS ("
@@ -97,7 +97,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
           + " WHERE x.tenant_id IS NULL AND %s) b"
           + " WHERE t.execution_trace_id = b.trace_id"
           + " RETURNING b.parent_tenant IS NULL AS orphan)"
-          + " SELECT count(*) AS written_rows, count(*) FILTER (WHERE orphan) AS orphans"
+          + " SELECT count(*) FILTER (WHERE orphan) AS orphans"
           + " FROM written";
 
   private static final String BATCH_UPDATE = BACKFILL.formatted("x.execution_trace_id = ANY(?)");
@@ -210,7 +210,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
         }
         update.setString(1, DEFAULT_TENANT_UUID);
         update.setArray(2, connection.createArrayOf("varchar", ids.toArray()));
-        orphans += run(update)[1];
+        orphans += orphansOf(update);
         lastId = ids.getLast();
         scanned += ids.size();
         batches++;
@@ -272,7 +272,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
         }
         update.setString(1, DEFAULT_TENANT_UUID);
         update.setArray(2, connection.createArrayOf("varchar", ids.toArray()));
-        orphans += run(update)[1];
+        orphans += orphansOf(update);
         lastId = ids.getLast();
         drained += ids.size();
         batches++;
@@ -299,7 +299,7 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
       long orphans;
       try (PreparedStatement remaining = connection.prepareStatement(FINAL_UPDATE)) {
         remaining.setString(1, DEFAULT_TENANT_UUID);
-        orphans = run(remaining)[1];
+        orphans = orphansOf(remaining);
       }
       statement.execute("DROP INDEX IF EXISTS " + PENDING_INDEX);
       statement.execute("ALTER TABLE " + TABLE + " ALTER COLUMN tenant_id SET NOT NULL");
@@ -334,10 +334,11 @@ public class V6_20261112060000000__Add_tenant_id_to_execution_traces extends Bas
     }
   }
 
-  private static long[] run(PreparedStatement statement) throws SQLException {
+  /** Runs a fill statement and returns how many of the rows it wrote had no parent tenant. */
+  private static long orphansOf(PreparedStatement statement) throws SQLException {
     try (ResultSet result = statement.executeQuery()) {
       result.next();
-      return new long[] {result.getLong("written_rows"), result.getLong("orphans")};
+      return result.getLong("orphans");
     }
   }
 
