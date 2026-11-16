@@ -10,6 +10,7 @@ import useCountUp from '../../../../../../../utils/hooks/useCountUp';
 import useSvgVisibilityPause from '../../../../../../../utils/hooks/useSvgVisibilityPause';
 import { compactNumber } from '../../../../../../../utils/number';
 import { tint } from '../../../../../../../utils/tint';
+import { expectationTypeLabelKey } from '../../../../../common/injects/expectations/Expectation';
 
 interface OrbitPlatform {
   id: string;
@@ -34,16 +35,6 @@ interface Props {
   /** Drill into the gaps behind the score (opens the data drawer). */
   onInvestigate?: () => void;
 }
-
-// Human label per expectation-type pillar.
-const PILLAR_LABELS: Record<string, string> = {
-  PREVENTION: 'Prevention',
-  DETECTION: 'Detection',
-  VULNERABILITY: 'Vulnerability',
-  MANUAL: 'Manual',
-  CHALLENGE: 'Challenge',
-  ARTICLE: 'Article',
-};
 
 // Distinct accent per security-platform category (single source of truth in
 // ItemSecurityPlatformType so the orbit, chips and result lists never drift).
@@ -595,7 +586,7 @@ const ExposureConsole: FunctionComponent<Props> = ({ score, gaps, validations, p
                     }}
                     >
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {t(PILLAR_LABELS[p.key.toUpperCase()] ?? p.key)}
+                        {t(expectationTypeLabelKey(p.key) ?? p.key)}
                       </Typography>
                       <Typography
                         variant="body2"

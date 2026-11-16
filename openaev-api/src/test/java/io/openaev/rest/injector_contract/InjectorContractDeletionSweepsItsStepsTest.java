@@ -20,6 +20,7 @@ import io.openaev.database.model.Workflow;
 import io.openaev.database.repository.ScenarioRepository;
 import io.openaev.database.repository.StepRepository;
 import io.openaev.database.repository.WorkflowRepository;
+import io.openaev.rest.exception.TenantSingleScopeRequiredException;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.InjectorContractFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
@@ -48,10 +49,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Deleting an injector contract removes the chaining step templates that reference it.
  *
- * <p>The single delete acts in the contract's own tenant, whatever the caller's scope: a platform
- * admin who is a member of another tenant only, of no tenant at all, or of both tenants while
- * naming only the other one in {@code X-Tenant-Ids}, reaches the same outcome as a member of the
- * contract's own tenant.
+ * <p>The single delete acts in the one tenant of the caller's scope, and the contract must lie in
+ * it: a caller that holds the contract's tenant removes the contract and the step templates that
+ * reference it, a caller of no tenant is refused for want of a single tenant, and a caller of
+ * another tenant only, by membership or by {@code X-Tenant-Ids}, finds no contract and removes
+ * nothing.
  *
  * <p>The threat arsenal bulk delete instead acts in exactly one tenant, the request's resolved
  * write tenant: a scope that cannot designate one unambiguously is refused, and a write tenant
@@ -257,16 +259,20 @@ class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given no tenant membership should remove the step template")
-    void given_noTenantMembership_should_removeTheStepTemplate() throws Exception {
+    @DisplayName("given no tenant membership should refuse and keep the step template")
+    void given_noTenantMembership_should_refuseAndKeepTheStepTemplate() throws Exception {
       // Arrange
       ContractInLogicMap rows = commitContractInLogicMap();
       try {
         // Act
-        int httpStatus = deleteContract(rows.contractId());
+        MockHttpServletResponse response =
+            sendRaw(delete(INJECTOR_CONTRACT_URL + "/" + rows.contractId()));
 
         // Assert
-        assertContractAndStepTemplateRemoved(httpStatus, rows);
+        assertThat(response.getStatus()).isEqualTo(400);
+        assertThat(JsonPath.<String>read(response.getContentAsString(), "$.message"))
+            .isEqualTo(TenantSingleScopeRequiredException.CODE);
+        assertContractAndStepTemplateKept(rows);
       } finally {
         remove(rows);
       }
@@ -274,8 +280,10 @@ class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true)
-    @DisplayName("given a scope without its tenant should remove the step template")
-    void given_scopeWithoutItsTenant_should_removeTheStepTemplate() throws Exception {
+    @DisplayName(
+        "given a scope without its tenant should find no contract and keep the step template")
+    void given_scopeWithoutItsTenant_should_findNoContractAndKeepTheStepTemplate()
+        throws Exception {
       // Arrange
       joinOtherTenantOnly();
       ContractInLogicMap rows = commitContractInLogicMap();
@@ -284,7 +292,8 @@ class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
         int httpStatus = deleteContract(rows.contractId());
 
         // Assert
-        assertContractAndStepTemplateRemoved(httpStatus, rows);
+        assertThat(httpStatus).isEqualTo(404);
+        assertContractAndStepTemplateKept(rows);
       } finally {
         remove(rows);
       }
@@ -309,8 +318,11 @@ class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
 
     @Test
     @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
-    @DisplayName("given a header naming another tenant only should remove the step template")
-    void given_headerNamingAnotherTenantOnly_should_removeTheStepTemplate() throws Exception {
+    @DisplayName(
+        "given a header naming another tenant only should find no contract and keep the step"
+            + " template")
+    void given_headerNamingAnotherTenantOnly_should_findNoContractAndKeepTheStepTemplate()
+        throws Exception {
       // Arrange
       joinOtherTenantOnly();
       ContractInLogicMap rows = commitContractInLogicMap();
@@ -322,7 +334,8 @@ class InjectorContractDeletionSweepsItsStepsTest extends IntegrationTest {
                     .header("X-Tenant-Ids", otherTenantId));
 
         // Assert
-        assertContractAndStepTemplateRemoved(httpStatus, rows);
+        assertThat(httpStatus).isEqualTo(404);
+        assertContractAndStepTemplateKept(rows);
       } finally {
         remove(rows);
       }

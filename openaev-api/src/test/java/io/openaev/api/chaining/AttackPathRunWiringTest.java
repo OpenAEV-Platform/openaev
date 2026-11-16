@@ -10,7 +10,10 @@ import static org.mockito.Mockito.verify;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.api.chaining.dto.StepsCreateInput;
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Exercise;
@@ -54,6 +57,7 @@ import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ExerciseComposer;
 import io.openaev.utils.fixtures.composers.PayloadComposer;
+import java.util.Optional;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,10 +65,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * End-to-end wiring contract: driving the real {@code InjectExecutionStep.run(step)} drives the
@@ -96,6 +100,12 @@ import org.springframework.transaction.support.TransactionTemplate;
 @DisplayName("attack path: a chaining run drives the ingestion (run-level wiring)")
 class AttackPathRunWiringTest extends IntegrationTest {
 
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
+
   // Spy, not mock: tenant provisioning (createTenantWithCurrentUser) uses the real injectorContract
   // resolution; a full mock returns null and NPEs on getPayload() during provisioning.
   @MockitoSpyBean private InjectorContractService injectorContractService;
@@ -126,7 +136,7 @@ class AttackPathRunWiringTest extends IntegrationTest {
   @Autowired private InjectorContractRepository injectorContractRepository;
   @Autowired private PayloadComposer payloadComposer;
   @Autowired private ExerciseComposer exerciseComposer;
-  @Autowired private PlatformTransactionManager transactionManager;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private JdbcTemplate jdbc;
   private Tenant tenant;
@@ -136,6 +146,8 @@ class AttackPathRunWiringTest extends IntegrationTest {
   private Payload commandPayload;
   private String injectInputJson;
   private String persistedWorkflowId;
+  private String resolvableInjectorId;
+  private String resolvableContractId;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -145,32 +157,42 @@ class AttackPathRunWiringTest extends IntegrationTest {
     // contract under it. See the class javadoc.
     TenantContext.setCurrentTenant(tenant.getId());
 
-    // A committed injector + contract so the create/ready pipeline resolves the step data to a
-    // valid inject before createInject swaps in the fixture. Separate from the transient contract
-    // the fixture inject carries (which drives the resolution under test).
-    Injector resolvableInjector =
-        injectorRepository.save(InjectorFixture.createDefaultPayloadInjector());
-    InjectorContract resolvableContract = InjectorContractFixture.createImplantInjectorContract();
-    resolvableContract.addInjector(resolvableInjector);
-    resolvableContract = injectorContractRepository.save(resolvableContract);
-    resolvableInjector.linkContract(resolvableContract);
-    injectorRepository.save(resolvableInjector);
+    InjectorContract implantContract = InjectorContractFixture.createImplantInjectorContract();
+    // The setUp runs outside any transaction, so its committed fixtures are written inside the
+    // scope of the tenant they belong to.
+    tenantTx.execute(
+        TxCtx.forTenant(tenant.getId()),
+        () -> {
+          // A committed injector + contract so the create/ready pipeline resolves the step data
+          // to a valid inject before createInject swaps in the fixture. Separate from the
+          // transient contract the fixture inject carries (which drives the resolution under test).
+          Injector resolvableInjector =
+              injectorRepository.save(InjectorFixture.createDefaultPayloadInjector());
+          implantContract.addInjector(resolvableInjector);
+          InjectorContract resolvableContract = injectorContractRepository.save(implantContract);
+          resolvableInjector.linkContract(resolvableContract);
+          injectorRepository.save(resolvableInjector);
+          resolvableInjectorId = resolvableInjector.getId();
+          resolvableContractId = resolvableContract.getId();
 
-    // Persist the agent-backed endpoint under the tenant (as the ingestion tenant test does): the
-    // fixture must be committed so the run's read-only resolution sees it.
-    agent =
-        AgentFixture.createDefaultAgentSession(executorFixture.getDefaultExecutor(tenant.getId()));
-    endpoint =
-        endpointComposer
-            .forEndpoint(EndpointFixture.createEndpoint())
-            .withAgent(agentComposer.forAgent(agent))
-            .persist()
-            .get();
+          // Persist the agent-backed endpoint under the tenant (as the ingestion tenant test does):
+          // the fixture must be committed so the run's read-only resolution sees it.
+          agent =
+              AgentFixture.createDefaultAgentSession(
+                  executorFixture.getDefaultExecutor(tenant.getId()));
+          endpoint =
+              endpointComposer
+                  .forEndpoint(EndpointFixture.createEndpoint())
+                  .withAgent(agentComposer.forAgent(agent))
+                  .persist()
+                  .get();
 
-    // A committed Command payload for the fixture contract: prepareGetStatusPayloadFromInject
-    // re-fetches it by id in run(); the COMMAND branch needs a present payload (empty -> no rows).
-    commandPayload =
-        payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).persist().get();
+          // A committed Command payload for the fixture contract: prepareGetStatusPayloadFromInject
+          // re-fetches it by id in run(); the COMMAND branch needs a present payload (empty -> no
+          // rows).
+          commandPayload =
+              payloadComposer.forPayload(PayloadFixture.createDefaultCommand()).persist().get();
+        });
 
     // InjectInput (DTO) form, ids as strings. The create/ready pipeline turns this into the real
     // step data (contract as an object) that run()'s getInjectFromDataStep deserializes.
@@ -197,7 +219,7 @@ class AttackPathRunWiringTest extends IntegrationTest {
               "inject_enabled": true
             }
             """,
-            resolvableContract.getId(), resolvableInjector.getId(), endpoint.getId());
+            resolvableContractId, resolvableInjectorId, endpoint.getId());
 
     fixtureInject = buildFixtureInject();
     // Spy stub: createInject hands run() the fully-built fixture inject; the real
@@ -227,7 +249,7 @@ class AttackPathRunWiringTest extends IntegrationTest {
   @Test
   @DisplayName("W1 — run() drives the ingestion and the row lands under the inject's tenant")
   void wiringFiresAndRowLandsUnderTheInjectTenant() throws Exception {
-    injectExecutionStep.run(readyStep());
+    runInTenantScope(readyStep());
 
     String rowId =
         AttackPathIds.executionNode(fixtureInject.getId(), endpoint.getId(), agent.getId());
@@ -242,7 +264,7 @@ class AttackPathRunWiringTest extends IntegrationTest {
   void ingestionFailureIsNonFatal() throws Exception {
     doThrow(new RuntimeException("boom")).when(attackPathIngestion).onRun(any(), any(), any());
 
-    assertThat(injectExecutionStep.run(readyStep())).isPresent();
+    assertThat(runInTenantScope(readyStep())).isPresent();
     verify(executor).directExecute(any());
     assertThat(rawRowCount())
         .as("a failed ingestion writes nothing but does not fail the run")
@@ -311,10 +333,17 @@ class AttackPathRunWiringTest extends IntegrationTest {
 
     // The producer stamps events with these projections (the step and workflow rows' own tenant).
     // Assert they resolve the tenant on a real graph regardless of ambient scope.
-    assertThat(stepRepository.findTenantIdByStepId(committedStep.getId()))
+    // steps and workflows are tenant-active: the projections follow the scope of the transaction
+    // they run in, which every producer sets to the run's own tenant.
+    TxCtx scope = TxCtx.forTenant(tenant.getId());
+    assertThat(
+            tenantTx.execute(
+                scope, () -> stepRepository.findTenantIdByStepId(committedStep.getId())))
         .as("step row tenant projection")
         .contains(tenant.getId());
-    assertThat(workflowRepository.findTenantIdByWorkflowId(persistedWorkflowId))
+    assertThat(
+            tenantTx.execute(
+                scope, () -> workflowRepository.findTenantIdByWorkflowId(persistedWorkflowId)))
         .as("workflow row tenant projection")
         .contains(tenant.getId());
   }
@@ -434,19 +463,35 @@ class AttackPathRunWiringTest extends IntegrationTest {
   // under a pessimistic share lock (#7418), which requires an active transaction - production
   // always
   // calls create() from a @Transactional StepService method. This IT is deliberately NOT
-  // @Transactional (see the class javadoc), so wrap just the authoring call in a transaction, the
-  // same way production does; the returned template is transient and persisted afterwards.
+  // @Transactional (see the class javadoc), so wrap just the authoring call in a transaction scoped
+  // to the
+  // tenant, the same way production does; the returned template is transient and persisted
+  // afterwards.
   private Step createTemplateInTransaction(
       StepsCreateInput.StepInput stepInput, Workflow workflow) {
-    return new TransactionTemplate(transactionManager)
-        .execute(
-            status -> {
-              try {
-                return injectExecutionStep.create(stepInput, workflow).orElseThrow();
-              } catch (ChainingException e) {
-                throw new IllegalStateException(e);
-              }
-            });
+    return tenantTx.execute(
+        TxCtx.forTenant(tenant.getId()),
+        () -> {
+          try {
+            return injectExecutionStep.create(stepInput, workflow).orElseThrow();
+          } catch (ChainingException e) {
+            throw new IllegalStateException(e);
+          }
+        });
+  }
+
+  // run() is @Transactional and reads tenant-active rows: the worker calls it inside a transaction
+  // scoped to the step's tenant.
+  private Optional<Step> runInTenantScope(Step step) {
+    return tenantTx.execute(
+        TxCtx.forTenant(tenant.getId()),
+        () -> {
+          try {
+            return injectExecutionStep.run(step);
+          } catch (ChainingException e) {
+            throw new IllegalStateException(e);
+          }
+        });
   }
 
   private String rawTenantOf(String rowId) {

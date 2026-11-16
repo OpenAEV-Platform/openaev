@@ -558,20 +558,31 @@ public class User implements Base {
     return capabilitiesOf(scopedGroups());
   }
 
+  /** The highest grant a user holds on one resource, with the type of that resource. */
+  public record UserGrant(
+      @JsonProperty("grant") @NotNull Grant.GRANT_TYPE grant,
+      @JsonProperty("type") @NotNull Grant.GRANT_RESOURCE_TYPE type) {}
+
   @JsonProperty("user_grants")
-  public Map<String, String> getGrants() {
+  public Map<String, UserGrant> getResourceGrants() {
     return scopedGroups().stream()
         .flatMap(group -> group.getGrants().stream())
         .filter(grant -> grant.getResourceId() != null)
         .collect(
             Collectors.toMap(
                 Grant::getResourceId,
-                grant -> grant.getName().toString(),
+                grant -> new UserGrant(grant.getName(), grant.getGrantResourceType()),
                 (grantA, grantB) ->
-                    Grant.GRANT_TYPE.valueOf(grantA).getPriority()
-                            >= Grant.GRANT_TYPE.valueOf(grantB).getPriority()
+                    grantA.grant().getPriority() >= grantB.grant().getPriority()
                         ? grantA
                         : grantB));
+  }
+
+  /** The highest grant name a user holds on each resource, by resource id. */
+  @JsonIgnore
+  public Map<String, String> getGrants() {
+    return getResourceGrants().entrySet().stream()
+        .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().grant().name()));
   }
 
   @Override

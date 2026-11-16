@@ -17,6 +17,7 @@ import io.openaev.rest.atomic_testing.form.*;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.inject.form.InjectBulkProcessingInput;
 import io.openaev.rest.inject.service.InjectService;
+import io.openaev.rest.injector_contract.InjectorContractService;
 import io.openaev.service.utils.BulkDeleteExecutor;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
@@ -60,7 +61,7 @@ public class AtomicTestingService {
   private final SecretReferenceRepository secretReferenceRepository;
   private final PayloadMapper payloadMapper;
   private final InjectRepository injectRepository;
-  private final InjectorContractRepository injectorContractRepository;
+  private final InjectorContractService injectorContractService;
   private final UserRepository userRepository;
   private final TeamRepository teamRepository;
   private final TagRepository tagRepository;
@@ -125,19 +126,25 @@ public class AtomicTestingService {
   public InjectResultOverviewOutput createOrUpdate(
       TxCtx ctx, @Nullable String tenantId, AtomicTestingInput input, String injectId) {
     Inject injectToSave = new Inject();
-    if (injectId != null) {
+    boolean isCreate = injectId == null;
+    if (!isCreate) {
       injectToSave = findInject(ctx, injectId);
     } else {
       injectToSave.setTenant(new Tenant(tenantId));
     }
 
+    // injectors_contracts is tenant-active and a built-in contract id repeats across tenants
+    // (#8485): resolve it in the tenant the inject being written here belongs to, never the ambient
+    // one (the default tenant on the non-prefixed route). On a create that is the write tenant the
+    // API resolved from the request's scope, on an update the tenant of the loaded inject.
+    String injectTenantId = isCreate ? tenantId : injectToSave.getTenant().getId();
     InjectorContract injectorContract =
-        injectorContractRepository
-            .findById(input.getInjectorContract())
+        injectorContractService
+            .injectorContractByIdInTenant(input.getInjectorContract(), injectTenantId)
             .orElseThrow(ElementNotFoundException::new);
     ObjectNode finalContent = input.getContent();
     // Set expectations
-    if (injectId == null) {
+    if (isCreate) {
       finalContent = injectorContractContentUtils.setExpectations(injectorContract, finalContent);
     }
     injectToSave.setTitle(input.getTitle());
@@ -154,17 +161,25 @@ public class AtomicTestingService {
     injectToSave.setExercise(null);
 
     // Set dependencies
-    injectToSave.setTeams(fromIterable(teamRepository.findAllById(input.getTeams())));
-    injectToSave.setTags(iterableToSet(tagRepository.findAllById(input.getTagIds())));
-    injectToSave.setAssets(fromIterable(this.assetRepository.findAllById(input.getAssets())));
+    // The ids named in the body resolve in the tenant of the inject written: an id of another
+    // tenant is treated like an unknown id.
+    injectToSave.setTeams(
+        fromIterable(teamRepository.findAllByIdInTenant(input.getTeams(), injectTenantId)));
+    injectToSave.setTags(
+        iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), injectTenantId)));
+    injectToSave.setAssets(
+        fromIterable(this.assetRepository.findAllByIdInTenant(input.getAssets(), injectTenantId)));
     injectToSave.setAssetGroups(
-        fromIterable(this.assetGroupRepository.findAllById(input.getAssetGroups())));
+        fromIterable(
+            this.assetGroupRepository.findAllByIdInTenant(input.getAssetGroups(), injectTenantId)));
     Set<String> previousSecretReferenceIds =
         injectToSave.getSecretReferences().stream()
             .map(SecretReference::getId)
             .collect(Collectors.toSet());
     injectToSave.setSecretReferences(
-        fromIterable(secretReferenceRepository.findAllById(input.getSecretReferences())));
+        fromIterable(
+            secretReferenceRepository.findAllByIdInTenant(
+                input.getSecretReferences(), injectTenantId)));
 
     injectToSave.getDocuments().clear();
 
@@ -207,7 +222,9 @@ public class AtomicTestingService {
       TxCtx ctx, String injectId, AtomicTestingUpdateTagsInput input) {
 
     Inject inject = findInject(ctx, injectId);
-    inject.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    inject.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(input.getTagIds(), inject.getTenant().getId())));
 
     Inject saved = injectRepository.save(inject);
     return injectMapper.toInjectResultOverviewOutput(saved);

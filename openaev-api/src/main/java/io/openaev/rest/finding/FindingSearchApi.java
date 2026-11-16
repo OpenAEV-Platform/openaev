@@ -61,7 +61,9 @@ public class FindingSearchApi extends RestBehavior {
       return findingDistinctSearchService.searchDistinctFindings(searchPaginationInput);
     }
     return buildPaginationJPA(
-            (specification, pageable) -> this.findingRepository.findAll(specification, pageable),
+            (specification, pageable) ->
+                this.findingRepository.findAll(
+                    FindingSpecification.matching(specification), pageable),
             searchPaginationInput,
             Finding.class)
         .map(findingMapper::toRelatedFindingOutput);
@@ -98,7 +100,8 @@ public class FindingSearchApi extends RestBehavior {
     return buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
                 this.findingRepository.findAll(
-                    FindingSpecification.findFindingsForInject(injectId).and(specification),
+                    FindingSpecification.findFindingsForInject(injectId)
+                        .and(FindingSpecification.matching(specification)),
                     pageable),
             searchPaginationInput,
             Finding.class)
@@ -135,7 +138,8 @@ public class FindingSearchApi extends RestBehavior {
     return buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
                 this.findingRepository.findAll(
-                    FindingSpecification.findFindingsForSimulation(simulationId).and(specification),
+                    FindingSpecification.findFindingsForSimulation(simulationId)
+                        .and(FindingSpecification.matching(specification)),
                     pageable),
             searchPaginationInput,
             Finding.class)
@@ -172,7 +176,8 @@ public class FindingSearchApi extends RestBehavior {
     return buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
                 this.findingRepository.findAll(
-                    FindingSpecification.findFindingsForScenario(scenarioId).and(specification),
+                    FindingSpecification.findFindingsForScenario(scenarioId)
+                        .and(FindingSpecification.matching(specification)),
                     pageable),
             searchPaginationInput,
             Finding.class)
@@ -209,7 +214,8 @@ public class FindingSearchApi extends RestBehavior {
     return buildPaginationJPA(
             (Specification<Finding> specification, Pageable pageable) ->
                 this.findingRepository.findAll(
-                    FindingSpecification.findFindingsForEndpoint(endpointId).and(specification),
+                    FindingSpecification.findFindingsForEndpoint(endpointId)
+                        .and(FindingSpecification.matching(specification)),
                     pageable),
             searchPaginationInput,
             Finding.class)

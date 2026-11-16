@@ -13,12 +13,16 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.openaev.config.OpenAEVPrincipal;
+import io.openaev.context.MarkingCtx;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.BaseEvent;
 import io.openaev.database.model.*;
 import io.openaev.service.attackpath.AttackPathAccessControl;
 import io.openaev.service.attackpath.ingestion.AttackPathVersionEvent;
+import io.openaev.service.stream.StreamClearanceService;
+import io.openaev.service.stream.StreamVisibility;
+import io.openaev.service.stream.StreamVisibilityService;
 import io.openaev.service.utils.BulkOperationMonitor;
 import java.time.Duration;
 import java.time.Instant;
@@ -77,6 +81,8 @@ public class StreamService {
   private final PermissionService permissionService;
   private final UserService userService;
   private final AttackPathAccessControl attackPathAccessControl;
+  private final StreamClearanceService streamClearanceService;
+  private final StreamVisibilityService streamVisibilityService;
   private final ObjectMapper mapper;
 
   // Built on the first user event: the stream's own mapper is untouched, REST keeps its output.
@@ -125,10 +131,7 @@ public class StreamService {
   private boolean hasReadPermission(StreamConsumer consumer, User user, BaseEvent event) {
     String resourceId = event.getPermissionResourceId();
     ResourceType resourceType = event.getPermissionResourceType();
-    String checkTenantId =
-        Optional.ofNullable(tenantOf(event.getInstance()))
-            .or(() -> Optional.ofNullable(consumer.tenantId()).filter(id -> !id.isBlank()))
-            .orElse(null);
+    String checkTenantId = checkTenantOf(consumer, event);
     try {
       return hasReadPermission(
           consumer,
@@ -158,6 +161,50 @@ public class StreamService {
           e);
       return false;
     }
+  }
+
+  /** The tenant the checks of an event run in: the row's, else the consumer's, else none. */
+  private static String checkTenantOf(StreamConsumer consumer, BaseEvent event) {
+    return Optional.ofNullable(tenantOf(event.getInstance()))
+        .or(() -> Optional.ofNullable(consumer.tenantId()).filter(id -> !id.isBlank()))
+        .orElse(null);
+  }
+
+  /**
+   * Once per event, after commit; on failure, only the readers who see everything get it. With the
+   * MARKING preview feature off, or assets not activated for marking, every event is unfiltered.
+   */
+  private StreamVisibility visibilityOf(BaseEvent event) {
+    if (!streamClearanceService.isFiltering()) {
+      return StreamVisibility.UNFILTERED;
+    }
+    try {
+      return streamVisibilityService.visibilityOf(event, markingTenantOf(event));
+    } catch (RuntimeException e) {
+      log.warn("Cannot read the markings of a {} event", event.getSchema(), e);
+      return StreamVisibility.unresolved();
+    }
+  }
+
+  /**
+   * The marking clearance the event is checked against for this consumer. Checked after the READ
+   * permission: reading assets does not mean reading every asset.
+   */
+  private MarkingCtx clearanceOf(StreamConsumer consumer, User user, BaseEvent event) {
+    String tenantId =
+        Optional.ofNullable(markingTenantOf(event))
+            .or(() -> Optional.ofNullable(consumer.tenantId()).filter(id -> !id.isBlank()))
+            .orElse(null);
+    return streamClearanceService.clearanceFor(user, tenantId);
+  }
+
+  /**
+   * The tenant an event's markings are read in, and its readers' clearance resolved in: the
+   * entity's, else the one the event was written in (an expectation has no tenant).
+   */
+  private static String markingTenantOf(BaseEvent event) {
+    String rowTenantId = tenantOf(event.getInstance());
+    return rowTenantId != null ? rowTenantId : event.getTenantId();
   }
 
   /**
@@ -225,10 +272,14 @@ public class StreamService {
       PermissionService permissionService,
       UserService userService,
       AttackPathAccessControl attackPathAccessControl,
+      StreamClearanceService streamClearanceService,
+      StreamVisibilityService streamVisibilityService,
       ObjectMapper mapper) {
     this.permissionService = permissionService;
     this.userService = userService;
     this.attackPathAccessControl = attackPathAccessControl;
+    this.streamClearanceService = streamClearanceService;
+    this.streamVisibilityService = streamVisibilityService;
     this.mapper = mapper;
   }
 
@@ -301,11 +352,12 @@ public class StreamService {
       lastUpdate = Instant.now();
     }
 
+    StreamVisibility visibility = visibilityOf(event);
     consumers.forEach(
         (key, consumer) -> {
           // Isolated per consumer: one failing delivery must not stop the fan-out to the others.
           try {
-            streamDatabaseEvent(consumer, event);
+            streamDatabaseEvent(consumer, event, visibility);
           } catch (Exception e) {
             log.warn(
                 "Failed to stream {} event on {} to user {}",
@@ -317,7 +369,8 @@ public class StreamService {
         });
   }
 
-  private void streamDatabaseEvent(StreamConsumer consumer, BaseEvent event) {
+  private void streamDatabaseEvent(
+      StreamConsumer consumer, BaseEvent event, StreamVisibility visibility) {
     if (!isVisibleForTenant(event, consumer.tenantId())) {
       return;
     }
@@ -372,15 +425,27 @@ public class StreamService {
           String simpleName = event.getInstance().getClass().getSimpleName();
           log.warn(String.format("Class %s can't be streamed", simpleName), e);
         }
-      } else if (event.getInstance().getResourceType() == ResourceType.NOTIFIER
-          && !permissionService.hasCapabilityPermission(user, ResourceType.NOTIFIER, Action.READ)) {
-        ObjectNode instanceData = mapper.valueToTree(event.getInstance());
-        instanceData.putNull("notifier_configuration");
-        sendStreamEvent(fluxSink, event.clone(), instanceData);
-      } else if (event.getInstance() instanceof User streamedUser) {
-        sendStreamEvent(fluxSink, event.clone(), userInTenantOf(consumer, event, streamedUser));
       } else {
-        sendStreamEvent(fluxSink, event);
+        MarkingCtx clearance =
+            visibility.isUnfiltered() ? MarkingCtx.all() : clearanceOf(consumer, user, event);
+        if (!visibility.visibleUnder(clearance)) {
+          // Above the consumer's clearance: like a READ denial, nothing is sent, not even a
+          // tombstone, since the id and timing of a hidden asset are already a disclosure.
+          return;
+        }
+        if (event.getInstance().getResourceType() == ResourceType.NOTIFIER
+            && !permissionService.hasCapabilityPermission(
+                user, ResourceType.NOTIFIER, Action.READ)) {
+          ObjectNode instanceData = mapper.valueToTree(event.getInstance());
+          instanceData.putNull("notifier_configuration");
+          sendStreamEvent(fluxSink, event.clone(), instanceData);
+        } else if (event.getInstance() instanceof User streamedUser) {
+          sendStreamEvent(fluxSink, event.clone(), userInTenantOf(consumer, event, streamedUser));
+        } else if (visibility.filtersPayload() && !(clearance instanceof MarkingCtx.All)) {
+          sendStreamEvent(fluxSink, event.clone(), visibility.payloadFor(clearance));
+        } else {
+          sendStreamEvent(fluxSink, event);
+        }
       }
     } finally {
       // Reset tenant context unconditionally to avoid leaking into other

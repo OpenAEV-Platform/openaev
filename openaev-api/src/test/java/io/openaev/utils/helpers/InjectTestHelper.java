@@ -3,6 +3,7 @@ package io.openaev.utils.helpers;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.*;
+import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utilstest.DefaultTenantScopeTestListener;
@@ -24,6 +25,7 @@ public class InjectTestHelper {
   private final EndpointRepository endpointRepository;
   private final InjectRepository injectRepository;
   private final FindingRepository findingRepository;
+  private final FindingOccurrenceService findingOccurrenceService;
   private final AssetRepository assetRepository;
   private final DomainRepository domainRepository;
   private final InjectorRepository injectorRepository;
@@ -118,7 +120,11 @@ public class InjectTestHelper {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public Finding forceSaveFinding(Finding finding) {
     inDefaultScope();
-    return findingRepository.save(finding);
+    Finding saved = findingRepository.save(finding);
+    if (saved.getInject() != null) {
+      findingOccurrenceService.recordOccurrencesByInject(saved.getInject(), List.of(saved));
+    }
+    return saved;
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)

@@ -1,5 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 
+import { test } from '../../fixtures';
 import LeftMenuComponent from '../../model/LeftMenuComponent';
 import ThreatArsenalListPage from '../../model/threat-arsenals/ThreatArsenalListPage';
 import { tenantUrl } from '../../utils/url';

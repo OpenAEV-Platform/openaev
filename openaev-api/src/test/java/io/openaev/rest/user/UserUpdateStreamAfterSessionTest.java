@@ -31,6 +31,9 @@ import io.openaev.service.PermissionService;
 import io.openaev.service.StreamService;
 import io.openaev.service.UserService;
 import io.openaev.service.attackpath.AttackPathAccessControl;
+import io.openaev.service.stream.StreamClearanceService;
+import io.openaev.service.stream.StreamVisibility;
+import io.openaev.service.stream.StreamVisibilityService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.TeamFixture;
@@ -167,7 +170,13 @@ public class UserUpdateStreamAfterSessionTest extends IntegrationTest {
     PermissionService permissions = mock(PermissionService.class);
     when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
     StreamService stream =
-        new StreamService(permissions, userService, attackPathAccessControl, mapper);
+        new StreamService(
+            permissions,
+            userService,
+            attackPathAccessControl,
+            mock(StreamClearanceService.class),
+            unfilteredMarkings(),
+            mapper);
     FluxSink<Object> sink = consumerOfDefaultTenant(stream);
     UserInput input =
         new UserInput(
@@ -210,5 +219,12 @@ public class UserUpdateStreamAfterSessionTest extends IntegrationTest {
           assertEquals(List.of(tag.getId()), idsOf(instance.path("user_tags")));
           assertEquals(List.of(team.getId()), idsOf(instance.path("user_teams")));
         });
+  }
+
+  /** A user carries no marking: its events are not filtered. */
+  private static StreamVisibilityService unfilteredMarkings() {
+    StreamVisibilityService markings = mock(StreamVisibilityService.class);
+    when(markings.visibilityOf(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
+    return markings;
   }
 }

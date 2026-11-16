@@ -1,18 +1,30 @@
 package io.openaev.architecture.fixture;
 
 import io.openaev.aop.PlatformWrite;
+import io.openaev.config.TenantUriUtils;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
+import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.InjectorContractId;
+import io.openaev.database.model.Payload;
 import io.openaev.database.model.Setting;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.repository.InjectorContractRepository;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.database.repository.autonomous.AutonomousObjectiveTemplateRepository;
 import io.openaev.database.repository.autonomous.AutonomousRunRepository;
+import io.openaev.rest.injector_contract.InjectorContractService;
+import io.openaev.utils.TxCtxScopeUtils;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Stream;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 /** Accessors of a tenant-active table's repository that no access rule allowlists. */
 public final class TenantActiveTableAccessFixtures {
@@ -729,6 +741,474 @@ public final class TenantActiveTableAccessFixtures {
 
     public void upsert(String key, String value) {
       settingRepository.save(new Setting(key, value));
+    }
+  }
+
+  // -- injectors_contracts: one accessor per family of query the tenantless rule must catch --
+
+  /** A query the repository declares itself, by a bare id. */
+  public static class DeclaredBareIdLookup {
+    private final InjectorContractRepository repository;
+
+    public DeclaredBareIdLookup(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public Optional<InjectorContract> find(String id) {
+      return repository.findById(id);
+    }
+  }
+
+  /** Two methods of one class making the same bare lookup, one of them reviewed. */
+  public static class ReviewedAndUnreviewedLookup {
+    private final InjectorContractRepository repository;
+
+    public ReviewedAndUnreviewedLookup(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    /** The reviewed method; its lookup sits in a lambda, which counts as the method. */
+    public Optional<InjectorContract> approvedLookup(String id) {
+      return Optional.of(id).flatMap(value -> repository.findById(value));
+    }
+
+    public Optional<InjectorContract> newLookup(String id) {
+      return repository.findById(id);
+    }
+  }
+
+  /** A declared query keyed on a payload, with no tenant. */
+  public static class DeclaredPayloadLookup {
+    private final InjectorContractRepository repository;
+
+    public DeclaredPayloadLookup(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public Optional<InjectorContract> find(Payload payload) {
+      return repository.findInjectorContractByPayload(payload);
+    }
+  }
+
+  /** A read by specification, inherited from {@code JpaSpecificationExecutor}. */
+  public static class SpecificationRead {
+    private final InjectorContractRepository repository;
+
+    public SpecificationRead(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public Iterable<InjectorContract> find(Specification<InjectorContract> specification) {
+      return repository.findAll(specification);
+    }
+  }
+
+  /** A read without argument, inherited from {@code CrudRepository}. */
+  public static class ArglessCrudRead {
+    private final InjectorContractRepository repository;
+
+    public ArglessCrudRead(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public long count() {
+      return repository.count();
+    }
+  }
+
+  /** A method reference to a bare lookup, which is an access and not a call. */
+  public static class BareIdLookupReference {
+    private final InjectorContractRepository repository;
+
+    public BareIdLookupReference(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public Function<String, Optional<InjectorContract>> lookup() {
+      return repository::findById;
+    }
+  }
+
+  /** A service method that wraps a bare lookup. */
+  public static class ServiceBareIdLookup {
+    private final InjectorContractService service;
+
+    public ServiceBareIdLookup(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(String id) {
+      return service.injectorContract(id);
+    }
+  }
+
+  /** Every way of reaching the contracts that does carry a tenant. */
+  public static class TenantCarryingAccess {
+    private final InjectorContractRepository repository;
+    private final InjectorContractService service;
+
+    public TenantCarryingAccess(
+        InjectorContractRepository repository, InjectorContractService service) {
+      this.repository = repository;
+      this.service = service;
+    }
+
+    public void access(InjectorContract contract) {
+      repository.findByContractIdAndTenant("id", "tenant");
+      repository.findById(new InjectorContractId("id", "tenant"));
+      repository.save(contract);
+      service.injectorContractInTenant("id", "tenant");
+    }
+  }
+
+  // -- injectors_contracts: the pin an allowlist reason relies on --
+
+  /** An endpoint shape that pins the scope, then looks the contract up. */
+  public static class PinBeforeLookup {
+    private final InjectorContractService service;
+
+    public PinBeforeLookup(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      TxCtxScopeUtils.requireOneTenantOfScope(ctx);
+      return service.injectorContract(id);
+    }
+  }
+
+  /** The pin is there, but after the lookup it was meant to guard. */
+  public static class PinAfterLookup {
+    private final InjectorContractService service;
+
+    public PinAfterLookup(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      InjectorContract contract = service.injectorContract(id);
+      TxCtxScopeUtils.requireOneTenantOfScope(ctx);
+      return contract;
+    }
+  }
+
+  /** No pin at all: the lookup is the only thing the endpoint does. */
+  public static class LookupWithoutPin {
+    private final InjectorContractService service;
+
+    public LookupWithoutPin(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      return service.injectorContract(id);
+    }
+  }
+
+  /** The pin sits in a sibling method, not in the one that does the lookup. */
+  public static class PinInAnotherMethod {
+    private final InjectorContractService service;
+
+    public PinInAnotherMethod(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public void pin(TxCtx ctx) {
+      TxCtxScopeUtils.requireOneTenantOfScope(ctx);
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      return service.injectorContract(id);
+    }
+  }
+
+  /** The pin is behind a condition: a caller with no context skips it and reaches the lookup. */
+  public static class PinInsideIf {
+    private final InjectorContractService service;
+
+    public PinInsideIf(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      if (ctx != null) {
+        TxCtxScopeUtils.requireOneTenantOfScope(ctx);
+      }
+      return service.injectorContract(id);
+    }
+  }
+
+  /** The pin is inside a try block whose handler swallows its refusal. */
+  public static class PinInsideTry {
+    private final InjectorContractService service;
+
+    public PinInsideTry(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      try {
+        TxCtxScopeUtils.requireOneTenantOfScope(ctx);
+      } catch (RuntimeException ignored) {
+        // the refusal is dropped and the lookup runs anyway
+      }
+      return service.injectorContract(id);
+    }
+  }
+
+  /** The pin is inside a lambda that is never run before the lookup. */
+  public static class PinInsideLambda {
+    private final InjectorContractService service;
+
+    public PinInsideLambda(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      Runnable pin = () -> TxCtxScopeUtils.requireOneTenantOfScope(ctx);
+      return service.injectorContract(id);
+    }
+  }
+
+  /** The pin runs first on every execution, and the branch that follows it is the caller's own. */
+  public static class PinBeforeABranch {
+    private final InjectorContractService service;
+
+    public PinBeforeABranch(InjectorContractService service) {
+      this.service = service;
+    }
+
+    public InjectorContract find(TxCtx ctx, String id) {
+      TxCtxScopeUtils.requireOneTenantOfScope(ctx);
+      if (id == null) {
+        return null;
+      }
+      return service.injectorContract(id);
+    }
+  }
+
+  // -- injectors_contracts: the callers and routes an allowlist reason relies on --
+
+  /** A method and two callers of it, to tell a listed caller from an unlisted one. */
+  public static class CallerShapes {
+    public void claimed() {}
+
+    public void listed() {
+      claimed();
+    }
+
+    public void unlisted() {
+      claimed();
+    }
+  }
+
+  /** Endpoints mapped on the tenant route only, on both routes, and not mapped at all. */
+  public static class MethodRoutes {
+    @Transactional
+    @GetMapping(TenantUriUtils.TENANT_PREFIX + "/things")
+    public void tenantOnly(TxCtx ctx) {}
+
+    @Transactional
+    @GetMapping({"/api/things", TenantUriUtils.TENANT_PREFIX + "/things"})
+    public void bothRoutes(TxCtx ctx) {}
+
+    public void unmapped() {}
+  }
+
+  /** The route comes from the class mapping: tenant-prefixed. */
+  @RequestMapping(TenantUriUtils.TENANT_PREFIX + "/things")
+  public static class TenantPrefixedClassRoute {
+    @Transactional
+    @GetMapping("/{id}/export")
+    public void export(TxCtx ctx) {}
+  }
+
+  /** The route comes from the class mapping: the short route, with no tenant in the path. */
+  @RequestMapping("/api/things")
+  public static class ShortClassRoute {
+    @Transactional
+    @GetMapping("/{id}/export")
+    public void export(TxCtx ctx) {}
+  }
+
+  // -- injectors_contracts: classes allowlisted for their methods, and the scope those run under --
+
+  /**
+   * Callers of a method that run under a scope: a TxCtx parameter, and a scope opened around it.
+   */
+  public static class ScopedCallers {
+    private final TenantScopedTransaction tenantTx;
+
+    public ScopedCallers(TenantScopedTransaction tenantTx) {
+      this.tenantTx = tenantTx;
+    }
+
+    public void target() {}
+
+    @Transactional
+    public void withTxCtx(TxCtx ctx) {
+      target();
+    }
+
+    public void openedAroundLambda() {
+      tenantTx.execute(TxCtx.forTenant("tenant"), () -> target());
+    }
+  }
+
+  /** Callers of a method that run under no scope, each in its own way. */
+  public static class UnscopedCallers {
+    private final TenantScopedTransaction tenantTx;
+
+    public UnscopedCallers(TenantScopedTransaction tenantTx) {
+      this.tenantTx = tenantTx;
+    }
+
+    public void target() {}
+
+    public void withoutTxCtx() {
+      target();
+    }
+
+    public void outsideTheLambda() {
+      target();
+      tenantTx.execute(TxCtx.forTenant("tenant"), () -> {});
+    }
+
+    public void lambdaWithNoScope() {
+      Runnable work = () -> target();
+      work.run();
+    }
+
+    public void executeBesideAnUnrelatedLambda() {
+      tenantTx.execute(TxCtx.forTenant("tenant"), () -> {});
+      Runnable send = () -> target();
+      send.run();
+    }
+
+    public void txCtxWithoutTransactional(TxCtx ctx) {
+      target();
+    }
+  }
+
+  /**
+   * A public {@code @Transactional} method that takes a TxCtx, called only from its own class: the
+   * call does not go through the proxy, so the aspect never scopes it.
+   */
+  public static class SelfCalledTxCtxHelper {
+    private final InjectorContractRepository repository;
+
+    public SelfCalledTxCtxHelper(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public void target() {}
+
+    public long entry(TxCtx ctx) {
+      target();
+      return helper(ctx);
+    }
+
+    @Transactional
+    public long helper(TxCtx ctx) {
+      target();
+      return repository.count();
+    }
+  }
+
+  /** Two overloads of one caller name, only one of which runs under a scope. */
+  public static class OverloadedCallers {
+
+    public void target() {}
+
+    @Transactional
+    public void caller(TxCtx ctx) {
+      target();
+    }
+
+    public void caller() {
+      target();
+    }
+  }
+
+  /** One method reaches the contract repository and is listed, another is not. */
+  public static class ListedAndUnlistedReach {
+    private final InjectorContractRepository repository;
+
+    public ListedAndUnlistedReach(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public long listed() {
+      return repository.count();
+    }
+
+    public long unlisted() {
+      return repository.count();
+    }
+  }
+
+  /** A public method takes a TxCtx and reaches the repository through a private one. */
+  public static class TxCtxEntryPoint {
+    private final InjectorContractRepository repository;
+
+    public TxCtxEntryPoint(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    @Transactional
+    public long entry(TxCtx ctx) {
+      return helper();
+    }
+
+    private long helper() {
+      return repository.count();
+    }
+  }
+
+  /** A public method takes a TxCtx but is not {@code @Transactional}, so nothing scopes it. */
+  public static class TxCtxEntryPointWithoutTransactional {
+    private final InjectorContractRepository repository;
+
+    public TxCtxEntryPointWithoutTransactional(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public long entry(TxCtx ctx) {
+      return helper();
+    }
+
+    private long helper() {
+      return repository.count();
+    }
+  }
+
+  /** A public method with no TxCtx reaches the repository through a private one. */
+  public static class UnscopedEntryPoint {
+    private final InjectorContractRepository repository;
+
+    public UnscopedEntryPoint(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    public long entry() {
+      return helper();
+    }
+
+    private long helper() {
+      return repository.count();
+    }
+  }
+
+  /** The repository is reached by a method that nothing non-private leads to. */
+  public static class NoEntryPoint {
+    private final InjectorContractRepository repository;
+
+    public NoEntryPoint(InjectorContractRepository repository) {
+      this.repository = repository;
+    }
+
+    private long helper() {
+      return repository.count();
     }
   }
 }

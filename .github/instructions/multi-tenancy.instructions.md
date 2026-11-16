@@ -72,6 +72,17 @@ under-scopes an unrelated read.
 9. A new endpoint on tenant-scoped data is mapped under `TENANT_PREFIX` only, never also under a
    short `/api/...` route: without the tenant in the URI, a write is ambiguous for a user in
    several tenants
+10. Ids named in a request body resolve with `findAllByIdInTenant(ids, tenantId)` (or
+    `findAllByIdInAndTenantId`) and the tenant of the entity written, never with `findAllById` or
+    `getReferenceById`: an id of another tenant is treated like an unknown id. `TagRepository` is the
+    model to copy. `LinkedIdResolutionArchTest` fails the build on a call that resolves ids without a
+    tenant on the repository of an active table, outside `linked-id-resolution-baseline.txt`. That
+    file pins the number of calls of each listed method, and its `link` lines are debt that only
+    shrinks. A newly activated table's link sites are converted in the change that activates it.
+    The guard does not see `findById` on a body id, calls through generic helpers, id lookups
+    declared under other names (`SecurityPlatformRepository.findAllByIds`,
+    `AiTargetRepository.findAiTargetsByIds`, `InjectorContractRepository.findAllByIdOrExternalIdIn`),
+    `deleteAllById`, `findAll(Specification)` or `entityManager.find`: a reviewer reads for them.
 
 ## Background Threads Carry Both Scopes
 
@@ -109,10 +120,18 @@ whose baseline only shrinks.
 
 **v2 activation does not retire `TenantContext.setCurrentTenant()` on its own.** Converting a job's
 reads to `TenantScopedTransaction` only changes read isolation; `TenantBaseListener.@PrePersist`
-still stamps `tenant_id` from `TenantContext.getCurrentTenant()` unconditionally, v1 or v2. Only
+still stamps `tenant_id` from `TenantContext.getCurrentTenant()` unconditionally, v1 or v2. A new
+job reaches the listener through `TenantScopedJobRunner`, not a direct `TenantContext` call (the next rule
+refuses a new call). Only
 drop `setCurrentTenant()` when the job is read-only, every table it touches is v2-active, and no
 remaining code path is still v1 — otherwise its absence silently attributes inserts to
 `Tenant.DEFAULT_TENANT_UUID`.
+
+**No new v1 construct in production code**: a call to `TenantContext` or `AmbientTenantBridge`, an
+`@EntityListeners` naming a listener that reads the ambient tenant, or a `#tenantContext` SpEL
+expression in a `@Query` fails `V1TenantConstructArchTest` unless its site is in
+`v1-tenant-construct-baseline.txt`, which lists the remaining sites and only shrinks. A job that writes a table
+stamped by the listener runs the write through `TenantScopedJobRunner`.
 
 ## Anti-Patterns
 
@@ -122,8 +141,9 @@ remaining code path is still v1 — otherwise its absence silently attributes in
 | `@Column(unique = true)` on tenant-scoped field | Composite `UNIQUE (field, tenant_id)` |
 | Single service for dual-scope entity | Split `PlatformXxxService` / `TenantXxxService` |
 | `tenant_id` in API response | `@JsonIgnore` on tenant relation |
-| Background job setting only `TxCtx` | Set `TenantContext` too, cleared in a `finally`, unless the job is read-only and fully v2-active (see above) |
+| Background job setting only `TxCtx` that writes a table stamped by `TenantBaseListener` | Run the write through `TenantScopedJobRunner` (it sets the tenant the listener reads and restores the previous value); a new direct call to `TenantContext` fails `V1TenantConstructArchTest` |
 | Relying on the `TenantContext` default fallback | Pass the owning row's tenant explicitly |
 | Entrypoint reaching a v2-active table with no `TxCtx` param | Add `TxCtx ctx` and register it in `TenantScopedEntrypointsTxCtxArchTest` |
 | `@Filter("tenantFilter")` left in place after adding a table to `active-tables` | Remove it in the same commit — v1 and v2 never coexist |
 | New tenant-scoped endpoint also mapped on `/api/{entities}` | Map it on `TENANT_PREFIX + "/{entities}"` only |
+| `findAllById` / `getReferenceById` on ids named in a request body | `findAllByIdInTenant(ids, tenantId)` with the tenant of the entity written (rule 10) |

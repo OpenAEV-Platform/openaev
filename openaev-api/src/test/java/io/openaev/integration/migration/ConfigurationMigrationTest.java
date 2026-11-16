@@ -3,6 +3,7 @@ package io.openaev.integration.migration;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
+import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.CatalogConnector;
 import io.openaev.database.model.ConnectorInstance;
 import io.openaev.database.model.ConnectorInstancePersisted;
@@ -15,6 +16,7 @@ import io.openaev.utils.fixtures.CatalogConnectorFixture;
 import io.openaev.utils.fixtures.ConnectorInstanceFixture;
 import io.openaev.utils.fixtures.composers.CatalogConnectorComposer;
 import io.openaev.utils.fixtures.composers.ConnectorInstanceComposer;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import io.openaev.utilstest.RabbitMQTestListener;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -23,15 +25,24 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @Transactional
 @TestExecutionListeners(
-    value = {RabbitMQTestListener.class},
+    value = {DefaultTenantScopeTestListener.class, RabbitMQTestListener.class},
     mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 public class ConfigurationMigrationTest {
+
+  @DynamicPropertySource
+  static void productionActiveTables(DynamicPropertyRegistry registry) {
+    registry.add(
+        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
+  }
+
   @Autowired private CatalogConnectorService catalogConnectorService;
   @Autowired private ConnectorInstanceService connectorInstanceService;
   @Autowired private EntityManager entityManager;

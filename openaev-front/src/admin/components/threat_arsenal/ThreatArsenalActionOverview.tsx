@@ -46,23 +46,13 @@ import {
 import { TO_CLASSIFY } from '../../../utils/domains/domainUtils';
 import { tint } from '../../../utils/tint';
 import expectationIconByType, { expectationTypeColor } from '../common/ExpectationIconByType';
+import { expectationTypeLabelKey } from '../common/injects/expectations/Expectation';
 import { isTechnicalExpectation } from '../common/injects/expectations/ExpectationUtils';
 import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
 import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
-
-// Human labels for the predefined expectation types carried by a payload/contract.
-const EXPECTATION_TYPE_LABELS: Record<string, string> = {
-  PREVENTION: 'Prevention',
-  DETECTION: 'Detection',
-  LOGGING: 'Logging',
-  VULNERABILITY: 'Vulnerability',
-  MANUAL: 'Manual',
-  ARTICLE: 'Article',
-  CHALLENGE: 'Challenge',
-};
 
 type ExpectationType = 'ARTICLE' | 'CHALLENGE' | 'MANUAL' | 'PREVENTION' | 'DETECTION' | 'LOGGING' | 'VULNERABILITY';
 
@@ -584,7 +574,7 @@ const ThreatArsenalActionOverview: FunctionComponent<Props> = ({
               // Distinct name: `platforms` at component level holds the endpoint platforms.
               const expectedPlatformTypes = expectedPlatforms[type] ?? [];
               const technical = isTechnicalExpectation(type);
-              const typeLabel = t(EXPECTATION_TYPE_LABELS[type] ?? type);
+              const typeLabel = t(expectationTypeLabelKey(type) ?? type);
               const name = row.expectation_name;
               // Ordered rows sort first (server-side), so their 1-based position
               // IS the declared sequence - shown as a step numeral to make the

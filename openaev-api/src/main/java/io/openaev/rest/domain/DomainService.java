@@ -81,6 +81,12 @@ public class DomainService implements DependenciesManager {
     return domainRepository.findAllById(domainIds);
   }
 
+  /** The domains among the given ids that belong to the given tenant. */
+  public List<Domain> findAllByIdInTenant(
+      final Collection<String> domainIds, final String tenantId) {
+    return domainRepository.findAllByIdInTenant(domainIds, tenantId);
+  }
+
   @Transactional
   public Domain upsert(final DomainBaseInput input, final String tenantId) {
     return doUpsert(input.getName(), input.getColor(), new Tenant(tenantId));

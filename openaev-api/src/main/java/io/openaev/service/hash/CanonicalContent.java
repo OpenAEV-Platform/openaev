@@ -21,6 +21,7 @@ import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.erdtman.jcs.JsonCanonicalizer;
@@ -48,6 +49,11 @@ public class CanonicalContent {
    */
   public ObjectNode tree(Object hashed) {
     return (ObjectNode) withoutEmpty(object(hashed));
+  }
+
+  /** The keys a class enters the canonical form under. */
+  public Set<String> keys(Class<?> type) {
+    return membersOf(type).stream().map(HashedMember::key).collect(Collectors.toSet());
   }
 
   /** The SHA-256 of the RFC 8785 text of a canonical form. */

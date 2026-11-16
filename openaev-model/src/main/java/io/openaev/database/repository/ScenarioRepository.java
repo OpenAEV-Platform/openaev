@@ -45,8 +45,12 @@ public interface ScenarioRepository
         StatisticRepository,
         JpaSpecificationExecutor<Scenario> {
 
+  // -- ONE SCENARIO --
+
   @Query("SELECT s.name FROM Scenario s WHERE s.id = :scenarioId")
   Optional<String> findNameById(@Param("scenarioId") String scenarioId);
+
+  // -- INDEXING --
 
   @Query(
       value =
@@ -134,6 +138,8 @@ public interface ScenarioRepository
   List<RawScenarioSimpleIndexing> findForIndexing(
       @Param("from") Instant from, @Param("limit") int limit);
 
+  // -- SIMULATIONS --
+
   @Query(
       value =
           "SELECT ex.exercise_id, "
@@ -158,6 +164,8 @@ public interface ScenarioRepository
   List<RawExerciseSimple> rawAllByExternalReference(
       @Param("externalReference") String externalReference);
 
+  // -- STATISTICS --
+
   @Override
   @Query(
       "select count(distinct u) from User u "
@@ -171,6 +179,8 @@ public interface ScenarioRepository
   @Override
   @Query("select count(distinct s) from Scenario s where s.createdAt > :creationDate")
   long globalCount(@Param("creationDate") Instant creationDate);
+
+  // -- RAW SCENARIOS --
 
   @Query(
       value =
@@ -221,6 +231,8 @@ public interface ScenarioRepository
               + "GROUP BY sce.scenario_id",
       nativeQuery = true)
   List<RawScenarioSimpleIndexing> rawByScenarioIds(@Param("scenarioIds") List<String> scenarioIds);
+
+  // -- DETAIL --
 
   // Keep every CTE name distinct from a real table name (hence `exercises_agg` and
   // `scenario_tags_agg`): the tenant SQL inspector matches relations by name, so a CTE named
@@ -380,6 +392,8 @@ public interface ScenarioRepository
   @Transactional
   void touchUpdatedAt(@Param("scenarioId") final String scenarioId);
 
+  // -- LOOKUPS --
+
   Optional<Scenario> findByExercises_Id(String exerciseId);
 
   Optional<Scenario> findByIdAndTenantId(String id, String tenantId);
@@ -394,4 +408,8 @@ public interface ScenarioRepository
       @NotNull String id, @NotNull Collection<String> tenantIds);
 
   boolean existsByIdAndTenantIdIn(@NotNull String id, @NotNull Collection<String> tenantIds);
+
+  // -- CATALOGUE --
+
+  boolean existsByCatalogIdentityId(String identityId);
 }

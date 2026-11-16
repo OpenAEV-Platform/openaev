@@ -77,6 +77,8 @@ the refusal and error cases, data in fixtures.
 - OpenAEV's `@WithMockUser` (from `io.openaev.utils.mockUser`), **never Spring's**
 - Fixture + Composer pattern — no inline test data construction
 - `@BeforeAll` / `@AfterAll` with `composer.reset()` for cleanup
+- E2E (Playwright): import `test` from `tests_e2e/fixtures` (enforced by lint) and pick the user with
+  `test.use({ persona })`. It defaults to admin; a permission test runs as `manager` or `observer`
 
 ## Coverage Requirements
 

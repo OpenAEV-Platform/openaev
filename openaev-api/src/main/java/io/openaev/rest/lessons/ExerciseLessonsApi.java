@@ -234,9 +234,11 @@ public class ExerciseLessonsApi extends RestBehavior {
       @PathVariable String exerciseId,
       @PathVariable String lessonsCategoryId,
       @Valid @RequestBody LessonsCategoryTeamsInput input) {
-    exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
+    Exercise exercise =
+        exerciseService.findByIdInScope(ctx, exerciseId).orElseThrow(ElementNotFoundException::new);
     LessonsCategory lessonsCategory = categoryOfExercise(exerciseId, lessonsCategoryId);
-    Iterable<Team> lessonsCategoryTeams = teamRepository.findAllById(input.getTeamIds());
+    Iterable<Team> lessonsCategoryTeams =
+        teamRepository.findAllByIdInTenant(input.getTeamIds(), exercise.getTenant().getId());
     lessonsCategory.setTeams(fromIterable(lessonsCategoryTeams));
     return hydrateForResponse(lessonsCategoryRepository.save(lessonsCategory));
   }

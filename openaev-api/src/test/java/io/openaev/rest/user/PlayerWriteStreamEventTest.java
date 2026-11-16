@@ -38,6 +38,9 @@ import io.openaev.service.PermissionService;
 import io.openaev.service.StreamService;
 import io.openaev.service.UserService;
 import io.openaev.service.attackpath.AttackPathAccessControl;
+import io.openaev.service.stream.StreamClearanceService;
+import io.openaev.service.stream.StreamVisibility;
+import io.openaev.service.stream.StreamVisibilityService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.OrganizationFixture;
 import io.openaev.utils.fixtures.PlayerFixture;
@@ -176,7 +179,13 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
     PermissionService permissions = mock(PermissionService.class);
     when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
     StreamService stream =
-        new StreamService(permissions, userService, attackPathAccessControl, mapper);
+        new StreamService(
+            permissions,
+            userService,
+            attackPathAccessControl,
+            mock(StreamClearanceService.class),
+            unfilteredMarkings(),
+            mapper);
     FluxSink<Object> sinkOfDefault = consumerOf(stream, "default", Tenant.DEFAULT_TENANT_UUID);
     FluxSink<Object> sinkOfB = consumerOf(stream, "b", tenantB);
 
@@ -343,7 +352,13 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
       PermissionService permissions = mock(PermissionService.class);
       when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
       StreamService stream =
-          new StreamService(permissions, userService, attackPathAccessControl, mapper);
+          new StreamService(
+              permissions,
+              userService,
+              attackPathAccessControl,
+              mock(StreamClearanceService.class),
+              unfilteredMarkings(),
+              mapper);
       FluxSink<Object> sinkOfDefault = consumerOf(stream, "default", Tenant.DEFAULT_TENANT_UUID);
       FluxSink<Object> sinkOfB = consumerOf(stream, "b", tenantB);
 
@@ -546,7 +561,13 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
       PermissionService permissions = mock(PermissionService.class);
       when(permissions.hasPermissionInTenant(any(), any(), any(), any(), any())).thenReturn(true);
       StreamService stream =
-          new StreamService(permissions, userService, attackPathAccessControl, mapper);
+          new StreamService(
+              permissions,
+              userService,
+              attackPathAccessControl,
+              mock(StreamClearanceService.class),
+              unfilteredMarkings(),
+              mapper);
       FluxSink<Object> sinkOfDefault = consumerOf(stream, "default", Tenant.DEFAULT_TENANT_UUID);
       FluxSink<Object> sinkOfB = consumerOf(stream, "b", tenantB);
 
@@ -607,5 +628,12 @@ public class PlayerWriteStreamEventTest extends IntegrationTest {
       assertTrue(eventTypesReceivedBy(outcome.sinkOfDefault()).contains(DELETION));
       assertTrue(eventTypesReceivedBy(outcome.sinkOfB()).contains(DELETION));
     }
+  }
+
+  /** A user carries no marking: its events are not filtered. */
+  private static StreamVisibilityService unfilteredMarkings() {
+    StreamVisibilityService markings = mock(StreamVisibilityService.class);
+    when(markings.visibilityOf(any(), any())).thenReturn(StreamVisibility.UNFILTERED);
+    return markings;
   }
 }

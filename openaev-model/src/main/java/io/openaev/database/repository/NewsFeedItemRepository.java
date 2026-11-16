@@ -2,6 +2,7 @@ package io.openaev.database.repository;
 
 import io.openaev.database.model.NewsFeedItem;
 import io.openaev.database.raw.RawNewsFeedItemKey;
+import jakarta.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,6 +14,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface NewsFeedItemRepository
     extends JpaRepository<NewsFeedItem, String>, JpaSpecificationExecutor<NewsFeedItem> {
+
+  /** Served by the (user, hub item) unique index, which leads with the user. */
+  long countByUserIdAndReadFalse(@NotNull String userId);
+
+  List<NewsFeedItem> findAllByUserIdAndReadFalse(@NotNull String userId);
 
   /** Projection rather than entities: loading an item also loads its user (EAGER). */
   @Query(

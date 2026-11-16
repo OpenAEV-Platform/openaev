@@ -1724,6 +1724,10 @@ Before marking the issue done, write down:
 - [ ] writes: attribution asserted at the SQL level, no selector → 400;
       upsert of the same business key from two tenants yields two rows
 - [ ] other APIs from the inventory wired and tested
+- [ ] every call that resolves ids on the activated table's repository without a tenant
+      (`findAllById`, `getReferenceById`, a `findAllByIdIn*` with no tenant) is either converted
+      to `findAllByIdInTenant(ids, tenantId)` or declared as `other` with its reason in
+      `linked-id-resolution-baseline.txt`; no `link` line is added (`LinkedIdResolutionArchTest`)
 - [ ] every association (direct or indirect, lazy or eager) pointing at the
       entity from ANY other aggregate found (Phase 3b); every lazy accessor
       reached through serialization (custom serializer, DTO mapper) force-

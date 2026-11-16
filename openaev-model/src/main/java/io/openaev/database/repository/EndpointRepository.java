@@ -154,7 +154,8 @@ public interface EndpointRepository
                   FROM findings_assets fa1
                   INNER JOIN findings f ON f.finding_id = fa1.finding_id
                   INNER JOIN findings_assets fa2 ON f.finding_id = fa2.finding_id
-                  INNER JOIN injects i ON f.finding_inject_id = i.inject_id
+                  INNER JOIN finding_occurrences fo ON fo.finding_occurrence_finding_id = f.finding_id
+                  INNER JOIN injects i ON i.inject_id = fo.finding_occurrence_inject_id
                   LEFT JOIN scenarios_exercises se ON se.exercise_id = i.inject_exercise
                   WHERE (
                       fa1.asset_id = :sourceId

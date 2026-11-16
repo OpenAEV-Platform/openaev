@@ -208,8 +208,13 @@ public class InjectService {
       throw new IllegalArgumentException("Exactly one of exercise or scenario should be present");
     }
 
+    // Resolved in the parent's own tenant, not the request's ambient scope: a built-in contract id
+    // repeats across tenants (#8485), and a caller creating this inject can belong to several.
+    String parentTenantId =
+        exercise != null ? exercise.getTenant().getId() : scenario.getTenant().getId();
     InjectorContract injectorContract =
-        this.injectorContractService.injectorContract(input.getInjectorContract());
+        this.injectorContractService.injectorContractInTenant(
+            input.getInjectorContract(), parentTenantId);
 
     if (injectorContract.getConvertedContent() == null) {
       injectorContract.setConvertedContent(convertContent(injectorContract.getContent()));
@@ -584,6 +589,10 @@ public class InjectService {
 
   // -- SPECIFIC GETTER --
 
+  public Set<Inject> findByScenarioId(String scenarioId) {
+    return injectRepository.findByScenarioId(scenarioId);
+  }
+
   public List<Inject> getExecutedAndNotFinished() {
     return this.injectRepository.findAll(
         hasStatus(List.of(EXECUTED, ERROR, MAYBE_PREVENTED, PARTIAL, MAYBE_PARTIAL_PREVENTED))
@@ -704,11 +713,7 @@ public class InjectService {
    */
   private boolean isVisibleUnderClearance(Asset asset, MarkingCtx clearance) {
     String[] assetMarkingIds = asset.getMarkingIds();
-    if (assetMarkingIds == null || assetMarkingIds.length == 0) {
-      return true;
-    }
-    return clearance instanceof MarkingCtx.Restricted restricted
-        && restricted.markingIds().containsAll(Arrays.asList(assetMarkingIds));
+    return clearance.allows(assetMarkingIds == null ? List.of() : Arrays.asList(assetMarkingIds));
   }
 
   /**
@@ -1090,7 +1095,8 @@ public class InjectService {
 
     // Resolve injector explicitly (BeanUtils cannot copy String → Injector)
     if (StringUtils.isNotBlank(input.getInjectorId())) {
-      inject.setInjector(injectUtils.resolveInjector(input.getInjectorId(), null));
+      inject.setInjector(
+          injectUtils.resolveInjectorInTenant(input.getInjectorId(), inject.getTenant().getId()));
     }
 
     // Set dependencies

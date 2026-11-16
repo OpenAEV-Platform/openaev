@@ -141,6 +141,9 @@ public class ExecutionTrace implements TenantBase {
     return tenant;
   }
 
+  // The inject is read here with no tenant scope: injects is not an active table. This read moves
+  // with the injects activation, from then on the scope of the writer has to include the tenant of
+  // the inject.
   private static Tenant injectTenantOf(BaseInjectStatus status) {
     return status == null || status.getInject() == null ? null : status.getInject().getTenant();
   }

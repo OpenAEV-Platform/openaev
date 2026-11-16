@@ -46,7 +46,7 @@ public class ExpectationBuilderService {
   public static final String LOGGING_NAME = "Logging";
 
   /** Default name for vulnerability expectations. */
-  public static final String VULNERABILITY_NAME = "Vulnerability";
+  public static final String VULNERABILITY_NAME = ExpectationType.VULNERABILITY.successLabel;
 
   /** Default name for challenge expectations. */
   public static final String CHALLENGE_NAME = "Expect targets to complete the challenge(s)";

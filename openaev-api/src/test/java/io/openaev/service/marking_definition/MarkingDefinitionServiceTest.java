@@ -2,6 +2,7 @@ package io.openaev.service.marking_definition;
 
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createDefaultMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.toInput;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,12 +19,16 @@ import static org.mockito.Mockito.when;
 import io.openaev.api.marking_definition.form.MarkingDefinitionInput;
 import io.openaev.config.AllTablesWithMarkingIds;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
+import io.openaev.context.MarkingCtx;
+import io.openaev.context.MarkingScopeSupplier;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.repository.MarkingDefinitionRepository;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exception.ForbiddenException;
 import io.openaev.service.TenantGroupService;
 import io.openaev.telemetry.metric_collectors.ActionMetricCollector;
 import java.util.LinkedHashSet;
@@ -35,8 +40,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -52,11 +59,13 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 class MarkingDefinitionServiceTest {
 
   private static final String TENANT_ID = "tenant-1";
+  private static final String USER_ID = "user-1";
 
   @Mock private MarkingDefinitionRepository repository;
   @Mock private ActionMetricCollector actionMetricCollector;
   @Mock private AllTablesWithMarkingIds allTablesWithMarkingIds;
   @Mock private MarkingClearanceCacheManager markingClearanceCacheManager;
+  @Mock private MarkingScopeSupplier markingScopeSupplier;
   @Mock private JdbcTemplate jdbcTemplate;
   @Mock private TenantGroupService tenantGroupService;
 
@@ -66,6 +75,7 @@ class MarkingDefinitionServiceTest {
         actionMetricCollector,
         allTablesWithMarkingIds,
         markingClearanceCacheManager,
+        markingScopeSupplier,
         jdbcTemplate,
         tenantGroupService);
   }
@@ -87,6 +97,13 @@ class MarkingDefinitionServiceTest {
     return existing;
   }
 
+  // A bypassing caller resolves to every definition of the tenant: the tests that are not about
+  // clearance run as one, so clearance never decides their outcome.
+  private void firstAdminClearanceCovers(MarkingDefinition existing) {
+    when(markingClearanceCacheManager.findClearance(User.ADMIN_UUID, TENANT_ID))
+        .thenReturn(MarkingCtx.forMarkings(List.of(existing.getId())));
+  }
+
   @Nested
   @DisplayName("create")
   class Create {
@@ -104,7 +121,7 @@ class MarkingDefinitionServiceTest {
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
-      service().create(input, TENANT_ID);
+      service().create(input, TENANT_ID, User.ADMIN_UUID);
 
       // Assert
       verify(markingClearanceCacheManager, times(1)).evictAll();
@@ -123,7 +140,7 @@ class MarkingDefinitionServiceTest {
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
-      service().create(input, TENANT_ID);
+      service().create(input, TENANT_ID, User.ADMIN_UUID);
 
       // Assert
       verify(actionMetricCollector, times(1)).addMarkingDefinitionCreatedCount();
@@ -143,7 +160,7 @@ class MarkingDefinitionServiceTest {
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act
-      service().create(input, TENANT_ID);
+      service().create(input, TENANT_ID, User.ADMIN_UUID);
       verify(actionMetricCollector, never()).addMarkingDefinitionCreatedCount();
       TransactionSynchronizationManager.getSynchronizations()
           .forEach(TransactionSynchronization::afterCommit);
@@ -165,11 +182,72 @@ class MarkingDefinitionServiceTest {
           .thenAnswer(invocation -> invocation.getArgument(0));
 
       // Act - simulate rollback: the transaction ends without afterCommit ever firing.
-      service().create(input, TENANT_ID);
+      service().create(input, TENANT_ID, User.ADMIN_UUID);
       TransactionSynchronizationManager.clearSynchronization();
 
       // Assert
       verify(actionMetricCollector, never()).addMarkingDefinitionCreatedCount();
+    }
+
+    @Test
+    @DisplayName("given_orderAboveOwnClearance_should_throwForbiddenAndSaveNothing")
+    void given_orderAboveOwnClearance_should_throwForbiddenAndSaveNothing() {
+      // Arrange - the caller's clearance tops out at order 2 on TLP.
+      MarkingDefinition held = existingIn(TENANT_ID);
+      held.setOrder(2);
+      MarkingDefinitionInput input = new MarkingDefinitionInput("TLP", "TLP:ABOVE", "#4CAF50", 3);
+      when(repository.exists(ArgumentMatchers.<Specification<MarkingDefinition>>any()))
+          .thenReturn(true);
+      when(markingClearanceCacheManager.findClearance(USER_ID, TENANT_ID))
+          .thenReturn(MarkingCtx.forMarkings(List.of(held.getId())));
+      when(repository.findAll(ArgumentMatchers.<Specification<MarkingDefinition>>any()))
+          .thenReturn(List.of(held));
+
+      // Act & Assert
+      assertThrows(ForbiddenException.class, () -> service().create(input, TENANT_ID, USER_ID));
+      // Refused before the uniqueness lookup: the caller must not learn whether the name exists.
+      verify(repository, never())
+          .existsByTypeAndDefinitionAndTenantIdExcludingId(any(), any(), any(), any());
+      verify(repository, never()).save(any(MarkingDefinition.class));
+      verify(markingClearanceCacheManager, never()).evictAll();
+    }
+
+    @Test
+    @DisplayName("given_noClearance_should_throwForbiddenWithoutQueryingDefinitions")
+    void given_noClearance_should_throwForbiddenWithoutQueryingDefinitions() {
+      // Arrange
+      MarkingDefinitionInput input = new MarkingDefinitionInput("TLP", "TLP:ANY", "#4CAF50", 0);
+      when(repository.exists(ArgumentMatchers.<Specification<MarkingDefinition>>any()))
+          .thenReturn(true);
+      when(markingClearanceCacheManager.findClearance(USER_ID, TENANT_ID))
+          .thenReturn(MarkingCtx.none());
+
+      // Act & Assert
+      assertThrows(ForbiddenException.class, () -> service().create(input, TENANT_ID, USER_ID));
+      verify(repository, never()).findAll(ArgumentMatchers.<Specification<MarkingDefinition>>any());
+      verify(repository, never())
+          .existsByTypeAndDefinitionAndTenantIdExcludingId(any(), any(), any(), any());
+      verify(repository, never()).save(any(MarkingDefinition.class));
+    }
+
+    @Test
+    @DisplayName("given_typeNotInTenant_should_saveWithoutResolvingClearance")
+    void given_typeNotInTenant_should_saveWithoutResolvingClearance() {
+      // Arrange - repository.exists defaults to false: the tenant has no definition of this type.
+      MarkingDefinitionInput input =
+          new MarkingDefinitionInput("NEWTYPE", "NEWTYPE:HIGH", "#4CAF50", 999);
+      when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(
+              input.type(), input.definition(), TENANT_ID, null))
+          .thenReturn(false);
+      when(repository.save(any(MarkingDefinition.class)))
+          .thenAnswer(invocation -> invocation.getArgument(0));
+
+      // Act
+      MarkingDefinition created = service().create(input, TENANT_ID, USER_ID);
+
+      // Assert
+      assertEquals("NEWTYPE", created.getType());
+      verify(markingClearanceCacheManager, never()).findClearance(any(), any());
     }
   }
 
@@ -183,6 +261,7 @@ class MarkingDefinitionServiceTest {
       // Arrange
       MarkingDefinition existing = existingIn(TENANT_ID);
       when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      firstAdminClearanceCovers(existing);
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(any(), any(), any(), any()))
           .thenReturn(false);
       when(repository.save(existing)).thenReturn(existing);
@@ -194,7 +273,7 @@ class MarkingDefinitionServiceTest {
               existing.getOrder() + 1);
 
       // Act
-      service().update(TxCtx.forTenant(TENANT_ID), existing.getId(), input);
+      service().update(TxCtx.forTenant(TENANT_ID), existing.getId(), input, User.ADMIN_UUID);
 
       // Assert
       verify(markingClearanceCacheManager, times(1)).evictAll();
@@ -206,15 +285,36 @@ class MarkingDefinitionServiceTest {
       // Arrange
       MarkingDefinition existing = existingIn(TENANT_ID);
       when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      firstAdminClearanceCovers(existing);
       when(repository.existsByTypeAndDefinitionAndTenantIdExcludingId(any(), any(), any(), any()))
           .thenReturn(false);
       when(repository.save(existing)).thenReturn(existing);
       MarkingDefinitionInput input = toInput(existing);
 
       // Act
-      service().update(TxCtx.forTenant(TENANT_ID), existing.getId(), input);
+      service().update(TxCtx.forTenant(TENANT_ID), existing.getId(), input, User.ADMIN_UUID);
 
       // Assert
+      verify(markingClearanceCacheManager, never()).evictAll();
+    }
+
+    @Test
+    @DisplayName("given_definitionAboveOwnClearance_should_throwNotFoundAndSaveNothing")
+    void given_definitionAboveOwnClearance_should_throwNotFoundAndSaveNothing() {
+      // Arrange - lowering an uncleared definition into the caller's range would grant it to them.
+      MarkingDefinition existing = existingIn(TENANT_ID);
+      when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      when(markingClearanceCacheManager.findClearance(USER_ID, TENANT_ID))
+          .thenReturn(MarkingCtx.forMarkings(List.of("another-marking")));
+      MarkingDefinitionInput input =
+          new MarkingDefinitionInput(
+              existing.getType(), existing.getDefinition(), existing.getColor(), 0);
+
+      // Act & Assert
+      assertThrows(
+          ElementNotFoundException.class,
+          () -> service().update(TxCtx.forTenant(TENANT_ID), existing.getId(), input, USER_ID));
+      verify(repository, never()).save(any(MarkingDefinition.class));
       verify(markingClearanceCacheManager, never()).evictAll();
     }
   }
@@ -229,11 +329,12 @@ class MarkingDefinitionServiceTest {
       // Arrange
       MarkingDefinition existing = existingIn(TENANT_ID);
       when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      firstAdminClearanceCovers(existing);
       Set<String> markedTableNames = new LinkedHashSet<>(Set.of("assets", "asset_groups"));
       when(allTablesWithMarkingIds.tableNames()).thenReturn(markedTableNames);
 
       // Act
-      service().delete(TxCtx.forTenant(TENANT_ID), existing.getId());
+      service().delete(TxCtx.forTenant(TENANT_ID), existing.getId(), User.ADMIN_UUID);
 
       // Assert
       verify(repository, times(1)).delete(existing);
@@ -258,11 +359,12 @@ class MarkingDefinitionServiceTest {
       MarkingDefinition existing = existingIn(TENANT_ID);
       existing.setProtectedDefinition(true);
       when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      firstAdminClearanceCovers(existing);
 
       // Act & Assert
       assertThrows(
           BadRequestException.class,
-          () -> service().delete(TxCtx.forTenant(TENANT_ID), existing.getId()));
+          () -> service().delete(TxCtx.forTenant(TENANT_ID), existing.getId(), User.ADMIN_UUID));
       verify(repository, never()).delete(any(MarkingDefinition.class));
       verify(jdbcTemplate, never()).update(anyString(), any(Object[].class));
       verify(markingClearanceCacheManager, never()).evictAll();
@@ -277,11 +379,12 @@ class MarkingDefinitionServiceTest {
       // deleted at that point must not leave a dangling id behind.
       MarkingDefinition existing = existingIn(TENANT_ID);
       when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      firstAdminClearanceCovers(existing);
       Set<String> everyMarkedTable = new LinkedHashSet<>(Set.of("assets", "asset_groups"));
       when(allTablesWithMarkingIds.tableNames()).thenReturn(everyMarkedTable);
 
       // Act
-      service().delete(TxCtx.forTenant(TENANT_ID), existing.getId());
+      service().delete(TxCtx.forTenant(TENANT_ID), existing.getId(), User.ADMIN_UUID);
 
       // Assert
       for (String table : everyMarkedTable) {
@@ -304,14 +407,33 @@ class MarkingDefinitionServiceTest {
       // Arrange - no table in the schema has a marking_ids column at all.
       MarkingDefinition existing = existingIn(TENANT_ID);
       when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      firstAdminClearanceCovers(existing);
       when(allTablesWithMarkingIds.tableNames()).thenReturn(Set.of());
 
       // Act
-      service().delete(TxCtx.forTenant(TENANT_ID), existing.getId());
+      service().delete(TxCtx.forTenant(TENANT_ID), existing.getId(), User.ADMIN_UUID);
 
       // Assert
       verify(jdbcTemplate, never()).update(anyString(), any(Object[].class));
       verify(markingClearanceCacheManager, times(1)).evictAll();
+    }
+
+    @Test
+    @DisplayName("given_definitionAboveOwnClearance_should_throwNotFoundAndScrubNothing")
+    void given_definitionAboveOwnClearance_should_throwNotFoundAndScrubNothing() {
+      // Arrange - the scrub would declassify every row the caller cannot see.
+      MarkingDefinition existing = existingIn(TENANT_ID);
+      when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      when(markingClearanceCacheManager.findClearance(USER_ID, TENANT_ID))
+          .thenReturn(MarkingCtx.none());
+
+      // Act & Assert
+      assertThrows(
+          ElementNotFoundException.class,
+          () -> service().delete(TxCtx.forTenant(TENANT_ID), existing.getId(), USER_ID));
+      verify(repository, never()).delete(any(MarkingDefinition.class));
+      verifyNoInteractions(allTablesWithMarkingIds, jdbcTemplate);
+      verify(markingClearanceCacheManager, never()).evictAll();
     }
   }
 
@@ -334,6 +456,8 @@ class MarkingDefinitionServiceTest {
       // Arrange - insertion-ordered so "assets" is deterministically probed first.
       MarkingDefinition existing = existingIn(TENANT_ID);
       when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      when(markingScopeSupplier.clearanceFor(any()))
+          .thenReturn(MarkingCtx.forMarkings(List.of(existing.getId())));
       when(allTablesWithMarkingIds.tableNames())
           .thenReturn(new LinkedHashSet<>(List.of("assets", "asset_groups")));
       when(jdbcTemplate.queryForObject(existsQuery("assets"), Boolean.class, existing.getId()))
@@ -355,6 +479,8 @@ class MarkingDefinitionServiceTest {
       // Arrange
       MarkingDefinition existing = existingIn(TENANT_ID);
       when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      when(markingScopeSupplier.clearanceFor(any()))
+          .thenReturn(MarkingCtx.forMarkings(List.of(existing.getId())));
       when(allTablesWithMarkingIds.tableNames()).thenReturn(Set.of());
       when(jdbcTemplate.queryForObject(GROUPS_QUERY, Boolean.class, existing.getId()))
           .thenReturn(false);
@@ -374,6 +500,21 @@ class MarkingDefinitionServiceTest {
       // Arrange - the caller must not learn whether another tenant's definition is in use.
       MarkingDefinition existing = existingIn("tenant-2");
       when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+
+      // Act & Assert
+      assertThrows(
+          ElementNotFoundException.class,
+          () -> service().isAssigned(TxCtx.forTenant(TENANT_ID), existing.getId()));
+      verifyNoInteractions(allTablesWithMarkingIds, jdbcTemplate);
+    }
+
+    @Test
+    @DisplayName("given_definitionAboveOwnClearance_should_throwNotFoundAndProbeNothing")
+    void given_definitionAboveOwnClearance_should_throwNotFoundAndProbeNothing() {
+      // Arrange - search does not reveal it, so whether it is in use must not leak either.
+      MarkingDefinition existing = existingIn(TENANT_ID);
+      when(repository.findById(existing.getId())).thenReturn(Optional.of(existing));
+      when(markingScopeSupplier.clearanceFor(any())).thenReturn(MarkingCtx.none());
 
       // Act & Assert
       assertThrows(

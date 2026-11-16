@@ -1,11 +1,9 @@
 import { type InjectExpectationOutput, type InjectExpectationResult } from '../../../../../utils/api-types';
 import expectationIconByType from '../../ExpectationIconByType';
-import { ExpectationType, type InjectExpectationsStore } from './Expectation';
+import { ExpectationType, HUMAN_EXPECTATION_TYPES, type InjectExpectationsStore, TECHNICAL_EXPECTATION_TYPES } from './Expectation';
 
 export const FAILED = 'Failed';
 export const SUCCESS = 'Successful';
-
-export const HUMAN_EXPECTATION = ['MANUAL', 'CHALLENGE', 'ARTICLE'];
 
 export const isAutomatic = (type: string) => {
   return [ExpectationType.ARTICLE.toString(), ExpectationType.PREVENTION.toString(), ExpectationType.DETECTION.toString(), ExpectationType.VULNERABILITY.toString()].includes(type);
@@ -14,12 +12,9 @@ export const isAutomatic = (type: string) => {
 // Single source of truth for expectation-type icons (shared coherent set).
 export const typeIcon = (type: string) => expectationIconByType(type);
 
-export const isTechnicalExpectation = (type: string) => {
-  return [ExpectationType.PREVENTION.toString(), ExpectationType.DETECTION.toString(), ExpectationType.VULNERABILITY.toString()].includes(type);
-};
-export const isManualExpectation = (type: string) => {
-  return [ExpectationType.MANUAL.toString(), ExpectationType.ARTICLE.toString(), ExpectationType.CHALLENGE.toString()].includes(type);
-};
+export const isTechnicalExpectation = (type: string) => TECHNICAL_EXPECTATION_TYPES.includes(type);
+
+export const isManualExpectation = (type: string) => HUMAN_EXPECTATION_TYPES.includes(type);
 
 /**
  * Returns a formatted label for the source of an expectation result.
@@ -77,7 +72,7 @@ export const useIsManuallyUpdatable = (injectExpectation: InjectExpectationOutpu
   // Technical: manually updatable at agent level (result on that agent only, then
   // propagated up) and at asset level (result written on each agent of the endpoint).
   // Asset groups are always computed from their assets, never updated directly.
-  if (['DETECTION', 'PREVENTION', 'VULNERABILITY'].includes(expectationType)) {
+  if (isTechnicalExpectation(expectationType)) {
     return !isAssetGroupExpectation(injectExpectation);
   }
   return isManualExpectation(expectationType);

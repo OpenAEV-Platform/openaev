@@ -55,12 +55,7 @@ public abstract class AbstractPrivilegeService {
     WellKnownAccess access = wellKnownAccess();
     String groupId = getUUIDFromName(access.groupId(), tenantId);
     Optional<Group> group = tenantGroupService.findByIdAndTenant(groupId, tenantId);
-
-    TenantGroupCreateInput input = new TenantGroupCreateInput();
-    input.setName(access.groupName());
-    input.setDescription(access.groupDescription());
-    input.setDefaultUserAssignation(false);
-
+    TenantGroupCreateInput input = wellKnownGroupInput();
     List<Role> roles = new ArrayList<>(List.of(role));
     Group saved =
         group.isPresent()
@@ -70,6 +65,15 @@ public abstract class AbstractPrivilegeService {
       tenantGroupService.receiveEveryMarking(tenantId, saved);
     }
     return saved;
+  }
+
+  protected TenantGroupCreateInput wellKnownGroupInput() {
+    WellKnownAccess access = wellKnownAccess();
+    TenantGroupCreateInput input = new TenantGroupCreateInput();
+    input.setName(access.groupName());
+    input.setDescription(access.groupDescription());
+    input.setDefaultUserAssignation(false);
+    return input;
   }
 
   public static String getUUIDFromName(String name, String tenantId) {

@@ -115,7 +115,8 @@ public class SecurityPlatformApi {
     } else {
       securityPlatform.setLogoLight(null);
     }
-    securityPlatform.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    securityPlatform.setTags(
+        iterableToSet(this.tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
     return this.securityPlatformRepository.save(securityPlatform);
   }
 

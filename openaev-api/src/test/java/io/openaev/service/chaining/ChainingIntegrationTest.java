@@ -113,7 +113,9 @@ class ChainingIntegrationTest extends IntegrationTest {
     injectorSaved.linkContract(injectorContractSaved);
     injectorRepository.save(injectorSaved);
 
-    doReturn(injectorContractSaved).when(injectorContractService).injectorContract(any());
+    doReturn(injectorContractSaved)
+        .when(injectorContractService)
+        .injectorContractInTenant(any(), any());
     doReturn(new ArrayList<>()).when(teamService).getTeamsByIds(any());
     doReturn(new ArrayList<>()).when(assetService).assets(anyList());
     doReturn(new HashSet<>()).when(tagService).tagSet(any());

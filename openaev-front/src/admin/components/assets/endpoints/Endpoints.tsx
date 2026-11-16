@@ -1,10 +1,11 @@
 import { Checkbox } from '@filigran/design-system';
 import { CenterFocusStrongOutlined, HelpOutlineOutlined } from '@mui/icons-material';
 import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { type CSSProperties, useState } from 'react';
+import { type CSSProperties, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { makeStyles } from 'tss-react/mui';
 
+import { type EndpointHelper } from '../../../../actions/assets/asset-helper';
 import { bulkDeleteAssets, bulkReplaceAssetMarkings, searchAssets } from '../../../../actions/assets/endpoint-actions';
 import { fetchExecutors } from '../../../../actions/executors/executor-action';
 import Breadcrumbs from '../../../../components/Breadcrumbs';
@@ -23,6 +24,7 @@ import ItemMarkings from '../../../../components/ItemMarkings';
 import ItemTags from '../../../../components/ItemTags';
 import PaginatedListLoader from '../../../../components/PaginatedListLoader';
 import { ASSET_BASE_URL } from '../../../../constants/BaseUrls';
+import { useHelper } from '../../../../store';
 import { type AssetBulkProcessingInput, type EndpointOutput, type SearchPaginationInput } from '../../../../utils/api-types';
 import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
@@ -35,6 +37,7 @@ import EndpointListItemFragments from '../../common/endpoints/EndpointListItemFr
 import EndpointAgentsExecutorsFragment from '../../common/endpoints/fragments/EndpointAgentsExecutorsFragment';
 import ToolBar from '../../common/ToolBar';
 import { humanizeEnum } from '../asset-categories';
+import { keepStreamedChanges, patchRowsFromStore } from '../asset-stream-values';
 import AssetCategoryIcon from '../AssetCategoryIcon';
 import PostureScoreCell from '../PostureScoreCell';
 import usePostureScores from '../usePostureScores';
@@ -59,6 +62,8 @@ const inlineStyles: Record<string, CSSProperties> = {
   asset_tags: { width: '10%' },
   asset_markings: { width: '9%' },
 };
+
+const selectEndpointsMap = (helper: EndpointHelper) => helper.getEndpointsMap();
 
 const Endpoints = () => {
   // Standard hooks
@@ -106,6 +111,20 @@ const Endpoints = () => {
     textSearch: search,
   }));
 
+  // Sync the value retrieved from Redux store (that have been updated thro Streaming) into the state
+  // "endpoints" (direct axios call).
+  const endpointsMap = useHelper(selectEndpointsMap);
+  const [previousEndpointsMap, setPreviousEndpointsMap] = useState(endpointsMap);
+  if (endpointsMap !== previousEndpointsMap) {
+    setPreviousEndpointsMap(endpointsMap);
+    setEndpoints(rows => patchRowsFromStore(rows, previousEndpointsMap, endpointsMap));
+  }
+  // Read when a search answers, to keep what the stream changed while it ran.
+  const storedEndpoints = useRef(endpointsMap);
+  useEffect(() => {
+    storedEndpoints.current = endpointsMap;
+  }, [endpointsMap]);
+
   // Export
   const exportProps = {
     exportType: 'ENDPOINTS',
@@ -119,7 +138,8 @@ const Endpoints = () => {
 
   const searchEndpointsToLoad = (input: SearchPaginationInput) => {
     setLoading(true);
-    return searchAssets(input).finally(() => setLoading(false));
+    return keepStreamedChanges<EndpointOutput>(searchAssets, () => storedEndpoints.current)(input)
+      .finally(() => setLoading(false));
   };
 
   // Bulk selection
