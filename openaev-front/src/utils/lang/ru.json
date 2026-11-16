@@ -366,6 +366,8 @@
   "API key variable": "Переменная ключа API",
   "API specifications": "Спецификации API",
   "API token (optional)": "API-токен (необязательно)",
+  "API token removed on save": "API-токен будет удалён при сохранении",
+  "API token set": "API-токен сохранён",
   "Apply": "Применить",
   "Apply a lessons learned template": "Применение шаблона извлеченных уроков",
   "Apply a template": "Применить шаблон",

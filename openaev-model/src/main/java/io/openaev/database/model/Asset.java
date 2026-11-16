@@ -15,6 +15,7 @@ import io.openaev.annotation.Queryable;
 import io.openaev.database.audit.AuditLogIgnore;
 import io.openaev.database.audit.AuditStateIgnore;
 import io.openaev.database.audit.ModelBaseListener;
+import io.openaev.exception.AiTargetTokenRequiredException;
 import io.openaev.helper.MultiIdSetSerializer;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
@@ -329,12 +330,35 @@ public class Asset implements TenantBase {
   private Map<String, Object> aiTargetConfiguration = new HashMap<>();
 
   /**
-   * Optional credential used to reach an AI target, provisioned on the asset itself (set manually
-   * or by a collector). May be empty for targets that require no authentication.
+   * Optional credential used to reach an AI target. Write-only: no read returns it; the injector
+   * gets it with the inject's one-time code.
    */
   @Column(name = "ai_target_token")
-  @JsonProperty("ai_target_token")
+  @JsonProperty(value = "ai_target_token", access = JsonProperty.Access.WRITE_ONLY)
+  @Setter(NONE)
   private String aiTargetToken;
+
+  @JsonProperty("ai_target_token_set")
+  @Schema(accessMode = Schema.AccessMode.READ_ONLY)
+  public boolean isAiTargetTokenSet() {
+    return aiTargetToken != null && !aiTargetToken.isBlank();
+  }
+
+  /**
+   * Applies a write of the token: a blank token keeps the stored one, unless the provider or the
+   * endpoint changes, which would send the stored token to another server.
+   */
+  public void updateAiTargetToken(
+      AI_TARGET_PROVIDER provider, String endpoint, String token, boolean clear) {
+    if (clear) {
+      this.aiTargetToken = null;
+    } else if (token != null && !token.isBlank()) {
+      this.aiTargetToken = token;
+    } else if (isAiTargetTokenSet()
+        && (provider != aiTargetProvider || !Objects.equals(endpoint, aiTargetEndpoint))) {
+      throw new AiTargetTokenRequiredException();
+    }
+  }
 
   /**
    * Free-form, category-specific attributes (cloud account id / resource id / ARN, vendor, model,

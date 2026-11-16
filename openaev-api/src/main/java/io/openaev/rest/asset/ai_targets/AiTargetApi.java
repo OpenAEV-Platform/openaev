@@ -62,6 +62,11 @@ public class AiTargetApi {
   }
 
   private Asset prepareAiTarget(Asset aiTarget, AiTargetInput input) {
+    aiTarget.updateAiTargetToken(
+        input.getAiTargetProvider(),
+        input.getAiTargetEndpoint(),
+        input.getAiTargetToken(),
+        input.isAiTargetTokenClear());
     aiTarget.setUpdateAttributes(input);
     aiTarget.setCategory(AssetCategory.AI_TARGET);
     aiTarget.setTags(

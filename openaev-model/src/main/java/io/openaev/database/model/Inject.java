@@ -117,6 +117,19 @@ public class Inject implements GrantableBase, Injection, TenantBase {
   @JsonProperty("inject_content")
   private ObjectNode content;
 
+  public static final String CONTENT_AI_TARGET_TOKEN_KEY = "target_token";
+
+  /** A typed AI target token never stays in the content: it lives on the AI target. */
+  @PrePersist
+  @PreUpdate
+  private void removeContentAiTargetToken() {
+    if (content != null && content.has(CONTENT_AI_TARGET_TOKEN_KEY)) {
+      ObjectNode cleaned = content.deepCopy();
+      cleaned.remove(CONTENT_AI_TARGET_TOKEN_KEY);
+      content = cleaned;
+    }
+  }
+
   @Getter
   @Column(name = "inject_created_at")
   @JsonProperty("inject_created_at")

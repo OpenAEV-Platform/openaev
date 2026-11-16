@@ -366,6 +366,8 @@
   "API key variable": "API-Schlüssel-Variable",
   "API specifications": "API-Spezifikationen",
   "API token (optional)": "API-Token (optional)",
+  "API token removed on save": "API-Token wird beim Speichern entfernt",
+  "API token set": "API-Token gespeichert",
   "Apply": "Anwenden",
   "Apply a lessons learned template": "Lessons-Learned-Vorlage anwenden",
   "Apply a template": "Eine Vorlage anwenden",

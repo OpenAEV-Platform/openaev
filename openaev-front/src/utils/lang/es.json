@@ -366,6 +366,8 @@
   "API key variable": "Variable de clave API",
   "API specifications": "Especificaciones API",
   "API token (optional)": "Token de API (opcional)",
+  "API token removed on save": "El token de API se eliminará al guardar",
+  "API token set": "Token de API guardado",
   "Apply": "Aplicar",
   "Apply a lessons learned template": "Aplicar una plantilla de lecciones aprendidas",
   "Apply a template": "Aplicar una plantilla",

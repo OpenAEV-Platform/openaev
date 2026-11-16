@@ -366,6 +366,8 @@
   "API key variable": "API 密钥变量",
   "API specifications": "API说明",
   "API token (optional)": "API 令牌（可选）",
+  "API token removed on save": "保存时将移除 API 令牌",
+  "API token set": "API 令牌已设置",
   "Apply": "应用",
   "Apply a lessons learned template": "应用经验教训模板",
   "Apply a template": "应用模板",

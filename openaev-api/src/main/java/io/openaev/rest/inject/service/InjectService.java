@@ -2019,14 +2019,14 @@ public class InjectService {
   }
 
   /**
-   * Creates and stores a fresh authorisation code when the inject carries secret references.
+   * Creates and stores a fresh authorisation code when the inject carries secret references or
+   * targets an AI target holding a token.
    *
-   * @param executableInject the executable inject to check for secret references
-   * @return the raw authorisation code, or {@code null} when the inject has no secret references
+   * @param executableInject the executable inject to check
+   * @return the raw authorisation code, or {@code null} when the injector needs no secret
    */
   public String getAuthorisationCodeIfNeeded(ExecutableInject executableInject) {
-    if (executableInject.getSecretReferenceIds() == null
-        || executableInject.getSecretReferenceIds().isEmpty()) {
+    if (!hasSecretReferences(executableInject) && !targetsAiTargetWithToken(executableInject)) {
       return null;
     }
     Inject inject = executableInject.getInjection().getInject();
@@ -2042,6 +2042,43 @@ public class InjectService {
     injectAuthorisationRepository.save(authorisation);
 
     return rawCode;
+  }
+
+  private boolean hasSecretReferences(ExecutableInject executableInject) {
+    return executableInject.getSecretReferenceIds() != null
+        && !executableInject.getSecretReferenceIds().isEmpty();
+  }
+
+  private boolean targetsAiTargetWithToken(ExecutableInject executableInject) {
+    if (executableInject.getAssetsToExecute() == null) {
+      executableInject.cacheAssetsToExecute(
+          resolveAssetsToExecuteByClearance(executableInject.getInjection().getInject()));
+    }
+    return executableInject.getAssetsToExecute().stream()
+        .anyMatch(target -> target.asset().isAiTargetTokenSet());
+  }
+
+  /**
+   * Gives the token of an AI target the running inject targets, to the injector holding the
+   * inject's authorisation code.
+   *
+   * @throws ForbiddenException when the inject is not running or the code is wrong
+   * @throws ElementNotFoundException when the asset is not an AI target the inject targets
+   */
+  public String getAiTargetTokenOrThrow(String injectId, String assetId, String authorisation) {
+    Inject inject = injectRepository.findById(injectId).orElseThrow(ElementNotFoundException::new);
+    if (!verifyInjectStatusIsInProgress(inject)
+        || !verifyAuthorisationCode(injectId, authorisation)) {
+      throw new ForbiddenException();
+    }
+    return resolveAllAssetsToExecute(inject).stream()
+        .map(AssetToExecute::asset)
+        .filter(
+            asset ->
+                asset.getId().equals(assetId) && asset.getCategory() == AssetCategory.AI_TARGET)
+        .findFirst()
+        .orElseThrow(ElementNotFoundException::new)
+        .getAiTargetToken();
   }
 
   private boolean verifyAuthorisationCode(String injectId, String code) {
