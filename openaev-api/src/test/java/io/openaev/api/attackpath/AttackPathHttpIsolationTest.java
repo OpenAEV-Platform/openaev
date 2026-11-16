@@ -14,7 +14,6 @@ import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.utilstest.WithoutTenantScope;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;
@@ -51,7 +50,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path POC read isolation through the real HTTP endpoints")
-@WithoutTenantScope
 class AttackPathHttpIsolationTest extends IntegrationTest {
 
   private static final String SIM = "SIM-ISO";
@@ -92,6 +90,10 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   void seedGraphUnderTenantA() throws Exception {
     tenantA = tenantHelper.createTenantWithCurrentUser("ap-iso-a").getId();
     tenantB = tenantHelper.createTenantWithCurrentUser("ap-iso-b").getId();
+    // The mock caller's role is a row of the default tenant, written in the default tenant's scope
+    // that the test transaction starts with. From here on the class reads and seeds with no scope
+    // of its own: each request sets its own, and the two fail-closed cases need none at all.
+    tenantHelper.clearScope();
     executionId = seedExecution(tenantA);
     findingId = seedFinding(tenantA);
     linkExecutionFinding(executionId, findingId);
