@@ -350,8 +350,9 @@ class AttackPathHttpIsolationTest extends IntegrationTest {
   @Test
   @DisplayName("no scope set: the read is empty although the rows exist (fail-closed)")
   void readWithoutScopeIsFailClosed() {
-    // No TxCtx in this test transaction, so the aspect never set app.current_tenants and the
-    // inspector denies every row. The row exists in the table, it is only hidden.
+    // The scope is cleared in @BeforeEach and no TxCtx runs in this test transaction, so
+    // app.current_tenants is empty and the inspector denies every row. The row exists in the
+    // table, it is only hidden.
     assertThat(executionRepository.findGraphRows(SIM)).isEmpty();
     assertThat(rawExecutionCount(executionId)).isEqualTo(1L);
   }

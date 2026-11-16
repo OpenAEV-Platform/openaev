@@ -406,11 +406,11 @@ class AttackPathApiRbacTest extends IntegrationTest {
     return tenantTx.execute(TxCtx.forTenant(DEFAULT_TENANT_UUID), work);
   }
 
-  // A set-based delete by id: no entity is loaded, so no lazy collection is read or cascaded. For a
-  // group or a role, Hibernate clears the collections the entity owns (groups_roles, users_groups,
-  // groups_markings, roles_capabilities) before the row itself, since those foreign keys do not
-  // cascade. The count must equal the ids: a scope that stops matching would delete nothing,
-  // silently.
+  // A set-based delete by id: no entity is loaded, so no lazy collection is read. For a group or a
+  // role, Hibernate clears the link rows the entity owns whose foreign keys do not cascade
+  // (groups_roles, roles_capabilities) before the row itself; users_groups and groups_markings go
+  // with the group through ON DELETE CASCADE. The count must equal the ids: a scope that stops
+  // matching would delete nothing, silently.
   private void deleteInDefaultTenant(Class<?> entity, List<String> ids) {
     List<String> distinctIds = ids.stream().distinct().toList();
     if (distinctIds.isEmpty()) {
