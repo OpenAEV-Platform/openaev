@@ -1,8 +1,6 @@
 package io.openaev.service.catalog.scenario;
 
 import io.openaev.context.TxCtx;
-import io.openaev.database.model.Inject;
-import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.Payload;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
@@ -11,20 +9,18 @@ import io.openaev.database.model.scenario.ScenarioIdentity;
 import io.openaev.database.repository.ScenarioIdentityRepository;
 import io.openaev.importer.ImportResult;
 import io.openaev.rest.exception.BadRequestException;
-import io.openaev.rest.inject.service.InjectService;
 import io.openaev.service.ImportService;
 import io.openaev.service.catalog.event.CatalogChangePublisher;
 import io.openaev.service.catalog.payload.CatalogPayloadService;
 import io.openaev.service.catalog.payload.InstallablePayloadVersion;
-import io.openaev.service.catalog.scenario.targeting.CatalogScenarioTargets;
-import io.openaev.service.catalog.scenario.targeting.TargetChoice;
 import io.openaev.service.organization.OrganizationService;
 import io.openaev.service.scenario.ScenarioService;
 import java.io.ByteArrayInputStream;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,15 +34,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogScenarioService {
 
   public static final String ALREADY_INSTALLED = "This scenario is already installed";
+  public static final String OTHER_TYPE_CHOICE_REFUSED =
+      "The choice is for another type of scenario than the one released";
   public static final String OTHER_PAYLOAD_REFUSED =
       "The scenario runs a payload its release does not name";
 
   private final ScenarioService scenarioService;
   private final ScenarioIdentityRepository scenarioIdentityRepository;
-  private final InjectService injectService;
   private final ImportService importService;
   private final CatalogPayloadService catalogPayloadService;
-  private final CatalogScenarioTargets catalogScenarioTargets;
+  private final List<CatalogScenarioTypeInstall<?>> typeInstalls;
   private final OrganizationService organizationService;
   private final CatalogChangePublisher changePublisher;
 
@@ -54,7 +51,8 @@ public class CatalogScenarioService {
 
   /**
    * Installs the payload versions the release names, then imports the package, whose payloads link
-   * to these versions by external ID and content, and adds the chosen targets.
+   * to these versions by external ID and content, and applies what the admin chose: targets for the
+   * injects, scope and limits for a chained scenario's workflow.
    */
   @Transactional(rollbackFor = Exception.class)
   public Scenario install(
@@ -63,15 +61,15 @@ public class CatalogScenarioService {
       InstallableScenarioVersion released,
       byte[] archive,
       Map<InstallablePayloadVersion, byte[]> payloadFiles,
-      TargetChoice targets,
+      ScenarioInstallChoice choice,
       CatalogHistory.Mode mode)
       throws Exception {
     ScenarioIdentity identity = uninstalledIdentity(tenantId, released);
     Set<String> payloadIds = installPayloads(ctx, tenantId, payloadFiles, mode);
     Scenario scenario = importPackage(ctx, archive);
-    Set<Inject> injects = injectService.findByScenarioId(scenario.getId());
-    refuseOtherPayloads(injects, payloadIds);
-    catalogScenarioTargets.addTo(injects, targets);
+    CatalogScenarioTypeInstall<ScenarioInstallChoice> typeInstall = typeInstall(released.type());
+    refuseOtherPayloads(typeInstall.payloadsRun(scenario), payloadIds);
+    typeInstall.apply(scenario, choiceFor(typeInstall, choice));
     markInstalled(scenario, identity, tenantId, released);
     changePublisher.changed(scenario, CatalogHistory.Action.INSTALL, mode);
     return scenario;
@@ -126,13 +124,29 @@ public class CatalogScenarioService {
     return scenarioService.scenario(ctx, result.scenarioId());
   }
 
-  private static void refuseOtherPayloads(Set<Inject> injects, Set<String> payloadIds) {
-    boolean other =
-        injects.stream()
-            .map(inject -> inject.getInjectorContract().map(InjectorContract::getPayload))
-            .flatMap(Optional::stream)
-            .anyMatch(payload -> !payloadIds.contains(payload.getId()));
-    if (other) {
+  // Each install takes the choice of its own type, checked by choiceFor.
+  @SuppressWarnings("unchecked")
+  private CatalogScenarioTypeInstall<ScenarioInstallChoice> typeInstall(CatalogScenarioType type) {
+    return typeInstalls.stream()
+        .filter(install -> install.type() == type)
+        .map(install -> (CatalogScenarioTypeInstall<ScenarioInstallChoice>) install)
+        .findFirst()
+        .orElseThrow(() -> new IllegalStateException("No install for " + type + " scenarios"));
+  }
+
+  private static ScenarioInstallChoice choiceFor(
+      CatalogScenarioTypeInstall<ScenarioInstallChoice> typeInstall, ScenarioInstallChoice choice) {
+    if (choice == null) {
+      return typeInstall.noChoice();
+    }
+    if (choice.type() != typeInstall.type()) {
+      throw new BadRequestException(OTHER_TYPE_CHOICE_REFUSED);
+    }
+    return choice;
+  }
+
+  private static void refuseOtherPayloads(Stream<Payload> payloads, Set<String> payloadIds) {
+    if (payloads.anyMatch(payload -> !payloadIds.contains(payload.getId()))) {
       throw new BadRequestException(OTHER_PAYLOAD_REFUSED);
     }
   }

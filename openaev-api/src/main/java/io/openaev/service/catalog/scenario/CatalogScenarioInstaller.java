@@ -7,7 +7,6 @@ import io.openaev.service.catalog.CatalogFileService;
 import io.openaev.service.catalog.CatalogInstaller;
 import io.openaev.service.catalog.CatalogOffer;
 import io.openaev.service.catalog.payload.InstallablePayloadVersion;
-import io.openaev.service.catalog.scenario.targeting.TargetChoice;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -23,15 +22,15 @@ public class CatalogScenarioInstaller
   private final CatalogScenarioService catalogScenarioService;
   private final CatalogFileService catalogFileService;
 
-  /** Installs one released version with the targets an admin chose. */
+  /** Installs one released version with what an admin chose, if anything. */
   public Scenario install(
-      TxCtx ctx, String tenantId, String externalId, String version, TargetChoice targets)
+      TxCtx ctx, String tenantId, String externalId, String version, ScenarioInstallChoice choice)
       throws Exception {
     return install(
         ctx,
         tenantId,
         catalogScenarioOfferService.installable(ctx, externalId, version),
-        targets,
+        choice,
         CatalogHistory.Mode.MANUAL);
   }
 
@@ -44,14 +43,14 @@ public class CatalogScenarioInstaller
   protected Scenario install(
       TxCtx ctx, String tenantId, InstallableScenarioVersion released, CatalogHistory.Mode mode)
       throws Exception {
-    return install(ctx, tenantId, released, TargetChoice.NONE, mode);
+    return install(ctx, tenantId, released, null, mode);
   }
 
   private Scenario install(
       TxCtx ctx,
       String tenantId,
       InstallableScenarioVersion released,
-      TargetChoice targets,
+      ScenarioInstallChoice choice,
       CatalogHistory.Mode mode)
       throws Exception {
     Map<InstallablePayloadVersion, byte[]> payloadFiles = new LinkedHashMap<>();
@@ -64,7 +63,7 @@ public class CatalogScenarioInstaller
         released,
         catalogFileService.storedFile(released.archiveHash()),
         payloadFiles,
-        targets,
+        choice,
         mode);
   }
 }

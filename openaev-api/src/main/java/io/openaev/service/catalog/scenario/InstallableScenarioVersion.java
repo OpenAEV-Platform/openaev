@@ -9,6 +9,7 @@ public record InstallableScenarioVersion(
     String repository,
     String externalId,
     String version,
+    CatalogScenarioType type,
     String author,
     String archiveHash,
     List<InstallablePayloadVersion> payloads)
