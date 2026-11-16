@@ -1713,6 +1713,12 @@ public class ScenarioService {
             HealthCheck.Detail.EMPTY,
             HealthCheck.Status.ERROR,
             injectsHealthChecks));
+    healthChecks.addAll(
+        healthCheckUtils.runInjectsChecksFor(
+            HealthCheck.Type.PAYLOAD,
+            HealthCheck.Detail.REVOKED,
+            HealthCheck.Status.ERROR,
+            injectsHealthChecks));
     healthChecks.addAll(healthCheckUtils.runMissingContentChecks(scenario));
     healthChecks.addAll(healthCheckUtils.runTeamsChecks(scenario));
 

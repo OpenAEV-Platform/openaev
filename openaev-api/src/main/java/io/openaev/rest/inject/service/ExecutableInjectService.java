@@ -12,12 +12,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.openaev.database.model.*;
+import io.openaev.execution.UnexecutableInjectException;
 import io.openaev.injectors.openaev.model.OpenAEVImplantInjectContent;
 import io.openaev.injectors.openaev.util.OpenAEVObfuscationMap;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.rest.payload.service.PayloadService;
 import io.openaev.service.InjectExpectationService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.utils.command.CommandArgumentBinder;
 import io.openaev.utils.command.CommandBindingException;
 import jakarta.annotation.Resource;
@@ -46,6 +48,7 @@ public class ExecutableInjectService {
   private final InjectStatusService injectStatusService;
   private final InjectExpectationService injectExpectationService;
   private final PayloadService payloadService;
+  private final PayloadRevocationService payloadRevocationService;
 
   @Resource protected ObjectMapper mapper;
 
@@ -291,7 +294,10 @@ public class ExecutableInjectService {
     return Base64.getEncoder().encodeToString(computedCommand.getBytes());
   }
 
-  @Transactional(rollbackFor = Exception.class, noRollbackFor = CommandBindingException.class)
+  // A refused payload keeps its error trace, so the agent does not end in timeout.
+  @Transactional(
+      rollbackFor = Exception.class,
+      noRollbackFor = {CommandBindingException.class, UnexecutableInjectException.class})
   public Payload getExecutablePayloadAndUpdateInjectStatus(String injectId, String agentId)
       throws Exception {
     // Need startTime to be defined before everything else to be the most accurate start time, as
@@ -308,6 +314,9 @@ public class ExecutableInjectService {
       this.injectStatusService.setImplantErrorTrace(
           injectId, agentId, "Unable to prepare the command. %s".formatted(e.getMessage()));
       throw e;
+    } catch (UnexecutableInjectException e) {
+      this.injectStatusService.setImplantErrorTrace(injectId, agentId, e.getMessage());
+      throw e;
     }
     this.injectStatusService.addStartImplantExecutionTraceByInject(
         injectId, agentId, "Implant is up and starting execution", startTime);
@@ -319,6 +328,13 @@ public class ExecutableInjectService {
   private Payload getExecutablePayloadInject(String injectId, String agentId) throws Exception {
     injectService.checkAgentTargetsInject(injectId, agentId);
     Inject inject = injectService.inject(injectId);
+    // Revoked after the inject left: the agent must not run it.
+    payloadRevocationService
+        .refusal(inject)
+        .ifPresent(
+            refusal -> {
+              throw new UnexecutableInjectException(refusal);
+            });
     InjectorContract contract =
         inject
             .getInjectorContract()

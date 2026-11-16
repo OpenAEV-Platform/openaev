@@ -41,6 +41,7 @@ import io.openaev.secrets.service.SecretReferenceService;
 import io.openaev.service.*;
 import io.openaev.service.chaining.ConditionService;
 import io.openaev.service.chaining.StepTargetingService;
+import io.openaev.service.payload.PayloadRevocationService;
 import io.openaev.service.threat_arsenal.ThreatArsenalService;
 import io.openaev.telemetry.metric_collectors.CredentialMetricCollector;
 import io.openaev.utils.InjectUtils;
@@ -90,6 +91,7 @@ class InjectServiceTest {
   @Mock private AgentRepository agentRepository;
   @Mock private SecretReferenceService secretReferenceService;
   @Mock private PreviewFeatureService previewFeatureService;
+  @Mock private PayloadRevocationService payloadRevocationService;
   @Mock private ExecutionTraceRepository executionTraceRepository;
   @Mock private InjectAuthorisationRepository injectAuthorisationRepository;
   @Mock private InjectStatusRepository injectStatusRepository;
@@ -177,7 +179,8 @@ class InjectServiceTest {
             new ExecutorUtils(assetAgentJobRepository),
             stepTargetingService,
             conditionService,
-            previewFeatureService));
+            previewFeatureService,
+            payloadRevocationService));
     ReflectionTestUtils.setField(
         injectService,
         "injectMapper",
@@ -190,7 +193,8 @@ class InjectServiceTest {
                 new ExecutorUtils(assetAgentJobRepository),
                 stepTargetingService,
                 conditionService,
-                previewFeatureService)));
+                previewFeatureService,
+                payloadRevocationService)));
     ReflectionTestUtils.setField(
         injectService, "injectorContractContentUtils", injectorContractContentUtils);
   }

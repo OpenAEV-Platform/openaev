@@ -6538,7 +6538,8 @@ export interface HealthCheck {
     | "MISSING_TECHNICAL_TARGETS"
     | "MISSING_AUDIENCE_TARGETS"
     | "INEFFECTIVE_TECHNICAL_TARGETS"
-    | "INEFFECTIVE_AUDIENCE_TARGETS";
+    | "INEFFECTIVE_AUDIENCE_TARGETS"
+    | "REVOKED";
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
@@ -6560,6 +6561,7 @@ export interface HealthCheck {
     | "MESSAGE"
     | "SCOPE_DEFINITION"
     | "CREDENTIAL_REFERENCE"
+    | "PAYLOAD"
     | "UNKNOWN";
 }
 
