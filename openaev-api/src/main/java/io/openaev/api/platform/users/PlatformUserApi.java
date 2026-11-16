@@ -102,7 +102,7 @@ public class PlatformUserApi {
   @Transactional
   public UserOutput update(
       TxCtx ctx, @PathVariable String userId, @Valid @RequestBody UserInput input) {
-    return toPlatformOutput(userService.updateUser(userId, input));
+    return toPlatformOutput(userService.updateUser(ctx, userId, input));
   }
 
   // -- DELETE --
