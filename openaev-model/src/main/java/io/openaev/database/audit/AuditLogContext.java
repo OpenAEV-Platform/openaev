@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 
@@ -27,9 +28,10 @@ public final class AuditLogContext {
 
   /**
    * Snapshot value of a not-loaded {@link io.openaev.annotation.AuditDiffUnloaded} collection; the
-   * diff skips a field holding it.
+   * diff skips a field holding it. Random per run, and never written to the audit log: a user who
+   * sets a field to a fixed marker string would otherwise hide that change from the diff.
    */
-  public static final String NOT_LOADED = "<not-loaded>";
+  public static final String NOT_LOADED = "<not-loaded:" + UUID.randomUUID() + ">";
 
   private AuditLogContext() {}
 

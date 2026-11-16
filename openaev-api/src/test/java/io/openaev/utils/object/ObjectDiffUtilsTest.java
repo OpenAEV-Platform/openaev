@@ -140,6 +140,23 @@ class ObjectDiffUtilsTest {
     }
 
     @Test
+    @DisplayName("Should report a field a user set to a look-alike of the not-loaded marker")
+    void given_fieldSetToAMarkerLookAlike_should_reportTheChange() {
+      // -- ARRANGE --
+      Map<String, Object> before = Map.of("group_name", "Admins");
+      Map<String, Object> after = Map.of("group_name", "<not-loaded>");
+
+      // -- ACT --
+      List<ObjectDiffUtils.FieldChange> changes =
+          ObjectDiffUtils.computeFieldChanges(before, after);
+
+      // -- ASSERT --
+      assertThat(changes)
+          .extracting(ObjectDiffUtils.FieldChange::field)
+          .containsExactly("group_name");
+    }
+
+    @Test
     @DisplayName("Should return empty list when both before and after are null")
     void given_bothNull_should_returnEmptyList() {
       // -- ACT & ASSERT --
