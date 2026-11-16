@@ -21,9 +21,11 @@ import io.openaev.engine.model.EsSearch;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utilstest.RabbitMQTestListener;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -84,10 +86,15 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
   @Autowired private EngineContext engineContext;
   @Autowired private TenantScopedTransaction tenantTx;
 
+  /** Engine model of the endpoint documents: its indexing cursor is set aside for each test. */
+  private static final String ASSET_MODEL = "asset";
+
   private String tenantA;
   private String tenantB;
   private String endpointB;
   private String otherTypeAssetA;
+  private Map<String, Object> assetCursor;
+  private boolean assetCursorSetAside;
 
   enum Route {
     TENANT_PREFIXED,
@@ -107,6 +114,9 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
       steps.add(() -> jdbc.update("DELETE FROM assets WHERE asset_id = ?", otherTypeAssetA));
     }
     steps.add(() -> tenantHelper.deleteCommittedTenants(tenantA, tenantB));
+    if (assetCursorSetAside) {
+      steps.add(this::restoreAssetCursor);
+    }
     runAll(steps);
   }
 
@@ -136,6 +146,7 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
       tenantHelper.detachCurrentUserFromTenant(tenantB);
     }
     endpointB = seedEndpoint(tenantB);
+    setAssetCursorAside();
     tenantTx.execute(
         TxCtx.allTenants(), () -> engineService.bulkProcessing(engineContext.getModels().stream()));
     await()
@@ -311,6 +322,39 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
             "other-type-" + assetId,
             tenantId);
     return assetId;
+  }
+
+  /**
+   * Removes the asset model's indexing cursor, so the next indexing round reads the aged fixture
+   * whatever cursor an earlier test left; {@link #restoreAssetCursor} puts it back.
+   */
+  private void setAssetCursorAside() {
+    JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+    List<Map<String, Object>> rows =
+        jdbc.queryForList(
+            "SELECT indexing_status_indexing_date, indexing_status_last_id FROM indexing_status"
+                + " WHERE indexing_status_type = ?",
+            ASSET_MODEL);
+    assetCursor = rows.isEmpty() ? null : rows.getFirst();
+    jdbc.update("DELETE FROM indexing_status WHERE indexing_status_type = ?", ASSET_MODEL);
+    assetCursorSetAside = true;
+  }
+
+  /** Puts back the cursor {@link #setAssetCursorAside} removed, or none if there was none. */
+  private void restoreAssetCursor() {
+    JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+    jdbc.update("DELETE FROM indexing_status WHERE indexing_status_type = ?", ASSET_MODEL);
+    if (assetCursor != null) {
+      jdbc.update(
+          "INSERT INTO indexing_status"
+              + " (indexing_status_type, indexing_status_indexing_date, indexing_status_last_id)"
+              + " VALUES (?, ?, ?)",
+          ASSET_MODEL,
+          (Timestamp) assetCursor.get("indexing_status_indexing_date"),
+          assetCursor.get("indexing_status_last_id"));
+    }
+    assetCursor = null;
+    assetCursorSetAside = false;
   }
 
   /** Plain JDBC: committed and aged, so the indexer's grace window does not re-fetch it. */
