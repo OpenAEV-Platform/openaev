@@ -33,6 +33,10 @@ import org.springframework.stereotype.Component;
  *       platform group, a tenant role to a group of its tenant. Any other link raises. A role or a
  *       group that is not found is left to the foreign key. A link is not a write of the platform
  *       role, so it does not need the marker.
+ *   <li>{@code roles} and {@code groups}: an {@code UPDATE} that changes {@code tenant_id} of a
+ *       role or a group that has a link requires every linked group or role to be of the new
+ *       tenant. A linked row moved to another tenant or to the platform raises, so a link does not
+ *       cross tenants after it is written either. A row with no link moves freely.
  * </ul>
  *
  * <p>A Flyway migration that writes a platform role or one of its capabilities after this one runs
@@ -50,6 +54,7 @@ public class V6_20261116170000000__Guard_roles_and_role_links extends BaseJavaMi
       guardPlatformRoles(statement);
       guardPlatformRoleCapabilities(statement);
       guardRoleLinks(statement);
+      guardTenantOfLinkedParents(statement);
     }
   }
 
@@ -155,6 +160,65 @@ public class V6_20261116170000000__Guard_roles_and_role_links extends BaseJavaMi
         CREATE TRIGGER groups_roles_guard_same_tenant
         BEFORE INSERT OR UPDATE ON groups_roles
         FOR EACH ROW EXECUTE FUNCTION groups_roles_guard_same_tenant();
+        """);
+  }
+
+  private static void guardTenantOfLinkedParents(Statement statement) throws Exception {
+    statement.execute(
+        """
+        CREATE OR REPLACE FUNCTION roles_guard_linked_groups_tenant()
+        RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+          linked_group text;
+        BEGIN
+          SELECT g.group_id INTO linked_group
+            FROM groups_roles gr JOIN groups g ON g.group_id = gr.group_id
+           WHERE gr.role_id = NEW.role_id AND g.tenant_id IS DISTINCT FROM NEW.tenant_id
+           LIMIT 1;
+          IF FOUND THEN
+            RAISE EXCEPTION 'link of role % to group % refused: the role and the group are not of the same tenant',
+              NEW.role_id, linked_group USING ERRCODE = '23514';
+          END IF;
+          RETURN NEW;
+        END
+        $$;
+        """);
+    statement.execute("DROP TRIGGER IF EXISTS roles_guard_linked_groups_tenant ON roles;");
+    statement.execute(
+        """
+        CREATE TRIGGER roles_guard_linked_groups_tenant
+        BEFORE UPDATE OF tenant_id ON roles
+        FOR EACH ROW WHEN (OLD.tenant_id IS DISTINCT FROM NEW.tenant_id)
+        EXECUTE FUNCTION roles_guard_linked_groups_tenant();
+        """);
+    statement.execute(
+        """
+        CREATE OR REPLACE FUNCTION groups_guard_linked_roles_tenant()
+        RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+          linked_role text;
+        BEGIN
+          SELECT r.role_id INTO linked_role
+            FROM groups_roles gr JOIN roles r ON r.role_id = gr.role_id
+           WHERE gr.group_id = NEW.group_id AND r.tenant_id IS DISTINCT FROM NEW.tenant_id
+           LIMIT 1;
+          IF FOUND THEN
+            RAISE EXCEPTION 'link of role % to group % refused: the role and the group are not of the same tenant',
+              linked_role, NEW.group_id USING ERRCODE = '23514';
+          END IF;
+          RETURN NEW;
+        END
+        $$;
+        """);
+    statement.execute("DROP TRIGGER IF EXISTS groups_guard_linked_roles_tenant ON groups;");
+    statement.execute(
+        """
+        CREATE TRIGGER groups_guard_linked_roles_tenant
+        BEFORE UPDATE OF tenant_id ON groups
+        FOR EACH ROW WHEN (OLD.tenant_id IS DISTINCT FROM NEW.tenant_id)
+        EXECUTE FUNCTION groups_guard_linked_roles_tenant();
         """);
   }
 }

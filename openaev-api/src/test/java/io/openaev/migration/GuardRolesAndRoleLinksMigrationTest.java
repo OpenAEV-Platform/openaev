@@ -480,6 +480,149 @@ class GuardRolesAndRoleLinksMigrationTest extends IntegrationTest {
     }
   }
 
+  // -- THE TENANT OF A LINKED ROLE OR GROUP --
+
+  @Nested
+  @DisplayName("the tenant of a role or a group that has links")
+  class TenantOfLinkedParents {
+
+    @Test
+    @DisplayName("given_aLinkedTenantRole_should_refuseMovingItToAnotherTenant")
+    void given_aLinkedTenantRole_should_refuseMovingItToAnotherTenant() throws Exception {
+      // Arrange
+      String roleOfA = seedRole(tenantA);
+      link(null, roleOfA, groupA);
+
+      // Act + Assert
+      assertThatThrownBy(
+              () ->
+                  execute(
+                      null, "UPDATE roles SET tenant_id = ? WHERE role_id = ?", tenantB, roleOfA))
+          .hasMessageContaining(TENANT_REFUSAL);
+      assertThat(
+              count(
+                  "SELECT count(*) FROM roles WHERE role_id = ? AND tenant_id = ?",
+                  roleOfA,
+                  tenantA))
+          .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_aLinkedTenantRoleAndTheMarker_should_refuseMovingItToThePlatform")
+    void given_aLinkedTenantRoleAndTheMarker_should_refuseMovingItToThePlatform() throws Exception {
+      // Arrange
+      String roleOfA = seedRole(tenantA);
+      link(null, roleOfA, groupA);
+
+      // Act + Assert
+      assertThatThrownBy(
+              () ->
+                  execute(
+                      PLATFORM_WRITE,
+                      "UPDATE roles SET tenant_id = NULL WHERE role_id = ?",
+                      roleOfA))
+          .hasMessageContaining(TENANT_REFUSAL);
+    }
+
+    @Test
+    @DisplayName("given_aLinkedTenantGroup_should_refuseMovingItToThePlatform")
+    void given_aLinkedTenantGroup_should_refuseMovingItToThePlatform() throws Exception {
+      // Arrange
+      String roleOfA = seedRole(tenantA);
+      link(null, roleOfA, groupA);
+
+      // Act + Assert
+      assertThatThrownBy(
+              () -> execute(null, "UPDATE groups SET tenant_id = NULL WHERE group_id = ?", groupA))
+          .hasMessageContaining(TENANT_REFUSAL);
+      assertThat(
+              count(
+                  "SELECT count(*) FROM groups WHERE group_id = ? AND tenant_id = ?",
+                  groupA,
+                  tenantA))
+          .isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_aLinkedTenantGroup_should_refuseMovingItToAnotherTenant")
+    void given_aLinkedTenantGroup_should_refuseMovingItToAnotherTenant() throws Exception {
+      // Arrange
+      String roleOfA = seedRole(tenantA);
+      link(null, roleOfA, groupA);
+
+      // Act + Assert
+      assertThatThrownBy(
+              () ->
+                  execute(
+                      null, "UPDATE groups SET tenant_id = ? WHERE group_id = ?", tenantB, groupA))
+          .hasMessageContaining(TENANT_REFUSAL);
+    }
+
+    @Test
+    @DisplayName("given_aLinkedPlatformGroup_should_refuseMovingItToATenant")
+    void given_aLinkedPlatformGroup_should_refuseMovingItToATenant() throws Exception {
+      // Arrange
+      String platformRole = seedRole(null);
+      link(PLATFORM_WRITE, platformRole, platformGroup);
+
+      // Act + Assert
+      assertThatThrownBy(
+              () ->
+                  execute(
+                      null,
+                      "UPDATE groups SET tenant_id = ? WHERE group_id = ?",
+                      tenantA,
+                      platformGroup))
+          .hasMessageContaining(TENANT_REFUSAL);
+    }
+
+    @Test
+    @DisplayName("given_aRoleAndAGroupWithNoLink_should_acceptMovingThemToAnotherTenant")
+    void given_aRoleAndAGroupWithNoLink_should_acceptMovingThemToAnotherTenant() throws Exception {
+      // Arrange
+      String roleOfA = seedRole(tenantA);
+
+      // Act
+      int movedRole =
+          execute(null, "UPDATE roles SET tenant_id = ? WHERE role_id = ?", tenantB, roleOfA);
+      int movedGroup =
+          execute(null, "UPDATE groups SET tenant_id = ? WHERE group_id = ?", tenantB, groupA);
+
+      // Assert
+      assertThat(movedRole).isEqualTo(1);
+      assertThat(movedGroup).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_aLinkedGroup_should_acceptAWriteThatLeavesItsTenantAsItIs")
+    void given_aLinkedGroup_should_acceptAWriteThatLeavesItsTenantAsItIs() throws Exception {
+      // Arrange
+      String roleOfA = seedRole(tenantA);
+      link(null, roleOfA, groupA);
+
+      // Act
+      int renamed =
+          execute(null, "UPDATE groups SET group_name = 'renamed' WHERE group_id = ?", groupA);
+
+      // Assert
+      assertThat(renamed).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("given_replicaSessionRole_should_letASeedMoveALinkedGroup")
+    void given_replicaSessionRole_should_letASeedMoveALinkedGroup() throws Exception {
+      // Arrange
+      String roleOfA = seedRole(tenantA);
+      link(null, roleOfA, groupA);
+
+      // Act
+      int moved = execute(REPLICA, "UPDATE groups SET tenant_id = NULL WHERE group_id = ?", groupA);
+
+      // Assert
+      assertThat(moved).isEqualTo(1);
+    }
+  }
+
   // -- APPLICATION WRITES --
 
   @Nested
