@@ -27,6 +27,7 @@ import io.openaev.rest.user.form.me.UpdateMePasswordInput;
 import io.openaev.rest.user.form.me.UpdateProfileInput;
 import io.openaev.rest.user.form.user.RenewTokenInput;
 import io.openaev.rest.user.form.user.UpdateUserInfoInput;
+import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.service.tenants.TenantService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,16 +56,18 @@ public class MeApi extends RestBehavior {
   private final TokenRepository tokenRepository;
   private final UserRepository userRepository;
   private final UserService userService;
+  private final PermissionService permissionService;
   private final TenantService tenantService;
 
   @GetMapping({ME_URI, TENANT_ME_URI})
   @Transactional
   @AccessControl(skipRBAC = true)
   public User me(TxCtx ctx) {
-    return hydrateUserForResponse(
+    User user =
         userRepository
             .findById(currentUser().getId())
-            .orElseThrow(() -> new ElementNotFoundException("Current user not found")));
+            .orElseThrow(() -> new ElementNotFoundException("Current user not found"));
+    return hydrateUserForResponse(permissionService.withRolesInAmbientTenant(user, ctx));
   }
 
   // The tenant variant scopes the organization: a user holds one organization per tenant.

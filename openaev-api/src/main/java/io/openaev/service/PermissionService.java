@@ -258,16 +258,36 @@ public class PermissionService {
    * @param ctx the request scope
    */
   public User callerInAmbientTenant(@NotNull final User caller, final TxCtx ctx) {
-    String ambientTenant = caller.scopedTenantId();
-    boolean ambientRolesRead =
-        !(ctx instanceof TxCtx.Restricted restricted)
-            || restricted.tenantIds().contains(ambientTenant);
-    if (caller.isAdmin()
-        || ambientRolesRead
-        || !TransactionSynchronizationManager.isActualTransactionActive()) {
+    if (!ambientRolesToLoad(caller, ctx)) {
       return caller;
     }
     return callerRightsInTenant.loadInAmbientTenant(caller);
+  }
+
+  /**
+   * The user, as the request loaded it, with the roles of its groups of the ambient tenant read
+   * again when the request's scope does not hold that tenant (see {@link #callerInAmbientTenant}).
+   * For a response that describes the user in the ambient tenant: the capabilities and flags it
+   * serializes come from those roles. The user returned is the one given, in the request's
+   * persistence context, so what the response serializes of its other associations is unchanged.
+   *
+   * @param user the user, as the request loaded it
+   * @param ctx the request scope
+   */
+  public User withRolesInAmbientTenant(@NotNull final User user, final TxCtx ctx) {
+    if (ambientRolesToLoad(user, ctx)) {
+      callerRightsInTenant.loadGroupRolesInAmbientTenant(user);
+    }
+    return user;
+  }
+
+  private boolean ambientRolesToLoad(User user, TxCtx ctx) {
+    boolean ambientRolesRead =
+        !(ctx instanceof TxCtx.Restricted restricted)
+            || restricted.tenantIds().contains(user.scopedTenantId());
+    return !user.isAdmin()
+        && !ambientRolesRead
+        && TransactionSynchronizationManager.isActualTransactionActive();
   }
 
   /**
