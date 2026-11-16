@@ -31,6 +31,7 @@ import io.openaev.service.scenario.ScenarioService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.ScenarioFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.DefaultTenantScopeTestListener;
 import io.openaev.utilstest.WithoutTenantScope;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -1001,10 +1002,20 @@ class AutonomousRunHttpIsolationTest extends IntegrationTest {
           .executeUpdate();
     }
 
+    // Seeds the scenario the way a caller of its tenant creates it: in that tenant's scope, and
+    // written before the request, so the rows of the seed are never written under the scope of the
+    // request that follows. The class runs without a scope: the scope is cleared afterwards.
     private String seedChainingScenario(String tenantId) throws Exception {
-      Scenario scenario = ScenarioFixture.getScenario();
-      scenario.setTenant(new Tenant(tenantId));
-      return scenarioService.createScenarioChaining(scenario).getId();
+      DefaultTenantScopeTestListener.setAmbientScope(entityManager, tenantId);
+      try {
+        Scenario scenario = ScenarioFixture.getScenario();
+        scenario.setTenant(new Tenant(tenantId));
+        String scenarioId = scenarioService.createScenarioChaining(scenario).getId();
+        entityManager.flush();
+        return scenarioId;
+      } finally {
+        DefaultTenantScopeTestListener.setAmbientScope(entityManager, "");
+      }
     }
 
     private MockHttpServletRequestBuilder createFromScenarioRequest(
