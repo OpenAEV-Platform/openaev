@@ -1066,7 +1066,7 @@ public class V1_DataImporter implements Importer {
             .filter(baseIds::containsKey)
             .map(tid -> baseIds.get(tid).getId())
             .toList();
-    document.setTags(iterableToSet(tagRepository.findAllById(tagIds)));
+    document.setTags(iterableToSet(tagRepository.findAllByIdInTenant(tagIds, writeTenant)));
     document.setType(contentType);
     Document savedDocument = this.documentRepository.save(document);
     baseIds.put(nodeDoc.get("document_id").textValue(), savedDocument);

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
@@ -46,6 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Each test stays on a single tenant path: the per-request scope is set once and the aspect
  * refuses to redefine it within one transaction.
  */
+@CoversTenantIsolation({"attackpath_execution", "attackpath_finding"})
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("attack path POC read isolation through the real HTTP endpoints")

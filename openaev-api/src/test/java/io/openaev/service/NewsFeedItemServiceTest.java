@@ -21,6 +21,7 @@ import io.openaev.database.repository.NewsFeedItemRepository;
 import io.openaev.rest.settings.PreviewFeature;
 import io.openaev.utils.NewsFeedUtils;
 import io.openaev.utils.ReferenceResolver;
+import io.openaev.utils.fixtures.NewsFeedItemFixture;
 import io.openaev.xtmhub.ProvisionedNewsFeedItem;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -286,6 +287,40 @@ class NewsFeedItemServiceTest {
     // Assert
     verifyNoInteractions(userService);
     verify(newsFeedItemRepository, never()).saveAllAndFlush(anyCollection());
+  }
+
+  @Test
+  @DisplayName("Given the current user, should count only their unread items")
+  void given_currentUser_should_countTheirUnreadItems() {
+    // Arrange
+    User me = new User();
+    me.setId("me");
+    when(userService.currentUser()).thenReturn(me);
+    when(newsFeedItemRepository.countByUserIdAndReadFalse("me")).thenReturn(3L);
+
+    // Act & Assert
+    assertThat(service.countMyUnreadItems()).isEqualTo(3L);
+  }
+
+  @Test
+  @DisplayName("Given unread items of the current user, should mark them all as read")
+  void given_unreadItems_should_markThemRead() {
+    // Arrange
+    User me = new User();
+    me.setId("me");
+    when(userService.currentUser()).thenReturn(me);
+    List<NewsFeedItem> unread =
+        List.of(
+            NewsFeedItemFixture.createNewsFeedItem(me, "hub-1"),
+            NewsFeedItemFixture.createNewsFeedItem(me, "hub-2"));
+    when(newsFeedItemRepository.findAllByUserIdAndReadFalse("me")).thenReturn(unread);
+
+    // Act
+    service.markMyItemsRead();
+
+    // Assert
+    assertThat(unread).allMatch(NewsFeedItem::isRead);
+    verify(newsFeedItemRepository).saveAll(unread);
   }
 
   @Test

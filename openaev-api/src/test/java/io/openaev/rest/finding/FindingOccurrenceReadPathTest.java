@@ -165,6 +165,7 @@ class FindingOccurrenceReadPathTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should come back once when filtered on its simulation")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_twoOccurrencesInTheFilteredSimulation_should_comeBackOnce() throws Exception {
       // Arrange
       SearchPaginationInput input =
@@ -179,6 +180,7 @@ class FindingOccurrenceReadPathTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should come back once when its two fields match the text search")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_twoFieldsMatchingTheTextSearch_should_comeBackOnce() throws Exception {
       // Arrange: both fields contain "_field"
       SearchPaginationInput input =
@@ -194,6 +196,7 @@ class FindingOccurrenceReadPathTest extends IntegrationTest {
 
     @Test
     @DisplayName("Should be found by the title of the inject of its second occurrence")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void given_textSearchOnSecondInjectTitle_should_findTheFinding() throws Exception {
       // Arrange: only the second occurrence carries this title, not the legacy inject
       String title = "Second inject " + UUID.randomUUID();
@@ -233,6 +236,7 @@ class FindingOccurrenceReadPathTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Should be found by the name of the simulation of an occurrence")
     void given_textSearchOnSimulationName_should_findTheFinding() throws Exception {
       // Act & Assert
@@ -242,6 +246,7 @@ class FindingOccurrenceReadPathTest extends IntegrationTest {
     }
 
     @Test
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @DisplayName("Should be found by the name of the scenario of an occurrence")
     void given_textSearchOnScenarioName_should_findTheFinding() throws Exception {
       // Act & Assert

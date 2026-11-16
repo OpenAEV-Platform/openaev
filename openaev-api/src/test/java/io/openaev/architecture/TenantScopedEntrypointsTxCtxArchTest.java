@@ -277,7 +277,6 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.rest.asset.endpoint.EndpointApi#endpoints",
           "io.openaev.rest.asset.endpoint.EndpointApi#endpoint",
           "io.openaev.rest.asset.endpoint.EndpointApi#assets",
-          "io.openaev.rest.asset.endpoint.EndpointApi#targetEndpoints",
           "io.openaev.rest.asset.endpoint.EndpointApi#findEndpoints",
           "io.openaev.rest.asset.endpoint.EndpointApi#updateEndpoint",
           "io.openaev.rest.asset.endpoint.EndpointApi#deleteEndpoint",
@@ -344,6 +343,10 @@ class TenantScopedEntrypointsTxCtxArchTest {
           "io.openaev.api.xtmhub.XtmHubApi#refreshConnectivity",
           "io.openaev.api.xtmhub.XtmHubApi#autoRegister",
           "io.openaev.api.xtmhub.XtmHubApi#contactUs",
+          // news feed: the unread count and read-all read the registration of the tenants in
+          // scope to tell whether the news feed is served
+          "io.openaev.api.news_feed.NewsFeedItemApi#countMyUnreadNewsFeedItems",
+          "io.openaev.api.news_feed.NewsFeedItemApi#markAllMyNewsFeedItemsRead",
           // threat arsenal: create/update/duplicate go through PayloadCreationService/
           // PayloadUpdateService into the same synchroniseInjectorContractBasedOnPayload path
           "io.openaev.api.threat_arsenal.ThreatArsenalApi#createAction",

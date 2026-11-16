@@ -55,6 +55,8 @@ of the intended finding:
   cross-tenant is not: it widens nothing (see `multi-tenancy.instructions.md`
   > Background Threads Carry Both Scopes), and `TenantFilterDisableArchTest`
   rejects any new call. Ask for the primitive with an explicit scope instead.
+  A new `TenantContext` or `AmbientTenantBridge` call, tenant listener or `#tenantContext` query fails
+  `V1TenantConstructArchTest`; a line added to `v1-tenant-construct-baseline.txt` is flagged 🟠 HIGH.
 - **Step 3 (native queries)**: besides the v1/v2 shape checks, look at what the
   join is *keyed on*. An id that repeats across tenants by design, which is any
   key whose uniqueness is composite with `tenant_id`, is not a tenant boundary:

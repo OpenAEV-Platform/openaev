@@ -73,6 +73,11 @@ public class NewsFeedItemService {
         NewsFeedItem.class);
   }
 
+  /** The number of news feed items of the current user that are not read yet. */
+  public long countMyUnreadItems() {
+    return newsFeedItemRepository.countByUserIdAndReadFalse(userService.currentUser().getId());
+  }
+
   /** The news feed types the current user is subscribed to. */
   public List<NewsFeedType> getMySubscribedTypes() {
     return NewsFeedUtils.subscribedTypes(
@@ -92,6 +97,22 @@ public class NewsFeedItemService {
     userService.updateNewsFeedUnsubscribedTypes(
         userService.currentUser().getId(), NewsFeedUtils.toUnsubscribedTypes(subscribedTypes));
     return getMySubscribedTypes();
+  }
+
+  /**
+   * Marks all the unread news feed items of the current user as read, and only theirs. Idempotent.
+   *
+   * <p>The items are updated through the session rather than by a bulk update: a bulk update would
+   * skip the listener chain, so the user's other open tabs would not be told over SSE that their
+   * items changed. Nothing is bounded: the unread items are loaded at once, and the events they
+   * publish all fire when the request transaction commits. This is accepted because a user only
+   * holds the items the Hub published since they joined, and this runs once per visit.
+   */
+  public void markMyItemsRead() {
+    List<NewsFeedItem> unreadItems =
+        newsFeedItemRepository.findAllByUserIdAndReadFalse(userService.currentUser().getId());
+    unreadItems.forEach(item -> item.setRead(true));
+    newsFeedItemRepository.saveAll(unreadItems);
   }
 
   // -- CREATE --

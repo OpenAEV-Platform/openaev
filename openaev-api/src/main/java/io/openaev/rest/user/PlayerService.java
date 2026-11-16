@@ -5,7 +5,6 @@ import static io.openaev.database.specification.UserSpecification.byId;
 import static io.openaev.database.specification.UserSpecification.inTenant;
 import static io.openaev.database.specification.UserSpecification.organizationsInTenant;
 import static io.openaev.helper.DatabaseHelper.resolveTenantOrganization;
-import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
 import static io.openaev.rest.user.PlayerQueryHelper.execution;
 import static io.openaev.rest.user.PlayerQueryHelper.select;
@@ -244,7 +243,7 @@ public class PlayerService {
           .findAllByIdInTenant(input.getTagIds(), tenantId)
           .forEach(tag -> userRepository.addTag(existingUser.getId(), tag.getId()));
       teamRepository
-          .findAllById(input.getTeamIds())
+          .findAllByIdInTenant(input.getTeamIds(), tenantId)
           .forEach(team -> userRepository.addTeam(existingUser.getId(), team.getId()));
       entityManager.refresh(existingUser);
       existingUser.setUpdateAttributes(input);
@@ -262,7 +261,7 @@ public class PlayerService {
       newUser.setUpdateAttributes(input);
       newUser.setTags(
           iterableToSet(tagRepository.findAllByIdInTenant(input.getTagIds(), tenantId)));
-      newUser.setTeams(fromIterable(teamRepository.findAllById(input.getTeamIds())));
+      newUser.setTeams(teamRepository.findAllByIdInTenant(input.getTeamIds(), tenantId));
       User savedUser = userRepository.save(newUser);
       assignOrganization(savedUser, input.getOrganizationId(), tenantId);
       userService.createUserToken(savedUser);

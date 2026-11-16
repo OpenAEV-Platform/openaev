@@ -121,7 +121,7 @@ public class AttackPatternApi extends RestBehavior {
     attackPattern.setUpdateAttributes(input);
     attackPattern.setTenant(new Tenant(tenantId));
     attackPattern.setKillChainPhases(
-        fromIterable(killChainPhaseRepository.findAllById(input.getKillChainPhasesIds())));
+        killChainPhaseRepository.findAllByIdInTenant(input.getKillChainPhasesIds(), tenantId));
     attackPattern.setParent(
         updateRelation(input.getParentId(), attackPattern.getParent(), attackPatternRepository));
     return attackPatternRepository.save(attackPattern);
