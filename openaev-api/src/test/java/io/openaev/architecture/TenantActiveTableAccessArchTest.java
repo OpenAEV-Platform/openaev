@@ -199,6 +199,7 @@ import io.openaev.rest.executor.ExecutorApi;
 import io.openaev.rest.exercise.ExerciseApi;
 import io.openaev.rest.exercise.ExerciseDashboardApi;
 import io.openaev.rest.exercise.ExerciseImportApi;
+import io.openaev.rest.exercise.ExerciseResponseHydrator;
 import io.openaev.rest.exercise.exports.ExerciseFileExport;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.finding.FindingDistinctSearchService;
@@ -240,6 +241,7 @@ import io.openaev.rest.reporting.service.ReportingScheduleService;
 import io.openaev.rest.scenario.ScenarioApi;
 import io.openaev.rest.scenario.ScenarioDashboardApi;
 import io.openaev.rest.scenario.ScenarioImportApi;
+import io.openaev.rest.scenario.ScenarioResponseHydrator;
 import io.openaev.rest.settings.TenantSettingsApi;
 import io.openaev.rest.team.TeamApi;
 import io.openaev.rest.user.MeApi;
@@ -870,7 +872,10 @@ class TenantActiveTableAccessArchTest {
               // step handlers open:
               InjectExecutionStep.class,
               // Exporter mapping the exercise documents inside the export endpoint's transaction:
-              ExerciseFileExport.class)
+              ExerciseFileExport.class,
+              // Response hydration, called by the TxCtx-carrying simulation handlers before the
+              // response is serialized open-in-view:
+              ExerciseResponseHydrator.class)
           .should()
           .callMethod(Exercise.class, "getDocuments")
           .because(
@@ -901,7 +906,10 @@ class TenantActiveTableAccessArchTest {
               ScenarioInjectService.class,
               // Chaining engine step data, built under the per-tenant transaction the queue and
               // step handlers open:
-              InjectExecutionStep.class)
+              InjectExecutionStep.class,
+              // Response hydration, called by the TxCtx-carrying scenario handlers before the
+              // response is serialized open-in-view:
+              ScenarioResponseHydrator.class)
           .should()
           .callMethod(Scenario.class, "getDocuments")
           .because(

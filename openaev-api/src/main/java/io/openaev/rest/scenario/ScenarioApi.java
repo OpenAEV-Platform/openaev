@@ -6,6 +6,7 @@ import static io.openaev.database.specification.ScenarioSpecification.byName;
 import static io.openaev.healthcheck.utils.HealthCheckUtils.READINESS_CHECK_TIMEOUT_SECONDS;
 import static io.openaev.helper.StreamHelper.fromIterable;
 import static io.openaev.helper.StreamHelper.iterableToSet;
+import static io.openaev.rest.scenario.ScenarioResponseHydrator.hydrateForResponse;
 import static java.time.Instant.now;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.springframework.util.StringUtils.hasText;
@@ -42,7 +43,6 @@ import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.helper.RestBehavior;
-import io.openaev.rest.kill_chain_phase.KillChainPhaseInitializer;
 import io.openaev.rest.scenario.form.*;
 import io.openaev.rest.scenario.response.ScenarioOutput;
 import io.openaev.rest.team.output.TeamOutput;
@@ -67,7 +67,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.hibernate.Hibernate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -890,18 +889,4 @@ public class ScenarioApi extends RestBehavior {
   }
 
   // end region
-
-  /**
-   * Hydrates, inside the scoped transaction, the lazy associations the response serializes, or
-   * open-in-view rendering serializes empty lists. {@code scenario_kill_chain_phases} walks the
-   * scenario's injects down to the LAZY attack-pattern phases, see {@link
-   * KillChainPhaseInitializer}. {@code scenario_teams} is a lazy collection on a tenant-active
-   * table: loaded after the controller returns, the tenant scope is already gone and the
-   * fail-closed read returns nothing.
-   */
-  private static Scenario hydrateForResponse(Scenario scenario) {
-    KillChainPhaseInitializer.initializeFromInjects(scenario.getInjects());
-    Hibernate.initialize(scenario.getTeams());
-    return scenario;
-  }
 }
