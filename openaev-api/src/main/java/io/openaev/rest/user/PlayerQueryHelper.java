@@ -2,7 +2,6 @@ package io.openaev.rest.user;
 
 import static io.openaev.utils.JpaUtils.createJoinArrayAggOnId;
 
-import io.openaev.context.TenantContext;
 import io.openaev.database.model.Organization;
 import io.openaev.database.model.User;
 import io.openaev.rest.user.form.player.PlayerOutput;
@@ -10,6 +9,7 @@ import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,14 +19,22 @@ public class PlayerQueryHelper {
 
   // -- SELECT --
 
-  public static void select(CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<User> userRoot) {
+  public static void select(
+      CriteriaBuilder cb, CriteriaQuery<Tuple> cq, Root<User> userRoot, Collection<String> scope) {
     // Array aggregations
     Expression<String[]> tagIdsExpression = createJoinArrayAggOnId(cb, userRoot, "tags");
-    // A user holds one organization per tenant: restricted to the current tenant, or a user of
-    // several tenants would be listed once per organization.
-    Join<User, Organization> organizationJoin = userRoot.join("organizations", JoinType.LEFT);
-    organizationJoin.on(
-        cb.equal(organizationJoin.get("tenant").get("id"), TenantContext.getCurrentTenant()));
+    // The user's organization in one of the caller's tenants, never the ambient default tenant. The
+    // smallest id is chosen so a user holding an organization in several in-scope tenants resolves
+    // to one deterministic value and is not listed more than once.
+    Subquery<String> organization = cq.subquery(String.class);
+    Root<User> organizationUser = organization.from(User.class);
+    Join<User, Organization> organizationJoin =
+        organizationUser.join("organizations", JoinType.INNER);
+    organization
+        .select(cb.least(organizationJoin.<String>get("id")))
+        .where(
+            cb.equal(organizationUser.get("id"), userRoot.get("id")),
+            organizationJoin.get("tenant").get("id").in(scope));
 
     // Multiselect
     cq.multiselect(
@@ -39,12 +47,12 @@ public class PlayerQueryHelper {
             userRoot.get("phone2").alias("user_phone2"),
             userRoot.get("pgpKey").alias("user_pgp_key"),
             userRoot.get("admin").alias("user_admin"),
-            organizationJoin.get("id").alias("user_organization"),
+            organization.alias("user_organization"),
             tagIdsExpression.alias("user_tags"))
         .distinct(true);
 
     // Group by
-    cq.groupBy(userRoot.get("id"), organizationJoin.get("id"));
+    cq.groupBy(userRoot.get("id"));
   }
 
   // -- EXECUTION --

@@ -143,8 +143,11 @@ describe('useQueryableWithLocalStorage', () => {
         }));
       });
 
-      // Assert — stored under a key prefixed with the tenant id, not the bare key
-      expect(localStorage.getItem(`tenant-a:${STORAGE_KEY}`)).not.toBeNull();
+      // Assert — stored under a key prefixed with the tenant id (then suffixed
+      // with the hash of the list defaults), not the bare key
+      const storedKeys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i) ?? '');
+      expect(storedKeys.some(key => key.startsWith(`tenant-a:${STORAGE_KEY}:`))).toBe(true);
+      expect(storedKeys.some(key => key.startsWith(`tenant-b:${STORAGE_KEY}`))).toBe(false);
       expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     });
   });

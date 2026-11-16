@@ -26,6 +26,7 @@ import io.openaev.integration.Manager;
 import io.openaev.integration.ManagerFactory;
 import io.openaev.rest.exercise.service.ExerciseService;
 import io.openaev.rest.inject.service.InjectStatusService;
+import io.openaev.scheduler.TenantScopedJobRunner;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
 import io.openaev.utilstest.RowTenantScope;
@@ -62,6 +63,7 @@ class InjectsExecutionJobTest extends IntegrationTest {
   @Autowired private ExerciseService exerciseService;
   @Autowired private InjectRepository injectRepository;
   @Autowired private InjectHelper injectHelper;
+  @Autowired private TenantScopedJobRunner tenantScopedJobRunner;
 
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private ScenarioComposer scenarioComposer;
@@ -586,10 +588,8 @@ class InjectsExecutionJobTest extends IntegrationTest {
     }
 
     private ExecutableInject getExecutableInject(String injectId) {
-      return injectHelper.getInjectsToRun().stream()
-          .filter(execInject -> injectId.equals(execInject.getInjection().getInject().getId()))
-          .findFirst()
-          .orElseThrow();
+      return tenantScopedJobRunner.supplyInTenant(
+          Tenant.DEFAULT_TENANT_UUID, () -> injectHelper.executableInject(injectId).orElseThrow());
     }
   }
 }

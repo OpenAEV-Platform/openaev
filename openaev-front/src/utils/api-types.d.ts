@@ -1369,6 +1369,10 @@ export interface AttackPatternCoverageOutput {
   detection_total?: number;
   kill_chain_phases?: KillChainPhaseCoverage[];
   /** @format int64 */
+  logging_success?: number;
+  /** @format int64 */
+  logging_total?: number;
+  /** @format int64 */
   prevention_success?: number;
   /** @format int64 */
   prevention_total?: number;
@@ -2571,13 +2575,14 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
-export interface CatalogPayloadInstallAllOutput {
-  failed_payload_external_ids?: string[];
-  installed_payload_ids?: string[];
+export interface CatalogInstallAllOutput {
+  failed_external_ids?: string[];
+  installed_ids?: string[];
 }
 
-export interface CatalogPayloadInstallOutput {
-  installed_payload_ids?: string[];
+export interface CatalogInstallOutput {
+  /** @minLength 1 */
+  installed_id: string;
 }
 
 export interface CatalogPayloadOutput {
@@ -2586,6 +2591,10 @@ export interface CatalogPayloadOutput {
   catalog_payload_name?: string;
   /** @minLength 1 */
   catalog_payload_version: string;
+}
+
+export interface CatalogScenarioInstallInput {
+  scenario_type: string;
 }
 
 export interface CatalogScenarioOutput {
@@ -2598,10 +2607,12 @@ export interface CatalogScenarioOutput {
 
 export interface CatalogSettingsInput {
   payload_auto_install: boolean;
+  scenario_auto_install: boolean;
 }
 
 export interface CatalogSettingsOutput {
   payload_auto_install: boolean;
+  scenario_auto_install: boolean;
 }
 
 export interface CatalogSyncOutput {
@@ -2614,6 +2625,11 @@ export interface CatalogSyncOutput {
   /** @format int32 */
   unchanged?: number;
 }
+
+export type ChainedScenarioInstallInput = CatalogScenarioInstallInput & {
+  /** Input for creating or updating a workflow configuration. */
+  workflow_configuration?: WorkflowConfigurationInput;
+};
 
 export interface Challenge {
   challenge_category?: string;
@@ -6522,7 +6538,8 @@ export interface HealthCheck {
     | "MISSING_TECHNICAL_TARGETS"
     | "MISSING_AUDIENCE_TARGETS"
     | "INEFFECTIVE_TECHNICAL_TARGETS"
-    | "INEFFECTIVE_AUDIENCE_TARGETS";
+    | "INEFFECTIVE_AUDIENCE_TARGETS"
+    | "REVOKED";
   /** Define if it's an error or a warning */
   status: "ERROR" | "WARNING";
   /** Type of the check, could be a service, an attribute, etc */
@@ -6544,6 +6561,7 @@ export interface HealthCheck {
     | "MESSAGE"
     | "SCOPE_DEFINITION"
     | "CREDENTIAL_REFERENCE"
+    | "PAYLOAD"
     | "UNKNOWN";
 }
 
@@ -10063,6 +10081,11 @@ export interface PayloadPrerequisite {
   get_command: string;
 }
 
+export interface PayloadRevocationInput {
+  /** @minLength 1 */
+  payload_revocation_reason: string;
+}
+
 export interface PayloadSimple {
   payload_collector_type?: string;
   payload_id?: string;
@@ -11225,6 +11248,7 @@ export interface RoleInput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -11311,6 +11335,7 @@ export interface RoleOutput {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"
@@ -13467,6 +13492,13 @@ export interface ThreatArsenalFacetCountsOutput {
   statuses?: Record<string, number>;
 }
 
+export type TimeBasedScenarioInstallInput = CatalogScenarioInstallInput & {
+  asset_group_ids?: string[];
+  asset_ids?: string[];
+  manual_targets?: string[];
+  team_ids?: string[];
+};
+
 export interface Token {
   listened?: boolean;
   /** @format date-time */
@@ -13610,6 +13642,7 @@ export interface User {
     | "ACCESS_THREAT_ARSENALS"
     | "MANAGE_THREAT_ARSENALS"
     | "DELETE_THREAT_ARSENALS"
+    | "REVOKE_THREAT_ARSENALS"
     | "ACCESS_CREDENTIALS"
     | "MANAGE_CREDENTIALS"
     | "DELETE_CREDENTIALS"

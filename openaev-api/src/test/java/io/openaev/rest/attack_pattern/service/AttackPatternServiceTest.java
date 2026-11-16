@@ -15,16 +15,22 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.openaev.api.attack_pattern.dto.AttackPatternCoverageOutput;
 import io.openaev.config.TenantWriteScopeResolver;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.AttackPattern;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AttackPatternRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.ee.EnterpriseEditionService;
+import io.openaev.engine.facade.EngineService;
+import io.openaev.engine.query.EsSeries;
+import io.openaev.engine.query.EsSeriesData;
 import io.openaev.rest.attack_pattern.form.AttackPatternCreateInput;
 import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.telemetry.metric_collectors.AiMetricCollector;
 import io.openaev.utils.SecurityCoverageUtils;
+import io.openaev.utils.mapper.RawUserAuthMapper;
 import io.openaev.xtmone.XtmOneClient;
 import io.openaev.xtmone.XtmOneConfig;
 import io.openaev.xtmone.XtmOneService;
@@ -57,6 +63,9 @@ class AttackPatternServiceTest {
   @Mock private XtmOneClient xtmOneClient;
   @Mock private XtmOneService xtmOneService;
   @Mock private AiMetricCollector aiMetricCollector;
+  @Mock private UserRepository userRepository;
+  @Mock private EngineService engineService;
+  @Mock private RawUserAuthMapper rawUserAuthMapper;
 
   @InjectMocks private AttackPatternService attackPatternService;
 
@@ -350,5 +359,36 @@ class AttackPatternServiceTest {
     assertArrayEquals(new String[] {"User"}, captured.getPermissionsRequired());
     assertEquals(Tenant.DEFAULT_TENANT_UUID, captured.getTenant().getId());
     assertSame(saved, result);
+  }
+
+  @Test
+  @DisplayName("given_loggingSeries_should_returnLoggingCoverage")
+  void given_loggingSeries_should_returnLoggingCoverage() {
+    // Arrange
+    AttackPattern attackPattern = new AttackPattern();
+    attackPattern.setId("attack-pattern-id");
+    attackPattern.setExternalId("T1059");
+    when(engineService.multiTermHistogram(any(), any(), any()))
+        .thenReturn(
+            List.of(
+                new EsSeries(
+                    AttackPatternService.CoverageSeries.LOGGING_SUCCESS.name(),
+                    List.of(new EsSeriesData("attack-pattern-id", "T1059", 3))),
+                new EsSeries(
+                    AttackPatternService.CoverageSeries.LOGGING_FAILED.name(),
+                    List.of(new EsSeriesData("attack-pattern-id", "T1059", 1)))));
+    when(attackPatternRepository.findAllByIdInWithKillChainPhases(Set.of("attack-pattern-id")))
+        .thenReturn(List.of(attackPattern));
+
+    // Act
+    List<AttackPatternCoverageOutput> coverage =
+        attackPatternService.getGlobalCoverage(TxCtx.allTenants(), null);
+
+    // Assert
+    assertEquals(
+        List.of(
+            new AttackPatternCoverageOutput(
+                "attack-pattern-id", "T1059", null, List.of(), 0, 0, 0, 0, 3, 4)),
+        coverage);
   }
 }

@@ -162,11 +162,16 @@ public class ScopeService {
    * denylisted TEAM rules. Mirrors {@link #getValidAssets(String)} for the audience axis.
    */
   public List<Team> getValidTeams(String workflowId) {
-    List<String> keptTeamIds =
-        resolveAllowedMinusDeniedIds(
-            workflowScopeRuleRepository.findAllByWorkflowId(workflowId),
-            ScopeRuleValueType.TEAM_ID);
-    return keptTeamIds.isEmpty() ? List.of() : teamRepository.findAllById(keptTeamIds);
+    List<WorkflowScopeRule> rules = workflowScopeRuleRepository.findAllByWorkflowId(workflowId);
+    List<String> keptTeamIds = resolveAllowedMinusDeniedIds(rules, ScopeRuleValueType.TEAM_ID);
+    if (keptTeamIds.isEmpty()) {
+      return List.of();
+    }
+    // A rule stores the team id its request names. Every rule carries the tenant of its workflow
+    // (WorkflowScopeRule#attributeTenantFromWorkflow), so a team of another tenant is an unknown
+    // id.
+    String workflowTenantId = rules.getFirst().getTenant().getId();
+    return teamRepository.findAllByIdInTenant(keptTeamIds, workflowTenantId);
   }
 
   /**

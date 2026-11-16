@@ -401,13 +401,16 @@ class ScopeServiceTest {
     Team kept = new Team();
     kept.setId("team-1");
 
-    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID))
-        .thenReturn(
-            List.of(
-                allowlistRule(ScopeRuleValueType.TEAM_ID, "team-1"),
-                allowlistRule(ScopeRuleValueType.TEAM_ID, "team-2"),
-                denylistRule(ScopeRuleValueType.TEAM_ID, "team-2")));
-    when(teamRepository.findAllById(List.of("team-1"))).thenReturn(List.of(kept));
+    List<WorkflowScopeRule> rules =
+        List.of(
+            allowlistRule(ScopeRuleValueType.TEAM_ID, "team-1"),
+            allowlistRule(ScopeRuleValueType.TEAM_ID, "team-2"),
+            denylistRule(ScopeRuleValueType.TEAM_ID, "team-2"));
+    // Every rule carries the tenant of its workflow.
+    rules.forEach(rule -> rule.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID)));
+    when(workflowScopeRuleRepository.findAllByWorkflowId(WORKFLOW_ID)).thenReturn(rules);
+    when(teamRepository.findAllByIdInTenant(List.of("team-1"), Tenant.DEFAULT_TENANT_UUID))
+        .thenReturn(List.of(kept));
 
     List<Team> result = scopeService.getValidTeams(WORKFLOW_ID);
 

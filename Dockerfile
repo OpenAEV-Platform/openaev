@@ -13,7 +13,7 @@ ADD --checksum=sha256:eae1d3aa50c48fb23b8cbdf4e369d0910dfc538566bfd09df89a774aa8
 
 FROM tini-${TARGETARCH} AS tini
 
-FROM node:24.22.2-alpine3.24 AS front-builder
+FROM node:24.22.3-alpine3.24 AS front-builder
 
 WORKDIR /opt/openaev-build/openaev-front
 COPY openaev-front/packages ./packages
@@ -82,10 +82,12 @@ EOF
 # A mirror outage that outlasts apt's own retries gets two more attempts, 60 s apart, on the
 # fallback mirror. --error-on=any: apt-get update otherwise exits 0 when every index fetch fails,
 # and the upgrade would then run on no package lists and upgrade nothing.
+# libatomic1: the Node runtime bundled with Playwright needs it to start.
 RUN set -eu; \
     for attempt in 1 2 3; do \
       DEBIAN_FRONTEND=noninteractive apt-get update -q --error-on=any \
         && DEBIAN_FRONTEND=noninteractive apt-get upgrade -qq -y \
+        && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y --no-install-recommends libatomic1 \
         && break; \
       if [ "$attempt" -eq 3 ]; then apt-fallback-mirror off; exit 1; fi; \
       echo "apt-get failed (attempt $attempt of 3), next attempt on the fallback mirror"; \

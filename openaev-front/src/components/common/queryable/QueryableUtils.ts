@@ -1,3 +1,4 @@
+import { v5 as uuidv5 } from 'uuid';
 import { z } from 'zod';
 
 import { type SearchPaginationInput } from '../../../utils/api-types';
@@ -11,6 +12,36 @@ export const buildSearchPagination = (searchPaginationInput: Partial<SearchPagin
     ...searchPaginationInput,
   });
 };
+
+// The list state a user can change (text search, size, sort, filters), as a
+// string: the page is left out (never persisted) and so are the generated
+// filter ids. No value is normalized here: two states are the same list state
+// only when they carry the same values.
+export const listStateFingerprint = (input: Partial<SearchPaginationInput>) => {
+  const state = buildSearchPagination(input);
+  return JSON.stringify({
+    textSearch: state.textSearch ?? '',
+    size: state.size,
+    sorts: state.sorts ?? [],
+    filterGroup: state.filterGroup
+      ? {
+          ...state.filterGroup,
+          filters: state.filterGroup.filters?.map(({ id: _id, ...rest }) => rest),
+        }
+      : null,
+  });
+};
+
+// Fixed namespace of the list-defaults keys (UUID v5): never change it, every
+// stored list state would be read under a new key.
+const LIST_DEFAULTS_NAMESPACE = '7f3c9a52-1d4e-4b8a-9c61-2e5f8d0b7a14';
+
+// Stable key (UUID v5 of the fingerprint) of a list's defaults. It is part of
+// the list's localStorage key, so a default changed in a later version gives
+// the list a new key: the change reaches every user (their saved preferences on
+// that list reset once) and the entries under the old key are simply no longer
+// read (#4181).
+export const listDefaultsHash = (defaults: Partial<SearchPaginationInput>) => uuidv5(listStateFingerprint(defaults), LIST_DEFAULTS_NAMESPACE);
 
 // Resolved empty page for fetchers that must short-circuit without calling the
 // API - typically when scoping a list on an empty id set, where an empty

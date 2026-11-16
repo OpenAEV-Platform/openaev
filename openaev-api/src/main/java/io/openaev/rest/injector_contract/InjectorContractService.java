@@ -575,14 +575,15 @@ public class InjectorContractService implements DependenciesManager {
     // Callers converting threat arsenal action inputs can carry null id collections
     // (the action DTO fields are nullable); treat an absent collection as "no associations"
     // instead of failing on new HashSet<>(null) / findAllById(null).
+    String tenantId = injectorContract.getTenant().getId();
     injectorContract.setAttackPatterns(
         attackPatternService.findAllByInternalIdsThrowIfMissing(
-            new HashSet<>(emptyIfNull(input.getAttackPatternsIds())),
-            injectorContract.getTenant().getId()));
+            new HashSet<>(emptyIfNull(input.getAttackPatternsIds())), tenantId));
     injectorContract.setTags(
-        iterableToSet(tagRepository.findAllById(emptyIfNull(input.getTagIds()))));
+        iterableToSet(tagRepository.findAllByIdInTenant(emptyIfNull(input.getTagIds()), tenantId)));
     injectorContract.setDomains(
-        iterableToSet(domainService.findAllById(emptyIfNull(input.getDomainIds()))));
+        iterableToSet(
+            domainService.findAllByIdInTenant(emptyIfNull(input.getDomainIds()), tenantId)));
     injectorContract.setUpdatedAt(Instant.now());
     return injectorContractRepository.save(injectorContract);
   }
