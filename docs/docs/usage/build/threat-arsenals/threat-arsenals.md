@@ -39,6 +39,19 @@ columns:
 | **Status**   | Whether the Action's version can be used: *Approved*, *Pending approval*, *Rejected*, *Superseded* or *Revoked*. See [Approval of payloads](#approval-of-payloads). |
 | **Updated**  | The date of the last modification.                                                                              |
 
+### Custom views
+
+*Active*, *Available* and *To review* (or *My changes*) are built-in tabs: they cannot be changed. On *Active*, change
+the filters and search as you need, then keep them as a **custom view** of your own:
+
+1. Filter the *Active* list.
+2. Open **Custom views** and select **New custom view**, then name it. The view keeps the filters and search on screen.
+
+A custom view opens in one click with its saved filters. Change them in the view: a banner offers to **Save changes**
+in the view, **Save as new view**, or **Discard** them. Each view's menu renames or deletes it; deleting a view does not
+change any Action. Up to three custom views show as tabs, the others are under *Custom views*, and **Customize** chooses
+and orders them. Only you see your custom views.
+
 ### Action tags
 
 Whether Filigran verified an Action is shown as a tag, not as a status: it never decides whether the Action can be used.
@@ -80,7 +93,7 @@ Users without *Approve content* do not see **Approve**, **Reject** or **Move to 
 
 ### Reviewing a version
 
-Approvers find what waits for them in the **To review** tab of the Threat Arsenal, next to *Active* and *Available*; its count is the number of versions waiting. Users who submit content without *Approve content* get a **My changes** tab instead, listing what they submitted until it is decided. Both tabs have the same side filters as the other tabs, plus *Actions and versions* (new actions or new versions of actions in use), *Source* (people or collectors) and, in *To review*, *Submitted by*. Filters can be saved as **custom views**: up to three show as tabs, the others are under *Custom views*, and **Customize** chooses and orders them.
+Approvers find what waits for them in the **To review** tab of the Threat Arsenal, next to *Active* and *Available*; its count is the number of versions waiting. Users who submit content without *Approve content* get a **My changes** tab instead, listing what they submitted until it is decided. Both tabs have the same side filters as the other tabs, plus *Actions and versions* (new actions or new versions of actions in use), *Source* (people or collectors) and, in *To review*, *Submitted by*. These two tabs are built in: their filters can be changed while you look, not saved.
 
 To approve or reject, click **Review** on the Action, or open it and go to its *Versions* tab. The version waiting for approval shows:
 

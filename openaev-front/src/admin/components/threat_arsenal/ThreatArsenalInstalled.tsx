@@ -13,6 +13,7 @@ import MarketplaceViewToggle from '../../../components/common/marketplace/Market
 import useMarketplaceView from '../../../components/common/marketplace/useMarketplaceView';
 import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
 import PaginationComponentV2 from '../../../components/common/queryable/pagination/PaginationComponentV2';
+import { clearQueryableStorage } from '../../../components/common/queryable/useQueryableWithLocalStorage';
 import { useFormatter } from '../../../components/i18n';
 import { useHelper } from '../../../store';
 import { type AttackPattern, type ThreatArsenalAction, type ThreatArsenalActionFullOutput, type ThreatArsenalActionIdOutput } from '../../../utils/api-types';
@@ -24,7 +25,9 @@ import { type ResolvedRunSelection, resolveRunSelection, runTestSearchInput } fr
 import ThreatArsenalRunBlockedDialog from './bulk/ThreatArsenalRunBlockedDialog';
 import ThreatArsenalRunTestDrawer from './bulk/ThreatArsenalRunTestDrawer';
 import ThreatArsenalRunVersionDialog from './bulk/ThreatArsenalRunVersionDialog';
+import { type CustomView, viewStorageKey } from './customViews';
 import ThreatArsenalCardGrid, { type ThreatArsenalItemsProps } from './ThreatArsenalCardGrid';
+import ThreatArsenalCustomViewControls from './ThreatArsenalCustomViewControls';
 import { ACTION_PARAM, toThreatArsenalAction } from './threatArsenalDeepLink';
 import ThreatArsenalEmptyState from './ThreatArsenalEmptyState';
 import ThreatArsenalHeaderActions from './ThreatArsenalHeaderActions';
@@ -37,9 +40,16 @@ import ThreatArsenalSelectionBar from './ThreatArsenalSelectionBar';
 import ThreatArsenalSidebar from './ThreatArsenalSidebar';
 import useInstalledActions, { INSTALLED_FILTER_NAMES } from './useInstalledActions';
 
-interface Props { tabs?: ReactNode }
+interface Props {
+  tabs?: ReactNode;
+  /**
+   * A custom view: the list opens with its saved filters, which can be changed and saved again. The
+   * parent mounts the list again when the view or its saved filters change.
+   */
+  view?: CustomView;
+}
 
-const ThreatArsenalInstalled = ({ tabs }: Props) => {
+const ThreatArsenalInstalled = ({ tabs, view }: Props) => {
   const { t, tPick } = useFormatter();
   const canDelete = useAbility().can(ACTIONS.DELETE, SUBJECTS.THREAT_ARSENALS);
   const [openedAction, setOpenedAction] = useState<ThreatArsenalAction | null>(null);
@@ -81,7 +91,28 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
   const runSearch = useMemo(runTestSearchInput, []);
   const [isBulkDeleteDialogOpened, setBulkDeleteDialogOpened] = useState<boolean>(false);
   const { viewMode, handleViewModeChange } = useMarketplaceView('threat-arsenal:view-mode-v2');
-  const installed = useInstalledActions();
+  // A custom view always opens with its saved filters: what was changed and not saved is dropped
+  // before its list reads them (Active keeps the filters of the last visit, as before).
+  const [viewFilters] = useState(() => {
+    if (!view) return undefined;
+    clearQueryableStorage(viewStorageKey(view.id));
+    return {
+      textSearch: view.filters.textSearch,
+      filterGroup: view.filters.filterGroup && {
+        ...view.filters.filterGroup,
+        filters: (view.filters.filterGroup.filters ?? []).map(filter => ({
+          ...filter,
+          id: generateFilterId(),
+        })),
+      },
+    };
+  });
+  const installed = useInstalledActions(view ? viewStorageKey(view.id) : undefined, viewFilters);
+  // Back to the view's saved filters: they are the list's defaults, as it was mounted with them.
+  const discardViewChanges = () => {
+    installed.handleResetFilters();
+    installed.queryableHelpers.textSearchHelpers.handleTextSearch(viewFilters?.textSearch ?? '');
+  };
   const dispatch = useAppDispatch();
   useDataLoader(() => {
     dispatch(fetchAttackPatterns());
@@ -188,7 +219,16 @@ const ThreatArsenalInstalled = ({ tabs }: Props) => {
     }}
     >
       <MarketplaceBrowser
-        tabs={tabs}
+        tabs={(
+          <>
+            {tabs}
+            <ThreatArsenalCustomViewControls
+              view={view}
+              current={installed.searchPaginationInput}
+              onDiscard={discardViewChanges}
+            />
+          </>
+        )}
         hero={<ThreatArsenalHero onFilterApproval={filterApproval} onCreate={action => installed.prependActions([action])} />}
         sidebar={(
           <ThreatArsenalSidebar
