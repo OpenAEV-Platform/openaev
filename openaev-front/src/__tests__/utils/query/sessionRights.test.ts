@@ -1,14 +1,23 @@
 import { describe, expect, it } from 'vitest';
 
-import { type User } from '../../../utils/api-types';
+import { type User, type UserGrant } from '../../../utils/api-types';
 import { rightsKey, rightsOf, rightsShrank, sessionCacheKey, type SessionRights } from '../../../utils/query/sessionRights';
+
+const observer: UserGrant = {
+  grant: 'OBSERVER',
+  type: 'SCENARIO',
+};
+const planner: UserGrant = {
+  grant: 'PLANNER',
+  type: 'SCENARIO',
+};
 
 const rights = (overrides: Partial<SessionRights> = {}): SessionRights => ({
   admin: false,
   capabilities: ['ACCESS_ASSETS', 'MANAGE_ASSETS'],
   grants: {
-    'scenario-1': 'OBSERVER',
-    'scenario-2': 'PLANNER',
+    'scenario-1': observer,
+    'scenario-2': planner,
   },
   ...overrides,
 });
@@ -18,7 +27,7 @@ describe('sessionRights', () => {
     it('given_aUser_should_copyItsAdminFlagCapabilitiesAndGrants', () => {
       // Arrange
       const capabilities: User['user_capabilities'] = ['ACCESS_ASSETS'];
-      const grants = { 'scenario-1': 'OBSERVER' };
+      const grants = { 'scenario-1': observer };
 
       // Act
       const result = rightsOf({
@@ -31,7 +40,7 @@ describe('sessionRights', () => {
       expect(result).toEqual({
         admin: true,
         capabilities: ['ACCESS_ASSETS'],
-        grants: { 'scenario-1': 'OBSERVER' },
+        grants: { 'scenario-1': observer },
       });
       expect(result.capabilities).not.toBe(capabilities);
       expect(result.grants).not.toBe(grants);
@@ -56,8 +65,8 @@ describe('sessionRights', () => {
       const reordered = rights({
         capabilities: ['MANAGE_ASSETS', 'ACCESS_ASSETS'],
         grants: {
-          'scenario-2': 'PLANNER',
-          'scenario-1': 'OBSERVER',
+          'scenario-2': planner,
+          'scenario-1': observer,
         },
       });
 
@@ -71,8 +80,8 @@ describe('sessionRights', () => {
     it.each([
       ['a changed grant', rights({
         grants: {
-          'scenario-1': 'PLANNER',
-          'scenario-2': 'PLANNER',
+          'scenario-1': planner,
+          'scenario-2': planner,
         },
       })],
       ['a changed capability', rights({ capabilities: ['ACCESS_ASSETS', 'MANAGE_TAGS'] })],
@@ -89,11 +98,11 @@ describe('sessionRights', () => {
   describe('rightsShrank', () => {
     it.each([
       ['a removed capability', rights({ capabilities: ['ACCESS_ASSETS'] })],
-      ['a removed grant', rights({ grants: { 'scenario-1': 'OBSERVER' } })],
+      ['a removed grant', rights({ grants: { 'scenario-1': observer } })],
       ['a changed grant', rights({
         grants: {
-          'scenario-1': 'PLANNER',
-          'scenario-2': 'PLANNER',
+          'scenario-1': planner,
+          'scenario-2': planner,
         },
       })],
     ])('given_%s_should_beTrue', (_label, next) => {
@@ -116,17 +125,17 @@ describe('sessionRights', () => {
       ['an added capability', rights({ capabilities: ['ACCESS_ASSETS', 'MANAGE_ASSETS', 'ACCESS_TAGS'] })],
       ['an added grant', rights({
         grants: {
-          'scenario-1': 'OBSERVER',
-          'scenario-2': 'PLANNER',
-          'scenario-3': 'OBSERVER',
+          'scenario-1': observer,
+          'scenario-2': planner,
+          'scenario-3': observer,
         },
       })],
       ['a gained admin flag', rights({ admin: true })],
       ['the same rights in another order', rights({
         capabilities: ['MANAGE_ASSETS', 'ACCESS_ASSETS'],
         grants: {
-          'scenario-2': 'PLANNER',
-          'scenario-1': 'OBSERVER',
+          'scenario-2': planner,
+          'scenario-1': observer,
         },
       })],
     ])('given_%s_should_beFalse', (_label, next) => {

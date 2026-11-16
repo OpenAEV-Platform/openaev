@@ -70,7 +70,7 @@ These thresholds trigger automatic severity levels regardless of subjective asse
 | **Thunk in a query or mutation** | A `queryFn` / `mutationFn` calling `dispatch(...)` or a `*Referential` action instead of a plain call resolving to the data | 🟠 HIGH |
 | **TanStack default overridden** | A query or the client overriding `staleTime`, `retry`, `refetchOnWindowFocus`, `refetchInterval`… without a stated reason (a query being live is not one) | 🟡 MEDIUM |
 | **Second stream** | A new `EventSource` for platform data changes outside `utils/stream/streamClient.ts` | 🟠 HIGH |
-| **Stream payload read** | A new caller of `onStreamMessage` (or any read of the event `instance`) outside the Redux adapter `useDataLoader.js` and the stream adapter (`toEntityChange`, `PARENTS_OF`) — consume `EntityChange` through live queries | 🟠 HIGH |
+| **Stream payload read** | A new caller of `onStreamMessage` (or any read of the event `instance`) outside the Redux adapter `useDataLoader.js` and the stream adapter (`toEntityChange`, `PARENTS_OF`) — consume `EntityChange` through live queries. `subscribeStreamEvent` stays for feature-scoped events that are not data changes (attack path version, news feed items) | 🟠 HIGH |
 | **Props count** | Component with >8 props → suggest decomposition or context | 🟢 LOW |
 
 ## What NOT to Flag

@@ -43,7 +43,12 @@ vi.mock('@tanstack/react-query-devtools', () => ({ ReactQueryDevtools: () => nul
 const rights = (overrides: Partial<SessionRights> = {}): SessionRights => ({
   admin: false,
   capabilities: ['ACCESS_ASSETS', 'MANAGE_ASSETS'],
-  grants: { 'scenario-1': 'OBSERVER' },
+  grants: {
+    'scenario-1': {
+      grant: 'OBSERVER',
+      type: 'SCENARIO',
+    },
+  },
   ...overrides,
 });
 

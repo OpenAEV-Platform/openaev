@@ -1,13 +1,14 @@
-import { type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import EndpointApiHelpers, { type EndpointFields, randomMacAddress } from '../../api-helpers/EndpointApiHelpers';
-import { expect, test } from '../../fixtures';
+import { test } from '../../fixtures';
 import { tenantUrl } from '../../utils/url';
 
 /**
  * The asset detail page refreshes from the platform stream: every change below is made through the
- * API, outside the page, and must show without reloading it. TanStack refetches on focus and mount
- * too, but the page keeps both, so a pass within the timeout proves the stream path.
+ * API, outside the page, and must show without reloading it. TanStack also refetches on focus and
+ * mount, but the page is neither refocused nor remounted, so a pass within the timeout proves the
+ * stream path.
  */
 const LIVE_TIMEOUT = 10_000;
 

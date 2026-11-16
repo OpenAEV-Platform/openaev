@@ -1,11 +1,11 @@
-import { type User } from '../api-types';
+import { type User, type UserGrant } from '../api-types';
 
 /** What decides which data the logged-in user may read. */
 export interface SessionRights {
   admin: boolean;
   capabilities: string[];
-  /** Resource id → grant name. */
-  grants: Record<string, string>;
+  /** Resource id → grant. */
+  grants: Record<string, UserGrant>;
 }
 
 export const rightsOf = (me: Pick<User, 'user_admin' | 'user_capabilities' | 'user_grants'>): SessionRights => ({
@@ -14,7 +14,7 @@ export const rightsOf = (me: Pick<User, 'user_admin' | 'user_capabilities' | 'us
   grants: { ...me.user_grants },
 });
 
-const byKey = ([a]: [string, string], [b]: [string, string]) => {
+const byKey = ([a]: [string, unknown], [b]: [string, unknown]) => {
   if (a === b) return 0;
   return a < b ? -1 : 1;
 };
@@ -23,7 +23,7 @@ const byKey = ([a]: [string, string], [b]: [string, string]) => {
 export const rightsKey = (rights: SessionRights): string => JSON.stringify([
   rights.admin,
   [...rights.capabilities].sort(),
-  Object.entries(rights.grants).sort(byKey),
+  Object.entries(rights.grants).sort(byKey).map(([resourceId, { grant, type }]) => [resourceId, grant, type]),
 ]);
 
 /**
@@ -33,7 +33,8 @@ export const rightsKey = (rights: SessionRights): string => JSON.stringify([
 export const rightsShrank = (previous: SessionRights, next: SessionRights): boolean =>
   (previous.admin && !next.admin)
   || previous.capabilities.some(capability => !next.capabilities.includes(capability))
-  || Object.entries(previous.grants).some(([resourceId, grant]) => next.grants[resourceId] !== grant);
+  || Object.entries(previous.grants).some(([resourceId, { grant, type }]) =>
+    next.grants[resourceId]?.grant !== grant || next.grants[resourceId]?.type !== type);
 
 /** The query cache belongs to one user in one tenant: a change of either drops it. */
 export const sessionCacheKey = (userId: string, tenantId: string | null | undefined): string => `${userId}|${tenantId ?? ''}`;

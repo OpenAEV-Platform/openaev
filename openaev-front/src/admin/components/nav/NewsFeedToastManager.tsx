@@ -9,7 +9,7 @@ import { useFormatter } from '../../../components/i18n';
 import { DATA_FETCH_SUCCESS } from '../../../constants/ActionTypes';
 import { computeBannerSettings } from '../../../public/components/systembanners/utils';
 import useAuth from '../../../utils/hooks/useAuth';
-import { subscribeStreamEvent } from '../../../utils/hooks/useDataLoader';
+import { subscribeStreamEvent } from '../../../utils/stream/streamClient';
 import { isFeatureEnabled } from '../../../utils/utils';
 import { buildConfiguredHubUrl } from '../profile/news_feed/newsFeedUtils';
 import { NEWS_FEED_STREAM_BATCH_MS, parseNewsFeedItemStreamEvent } from './newsFeedStream';

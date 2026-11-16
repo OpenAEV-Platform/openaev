@@ -4,15 +4,17 @@ import { type Error as ApiError, notifyErrorHandler } from '../error/errorHandle
 import { httpStatus, isNotFoundError } from './httpErrors';
 
 const MAX_RETRIES = 3;
+const RETRIED_CLIENT_ERRORS = [408, 429];
 
 /**
  * TanStack's retry (3 retries, exponential backoff), except for a 4xx: the same request would get
- * the same answer.
+ * the same answer. A timeout (408) and a rate limit (429) are not a refusal of the request itself,
+ * so they are retried.
  */
 export const shouldRetry = (failureCount: number, error: unknown): boolean => {
   if (failureCount >= MAX_RETRIES) return false;
   const status = httpStatus(error);
-  return status === undefined || status < 400 || status >= 500;
+  return status === undefined || status < 400 || status >= 500 || RETRIED_CLIENT_ERRORS.includes(status);
 };
 
 /**

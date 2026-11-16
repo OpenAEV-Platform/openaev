@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import type { APIRequestContext } from '@playwright/test';
 
 import { type Endpoint, type EndpointInput } from '../../src/utils/api-types';
@@ -20,9 +22,7 @@ const endpointInput = ({ name, hostname, macAddress }: EndpointFields): Endpoint
 });
 
 /** Locally administered MAC address, unique enough to identify one test endpoint. */
-export const randomMacAddress = () => `02:${Array.from({ length: 5 }, () => Math.floor(Math.random() * 256)
-  .toString(16)
-  .padStart(2, '0')).join(':')}`;
+export const randomMacAddress = () => `02:${[...randomBytes(5)].map(byte => byte.toString(16).padStart(2, '0')).join(':')}`;
 
 class EndpointApiHelpers {
   readonly endpointUri = tenantApiPath('/api/endpoints');

@@ -23,7 +23,7 @@ vi.mock('../../../../utils/utils', async importOriginal => ({
 
 vi.mock('../../../../actions/news_feed/news-feed-actions', () => ({ searchMyNewsFeedItems: mocks.searchMyNewsFeedItems }));
 
-vi.mock('../../../../utils/hooks/useDataLoader', () => ({
+vi.mock('../../../../utils/stream/streamClient', () => ({
   subscribeStreamEvent: (type: string, handler: (event: MessageEvent) => void) => {
     mocks.streamHandlers.set(type, handler);
     return () => mocks.streamHandlers.delete(type);

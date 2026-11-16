@@ -18,6 +18,8 @@ describe('shouldRetry', () => {
     ['a network error', 0, NETWORK_ERROR, true],
     ['a 500', 0, answered(500), true],
     ['a 503', 2, answered(503), true],
+    ['a 408', 0, answered(408), true],
+    ['a 429', 1, answered(429), true],
     ['a 400', 0, answered(400), false],
     ['a 401', 0, answered(401), false],
     ['a 403', 0, answered(403), false],
