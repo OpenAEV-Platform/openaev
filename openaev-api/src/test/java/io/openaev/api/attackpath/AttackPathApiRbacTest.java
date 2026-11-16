@@ -15,9 +15,13 @@ import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Grant;
+import io.openaev.database.model.Group;
+import io.openaev.database.model.Role;
 import io.openaev.database.model.Scenario;
 import io.openaev.database.model.User;
 import io.openaev.database.model.attackpath.AttackPathExecution;
+import io.openaev.database.repository.ExerciseRepository;
+import io.openaev.database.repository.UserRepository;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.service.attackpath.AttackPathIds;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -33,6 +37,7 @@ import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.fixtures.composers.TenantRoleComposer;
 import io.openaev.utils.fixtures.composers.UserComposer;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -70,6 +75,17 @@ class AttackPathApiRbacTest extends IntegrationTest {
   @Autowired private AttackPathExecutionRepository executionRepository;
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private UserRepository userRepository;
+  @Autowired private ExerciseRepository exerciseRepository;
+
+  // The ids of the rows a test commits, deleted after it.
+  private final List<String> grantIds = new ArrayList<>();
+  private final List<String> groupIds = new ArrayList<>();
+  private final List<String> roleIds = new ArrayList<>();
+  private final List<String> userIds = new ArrayList<>();
+  private final List<String> executionIds = new ArrayList<>();
+  private final List<String> exerciseIds = new ArrayList<>();
+  private final List<String> scenarioIds = new ArrayList<>();
 
   private String simulationId;
   private Authentication withGrant;
@@ -88,12 +104,23 @@ class AttackPathApiRbacTest extends IntegrationTest {
                     .persist()
                     .get());
     simulationId = simulation.getId();
+    exerciseIds.add(simulationId);
     withGrant = buildAuthenticationToken(userGrantedReadOn(simulationId));
     withoutGrant = buildAuthenticationToken(plainUser());
   }
 
   @AfterEach
   void tearDown() {
+    // The class is not @Transactional: every fixture row is committed, so each test deletes its
+    // own,
+    // under the default tenant's scope they were written in. Memberships go with their users.
+    deleteInDefaultTenant(Grant.class, grantIds);
+    deleteInDefaultTenant(Group.class, groupIds);
+    deleteInDefaultTenant(Role.class, roleIds);
+    deleteInDefaultTenant(() -> userIds.forEach(userRepository::deleteByIdNative));
+    deleteInDefaultTenant(AttackPathExecution.class, executionIds);
+    deleteInDefaultTenant(() -> exerciseIds.forEach(exerciseRepository::deleteById));
+    deleteInDefaultTenant(Scenario.class, scenarioIds);
     setDevFeatures(originalDevFeatures);
     userComposer.reset();
     grantComposer.reset();
@@ -252,12 +279,15 @@ class AttackPathApiRbacTest extends IntegrationTest {
   // -- fixtures --
 
   private Scenario scenario() {
-    return inDefaultTenant(
-        () ->
-            scenarioComposer
-                .forScenario(ScenarioFixture.createDefaultCrisisScenario())
-                .persist()
-                .get());
+    Scenario scenario =
+        inDefaultTenant(
+            () ->
+                scenarioComposer
+                    .forScenario(ScenarioFixture.createDefaultCrisisScenario())
+                    .persist()
+                    .get());
+    scenarioIds.add(scenario.getId());
+    return scenario;
   }
 
   // A committed simulation (exercise) attached to the scenario, with one attack-path execution row
@@ -268,6 +298,7 @@ class AttackPathApiRbacTest extends IntegrationTest {
     exercise.setScenario(scenario);
     String simId =
         inDefaultTenant(() -> exerciseComposer.forExercise(exercise).persist().get()).getId();
+    exerciseIds.add(simId);
     saveExecutionRow(simId);
     return simId;
   }
@@ -284,6 +315,7 @@ class AttackPathApiRbacTest extends IntegrationTest {
     row.setTargetKey("target-" + simulationId);
     row.setExecutedAt(Instant.now());
     inDefaultTenant(() -> executionRepository.save(row));
+    executionIds.add(row.getId());
   }
 
   private User adminUser() {
@@ -352,11 +384,35 @@ class AttackPathApiRbacTest extends IntegrationTest {
     return tenantTx.execute(TxCtx.forTenant(DEFAULT_TENANT_UUID), work);
   }
 
+  // A set-based delete by id: no entity is loaded, so no lazy collection is read or cascaded. The
+  // join table rows that reference a deleted row go with it (ON DELETE CASCADE).
+  private void deleteInDefaultTenant(Class<?> entity, List<String> ids) {
+    if (ids.isEmpty()) {
+      return;
+    }
+    deleteInDefaultTenant(
+        () ->
+            entityManager
+                .createQuery("DELETE FROM " + entity.getSimpleName() + " e WHERE e.id IN :ids")
+                .setParameter("ids", ids)
+                .executeUpdate());
+  }
+
+  private void deleteInDefaultTenant(Runnable delete) {
+    tenantTx.execute(TxCtx.forTenant(DEFAULT_TENANT_UUID), delete);
+  }
+
   // A caller of the default tenant: its user, groups, roles and grants are written in that tenant,
   // and it is a member of it, as every real user is of the tenants it works in.
   private User memberOfDefaultTenant(UserComposer.Composer user) {
     User persisted = inDefaultTenant(() -> user.persist().get());
     tenantHelper.attachUserToTenant(persisted.getId(), DEFAULT_TENANT_UUID);
+    userIds.add(persisted.getId());
+    for (Group group : persisted.getUnscopedGroups()) {
+      groupIds.add(group.getId());
+      group.getRoles().stream().map(Role::getId).forEach(roleIds::add);
+      group.getGrants().stream().map(Grant::getId).forEach(grantIds::add);
+    }
     return persisted;
   }
 
