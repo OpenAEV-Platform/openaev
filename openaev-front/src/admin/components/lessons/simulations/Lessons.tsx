@@ -340,11 +340,13 @@ const Lessons: FunctionComponent<Props> = ({
       >
         <DialogTitle>{t('Objective achievement evaluation')}</DialogTitle>
         <DialogContent>
-          <ObjectiveEvaluations
-            objectiveId={selectedObjective}
-            isUpdatable={source.isUpdatable}
-            handleClose={() => setSelectedObjective(null)}
-          />
+          {selectedObjective && (
+            <ObjectiveEvaluations
+              objectiveId={selectedObjective}
+              isUpdatable={source.isUpdatable}
+              handleClose={() => setSelectedObjective(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
       <LessonsApplyTemplateDialog

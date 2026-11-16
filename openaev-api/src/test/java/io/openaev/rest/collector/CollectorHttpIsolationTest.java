@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.rest.collector.form.CollectorCreateInput;
 import io.openaev.rest.collector.form.CollectorUpdateInput;
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
  * isolates the table through the real {@link CollectorApi} endpoints. A user who belongs to two
  * tenants sees a collector only under its own tenant's path, never another tenant's.
  */
+@CoversTenantIsolation("collectors")
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("collectors read and write isolation through the real HTTP endpoint")

@@ -1,6 +1,7 @@
 package io.openaev.database.specification;
 
 import io.openaev.database.model.*;
+import io.openaev.database.model.payload.PayloadIdentity;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
@@ -69,6 +70,18 @@ public class InjectorContractSpecification {
                   ? cb.and(sameId, outranks)
                   : cb.and(sameId, outranks, otherMatches));
       return cb.not(cb.exists(betterCopy));
+    };
+  }
+
+  /** Contracts without payload, local payloads, and the version shown of each catalogue one. */
+  public static Specification<InjectorContract> withLatestInstalledPayload() {
+    return (root, query, cb) -> {
+      Join<InjectorContract, Payload> payload = root.join("payload", JoinType.LEFT);
+      Join<Payload, PayloadIdentity> identity = payload.join("identity", JoinType.LEFT);
+      return cb.or(
+          cb.isNull(payload.get("id")),
+          cb.isNull(identity.get("repository")),
+          cb.equal(identity.get("latestVersion"), payload));
     };
   }
 

@@ -271,14 +271,21 @@ public class DatabaseSnapshotManager {
     Set<String> processed = new HashSet<>();
 
     while (processed.size() < allTables.size()) {
+      boolean progressed = false;
       for (String table : allTables) {
         if (!processed.contains(table)) {
           // Check if the table has already been added
           if (processed.containsAll(deps.get(table))) {
             result.add(table);
             processed.add(table);
+            progressed = true;
           }
         }
+      }
+      // Tables referencing each other: the restore runs without foreign keys, any order works.
+      if (!progressed) {
+        allTables.stream().filter(table -> !processed.contains(table)).forEach(result::add);
+        processed.addAll(allTables);
       }
     }
 

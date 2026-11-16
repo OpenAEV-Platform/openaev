@@ -2571,6 +2571,15 @@ export interface CatalogConnectorSimpleOutput {
   catalog_connector_short_description?: string;
 }
 
+export interface CatalogPayloadInstallAllOutput {
+  failed_payload_external_ids?: string[];
+  installed_payload_ids?: string[];
+}
+
+export interface CatalogPayloadInstallOutput {
+  installed_payload_ids?: string[];
+}
+
 export interface CatalogPayloadOutput {
   /** @minLength 1 */
   catalog_payload_external_id: string;
@@ -2585,6 +2594,14 @@ export interface CatalogScenarioOutput {
   catalog_scenario_name?: string;
   /** @minLength 1 */
   catalog_scenario_version: string;
+}
+
+export interface CatalogSettingsInput {
+  payload_auto_install: boolean;
+}
+
+export interface CatalogSettingsOutput {
+  payload_auto_install: boolean;
 }
 
 export interface CatalogSyncOutput {
@@ -5049,28 +5066,6 @@ export interface EndpointTarget {
     | "PARTIAL"
     | "UNKNOWN"
     | "SUCCESS";
-}
-
-export interface EndpointTargetOutput {
-  /**
-   * List agents installed
-   * @uniqueItems true
-   */
-  asset_agents?: AgentOutput[];
-  /** Hostname */
-  asset_hostname?: string;
-  /**
-   * Asset Id
-   * @minLength 1
-   */
-  asset_id: string;
-  /**
-   * List IPs
-   * @uniqueItems true
-   */
-  asset_ips?: string[];
-  /** Seen IP */
-  asset_seen_ip?: string;
 }
 
 export interface EngineSortField {
@@ -9125,25 +9120,6 @@ export interface PageCustomDomain {
 
 export interface PageEndpointOutput {
   content?: EndpointOutput[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject;
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
-export interface PageEndpointTargetOutput {
-  content?: EndpointTargetOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;

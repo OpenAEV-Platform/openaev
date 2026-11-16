@@ -3,6 +3,7 @@ package io.openaev.rest.injector_contract;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -196,7 +197,7 @@ class InjectorContractAuthorshipTest {
           .when(injectorContractRepository.findByIdOrExternalId(anyString(), anyString()))
           .thenReturn(Optional.of(contract));
       lenient()
-          .when(attackPatternService.findAllByInternalIdsThrowIfMissing(any()))
+          .when(attackPatternService.findAllByInternalIdsThrowIfMissing(any(), eq(TENANT_ID)))
           .thenReturn(new ArrayList<>());
       return contract;
     }

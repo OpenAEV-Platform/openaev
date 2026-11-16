@@ -29,29 +29,16 @@ public interface PayloadRepository
   Optional<Payload> findByIdAndTenantId(
       @Param("id") @NotNull String id, @Param("tenantId") @NotNull String tenantId);
 
-  Optional<Payload> findByIdentityExternalId(@NotNull String externalId);
-
   List<Payload> findAllByTenantIdAndContentHash(String tenantId, String contentHash);
 
   List<Payload> findAllByTenantIdAndNameAndContentHashIsNull(String tenantId, String name);
 
-  /** Scenario or simulation name per inject running this payload; null for an atomic testing. */
+  /** Where injects run this payload: their scenario, simulation, or atomic testing title. */
   @Query(
-      "SELECT DISTINCT COALESCE(s.name, e.name) FROM Inject i"
+      "SELECT DISTINCT COALESCE(s.name, e.name, i.title) FROM Inject i"
           + " LEFT JOIN i.scenario s LEFT JOIN i.exercise e"
           + " WHERE i.injectorContract.payload.id = :payloadId")
   List<String> findUsageNamesByPayloadId(@Param("payloadId") String payloadId, Limit limit);
-
-  /**
-   * Tenant-scoped counterpart of {@link #findByIdentityExternalId}: an external id repeats across
-   * the tenants that hold a copy of the same payload, so a caller whose scope spans several tenants
-   * resolves the one of the tenant it writes in.
-   */
-  @Query(
-      "SELECT p FROM Payload p WHERE p.identity.externalId = :externalId AND p.tenant.id ="
-          + " :tenantId")
-  Optional<Payload> findByExternalIdAndTenantId(
-      @Param("externalId") @NotNull String externalId, @Param("tenantId") @NotNull String tenantId);
 
   /**
    * Icon metadata for a batch of payloads in one read: {@code [id, payloadType,
@@ -113,4 +100,13 @@ public interface PayloadRepository
           + "AND NOT EXISTS (SELECT ic FROM InjectorContract ic WHERE ic.payload = p)")
   List<Payload> findOrphansByNameAndTenantId(
       @Param("name") String name, @Param("tenantId") String tenantId);
+
+  // -- IDENTITY --
+
+  List<Payload> findAllByTenantIdAndIdentityExternalId(
+      @NotNull String tenantId, @NotNull String externalId);
+
+  Optional<Payload> findByIdentityExternalIdAndIdentityRepositoryIsNull(@NotNull String externalId);
+
+  List<Payload> findAllByIdentityId(String identityId);
 }

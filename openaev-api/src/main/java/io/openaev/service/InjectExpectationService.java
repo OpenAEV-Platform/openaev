@@ -1076,7 +1076,7 @@ public class InjectExpectationService {
   /**
    * Applies signatures emitted by structured output on matching technical expectations.
    *
-   * <p>The target is resolved using this priority: agent, then asset, then asset group.
+   * <p>The target is resolved using this priority: agent, then asset.
    *
    * <p>If signatures were never initialized for an expectation, existing signatures are cleared
    * once, then new signatures are appended. Otherwise, signatures are only appended.
@@ -1087,7 +1087,6 @@ public class InjectExpectationService {
    * @param injectId the inject ID
    * @param agentId optional agent ID target
    * @param assetId optional asset ID target
-   * @param assetGroupId optional asset group ID target
    * @param expectationType the expectation type (DETECTION, PREVENTION or LOGGING)
    * @param signatures signatures to append
    */
@@ -1095,7 +1094,6 @@ public class InjectExpectationService {
       @NotBlank String injectId,
       @Nullable String agentId,
       @Nullable String assetId,
-      @Nullable String assetGroupId,
       @NotNull BaseInjectExpectation.EXPECTATION_TYPE expectationType,
       @NotNull List<ExpectationSignature> signatures) {
     if (signatures.isEmpty()) {
@@ -1103,27 +1101,25 @@ public class InjectExpectationService {
     }
     if (!List.of(DETECTION, PREVENTION, LOGGING).contains(expectationType)) {
       log.warn(
-          "Signature structured output is only supported for DETECTION, PREVENTION and LOGGING expectations (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
+          "Signature structured output is only supported for DETECTION, PREVENTION and LOGGING expectations (injectId={}, agentId={}, assetId={}, expectationType={})",
           injectId,
           agentId,
           assetId,
-          assetGroupId,
           expectationType);
       return;
     }
 
     List<TechnicalInjectExpectation> expectations =
-        findTechnicalExpectationsForTarget(injectId, agentId, assetId, assetGroupId).stream()
+        findTechnicalExpectationsForTarget(injectId, agentId, assetId).stream()
             .filter(expectation -> expectation.getType().equals(expectationType))
             .toList();
 
     if (expectations.isEmpty()) {
       log.warn(
-          "No inject expectation found for structured signatures (injectId={}, agentId={}, assetId={}, assetGroupId={}, expectationType={})",
+          "No inject expectation found for structured signatures (injectId={}, agentId={}, assetId={}, expectationType={})",
           injectId,
           agentId,
           assetId,
-          assetGroupId,
           expectationType);
       return;
     }
@@ -1135,10 +1131,7 @@ public class InjectExpectationService {
   }
 
   private List<TechnicalInjectExpectation> findTechnicalExpectationsForTarget(
-      @NotBlank String injectId,
-      @Nullable String agentId,
-      @Nullable String assetId,
-      @Nullable String assetGroupId) {
+      @NotBlank String injectId, @Nullable String agentId, @Nullable String assetId) {
     if (agentId != null) {
       return filterTechnicalExpectations(
           injectExpectationRepository.findAllByInjectAndAgent(injectId, agentId));
@@ -1146,10 +1139,6 @@ public class InjectExpectationService {
     if (assetId != null) {
       return filterTechnicalExpectations(
           injectExpectationRepository.findAllByInjectAndAsset(injectId, assetId));
-    }
-    if (assetGroupId != null) {
-      return filterTechnicalExpectations(
-          injectExpectationRepository.findAllByInjectAndAssetGroup(injectId, assetGroupId));
     }
     return Collections.emptyList();
   }

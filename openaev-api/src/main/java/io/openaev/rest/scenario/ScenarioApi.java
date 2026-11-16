@@ -37,6 +37,7 @@ import io.openaev.rest.custom_dashboard.CustomDashboardService;
 import io.openaev.rest.document.DocumentService;
 import io.openaev.rest.exception.ChainingException;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.rest.exercise.ExerciseResponseHydrator;
 import io.openaev.rest.exercise.form.LessonsInput;
 import io.openaev.rest.exercise.form.ScenarioTeamPlayersEnableInput;
 import io.openaev.rest.exercise.service.ExerciseService;
@@ -751,7 +752,7 @@ public class ScenarioApi extends RestBehavior {
               }
               return simulation.getId();
             });
-    return exerciseService.exercise(simulationId);
+    return ExerciseResponseHydrator.hydrateForResponse(exerciseService.exercise(simulationId));
   }
 
   @PostMapping({

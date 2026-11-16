@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -22,11 +23,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.rest.exception.BadRequestException;
 import io.openaev.service.FileService;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
@@ -96,7 +99,7 @@ class CatalogFileServiceTest {
       // Assert
       assertThat(checked.refusals()).isEmpty();
       assertThat(checked.payloadFile(manifest.payloadVersions().getFirst())).isNotNull();
-      verify(fileService, times(2)).uploadCatalogPackage(anyString(), any(InputStream.class));
+      verify(fileService, times(2)).uploadInPlatform(anyString(), any(InputStream.class));
     }
 
     @Test
@@ -104,7 +107,7 @@ class CatalogFileServiceTest {
     void given_storedFile_should_notUploadIt() throws Exception {
       // Arrange
       byte[] archive = archive("{}");
-      when(fileService.catalogPackageExists(anyString())).thenReturn(true);
+      when(fileService.existsInPlatform(anyString())).thenReturn(true);
 
       // Act
       service.verifyAndStore(
@@ -112,7 +115,7 @@ class CatalogFileServiceTest {
           Map.of(scenarioFileName(VERSION), archive));
 
       // Assert
-      verify(fileService, never()).uploadCatalogPackage(anyString(), any(InputStream.class));
+      verify(fileService, never()).uploadInPlatform(anyString(), any(InputStream.class));
     }
 
     @Test
@@ -122,8 +125,9 @@ class CatalogFileServiceTest {
       byte[] archive = archive("{}");
       CatalogManifest manifest =
           manifestOf(List.of(scenarioItem(VERSION, "VERIFIED", archive)), List.of());
-      when(fileService.uploadCatalogPackage(anyString(), any(InputStream.class)))
-          .thenThrow(new IllegalStateException("storage down"));
+      doThrow(new IllegalStateException("storage down"))
+          .when(fileService)
+          .uploadInPlatform(anyString(), any(InputStream.class));
 
       // Act & Assert
       assertThatThrownBy(
@@ -293,6 +297,26 @@ class CatalogFileServiceTest {
 
       // Assert
       assertThat(checked.refusals()).hasSize(1).containsValue(reason);
+    }
+  }
+
+  @Nested
+  @DisplayName("Stored file")
+  class StoredFile {
+
+    @Test
+    @DisplayName("is refused once its bytes no longer have the hash it is stored by")
+    void given_changedStoredFile_should_refuseIt() {
+      // Arrange
+      byte[] released = payloadFile(PAYLOAD_ID);
+      String sha256 = CatalogArchiveChecks.sha256(released);
+      when(fileService.getInPlatform(anyString()))
+          .thenReturn(
+              Optional.of(new ByteArrayInputStream("changed".getBytes(StandardCharsets.UTF_8))));
+
+      // Act & Assert
+      assertThatThrownBy(() -> service.storedFile(sha256))
+          .isInstanceOf(IllegalStateException.class);
     }
   }
 }

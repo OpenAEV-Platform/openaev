@@ -23,6 +23,7 @@ import io.openaev.database.model.hash.ContentHashed;
 import io.openaev.database.model.hash.Hashed;
 import io.openaev.database.model.hash.NotHashed;
 import io.openaev.database.model.payload.HasPayloadIdentity;
+import io.openaev.database.model.payload.PayloadChangeGuard;
 import io.openaev.database.model.payload.PayloadDeleteGuard;
 import io.openaev.database.model.payload.PayloadIdentity;
 import io.openaev.helper.MonoIdDeserializerHelper;
@@ -48,7 +49,12 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "payloads")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "payload_type", discriminatorType = STRING)
-@EntityListeners({ModelBaseListener.class, AuditableListener.class, PayloadDeleteGuard.class})
+@EntityListeners({
+  ModelBaseListener.class,
+  AuditableListener.class,
+  PayloadChangeGuard.class,
+  PayloadDeleteGuard.class
+})
 // payloads is fully on v2 (statement inspector + can_access_tenant); no v1 @Filter, no
 // TenantBaseListener (#6437, #6430). A create path that forgets to stamp the tenant fails loudly
 // on the NOT NULL constraint instead of being silently defaulted to the ambient tenant.

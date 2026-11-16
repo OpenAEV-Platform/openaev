@@ -18,9 +18,9 @@ public class InjectorContractDeleteGuard {
   private final ObjectProvider<PayloadDeleteGuard> payloadDeleteGuard;
 
   @PreRemove
-  void refuseIfPayloadInUse(InjectorContract contract) {
+  void refuseIfPayloadManagedOrInUse(InjectorContract contract) {
     if (contract.getPayload() != null) {
-      payloadDeleteGuard.getObject().refuseIfInUse(contract.getPayload());
+      payloadDeleteGuard.getObject().refuseIfManagedOrInUse(contract.getPayload());
     }
   }
 }

@@ -24,6 +24,7 @@ import io.openaev.api.chaining.dto.ConditionCreateInput;
 import io.openaev.api.chaining.dto.EventInput;
 import io.openaev.api.chaining.dto.StepInput;
 import io.openaev.api.chaining.dto.WorkflowConfigurationInput;
+import io.openaev.architecture.CoversTenantIsolation;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.database.model.AssetGroup;
 import io.openaev.database.model.Capability;
@@ -106,6 +107,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
  * <p>The three APIs are mapped on the tenant prefix only (pinned in {@link Routes}), so there is no
  * header route to cover; a header naming another tenant is ignored on the prefixed route.
  */
+@CoversTenantIsolation({"workflows", "steps", "conditions"})
 @Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("Chaining workflow, step and condition isolation through the real HTTP endpoints")

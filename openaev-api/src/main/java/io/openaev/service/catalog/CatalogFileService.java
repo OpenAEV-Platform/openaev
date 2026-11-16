@@ -6,10 +6,12 @@ import io.openaev.api.catalog.dto.CatalogManifest;
 import io.openaev.database.model.catalog.CatalogItemStatus;
 import io.openaev.database.model.catalog.ContentType;
 import io.openaev.rest.exception.BadRequestException;
+import io.openaev.rest.exception.ElementNotFoundException;
 import io.openaev.service.FileService;
 import io.openaev.utils.catalog.SemanticVersion;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ public class CatalogFileService {
   // The size bound of a payload version file in the scenarios repository.
   private static final long MAX_VERSION_FILE_SIZE = 262_144;
   private static final long MAX_RELEASE_SIZE = 512L * 1024 * 1024;
+  private static final String PACKAGES_PATH = "/catalog/packages/";
 
   private final FileService fileService;
   private final ObjectMapper mapper;
@@ -108,15 +111,37 @@ public class CatalogFileService {
     return new CheckedRelease(manifest, refusals, payloadFiles);
   }
 
+  /** A file stored at sync, read again only if its bytes still have the hash it is stored by. */
+  public byte[] storedFile(String sha256) {
+    byte[] file;
+    try (InputStream stored =
+        fileService
+            .getInPlatform(packagePath(sha256))
+            .orElseThrow(() -> new ElementNotFoundException("Catalogue file not found"))) {
+      file = stored.readAllBytes();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+    if (!CatalogArchiveChecks.sha256(file).equalsIgnoreCase(sha256)) {
+      throw new IllegalStateException("A stored catalogue file has changed: " + sha256);
+    }
+    return file;
+  }
+
   // A storage failure stops the whole release, so the next send retries it.
   private void store(String sha256, byte[] content) {
     try {
-      if (!fileService.catalogPackageExists(sha256)) {
-        fileService.uploadCatalogPackage(sha256, new ByteArrayInputStream(content));
+      String path = packagePath(sha256);
+      if (!fileService.existsInPlatform(path)) {
+        fileService.uploadInPlatform(path, new ByteArrayInputStream(content));
       }
     } catch (Exception e) {
       throw new IllegalStateException("A catalogue archive could not be stored", e);
     }
+  }
+
+  private static String packagePath(String sha256) {
+    return PACKAGES_PATH + sha256 + ".zip";
   }
 
   private static Optional<String> check(CatalogManifest.Item item, Map<String, byte[]> archives) {
