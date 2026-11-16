@@ -1,3 +1,4 @@
+import { v5 as uuidv5 } from 'uuid';
 import { z } from 'zod';
 
 import { type SearchPaginationInput } from '../../../utils/api-types';
@@ -31,19 +32,16 @@ export const listStateFingerprint = (input: Partial<SearchPaginationInput>) => {
   });
 };
 
-// Short, stable hash (polynomial, base 31 modulo 2^32, written in base 36) of a list's defaults. It is part
-// of the list's localStorage key, so a default changed in a later version gives
+// Fixed namespace of the list-defaults keys (UUID v5): never change it, every
+// stored list state would be read under a new key.
+const LIST_DEFAULTS_NAMESPACE = '7f3c9a52-1d4e-4b8a-9c61-2e5f8d0b7a14';
+
+// Stable key (UUID v5 of the fingerprint) of a list's defaults. It is part of
+// the list's localStorage key, so a default changed in a later version gives
 // the list a new key: the change reaches every user (their saved preferences on
 // that list reset once) and the entries under the old key are simply no longer
 // read (#4181).
-export const listDefaultsHash = (defaults: Partial<SearchPaginationInput>) => {
-  const fingerprint = listStateFingerprint(defaults);
-  let hash = 0;
-  for (let i = 0; i < fingerprint.length; i += 1) {
-    hash = (hash * 31 + fingerprint.charCodeAt(i)) % 4294967296;
-  }
-  return hash.toString(36);
-};
+export const listDefaultsHash = (defaults: Partial<SearchPaginationInput>) => uuidv5(listStateFingerprint(defaults), LIST_DEFAULTS_NAMESPACE);
 
 // Resolved empty page for fetchers that must short-circuit without calling the
 // API - typically when scoping a list on an empty id set, where an empty
