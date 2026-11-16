@@ -3,6 +3,7 @@ package io.openaev.rest.asset.endpoint;
 import static io.openaev.config.TenantUriUtils.TENANT_PREFIX;
 import static io.openaev.rest.asset.endpoint.EndpointApi.ENDPOINT_URI;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -15,18 +16,14 @@ import io.openaev.database.model.Capability;
 import io.openaev.database.raw.RawGrant;
 import io.openaev.database.raw.RawUserAuth;
 import io.openaev.engine.EngineContext;
-import io.openaev.engine.api.ListConfiguration;
-import io.openaev.engine.api.ListRuntime;
 import io.openaev.engine.facade.EngineService;
-import io.openaev.engine.model.EsBase;
-import io.openaev.utils.CustomDashboardTimeRange;
+import io.openaev.engine.model.EsSearch;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
-import io.openaev.utils.pagination.Pagination;
 import io.openaev.utilstest.RabbitMQTestListener;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -48,7 +45,8 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
  *
  * <p>Not {@code @Transactional}: the rows are committed and the engine flush runs after commit
  * inside the request, against the real search engine of the test stack. Documents are looked up by
- * the endpoint id, never counted, because the engine is shared with other test classes.
+ * the endpoint id through the engine's exact-id search, never counted, because the engine is shared
+ * with other test classes.
  */
 @DisplayName("Endpoint delete and its index delete event")
 @TestExecutionListeners(
@@ -95,12 +93,33 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
   @AfterEach
   void removeWhatTheTestCreated() {
     JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+    List<Runnable> steps = new ArrayList<>();
     if (endpointB != null) {
-      jdbc.update("DELETE FROM assets WHERE asset_id = ?", endpointB);
-      engineService.bulkDelete(List.of(endpointB));
-      jdbc.update("DELETE FROM engine_deletions WHERE deletion_id = ?", endpointB);
+      steps.add(() -> jdbc.update("DELETE FROM assets WHERE asset_id = ?", endpointB));
+      steps.add(() -> engineService.bulkDelete(List.of(endpointB)));
+      steps.add(() -> jdbc.update("DELETE FROM engine_deletions WHERE deletion_id = ?", endpointB));
     }
-    tenantHelper.deleteCommittedTenants(tenantA, tenantB);
+    steps.add(() -> tenantHelper.deleteCommittedTenants(tenantA, tenantB));
+    runAll(steps);
+  }
+
+  /** Runs every step even when an earlier one fails, then rethrows the first failure. */
+  private static void runAll(List<Runnable> steps) {
+    RuntimeException first = null;
+    for (Runnable step : steps) {
+      try {
+        step.run();
+      } catch (RuntimeException e) {
+        if (first == null) {
+          first = e;
+        } else {
+          first.addSuppressed(e);
+        }
+      }
+    }
+    if (first != null) {
+      throw first;
+    }
   }
 
   private void givenTwoTenantsAndIndexedEndpointOfB(boolean callerIsMemberOfB) throws Exception {
@@ -135,13 +154,20 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
       givenTwoTenantsAndIndexedEndpointOfB(false);
 
       // Act
-      int status = deleteAsCallerOfA(route);
+      int status = deleteEndpointB(route, tenantA);
 
       // Assert
-      assertThat(isIndexed(TxCtx.allTenants())).as("document").isTrue();
-      assertThat(isIndexed(TxCtx.forTenant(tenantB))).as("document seen by a member of B").isTrue();
-      assertThat(rowExists()).as("row").isTrue();
-      assertThat(status).as("HTTP status").isEqualTo(404);
+      assertSoftly(
+          softly -> {
+            softly.assertThat(isIndexed(TxCtx.allTenants())).as("document").isTrue();
+            softly
+                .assertThat(isIndexed(TxCtx.forTenant(tenantB)))
+                .as("document seen by a member of B")
+                .isTrue();
+            softly.assertThat(rowExists()).as("row").isTrue();
+            softly.assertThat(deletionJournalEntries()).as("engine_deletions rows").isZero();
+            softly.assertThat(status).as("HTTP status").isEqualTo(404);
+          });
     }
 
     @Test
@@ -157,13 +183,20 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
           Set.of(Capability.ACCESS_ASSETS, Capability.MANAGE_ASSETS, Capability.DELETE_ASSETS));
 
       // Act
-      int status = deleteAsCallerOfA(Route.TENANT_PREFIXED);
+      int status = deleteEndpointB(Route.TENANT_PREFIXED, tenantA);
 
       // Assert
-      assertThat(isIndexed(TxCtx.allTenants())).as("document").isTrue();
-      assertThat(isIndexed(TxCtx.forTenant(tenantB))).as("document seen by a member of B").isTrue();
-      assertThat(rowExists()).as("row").isTrue();
-      assertThat(status).as("HTTP status").isEqualTo(404);
+      assertSoftly(
+          softly -> {
+            softly.assertThat(isIndexed(TxCtx.allTenants())).as("document").isTrue();
+            softly
+                .assertThat(isIndexed(TxCtx.forTenant(tenantB)))
+                .as("document seen by a member of B")
+                .isTrue();
+            softly.assertThat(rowExists()).as("row").isTrue();
+            softly.assertThat(deletionJournalEntries()).as("engine_deletions rows").isZero();
+            softly.assertThat(status).as("HTTP status").isEqualTo(404);
+          });
     }
   }
 
@@ -180,15 +213,7 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
       givenTwoTenantsAndIndexedEndpointOfB(true);
 
       // Act
-      TenantContext.clearCurrentTenant();
-      int status =
-          mvc.perform(
-                  delete(TENANT_ENDPOINT_URI.replace("{tenantId}", tenantB) + "/" + endpointB)
-                      .with(csrf())
-                      .accept(MediaType.APPLICATION_JSON))
-              .andReturn()
-              .getResponse()
-              .getStatus();
+      int status = deleteEndpointB(Route.TENANT_PREFIXED, tenantB);
 
       // Assert
       assertThat(status).as("HTTP status").isEqualTo(200);
@@ -197,13 +222,16 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
     }
   }
 
-  private int deleteAsCallerOfA(Route route) throws Exception {
+  /**
+   * Deletes the endpoint of B on the given route, with {@code scopeTenant} as the request scope.
+   */
+  private int deleteEndpointB(Route route, String scopeTenant) throws Exception {
     TenantContext.clearCurrentTenant();
     MockHttpServletRequestBuilder request =
         switch (route) {
           case TENANT_PREFIXED ->
-              delete(TENANT_ENDPOINT_URI.replace("{tenantId}", tenantA) + "/" + endpointB);
-          case HEADER -> delete(ENDPOINT_URI + "/" + endpointB).header("X-Tenant-Ids", tenantA);
+              delete(TENANT_ENDPOINT_URI.replace("{tenantId}", scopeTenant) + "/" + endpointB);
+          case HEADER -> delete(ENDPOINT_URI + "/" + endpointB).header("X-Tenant-Ids", scopeTenant);
         };
     return mvc.perform(request.with(csrf()).accept(MediaType.APPLICATION_JSON))
         .andReturn()
@@ -227,13 +255,21 @@ class EndpointDeleteIndexEventTest extends ProductionTablesIntegrationTest {
     return assetId;
   }
 
+  /** Exact-id search of the engine: matches the document whose id is the endpoint id, if any. */
   private boolean isIndexed(TxCtx ctx) {
-    ListConfiguration config = engineService.createListConfiguration("asset", Map.of());
-    config.setTimeRange(CustomDashboardTimeRange.ALL_TIME);
-    ListRuntime runtime = new ListRuntime(config, Map.of(), Map.of(), new Pagination(0, 5000));
-    return engineService.entities(ctx, INDEX_READER, runtime).getEsDatas().stream()
-        .map(EsBase::getBase_id)
+    return engineService.search(ctx, INDEX_READER, endpointB, null).stream()
+        .map(EsSearch::getId)
         .anyMatch(endpointB::equals);
+  }
+
+  private int deletionJournalEntries() {
+    Integer count =
+        new JdbcTemplate(dataSource)
+            .queryForObject(
+                "SELECT count(*) FROM engine_deletions WHERE deletion_id = ?",
+                Integer.class,
+                endpointB);
+    return count == null ? 0 : count;
   }
 
   private boolean rowExists() {
