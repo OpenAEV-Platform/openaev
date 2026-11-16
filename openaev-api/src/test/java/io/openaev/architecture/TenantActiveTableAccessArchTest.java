@@ -2373,7 +2373,10 @@ class TenantActiveTableAccessArchTest {
           .that()
           .doNotBelongToAnyOf(
               // Called by the catalogue API and sync, inside their scoped transactions:
-              CatalogService.class, CatalogListService.class, CatalogPayloadOfferService.class)
+              CatalogService.class,
+              CatalogListService.class,
+              CatalogPayloadOfferService.class,
+              io.openaev.service.catalog.payload.CatalogPayloadStatuses.class)
           .should()
           .dependOnClassesThat()
           .areAssignableTo(CatalogItemRepository.class)
