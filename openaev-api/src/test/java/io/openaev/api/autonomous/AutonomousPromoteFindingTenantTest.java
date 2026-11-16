@@ -15,30 +15,30 @@ import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.security.token.XtmJwksExtractor;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.util.UUID;
-import org.hibernate.Session;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Promoting a finding to an asset reads the finding in the tenant of the run. A finding of another
  * tenant is an unknown id (404 "Finding not found"), so it creates no endpoint and no link, on the
  * tenant path and on the non-prefixed route with {@code X-Tenant-Ids}.
+ *
+ * <p>Not transactional: the promotion opens its own transactions, so the rows are committed and
+ * removed with their tenants.
  */
-@Transactional
 @WithMockUser(isAdmin = true)
 @DisplayName("promoting a finding to an asset reads the finding in the run's tenant")
 class AutonomousPromoteFindingTenantTest extends IntegrationTest {
@@ -56,6 +56,7 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
   private static final String VALUE_OF_B = "10.20.30.41";
 
   @Autowired private MockMvc mvc;
+  @Autowired private JdbcTemplate jdbcTemplate;
   @Autowired private TenantIsolationTestHelper tenantHelper;
 
   // The endpoints are EE-gated; the mock's license checks default to "active" (Mockito false).
@@ -77,13 +78,17 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
     runOfA = seedActiveRun(tenantA);
     findingOfA = seedFinding(tenantA, VALUE_OF_A);
     findingOfB = seedFinding(tenantB, VALUE_OF_B);
-    entityManager.flush();
-    entityManager.clear();
     TenantContext.clearCurrentTenant();
     assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
     assertThat(rawTenantOf("autonomous_runs", "autonomous_run_id", runOfA)).isEqualTo(tenantA);
     assertThat(rawTenantOf("findings", "finding_id", findingOfA)).isEqualTo(tenantA);
     assertThat(rawTenantOf("findings", "finding_id", findingOfB)).isEqualTo(tenantB);
+  }
+
+  @AfterEach
+  void deleteTheTenantsAndWhatTheyHold() {
+    tenantHelper.deleteCommittedTenants(tenantA, tenantB);
+    TenantContext.clearCurrentTenant();
   }
 
   private static MockHttpServletRequestBuilder asVerifiedServiceIdentity(
@@ -151,8 +156,8 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
 
     @Test
     @DisplayName(
-        "given_headerNamingTwoTenantsAndAFindingOfTheRun_should_linkItToAnEndpointOfThatTenant")
-    void given_headerNamingTwoTenantsAndAFindingOfTheRun_should_linkItToAnEndpointOfThatTenant()
+        "given_headerNamingTwoTenantsAndAFindingOfTheRun_should_createAnEndpointOfThatTenant")
+    void given_headerNamingTwoTenantsAndAFindingOfTheRun_should_createAnEndpointOfThatTenant()
         throws Exception {
       // Act
       mvc.perform(
@@ -163,8 +168,8 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
           .andExpect(jsonPath("$.finding_id").value(findingOfA));
 
       // Assert
-      assertThat(linksOf(findingOfA)).isEqualTo(1L);
       assertThat(endpointsNamed(tenantA, VALUE_OF_A)).isEqualTo(1L);
+      assertThat(rawTenantOf("findings", "finding_id", findingOfA)).isEqualTo(tenantA);
     }
   }
 
@@ -173,8 +178,8 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
   class ServiceIdentity {
 
     @Test
-    @DisplayName("given_serviceIdentityAndAFindingOfTheRun_should_linkItToAnEndpointOfThatTenant")
-    void given_serviceIdentityAndAFindingOfTheRun_should_linkItToAnEndpointOfThatTenant()
+    @DisplayName("given_serviceIdentityAndAFindingOfTheRun_should_createAnEndpointOfThatTenant")
+    void given_serviceIdentityAndAFindingOfTheRun_should_createAnEndpointOfThatTenant()
         throws Exception {
       // Act
       mvc.perform(asVerifiedServiceIdentity(post(PLAIN, runOfA, findingOfA)).with(csrf()))
@@ -182,8 +187,8 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
           .andExpect(jsonPath("$.finding_id").value(findingOfA));
 
       // Assert
-      assertThat(linksOf(findingOfA)).isEqualTo(1L);
       assertThat(endpointsNamed(tenantA, VALUE_OF_A)).isEqualTo(1L);
+      assertThat(rawTenantOf("findings", "finding_id", findingOfA)).isEqualTo(tenantA);
     }
   }
 
@@ -192,8 +197,8 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
   class TenantPath {
 
     @Test
-    @DisplayName("given_tenantPathAndAFindingOfTheRun_should_linkItToAnEndpointOfThatTenant")
-    void given_tenantPathAndAFindingOfTheRun_should_linkItToAnEndpointOfThatTenant()
+    @DisplayName("given_tenantPathAndAFindingOfTheRun_should_createAnEndpointOfThatTenant")
+    void given_tenantPathAndAFindingOfTheRun_should_createAnEndpointOfThatTenant()
         throws Exception {
       // Act
       mvc.perform(post(SCOPED, tenantA, runOfA, findingOfA).with(csrf()))
@@ -201,8 +206,8 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
           .andExpect(jsonPath("$.finding_id").value(findingOfA));
 
       // Assert
-      assertThat(linksOf(findingOfA)).isEqualTo(1L);
       assertThat(endpointsNamed(tenantA, VALUE_OF_A)).isEqualTo(1L);
+      assertThat(rawTenantOf("findings", "finding_id", findingOfA)).isEqualTo(tenantA);
     }
 
     @Test
@@ -225,93 +230,55 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
     }
   }
 
-  // Native seed: an explicit tenant_id lands the rows without a request scope, and the run is
-  // RUNNING so the event the promotion appends is accepted.
+  // Seeded over JDBC with an explicit tenant_id, past the statement inspector; the run is RUNNING
+  // so the event the promotion appends is accepted.
   private String seedActiveRun(String tenantId) {
     String id = UUID.randomUUID().toString();
-    entityManager
-        .createNativeQuery(
-            "INSERT INTO autonomous_runs (autonomous_run_id, tenant_id,"
-                + " autonomous_run_objective, autonomous_run_status)"
-                + " VALUES (:id, :tenant, 'Own the domain', 'RUNNING')")
-        .setParameter("id", id)
-        .setParameter("tenant", tenantId)
-        .executeUpdate();
+    jdbcTemplate.update(
+        "INSERT INTO autonomous_runs (autonomous_run_id, tenant_id,"
+            + " autonomous_run_objective, autonomous_run_status)"
+            + " VALUES (?, ?, 'Own the domain', 'RUNNING')",
+        id,
+        tenantId);
     return id;
   }
 
   private String seedFinding(String tenantId, String value) {
     String id = UUID.randomUUID().toString();
-    entityManager
-        .createNativeQuery(
-            "INSERT INTO findings (finding_id, tenant_id, finding_field, finding_type,"
-                + " finding_value, finding_value_display)"
-                + " VALUES (:id, :tenant, 'host', 'IPv4', :value, :value)")
-        .setParameter("id", id)
-        .setParameter("tenant", tenantId)
-        .setParameter("value", value)
-        .executeUpdate();
+    jdbcTemplate.update(
+        "INSERT INTO findings (finding_id, tenant_id, finding_field, finding_type,"
+            + " finding_value, finding_value_display)"
+            + " VALUES (?, ?, 'host', 'IPv4', ?, ?)",
+        id,
+        tenantId,
+        value,
+        value);
     return id;
   }
 
-  // Ground truth over plain JDBC on the test's own connection: sees the uncommitted rows and the
-  // inspector does not rewrite a statement it never generated.
   private String rawTenantOf(String table, String idColumn, String id) {
-    return rawQuery(
-        "SELECT tenant_id FROM " + table + " WHERE " + idColumn + " = ?", id, String.class);
+    return jdbcTemplate
+        .queryForList(
+            "SELECT tenant_id FROM " + table + " WHERE " + idColumn + " = ?", String.class, id)
+        .stream()
+        .findFirst()
+        .orElse(null);
   }
 
   private long linksOf(String findingId) {
-    return rawQuery(
-        "SELECT count(*) FROM findings_assets WHERE finding_id = ?", findingId, Long.class);
+    return jdbcTemplate.queryForObject(
+        "SELECT count(*) FROM findings_assets WHERE finding_id = ?", Long.class, findingId);
   }
 
   private long allLinks() {
-    entityManager.flush();
-    return entityManager
-        .unwrap(Session.class)
-        .doReturningWork(
-            connection -> {
-              try (PreparedStatement statement =
-                      connection.prepareStatement("SELECT count(*) FROM findings_assets");
-                  ResultSet rows = statement.executeQuery()) {
-                rows.next();
-                return rows.getLong(1);
-              }
-            });
+    return jdbcTemplate.queryForObject("SELECT count(*) FROM findings_assets", Long.class);
   }
 
   private long endpointsNamed(String tenantId, String name) {
-    entityManager.flush();
-    return entityManager
-        .unwrap(Session.class)
-        .doReturningWork(
-            connection -> {
-              try (PreparedStatement statement =
-                  connection.prepareStatement(
-                      "SELECT count(*) FROM assets WHERE tenant_id = ? AND asset_name = ?")) {
-                statement.setString(1, tenantId);
-                statement.setString(2, name);
-                try (ResultSet rows = statement.executeQuery()) {
-                  rows.next();
-                  return rows.getLong(1);
-                }
-              }
-            });
-  }
-
-  private <T> T rawQuery(String sql, String parameter, Class<T> type) {
-    entityManager.flush();
-    return entityManager
-        .unwrap(Session.class)
-        .doReturningWork(
-            connection -> {
-              try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                statement.setString(1, parameter);
-                try (ResultSet rows = statement.executeQuery()) {
-                  return rows.next() ? rows.getObject(1, type) : null;
-                }
-              }
-            });
+    return jdbcTemplate.queryForObject(
+        "SELECT count(*) FROM assets WHERE tenant_id = ? AND asset_name = ?",
+        Long.class,
+        tenantId,
+        name);
   }
 }

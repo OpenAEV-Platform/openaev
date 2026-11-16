@@ -613,12 +613,17 @@ public class ExerciseApiStatusTest extends IntegrationTest {
                 .with(csrf()))
         .andExpect(status().is2xxSuccessful());
 
-    // Assert: a reset keeps what the inject detected (#7848, chunk 4)
+    // Assert: a reset keeps the finding and its occurrence, detached from the inject
     entityManager.flush();
     entityManager.clear();
-    assertThat(findingRepository.findById(findingId)).isPresent();
     assertThat(findingOccurrenceRepository.findByFindingIdAndInjectId(findingId, injectId))
-        .isPresent();
+        .isEmpty();
+    assertThat(findingRepository.findById(findingId))
+        .hasValueSatisfying(
+            finding ->
+                assertThat(finding.getOccurrences())
+                    .singleElement()
+                    .satisfies(occurrence -> assertThat(occurrence.getInject()).isNull()));
   }
 
   @DisplayName("Check an exercise from finished to scheduled")

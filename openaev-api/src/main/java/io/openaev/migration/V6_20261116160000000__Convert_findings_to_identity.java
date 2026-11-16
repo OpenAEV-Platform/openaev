@@ -16,6 +16,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -28,24 +29,6 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
-/**
- * Converts the old-shape findings (one row per inject, no identity hash) into stable findings, one
- * per (tenant, type, normalized value hash, location) (#7848, chunk 5).
- *
- * <p>Each old row becomes one finding per location: each of its assets, else each of its users,
- * else the unknown location. Each location's stable finding, created if missing, gets the row's
- * occurrences (inject, date, field), tags, teams and its location link. The row is then deleted,
- * its phishing results moved to its first finding. First and last seen are recomputed from the
- * occurrences.
- *
- * <p>Also drops {@code finding_labels}, no longer mapped, and makes {@code finding_location_key} a
- * plain column written by the application ({@link FindingLocationKeys}). Deleting an inject now
- * keeps its findings: {@code finding_inject_id} goes from {@code ON DELETE CASCADE} to {@code SET
- * NULL}, like the inject of their occurrences. Drops the old unique key (inject, value, type,
- * field): the identity key {@code findings_identity_unique} exists since chunk 1. The search index
- * of the findings is reset, since every finding gets a new id. Runs outside a transaction, one
- * commit per batch: a rerun skips the rows already converted.
- */
 @Slf4j
 @Component
 public class V6_20261116160000000__Convert_findings_to_identity extends BaseJavaMigration {
@@ -127,7 +110,8 @@ public class V6_20261116160000000__Convert_findings_to_identity extends BaseJava
   }
 
   /**
-   * Converts the next batch of old-shape rows after {@code lastId}, without committing.
+   * Converts the next batch of old-shape rows after {@code lastId}, without committing. Each step
+   * runs once for the whole batch: the identities are computed in Java, the writes are set-based.
    *
    * @return the last id of the batch, or {@code null} when no row is left
    */
@@ -136,13 +120,60 @@ public class V6_20261116160000000__Convert_findings_to_identity extends BaseJava
     if (batch.isEmpty()) {
       return null;
     }
-    Map<String, String> locationIdByKey = new HashMap<>();
-    Set<String> touched = new LinkedHashSet<>();
-    for (OldFinding row : batch) {
-      convert(connection, row, locationIdByKey, touched);
+    List<Conversion> conversions = conversions(batch);
+    if (!conversions.isEmpty()) {
+      convert(connection, conversions);
     }
-    recomputeSeen(connection, touched);
     return batch.getLast().id();
+  }
+
+  private static void convert(Connection connection, List<Conversion> conversions)
+      throws SQLException {
+    // 1 - the identity of each (row, location)
+    Map<String, String> locationIdByKey = locationIds(connection, conversions);
+    List<Identity> identities = new ArrayList<>();
+    for (Conversion conversion : conversions) {
+      OldFinding row = conversion.row();
+      identities.add(
+          new Identity(
+              row.tenantId(),
+              row.type(),
+              conversion.hash(),
+              locationIdByKey.get(conversion.key())));
+    }
+    // 2 - the stable finding of each identity: the one already there, else a new one
+    Map<Identity, Target> targets = existingTargets(connection, new LinkedHashSet<>(identities));
+    List<String> oldIds = new ArrayList<>();
+    List<String> targetIds = new ArrayList<>();
+    List<String[]> assetLinks = new ArrayList<>();
+    List<String[]> userLinks = new ArrayList<>();
+    Map<String, String> firstTargetByRow = new LinkedHashMap<>();
+    for (int i = 0; i < conversions.size(); i++) {
+      Conversion conversion = conversions.get(i);
+      Target target =
+          targets.computeIfAbsent(
+              identities.get(i), identity -> new Target(UUID.randomUUID().toString(), false));
+      target.take(conversion.row());
+      oldIds.add(conversion.row().id());
+      targetIds.add(target.id);
+      firstTargetByRow.putIfAbsent(conversion.row().id(), target.id);
+      switch (conversion.location()) {
+        case AssetLocation(String assetId) -> assetLinks.add(new String[] {target.id, assetId});
+        case UserLocation(String userId) -> userLinks.add(new String[] {target.id, userId});
+        case UnknownLocation unknown -> {}
+      }
+    }
+    // 3 - write the findings, pour the old rows into them, then delete the old rows
+    writeTargets(connection, targets);
+    Array oldIdArray = varchars(connection, oldIds);
+    Array targetIdArray = varchars(connection, targetIds);
+    copyOccurrences(connection, oldIdArray, targetIdArray);
+    copyLinks(connection, "findings_tags", "tag_id", oldIdArray, targetIdArray);
+    copyLinks(connection, "findings_teams", "team_id", oldIdArray, targetIdArray);
+    linkLocations(connection, "findings_assets", "asset_id", assetLinks);
+    linkLocations(connection, "findings_users", "user_id", userLinks);
+    moveAndDelete(connection, firstTargetByRow);
+    recomputeSeen(connection, new LinkedHashSet<>(targetIds));
   }
 
   // -- READ --
@@ -245,221 +276,239 @@ public class V6_20261116160000000__Convert_findings_to_identity extends BaseJava
 
   // -- CONVERT --
 
-  private static void convert(
-      Connection connection,
-      OldFinding row,
-      Map<String, String> locationIdByKey,
-      Set<String> touched)
-      throws SQLException {
-    ContractOutputType type;
-    try {
-      type = ContractOutputType.valueOf(row.type());
-    } catch (IllegalArgumentException e) {
-      log.warn("Finding {} left unconverted: unknown type {}", row.id(), row.type());
-      return;
+  /** One location of an old row, and the identity hash of its value there. */
+  private record Conversion(OldFinding row, LocationIdentity location, String hash, String key) {}
+
+  private record Identity(String tenantId, String type, String hash, String locationId) {}
+
+  /** The stable finding of one identity, and the value and dates the batch brings to it. */
+  private static final class Target {
+    private final String id;
+    private final boolean existing;
+    private String value;
+    private String valueDisplay;
+    private String name;
+    private Timestamp firstSeen;
+    private Timestamp lastSeen;
+    private Timestamp createdAt;
+    private Timestamp updatedAt;
+
+    private Target(String id, boolean existing) {
+      this.id = id;
+      this.existing = existing;
     }
-    String firstTarget = null;
-    for (LocationIdentity location : row.locations()) {
-      String hash;
-      try {
-        hash = FindingValueNormalizer.hash(type, row.value(), location);
-      } catch (IllegalArgumentException e) {
-        log.warn("Finding {} left unconverted: {}", row.id(), e.getMessage());
-        return;
+
+    // A row detected after what the finding last saw gives it its value and name; the dates widen
+    private void take(OldFinding row) {
+      if (lastSeen == null || !row.lastDate().before(lastSeen)) {
+        value = row.value();
+        valueDisplay = row.valueDisplay();
+        name = row.name();
       }
-      String locationId = locationId(connection, location, locationIdByKey);
-      String target = findStableFinding(connection, row, hash, locationId);
-      if (target == null) {
-        target = copy(connection, row, hash, locationId);
-      } else {
-        takeLatestValue(connection, row, target);
-      }
-      copyOccurrences(connection, row, target);
-      copyLinks(connection, "findings_tags", "tag_id", row.id(), target);
-      copyLinks(connection, "findings_teams", "team_id", row.id(), target);
-      linkLocation(connection, location, target);
-      touched.add(target);
-      if (firstTarget == null) {
-        firstTarget = target;
-      }
+      firstSeen = min(firstSeen, row.firstDate());
+      lastSeen = max(lastSeen, row.lastDate());
+      createdAt = min(createdAt, row.createdAt());
+      updatedAt = max(updatedAt, row.updatedAt());
     }
-    moveAndDelete(connection, row.id(), firstTarget);
   }
 
-  private static String locationId(
-      Connection connection, LocationIdentity location, Map<String, String> locationIdByKey)
-      throws SQLException {
-    String assetId = location instanceof AssetLocation(String id) ? id : null;
-    String userId = location instanceof UserLocation(String id) ? id : null;
-    String key = FindingLocationKeys.keyOf(assetId, userId);
-    String cached = locationIdByKey.get(key);
-    if (cached != null) {
-      return cached;
+  // A row whose type or value cannot be hashed is left as it is, before anything is written
+  private static List<Conversion> conversions(List<OldFinding> batch) {
+    List<Conversion> conversions = new ArrayList<>();
+    for (OldFinding row : batch) {
+      try {
+        ContractOutputType type = ContractOutputType.valueOf(row.type());
+        List<Conversion> ofRow = new ArrayList<>();
+        for (LocationIdentity location : row.locations()) {
+          ofRow.add(
+              new Conversion(
+                  row,
+                  location,
+                  FindingValueNormalizer.hash(type, row.value(), location),
+                  FindingLocationKeys.keyOf(assetId(location), userId(location))));
+        }
+        conversions.addAll(ofRow);
+      } catch (IllegalArgumentException e) {
+        log.warn("Finding {} left unconverted: {}", row.id(), e.getMessage());
+      }
     }
+    return conversions;
+  }
+
+  private static Map<String, String> locationIds(
+      Connection connection, List<Conversion> conversions) throws SQLException {
+    Map<String, LocationIdentity> locationByKey = new LinkedHashMap<>();
+    conversions.forEach(
+        conversion -> locationByKey.putIfAbsent(conversion.key(), conversion.location()));
     try (PreparedStatement insert =
         connection.prepareStatement(
             "INSERT INTO finding_locations (finding_location_id, finding_location_asset_id,"
                 + " finding_location_user_id, finding_location_key) VALUES (?, ?, ?, ?)"
                 + " ON CONFLICT DO NOTHING")) {
-      insert.setString(1, UUID.randomUUID().toString());
-      insert.setString(2, assetId);
-      insert.setString(3, userId);
-      insert.setString(4, key);
-      insert.executeUpdate();
+      for (Map.Entry<String, LocationIdentity> entry : locationByKey.entrySet()) {
+        insert.setString(1, UUID.randomUUID().toString());
+        insert.setString(2, assetId(entry.getValue()));
+        insert.setString(3, userId(entry.getValue()));
+        insert.setString(4, entry.getKey());
+        insert.addBatch();
+      }
+      insert.executeBatch();
     }
+    Map<String, String> locationIdByKey = new HashMap<>();
     try (PreparedStatement select =
         connection.prepareStatement(
-            "SELECT finding_location_id FROM finding_locations WHERE finding_location_key = ?")) {
-      select.setString(1, key);
+            "SELECT finding_location_key, finding_location_id FROM finding_locations"
+                + " WHERE finding_location_key = ANY (?)")) {
+      select.setArray(1, varchars(connection, locationByKey.keySet()));
       try (ResultSet resultSet = select.executeQuery()) {
-        resultSet.next();
-        String id = resultSet.getString(1);
-        locationIdByKey.put(key, id);
-        return id;
+        while (resultSet.next()) {
+          locationIdByKey.put(resultSet.getString(1), resultSet.getString(2));
+        }
       }
     }
+    return locationIdByKey;
   }
 
-  private static String findStableFinding(
-      Connection connection, OldFinding row, String hash, String locationId) throws SQLException {
+  private static Map<Identity, Target> existingTargets(
+      Connection connection, Set<Identity> identities) throws SQLException {
+    List<String> tenantIds = new ArrayList<>();
+    List<String> types = new ArrayList<>();
+    List<String> hashes = new ArrayList<>();
+    List<String> locationIds = new ArrayList<>();
+    for (Identity identity : identities) {
+      tenantIds.add(identity.tenantId());
+      types.add(identity.type());
+      hashes.add(identity.hash());
+      locationIds.add(identity.locationId());
+    }
+    Map<Identity, Target> targets = new HashMap<>();
     try (PreparedStatement statement =
         connection.prepareStatement(
-            "SELECT finding_id FROM findings WHERE tenant_id = ? AND finding_type = ?"
-                + " AND finding_value_hash = ? AND finding_location_id = ?")) {
-      statement.setString(1, row.tenantId());
-      statement.setString(2, row.type());
-      statement.setString(3, hash);
-      statement.setString(4, locationId);
+            "SELECT f.finding_id, f.tenant_id, f.finding_type, f.finding_value_hash,"
+                + " f.finding_location_id, f.finding_value, f.finding_value_display,"
+                + " f.finding_name, f.finding_first_seen, f.finding_last_seen"
+                + " FROM findings f JOIN unnest(?, ?, ?, ?) AS i(tenant_id, finding_type,"
+                + " finding_value_hash, finding_location_id)"
+                + " ON f.tenant_id = i.tenant_id AND f.finding_type = i.finding_type"
+                + " AND f.finding_value_hash = i.finding_value_hash"
+                + " AND f.finding_location_id = i.finding_location_id")) {
+      statement.setArray(1, varchars(connection, tenantIds));
+      statement.setArray(2, varchars(connection, types));
+      statement.setArray(3, varchars(connection, hashes));
+      statement.setArray(4, varchars(connection, locationIds));
       try (ResultSet resultSet = statement.executeQuery()) {
-        return resultSet.next() ? resultSet.getString(1) : null;
+        while (resultSet.next()) {
+          Target target = new Target(resultSet.getString(1), true);
+          target.value = resultSet.getString(6);
+          target.valueDisplay = resultSet.getString(7);
+          target.name = resultSet.getString(8);
+          target.firstSeen = resultSet.getTimestamp(9);
+          target.lastSeen = resultSet.getTimestamp(10);
+          targets.put(
+              new Identity(
+                  resultSet.getString(2),
+                  resultSet.getString(3),
+                  resultSet.getString(4),
+                  resultSet.getString(5)),
+              target);
+        }
       }
     }
+    return targets;
   }
 
-  private static String copy(Connection connection, OldFinding row, String hash, String locationId)
+  private static void writeTargets(Connection connection, Map<Identity, Target> targets)
       throws SQLException {
-    String id = UUID.randomUUID().toString();
-    try (PreparedStatement statement =
-        connection.prepareStatement(
-            "INSERT INTO findings (finding_id, tenant_id, finding_type, finding_value,"
-                + " finding_value_display, finding_name, finding_value_hash, finding_location_id,"
-                + " finding_created_at, finding_updated_at, finding_first_seen, finding_last_seen)"
-                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
-      statement.setString(1, id);
-      statement.setString(2, row.tenantId());
-      statement.setString(3, row.type());
-      statement.setString(4, row.value());
-      statement.setString(5, row.valueDisplay());
-      statement.setString(6, row.name());
-      statement.setString(7, hash);
-      statement.setString(8, locationId);
-      statement.setTimestamp(9, row.createdAt());
-      statement.setTimestamp(10, row.updatedAt());
-      statement.setTimestamp(11, row.firstDate());
-      statement.setTimestamp(12, row.lastDate());
-      statement.executeUpdate();
-    }
-    return id;
-  }
-
-  // A row detected after what the finding last saw gives it its value and name; the dates widen
-  private static void takeLatestValue(Connection connection, OldFinding row, String target)
-      throws SQLException {
-    try (PreparedStatement value =
+    try (PreparedStatement insert =
+            connection.prepareStatement(
+                "INSERT INTO findings (finding_id, tenant_id, finding_type, finding_value,"
+                    + " finding_value_display, finding_name, finding_value_hash,"
+                    + " finding_location_id, finding_created_at, finding_updated_at,"
+                    + " finding_first_seen, finding_last_seen)"
+                    + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        PreparedStatement update =
             connection.prepareStatement(
                 "UPDATE findings SET finding_value = ?, finding_value_display = ?,"
-                    + " finding_name = ? WHERE finding_id = ?"
-                    + " AND (finding_last_seen IS NULL OR finding_last_seen <= ?)");
-        PreparedStatement seen =
-            connection.prepareStatement(
-                "UPDATE findings SET"
-                    + " finding_first_seen = LEAST(COALESCE(finding_first_seen, ?), ?),"
-                    + " finding_last_seen = GREATEST(COALESCE(finding_last_seen, ?), ?)"
+                    + " finding_name = ?, finding_first_seen = ?, finding_last_seen = ?"
                     + " WHERE finding_id = ?")) {
-      value.setString(1, row.value());
-      value.setString(2, row.valueDisplay());
-      value.setString(3, row.name());
-      value.setString(4, target);
-      value.setTimestamp(5, row.lastDate());
-      value.executeUpdate();
-      seen.setTimestamp(1, row.firstDate());
-      seen.setTimestamp(2, row.firstDate());
-      seen.setTimestamp(3, row.lastDate());
-      seen.setTimestamp(4, row.lastDate());
-      seen.setString(5, target);
-      seen.executeUpdate();
+      for (Map.Entry<Identity, Target> entry : targets.entrySet()) {
+        Identity identity = entry.getKey();
+        Target target = entry.getValue();
+        if (target.existing) {
+          update.setString(1, target.value);
+          update.setString(2, target.valueDisplay);
+          update.setString(3, target.name);
+          update.setTimestamp(4, target.firstSeen);
+          update.setTimestamp(5, target.lastSeen);
+          update.setString(6, target.id);
+          update.addBatch();
+        } else {
+          insert.setString(1, target.id);
+          insert.setString(2, identity.tenantId());
+          insert.setString(3, identity.type());
+          insert.setString(4, target.value);
+          insert.setString(5, target.valueDisplay);
+          insert.setString(6, target.name);
+          insert.setString(7, identity.hash());
+          insert.setString(8, identity.locationId());
+          insert.setTimestamp(9, target.createdAt);
+          insert.setTimestamp(10, target.updatedAt);
+          insert.setTimestamp(11, target.firstSeen);
+          insert.setTimestamp(12, target.lastSeen);
+          insert.addBatch();
+        }
+      }
+      insert.executeBatch();
+      update.executeBatch();
     }
   }
 
-  private static void copyOccurrences(Connection connection, OldFinding row, String target)
+  // On a merge, the occurrence already on the target keeps its field; in the batch, the first row
+  private static void copyOccurrences(Connection connection, Array oldIds, Array targetIds)
       throws SQLException {
     try (PreparedStatement statement =
         connection.prepareStatement(
             "INSERT INTO finding_occurrences (finding_occurrence_id, finding_occurrence_finding_id,"
                 + " finding_occurrence_inject_id, finding_occurrence_date,"
                 + " finding_occurrence_field, finding_occurrence_created_at)"
-                + " VALUES (?, ?, ?, ?, ?, now())"
+                + " SELECT gen_random_uuid()::text, m.target_id, o.finding_occurrence_inject_id,"
+                + " o.finding_occurrence_date, o.finding_occurrence_field, now()"
+                + " FROM unnest(?, ?) WITH ORDINALITY AS m(old_id, target_id, ord)"
+                + " JOIN finding_occurrences o ON o.finding_occurrence_finding_id = m.old_id"
+                + " ORDER BY m.ord"
                 + " ON CONFLICT (finding_occurrence_finding_id, finding_occurrence_inject_id)"
                 + " DO NOTHING")) {
-      for (Occurrence occurrence : row.occurrences()) {
-        statement.setString(1, UUID.randomUUID().toString());
-        statement.setString(2, target);
-        statement.setString(3, occurrence.injectId());
-        statement.setTimestamp(4, occurrence.date());
-        statement.setString(5, occurrence.field());
-        statement.addBatch();
-      }
-      statement.executeBatch();
-    }
-  }
-
-  private static void copyLinks(
-      Connection connection, String table, String column, String from, String to)
-      throws SQLException {
-    try (PreparedStatement statement =
-        connection.prepareStatement(
-            "INSERT INTO "
-                + table
-                + " (finding_id, "
-                + column
-                + ") SELECT DISTINCT ?, l."
-                + column
-                + " FROM "
-                + table
-                + " l WHERE l.finding_id = ? AND NOT EXISTS (SELECT 1 FROM "
-                + table
-                + " t WHERE t.finding_id = ? AND t."
-                + column
-                + " = l."
-                + column
-                + ")")) {
-      statement.setString(1, to);
-      statement.setString(2, from);
-      statement.setString(3, to);
+      statement.setArray(1, oldIds);
+      statement.setArray(2, targetIds);
       statement.executeUpdate();
     }
   }
 
-  // The join tables the readers use until chunk 7
-  private static void linkLocation(Connection connection, LocationIdentity location, String target)
+  private static void copyLinks(
+      Connection connection, String table, String column, Array oldIds, Array targetIds)
       throws SQLException {
-    String table;
-    String column;
-    String id;
-    switch (location) {
-      case AssetLocation(String assetId) -> {
-        table = "findings_assets";
-        column = "asset_id";
-        id = assetId;
-      }
-      case UserLocation(String userId) -> {
-        table = "findings_users";
-        column = "user_id";
-        id = userId;
-      }
-      case UnknownLocation unknown -> {
-        return;
-      }
+    try (PreparedStatement statement =
+        connection.prepareStatement(
+            "INSERT INTO "
+                + table
+                + " (finding_id, "
+                + column
+                + ") SELECT DISTINCT m.target_id, l."
+                + column
+                + " FROM unnest(?, ?) AS m(old_id, target_id) JOIN "
+                + table
+                + " l ON l.finding_id = m.old_id ON CONFLICT DO NOTHING")) {
+      statement.setArray(1, oldIds);
+      statement.setArray(2, targetIds);
+      statement.executeUpdate();
+    }
+  }
+
+  private static void linkLocations(
+      Connection connection, String table, String column, List<String[]> links)
+      throws SQLException {
+    if (links.isEmpty()) {
+      return;
     }
     try (PreparedStatement statement =
         connection.prepareStatement(
@@ -467,42 +516,58 @@ public class V6_20261116160000000__Convert_findings_to_identity extends BaseJava
                 + table
                 + " (finding_id, "
                 + column
-                + ") SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM "
-                + table
-                + " WHERE finding_id = ? AND "
-                + column
-                + " = ?)")) {
-      statement.setString(1, target);
-      statement.setString(2, id);
-      statement.setString(3, target);
-      statement.setString(4, id);
+                + ") SELECT DISTINCT * FROM unnest(?, ?) ON CONFLICT DO NOTHING")) {
+      statement.setArray(1, varchars(connection, links.stream().map(link -> link[0]).toList()));
+      statement.setArray(2, varchars(connection, links.stream().map(link -> link[1]).toList()));
       statement.executeUpdate();
     }
   }
 
   // A phishing result follows the row to its first finding, and to its occurrence there
-  private static void moveAndDelete(Connection connection, String findingId, String target)
+  private static void moveAndDelete(Connection connection, Map<String, String> firstTargetByRow)
       throws SQLException {
+    Array oldIds = varchars(connection, firstTargetByRow.keySet());
     try (PreparedStatement results =
             connection.prepareStatement(
-                "UPDATE phishing_results pr SET phishing_result_finding = ?,"
+                "UPDATE phishing_results pr SET phishing_result_finding = m.target_id,"
                     + " phishing_result_finding_occurrence = ("
                     + "SELECT moved.finding_occurrence_id FROM finding_occurrences previous"
                     + " JOIN finding_occurrences moved"
                     + " ON moved.finding_occurrence_inject_id = previous.finding_occurrence_inject_id"
-                    + " AND moved.finding_occurrence_finding_id = ?"
+                    + " AND moved.finding_occurrence_finding_id = m.target_id"
                     + " WHERE previous.finding_occurrence_id"
                     + " = pr.phishing_result_finding_occurrence)"
-                    + " WHERE pr.phishing_result_finding = ?");
+                    + " FROM unnest(?, ?) AS m(old_id, target_id)"
+                    + " WHERE pr.phishing_result_finding = m.old_id");
         PreparedStatement delete =
-            connection.prepareStatement("DELETE FROM findings WHERE finding_id = ?")) {
-      results.setString(1, target);
-      results.setString(2, target);
-      results.setString(3, findingId);
+            connection.prepareStatement("DELETE FROM findings WHERE finding_id = ANY (?)")) {
+      results.setArray(1, oldIds);
+      results.setArray(2, varchars(connection, firstTargetByRow.values()));
       results.executeUpdate();
-      delete.setString(1, findingId);
+      delete.setArray(1, oldIds);
       delete.executeUpdate();
     }
+  }
+
+  private static String assetId(LocationIdentity location) {
+    return location instanceof AssetLocation(String id) ? id : null;
+  }
+
+  private static String userId(LocationIdentity location) {
+    return location instanceof UserLocation(String id) ? id : null;
+  }
+
+  private static Array varchars(Connection connection, Collection<String> values)
+      throws SQLException {
+    return connection.createArrayOf("varchar", values.toArray());
+  }
+
+  private static Timestamp min(Timestamp current, Timestamp candidate) {
+    return current == null || candidate.before(current) ? candidate : current;
+  }
+
+  private static Timestamp max(Timestamp current, Timestamp candidate) {
+    return current == null || candidate.after(current) ? candidate : current;
   }
 
   // From the occurrences; a finding without any keeps the dates of its row
