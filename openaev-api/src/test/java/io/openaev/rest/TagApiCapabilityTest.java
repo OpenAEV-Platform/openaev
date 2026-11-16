@@ -199,7 +199,9 @@ public class TagApiCapabilityTest extends IntegrationTest {
   class UpdatePermissions {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.MANAGE_TAGS})
+    @WithMockUser(
+        withCapabilities = {Capability.MANAGE_TAGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given MANAGE_TAGS, should update a tag")
     void given_manageTags_should_updateTag() throws Exception {
       // -------- Arrange --------
@@ -251,7 +253,9 @@ public class TagApiCapabilityTest extends IntegrationTest {
   class DeletePermissions {
 
     @Test
-    @WithMockUser(withCapabilities = {Capability.DELETE_TAGS})
+    @WithMockUser(
+        withCapabilities = {Capability.DELETE_TAGS},
+        autoJoinDefaultTenant = true)
     @DisplayName("Given DELETE_TAGS, should delete a tag")
     void given_deleteTags_should_deleteTag() throws Exception {
       // -------- Arrange --------

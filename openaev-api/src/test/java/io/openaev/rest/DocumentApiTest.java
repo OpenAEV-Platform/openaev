@@ -162,7 +162,9 @@ class DocumentApiTest extends IntegrationTest {
      */
     @Test
     @DisplayName("Given a human user with ACCESS_DOCUMENTS should download the file")
-    @WithMockUser(withCapabilities = {Capability.ACCESS_DOCUMENTS})
+    @WithMockUser(
+        withCapabilities = {Capability.ACCESS_DOCUMENTS},
+        autoJoinDefaultTenant = true)
     void given_human_user_with_access_documents_capability_should_download() throws Exception {
       Document document = getSimpleDocumentWithInMemoryFile();
 
@@ -321,7 +323,8 @@ class DocumentApiTest extends IntegrationTest {
           Capability.ACCESS_CHALLENGES,
           Capability.ACCESS_LESSONS_LEARNED,
           Capability.ACCESS_SECURITY_PLATFORMS
-        })
+        },
+        autoJoinDefaultTenant = true)
     void given_observer_default_role_should_still_list_and_search_documents() throws Exception {
       Document document = getSimpleDocumentWithInMemoryFile();
 
