@@ -9,9 +9,11 @@ import static io.openaev.rest.asset.endpoint.EndpointApi.ASSET_URI;
 import static io.openaev.rest.exception.TenantScopeForbiddenException.MESSAGE;
 import static io.openaev.rest.reporting.ReportingApi.REPORTINGS_URI;
 import static io.openaev.rest.reporting.ReportingApi.TENANT_REPORTINGS_URI;
+import static io.openaev.rest.scenario.ScenarioApi.SCENARIO_URI;
 import static io.openaev.utils.JsonTestUtils.asJsonString;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.createMarkingDefinition;
 import static io.openaev.utils.fixtures.MarkingDefinitionFixture.uniqueDefinition;
+import static io.openaev.utils.fixtures.ScenarioFixture.createDefaultCrisisScenario;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,6 +39,7 @@ import io.openaev.database.model.MarkingDefinition;
 import io.openaev.database.model.NotifierType;
 import io.openaev.database.model.Reporting;
 import io.openaev.database.model.ReportingContextType;
+import io.openaev.database.model.Scenario;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
 import io.openaev.ee.EnterpriseEditionService;
@@ -48,6 +51,7 @@ import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.MarkingDefinitionComposer;
 import io.openaev.utils.fixtures.composers.ReportingComposer;
+import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.composers.TenantGroupComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.util.ArrayList;
@@ -97,6 +101,7 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;
   @Autowired private ReportingComposer reportingComposer;
+  @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private TenantGroupComposer tenantGroupComposer;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private MarkingDefinitionComposer markingDefinitionComposer;
@@ -110,6 +115,7 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
   @BeforeEach
   void setUp() throws Exception {
     reportingComposer.reset();
+    scenarioComposer.reset();
     endpointComposer.reset();
     markingDefinitionComposer.reset();
     tenantB = tenantHelper.createTenantWithCurrentUser("in-handler-permission-b").getId();
@@ -509,6 +515,35 @@ class InHandlerPermissionTenantTest extends IntegrationTest {
           .setParameter(3, simulationId)
           .executeUpdate();
       return simulationId;
+    }
+  }
+
+  /**
+   * On the plain route the ambient tenant stays the default one while the scope names B alone, and
+   * the scenarios, isolated by the ambient tenant until their table is activated, are those of the
+   * default tenant. The list decides on them with the rights the caller holds in the default
+   * tenant, which the request's own load, scoped to B, holds none of.
+   */
+  @Nested
+  @DisplayName("Scenario list on the plain route")
+  @WithMockUser(withCapabilities = {Capability.ACCESS_ASSESSMENT})
+  class ScenarioListOnThePlainRoute {
+
+    @Test
+    @DisplayName("given the right in the default tenant only should list its scenario selecting B")
+    void given_rightInTheDefaultTenantOnly_should_listItsScenarioSelectingB() throws Exception {
+      // -- ARRANGE --
+      Scenario scenario = createDefaultCrisisScenario();
+      scenario.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+      String scenarioId = scenarioComposer.forScenario(scenario).persist().get().getId();
+      // A request starts with an empty persistence context: the caller is loaded in its scope.
+      entityManager.flush();
+      entityManager.clear();
+
+      // -- ACT & ASSERT --
+      mvc.perform(inB(get(SCENARIO_URI)))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$[?(@.scenario_id == '" + scenarioId + "')]").isNotEmpty());
     }
   }
 
