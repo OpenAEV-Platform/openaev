@@ -3,9 +3,8 @@ package io.openaev.secrets.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.Secret.SECRET_TYPE;
@@ -20,8 +19,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Isolation of {@code secrets} on its own rows, through {@link SecretService}, the one service that
@@ -38,13 +35,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @CoversTenantIsolation("secrets")
 @WithMockUser(isAdmin = true)
 @DisplayName("secrets refuses another tenant's secret under one tenant's scope")
-class SecretServiceScopeIsolationTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class SecretServiceScopeIsolationTest extends ProductionTablesIntegrationTest {
 
   @Autowired private SecretService secretService;
   @Autowired private TenantScopedTransaction tenantTx;

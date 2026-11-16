@@ -4,9 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.architecture.CoversTenantIsolation;
-import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.NotificationEventRecord;
@@ -28,8 +27,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * Isolation of {@code notification_events} on its own rows, at the repository.
@@ -46,13 +43,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @CoversTenantIsolation("notification_events")
 @WithMockUser(isAdmin = true)
 @DisplayName("notification_events refuses another tenant's event under one tenant's scope")
-class NotificationEventScopeIsolationTest extends IntegrationTest {
-
-  @DynamicPropertySource
-  static void activeTables(DynamicPropertyRegistry registry) {
-    registry.add(
-        "openaev.tenant.active-tables", () -> String.join(",", ProductionActiveTables.names()));
-  }
+class NotificationEventScopeIsolationTest extends ProductionTablesIntegrationTest {
 
   @Autowired private NotificationEventRecordRepository repository;
   @Autowired private TenantScopedTransaction tenantTx;
