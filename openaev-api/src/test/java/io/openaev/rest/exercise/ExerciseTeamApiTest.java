@@ -39,10 +39,11 @@ public class ExerciseTeamApiTest extends IntegrationTest {
 
   @DisplayName("Exercise team search")
   @Nested
-  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
+  @WithMockUser(isAdmin = true)
   class SearchExerciseTeams {
     @Test
     @DisplayName("Returns global and exercise teams when searching teams")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void givenContextualOnlyFalse_whenSearchingTeams_shouldReturnGlobalAndExerciseTeams()
         throws Exception {
       Team team = TeamFixture.getEmptyTeam();
@@ -79,6 +80,7 @@ public class ExerciseTeamApiTest extends IntegrationTest {
 
     @Test
     @DisplayName("Returns only exercise teams")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     void givenContextualOnlyTrue_whenSearchingTeams_shouldReturnOnlyExerciseTeams()
         throws Exception {
       Team team = TeamFixture.getEmptyTeam();
