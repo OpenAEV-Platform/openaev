@@ -36,18 +36,18 @@ PKG = "io/openaev"
 # class-time totals differ by 6x yet whose runtimes differ by far less.
 FIXED_MINUTES = 3.4
 DEFAULT_SECONDS = 0.6
-SPLIT_THRESHOLD = 30  # files; larger packages are split one level deeper
+SPLIT_THRESHOLD = 30  # files; larger packages are split into their subpackages
 # Start of one more Spring test context in a shard: the median gap between a class
 # that starts its context and the same class reusing it, across two layouts.
 CONTEXT_SECONDS = 10.0
 
 CLASS_DECL = re.compile(
-    r"^(?:public |abstract |final )*class (\w+)(?:<[^>{]*>)?(?:\s+extends\s+([\w.]+))?", re.M)
+    r"^(?:public |abstract |final )*class (\w+)(?:<[^>{]*>)?(?:\s+extends\s+([\w.]+))?", re.MULTILINE)
 # Class-level annotations that are part of the configuration Spring caches a context by.
 CONTEXT_ANNOTATION = re.compile(
     r"^@(SpringBootTest|TestPropertySource|Import|ContextConfiguration|ActiveProfiles|"
     r"AutoConfigure\w+|DirtiesContext|WebMvcTest|DataJpaTest|JsonTest|SpringJUnitConfig)\b",
-    re.M)
+    re.MULTILINE)
 BEAN_OVERRIDE = re.compile(
     r"@(MockitoBean|MockitoSpyBean)(\([^)]*\))?\s+(?:(?:private|protected|public|final)\s+)*"
     r"([\w.<>?, \[\]]+?)\s+\w+\s*;")
@@ -139,6 +139,25 @@ def scan():
     return sorted(p.relative_to(TEST_ROOT).as_posix() for p in TEST_ROOT.rglob("*Test.java"))
 
 
+def package_units(pkg, group):
+    """A package as one unit, or, past SPLIT_THRESHOLD files, its direct classes and each of its
+    subpackages, split the same way."""
+    if len(group) <= SPLIT_THRESHOLD:
+        return [(f"{pkg}/**/*Test.java", group)]
+    direct = [r for r in group if "/" not in r[len(pkg) + 1:]]
+    subs = {}
+    for r in group:
+        rest = r[len(pkg) + 1:]
+        if "/" in rest:
+            subs.setdefault(rest.split("/")[0], []).append(r)
+    if not subs:
+        return [(f"{pkg}/**/*Test.java", group)]
+    out = [(f"{pkg}/*Test.java", direct)] if direct else []
+    for sub, members in sorted(subs.items()):
+        out += package_units(f"{pkg}/{sub}", members)
+    return out
+
+
 def units(files):
     top = {}
     for rel in files:
@@ -149,20 +168,8 @@ def units(files):
     for name, group in sorted(top.items()):
         if name == "":
             out.append((f"{PKG}/*Test.java", group))
-            continue
-        if len(group) <= SPLIT_THRESHOLD:
-            out.append((f"{PKG}/{name}/**/*Test.java", group))
-            continue
-        direct = [r for r in group if r[len(PKG) + 1:].count("/") == 1]
-        if direct:
-            out.append((f"{PKG}/{name}/*Test.java", direct))
-        subs = {}
-        for r in group:
-            rest = r[len(PKG) + 1:]
-            if rest.count("/") > 1:
-                subs.setdefault(rest.split("/")[1], []).append(r)
-        for sub, members in sorted(subs.items()):
-            out.append((f"{PKG}/{name}/{sub}/**/*Test.java", members))
+        else:
+            out += package_units(f"{PKG}/{name}", group)
     return out
 
 
@@ -189,7 +196,18 @@ def main(n=7):
     u = units(files)
     root = f"{PKG}/*Test.java"
     reserved = [x for x in u if x[0] == root]
-    packable = [(pat, members, contexts(members)) for pat, members in u if pat != root]
+    # A package that costs more than a shard's share would alone decide the run length, so its
+    # classes are listed one by one instead. A class added to it later is listed by no shard file
+    # and runs in the catch-all until the next rebalance.
+    everything = [m for pat, members in u if pat != root for m in members]
+    share = cost(everything) / n
+    split = []
+    for pat, members in u:
+        if pat != root and len(members) > 1 and cost(members) > share:
+            split += [(m, [m]) for m in members]
+        else:
+            split.append((pat, members))
+    packable = [(pat, members, contexts(members)) for pat, members in split if pat != root]
     spread_starts = sum(len(c) for _, _, c in packable)
     all_contexts = set().union(*(c for _, _, c in packable))
     print(f"{len(all_contexts)} Spring test contexts; {spread_starts} starts if every package"

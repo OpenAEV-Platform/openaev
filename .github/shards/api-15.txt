@@ -1,0 +1,10 @@
+io/openaev/api/chaining/**/*Test.java
+io/openaev/rest/ChallengeApiTest.java
+io/openaev/rest/NonPrefixedCreateCapabilityTenantTest.java
+io/openaev/rest/inject/InjectExecutionResultServiceTest.java
+io/openaev/rest/inject/InjectSecretReferenceSinkTest.java
+io/openaev/rest/lessons_template/**/*Test.java
+io/openaev/rest/organization/**/*Test.java
+io/openaev/rest/vulnerability/**/*Test.java
+io/openaev/service/catalog/**/*Test.java
+io/openaev/xtmhub/**/*Test.java

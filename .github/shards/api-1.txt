@@ -1,7 +1,7 @@
-io/openaev/expectation/**/*Test.java
-io/openaev/healthcheck/**/*Test.java
-io/openaev/rest/inject/**/*Test.java
-io/openaev/rest/session/**/*Test.java
-io/openaev/service/payload/**/*Test.java
-io/openaev/validator/**/*Test.java
-io/openaev/xtmone/**/*Test.java
+io/openaev/api/notifier/**/*Test.java
+io/openaev/config/*Test.java
+io/openaev/config/cache/**/*Test.java
+io/openaev/diagnostics/**/*Test.java
+io/openaev/killChainPhase/**/*Test.java
+io/openaev/rest/ExecutorApiUnauthenticatedAccessTest.java
+io/openaev/rest/mapper/**/*Test.java

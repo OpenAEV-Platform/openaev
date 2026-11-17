@@ -1,0 +1,14 @@
+io/openaev/api/asset/**/*Test.java
+io/openaev/api/stix_process/**/*Test.java
+io/openaev/opencti/**/*Test.java
+io/openaev/rest/ChallengeApiSecurityCoverageIsolationTest.java
+io/openaev/rest/InjectImportStoreApiTest.java
+io/openaev/rest/SimulationScenarioListDecisionTenantTest.java
+io/openaev/rest/VulnerabilityApiTest.java
+io/openaev/rest/inject/SimulationInjectApiTest.java
+io/openaev/service/autonomous/**/*Test.java
+io/openaev/service/chaining/**/*Test.java
+io/openaev/service/connector_instances/**/*Test.java
+io/openaev/service/detection_remediation/**/*Test.java
+io/openaev/service/stix/**/*Test.java
+io/openaev/utilstest/**/*Test.java

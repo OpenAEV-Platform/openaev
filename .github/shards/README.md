@@ -5,22 +5,25 @@ One file per shard, listing Surefire include patterns (relative to
 catch-all: it runs everything **not** listed in any `api-*.txt`, so a newly added
 package starts there and never goes untested.
 
-The current layout is **14 explicit shards + catch-all 15**, shared by Core and
+The current layout is **19 explicit shards + catch-all 20**, shared by Core and
 all Nightly API modes. Every package is assigned to an explicit shard, so the
 catch-all only runs the root `io/openaev/*Test.java` classes and the packages
 added since the last rebalance: it is the smallest API job, with headroom for
 new packages.
 
-The layout was repacked by `balance-api-shards.py 14` from the per-class times of
+The layout was repacked by `balance-api-shards.py 19` from the per-class times of
 the API jobs of five runs of 17 November 2026, so that the slowest shard decides
 the run length as little as possible. A shard pays about 10 s for each Spring test
 context its classes need, once however many of them share it, and about a minute
 more for its first one. `.timings.json` holds each class's time without the start
 of the context it shares, and the balancer adds a start per distinct context of a
 shard, read from the test sources: packages that need the same context land in
-the same shard instead of starting it again in each. Shard `rest/*Test.java`
-stays one unit: `*` does not cross a `/`, so the package cannot be split further
-without listing files.
+the same shard instead of starting it again in each. A package of more than 30
+classes is split into its direct classes and its subpackages, and a unit that
+alone costs more than a shard's share is listed class by class, as
+`rest/*Test.java` and `rest/inject/*Test.java` are: a class added later to such a
+package is listed by no shard file, so it runs in the catch-all until the next
+rebalance.
 
 A shard's heap grows with the Spring contexts its classes keep in the test
 context cache: `rest/exercise` once ran a shard's Surefire fork out of heap. A
@@ -48,7 +51,7 @@ durations are workload estimates, not predictions of full CI job duration.
 The existing collection and repacking commands are:
 
     python .github/scripts/collect-test-timings.py <run_id>
-    python .github/scripts/balance-api-shards.py 14
+    python .github/scripts/balance-api-shards.py 19
 
 The first writes `.timings.json` by parsing Surefire's
 `Time elapsed: ... -- in <class>` lines out of the API job logs; the second
@@ -60,7 +63,7 @@ Do not blindly regenerate from the current collector: it misses summaries using
 `@DisplayName`, can count nested durations twice when the enclosing summary
 already includes them, and keeps in a class's time the start of the context it
 shares, which the balancer then counts twice. Check top-level summaries or Surefire XML before using
-the weights. Pass `14` explicitly; the balancer's legacy default is `7`.
+the weights. Pass `19` explicitly; the balancer's legacy default is `7`.
 
 Always verify coverage afterwards:
 

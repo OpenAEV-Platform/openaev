@@ -1,0 +1,9 @@
+io/openaev/api/marking_definition/**/*Test.java
+io/openaev/api/xtmhub/**/*Test.java
+io/openaev/rest/asset/**/*Test.java
+io/openaev/rest/channel/**/*Test.java
+io/openaev/rest/comcheck/**/*Test.java
+io/openaev/rest/inject/InjectAgentTargetCheckTenantScopeTest.java
+io/openaev/rest/inject/InjectListDecisionTenantTest.java
+io/openaev/rest/reporting/**/*Test.java
+io/openaev/service/marking_definition/**/*Test.java

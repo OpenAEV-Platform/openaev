@@ -1,0 +1,8 @@
+io/openaev/config/security/**/*Test.java
+io/openaev/rest/InjectorApiTest.java
+io/openaev/rest/PlatformSettingsSafeModeApiTest.java
+io/openaev/rest/attack_pattern/**/*Test.java
+io/openaev/rest/challenge/**/*Test.java
+io/openaev/rest/document/**/*Test.java
+io/openaev/security/**/*Test.java
+io/openaev/service/tenants/**/*Test.java

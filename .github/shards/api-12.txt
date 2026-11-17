@@ -1,7 +1,9 @@
-io/openaev/api/stix_process/**/*Test.java
-io/openaev/config/security/**/*Test.java
-io/openaev/integration/**/*Test.java
-io/openaev/rest/channel/**/*Test.java
-io/openaev/rest/organization/**/*Test.java
-io/openaev/rest/team/**/*Test.java
-io/openaev/service/stix/**/*Test.java
+io/openaev/api/xtm_composer/**/*Test.java
+io/openaev/debug/**/*Test.java
+io/openaev/injectors/**/*Test.java
+io/openaev/notification/**/*Test.java
+io/openaev/output_processor/**/*Test.java
+io/openaev/rest/EndpointApiTest.java
+io/openaev/rest/custom_dashboard/**/*Test.java
+io/openaev/rest/scenario/**/*Test.java
+io/openaev/service/payload/**/*Test.java
