@@ -74,6 +74,8 @@ class ThreatArsenalImportInjectorProductionTablesTest extends ProductionTablesIn
   @Autowired private ThreatArsenalImportService threatArsenalImportService;
 
   private String tenantB;
+  private InjectorContractComposer.Composer sourceContractComposer;
+  private Injector foreignInjector;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -86,6 +88,21 @@ class ThreatArsenalImportInjectorProductionTablesTest extends ProductionTablesIn
   @AfterEach
   void cleanup() {
     TenantContext.clearCurrentTenant();
+    // The source contract, its payload and the foreign injector are planted under the default
+    // tenant by exportOfSourceContractWithForeignInjector(): the well-known injector lookup there
+    // searches by type under the ambient tenant, so a row left behind by one test's foreign
+    // injector (same type) is a candidate the next test's lookup can mistake for the real
+    // well-known injector, whatever the lookup's row order.
+    tenantTx.execute(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> {
+          if (sourceContractComposer != null) {
+            sourceContractComposer.delete();
+          }
+          if (foreignInjector != null) {
+            injectorRepository.delete(foreignInjector);
+          }
+        });
     if (tenantB != null) {
       tenantHelper.deleteCommittedTenants(tenantB);
     }
@@ -197,14 +214,14 @@ class ThreatArsenalImportInjectorProductionTablesTest extends ProductionTablesIn
         TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
         () -> {
           try {
-            InjectorContract source =
+            sourceContractComposer =
                 injectorContractComposer
                     .forInjectorContract(InjectorContractFixture.createDefaultInjectorContract())
                     .withInjector(injectorFixture.getWellKnownOaevImplantInjector())
                     .withPayload(payloadComposer.forPayload(PayloadFixture.createDefaultCommand()))
-                    .persist()
-                    .get();
-            createForeignPayloadInjector(Tenant.DEFAULT_TENANT_UUID);
+                    .persist();
+            InjectorContract source = sourceContractComposer.get();
+            foreignInjector = createForeignPayloadInjector(Tenant.DEFAULT_TENANT_UUID);
             entityManager.flush();
             entityManager.clear();
             byte[] export =
