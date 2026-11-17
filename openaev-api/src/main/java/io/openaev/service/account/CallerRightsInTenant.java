@@ -3,9 +3,12 @@ package io.openaev.service.account;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.audit.AuditLogContext;
+import io.openaev.database.model.Group;
 import io.openaev.database.model.User;
 import io.openaev.rest.exception.ElementNotFoundException;
+import io.openaev.service.GroupRolesInScope;
 import jakarta.persistence.EntityManager;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.FlushMode;
 import org.hibernate.Session;
@@ -60,10 +63,12 @@ public class CallerRightsInTenant {
   /**
    * Reads again, in the ambient tenant ({@link User#scopedTenantId()}), the roles of the groups of
    * {@code user} that belong to that tenant, in the persistence context that holds {@code user}.
-   * For a response that describes the user in the ambient tenant: its capabilities and flags are
-   * derived from those roles, and a load that ran in a scope without the ambient tenant read none
-   * of them. The transaction moves to the ambient tenant for the reads and back, as {@link
-   * #loadInAmbientTenant} does, and the audit before-snapshots are put back after them.
+   * One query reads the roles of all those groups ({@link GroupRolesInScope}) and only the groups
+   * whose roles differ from the ones the user holds are refreshed. For a response that describes
+   * the user in the ambient tenant: its capabilities and flags are derived from those roles, and a
+   * load that ran in a scope without the ambient tenant read none of them. The transaction moves to
+   * the ambient tenant for the reads and back, as {@link #loadInAmbientTenant} does, and the audit
+   * before-snapshots are put back after them.
    */
   public void loadGroupRolesInAmbientTenant(User user) {
     String ambientTenant = user.scopedTenantId();
@@ -72,11 +77,14 @@ public class CallerRightsInTenant {
         () ->
             AuditLogContext.withBeforeSnapshotsRestored(
                 () -> {
-                  user.getUnscopedGroups().stream()
-                      .filter(
-                          group ->
-                              group.getTenant() != null
-                                  && ambientTenant.equals(group.getTenant().getId()))
+                  List<Group> ambientGroups =
+                      user.getUnscopedGroups().stream()
+                          .filter(
+                              group ->
+                                  group.getTenant() != null
+                                      && ambientTenant.equals(group.getTenant().getId()))
+                          .toList();
+                  GroupRolesInScope.withDifferingRoles(entityManager, ambientGroups)
                       .forEach(entityManager::refresh);
                   return null;
                 }));
