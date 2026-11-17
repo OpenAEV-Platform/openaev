@@ -3,7 +3,7 @@ package io.openaev.scheduler.jobs;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -29,7 +29,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The inactivity monitor is the only background writer on {@code agents}.
@@ -55,9 +54,8 @@ import org.springframework.test.context.TestPropertySource;
  * does in production.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@TestPropertySource(properties = "openaev.tenant.active-tables=agents")
 @DisplayName("AgentInactivityMonitorJob with agents v2-active")
-class AgentInactivityMonitorJobIntegrationTest extends IntegrationTest {
+class AgentInactivityMonitorJobIntegrationTest extends ProductionTablesIntegrationTest {
 
   private static final Duration STALE = Duration.ofHours(2);
   private static final Duration JUST_SEEN = Duration.ZERO;

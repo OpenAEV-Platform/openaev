@@ -5,7 +5,7 @@ import static io.openaev.injectors.email.EmailContract.EMAIL_GLOBAL;
 import static io.openaev.injectors.manual.ManualContract.MANUAL_DEFAULT;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Injector;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -14,7 +14,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -25,10 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
  * tests arm {@code domains} so the fixtures are exercised under the shape the platform runs in.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=domains")
 @WithMockUser(isAdmin = true)
 @DisplayName("built-in connector registration from a fixture, with domains armed")
-class BuiltinConnectorRegistrationScopeTest extends IntegrationTest {
+class BuiltinConnectorRegistrationScopeTest extends ProductionTablesIntegrationTest {
 
   @Autowired private InjectorContractFixture injectorContractFixture;
   @Autowired private InjectorFixture injectorFixture;

@@ -19,7 +19,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Challenge;
 import io.openaev.database.model.Document;
@@ -48,7 +48,6 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,10 +64,9 @@ import org.springframework.transaction.annotation.Transactional;
  * database and not served initialized from the persistence context of the test.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=challenges,documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("Challenge read endpoints load their documents in bulk")
-class ChallengeDocumentsBulkLoadTest extends IntegrationTest {
+class ChallengeDocumentsBulkLoadTest extends ProductionTablesIntegrationTest {
 
   private static final String DOCUMENTS_LINK_TABLE = "challenges_documents";
   private static final String OBSERVER_SCENARIO_CHALLENGES_URI =

@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.SecurityPlatform;
 import io.openaev.database.model.Tenant;
@@ -26,7 +26,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,10 +35,9 @@ import org.springframework.transaction.annotation.Transactional;
  * write is refused rather than resolved by the v1 thread-local.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 @WithMockUser(isAdmin = true)
 @DisplayName("every assets-table create carries its tenant explicitly")
-class AssetWriteAttributionTest extends IntegrationTest {
+class AssetWriteAttributionTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

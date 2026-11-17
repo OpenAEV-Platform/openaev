@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.*;
 import io.openaev.database.repository.ExerciseTeamUserRepository;
@@ -55,7 +55,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,8 +63,7 @@ import org.springframework.transaction.annotation.Transactional;
 // Arms teams for this class so the main team API is exercised on v2 isolation, which the test
 // classpath otherwise switches off entirely (it declares no active-tables line). Only teams is
 // armed: the control for any measurement on this class is the same list minus teams.
-@TestPropertySource(properties = "openaev.tenant.active-tables=teams")
-class TeamApiTest extends IntegrationTest {
+class TeamApiTest extends ProductionTablesIntegrationTest {
 
   private static final String SEARCH_INPUT = "search input";
 

@@ -3,7 +3,7 @@ package io.openaev.engine;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.engine.model.vulnerableendpoint.EsVulnerableEndpoint;
 import io.openaev.engine.model.vulnerableendpoint.VulnerableEndpointHandler;
 import io.openaev.utils.fixtures.EndpointFixture;
@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -47,9 +46,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@TestPropertySource(properties = "openaev.tenant.active-tables=agents")
 @DisplayName("vulnerable-endpoint indexing with agents v2-active")
-class VulnerableEndpointIndexingAgentScopeTest extends IntegrationTest {
+class VulnerableEndpointIndexingAgentScopeTest extends ProductionTablesIntegrationTest {
 
   /** The {@code :from} cursor: one hour ago, so everything composed below is newer. */
   private static final Instant FROM = Instant.now().minus(1, ChronoUnit.HOURS);

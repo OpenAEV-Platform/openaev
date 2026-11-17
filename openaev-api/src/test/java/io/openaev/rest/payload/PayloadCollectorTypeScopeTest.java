@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.CollectorType;
@@ -26,7 +26,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -43,10 +42,9 @@ import org.springframework.test.web.servlet.MockMvc;
  * serialization. Seed and clean through auto-committed saves, same shape as {@code
  * CollectorServiceMultiTenantScopeTest} and {@code HostedPublicApiTest}.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=collector_types")
 @WithMockUser(isAdmin = true)
 @DisplayName("PayloadApi#payloads serializes the collector type name outside the request scope")
-class PayloadCollectorTypeScopeTest extends IntegrationTest {
+class PayloadCollectorTypeScopeTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private TenantIsolationTestHelper tenantHelper;

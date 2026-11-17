@@ -10,7 +10,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -43,7 +43,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -63,11 +62,10 @@ import org.springframework.test.web.servlet.ResultActions;
  * production. Tenant deletion cascades to every row seeded here.
  */
 @KeepRabbit
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets,asset_groups")
 @WithMockUser(isAdmin = true)
 @DisplayName(
     "Implant agent target check follows the caller's tenant scope on the non-prefixed route")
-class InjectAgentTargetCheckTenantScopeTest extends IntegrationTest {
+class InjectAgentTargetCheckTenantScopeTest extends ProductionTablesIntegrationTest {
 
   private record Seeded(String agentId, String injectId) {}
 

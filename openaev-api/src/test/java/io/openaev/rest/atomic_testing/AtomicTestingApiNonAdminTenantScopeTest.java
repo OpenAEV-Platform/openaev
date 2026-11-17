@@ -5,7 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -27,13 +27,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
-@TestPropertySource(properties = "openaev.tenant.active-tables=injectors")
 @WithMockUser(isAdmin = false)
 @DisplayName("A non-admin reading a simulation inject gets a resolved inject_type")
-class AtomicTestingApiNonAdminTenantScopeTest extends IntegrationTest {
+class AtomicTestingApiNonAdminTenantScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String DETAIL = "/api/tenants/{tenantId}/atomic-testings/{injectId}";
   private static final Set<Capability> ACCESS_ASSESSMENT = Set.of(Capability.ACCESS_ASSESSMENT);

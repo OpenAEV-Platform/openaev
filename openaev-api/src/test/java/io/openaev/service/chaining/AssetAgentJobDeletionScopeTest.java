@@ -3,7 +3,7 @@ package io.openaev.service.chaining;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -32,7 +32,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * Pins how {@link WorkflowEndService#deleteAllAssetAgentJobsBySimulationIds} stays correctly scoped
@@ -61,10 +60,9 @@ import org.springframework.test.context.TestPropertySource;
  * uses the ordinary composers, exactly like {@code IntegrationTest}'s own base setup; cleanup goes
  * through an auto-committing {@link JdbcTemplate}.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=asset_agent_jobs")
 @WithMockUser(isAdmin = true)
 @DisplayName("asset_agent_jobs deletion (WorkflowEndService) tenant scope")
-class AssetAgentJobDeletionScopeTest extends IntegrationTest {
+class AssetAgentJobDeletionScopeTest extends ProductionTablesIntegrationTest {
 
   @Autowired private WorkflowEndService workflowEndService;
   @Autowired private TenantScopedTransaction tenantTx;
