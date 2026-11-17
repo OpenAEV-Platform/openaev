@@ -29,6 +29,7 @@ import io.openaev.utils.fixtures.composers.DomainComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -45,30 +46,36 @@ public class PayloadApiSearchTest extends IntegrationTest {
   @Autowired private PayloadRepository payloadRepository;
   @Autowired private DocumentRepository documentRepository;
   @Autowired private DomainComposer domainComposer;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @BeforeAll
   void beforeAll() {
     // @BeforeAll runs before the per-test mock-user listener sets an ambient tenant, and the
     // listener no longer stamps an unattributed write, so this class-wide fixture stamps the
-    // default tenant explicitly on each payload before saving it.
+    // default tenant explicitly on each row and saves it in the default tenant's scope.
     try {
-      Payload command = createDefaultCommand();
-      command.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
-      Payload commandSaved = this.payloadRepository.save(command);
-      PAYLOAD_COMMAND_IDS.add(commandSaved.getId());
+      rowTenantScope.write(
+          Tenant.DEFAULT_TENANT_UUID,
+          () -> {
+            Payload command = createDefaultCommand();
+            command.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+            Payload commandSaved = this.payloadRepository.save(command);
+            PAYLOAD_COMMAND_IDS.add(commandSaved.getId());
 
-      Payload dnsResolution = createDefaultDnsResolution();
-      dnsResolution.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
-      Payload dnsResolutionSaved = this.payloadRepository.save(dnsResolution);
-      PAYLOAD_COMMAND_IDS.add(dnsResolutionSaved.getId());
+            Payload dnsResolution = createDefaultDnsResolution();
+            dnsResolution.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+            Payload dnsResolutionSaved = this.payloadRepository.save(dnsResolution);
+            PAYLOAD_COMMAND_IDS.add(dnsResolutionSaved.getId());
 
-      Document document = DocumentFixture.getDocumentJpeg();
-      Document documentSaved = this.documentRepository.save(document);
+            Document document = DocumentFixture.getDocumentJpeg();
+            document.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+            Document documentSaved = this.documentRepository.save(document);
 
-      Payload executable = createDefaultExecutable(documentSaved);
-      executable.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
-      Payload executableSaved = this.payloadRepository.save(executable);
-      PAYLOAD_COMMAND_IDS.add(executableSaved.getId());
+            Payload executable = createDefaultExecutable(documentSaved);
+            executable.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+            Payload executableSaved = this.payloadRepository.save(executable);
+            PAYLOAD_COMMAND_IDS.add(executableSaved.getId());
+          });
     } finally {
       TenantContext.clearCurrentTenant();
     }
@@ -76,11 +83,13 @@ public class PayloadApiSearchTest extends IntegrationTest {
 
   @AfterAll
   void afterAll() {
-    this.payloadRepository.deleteAllById(PAYLOAD_COMMAND_IDS);
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> this.payloadRepository.deleteAllById(PAYLOAD_COMMAND_IDS));
   }
 
   @Nested
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   @DisplayName("Retrieving payloads")
   class RetrievingPayloads {
     // -- PREPARE --
@@ -152,7 +161,8 @@ public class PayloadApiSearchTest extends IntegrationTest {
                   jsonPath("$.content[*].payload_id")
                       .value(containsInAnyOrder(command.getId(), aiAttack.getId())));
         } finally {
-          payloadRepository.deleteAllById(ids);
+          rowTenantScope.write(
+              Tenant.DEFAULT_TENANT_UUID, () -> payloadRepository.deleteAllById(ids));
         }
       }
     }
