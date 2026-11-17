@@ -82,8 +82,8 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
     String tenantId =
         stepEvent.getTenantId() != null ? stepEvent.getTenantId() : DEFAULT_TENANT_UUID;
     TenantContext.setCurrentTenant(tenantId);
+    AtomicReference<Workflow> toEvaluate = new AtomicReference<>();
     try {
-      AtomicReference<Workflow> toEvaluate = new AtomicReference<>();
       tenantTx.execute(
           TxCtx.forTenant(tenantId),
           () ->
@@ -106,7 +106,6 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
                           log.error(
                               "[Chaining] Ready consume: Step not found for StepEvent ID: {}",
                               stepEvent.getStepId())));
-      evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
     } catch (Exception e) {
       if (stepEvent.getRetryCount() < chainingConfig.getMaxRetryCount()) {
         stepEvent.setRetryCount(stepEvent.getRetryCount() + 1);
@@ -136,6 +135,7 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
         endReadyStepWithoutEvent(stepEvent, tenantId);
       }
     } finally {
+      evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
       TenantContext.clearCurrentTenant();
     }
   }
@@ -161,9 +161,9 @@ public class StepEventService implements StepEventHandler, ExternalUpdateEventHa
           "[Chaining] Could not end step {} after its event was dropped, it stays READY.",
           stepEvent.getStepId(),
           e);
-      return;
+    } finally {
+      evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
     }
-    evaluateAfterCommit(toEvaluate.get(), tenantId, stepEvent.getStepId());
   }
 
   /** Ends a step and gives its workflow run, which is evaluated once this is committed. */
