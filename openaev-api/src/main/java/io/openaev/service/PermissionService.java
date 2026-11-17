@@ -4,6 +4,7 @@ import static io.openaev.utils.TxCtxScopeUtils.requestReadScope;
 import static io.openaev.utils.TxCtxScopeUtils.tenantIdsFromHTTPCtx;
 
 import io.openaev.aop.AccessControlAspect;
+import io.openaev.config.cache.TenantMembershipCacheManager;
 import io.openaev.context.AmbientTenantBridge;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.*;
@@ -95,6 +96,7 @@ public class PermissionService {
   private final ConditionService conditionService;
   private final AmbientTenantBridge ambientTenantBridge;
   private final CallerRightsInTenant callerRightsInTenant;
+  private final TenantMembershipCacheManager tenantMembershipCacheManager;
 
   /**
    * Resolves the resource with {@link TxCtx#missing()}, which {@code
@@ -276,6 +278,28 @@ public class PermissionService {
    */
   public User withRolesInAmbientTenant(@NotNull final User user, final TxCtx ctx) {
     if (ambientRolesToLoad(user, ctx)) {
+      callerRightsInTenant.loadGroupRolesInAmbientTenant(user);
+    }
+    return user;
+  }
+
+  /**
+   * The user, as the transaction loaded it, with the roles of its groups of the ambient tenant read
+   * again, for a response that describes the user in that tenant. For an endpoint whose transaction
+   * has no tenant scope: a load there reads no role of a tenant. The roles are read when the
+   * ambient tenant is one of the user's memberships and the user is not an admin, whose flag is on
+   * its user row; the user returned is the one given.
+   *
+   * @param user the user, as the transaction loaded it
+   */
+  public User withRolesInAmbientTenant(@NotNull final User user) {
+    boolean memberOfAmbientTenant =
+        tenantMembershipCacheManager
+            .findTenantIdsByUserId(user.getId())
+            .contains(user.scopedTenantId());
+    if (!user.isAdmin()
+        && memberOfAmbientTenant
+        && TransactionSynchronizationManager.isActualTransactionActive()) {
       callerRightsInTenant.loadGroupRolesInAmbientTenant(user);
     }
     return user;
