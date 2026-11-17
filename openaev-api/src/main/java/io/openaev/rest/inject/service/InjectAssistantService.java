@@ -57,7 +57,10 @@ public class InjectAssistantService {
           "Number of inject by Attack Pattern must be less than or equal to 5");
     }
     List<Endpoint> endpoints = this.endpointService.endpoints(input.getAssetIds());
-    List<AssetGroup> assetGroups = this.assetGroupService.assetGroups(input.getAssetGroupIds());
+    // The ids named in the body resolve in the tenant of the scenario written: an id of another
+    // tenant is treated like an unknown id.
+    List<AssetGroup> assetGroups =
+        this.assetGroupService.assetGroups(input.getAssetGroupIds(), scenario.getTenant().getId());
 
     Map<AssetGroup, List<Endpoint>> assetsFromGroupMap =
         assetGroupService.assetsFromAssetGroupMap(assetGroups);
