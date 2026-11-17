@@ -306,15 +306,15 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                 })()}
                 <Text variant="content-caption">
                   {conflicts.length > 0
-                    ? t('Only the conflicts need a choice; everything else is combined for you.')
-                    : t('Nothing to decide: apply it, or look at the details first.')}
+                    ? t('Choose only for the conflicts. Everything else is merged for you.')
+                    : t('Nothing to decide. Review the details or apply.')}
                 </Text>
               </div>
               <Alert severity="info" title={t('Your targets, teams, schedule and tags stay as they are.')} />
               {preview.revoked_payloads.length > 0 && (
                 <Alert
                   severity={version ? 'error' : 'warning'}
-                  title={`${version ? t('Runs a revoked payload') : t('Runs a revoked payload: its injects will fail')}: ${preview.revoked_payloads.join(', ')}`}
+                  title={`${version ? t('Uses a revoked version') : t('Uses a revoked version: these injects will fail')}: ${preview.revoked_payloads.join(', ')}`}
                 />
               )}
               {preview.payloads_to_install.length > 0 && (
@@ -323,8 +323,8 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
               {conflicts.length > 0 && (
                 <Text variant="content-base">
                   {version
-                    ? t('Filigran changed what you customized. Keep one version for each conflict; the rest is combined.')
-                    : t('You changed what the revision restores. Keep one version for each conflict; the rest is restored.')}
+                    ? t('Filigran changed things you edited. Pick which version to keep for each.')
+                    : t('You edited things this rollback restores. Pick which version to keep for each.')}
                 </Text>
               )}
               {conflicts.length > 0 && (
@@ -441,7 +441,7 @@ const ScenarioUpdateDialog: FunctionComponent<Props> = ({ scenarioId, version, r
                 </div>
               )}
               {preview.warnings.length > 0 && (
-                <Alert severity="warning" title={t('{count} points to check after applying', { count: preview.warnings.length })} />
+                <Alert severity="warning" title={t('{count} things to check after applying', { count: preview.warnings.length })} />
               )}
               {conflicts.length === 0 && taken.length === 0 && kept.length === 0 && preview.elements.length === 0 && (
                 <Text variant="content-base">{t('Nothing changes in the content.')}</Text>

@@ -47,7 +47,7 @@ interface Source {
 // After a save that added a version: one row per older version something still runs, with how many
 // injects and scenarios. Nothing is ticked: moving changes the command that runs on endpoints, so the
 // user picks what moves (F30). The same design for 1 inject or hundreds; a finer choice, inject by
-// inject, is in the Versions tab. "Don't ask me after saving" stops the dialog (turned back on there).
+// inject, is in the Versions tab. "Don't ask me again" stops the dialog (turned back on there).
 const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, newPayloadId, newVersion, onClose }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -191,7 +191,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
             }}
             >
               <Text variant="content-base">
-                {t('{count} scenario injects, atomic tests or chained steps use older versions:', { count: String(allUsages.length) })}
+                {t('{count, plural, one {# inject still uses an older version.} other {# injects still use older versions.}}', { count: allUsages.length })}
               </Text>
               {renderSummary()}
               <label style={{
@@ -209,7 +209,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
                     setSkipsNewVersionDialog(checked === true);
                   }}
                 />
-                <Text variant="content-base">{t('Don\'t ask me after saving: I\'ll use the Versions tab')}</Text>
+                <Text variant="content-base">{t('Don\'t ask me again')}</Text>
               </label>
             </div>
           )}

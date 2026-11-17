@@ -135,7 +135,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
         <DialogContentText style={{ marginBottom: 12 }}>
           {lift
             ? t(inherited ? 'Revoked through its Filigran base. Lifting it lets this version run again in this tenant.' : 'The chosen version runs again in this tenant.')
-            : t('A revoked payload no longer runs in this tenant: until it is lifted, injects using it are skipped and fail when their scenario runs.')}
+            : t('Revoked versions don\'t run. Anything using this version will fail until you lift the revocation.')}
         </DialogContentText>
         {versions?.length === 0 ? (
           <Text variant="content-base">{lift ? t('No version is revoked in this tenant.') : t('No version left to revoke.')}</Text>
@@ -173,10 +173,10 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
             marginBottom: 16,
           }}
           >
-            <Text variant="content-base-bold">{lift ? t('Runs again in:') : t('Will fail until it is lifted:')}</Text>
+            <Text variant="content-base-bold">{lift ? t('Runs again in:') : t('What will fail:')}</Text>
             <Text variant="content-base">
-              {t('Nothing: no scenario inject, atomic test or chained step uses v{version}.', { version: version.payload_version ?? '' })}
-              {otherUsage > 0 && ` ${t('{count, plural, one {# inject keeps} other {# injects keep}} running on other versions.', { count: String(otherUsage) })}`}
+              {t('Nothing fails: v{version} isn\'t used.', { version: version.payload_version ?? '' })}
+              {otherUsage > 0 && ` ${t('{count, plural, one {# inject keeps running on another version.} other {# injects keep running on other versions.}}', { count: otherUsage })}`}
             </Text>
           </div>
         )}
@@ -188,7 +188,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
             marginBottom: 16,
           }}
           >
-            <Text variant="content-base-bold">{lift ? t('Runs again in:') : t('Will fail until it is lifted:')}</Text>
+            <Text variant="content-base-bold">{lift ? t('Runs again in:') : t('What will fail:')}</Text>
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -224,7 +224,7 @@ const PayloadRevocationDialog: FunctionComponent<Props> = ({ open, name, actionI
                 <Checkbox
                   checked={replace}
                   onCheckedChange={checked => setReplace(checked === true)}
-                  label={t('Replace it in these injects with')}
+                  label={t('Move them first to')}
                 />
                 <PayloadVersionSelect
                   value={replacement}

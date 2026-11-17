@@ -112,8 +112,8 @@ const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, open, o
                       elevation={1}
                       severity="warning"
                       title={blockers.revokedInjects.length === 1
-                        ? t('1 inject runs a revoked payload')
-                        : t('{count} injects run a revoked payload', { count: String(blockers.revokedInjects.length) })}
+                        ? t('1 inject uses a revoked version')
+                        : t('{count} injects use a revoked version', { count: String(blockers.revokedInjects.length) })}
                       description={(
                         <div style={{
                           display: 'flex',
@@ -121,7 +121,7 @@ const ScenarioLaunchCheckDrawer: FunctionComponent<Props> = ({ scenario, open, o
                           gap: 8,
                         }}
                         >
-                          <span>{`${names(blockers.revokedInjects.map(inject => inject.title))}. ${t('They are skipped and fail when the simulation runs.')} ${t('Move them to a payload version that is not revoked, or remove them.')}`}</span>
+                          <span>{`${names(blockers.revokedInjects.map(inject => inject.title))}. ${t('They will fail.')} ${t('Move them to another version, or remove them.')}`}</span>
                           {/* One version picker per revoked payload version, right in the check (F18). */}
                           {canManage && revokedGroups.map(([contractId, injects]) => (
                             <RevokedPayloadFix key={contractId} contractId={contractId} injects={injects} onMoved={check} />

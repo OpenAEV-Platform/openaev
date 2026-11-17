@@ -156,7 +156,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
           </Box>
         )}
         {source.payload_revoked && (
-          <Alert severity="warning" sx={{ borderRadius: 0 }}>{t('These injects are skipped at execution: move them to another version.')}</Alert>
+          <Alert severity="warning" sx={{ borderRadius: 0 }}>{t('These injects will fail. Move them to another version.')}</Alert>
         )}
         {result && (
           <Alert severity={(result.refused ?? []).length > 0 ? 'warning' : 'success'} sx={{ borderRadius: 0 }} onClose={() => setResult(null)}>
@@ -394,8 +394,8 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
         >
           <Text variant="content-compact" className="text-default-secondary">
             {kept
-              ? t('Kept on their version: the card shows no banner until the next version.')
-              : `${olderUsages === 1 ? t('1 inject runs an older version') : t('{count} injects run an older version', { count: String(olderUsages) })}. ${t('Move them below, or keep them on their version.')}`}
+              ? t('Kept on their version. The card\'s banner returns with the next version.')
+              : `${olderUsages === 1 ? t('1 inject uses an older version') : t('{count} injects use an older version', { count: String(olderUsages) })}. ${t('Move them below, or keep them where they are.')}`}
           </Text>
           <Button
             size="sm"

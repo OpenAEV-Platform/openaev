@@ -112,7 +112,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
     banner = (
       <MarketplaceCardBanner
         tone="critical"
-        message={t('Injects using it are skipped')}
+        message={t('Revoked: injects using it fail')}
         link={{
           label: t('Versions'),
           to: versionsLink,
@@ -123,7 +123,7 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
     banner = (
       <MarketplaceCardBanner
         tone="warning"
-        message={olderInUse === 1 ? t('1 inject runs an older version') : t('{count} injects run an older version', { count: String(olderInUse) })}
+        message={olderInUse === 1 ? t('1 inject uses an older version') : t('{count} injects use an older version', { count: String(olderInUse) })}
         link={{
           label: t('Move'),
           to: migrateLink,
