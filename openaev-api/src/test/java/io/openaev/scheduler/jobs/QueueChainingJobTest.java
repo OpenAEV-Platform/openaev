@@ -47,6 +47,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -75,6 +76,10 @@ class QueueChainingJobTest extends IntegrationTest {
   @Autowired private TenantRepository tenantRepository;
   @Autowired private CweRepository cweRepository;
   @Autowired private TenantScopedTransaction tenantTx;
+
+  @Value("${openaev.tenant.active-tables:}")
+  private List<String> activeTables;
+
   @MockitoSpyBean private StepService stepService;
   @MockitoSpyBean private WorkflowService workflowService;
 
@@ -258,13 +263,20 @@ class QueueChainingJobTest extends IntegrationTest {
 
       // Act
       assertThatThrownBy(() -> job.execute(null)).isInstanceOf(IllegalStateException.class);
-      Cwe nextWrite = persistCweWithoutTenant();
 
-      // Assert
-      assertThat(nextWrite.getTenant().getId())
-          .isNotEqualTo(otherTenant.getId())
-          .isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      // Assert: the thread carries no tenant, so the next unattributed write is handled as
+      // production handles it for that table: refused when the table is active, stamped with the
+      // default tenant when it is not. It is never stamped with the tenant of the failed pass.
       assertThat(TenantContext.hasCurrentTenant()).isFalse();
+      if (isCweTableActive()) {
+        assertThatThrownBy(this::persistCweWithoutTenant)
+            .hasStackTraceContaining("unattributed tenant write: Cwe");
+      } else {
+        Cwe nextWrite = persistCweWithoutTenant();
+        assertThat(nextWrite.getTenant().getId())
+            .isNotEqualTo(otherTenant.getId())
+            .isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+      }
     }
 
     @Test
@@ -300,6 +312,12 @@ class QueueChainingJobTest extends IntegrationTest {
       scenario.setTenant(tenant);
       persistDueDelayQueueEntry(
           WorkflowFixture.getDefaultWorkflowExecution(WorkflowStatus.RUN), scenario);
+    }
+
+    private boolean isCweTableActive() {
+      return activeTables.stream()
+          .map(String::trim)
+          .anyMatch(t -> t.equals("cwes") || t.equals("*"));
     }
 
     private Cwe persistCweWithoutTenant() {
