@@ -3,6 +3,7 @@ package io.openaev.config;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Predicate;
 
 /**
  * Test-only collector for the write-attribution detector, the write-side twin of {@link
@@ -80,12 +81,13 @@ public final class WriteAttrDetectorRecorder {
   }
 
   /**
-   * Drops the violations of the current test. For the detector's own tests that drive a deliberate
-   * wrong-tenant write and assert on the recorded violation themselves: once they have, the gate
-   * must not judge the same write a second time as if production code had made it.
+   * Drops the violations of the current test that match {@code deliberate}. For the detector's own
+   * tests that drive a deliberate wrong-tenant write and assert on the recorded violation
+   * themselves: once they have, the gate must not judge the same write a second time as if
+   * production code had made it. Every other violation stays for the gate.
    */
-  static void discardViolations() {
-    VIOLATIONS.clear();
+  static void discardViolations(Predicate<Violation> deliberate) {
+    VIOLATIONS.removeIf(deliberate);
   }
 
   public static List<Violation> violations() {

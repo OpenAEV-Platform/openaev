@@ -65,8 +65,8 @@ class WriteAttrDetachedMergeAttributionTest extends IntegrationTest {
     TenantContext.clearCurrentTenant();
     WriteAttrDetectorRecorder.stop();
     // The deliberate wrong-tenant role write is asserted on in the test body; the gate would judge
-    // the same write again as a production one.
-    WriteAttrDetectorRecorder.discardViolations();
+    // the same write again as a production one. Any other violation stays for the gate.
+    WriteAttrDetectorRecorder.discardViolations(violation -> "roles".equals(violation.table()));
   }
 
   @Nested
