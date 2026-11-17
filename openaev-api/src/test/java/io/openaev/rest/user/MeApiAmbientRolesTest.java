@@ -3,6 +3,7 @@ package io.openaev.rest.user;
 import static io.openaev.rest.user.MeApi.ME_URI;
 import static io.openaev.service.UserService.buildAuthenticationToken;
 import static io.openaev.utils.fixtures.UserFixture.RAW_PASSWORD;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -26,13 +27,18 @@ import io.openaev.database.model.User;
 import io.openaev.database.repository.GroupRepository;
 import io.openaev.database.repository.RoleRepository;
 import io.openaev.database.repository.UserRepository;
+import io.openaev.service.PermissionService;
 import io.openaev.service.UserService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.UserFixture;
+import jakarta.persistence.EntityManagerFactory;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -93,11 +99,14 @@ class MeApiAmbientRolesTest extends IntegrationTest {
   @Autowired private GroupRepository groupRepository;
   @Autowired private TenantMembershipCacheManager membershipCache;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private PermissionService permissionService;
+  @Autowired private EntityManagerFactory emf;
 
   private String tenantA;
   private User member;
   private final List<String> roleIds = new java.util.ArrayList<>();
   private final List<String> groupIds = new java.util.ArrayList<>();
+  private final List<String> extraUserIds = new ArrayList<>();
 
   @BeforeAll
   void seed() throws Exception {
@@ -135,7 +144,11 @@ class MeApiAmbientRolesTest extends IntegrationTest {
 
   @AfterAll
   void cleanup() {
-    jdbc.update("DELETE FROM users_groups WHERE user_id = ?", member.getId());
+    List<String> allUserIds = new ArrayList<>(extraUserIds);
+    allUserIds.add(member.getId());
+    for (String userId : allUserIds) {
+      jdbc.update("DELETE FROM users_groups WHERE user_id = ?", userId);
+    }
     for (String groupId : groupIds) {
       jdbc.update("DELETE FROM groups_roles WHERE group_id = ?", groupId);
       jdbc.update("DELETE FROM groups WHERE group_id = ?", groupId);
@@ -144,8 +157,10 @@ class MeApiAmbientRolesTest extends IntegrationTest {
       jdbc.update("DELETE FROM roles_capabilities WHERE role_id = ?", roleId);
       jdbc.update("DELETE FROM roles WHERE role_id = ?", roleId);
     }
-    jdbc.update("DELETE FROM users_tenants WHERE user_id = ?", member.getId());
-    jdbc.update("DELETE FROM users WHERE user_id = ?", member.getId());
+    for (String userId : allUserIds) {
+      jdbc.update("DELETE FROM users_tenants WHERE user_id = ?", userId);
+      jdbc.update("DELETE FROM users WHERE user_id = ?", userId);
+    }
     tenantHelper.deleteCommittedTenants(tenantA);
     TenantContext.clearCurrentTenant();
   }
@@ -164,6 +179,42 @@ class MeApiAmbientRolesTest extends IntegrationTest {
     Group savedGroup = groupRepository.save(group);
     groupIds.add(savedGroup.getId());
     return savedGroup;
+  }
+
+  private Group emptyGroup(String tenantId) {
+    Group group = new Group();
+    group.setName("empty-group-" + UUID.randomUUID());
+    group.setTenant(new Tenant(tenantId));
+    Group savedGroup = groupRepository.save(group);
+    groupIds.add(savedGroup.getId());
+    return savedGroup;
+  }
+
+  /**
+   * A member of the default tenant only: {@code emptyGroups} groups of that tenant with no role,
+   * and one group of that tenant holding {@link #DEFAULT_TENANT_CAPABILITY}.
+   */
+  private User memberOfDefaultTenant(String label, int emptyGroups) {
+    User user =
+        userRepository.save(
+            UserFixture.getUser(
+                label, label, label + "-" + UUID.randomUUID() + "@unittests.invalid", false));
+    extraUserIds.add(user.getId());
+    tenantTx.executeAsPlatformWrite(
+        TxCtx.forTenants(List.of(Tenant.DEFAULT_TENANT_UUID, tenantA)),
+        () -> {
+          user.getUnscopedGroups()
+              .add(tenantGroup(Tenant.DEFAULT_TENANT_UUID, DEFAULT_TENANT_CAPABILITY));
+          for (int i = 0; i < emptyGroups; i++) {
+            user.getUnscopedGroups().add(emptyGroup(Tenant.DEFAULT_TENANT_UUID));
+          }
+          userRepository.save(user);
+        });
+    tenantTx.execute(
+        TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+        () -> tenantRepository.addUserToTenant(user.getId(), Tenant.DEFAULT_TENANT_UUID));
+    membershipCache.evict(user.getId(), Tenant.DEFAULT_TENANT_UUID);
+    return user;
   }
 
   @Nested
@@ -238,5 +289,50 @@ class MeApiAmbientRolesTest extends IntegrationTest {
               jsonPath("$.user_capabilities[?(@ == '" + TENANT_A_CAPABILITY + "')]")
                   .doesNotExist());
     }
+  }
+
+  @Nested
+  @DisplayName("the roles of the ambient tenant read again for a user of several groups")
+  class GroupsOfTheAmbientTenant {
+
+    @Test
+    @DisplayName("given_oneGroupWithRoles_should_runTheSameStatementsWhateverTheGroupCount")
+    void given_oneGroupWithRoles_should_runTheSameStatementsWhateverTheGroupCount() {
+      // Arrange: under the scope of tenant A, the group that holds a role of the default tenant
+      // reads none and the groups with no role read none either
+      User fewGroups = memberOfDefaultTenant("few-groups", 1);
+      User manyGroups = memberOfDefaultTenant("many-groups", 5);
+
+      // Act
+      Measure few = measureAmbientRolesLoad(fewGroups);
+      Measure many = measureAmbientRolesLoad(manyGroups);
+
+      // Assert
+      assertThat(few.capabilities()).contains(DEFAULT_TENANT_CAPABILITY);
+      assertThat(many.capabilities()).contains(DEFAULT_TENANT_CAPABILITY);
+      assertThat(many.statements()).isEqualTo(few.statements());
+    }
+
+    private Measure measureAmbientRolesLoad(User user) {
+      Statistics statistics = emf.unwrap(SessionFactory.class).getStatistics();
+      statistics.setStatisticsEnabled(true);
+      TenantContext.setCurrentTenant(Tenant.DEFAULT_TENANT_UUID);
+      try {
+        TxCtx scope = TxCtx.forTenant(tenantA);
+        return tenantTx.execute(
+            scope,
+            () -> {
+              User loaded = userRepository.findById(user.getId()).orElseThrow();
+              statistics.clear();
+              permissionService.withRolesInAmbientTenant(loaded, scope);
+              return new Measure(statistics.getPrepareStatementCount(), loaded.getCapabilities());
+            });
+      } finally {
+        TenantContext.clearCurrentTenant();
+        statistics.setStatisticsEnabled(false);
+      }
+    }
+
+    private record Measure(long statements, Set<Capability> capabilities) {}
   }
 }
