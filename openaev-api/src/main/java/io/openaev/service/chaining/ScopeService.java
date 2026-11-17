@@ -233,7 +233,14 @@ public class ScopeService {
             .map(WorkflowScopeRule::getRuleValue)
             .toList();
 
-    return assetIds.isEmpty() ? Set.of() : new LinkedHashSet<>(assetService.assets(assetIds));
+    if (assetIds.isEmpty()) {
+      return Set.of();
+    }
+    // A rule stores the asset id its request names. Every rule carries the tenant of its workflow
+    // (WorkflowScopeRule#attributeTenantFromWorkflow), so an asset of another tenant is an unknown
+    // id.
+    String workflowTenantId = allowlistRules.getFirst().getTenant().getId();
+    return new LinkedHashSet<>(assetService.assets(assetIds, workflowTenantId));
   }
 
   private Set<Asset> getAssetsAllowedByAssetGroup(List<WorkflowScopeRule> allowlistRules) {
