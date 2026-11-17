@@ -42,7 +42,6 @@ import io.openaev.utils.ThreatArsenalFilterUtils;
 import io.openaev.utils.TxCtxScopeUtils;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.pagination.SearchPaginationInput;
-import jakarta.annotation.Nullable;
 import jakarta.persistence.criteria.Join;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -273,19 +272,6 @@ public class ThreatArsenalService {
     PayloadCreationService.PayloadInjectorContractCreationResult result =
         this.payloadCreationService.createPayload(ctx, payloadCreateInput);
     return threatArsenalMapper.toThreatArsenalAction(result.injectorContract());
-  }
-
-  /** Whether the name is free for a new action, or for the payload of this one. */
-  @Transactional(readOnly = true)
-  public boolean isNameAvailable(TxCtx ctx, String name, @Nullable String actionId) {
-    Payload payload =
-        actionId == null || actionId.isBlank()
-            ? null
-            : injectorContractService.injectorContract(actionId).getPayload();
-    return payloadService.isNameAvailable(
-        writeScopeResolver.tenantForWrite(ctx, null),
-        name,
-        payload == null ? null : payload.getIdentity().getId());
   }
 
   /**

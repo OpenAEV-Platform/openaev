@@ -417,16 +417,11 @@ public class PayloadService {
 
   // -- NAME --
 
-  /** Whether no other payload of the tenant uses this name; the versions of a payload share it. */
-  @Transactional(readOnly = true)
-  public boolean isNameAvailable(String tenantId, String name, @Nullable String identityId) {
-    return name == null
-        || name.isBlank()
-        || !payloadRepository.existsByTenantIdAndNameOutsideIdentity(tenantId, name, identityId);
-  }
-
+  /** No other payload of the tenant may use this name; the versions of a payload share it. */
   public void assertNameAvailable(String tenantId, String name, @Nullable String identityId) {
-    if (!isNameAvailable(tenantId, name, identityId)) {
+    if (name != null
+        && !name.isBlank()
+        && payloadRepository.existsByTenantIdAndNameOutsideIdentity(tenantId, name, identityId)) {
       throw new BadRequestException(PAYLOAD_NAME_TAKEN);
     }
   }
