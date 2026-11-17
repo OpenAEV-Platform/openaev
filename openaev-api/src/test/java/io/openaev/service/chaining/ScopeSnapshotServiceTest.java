@@ -634,7 +634,8 @@ class ScopeSnapshotServiceTest {
                 lookedUpInsideTransaction.add(insideTransaction.get());
                 return asset("a1", "Prod server");
               });
-      when(collectorRepository.findAllActiveByTenantIdAndSecurityPlatformIsNotNull(anyString(), anyString()))
+      when(collectorRepository.findAllActiveByTenantIdAndSecurityPlatformIsNotNull(
+              anyString(), anyString()))
           .thenReturn(List.of());
       WorkflowScopeRule rule = assetRule("a1", null, null);
       Workflow run = Workflow.builder().status(WorkflowStatus.RUN).build();
