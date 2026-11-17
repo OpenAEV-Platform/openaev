@@ -229,7 +229,7 @@ class StepEventCommitFailureIntegrationTest extends IntegrationTest {
           Workflow run = workflowRepository.findById(workflowRunId).orElseThrow();
           Step stepTemplate = stepRepository.findById(stepTemplateId).orElseThrow();
           try {
-            List<Step> readySteps = stepService.createReadySteps(stepTemplate, run, null, 0);
+            List<Step> readySteps = stepService.createReadySteps(stepTemplate, run, null);
             assertThat(readySteps).hasSize(1);
             return readySteps.get(0).getId();
           } catch (ChainingException e) {
