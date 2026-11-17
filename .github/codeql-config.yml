@@ -1,0 +1,8 @@
+name: "CodeQL config"
+paths:
+  - openaev-api/src
+  - openaev-front/src
+  - openaev-framework/src
+  - openaev-model/src
+paths-ignore:
+  - openaev-front/src/static

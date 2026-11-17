@@ -19,10 +19,10 @@ docs/overrides/       → MkDocs Material template overrides
 docs/site/            → Generated output (do NOT edit)
 docs/mkdocs.yml       → MkDocs configuration, nav tree and link validation
 docs/hooks/checks.py  → MkDocs hook: checks pages, images, search index, links and links.json on every build
-docs/links.json       → Map of the docs links the backend and the frontend open by key
+docs/links.json       → Map of the docs links the backend and the frontend open by key, and the retired paths
 docs/check.py         → Strict build with every check; skips when nothing changed (--force to rebuild)
 docs/.python-version  → Oldest Python the docs toolchain supports (3.11)
-docs/run.py           → Entry point: sets up docs/.venv with pip, then runs check, serve or test
+docs/run.py           → Entry point: sets up docs/.venv/py<version>-<digest> with pip, then runs check, serve or test
 docs/toolchain.py     → Helpers of run.py and check.py: build engine (the one mike deploys with), atomic writes
 docs/tests/           → Tests of run.py, check.py and the hook (`python3 docs/run.py test`)
 docs/requirements.in  → Python dependencies (direct)
@@ -31,9 +31,11 @@ docs/requirements.txt → Generated from requirements.in with uv pip compile (do
 
 Run the checks with Python 3.11 (`.python-version`) or later, from any folder: `python3 docs/run.py check`.
 It must pass before a docs change is pushed. When you move or rename a page or a heading, add a redirect
-in `mkdocs.yml` for the old URL and update the keys of `links.json` that point to it: a key that goes
-through a redirect fails the check. Never write a `docs.openaev.io` URL in
-the application code: add a key to `links.json` and use it. Links go to the latest docs (`/latest/` or
+in `mkdocs.yml` for the old URL, move the old path of every key of `links.json` that points to it to the
+`retired` list, and point the key at the new path: a key that goes through a redirect fails the check, a
+retired path may, but must still resolve. Released versions of the application open the retired paths:
+keep them, and remove one only when no supported release opens it any more. Never write a
+`docs.openaev.io` URL in the application code: add a key to `links.json` and use it. Links go to the latest docs (`/latest/` or
 relative): a link to a fixed version (`https://docs.openaev.io/<version>/...`) fails the check on purpose.
 
 ## Writing style rules

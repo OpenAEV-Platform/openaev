@@ -156,13 +156,19 @@ class KeyAndValueTest(unittest.TestCase):
 
 class LinksFileTest(unittest.TestCase):
     def test_valid_file(self):
-        links, errors = checks.load_links(json.dumps({"base": ROOT, "links": {"a": "a/"}}))
-        self.assertEqual((links, errors), ({"a": "a/"}, []))
+        document, errors = checks.load_links(json.dumps({"base": ROOT, "links": {"a": "a/"}}))
+        self.assertEqual((document, errors), ({"links": {"a": "a/"}, "retired": []}, []))
+
+    def test_valid_file_with_retired_paths(self):
+        document, errors = checks.load_links(json.dumps({"base": ROOT, "links": {}, "retired": ["old/", "x"]}))
+        self.assertEqual((document["retired"], errors), (["old/", "x"], []))
 
     def test_shape_errors(self):
         for text in ("{", "[]", json.dumps({"base": ROOT}), json.dumps({"base": ROOT, "links": [], "x": 1}),
                      json.dumps({"base": "https://docs.openaev.io/3.2.0/", "links": {}}),
-                     json.dumps({"base": ROOT, "links": []})):
+                     json.dumps({"base": ROOT, "links": []}),
+                     json.dumps({"base": ROOT, "links": {}, "retired": "old/"}),
+                     json.dumps({"base": ROOT, "links": {}, "other": []})):
             links, errors = checks.load_links(text)
             self.assertIsNone(links, text)
             self.assertTrue(errors, text)
@@ -177,6 +183,24 @@ class LinksFileTest(unittest.TestCase):
         self.assertEqual(len(errors), 4)
         for key in ("Bad", "page", "anchor", "slash"):
             self.assertTrue(any(f"'{key}'" in e for e in errors), key)
+
+    def test_duplicate_retired_paths(self):
+        _, errors = checks.load_links(json.dumps({"base": ROOT, "links": {}, "retired": ["a/", "b/", "a/"]}))
+        self.assertEqual(errors, ["retired path 'a/' is listed more than once"])
+
+    def test_retired_paths_may_go_through_redirects_but_must_resolve(self):
+        retired = ["old/#intro", "chain/", "old-anchor/", "a", "away/", "a/#setup"]
+        self.assertEqual(checks.retired_errors(site(), retired), [])
+
+    def test_retired_path_errors_name_the_path(self):
+        errors = checks.retired_errors(site(), ["nope/", "old/#nope", "/a/", "a b/", 3,
+                                                "https://docs.openaev.io/latest/a/", "../3.2.0/a/"])
+        self.assertEqual(len(errors), 7, errors)
+        self.assertIn("retired path 'nope/': no page /latest/nope/", errors[0])
+        self.assertIn("retired path 'old/#nope': no anchor #nope on /latest/a/", errors[1])
+        for error, path in zip(errors[2:6], ('"/a/"', '"a b/"', "3", '"https://docs.openaev.io/latest/a/"')):
+            self.assertIn(f"retired path {path}", error)
+        self.assertIn("fixed version 3.2.0", errors[6])
 
     def test_a_key_through_a_redirect_fails_and_names_the_page(self):
         self.assertEqual(checks.links_errors(site(), {"old": "old/#intro"}),

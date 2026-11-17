@@ -24,5 +24,29 @@
     "scenarios_and_simulations": "usage/get-started/foundations/scenarios-and-simulations/",
     "teams": "usage/build/people/#teams",
     "users_and_rbac": "administration/users-and-rbac/"
-  }
+  },
+  "retired": [
+    "administration/parameters/",
+    "administration/users/",
+    "deployment/configuration/#ai-service",
+    "deployment/configuration/#imap",
+    "deployment/configuration/#mail-services",
+    "deployment/configuration/#postgresql",
+    "deployment/configuration/#rabbitmq",
+    "deployment/configuration/#s3-bucket",
+    "deployment/ecosystem/executors/#crowdstrike-falcon-agent",
+    "deployment/ecosystem/executors/#deploy-agents",
+    "deployment/ecosystem/executors/#microsoft-defender-for-endpoint",
+    "deployment/ecosystem/executors/#paloaltocortex-agent",
+    "deployment/ecosystem/executors/#sentinelone-agent",
+    "deployment/ecosystem/executors/#tanium-agent",
+    "deployment/ecosystem/integration-manager/overview/",
+    "deployment/platform/run-modes/",
+    "usage/build/threat-arsenals/output-parsers/",
+    "usage/collectors/",
+    "usage/foundations/scenarios-and-simulations/",
+    "usage/injectors",
+    "usage/openaev-agent/",
+    "usage/teams_and_players_and_organizations/#teams"
+  ]
 }

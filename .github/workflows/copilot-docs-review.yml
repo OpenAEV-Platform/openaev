@@ -1,7 +1,4 @@
-name: "[OpenAEV] Docs Update Reminder"
-
-# Points out the changes of a pull request that usually need a docs update: a new endpoint, page,
-# integration, setting or preview feature. It is not a required check, so it never blocks a merge.
+name: "[OpenAEV] Documentation Gap Check"
 
 on:
   pull_request:
@@ -12,17 +9,15 @@ permissions:
   pull-requests: write
 
 jobs:
-  docs-reminder:
-    name: "📝 Docs update reminder"
+  docs-check:
+    name: "📖 Documentation gap check"
     runs-on: ubuntu-24.04
     steps:
-      - name: Look for changes that need a docs update
+      - name: Detect documentation gaps
         uses: actions/github-script@v9
         with:
           script: |
-            // Kept from the former name, so the comment already on a pull request is updated in place.
             const MARKER = '<!-- openaev-docs-gap-check -->';
-            const TITLE = '📝 **Docs update reminder**';
             const SKIP_LABELS = ['No need documentation', 'docs-not-needed'];
             const SKIP_LABEL = SKIP_LABELS[0];
 
@@ -159,7 +154,7 @@ jobs:
                   title: 'New REST API controller',
                   file: fn,
                   doc: '`docs/docs/reference/apis/rest-api.md`',
-                  reason: 'New API endpoints should be documented.',
+                  reason: 'New API endpoints must be documented.',
                 });
               }
 
@@ -170,7 +165,7 @@ jobs:
                   title: 'New integration type',
                   file: fn,
                   doc: '`docs/docs/integrations/`',
-                  reason: 'New integrations should be documented for deployment and usage.',
+                  reason: 'New integrations must be documented for deployment and usage.',
                 });
               }
 
@@ -182,7 +177,7 @@ jobs:
                     title: 'New UI page or route',
                     file: fn,
                     doc: '`docs/docs/usage/build/` or `docs/docs/usage/run-and-evaluate/` (matching section)',
-                    reason: 'New user-facing pages should be documented.',
+                    reason: 'New user-facing pages must be documented.',
                   });
                 }
               }
@@ -240,48 +235,48 @@ jobs:
 
             // -- 8. gaps found, no doc changes → report -------------------
 
-            const expected  = gaps.filter(g => g.severity === 'CRITICAL' || g.severity === 'HIGH');
-            const suggested = gaps.filter(g => g.severity !== 'CRITICAL' && g.severity !== 'HIGH');
+            const blocking    = gaps.filter(g => g.severity === 'CRITICAL' || g.severity === 'HIGH');
+            const nonBlocking = gaps.filter(g => g.severity !== 'CRITICAL' && g.severity !== 'HIGH');
+            const failed      = blocking.length > 0;
 
             const lines = [
               MARKER,
-              expected.length > 0
-                ? `${TITLE} — 📌 Docs update expected`
-                : `${TITLE} — ⚠️ Docs update suggested`,
+              failed
+                ? '📖 **Documentation check** — ❌ Failed'
+                : '📖 **Documentation check** — ⚠️ Passed with warnings',
               '',
-              `**${funcFiles.length}** application file(s) changed and no docs file. This is a reminder, not a required check: it never blocks the merge.`,
+              `**${funcFiles.length}** functional file(s) changed, **0** documentation file(s) changed.`,
               '',
             ];
 
-            if (expected.length > 0) {
-              lines.push('### Expected docs updates', '');
-              lines.push('These changes are usually documented in the same pull request.', '');
-              for (const g of expected) {
+            if (blocking.length > 0) {
+              lines.push('### Blocking gaps', '');
+              lines.push(`Update the docs or add the \`${SKIP_LABEL}\` label to bypass.`, '');
+              for (const g of blocking) {
                 lines.push(`#### ${g.emoji} ${g.title}`);
                 lines.push(`- **File**: \`${g.file}\``);
-                lines.push(`- **Docs page**: ${g.doc}`);
-                lines.push(`- **Why**: ${g.reason}`);
+                lines.push(`- **Expected doc update**: ${g.doc}`);
+                lines.push(`- **Reason**: ${g.reason}`);
                 lines.push('');
               }
             }
 
-            if (suggested.length > 0) {
-              lines.push('### Suggested docs updates', '');
-              for (const g of suggested) {
+            if (nonBlocking.length > 0) {
+              lines.push('### Suggestions (non-blocking)', '');
+              for (const g of nonBlocking) {
                 lines.push(`- ${g.emoji} **${g.title}** — \`${g.file}\` → ${g.doc}`);
               }
               lines.push('');
             }
 
             lines.push('---');
-            lines.push(`> Nothing to document? Add the \`${SKIP_LABEL}\` label to close this reminder.`);
+            lines.push(`> Add the \`${SKIP_LABEL}\` label to bypass this check when no documentation update is needed.`);
 
             await publishReport(lines.join('\n'));
 
-            // A warning, not a failure: the job stays green, as a reminder must not look like a broken PR.
-            if (expected.length > 0) {
-              core.warning(
-                `${expected.length} change(s) usually need a docs update. `
-                + `Update docs/ or add the '${SKIP_LABEL}' label. This does not block the merge.`
+            if (failed) {
+              core.setFailed(
+                `${blocking.length} blocking documentation gap(s) detected. `
+                + `Update documentation or add the '${SKIP_LABEL}' label.`
               );
             }

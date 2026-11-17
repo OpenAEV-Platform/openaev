@@ -5,6 +5,7 @@ Run with: python3 docs/run.py test
 
 import contextlib
 import io
+import logging
 import os
 import tempfile
 import unittest
@@ -77,6 +78,15 @@ class FingerprintTest(unittest.TestCase):
             (self.docs / folder / "x").write_text("x")
         self.assertEqual(before, check.fingerprint(self.docs, {}))
 
+    def test_only_the_top_folders_are_left_out(self):
+        before = check.fingerprint(self.docs, {})
+        for folder in ("docs/tests", "docs/site", "docs/usage/.cache", "overrides/.venv"):
+            (self.docs / folder).mkdir(parents=True)
+            (self.docs / folder / "page.md").write_text("x")
+            after = check.fingerprint(self.docs, {})
+            self.assertNotEqual(before, after, folder)
+            before = after
+
     def test_changes_with_the_environment_mkdocs_yml_reads(self):
         base = check.fingerprint(self.docs, {})
         for name in ("DOCS_GIT_PLUGINS", "DOCS_FEATURE_FLAGS", "MY_TOKEN"):
@@ -134,6 +144,14 @@ class MkdocsBuildTest(unittest.TestCase):
                        fake_engine(load_config=mock.Mock(side_effect=FakeConfigurationError("bad")))):
             with self.assertRaises(check.DocsProblems):
                 self.build(engine)
+
+    def test_a_plugin_missing_from_the_environment_is_a_toolchain_error(self):
+        def load_config(*args, **kwargs):
+            logging.getLogger("mkdocs.config").error('Config value \'plugins\': The "nope" plugin is not installed')
+            raise FakeAbort("Aborted with a configuration error!")
+
+        with self.assertRaises(check.ToolchainError):
+            self.build(fake_engine(load_config=load_config))
 
     def test_other_errors_go_through_and_main_exits_3(self):
         engine = fake_engine(build=mock.Mock(side_effect=RuntimeError("plugin crash")))

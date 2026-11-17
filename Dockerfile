@@ -40,8 +40,6 @@ COPY openaev-framework ./openaev-framework
 COPY openaev-api ./openaev-api
 COPY openaev-maven-plugin ./openaev-maven-plugin
 COPY openaev-ocsf ./openaev-ocsf
-# Read by the docs-links goal, which generates the backend docs link constants
-COPY docs/links.json ./docs/links.json
 COPY pom.xml ./pom.xml
 COPY --from=front-builder /opt/openaev-build/openaev-front/builder/prod/build ./openaev-front/builder/prod/build
 # The docs links are checked in CI, not in the image build (no docs toolchain here)

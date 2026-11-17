@@ -40,10 +40,16 @@ from toolchain import engine_name, write_atomically
 
 DOCS = Path(__file__).resolve().parent
 
-# Everything under docs/ is an input of the check, except these folders: environments, caches,
-# build output, and the tests, which do not change what the build produces.
-EXCLUDED_DIRS = {".venv", ".cache", "site", "tests", "__pycache__", ".git", ".dev_venv", "venv", ".venv-build",
-                 ".idea", ".vscode", ".mypy_cache"}
+# Everything under docs/ is an input of the check, except these folders at the top of docs/:
+# environments, caches, build output, and the tests, which do not change what the build produces.
+# Python caches are left out wherever they are.
+EXCLUDED_TOP_DIRS = {".venv", ".cache", "site", "tests", ".git", ".dev_venv", "venv", ".venv-build", ".idea",
+                     ".vscode", ".mypy_cache"}
+EXCLUDED_DIRS_ANYWHERE = {"__pycache__"}
+# How the engine reports, while it loads mkdocs.yml, a plugin, theme or extension that the docs
+# environment lacks: a broken toolchain, not a problem of the docs.
+TOOLCHAIN_ERROR_RE = re.compile(r"plugin is not installed|Unrecognised theme name|Failed to load extension|"
+                                r"No module named|cannot import name", re.I)
 # `!ENV NAME` and `!ENV [NAME, OTHER, default]`: every name of the list, the default included,
 # which costs nothing when no variable has that name.
 ENV_TAG_RE = re.compile(r"!ENV\s+(\[[^\]]*\]|[A-Za-z_]\w*)")
@@ -60,10 +66,24 @@ class DocsProblems(Exception):
     """The build reported problems in the docs: the build already printed them."""
 
 
+class ToolchainError(Exception):
+    """The docs environment lacks a plugin, theme or extension that mkdocs.yml uses."""
+
+
+class _Records(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(logging.ERROR)
+        self.messages: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.messages.append(record.getMessage())
+
+
 def input_files(docs: Path) -> list[Path]:
     files = []
     for root, dirs, names in os.walk(docs):
-        dirs[:] = sorted(d for d in dirs if d not in EXCLUDED_DIRS)
+        top = Path(root) == docs
+        dirs[:] = sorted(d for d in dirs if d not in EXCLUDED_DIRS_ANYWHERE and not (top and d in EXCLUDED_TOP_DIRS))
         files += (Path(root) / name for name in names)
     return sorted(files)
 
@@ -124,12 +144,19 @@ def mkdocs_build(docs: Path, site_dir: Path, engine: SimpleNamespace | None = No
     handler.setFormatter(logging.Formatter("%(levelname)-8s-  %(message)s"))
     logger.addHandler(handler)
     try:
+        records = _Records()
+        logger.addHandler(records)
         try:
             config = engine.load_config(str(docs / "mkdocs.yml"), strict=True, site_dir=str(site_dir))
         except (engine.Abort, engine.ConfigurationError) as error:
-            # The engine printed what is wrong in mkdocs.yml, a file of the docs.
+            # The engine printed what is wrong in mkdocs.yml: a file of the docs, unless what is
+            # missing is part of the toolchain.
             logger.error("%s", error)
+            if any(TOOLCHAIN_ERROR_RE.search(message) for message in [*records.messages, str(error)]):
+                raise ToolchainError(str(error)) from error
             raise DocsProblems() from error
+        finally:
+            logger.removeHandler(records)
         config.plugins.on_startup(command="build", dirty=False)
         try:
             engine.build(config)
@@ -165,7 +192,7 @@ def run(docs: Path, force: bool, builder: Callable[[Path, Path], None] = mkdocs_
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser = argparse.ArgumentParser(prog="check.py", description=__doc__.split("\n\n")[0])
     parser.add_argument("--force", action="store_true", help="build even when nothing changed since the last check")
     args = parser.parse_args(argv)
 
