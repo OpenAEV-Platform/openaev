@@ -444,9 +444,8 @@ jobs:
   # The backend coverage rules, on pull requests: at least 80% of the backend lines the pull request
   # changes are covered, and backend line coverage does not drop by more than 0.1 point against
   # the last commit of main. It builds its own report, next to coverage-backend rather than after it.
-  # Reported through the Pipeline Gate as advisory, never blocking, until it has run clean for a
-  # while on real PRs. Making it blocking means taking the job out of the advisory list in the
-  # gate below.
+  # A broken rule fails the job and blocks the merge through the Pipeline Gate, unless the pull
+  # request description waives it with a "Coverage exempt: <why>" line.
   coverage-backend-gate:
     name: "🔎 Backend Coverage Check"
     needs: [api-tests]
@@ -678,7 +677,7 @@ jobs:
   #
   # Required branch-protection check: "<caller-job> / ✅ Pipeline Gate".
   # Coverage upload is best-effort and stays out of it; the backend coverage rules
-  # (coverage-backend-gate) are in it, advisory.
+  # (coverage-backend-gate) are in it, and block.
   # ════════════════════════════════════════════════════════════════════
 
   pipeline-gate:
@@ -733,7 +732,7 @@ jobs:
             case "$job" in
               # A new check lands here first so a false positive cannot block a merge. Take the job
               # out of this list to make it blocking.
-              bom-override-guard|coverage-backend-gate|aikido-image-scan)
+              bom-override-guard|aikido-image-scan)
                 advisory=1
                 ;;
             esac
