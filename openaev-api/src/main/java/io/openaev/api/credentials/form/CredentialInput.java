@@ -102,7 +102,6 @@ public record CredentialInput(
         null,
         null,
         null,
-        // API TOKEN
         null,
         credentialTagIds);
   }

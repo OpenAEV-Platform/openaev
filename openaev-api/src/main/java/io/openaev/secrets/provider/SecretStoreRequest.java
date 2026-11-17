@@ -87,5 +87,4 @@ public record SecretStoreRequest(
     String gcpCustomOauthAccessToken,
     String azureAuthorityHostUri,
     byte[] azureRequestsCertificate,
-    // API TOKEN
     String apiToken) {}
