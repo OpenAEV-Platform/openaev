@@ -101,7 +101,7 @@ class InjectsPlayedSearchApiTest extends IntegrationTest {
 
   @Nested
   @DisplayName("Asset scope")
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   class AssetScope {
 
     @Test
