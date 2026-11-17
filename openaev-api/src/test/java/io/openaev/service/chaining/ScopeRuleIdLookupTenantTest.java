@@ -22,7 +22,9 @@ import io.openaev.database.model.Scenario;
 import io.openaev.database.model.ScopeRuleSelectedMode;
 import io.openaev.database.model.ScopeRuleSource;
 import io.openaev.database.model.ScopeRuleValueType;
+import io.openaev.database.model.Team;
 import io.openaev.database.model.Tenant;
+import io.openaev.database.model.User;
 import io.openaev.database.model.Workflow;
 import io.openaev.database.model.WorkflowScopeRule;
 import io.openaev.ee.EnterpriseEditionService;
@@ -31,10 +33,14 @@ import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.AssetGroupFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
+import io.openaev.utils.fixtures.TeamFixture;
+import io.openaev.utils.fixtures.UserFixture;
 import io.openaev.utils.fixtures.WorkflowFixture;
 import io.openaev.utils.fixtures.composers.AssetGroupComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
+import io.openaev.utils.fixtures.composers.TeamComposer;
+import io.openaev.utils.fixtures.composers.UserComposer;
 import io.openaev.utils.fixtures.composers.WorkflowComposer;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.sql.PreparedStatement;
@@ -91,6 +97,8 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
   @Autowired private TenantScopedTransaction tenantTx;
   @Autowired private EndpointComposer endpointComposer;
   @Autowired private AssetGroupComposer assetGroupComposer;
+  @Autowired private TeamComposer teamComposer;
+  @Autowired private UserComposer userComposer;
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private WorkflowComposer workflowComposer;
 
@@ -99,6 +107,7 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
   private String workflowId;
   private String scenarioId;
   private String runId;
+  private String scenarioOfLastWorkflow;
   private String endpointInA;
   private String endpointInB;
 
@@ -108,6 +117,8 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
     when(enterpriseEditionService.isLicenseActive(any())).thenReturn(true);
     endpointComposer.reset();
     assetGroupComposer.reset();
+    teamComposer.reset();
+    userComposer.reset();
     scenarioComposer.reset();
     workflowComposer.reset();
     // The caller belongs to both tenants, so the header can name both of them.
@@ -308,6 +319,112 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
       assertThat(nameOf(response, endpointInA)).isEqualTo(OWN_NAME);
       assertThat(nameOf(response, endpointInB)).isEqualTo(endpointInB);
     }
+
+    private String namesRunId;
+    private String groupInA;
+    private String groupInB;
+    private String teamInA;
+    private String teamInB;
+    private String playerInA;
+    private String playerInB;
+
+    @BeforeEach
+    void seedRunNamingEntitiesOfBothTenants() {
+      groupInA = saveGroup(tenantA, "scope-rule-own-group", saveEndpoint(tenantA, "member-a"));
+      groupInB = saveGroup(tenantB, "scope-rule-foreign-group", saveEndpoint(tenantB, "member-b"));
+      playerInA = saveUser("ScopeRuleOwn", tenantA).getId();
+      playerInB = saveUser("ScopeRuleForeign", tenantB).getId();
+      teamInA = saveTeam(tenantA, "scope-rule-own-team");
+      teamInB = saveTeam(tenantB, "scope-rule-foreign-team");
+      namesRunId =
+          seedRunOfTenantA(
+              groupRule(ScopeRuleSelectedMode.ALLOWLIST, groupInA),
+              groupRule(ScopeRuleSelectedMode.ALLOWLIST, groupInB),
+              allowTeam(teamInA),
+              allowTeam(teamInB),
+              allowPlayer(playerInA),
+              allowPlayer(playerInB));
+    }
+
+    @Test
+    @DisplayName(
+        "given a header naming both tenants when the rules name a group of each tenant then only"
+            + " the group of the run tenant carries its name")
+    void given_headerNamingBothTenants_should_nameOnlyTheGroupOfTheRunTenant() throws Exception {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      String response = scopeOnHeaderRoute(namesRunId);
+
+      // Assert
+      assertThat(nameOf(response, groupInA)).isEqualTo("scope-rule-own-group");
+      assertThat(nameOf(response, groupInB)).isEqualTo(groupInB);
+    }
+
+    @Test
+    @DisplayName(
+        "given a header naming both tenants when the rules name a team of each tenant then only"
+            + " the team of the run tenant carries its name")
+    void given_headerNamingBothTenants_should_nameOnlyTheTeamOfTheRunTenant() throws Exception {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      String response = scopeOnHeaderRoute(namesRunId);
+
+      // Assert
+      assertThat(nameOf(response, teamInA)).isEqualTo("scope-rule-own-team");
+      assertThat(nameOf(response, teamInB)).isEqualTo(teamInB);
+    }
+
+    @Test
+    @DisplayName(
+        "given a header naming both tenants when the rules name a player of each tenant then only"
+            + " the member of the run tenant carries a name")
+    void given_headerNamingBothTenants_should_nameOnlyThePlayerMemberOfTheRunTenant()
+        throws Exception {
+      // Arrange
+      TenantContext.clearCurrentTenant();
+      assertThat(TenantContext.getCurrentTenant()).isEqualTo(Tenant.DEFAULT_TENANT_UUID);
+
+      // Act
+      String response = scopeOnHeaderRoute(namesRunId);
+
+      // Assert
+      assertThat(nameOf(response, playerInA)).isEqualTo("ScopeRuleOwn Player");
+      assertThat(nameOf(response, playerInB)).isEqualTo(playerInB);
+    }
+
+    @Test
+    @DisplayName(
+        "given the path of the run tenant when the rules name a player who is not a member of the"
+            + " run tenant then the player carries no name")
+    void given_pathOfTheRunTenant_should_nameOnlyThePlayerMemberOfTheRunTenant() throws Exception {
+      // Act
+      String response =
+          mvc.perform(get(TENANT_RUN_SCOPE_URI, tenantA, namesRunId))
+              .andExpect(status().isOk())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+
+      // Assert
+      assertThat(nameOf(response, playerInA)).isEqualTo("ScopeRuleOwn Player");
+      assertThat(nameOf(response, playerInB)).isEqualTo(playerInB);
+      assertThat(nameOf(response, groupInB)).isEqualTo(groupInB);
+      assertThat(nameOf(response, teamInB)).isEqualTo(teamInB);
+    }
+
+    private String scopeOnHeaderRoute(String run) throws Exception {
+      return mvc.perform(get(RUN_SCOPE_URI, run).header(TENANT_HEADER, tenantA + "," + tenantB))
+          .andExpect(status().isOk())
+          .andReturn()
+          .getResponse()
+          .getContentAsString();
+    }
   }
 
   // -- FIXTURES --
@@ -341,25 +458,76 @@ class ScopeRuleIdLookupTenantTest extends IntegrationTest {
         .forWorkflow(workflow)
         .withScenario(scenarioComposer.forScenario(scenario))
         .persist();
+    scenarioOfLastWorkflow = scenario.getId();
     entityManager.flush();
     entityManager.clear();
     return workflow.getId();
   }
 
-  private record RuleSpec(ScopeRuleSelectedMode mode, String groupId) {
+  /** A run of tenant A bound to a scenario whose template workflow holds only the given rules. */
+  private String seedRunOfTenantA(RuleSpec... specs) {
+    seedWorkflowOfTenantA(specs);
+    String run = UUID.randomUUID().toString();
+    execute(
+        "INSERT INTO autonomous_runs (autonomous_run_id, tenant_id, autonomous_run_objective,"
+            + " autonomous_run_status, autonomous_run_scenario_id) VALUES (?, ?, 'Own the domain',"
+            + " 'COMPLETED', ?)",
+        run,
+        tenantA,
+        scenarioOfLastWorkflow);
+    entityManager.flush();
+    entityManager.clear();
+    return run;
+  }
+
+  private record RuleSpec(
+      ScopeRuleSelectedMode mode,
+      ScopeRuleSource source,
+      ScopeRuleValueType valueType,
+      String value) {
     WorkflowScopeRule toRule(Workflow workflow) {
       return WorkflowScopeRule.builder()
           .selectedMode(mode)
-          .ruleSource(ScopeRuleSource.ASSET_GROUP)
-          .valueType(ScopeRuleValueType.ASSET_GROUP_ID)
-          .ruleValue(groupId)
+          .ruleSource(source)
+          .valueType(valueType)
+          .ruleValue(value)
           .workflow(workflow)
           .build();
     }
   }
 
   private static RuleSpec groupRule(ScopeRuleSelectedMode mode, String groupId) {
-    return new RuleSpec(mode, groupId);
+    return new RuleSpec(
+        mode, ScopeRuleSource.ASSET_GROUP, ScopeRuleValueType.ASSET_GROUP_ID, groupId);
+  }
+
+  private static RuleSpec allowTeam(String teamId) {
+    return new RuleSpec(
+        ScopeRuleSelectedMode.ALLOWLIST, ScopeRuleSource.TEAM, ScopeRuleValueType.TEAM_ID, teamId);
+  }
+
+  private static RuleSpec allowPlayer(String userId) {
+    return new RuleSpec(
+        ScopeRuleSelectedMode.ALLOWLIST,
+        ScopeRuleSource.PLAYER,
+        ScopeRuleValueType.PLAYER_ID,
+        userId);
+  }
+
+  private String saveTeam(String tenantId, String name, User... members) {
+    Team team = TeamFixture.getEmptyTeam();
+    team.setName(name);
+    team.setTenant(new Tenant(tenantId));
+    team.setUsers(new ArrayList<>(List.of(members)));
+    teamComposer.forTeam(team).persist();
+    return team.getId();
+  }
+
+  private User saveUser(String name, String tenantId) {
+    User user = UserFixture.getUser(name, "Player", UUID.randomUUID() + "@unittests.invalid");
+    userComposer.forUser(user).persist();
+    tenantHelper.attachUserToTenant(user.getId(), tenantId);
+    return user;
   }
 
   private static WorkflowScopeRule assetRule(Workflow workflow, String endpointId) {

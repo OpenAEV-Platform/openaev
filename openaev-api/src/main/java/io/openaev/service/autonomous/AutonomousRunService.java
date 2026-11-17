@@ -2412,7 +2412,11 @@ public class AutonomousRunService {
     return source.name() + "|" + value;
   }
 
-  /** Batch-resolves entity display names per kind so scope reads never issue a query per rule. */
+  /**
+   * Batch-resolves entity display names per kind so scope reads never issue a query per rule. The
+   * rules store the ids their requests name: an id of another tenant than {@code tenantId} is an
+   * unknown id and carries no name.
+   */
   private Map<String, String> resolveScopeNames(List<WorkflowScopeRule> rules, String tenantId) {
     Map<String, String> names = new HashMap<>();
     List<String> assetIds = idsForSource(rules, ScopeRuleSource.ASSET);
@@ -2425,17 +2429,18 @@ public class AutonomousRunService {
       }
     }
     if (!groupIds.isEmpty()) {
-      for (AssetGroup group : assetGroupRepository.findAllById(groupIds)) {
+      for (AssetGroup group : assetGroupRepository.findAllByIdInTenant(groupIds, tenantId)) {
         names.put(nameKey(ScopeRuleSource.ASSET_GROUP, group.getId()), group.getName());
       }
     }
     if (!teamIds.isEmpty()) {
-      for (Team team : teamRepository.findAllById(teamIds)) {
+      for (Team team : teamRepository.findAllByIdInTenant(teamIds, tenantId)) {
         names.put(nameKey(ScopeRuleSource.TEAM, team.getId()), team.getName());
       }
     }
     if (!playerIds.isEmpty()) {
-      for (User user : userRepository.findAllById(playerIds)) {
+      // Users are platform entities: only the members of the run tenant carry a name.
+      for (User user : userRepository.findAllByIdInAndTenantId(playerIds, tenantId)) {
         names.put(nameKey(ScopeRuleSource.PLAYER, user.getId()), scopePlayerName(user));
       }
     }
