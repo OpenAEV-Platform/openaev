@@ -555,11 +555,12 @@ class ExerciseServiceUnitTest {
 
       Exercise exercise = new Exercise();
       exercise.setId(exerciseId);
+      exercise.setTenant(new Tenant("tenant-1"));
       exercise.setTeams(new ArrayList<>(List.of(existingTeam1, existingTeam2)));
 
       when(exerciseRepository.findByIdAndTenantIdIn(exerciseId, Set.of("tenant-1")))
           .thenReturn(Optional.of(exercise));
-      when(teamRepository.findAllById(any()))
+      when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1")))
           .thenAnswer(
               invocation -> {
                 Iterable<String> ids = invocation.getArgument(0);
@@ -613,11 +614,13 @@ class ExerciseServiceUnitTest {
 
       Exercise exercise = new Exercise();
       exercise.setId(exerciseId);
+      exercise.setTenant(new Tenant("tenant-1"));
       exercise.setTeams(new ArrayList<>(List.of(existingTeam)));
 
       when(exerciseRepository.findByIdAndTenantIdIn(exerciseId, Set.of("tenant-1")))
           .thenReturn(Optional.of(exercise));
-      when(teamRepository.findAllById(any())).thenReturn(List.of(existingTeam));
+      when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1")))
+          .thenReturn(List.of(existingTeam));
       when(teamService.find(any())).thenReturn(List.of());
 
       mockedExerciseService.replaceTeams(
