@@ -8,9 +8,11 @@ import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.ExecutionStatus;
+import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
 import io.openaev.database.model.InjectorContract;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.InjectRepository;
 import io.openaev.rest.inject.form.InjectExecutionAction;
 import io.openaev.rest.inject.form.InjectExecutionCallback;
@@ -149,25 +151,26 @@ class BatchingInjectStatusServiceTenantScopeTest extends IntegrationTest {
   }
 
   private String seedPendingInjectWithStoredError(String tenantId) {
-    TenantContext.setCurrentTenant(tenantId);
     String[] injectId = new String[1];
     rowTenantScope.write(
         tenantId,
         () -> {
-          InjectorContract contract = injectorContractFixture.getWellKnownSingleEmailContract();
+          InjectorContract contract =
+              injectorContractFixture.getWellKnownSingleEmailContract(tenantId);
+          Inject inject = InjectFixture.createInject(contract, "cb-traces-probe");
+          inject.setTenant(new Tenant(tenantId));
           InjectComposer.Composer injectC =
               injectComposer
-                  .forInject(InjectFixture.createInject(contract, "cb-traces-probe"))
+                  .forInject(inject)
                   .withInjectStatus(
                       injectStatusComposer
                           .forInjectStatus(InjectStatusFixture.createPendingInjectStatus())
                           .withExecutionTrace(
                               executionTraceComposer.forExecutionTrace(
                                   ExecutionTraceFixture.createDefaultExecutionTraceError())));
-          exerciseComposer
-              .forExercise(ExerciseFixture.createDefaultExercise())
-              .withInjects(List.of(injectC))
-              .persist();
+          Exercise exercise = ExerciseFixture.createDefaultExercise();
+          exercise.setTenant(new Tenant(tenantId));
+          exerciseComposer.forExercise(exercise).withInjects(List.of(injectC)).persist();
           injectId[0] = injectC.get().getId();
         });
     return injectId[0];
