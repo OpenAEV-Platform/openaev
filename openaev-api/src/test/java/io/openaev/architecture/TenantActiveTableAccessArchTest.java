@@ -51,6 +51,8 @@ import io.openaev.database.model.CustomDashboard;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Exercise;
 import io.openaev.database.model.Inject;
+import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.InjectTestStatus;
 import io.openaev.database.model.InjectorContract;
 import io.openaev.database.model.InjectorContractId;
 import io.openaev.database.model.NotificationEventRecord;
@@ -331,6 +333,7 @@ import io.openaev.utils.mapper.ExerciseMapper;
 import io.openaev.utils.mapper.FindingMapper;
 import io.openaev.utils.mapper.InjectExpectationMapper;
 import io.openaev.utils.mapper.InjectMapper;
+import io.openaev.utils.mapper.InjectStatusMapper;
 import io.openaev.utils.mapper.PayloadMapper;
 import io.openaev.utils.mapper.ThreatArsenalMapper;
 import io.openaev.utils.mapper.VulnerabilityMapper;
@@ -4581,4 +4584,60 @@ class TenantActiveTableAccessArchTest {
           .because(
               "execution_traces is tenant-active: an accessor without a tenant scope silently reads"
                   + " zero rows. New accessors must carry a scope and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule execution_traces_inject_status_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // The entity's own helper methods (addTrace/addErrorTrace/addInfoTrace/
+              // addWarningTrace, statusIdentifiers): they mutate or read the collection the EAGER
+              // fetch already materialized when the owning InjectStatus was loaded, inside whatever
+              // scope that load ran under:
+              InjectStatus.class,
+              // Builds the status output DTO inside the scoped transaction of the TxCtx-carrying
+              // inject and execution-log endpoints:
+              InjectStatusMapper.class,
+              // Status transitions and trace bookkeeping, reached from the TxCtx-carrying callback,
+              // launch and execution-log endpoints, and from the per-tenant job runner for
+              // scheduled execution:
+              InjectStatusService.class,
+              // Chaining step output, built under the per-tenant transaction the queue and step
+              // handlers open:
+              InjectExecutionStep.class,
+              // Finalization job: reads the same EAGER collection of a status already loaded under
+              // TxCtx.forTenant for the inject's own tenant:
+              InjectsFinalizationJob.class,
+              // Attack path finding narrative, reading inside the scoped transaction of its own
+              // TxCtx-carrying ingestion entrypoint:
+              AttackPathExecutionIngestionService.class,
+              // Autonomous attack path step narrative, reading inside the scoped transaction the
+              // autonomous run's own TxCtx-carrying entrypoint opened:
+              AutonomousRunService.class)
+          .should()
+          .callMethod(InjectStatus.class, "getTraces")
+          .because(
+              "execution_traces is reached through InjectStatus's EAGER traces association WITHOUT"
+                  + " touching ExecutionTraceRepository: a getTraces() outside a scoped transaction"
+                  + " silently loads zero rows. New callers must run inside a tenant-scoped"
+                  + " transaction and be allowlisted here");
+
+  @ArchTest
+  static final ArchRule execution_traces_inject_test_status_association_access_is_reviewed =
+      noClasses()
+          .that()
+          .doNotBelongToAnyOf(
+              // InjectTestStatus.fromExecutionTest builds a NOT-YET-persisted instance from the
+              // transient Execution traces: no table read happens here:
+              InjectTestStatus.class,
+              // Builds the test status output DTO inside the scoped transaction of the
+              // TxCtx-carrying test endpoints:
+              InjectStatusMapper.class)
+          .should()
+          .callMethod(InjectTestStatus.class, "getTraces")
+          .because(
+              "execution_traces is reached through InjectTestStatus's EAGER traces association"
+                  + " WITHOUT touching ExecutionTraceRepository: a getTraces() outside a scoped"
+                  + " transaction silently loads zero rows. New callers must run inside a"
+                  + " tenant-scoped transaction and be allowlisted here");
 }
