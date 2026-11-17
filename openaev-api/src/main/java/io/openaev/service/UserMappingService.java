@@ -7,6 +7,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.config.cache.MarkingClearanceCacheManager;
 import io.openaev.config.cache.TenantMembershipCacheManager;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
 import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
@@ -43,6 +45,7 @@ public class UserMappingService {
   private final Environment env;
   private final MarkingClearanceCacheManager markingClearanceCacheManager;
   private final TenantMembershipCacheManager tenantMembershipCacheManager;
+  private final TenantScopedTransaction tenantScopedTransaction;
   public static final String ROLES_PATH_SUFFIX = "roles_path";
   public static final String GROUPS_PATH_SUFFIX = "groups_path";
 
@@ -175,7 +178,9 @@ public class UserMappingService {
     }
     return Optional.of(
         tenant == null
-            ? platformGroupService.createPlatformGroup(userGroup, null, false)
+            ? tenantScopedTransaction.executeNewAsPlatformWrite(
+                TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+                () -> platformGroupService.createPlatformGroup(userGroup, null, false))
             : tenantGroupService.createGroup(userGroup, tenant.getId()));
   }
 
