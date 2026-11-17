@@ -18,7 +18,9 @@ import io.openaev.utils.mockUser.WithMockUser;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
@@ -30,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
  * {@link BaseEvent} built during the flush already loaded the members. These tests serialize the
  * event's instance once it is detached, as the stream does.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional
 @RecordApplicationEvents
 @WithMockUser(isAdmin = true)
@@ -54,64 +57,74 @@ class GroupUsersLazyFetchTest extends IntegrationTest {
     return StreamSupport.stream(array.spliterator(), false).map(JsonNode::asText).toList();
   }
 
-  @Test
-  @DisplayName("given_groupUpdated_should_streamItsMembersOnceDetached")
-  void given_groupUpdated_should_streamItsMembersOnceDetached() {
-    // -- ARRANGE --
-    TenantGroupComposer.Composer groupComposer =
-        tenantGroupComposer.forGroup(TenantGroupFixture.getGroup());
-    String groupId = groupComposer.persist().get().getId();
-    String memberId =
-        userComposer
-            .forUser(getUser("Streamed", "Member", UUID.randomUUID() + "@test.invalid"))
-            .withGroup(groupComposer)
-            .persist()
-            .get()
-            .getId();
-    entityManager.flush();
-    entityManager.clear();
+  @Nested
+  @DisplayName("Stream of a group update")
+  class GroupUpdate {
 
-    // -- ACT --
-    Group loaded = entityManager.find(Group.class, groupId);
-    loaded.setName("Renamed streamed group");
-    entityManager.flush();
-    entityManager.clear();
-    JsonNode streamed = mapper.valueToTree(lastEventOf(groupId).getInstance());
+    @Test
+    @DisplayName("given_groupUpdated_should_streamItsMembersOnceDetached")
+    void given_groupUpdated_should_streamItsMembersOnceDetached() {
+      // -- ARRANGE --
+      TenantGroupComposer.Composer groupComposer =
+          tenantGroupComposer.forGroup(TenantGroupFixture.getGroup());
+      String groupId = groupComposer.persist().get().getId();
+      String memberId =
+          userComposer
+              .forUser(getUser("Streamed", "Member", UUID.randomUUID() + "@test.invalid"))
+              .withGroup(groupComposer)
+              .persist()
+              .get()
+              .getId();
+      entityManager.flush();
+      entityManager.clear();
 
-    // -- ASSERT --
-    assertThat(ids(streamed.get("group_users"))).containsExactly(memberId);
+      // -- ACT --
+      Group loaded = entityManager.find(Group.class, groupId);
+      loaded.setName("Renamed streamed group");
+      entityManager.flush();
+      entityManager.clear();
+      JsonNode streamed = mapper.valueToTree(lastEventOf(groupId).getInstance());
+
+      // -- ASSERT --
+      assertThat(ids(streamed.get("group_users"))).containsExactly(memberId);
+    }
   }
 
-  @Test
-  @DisplayName("given_simulationWithAPlannerGroupUpdated_should_flushAndStreamItsPlanners")
-  void given_simulationWithAPlannerGroupUpdated_should_flushAndStreamItsPlanners() {
-    // -- ARRANGE --
-    Exercise simulation =
-        exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
-    TenantGroupComposer.Composer plannerGroup =
-        tenantGroupComposer
-            .forGroup(TenantGroupFixture.getGroup())
-            .withGrant(
-                grantComposer.forGrant(
-                    GrantFixture.getGrantForSimulation(simulation, Grant.GRANT_TYPE.PLANNER)));
-    String plannerId =
-        userComposer
-            .forUser(getUser("Planner", "Member", UUID.randomUUID() + "@test.invalid"))
-            .withGroup(plannerGroup)
-            .persist()
-            .get()
-            .getId();
-    entityManager.flush();
-    entityManager.clear();
+  @Nested
+  @DisplayName("Stream of a simulation update")
+  class SimulationUpdate {
 
-    // -- ACT -- the update event serializes exercise_planners, loading group members mid-flush
-    Exercise loaded = entityManager.find(Exercise.class, simulation.getId());
-    loaded.setName("Renamed simulation");
-    entityManager.flush();
-    entityManager.clear();
-    JsonNode streamed = mapper.valueToTree(lastEventOf(simulation.getId()).getInstance());
+    @Test
+    @DisplayName("given_simulationWithAPlannerGroupUpdated_should_flushAndStreamItsPlanners")
+    void given_simulationWithAPlannerGroupUpdated_should_flushAndStreamItsPlanners() {
+      // -- ARRANGE --
+      Exercise simulation =
+          exerciseComposer.forExercise(ExerciseFixture.createDefaultExercise()).persist().get();
+      TenantGroupComposer.Composer plannerGroup =
+          tenantGroupComposer
+              .forGroup(TenantGroupFixture.getGroup())
+              .withGrant(
+                  grantComposer.forGrant(
+                      GrantFixture.getGrantForSimulation(simulation, Grant.GRANT_TYPE.PLANNER)));
+      String plannerId =
+          userComposer
+              .forUser(getUser("Planner", "Member", UUID.randomUUID() + "@test.invalid"))
+              .withGroup(plannerGroup)
+              .persist()
+              .get()
+              .getId();
+      entityManager.flush();
+      entityManager.clear();
 
-    // -- ASSERT --
-    assertThat(ids(streamed.get("exercise_planners"))).containsExactly(plannerId);
+      // -- ACT -- the update event serializes exercise_planners, loading group members mid-flush
+      Exercise loaded = entityManager.find(Exercise.class, simulation.getId());
+      loaded.setName("Renamed simulation");
+      entityManager.flush();
+      entityManager.clear();
+      JsonNode streamed = mapper.valueToTree(lastEventOf(simulation.getId()).getInstance());
+
+      // -- ASSERT --
+      assertThat(ids(streamed.get("exercise_planners"))).containsExactly(plannerId);
+    }
   }
 }
