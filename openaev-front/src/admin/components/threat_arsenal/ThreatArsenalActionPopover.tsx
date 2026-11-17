@@ -39,6 +39,7 @@ import PayloadRevocationDialog from './PayloadRevocationDialog';
 import ThreatArsenalActionForm from './ThreatArsenalActionForm';
 import SnapshotRemediationProvider from './utils/SnapshotRemediationProvider';
 import PayloadVariantEditor from './variants/PayloadVariantEditor';
+import { skipsNewVersionDialog } from './versionPreferences';
 
 interface PayloadPopoverNewProps {
   actionId: string;
@@ -112,7 +113,8 @@ const ThreatArsenalActionPopover = ({
   // A save that added a version offers to move what runs any older version, not only the one just
   // edited: shown when at least one older version is still used.
   const offerToMoveUsages = (saved: ThreatArsenalAction) => {
-    if (!saved.action_previous_version_id) return;
+    // "Don't ask me after saving": the card banner and the Versions tab still show what is left behind.
+    if (!saved.action_previous_version_id || skipsNewVersionDialog()) return;
     fetchThreatArsenalVersions(saved.action_previous_version_id).then((response: { data: PayloadVersionOutput[] }) => {
       const used = response.data.some(v => v.payload_installed
         && v.payload_id !== saved.action_payload?.payload_id

@@ -28,6 +28,7 @@ import {
   type PayloadVersionOutput,
 } from '../../../utils/api-types';
 import { MESSAGING$ } from '../../../utils/Environment';
+import { setSkipsNewVersionDialog, skipsNewVersionDialog } from './versionPreferences';
 
 interface Props {
   // Contract of the version the save replaced, and the version it created.
@@ -44,9 +45,9 @@ interface Source {
 }
 
 // After a save that added a version: one row per older version something still runs, with how many
-// injects and scenarios, all selected; unticking a version keeps its injects on it. The selected ones
-// move to the new version (F30). The same design for 1 inject or hundreds; a finer choice, inject by
-// inject, is in the Versions tab.
+// injects and scenarios. Nothing is ticked: moving changes the command that runs on endpoints, so the
+// user picks what moves (F30). The same design for 1 inject or hundreds; a finer choice, inject by
+// inject, is in the Versions tab. "Don't ask me after saving" stops the dialog (turned back on there).
 const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, newPayloadId, newVersion, onClose }) => {
   const { t } = useFormatter();
   const theme = useTheme();
@@ -54,6 +55,7 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
   const [sources, setSources] = useState<Source[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moving, setMoving] = useState(false);
+  const [dontAsk, setDontAsk] = useState(skipsNewVersionDialog);
   useEffect(() => {
     fetchThreatArsenalVersions(previousActionId).then(async (response: { data: PayloadVersionOutput[] }) => {
       setVersions(response.data);
@@ -70,7 +72,6 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
             || (a.usage_name ?? '').localeCompare(b.usage_name ?? '', undefined, { numeric: true })),
         }))));
       setSources(loaded);
-      setSelected(new Set(loaded.flatMap(source => source.usages.map(usage => usage.usage_id))));
     });
   }, [previousActionId, newPayloadId]);
 
@@ -193,6 +194,23 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
                 {t('{count} scenario injects, atomic tests or chained steps use older versions:', { count: String(allUsages.length) })}
               </Text>
               {renderSummary()}
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'calc(var(--spacing) * 2)',
+                marginTop: 'calc(var(--spacing) * 2)',
+                cursor: 'pointer',
+              }}
+              >
+                <Checkbox
+                  checked={dontAsk}
+                  onCheckedChange={(checked) => {
+                    setDontAsk(checked === true);
+                    setSkipsNewVersionDialog(checked === true);
+                  }}
+                />
+                <Text variant="content-base">{t('Don\'t ask me after saving: I\'ll use the Versions tab')}</Text>
+              </label>
             </div>
           )}
         </DialogBody>
@@ -208,10 +226,14 @@ const PayloadNewVersionDialog: FunctionComponent<Props> = ({ previousActionId, n
           )}
           <Button priority="secondary" onClick={onClose}>{t('Later')}</Button>
           <Button onClick={migrate} disabled={moving || selected.size === 0 || sources === null}>
-            {moving ? <Spinner size="sm" /> : t('Move {count} to v{version}', {
-              count: String(selected.size),
-              version: newVersion,
-            })}
+            {(() => {
+              if (moving) return <Spinner size="sm" />;
+              if (selected.size === 0) return t('Move to v{version}', { version: newVersion });
+              return t('Move {count} to v{version}', {
+                count: String(selected.size),
+                version: newVersion,
+              });
+            })()}
           </Button>
         </DialogFooter>
       </DialogContent>

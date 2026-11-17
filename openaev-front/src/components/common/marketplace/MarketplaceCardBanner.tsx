@@ -1,5 +1,5 @@
-import { Text } from '@filigran/design-system';
-import { ArrowForwardOutlined, BlockOutlined, ErrorOutlineOutlined, UpdateOutlined } from '@mui/icons-material';
+import { Text, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
+import { ArrowForwardOutlined, BlockOutlined, CloseOutlined, ErrorOutlineOutlined, UpdateOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { type FunctionComponent } from 'react';
 import { Link } from 'react-router';
@@ -18,10 +18,18 @@ interface Props {
     label: string;
     onClick: () => void;
   };
+  /** Lets the user hide the banner (e.g. keep injects on an older version on purpose). */
+  dismiss?: {
+    /** Accessible name, e.g. "Keep them on their version". */
+    label: string;
+    /** What hiding does, shown on hover. */
+    hint: string;
+    onClick: () => void;
+  };
 }
 
 // FDS-WORKAROUND: Figma CardBanner (part of Card 8467:4560) built locally — remove when the library ships CardBanner — see sf-approval-card-ooux.md §7
-const MarketplaceCardBanner: FunctionComponent<Props> = ({ tone, message, link, action }) => {
+const MarketplaceCardBanner: FunctionComponent<Props> = ({ tone, message, link, action, dismiss }) => {
   const theme = useTheme();
   const colour = {
     critical: theme.palette.error.main,
@@ -49,15 +57,12 @@ const MarketplaceCardBanner: FunctionComponent<Props> = ({ tone, message, link, 
       <Icon fontSize="small" />
       <Text
         variant="content-compact-medium"
+        // The message is the point of the banner: on a narrow card it wraps rather than being cut.
         style={{
           flex: 1,
           minWidth: 0,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
           color: 'inherit',
         }}
-        title={message}
       >
         {message}
       </Text>
@@ -99,6 +104,35 @@ const MarketplaceCardBanner: FunctionComponent<Props> = ({ tone, message, link, 
           <Text variant="content-compact-medium" style={{ color: 'inherit' }}>{action.label}</Text>
           <ArrowForwardOutlined fontSize="inherit" />
         </button>
+      )}
+      {dismiss && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label={dismiss.label}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                dismiss.onClick();
+              }}
+              style={{
+                all: 'unset',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                color: 'inherit',
+                flexShrink: 0,
+                // Above the card's stretched title link, like the other banner controls.
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              <CloseOutlined fontSize="small" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{dismiss.hint}</TooltipContent>
+        </Tooltip>
       )}
     </div>
   );

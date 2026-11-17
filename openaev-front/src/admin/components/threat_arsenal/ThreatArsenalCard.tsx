@@ -1,7 +1,7 @@
 import { Button, Chip, type ChipSeverity, Tooltip, TooltipContent, TooltipTrigger } from '@filigran/design-system';
 import { GroupsOutlined } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { type FunctionComponent, type ReactNode, useMemo } from 'react';
+import { type FunctionComponent, type ReactNode, useMemo, useState } from 'react';
 
 import type { AttackPatternHelper } from '../../../actions/attack_patterns/attackpattern-helper';
 import type { DomainHelper } from '../../../actions/domains/domain-helper';
@@ -20,6 +20,7 @@ import { PAYLOAD_ORIGIN_LABELS, payloadOrigin } from './payloadOrigin';
 import ThreatArsenalActionPopover from './ThreatArsenalActionPopover';
 import { actionDomains } from './threatArsenalDomainSections';
 import { getStatusHint, getStatusLabel, type PayloadStatus, STATUS_CHIP_SEVERITY } from './threatArsenalStatusUtils';
+import { isKeptOnOlderVersions, keepOnOlderVersions, keptSignature } from './versionPreferences';
 
 interface Props {
   action: ThreatArsenalAction;
@@ -103,6 +104,11 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
   // The one thing to act on, in the Figma CardBanner: revoked first, then injects left behind.
   const versionsLink = `/admin/threat-arsenal?action=${encodeURIComponent(action.injector_contract_id)}&tab=versions`;
   const migrateLink = `${versionsLink}&focus=migrate`;
+  // Some teams keep scenarios on an older version on purpose: they can hide the banner, which comes
+  // back with the next version or when more injects are left behind.
+  const signature = keptSignature(action.injector_contract_id, olderInUse);
+  const [keptSignatureShown, setKeptSignatureShown] = useState<string | null>(null);
+  const kept = keptSignatureShown === signature || isKeptOnOlderVersions(signature);
   let banner: ReactNode = null;
   if (action.action_payload?.payload_revoked) {
     banner = (
@@ -115,14 +121,22 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
         }}
       />
     );
-  } else if (olderInUse > 0) {
+  } else if (olderInUse > 0 && !kept) {
     banner = (
       <MarketplaceCardBanner
         tone="warning"
         message={olderInUse === 1 ? t('1 inject runs an older version') : t('{count} injects run an older version', { count: String(olderInUse) })}
         link={{
-          label: t('Migrate'),
+          label: t('Move'),
           to: migrateLink,
+        }}
+        dismiss={{
+          label: t('Keep them on their version'),
+          hint: t('Keep them on their version: hides this until the next version'),
+          onClick: () => {
+            keepOnOlderVersions(signature);
+            setKeptSignatureShown(signature);
+          },
         }}
       />
     );

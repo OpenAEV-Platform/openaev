@@ -22,6 +22,7 @@ import { useAbility } from '../../../utils/permissions/permissionsContext';
 import { ACTIONS, SUBJECTS } from '../../../utils/permissions/types';
 import { USAGE_TYPE_LABELS } from './payloadUsageLabels';
 import PayloadVersionSelect from './PayloadVersionSelect';
+import { setSkipsNewVersionDialog, skipsNewVersionDialog } from './versionPreferences';
 
 const VERSIONS_PER_PAGE = 5;
 const USAGES_PER_PAGE_OPTIONS = [10, 25, 50];
@@ -138,7 +139,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
         <Text variant="content-base-bold">{`v${source.payload_version ?? '-'}`}</Text>
         {source.payload_installed && (
           <Text variant="content-base" className="text-default-secondary">
-            {`(${t('{count} injects', { count: String(loading ? usageCount : usages.length) })})`}
+            {`(${t('{count, plural, one {# inject} other {# injects}}', { count: loading ? usageCount : usages.length })})`}
           </Text>
         )}
         {!source.payload_installed && <Chip label={t('Not installed')} />}
@@ -155,7 +156,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
           </Box>
         )}
         {source.payload_revoked && (
-          <Alert severity="warning" sx={{ borderRadius: 0 }}>{t('These injects are skipped at execution: migrate them to another version.')}</Alert>
+          <Alert severity="warning" sx={{ borderRadius: 0 }}>{t('These injects are skipped at execution: move them to another version.')}</Alert>
         )}
         {result && (
           <Alert severity={(result.refused ?? []).length > 0 ? 'warning' : 'success'} sx={{ borderRadius: 0 }} onClose={() => setResult(null)}>
@@ -241,13 +242,13 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
           }}
           >
             {targets.length === 0
-              ? <Text variant="content-compact" className="text-default-secondary">{t('No other version to migrate to')}</Text>
+              ? <Text variant="content-compact" className="text-default-secondary">{t('No other version to move to')}</Text>
               : (
                   <>
                     <Text variant="content-compact" className="text-default-secondary" style={{ marginRight: 'auto' }}>
                       {t('{count} selected', { count: String(selected.size) })}
                     </Text>
-                    <Text variant="content-compact">{t('Migrate to')}</Text>
+                    <Text variant="content-compact">{t('Move to')}</Text>
                     <PayloadVersionSelect
                       value={target}
                       options={targets.map(v => ({
@@ -258,7 +259,7 @@ const VersionUsages: FunctionComponent<UsagesProps> = ({
                       onChange={setTarget}
                     />
                     <Button disabled={selected.size === 0 || target === '' || migrating} onClick={migrate}>
-                      {migrating ? <Spinner size="sm" /> : t('Migrate')}
+                      {migrating ? <Spinner size="sm" /> : t('Move')}
                     </Button>
                   </>
                 )}
@@ -281,6 +282,8 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [installing, setInstalling] = useState<string | null>(null);
+  // The user said "Don't ask me after saving" in the New version dialog: offered back here.
+  const [askAfterSaving, setAskAfterSaving] = useState(() => !skipsNewVersionDialog());
 
   const listed = versions.filter(v => !!v.payload_version);
   // From a card's Migrate link: the older installed versions something still runs.
@@ -404,6 +407,29 @@ const PayloadVersionsTab: FunctionComponent<Props> = ({ actionId, onChanged, foc
             justifyContent: 'center',
           }}
         />
+      )}
+      {canManage && !askAfterSaving && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+        }}
+        >
+          <Text variant="content-compact" className="text-default-secondary">
+            {t('After saving a new version, you are not asked to move injects.')}
+          </Text>
+          <Button
+            size="sm"
+            priority="tertiary"
+            onClick={() => {
+              setSkipsNewVersionDialog(false);
+              setAskAfterSaving(true);
+            }}
+          >
+            {t('Ask me again')}
+          </Button>
+        </div>
       )}
     </div>
   );
