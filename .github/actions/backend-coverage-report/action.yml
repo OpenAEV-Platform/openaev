@@ -3,10 +3,14 @@ description: >
   Merge the JaCoCo exec files of every API test shard and build the backend coverage report at
   openaev-api/target/site/jacoco/jacoco.xml. Reuses the API build output from Backend Compile
   rather than building again. Used by both the Codecov upload and the backend coverage check, so
-  that each starts as soon as the API tests are green instead of waiting for a shared report job.
-  Expects a checkout of the repository.
+  that neither waits for a shared report job. Its callers start next to the API shards: the setup
+  runs while the tests do, and the report waits for every shard to pass. Expects a checkout of the
+  repository and GH_TOKEN in the environment.
 
 inputs:
+  api-matrix:
+    description: "The API test matrix of the pipeline, as JSON: the shards whose exec files are merged"
+    required: true
   no-cache:
     description: "true bypasses the shared Maven dependency cache"
     required: false
@@ -39,13 +43,45 @@ runs:
         name: api-build-output
         path: openaev-api/target
 
+    # Shadow shards (tenant_mode) upload no exec file, and may fail without failing the run.
+    - name: List the shards that upload coverage
+      id: shards
+      shell: bash
+      env:
+        API_MATRIX: ${{ inputs.api-matrix }}
+      run: |
+        set -euo pipefail
+        {
+          echo 'artifacts<<SHARDS_EOF'
+          jq -r '.[] | select(.tenant_mode == null)
+            | "jacoco-exec-shard-\(.shard)\(.artifact_suffix // "")"' <<< "$API_MATRIX"
+          echo 'SHARDS_EOF'
+          echo 'jobs<<SHARDS_EOF'
+          jq -r '.[] | select(.tenant_mode == null) | "API Tests (\(.shard_name))"' <<< "$API_MATRIX"
+          echo 'SHARDS_EOF'
+        } >> "$GITHUB_OUTPUT"
+
+    # Fails as soon as a shard does, so that re-running the failed jobs runs this one again: it
+    # does not `needs:` the shards, and a partial report would read as a drop. The slowest shard
+    # runs for more than five minutes, so the first poll waits for four.
+    - name: Wait for every shard to pass
+      uses: ./.github/actions/wait-for-artifacts
+      with:
+        artifact-names: ${{ steps.shards.outputs.artifacts }}
+        producer-job-names: ${{ steps.shards.outputs.jobs }}
+        require-producer-success: "true"
+        wait-seconds: "2400"
+        initial-delay-seconds: "240"
+        poll-min-seconds: "5"
+        poll-max-seconds: "10"
+
     - name: Download all JaCoCo exec shards
       uses: actions/download-artifact@v8
       with:
         pattern: jacoco-exec-shard-*
         path: jacoco-exec
 
-    # Callers only run after green API tests, so every shard has uploaded its exec file.
+    # Every shard has passed, so every shard has uploaded its exec file.
     - name: Merge JaCoCo exec files
       shell: bash
       run: |

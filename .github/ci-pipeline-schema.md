@@ -58,13 +58,13 @@ terminal non-success result, including `failure`, `cancelled`, `timed_out`, and
 |-----|----------|----------------------------------|
 | **Backend Package (glibc)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Needs all three outputs on disk before packaging |
 | **Backend Package (musl)** | Frontend Build, Backend Compile, Prepare Bundled Assets | Same, inside an Alpine Maven container |
-| **Coverage Upload (backend)** | API Tests | Merges every shard's JaCoCo exec, uploads `jacoco-api` and the Codecov flag; green API tests only |
-| **Backend Coverage Check** | API Tests | Builds the same report itself, next to the upload; pull requests with green API tests only |
+| **Coverage Upload (backend)** | Backend Compile | Sets up next to the API shards, then waits for them (below); merges every shard's JaCoCo exec, uploads `jacoco-api` and the Codecov flag |
+| **Backend Coverage Check** | Backend Compile | Builds the same report itself, next to the upload; pull requests only |
 | **Coverage Upload (frontend)** | Frontend Quality | Uploads Vitest coverage as soon as unit tests finish |
 | **Coverage Upload (e2e)** | E2E Tests | Needs every E2E shard green; each shard's `lcov.info` uploaded |
 | **Pipeline Gate** | 20 jobs (see below) | Aggregates results; runs `if: always()` |
 
-### The five polling waits
+### The seven polling waits
 
 None of these appear as `needs:` in the YAML. The cap is the point at which the loop
 gives up and fails the job — not how long the wait normally lasts.
@@ -76,6 +76,8 @@ gives up and fails the job — not how long the wait normally lasts.
 | **E2E Tests** | registry marker or image artifact for its architecture | 15 min | the arch-matched Docker Build cell reaches any terminal non-success result |
 | **Docker Merge** | markers or artifacts for both architectures of its variant | 15 min | either variant-matched Docker Build cell reaches any terminal non-success result |
 | **Aikido Image Scan** | markers or artifacts for both amd64 variants | 15 min | either required amd64 Docker Build cell reaches any terminal non-success result |
+| **Coverage Upload (backend)** | every API shard that uploads coverage to succeed, and its `jacoco-exec-shard-*` artifact | 40 min | one of those shards reaches any terminal non-success result |
+| **Backend Coverage Check** | the same | 40 min | the same |
 
 Each Docker build uploads an attempt-scoped marker only after its optional GHCR push
 succeeds. Consumers poll artifact metadata every 15 seconds, prefer a current-attempt
@@ -122,8 +124,8 @@ The minutes column is each job's `timeout-minutes` ceiling, not its runtime.
 |-----|-------------------|---------|
 | 📦 **Backend Package (glibc)** | 15 min | Fat JAR for standard Linux → `openaev-api-jar` |
 | 📦 **Backend Package (musl)** | 15 min | Fat JAR for Alpine, built in `maven:3.9-eclipse-temurin-21-alpine` |
-| 📊 **Coverage Upload (backend)** | 15 min | Merges JaCoCo shards → artifact `jacoco-api` + Codecov flag `backend` |
-| 🔎 **Backend Coverage Check** | 15 min | ≥ 80% of changed lines covered, line coverage drop ≤ 0.1 point, both counted like Codecov, against the latest report of `main`; on a failure, posts a `Backend Coverage (advisory)` check that explains it and stays green; when that check cannot be posted (fork PRs), the job fails itself. Steps in `.github/actions/backend-coverage-check` |
+| 📊 **Coverage Upload (backend)** | 45 min | Merges JaCoCo shards → artifact `jacoco-api` + Codecov flag `backend` |
+| 🔎 **Backend Coverage Check** | 45 min | ≥ 80% of changed lines covered, line coverage drop ≤ 0.1 point, both counted like Codecov, against the latest report of `main`; on a failure, posts a `Backend Coverage (advisory)` check that explains it and stays green; when that check cannot be posted (fork PRs), the job fails itself. Steps in `.github/actions/backend-coverage-check` |
 | 📊 **Coverage Upload (frontend)** | 5 min | Vitest → Codecov flag `frontend` |
 | 📊 **Coverage Upload (e2e)** | 5 min | Playwright → Codecov flag `e2e` |
 | 🔐 **Tenant shadow verdict** | 10 min | Nightly only. Collects the shadow shards' pass or fail into one table |
