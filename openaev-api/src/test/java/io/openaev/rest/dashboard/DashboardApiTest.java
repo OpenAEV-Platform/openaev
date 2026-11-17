@@ -48,11 +48,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @WithMockUser(isAdmin = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-// The test profile declares no active tables, so this suite ran the whole dashboard and indexing
-// pipeline with the inspector inert. It names the three tables the widgets and their ES indexing
-// reach, not only findings: @TestPropertySource REPLACES the property, so naming findings alone
-// would deactivate tables that ARE active in production and test less than production while
-// looking stricter.
+// The test profile declares no active tables, so without a list the whole dashboard and indexing
+// pipeline would run with the inspector inert. The class follows the production list through
+// ProductionTablesIntegrationTest, so it tests every table production arms, including the tables
+// the widgets and their ES indexing reach.
 @DisplayName("Dashboard API tests")
 class DashboardApiTest extends ProductionTablesIntegrationTest {
 

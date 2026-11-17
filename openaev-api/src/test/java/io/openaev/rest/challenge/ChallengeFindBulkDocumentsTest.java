@@ -41,11 +41,12 @@ import org.springframework.test.web.servlet.MockMvc;
  * lazy-initialization SELECT per challenge, so the documents load does not grow with the number of
  * requested ids while the serialized payload is unchanged.
  *
- * <p>{@code @TestPropertySource} activates {@code documents} for this test only (the test classpath
- * keeps the allowlist empty). The class is NOT {@code @Transactional}: a rolled-back test
- * transaction never commits, so the tenant-local GUC would stay alive through serialization and
- * mask the very failure the payload assertions pin. Seeding therefore goes through an
- * auto-committing {@link JdbcTemplate} and is removed on teardown.
+ * <p>The class runs on the production list of active tables through {@code
+ * ProductionTablesIntegrationTest}, which arms {@code documents} with every other table production
+ * arms (the test classpath keeps the allowlist empty). The class is NOT {@code @Transactional}: a
+ * rolled-back test transaction never commits, so the tenant-local GUC would stay alive through
+ * serialization and mask the very failure the payload assertions pin. Seeding therefore goes
+ * through an auto-committing {@link JdbcTemplate} and is removed on teardown.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("POST /challenges/find bulk-loads challenge documents in a single scoped query")

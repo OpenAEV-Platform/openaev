@@ -31,9 +31,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * <p>Each sweep runs on a bare thread, as a Quartz worker does: no transaction, no session, no
  * ambient tenant. A sweep narrowed to the default tenant, the way an armed filter would narrow it,
  * misses the second tenant's row and turns its test red. Not {@code @Transactional}: rows are
- * committed through JDBC in a tenant of their own and removed after each test. The active-tables
- * list is pinned so the statement inspector never scopes these tables here, whatever a shadow run
- * arms; once they are activated each sweep needs the primitive, and this class is where that shows.
+ * committed through JDBC in a tenant of their own and removed after each test. The class runs on
+ * the production list of active tables through {@code ProductionTablesIntegrationTest}, which holds
+ * none of these tables, so the statement inspector does not scope them here; once they are
+ * activated each sweep needs the primitive, and this class is where that shows.
  */
 @WithMockUser(isAdmin = true)
 @DisplayName("The scheduler's cross-tenant sweeps reach a second tenant's rows")

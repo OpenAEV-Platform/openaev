@@ -49,8 +49,8 @@ import org.springframework.transaction.annotation.Transactional;
 @DisplayName("Injector-registered security platforms follow the managed lifecycle")
 // upsertOnAForeignTenantPlatformLinksNoInjector asserts that a foreign tenant's platform is not
 // resolved by the upsert. That isolation is v2 now, so the table has to be active in this context:
-// the test profile declares no active-tables, and without this the assertion rode on the v1 @Filter
-// the activation removed, then started resolving the foreign row.
+// the test profile declares no active-tables, and ProductionTablesIntegrationTest arms assets with
+// the other tables production arms.
 class SecurityPlatformInjectorLifecycleTest extends ProductionTablesIntegrationTest {
 
   private static final String INJECTOR_TYPE = "openaev_nuclei_lifecycle_test";

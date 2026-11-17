@@ -62,8 +62,9 @@ import org.springframework.transaction.annotation.Transactional;
  * until-active:attack_patterns} tag on {@code EsAttackPathService}: the tag expired when the table
  * activated, and what it was protecting is now asserted here instead of spelled in a waiver.
  *
- * <p>{@code attack_patterns} is armed alone so the no-property control differs from this run by
- * that table and nothing else.
+ * <p>The class runs on the production list of active tables through {@code
+ * ProductionTablesIntegrationTest}, which arms {@code attack_patterns} among the tables production
+ * arms.
  */
 @Transactional
 @WithMockUser(isAdmin = true)
