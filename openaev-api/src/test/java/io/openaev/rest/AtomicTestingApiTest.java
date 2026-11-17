@@ -22,7 +22,7 @@ import io.openaev.database.repository.InjectRepository;
 import io.openaev.database.repository.InjectStatusRepository;
 import io.openaev.rest.atomic_testing.form.AtomicTestingInput;
 import io.openaev.rest.atomic_testing.form.InjectRecurrenceInput;
-import io.openaev.service.period.RecurrenceService;
+import io.openaev.service.finding.FindingOccurrenceService;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.fixtures.*;
 import io.openaev.utils.fixtures.composers.*;
@@ -32,6 +32,7 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import net.javacrumbs.jsonunit.core.Option;
@@ -65,6 +66,7 @@ public class AtomicTestingApiTest extends IntegrationTest {
   @Autowired private FindingComposer findingComposer;
   @Autowired private FindingRepository findingRepository;
   @Autowired private FindingOccurrenceRepository findingOccurrenceRepository;
+  @Autowired private FindingOccurrenceService findingOccurrenceService;
 
   @Autowired private MockMvc mvc;
   @Autowired private InjectRepository injectRepository;
@@ -313,8 +315,10 @@ public class AtomicTestingApiTest extends IntegrationTest {
   class LaunchInPlaceWithFindings {
 
     @Test
-    @DisplayName("Should keep the findings the inject wrote, and their occurrences")
-    void given_injectWithFindings_should_keepThemOnLaunch() throws Exception {
+    @DisplayName(
+        "Should keep the findings but detach their occurrences, so a new detection records a new one")
+    void given_injectWithFindings_should_detachTheirOccurrencesAndRecordANewOneOnNextDetection()
+        throws Exception {
       // Arrange
       findingComposer.reset();
       FindingComposer.Composer findingWrapper =
@@ -342,7 +346,33 @@ public class AtomicTestingApiTest extends IntegrationTest {
       assertThat(
               findingOccurrenceRepository.findByFindingIdAndInjectId(
                   findingId, atomicTesting.getId()))
+          .isEmpty();
+      // The previous occurrence stays in the finding's history, without its inject
+      assertThat(occurrencesOf(findingId))
+          .singleElement()
+          .satisfies(occurrence -> assertThat(occurrence.getInject()).isNull());
+
+      // A new detection on the relaunched inject records a new occurrence
+      Finding finding = findingRepository.findById(findingId).orElseThrow();
+      Inject relaunched = injectRepository.findById(atomicTesting.getId()).orElseThrow();
+      findingOccurrenceService.recordOccurrences(
+          relaunched, Instant.now(), List.of(finding), Map.of());
+      entityManager.flush();
+      entityManager.clear();
+      assertThat(
+              findingOccurrenceRepository.findByFindingIdAndInjectId(
+                  findingId, atomicTesting.getId()))
           .isPresent();
+      assertThat(occurrencesOf(findingId)).hasSize(2);
+    }
+
+    private List<FindingOccurrence> occurrencesOf(String findingId) {
+      return entityManager
+          .createQuery(
+              "SELECT o FROM FindingOccurrence o WHERE o.finding.id = :findingId",
+              FindingOccurrence.class)
+          .setParameter("findingId", findingId)
+          .getResultList();
     }
   }
 

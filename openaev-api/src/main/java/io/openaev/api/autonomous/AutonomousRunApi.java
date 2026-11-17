@@ -47,7 +47,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -711,9 +710,8 @@ public class AutonomousRunApi extends RestBehavior {
               + " lateral-movement pivot. The original finding is kept, and its value is recorded"
               + " as a finding on the new asset."
               + " Returns the created asset id to use as the inject target.")
-  // No transaction: the service opens one for the endpoint, then one for the finding
   @PostMapping("/{runId}/findings/{findingId}/promote-to-asset")
-  @Transactional(propagation = Propagation.NEVER)
+  @Transactional
   @AccessControl(
       resourceType = ResourceType.AUTONOMOUS_RUN,
       actionPerformed = Action.LAUNCH,

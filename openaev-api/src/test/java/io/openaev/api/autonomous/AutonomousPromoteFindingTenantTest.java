@@ -10,11 +10,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import io.openaev.IntegrationTest;
 import io.openaev.config.ProductionActiveTables;
 import io.openaev.context.TenantContext;
+import io.openaev.database.model.Capability;
 import io.openaev.database.model.Tenant;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.security.token.XtmJwksExtractor;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -171,6 +173,26 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
       assertThat(endpointsNamed(tenantA, VALUE_OF_A)).isEqualTo(1L);
       assertThat(rawTenantOf("findings", "finding_id", findingOfA)).isEqualTo(tenantA);
     }
+
+    @Test
+    @DisplayName(
+        "given_headerNamingTwoTenantsAndAFindingWithAnOccurrence_should_recordItOnTheNewEndpointInTheInjectTenant")
+    void
+        given_headerNamingTwoTenantsAndAFindingWithAnOccurrence_should_recordItOnTheNewEndpointInTheInjectTenant()
+            throws Exception {
+      // Arrange
+      seedOccurrence(findingOfA, seedInject(tenantA));
+
+      // Act
+      mvc.perform(
+              post(PLAIN, runOfA, findingOfA)
+                  .header("X-Tenant-Ids", tenantA + "," + tenantB)
+                  .with(csrf()))
+          .andExpect(status().isOk());
+
+      // Assert
+      assertThat(findingsOnEndpointNamed(tenantA, VALUE_OF_A)).isEqualTo(1L);
+    }
   }
 
   @Nested
@@ -230,6 +252,28 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
     }
   }
 
+  @Nested
+  @DisplayName("non-admin caller")
+  class NonAdminCaller {
+
+    @Test
+    @WithMockUser(isAdmin = false)
+    @DisplayName("given_launchCapabilityInTheRunTenant_should_resolveTheRunAndCreateAnEndpoint")
+    void given_launchCapabilityInTheRunTenant_should_resolveTheRunAndCreateAnEndpoint()
+        throws Exception {
+      // Arrange
+      tenantHelper.grantCapabilitiesInTenant(tenantA, Set.of(Capability.LAUNCH_ASSESSMENT));
+
+      // Act
+      mvc.perform(post(SCOPED, tenantA, runOfA, findingOfA).with(csrf()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.finding_id").value(findingOfA));
+
+      // Assert
+      assertThat(endpointsNamed(tenantA, VALUE_OF_A)).isEqualTo(1L);
+    }
+  }
+
   // Seeded over JDBC with an explicit tenant_id, past the statement inspector; the run is RUNNING
   // so the event the promotion appends is accepted.
   private String seedActiveRun(String tenantId) {
@@ -254,6 +298,39 @@ class AutonomousPromoteFindingTenantTest extends IntegrationTest {
         value,
         value);
     return id;
+  }
+
+  private String seedInject(String tenantId) {
+    String id = UUID.randomUUID().toString();
+    jdbcTemplate.update(
+        "INSERT INTO injects (inject_id, inject_title, inject_created_at, inject_updated_at,"
+            + " inject_depends_duration, inject_all_teams, inject_enabled, tenant_id)"
+            + " VALUES (?, 'promote inject', now(), now(), 0, false, true, ?)",
+        id,
+        tenantId);
+    return id;
+  }
+
+  private void seedOccurrence(String findingId, String injectId) {
+    jdbcTemplate.update(
+        "INSERT INTO finding_occurrences (finding_occurrence_id, finding_occurrence_finding_id,"
+            + " finding_occurrence_inject_id, finding_occurrence_date, finding_occurrence_field)"
+            + " VALUES (?, ?, ?, now(), 'host')",
+        UUID.randomUUID().toString(),
+        findingId,
+        injectId);
+  }
+
+  private long findingsOnEndpointNamed(String tenantId, String name) {
+    return jdbcTemplate.queryForObject(
+        "SELECT count(*) FROM findings f"
+            + " JOIN finding_locations fl ON fl.finding_location_id = f.finding_location_id"
+            + " JOIN assets a ON a.asset_id = fl.finding_location_asset_id"
+            + " WHERE f.tenant_id = ? AND a.tenant_id = ? AND a.asset_name = ?",
+        Long.class,
+        tenantId,
+        tenantId,
+        name);
   }
 
   private String rawTenantOf(String table, String idColumn, String id) {

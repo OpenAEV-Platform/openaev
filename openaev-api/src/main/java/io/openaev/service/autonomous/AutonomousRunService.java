@@ -3563,10 +3563,13 @@ public class AutonomousRunService {
       TxCtx ctx, String runId, String findingId, String actingAgentId) {
     // The finding is recorded in its own transaction, which only sees a committed endpoint
     Promotion promotion =
-        tenantTx.execute(ctx, () -> createPromotedEndpoint(runId, findingId, actingAgentId));
+        tenantTx.executeNew(ctx, () -> createPromotedEndpoint(runId, findingId, actingAgentId));
     if (promotion.inject() != null) {
+      // The request may read several tenants; the finding is written in the inject's own
       findingService.recordFindingsByInject(
-          ctx, promotion.inject(), List.of(promotion.detection()));
+          TxCtx.forTenant(promotion.inject().getTenant().getId()),
+          promotion.inject(),
+          List.of(promotion.detection()));
     }
     return promotion.result();
   }

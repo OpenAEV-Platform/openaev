@@ -32,4 +32,8 @@ public interface FindingOccurrenceRepository extends CrudRepository<FindingOccur
       "SELECT o FROM FindingOccurrence o JOIN FETCH o.finding f"
           + " WHERE o.inject.exercise.id = :simulationId")
   List<FindingOccurrence> findAllBySimulationId(@Param("simulationId") String simulationId);
+
+  // The join on the finding is what scopes the read: finding_occurrences has no tenant of its own
+  @Query("SELECT o FROM FindingOccurrence o JOIN FETCH o.finding f WHERE o.inject.id = :injectId")
+  List<FindingOccurrence> findAllByInjectId(@Param("injectId") String injectId);
 }

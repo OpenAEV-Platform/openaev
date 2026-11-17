@@ -818,6 +818,7 @@ public class InjectService {
   public InjectResultOverviewOutput launch(String id) {
     Inject inject = injectRepository.findById(id).orElseThrow(ElementNotFoundException::new);
     this.throwIfInjectNotLaunchable(inject);
+    findingOccurrenceService.detachFromInject(id);
     inject.clean();
     inject.setUpdatedAt(Instant.now());
     inject.setLaunchedBy(userService.currentUser());

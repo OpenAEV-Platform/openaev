@@ -59,15 +59,15 @@ public class FindingOccurrenceService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void detachFromSimulation(String simulationId) {
-    List<FindingOccurrence> occurrences =
-        findingOccurrenceRepository.findAllBySimulationId(simulationId);
-    Instant now = Instant.now();
-    for (FindingOccurrence occurrence : occurrences) {
-      occurrence.setInject(null);
-      // Re-feeds the finding's document, which lists the simulations of its occurrences
-      occurrence.getFinding().setUpdateDate(now);
-    }
-    findingOccurrenceRepository.saveAll(occurrences);
+    detach(findingOccurrenceRepository.findAllBySimulationId(simulationId));
+  }
+
+  /**
+   * Unlinks the occurrences from the inject: a relaunched inject shows only what it detects again.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void detachFromInject(String injectId) {
+    detach(findingOccurrenceRepository.findAllByInjectId(injectId));
   }
 
   // -- READ --
@@ -79,6 +79,16 @@ public class FindingOccurrenceService {
   }
 
   // -- PRIVATE --
+
+  private void detach(List<FindingOccurrence> occurrences) {
+    Instant now = Instant.now();
+    for (FindingOccurrence occurrence : occurrences) {
+      occurrence.setInject(null);
+      // Re-feeds the finding's document, which lists the simulations of its occurrences
+      occurrence.getFinding().setUpdateDate(now);
+    }
+    findingOccurrenceRepository.saveAll(occurrences);
+  }
 
   private static FindingOccurrence newOccurrence(
       Finding finding, Inject inject, Instant date, String field) {

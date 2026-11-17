@@ -1,6 +1,7 @@
 package io.openaev.rest.finding;
 
 import static io.openaev.helper.StreamHelper.fromIterable;
+import static org.springframework.util.StringUtils.hasText;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.openaev.context.TenantContext;
@@ -90,11 +91,7 @@ public class FindingService {
       @NotNull final TxCtx ctx,
       @NotNull final Inject inject,
       @NotNull final List<DetectedFinding> detections) {
-    try {
-      return findingRecordingService.recordFindingsByInject(ctx, inject, detections);
-    } catch (DataIntegrityViolationException concurrentBatch) {
-      return findingRecordingService.recordFindingsByInject(ctx, inject, detections);
-    }
+    return recordWithRetry(ctx, inject, detections);
   }
 
   /**
@@ -144,7 +141,17 @@ public class FindingService {
       return;
     }
     Inject inject = executionContext.inject();
-    recordFindingsByInject(TxCtx.forTenant(inject.getTenant().getId()), inject, detections);
+    recordWithRetry(TxCtx.forTenant(inject.getTenant().getId()), inject, detections);
+  }
+
+  // Each attempt runs in its own REQUIRES_NEW transaction, so a failed one leaves the next clean
+  private List<Finding> recordWithRetry(
+      TxCtx ctx, Inject inject, List<DetectedFinding> detections) {
+    try {
+      return findingRecordingService.recordFindingsByInject(ctx, inject, detections);
+    } catch (DataIntegrityViolationException concurrentBatch) {
+      return findingRecordingService.recordFindingsByInject(ctx, inject, detections);
+    }
   }
 
   private List<DetectedFinding> toAgentDetections(
@@ -164,14 +171,16 @@ public class FindingService {
         log.error("Validation failed for node: {}", node);
         continue;
       }
+      String value = valueExtractor.apply(node);
+      if (!hasText(value)) {
+        log.warn("Skipping {} finding without value: {}", contractOutputContext.type(), node);
+        continue;
+      }
       resolveAssetFromStructuredOutput(node, valueTargetedAssetsMap, agent)
           .ifPresentOrElse(
               asset ->
                   detections.add(
-                      detection(
-                          contractOutputContext,
-                          valueExtractor.apply(node),
-                          new AssetLocation(asset.getId()))),
+                      detection(contractOutputContext, value, new AssetLocation(asset.getId()))),
               () -> log.warn("Finding dropped: No asset match for host in {}", node));
     }
     return detections;
@@ -208,6 +217,10 @@ public class FindingService {
         continue;
       }
       String value = valueExtractor.apply(node);
+      if (!hasText(value)) {
+        log.warn("Skipping {} finding without value: {}", contractOutputContext.type(), node);
+        continue;
+      }
       for (LocationIdentity location : locationExtractor.apply(node)) {
         detections.add(detection(contractOutputContext, value, location));
       }

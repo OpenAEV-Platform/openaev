@@ -124,8 +124,9 @@ class FindingGenerationTest extends IntegrationTest {
     void given_aMalformedEntry_should_skipItAndKeepTheOthers() throws Exception {
       // -- ACT --
       generateInjectorFindings(
-          "[null, {\"severity\": \"high\"}, {\"id\": \"CVE-2024-1234\", \"asset_id\": \"%s\"}]"
-              .formatted(assetA));
+          ("[null, {\"severity\": \"high\"}, {\"id\": \"\", \"asset_id\": \"%s\"},"
+                  + " {\"id\": \"CVE-2024-1234\", \"asset_id\": \"%s\"}]")
+              .formatted(assetA, assetA));
 
       // -- ASSERT --
       assertThat(locationKeys()).containsExactly("asset:" + assetA);
@@ -178,6 +179,16 @@ class FindingGenerationTest extends IntegrationTest {
 
       // -- ASSERT --
       assertThat(locationKeys()).containsExactly("asset:" + assetA);
+    }
+
+    @Test
+    @DisplayName("given a blank value, should skip it and keep the others")
+    void given_aBlankValue_should_skipItAndKeepTheOthers() throws Exception {
+      // -- ACT --
+      generateAgentFindings("[{\"id\": \"\"}, {\"id\": \"CVE-2024-1234\"}]", Map.of());
+
+      // -- ASSERT --
+      assertThat(findingValues()).containsExactly("CVE-2024-1234");
     }
 
     @Test
