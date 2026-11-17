@@ -39,7 +39,7 @@ public class ExerciseTeamApiTest extends IntegrationTest {
 
   @DisplayName("Exercise team search")
   @Nested
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   class SearchExerciseTeams {
     @Test
     @DisplayName("Returns global and exercise teams when searching teams")
