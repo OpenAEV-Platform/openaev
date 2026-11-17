@@ -1,4 +1,4 @@
-import { Button } from '@filigran/design-system';
+import { Button, Chip, Text } from '@filigran/design-system';
 import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { findCredentialsByIds } from '../../../../actions/assets/credential-actions';
@@ -28,18 +28,19 @@ const AiTargetCredentialField: FunctionComponent<Props> = ({ value, onChange, di
   }, [value]);
 
   return (
-    <div style={{ marginTop: 20 }}>
-      <div>{t('API token credential')}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 5 }}>
-        <span style={{ flexGrow: 1 }}>{value ? (credentialName ?? '-') : t('No credential')}</span>
+    <div className="mt-5">
+      <Text variant="content-base">{t('API token credential')}</Text>
+      <div className="mt-1 flex items-center gap-2">
+        {value && (
+          <Chip
+            label={credentialName ?? '-'}
+            onDelete={disabled ? undefined : () => onChange(null)}
+            disabled={disabled}
+          />
+        )}
         <Button type="button" priority="secondary" onClick={() => setOpen(true)} disabled={disabled}>
           {t('Choose a credential')}
         </Button>
-        {value && (
-          <Button type="button" priority="secondary" onClick={() => onChange(null)} disabled={disabled}>
-            {t('Remove')}
-          </Button>
-        )}
       </div>
       <CredentialsPicker
         initialState={value ? [value] : []}

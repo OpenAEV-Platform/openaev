@@ -363,6 +363,8 @@ export interface AiResult {
 
 export interface AiTargetInput {
   ai_target_configuration?: Record<string, any>;
+  /** API token credential used to reach the target */
+  ai_target_credential?: string | null;
   ai_target_endpoint?: string | null;
   ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
   ai_target_model?: string | null;
@@ -379,7 +381,6 @@ export interface AiTargetInput {
     | "AGENT_HTTP"
     | "XTM_ONE";
   ai_target_system_prompt?: string | null;
-  ai_target_credential?: string | null;
   asset_criticality?: "VERY_HIGH" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   asset_description?: string;
   asset_external_reference?: string;
@@ -434,6 +435,10 @@ export interface AiTargetTarget {
     | "UNKNOWN"
     | "SUCCESS";
 }
+
+export type ApiToken = Value & {
+  api_token?: string;
+};
 
 /** Installed arsenal + delivery substrate for custom actions */
 export interface ArsenalInventory {
@@ -514,6 +519,7 @@ export interface ArticleUpdateInput {
 
 export interface Asset {
   ai_target_configuration?: Record<string, any>;
+  ai_target_credential?: string;
   ai_target_endpoint?: string;
   ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
   ai_target_model?: string;
@@ -530,7 +536,6 @@ export interface Asset {
     | "AGENT_HTTP"
     | "XTM_ONE";
   ai_target_system_prompt?: string;
-  ai_target_credential?: string;
   asset_category?:
     | "HOST"
     | "CONTAINER_WORKLOAD"
@@ -3472,7 +3477,12 @@ export interface CredentialContractOutput {
     | "GCP_SERVICE_ACCOUNT"
     | "GCP_OAUTH2"
     | "API_TOKEN";
-  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP" | "API";
+  credential_type:
+    | "IDENTITY"
+    | "CLOUD_AWS"
+    | "CLOUD_AZURE"
+    | "CLOUD_GCP"
+    | "API";
   fields?: CredentialContractField[];
 }
 
@@ -3624,7 +3634,12 @@ export interface CredentialFullOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP" | "API";
+  credential_type:
+    | "IDENTITY"
+    | "CLOUD_AWS"
+    | "CLOUD_AZURE"
+    | "CLOUD_GCP"
+    | "API";
   /** Secret username */
   credential_username?: string;
 }
@@ -3695,6 +3710,7 @@ export interface CredentialInput {
   azure_environment?: string;
   azure_subscription_id?: string;
   azure_tenant_id?: string;
+  credential_api_token?: string;
   credential_auth_method:
     | "USERNAME_PASSWORD"
     | "HASH"
@@ -3705,7 +3721,6 @@ export interface CredentialInput {
     | "GCP_SERVICE_ACCOUNT"
     | "GCP_OAUTH2"
     | "API_TOKEN";
-  credential_api_token?: string;
   credential_description?: string;
   credential_hash?: string;
   credential_hash_algorithm?: "SHA" | "NTLM";
@@ -3713,7 +3728,12 @@ export interface CredentialInput {
   credential_name: string;
   credential_password?: string;
   credential_tags?: string[];
-  credential_type: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP" | "API";
+  credential_type:
+    | "IDENTITY"
+    | "CLOUD_AWS"
+    | "CLOUD_AZURE"
+    | "CLOUD_GCP"
+    | "API";
   credential_username?: string;
   /**
    * @minLength 0
@@ -3788,7 +3808,12 @@ export interface CredentialOutput {
    */
   credential_tags_ids?: string[];
   /** Credential type */
-  credential_type?: "IDENTITY" | "CLOUD_AWS" | "CLOUD_AZURE" | "CLOUD_GCP" | "API";
+  credential_type?:
+    | "IDENTITY"
+    | "CLOUD_AWS"
+    | "CLOUD_AZURE"
+    | "CLOUD_GCP"
+    | "API";
 }
 
 export interface CustomDashboard {
@@ -4219,6 +4244,7 @@ export interface DomainBaseInput {
 
 export interface Endpoint {
   ai_target_configuration?: Record<string, any>;
+  ai_target_credential?: string;
   ai_target_endpoint?: string;
   ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
   ai_target_model?: string;
@@ -4235,7 +4261,6 @@ export interface Endpoint {
     | "AGENT_HTTP"
     | "XTM_ONE";
   ai_target_system_prompt?: string;
-  ai_target_credential?: string;
   asset_agents?: Agent[];
   asset_category?:
     | "HOST"
@@ -11900,6 +11925,7 @@ export interface SecretResolvedValue {
     | "GCP_OAUTH2"
     | "API_TOKEN";
   value?:
+    | ApiToken
     | AwsAccessKey
     | AwsAssumeRole
     | AzureManagedIdentity
@@ -11938,6 +11964,7 @@ export interface SecretsProviderOutput {
 
 export interface SecurityPlatform {
   ai_target_configuration?: Record<string, any>;
+  ai_target_credential?: string;
   ai_target_endpoint?: string;
   ai_target_modality?: "TEXT" | "VISION" | "AUDIO" | "MULTIMODAL";
   ai_target_model?: string;
@@ -11954,7 +11981,6 @@ export interface SecurityPlatform {
     | "AGENT_HTTP"
     | "XTM_ONE";
   ai_target_system_prompt?: string;
-  ai_target_credential?: string;
   asset_category?:
     | "HOST"
     | "CONTAINER_WORKLOAD"

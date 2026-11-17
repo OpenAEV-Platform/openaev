@@ -371,7 +371,6 @@
   "credential_api_token": "API-токен",
   "API token credential": "Учётные данные API-токена",
   "Choose a credential": "Выбрать учётные данные",
-  "No credential": "Нет учётных данных",
   "Apply": "Применить",
   "Apply a lessons learned template": "Применение шаблона извлеченных уроков",
   "Apply a template": "Применить шаблон",

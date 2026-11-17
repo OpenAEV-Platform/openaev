@@ -33,10 +33,9 @@ public class ApiTokenHandler implements SecretHandler {
   public Secret buildOrUpdate(Secret existingSecret, SecretStoreRequest request) {
     ApiTokenSecret apiTokenSecret =
         existingSecret instanceof ApiTokenSecret casted ? casted : new ApiTokenSecret();
-    if (request.apiToken() != null) {
+    if (request.apiToken() != null && !request.apiToken().isBlank()) {
       apiTokenSecret.setApiToken(nativeEncryptionService.encrypt(request.apiToken()));
-    }
-    if (apiTokenSecret.getApiToken() == null) {
+    } else if (request.apiToken() != null || apiTokenSecret.getApiToken() == null) {
       throw new IllegalArgumentException("API token is required");
     }
     return apiTokenSecret;
