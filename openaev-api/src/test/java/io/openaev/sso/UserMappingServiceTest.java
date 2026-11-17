@@ -8,8 +8,12 @@ import static org.mockito.Mockito.when;
 
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Group;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.model.User;
+import io.openaev.database.repository.GroupRepository;
 import io.openaev.service.UserMappingService;
 import io.openaev.utils.fixtures.TenantGroupFixture;
 import io.openaev.utils.fixtures.UserFixture;
@@ -18,6 +22,7 @@ import io.openaev.utils.fixtures.composers.UserComposer;
 import jakarta.persistence.EntityManager;
 import java.util.*;
 import org.apache.commons.lang3.NotImplementedException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,10 +44,32 @@ public class UserMappingServiceTest extends IntegrationTest {
   @Autowired UserComposer userComposer;
   @Autowired private UserMappingService userMappingService;
   @Autowired protected EntityManager entityManager;
+  @Autowired private GroupRepository groupRepository;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
+
+  /**
+   * The platform groups the auto-create tests below name: findOrCreateGroup commits them in a
+   * nested platform-write transaction (executeNewAsPlatformWrite), independently of this class's
+   * own rollback, so they are deleted the same way, in their own platform-write transaction.
+   */
+  private static final List<String> AUTO_CREATED_PLATFORM_GROUP_NAMES =
+      List.of("admin", "admin2", "SOC");
 
   @BeforeEach
   public void setup() {
     tenantGroupComposer.reset();
+  }
+
+  @AfterEach
+  void cleanupAutoCreatedPlatformGroups() {
+    for (String name : AUTO_CREATED_PLATFORM_GROUP_NAMES) {
+      tenantScopedTransaction.executeNewAsPlatformWrite(
+          TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID),
+          () -> {
+            groupRepository.findByNameAndTenantIsNull(name).ifPresent(groupRepository::delete);
+            return null;
+          });
+    }
   }
 
   private String tenantScopedId(String id) {
