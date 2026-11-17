@@ -52,7 +52,7 @@ import InjectIcon from '../common/injects/InjectIcon';
 import DocumentType from '../components/documents/DocumentType';
 import ContractOutputElementType from '../findings/ContractOutputElementType';
 import PayloadStatusComponent from '../payloads/PayloadStatusComponent';
-import { getStatusColor, getStatusLabel } from './threatArsenalStatusUtils';
+import { getStatusColor, getStatusLabel } from './utils/threatArsenalStatusUtils';
 
 type ExpectationType = 'ARTICLE' | 'CHALLENGE' | 'MANUAL' | 'PREVENTION' | 'DETECTION' | 'LOGGING' | 'VULNERABILITY';
 

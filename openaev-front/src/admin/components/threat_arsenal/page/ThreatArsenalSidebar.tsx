@@ -5,15 +5,15 @@ import {
   buildAuthorRows,
   buildStatusRows,
   useAuthorFacetFilter,
-} from '../../../components/common/facets/ContractFacets';
-import { type FacetRow, type FacetSection, FacetSidebar } from '../../../components/common/facets/FacetFilters';
-import { type FilterHelpers } from '../../../components/common/queryable/filter/FilterHelpers';
-import { generateFilterId } from '../../../components/common/queryable/filter/FilterUtils';
-import { useFormatter } from '../../../components/i18n';
-import PlatformIcon from '../../../components/PlatformIcon';
-import { type Filter, type SearchPaginationInput } from '../../../utils/api-types';
-import { type IconBarElement } from '../common/domains/IconBar-model';
-import { type ThreatArsenalFacetCounts } from './useThreatArsenalFacetCounts';
+} from '../../../../components/common/facets/ContractFacets';
+import { type FacetRow, type FacetSection, FacetSidebar } from '../../../../components/common/facets/FacetFilters';
+import { type FilterHelpers } from '../../../../components/common/queryable/filter/FilterHelpers';
+import { generateFilterId } from '../../../../components/common/queryable/filter/FilterUtils';
+import { useFormatter } from '../../../../components/i18n';
+import PlatformIcon from '../../../../components/PlatformIcon';
+import { type Filter, type SearchPaginationInput } from '../../../../utils/api-types';
+import { type IconBarElement } from '../../common/domains/IconBar-model';
+import { type ThreatArsenalFacetCounts } from '../useThreatArsenalFacetCounts';
 
 const PLATFORM_FILTER_KEY = 'action_platforms';
 const STATUS_FILTER_KEY = 'action_payload_status';

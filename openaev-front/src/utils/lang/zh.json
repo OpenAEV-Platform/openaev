@@ -4693,5 +4693,10 @@
   "ZIP must contain a json file": "ZIP 文件必须包含一个 JSON 文件",
   "Zoom in": "放大",
   "Zoom out": "缩小",
-  "Always on": "始终运行"
+  "Always on": "始终运行",
+  "Revoked: injects using it fail": "已撤销：使用它的注入会失败",
+  "Browse and version the actions your simulations run.": "浏览并管理模拟所运行操作的版本。",
+  "Revoked": "已撤销",
+  "Filigran": "Filigran",
+  "Local": "本地"
 }

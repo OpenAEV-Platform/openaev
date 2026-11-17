@@ -4693,5 +4693,10 @@
   "ZIP must contain a json file": "Архив ZIP должен содержать файл JSON",
   "Zoom in": "Приблизить",
   "Zoom out": "Отдалить",
-  "Always on": "Всегда работает"
+  "Always on": "Всегда работает",
+  "Revoked: injects using it fail": "Отозвана: использующие её инжекты завершаются ошибкой",
+  "Browse and version the actions your simulations run.": "Просматривайте действия, которые выполняют ваши симуляции, и управляйте их версиями.",
+  "Revoked": "Отозван",
+  "Filigran": "Filigran",
+  "Local": "Локальный"
 }

@@ -4693,5 +4693,10 @@
   "ZIP must contain a json file": "ZIP must contain a json file",
   "Zoom in": "Zoom in",
   "Zoom out": "Zoom out",
-  "Always on": "Always on"
+  "Always on": "Always on",
+  "Revoked: injects using it fail": "Revoked: injects using it fail",
+  "Browse and version the actions your simulations run.": "Browse and version the actions your simulations run.",
+  "Revoked": "Revoked",
+  "Filigran": "Filigran",
+  "Local": "Local"
 }
