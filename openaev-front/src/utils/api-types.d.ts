@@ -6450,21 +6450,6 @@ export interface Grant {
   listened?: boolean;
 }
 
-export interface Group {
-  group_auto_new_marking?: boolean;
-  group_default_user_assign?: boolean;
-  group_description?: string;
-  group_grants?: Grant[];
-  /** @minLength 1 */
-  group_id: string;
-  group_markings?: string[];
-  /** @minLength 1 */
-  group_name: string;
-  group_roles?: string[];
-  group_users?: string[];
-  listened?: boolean;
-}
-
 export interface GroupGrantInput {
   grant_name?: "OBSERVER" | "PLANNER" | "LAUNCHER";
   grant_resource?: string;
@@ -9167,25 +9152,6 @@ export interface PageFullTextSearchResult {
   totalPages?: number;
 }
 
-export interface PageGroup {
-  content?: Group[];
-  empty?: boolean;
-  first?: boolean;
-  last?: boolean;
-  /** @format int32 */
-  number?: number;
-  /** @format int32 */
-  numberOfElements?: number;
-  pageable?: PageableObject;
-  /** @format int32 */
-  size?: number;
-  sort?: SortObject;
-  /** @format int64 */
-  totalElements?: number;
-  /** @format int32 */
-  totalPages?: number;
-}
-
 export interface PageInjectResultOutput {
   content?: InjectResultOutput[];
   empty?: boolean;
@@ -9701,6 +9667,25 @@ export interface PageTagRuleOutput {
 
 export interface PageTeamOutput {
   content?: TeamOutput[];
+  empty?: boolean;
+  first?: boolean;
+  last?: boolean;
+  /** @format int32 */
+  number?: number;
+  /** @format int32 */
+  numberOfElements?: number;
+  pageable?: PageableObject;
+  /** @format int32 */
+  size?: number;
+  sort?: SortObject;
+  /** @format int64 */
+  totalElements?: number;
+  /** @format int32 */
+  totalPages?: number;
+}
+
+export interface PageTenantGroupOutput {
+  content?: TenantGroupOutput[];
   empty?: boolean;
   first?: boolean;
   last?: boolean;
@@ -12956,6 +12941,21 @@ export interface TenantGroupMarkingsOutput {
    * @minLength 1
    */
   group_name: string;
+}
+
+export interface TenantGroupOutput {
+  group_auto_new_marking?: boolean;
+  group_default_user_assign?: boolean;
+  group_description?: string;
+  group_grants?: Grant[];
+  /** @minLength 1 */
+  group_id: string;
+  /** @uniqueItems true */
+  group_markings?: string[];
+  /** @minLength 1 */
+  group_name: string;
+  group_roles?: string[];
+  group_users?: string[];
 }
 
 export interface TenantInput {
