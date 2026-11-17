@@ -7,8 +7,11 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Endpoint;
 import io.openaev.database.model.Tag;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.TagRepository;
 import io.openaev.helper.StreamHelper;
@@ -21,6 +24,7 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -37,6 +41,15 @@ public class ImportExportMapperApiTest extends IntegrationTest {
   @Autowired private MockMvc mvc;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private TagRepository tagRepository;
+  @Autowired private TenantScopedTransaction tenantTx;
+
+  private <T> T inDefaultTenant(Supplier<T> work) {
+    return tenantTx.execute(TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), work);
+  }
+
+  private void inDefaultTenant(Runnable work) {
+    tenantTx.execute(TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), work);
+  }
 
   @DisplayName("Test testing an export csv with endpoints target")
   @Test
@@ -87,7 +100,7 @@ public class ImportExportMapperApiTest extends IntegrationTest {
   @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void testImportCsvWithEndpointsCsvType() throws Exception {
     // -- PREPARE --
-    endpointRepository.deleteAll();
+    inDefaultTenant(() -> endpointRepository.deleteAll());
     File testFile = ResourceUtils.getFile("classpath:csv-test-files/Endpoints.csv");
 
     InputStream in = new FileInputStream(testFile);
@@ -105,8 +118,9 @@ public class ImportExportMapperApiTest extends IntegrationTest {
         .getResponse()
         .getContentAsString();
 
-    List<Endpoint> endpoints = StreamHelper.fromIterable(endpointRepository.findAll());
-    Optional<Tag> tag = tagRepository.findByName("ransomware");
+    List<Endpoint> endpoints =
+        inDefaultTenant(() -> StreamHelper.fromIterable(endpointRepository.findAll()));
+    Optional<Tag> tag = inDefaultTenant(() -> tagRepository.findByName("ransomware"));
 
     // -- ASSERT --
     assertEquals(1, endpoints.size());
@@ -115,8 +129,11 @@ public class ImportExportMapperApiTest extends IntegrationTest {
     assertEquals("ransomware", tag.get().getName());
     assertEquals("#8fd671", tag.get().getColor());
 
-    endpointRepository.deleteAll();
-    tagRepository.deleteById(tag.get().getId());
+    inDefaultTenant(
+        () -> {
+          endpointRepository.deleteAll();
+          tagRepository.deleteById(tag.get().getId());
+        });
   }
 
   @DisplayName("Test testing an import csv with unknown csv type")
