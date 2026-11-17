@@ -839,7 +839,6 @@ public class InjectExportTest extends IntegrationTest {
       @Test
       @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Returned zip file contains json with correct challenges")
-      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithCorrectChallenges() throws Exception {
         byte[] response = doExport();
 
@@ -902,7 +901,6 @@ public class InjectExportTest extends IntegrationTest {
       @Test
       @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Returned zip file contains json with correct documents")
-      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsJsonWithCorrectDocuments() throws Exception {
         byte[] response = doExport();
 
@@ -947,7 +945,6 @@ public class InjectExportTest extends IntegrationTest {
       @Test
       @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       @DisplayName("Returned zip file contains document files")
-      @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
       public void returnedZipFileContainsDocumentFiles() throws Exception {
         byte[] response = doExport();
 
