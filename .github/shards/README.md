@@ -12,8 +12,10 @@ added since the last rebalance: it is the smallest API job, with headroom for
 new packages.
 
 The layout was repacked by `balance-api-shards.py 19` from the per-class times of
-the API jobs of five runs of 17 November 2026, so that the slowest shard decides
-the run length as little as possible. A shard pays about 10 s for each Spring test
+the API jobs of ten runs of 17 November 2026, five on each of two layouts, so
+that the slowest shard decides the run length as little as possible. A class
+runs faster or slower depending on the shard it runs in, so the median over two
+layouts weighs it better than either alone. A shard pays about 10 s for each Spring test
 context its classes need, once however many of them share it, and about a minute
 more for its first one. `.timings.json` holds each class's time without the start
 of the context it shares, and the balancer adds a start per distinct context of a

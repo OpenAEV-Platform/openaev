@@ -1,7 +1,7 @@
+io/openaev/api/detection_remediation/**/*Test.java
+io/openaev/api/notifier/**/*Test.java
 io/openaev/integration/**/*Test.java
-io/openaev/rest/NonPrefixedCreateTenantPostureTest.java
-io/openaev/rest/TeamApiTest.java
-io/openaev/rest/inject/ByIdRequestScopeArmedTest.java
-io/openaev/rest/inject/ResponseCollectionsTenantScopeTest.java
-io/openaev/rest/kill_chain_phase/**/*Test.java
-io/openaev/rest/lessons/**/*Test.java
+io/openaev/rest/UserApiTest.java
+io/openaev/rest/inject/InjectApiTest.java
+io/openaev/security/**/*Test.java
+io/openaev/service/autonomous/**/*Test.java
