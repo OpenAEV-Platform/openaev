@@ -231,6 +231,12 @@ public class EndpointService implements AuditLoggedService {
     return fromIterable(this.endpointRepository.findAll(fromIds(endpointIds)));
   }
 
+  /** The endpoints among the given ids that belong to the given tenant. */
+  public List<Endpoint> endpoints(
+      @NotNull final List<String> endpointIds, @NotBlank final String tenantId) {
+    return this.endpointRepository.findAllByIdInTenant(endpointIds, tenantId);
+  }
+
   public List<Endpoint> endpoints(@NotNull final Specification<Endpoint> specification) {
     return fromIterable(this.endpointRepository.findAll(specification));
   }
