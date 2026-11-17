@@ -89,5 +89,4 @@ public record SecretStoreRequest(
     String azureAuthorityHostUri,
     String azureScope,
     byte[] azureRequestsCertificate,
-    // API TOKEN
     String apiToken) {}

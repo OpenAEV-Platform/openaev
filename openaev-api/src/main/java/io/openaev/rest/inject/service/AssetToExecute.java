@@ -15,7 +15,6 @@ public record AssetToExecute(
     this(asset, true, new ArrayList<>());
   }
 
-  /** The credentials of the AI targets among these targets. */
   public static Stream<CredentialSecretReference> aiTargetCredentials(
       List<AssetToExecute> targets) {
     return targets.stream()

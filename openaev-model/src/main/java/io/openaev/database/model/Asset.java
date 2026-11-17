@@ -382,7 +382,6 @@ public class Asset implements TenantBase, Marked {
   @JsonProperty("ai_target_configuration")
   private Map<String, Object> aiTargetConfiguration = new HashMap<>();
 
-  /** Optional credential used to reach an AI target; empty for targets with no authentication. */
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "ai_target_credential_id")
   @JsonSerialize(using = MonoIdSerializer.class)
