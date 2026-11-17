@@ -6,7 +6,7 @@ import org.flywaydb.core.api.migration.Context;
 import org.springframework.stereotype.Component;
 
 @Component
-public class V6_20261116170000000__Add_ai_target_credential extends BaseJavaMigration {
+public class V6_20261117100000000__Add_ai_target_credential extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
@@ -20,6 +20,12 @@ public class V6_20261116170000000__Add_ai_target_credential extends BaseJavaMigr
       statement.execute(
           "CREATE INDEX IF NOT EXISTS idx_assets_ai_target_credential"
               + " ON assets (ai_target_credential_id);");
+      statement.execute("ALTER TABLE assets DROP COLUMN IF EXISTS ai_target_token;");
+      statement.execute(
+          """
+          UPDATE injects SET inject_content = (inject_content::jsonb - 'target_token')::text
+          WHERE inject_content::jsonb ? 'target_token';
+          """);
     }
   }
 }
