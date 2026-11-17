@@ -139,6 +139,7 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
   private static final String CAPABILITY_OF_A = "ACCESS_ASSESSMENT";
   private static final String CAPABILITY_OF_B = "ACCESS_PAYLOADS";
   private static final String CAPABILITY_OF_PLATFORM = "ACCESS_TEAMS_AND_PLAYERS";
+  private static final String CAPABILITY_OF_DEFAULT = "MANAGE_ASSESSMENT";
 
   @Autowired private MockMvc mvc;
   @Autowired private ObjectMapper mapper;
@@ -173,6 +174,7 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
   private String groupA;
   private String groupB;
   private String groupPlatform;
+  private String groupDefault;
   private final List<String> roles = new ArrayList<>();
   private final List<String> grants = new ArrayList<>();
   private final List<String> createdUserIds = new ArrayList<>();
@@ -347,7 +349,7 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
     for (String dashboard : present(dashboardA)) {
       deleteWhere("DELETE FROM custom_dashboards WHERE custom_dashboard_id = ?", dashboard);
     }
-    for (String group : present(groupA, groupB, groupPlatform)) {
+    for (String group : present(groupA, groupB, groupPlatform, groupDefault)) {
       deleteWhere("DELETE FROM groups_roles WHERE group_id = ?", group);
       deleteWhere("DELETE FROM groups WHERE group_id = ?", group);
     }
@@ -1599,6 +1601,73 @@ public class UserStreamEventConsumerTenantTest extends IntegrationTest {
         assertDelivered(consumer, events, "user_firstname", "Written-by-an-operator-of-no-tenant");
         assertGroupDerivedFieldsLeftOut(consumer);
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("User created from the platform with the scope of tenant A selected by the header")
+  class CreatedFromThePlatformInA {
+
+    @Test
+    @DisplayName(
+        "The event is attributed to A, where the roles were read: the consumers of A receive the groups, capabilities and flags, the consumers of the default tenant receive none of them")
+    void given_platformCreationScopedToA_should_attributeTheEventToTheTenantTheRolesWereReadIn()
+        throws Exception {
+      // -- PREPARE --
+      groupDefault = insertGroup(Tenant.DEFAULT_TENANT_UUID, CAPABILITY_OF_DEFAULT);
+      jdbc.update(
+          "UPDATE groups SET group_default_user_assign = true WHERE group_id = ?", groupDefault);
+      jdbc.update("UPDATE groups SET group_default_user_assign = true WHERE group_id = ?", groupA);
+      jdbc.update(
+          "UPDATE groups SET group_default_user_assign = true WHERE group_id = ?", groupPlatform);
+      Consumer ofA = consumerOfA();
+      Consumer ofDefault = consumerOfDefault();
+      String email = "stream-platform-created-" + UUID.randomUUID() + "@filigran.io";
+      UserInput input =
+          new UserInput(
+              email,
+              "Created-by-the-platform-in-a",
+              "User",
+              null,
+              null,
+              null,
+              null,
+              null,
+              List.of(),
+              false,
+              List.of(Tenant.DEFAULT_TENANT_UUID, tenantA));
+
+      // -- EXECUTE --
+      TenantContext.clearCurrentTenant();
+      long publishedBefore = applicationEvents.stream(BaseEvent.class).count();
+      String response =
+          mvc.perform(json(post(PLATFORM_USER_URI).header(TENANT_HEADER, tenantA), input))
+              .andExpect(status().is2xxSuccessful())
+              .andReturn()
+              .getResponse()
+              .getContentAsString();
+      String createdId = mapper.readTree(response).path("user_id").asText();
+      createdUserIds.add(createdId);
+      List<BaseEvent> events =
+          applicationEvents.stream(BaseEvent.class)
+              .skip(publishedBefore)
+              .filter(
+                  event ->
+                      event.getInstance() instanceof User user && createdId.equals(user.getId()))
+              .toList();
+      assertFalse(events.isEmpty(), "The creation must have published an event for the user");
+      events.forEach(
+          event -> {
+            TenantContext.clearCurrentTenant();
+            stream.listenDatabaseUpdate(event);
+          });
+
+      // -- ASSERT --
+      assertNothingFailedToStream();
+      assertEquals(tenantA, events.getFirst().getTenantId());
+      assertIds(ofA, "user_groups", List.of(groupA, groupPlatform));
+      assertCapabilities(ofA, CAPABILITY_OF_A, CAPABILITY_OF_PLATFORM);
+      assertGroupDerivedFieldsLeftOut(ofDefault);
     }
   }
 

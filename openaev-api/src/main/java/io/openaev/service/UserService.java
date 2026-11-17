@@ -168,6 +168,22 @@ public class UserService {
    */
   @Transactional(rollbackFor = Exception.class)
   public User createUser(UserInput input, UserCreationScope scope) {
+    return applyCreate(input, scope);
+  }
+
+  /**
+   * Creates a platform user from a request whose scope is {@code ctx}. The roles of the groups
+   * auto-assigned from the input's tenants are read in that scope, so the event of the creation is
+   * attributed to a tenant of it, the ambient one when it is of the scope: a consumer of a tenant
+   * outside the scope is not sent fields derived from roles that were not read for it.
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public User createUser(TxCtx ctx, UserInput input, UserCreationScope scope) {
+    BaseEvent.attributeRequestEventsToOneOf(TxCtxScopeUtils.tenantIdsFromHTTPCtx(ctx), User.class);
+    return applyCreate(input, scope);
+  }
+
+  private User applyCreate(UserInput input, UserCreationScope scope) {
     ReservedKeyValidator.validateUserEmailPattern(input.email());
     if (userRepository.findByEmailIgnoreCase(input.email()).isPresent()) {
       throw new DataIntegrityViolationException(

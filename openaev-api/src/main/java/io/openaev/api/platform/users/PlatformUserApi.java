@@ -48,7 +48,7 @@ public class PlatformUserApi {
   @ResponseStatus(HttpStatus.CREATED)
   @Transactional
   public UserOutput create(TxCtx ctx, @Valid @RequestBody UserInput input) {
-    return toPlatformOutput(userService.createUser(input, UserCreationScope.PLATFORM));
+    return toPlatformOutput(userService.createUser(ctx, input, UserCreationScope.PLATFORM));
   }
 
   // -- READ --
