@@ -1,6 +1,7 @@
-io/openaev/rest/comcheck/**/*Test.java
+io/openaev/expectation/**/*Test.java
+io/openaev/healthcheck/**/*Test.java
 io/openaev/rest/inject/**/*Test.java
-io/openaev/rest/injector/**/*Test.java
-io/openaev/rest/url_access_token/**/*Test.java
-io/openaev/secrets/**/*Test.java
-io/openaev/service/expectation/**/*Test.java
+io/openaev/rest/session/**/*Test.java
+io/openaev/service/payload/**/*Test.java
+io/openaev/validator/**/*Test.java
+io/openaev/xtmone/**/*Test.java

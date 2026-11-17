@@ -12,11 +12,13 @@ added since the last rebalance: it is the smallest API job, with headroom for
 new packages.
 
 The layout was repacked by `balance-api-shards.py 14` from the per-class times of
-the API jobs of thirteen runs on two 15-shard layouts (16 and 17 November 2026),
-so that the slowest shard decides the run length as little as possible. Each
-class weighs the lower of its two medians: the first Spring class of a shard
-pays about a minute of one-time startup, and whichever class runs first in the
-new layout pays it instead, so it is left to the per-shard fixed cost. Shard `rest/*Test.java`
+the API jobs of five runs of 17 November 2026, so that the slowest shard decides
+the run length as little as possible. A shard pays about 10 s for each Spring test
+context its classes need, once however many of them share it, and about a minute
+more for its first one. `.timings.json` holds each class's time without the start
+of the context it shares, and the balancer adds a start per distinct context of a
+shard, read from the test sources: packages that need the same context land in
+the same shard instead of starting it again in each. Shard `rest/*Test.java`
 stays one unit: `*` does not cross a `/`, so the package cannot be split further
 without listing files.
 
@@ -55,8 +57,9 @@ bin-packs packages into `api-<n>.txt`. If you change the shard count, update the
 stay last.
 
 Do not blindly regenerate from the current collector: it misses summaries using
-`@DisplayName` and can count nested durations twice when the enclosing summary
-already includes them. Check top-level summaries or Surefire XML before using
+`@DisplayName`, can count nested durations twice when the enclosing summary
+already includes them, and keeps in a class's time the start of the context it
+shares, which the balancer then counts twice. Check top-level summaries or Surefire XML before using
 the weights. Pass `14` explicitly; the balancer's legacy default is `7`.
 
 Always verify coverage afterwards:

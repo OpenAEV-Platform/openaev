@@ -1,9 +1,11 @@
 io/openaev/api/asset/**/*Test.java
+io/openaev/api/capabilities/**/*Test.java
+io/openaev/api/catalog/**/*Test.java
+io/openaev/api/expectations/**/*Test.java
 io/openaev/api/secrets_providers/**/*Test.java
-io/openaev/debug/**/*Test.java
-io/openaev/execution/**/*Test.java
-io/openaev/expectation/**/*Test.java
-io/openaev/rest/challenge/**/*Test.java
+io/openaev/config/cache/**/*Test.java
+io/openaev/logging/**/*Test.java
+io/openaev/rest/asset_group/**/*Test.java
 io/openaev/rest/injector_contract/**/*Test.java
-io/openaev/rest/vulnerability/**/*Test.java
-io/openaev/service/stix/**/*Test.java
+io/openaev/rest/search/**/*Test.java
+io/openaev/secrets/**/*Test.java
