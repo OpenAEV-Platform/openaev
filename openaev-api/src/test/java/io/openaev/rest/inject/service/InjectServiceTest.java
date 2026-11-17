@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -367,9 +368,11 @@ class InjectServiceTest {
         buildContractWithContentFields("teams", "assets", "asset_groups");
     Inject i1 = new Inject();
     i1.setId("inject1");
+    i1.setTenant(new Tenant("tenant-1"));
     i1.setInjectorContract(technicalContract);
     Inject i2 = new Inject();
     i2.setId("inject2");
+    i2.setTenant(new Tenant("tenant-1"));
     i2.setInjectorContract(technicalContract);
     i1.setTeams(new ArrayList<>(List.of(t0)));
     i1.setAssets(new ArrayList<>(List.of(a0)));
@@ -399,8 +402,8 @@ class InjectServiceTest {
     a2.setId("asset2");
     List<Asset> aList = List.of(a1, a2);
 
-    when(teamRepository.findAllById(any())).thenReturn(tList);
-    when(assetService.assets(anyList())).thenReturn(aList);
+    when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1"))).thenReturn(tList);
+    when(assetService.assets(anyList(), eq("tenant-1"))).thenReturn(aList);
 
     // Expected results
     Inject i1updated = new Inject();
@@ -490,9 +493,9 @@ class InjectServiceTest {
 
     List<InjectBulkUpdateOperation> operations = List.of(teamsOp, assetsOp, assetGroupsOp);
 
-    when(teamRepository.findAllById(any())).thenReturn(List.of(t1));
-    when(assetService.assets(anyList())).thenReturn(List.of(a1));
-    when(assetGroupService.assetGroups(anyList())).thenReturn(List.of(ag1));
+    when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1"))).thenReturn(List.of(t1));
+    when(assetService.assets(anyList(), eq("tenant-1"))).thenReturn(List.of(a1));
+    when(assetGroupService.assetGroups(anyList(), eq("tenant-1"))).thenReturn(List.of(ag1));
     when(injectRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
     // Act
@@ -545,6 +548,7 @@ class InjectServiceTest {
       String id, InjectorContract contract, Asset initialAsset, AssetGroup initialAssetGroup) {
     Inject inject = new Inject();
     inject.setId(id);
+    inject.setTenant(new Tenant("tenant-1"));
     inject.setInjectorContract(contract);
     inject.setTeams(new ArrayList<>());
     inject.setAssets(new ArrayList<>(List.of(initialAsset)));
@@ -556,7 +560,11 @@ class InjectServiceTest {
   @Test
   void bulkUpdateInjectsWithEmptyOperations() {
     // Arrange
-    List<Inject> injectsToUpdate = List.of(new Inject(), new Inject());
+    Inject i1 = new Inject();
+    i1.setTenant(new Tenant("tenant-1"));
+    Inject i2 = new Inject();
+    i2.setTenant(new Tenant("tenant-1"));
+    List<Inject> injectsToUpdate = List.of(i1, i2);
     List<InjectBulkUpdateOperation> operations = List.of();
 
     when(injectRepository.saveAll(injectsToUpdate)).thenReturn(injectsToUpdate);
@@ -579,8 +587,10 @@ class InjectServiceTest {
     // Arrange
     Inject i1 = new Inject();
     i1.setId("inject1");
+    i1.setTenant(new Tenant("tenant-1"));
     Inject i2 = new Inject();
     i2.setId("inject2");
+    i2.setTenant(new Tenant("tenant-1"));
     List<Inject> injectsToUpdate = List.of(i1, i2);
 
     InjectBulkUpdateOperation ope = new InjectBulkUpdateOperation();
@@ -590,7 +600,7 @@ class InjectServiceTest {
 
     List<InjectBulkUpdateOperation> operations = List.of(ope);
 
-    when(teamRepository.findAllById(any())).thenReturn(List.of());
+    when(teamRepository.findAllByIdInTenant(any(), eq("tenant-1"))).thenReturn(List.of());
 
     // Expected results
     Inject i1updated = new Inject();
@@ -1467,6 +1477,7 @@ class InjectServiceTest {
       // Arrange
       Inject inject = new Inject();
       inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
       CredentialSecretReference credential = new CredentialSecretReference();
       credential.setId("credential-1");
@@ -1474,7 +1485,8 @@ class InjectServiceTest {
       input.setTitle("inject");
       input.setDependsDuration(0L);
       input.setSecretReferences(List.of("credential-1"));
-      when(secretReferenceService.secretReferences(List.of("credential-1")))
+      when(secretReferenceService.secretReferences(
+              List.of("credential-1"), Tenant.DEFAULT_TENANT_UUID))
           .thenReturn(List.of(credential));
 
       // Act
@@ -1492,6 +1504,7 @@ class InjectServiceTest {
       credential.setId("credential-1");
       Inject inject = new Inject();
       inject.setId(INJECT_ID);
+      inject.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
       inject.setSecretReferences(new ArrayList<>(List.of(credential)));
       when(injectRepository.findById(INJECT_ID)).thenReturn(Optional.of(inject));
       InjectInput input = new InjectInput();
@@ -1504,7 +1517,7 @@ class InjectServiceTest {
 
       // Assert
       assertThat(result.getSecretReferences()).isEmpty();
-      verify(secretReferenceService).secretReferences(List.of());
+      verify(secretReferenceService).secretReferences(List.of(), Tenant.DEFAULT_TENANT_UUID);
     }
   }
 
