@@ -89,14 +89,22 @@ public class V20260914DefaultTenantMarkingsTest extends IntegrationTest {
     processor.createDependencyForTenant(tenant);
 
     // Assert
-    assertThat(dataPackService.findByIdAndTenant(markingsDataPack.getPackId(), tenant)).isPresent();
+    assertThat(
+            tenantTx.execute(
+                TxCtx.forTenant(tenant.getId()),
+                () -> dataPackService.findByIdAndTenant(markingsDataPack.getPackId(), tenant)))
+        .isPresent();
 
     Number count =
-        (Number)
-            entityManager
-                .createNativeQuery("SELECT count(*) FROM marking_definitions WHERE tenant_id = ?1")
-                .setParameter(1, tenant.getId())
-                .getSingleResult();
+        tenantTx.execute(
+            TxCtx.forTenant(tenant.getId()),
+            () ->
+                (Number)
+                    entityManager
+                        .createNativeQuery(
+                            "SELECT count(*) FROM marking_definitions WHERE tenant_id = ?1")
+                        .setParameter(1, tenant.getId())
+                        .getSingleResult());
     assertThat(count.intValue()).isEqualTo(5);
   }
 }

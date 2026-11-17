@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.openaev.IntegrationTest;
 import io.openaev.config.TenantWriteScopeResolver;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.database.model.KillChainPhase;
 import io.openaev.database.model.Tenant;
@@ -36,9 +37,11 @@ import io.openaev.utils.fixtures.PaginationFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import io.openaev.utils.pagination.SearchPaginationInput;
 import io.openaev.utils.pagination.SortField;
+import io.openaev.utilstest.RowTenantScope;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -64,6 +67,8 @@ public class KillChainPhaseApiTest extends IntegrationTest {
   @Autowired private KillChainPhaseRepository killChainPhaseRepository;
 
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   @Mock private KillChainPhaseRepository mockKillChainPhaseRepository;
 
@@ -88,17 +93,24 @@ public class KillChainPhaseApiTest extends IntegrationTest {
   @BeforeAll
   public void beforeAll() {
 
-    KILL_CHAIN_PHASE_ID_1 = this.killChainPhaseRepository.save(KILL_CHAIN_PHASE_1).getId();
-    KILL_CHAIN_PHASE_ID_2 = this.killChainPhaseRepository.save(KILL_CHAIN_PHASE_2).getId();
-    KILL_CHAIN_PHASE_ID_3 = this.killChainPhaseRepository.save(KILL_CHAIN_PHASE_3).getId();
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          KILL_CHAIN_PHASE_ID_1 = this.killChainPhaseRepository.save(KILL_CHAIN_PHASE_1).getId();
+          KILL_CHAIN_PHASE_ID_2 = this.killChainPhaseRepository.save(KILL_CHAIN_PHASE_2).getId();
+          KILL_CHAIN_PHASE_ID_3 = this.killChainPhaseRepository.save(KILL_CHAIN_PHASE_3).getId();
+        });
 
     killChainPhaseList = Arrays.asList(KILL_CHAIN_PHASE_1, KILL_CHAIN_PHASE_2, KILL_CHAIN_PHASE_3);
   }
 
   @AfterAll
   public void afterAll() {
-    this.killChainPhaseRepository.deleteAllById(
-        List.of(KILL_CHAIN_PHASE_ID_1, KILL_CHAIN_PHASE_ID_2, KILL_CHAIN_PHASE_ID_3));
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () ->
+            this.killChainPhaseRepository.deleteAllById(
+                List.of(KILL_CHAIN_PHASE_ID_1, KILL_CHAIN_PHASE_ID_2, KILL_CHAIN_PHASE_ID_3)));
   }
 
   @Nested
@@ -106,6 +118,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
   @DisplayName("Fetching a page of kill chain phases")
   class FetchingPageOfKillChainPhases {
 
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Test
     @DisplayName("Fetching first page of kill chain phases succeed")
     void given_search_input_should_return_a_page_of_kill_chain_phases() throws Exception {
@@ -139,6 +152,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
   class SearchingPageOfKillChainPhases {
 
     @DisplayName("Fetching first page of kill chain phases by textsearch")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Test
     void given_search_input_with_textsearch_should_return_a_page_of_kill_chain_phases()
         throws Exception {
@@ -155,6 +169,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     }
 
     @DisplayName("Fetching first page of kill chain phases by textsearch ignoring case")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Test
     void
         given_search_input_with_textsearch_should_return_a_page_of_kill_chain_phases_ignoring_case()
@@ -172,6 +187,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     }
 
     @DisplayName("Fetching first page of kill chain phases by textsearch with spaces")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Test
     void given_search_input_with_textsearch_with_spaces_should_return_a_page_of_kill_chain_phases()
         throws Exception {
@@ -194,6 +210,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
   class FilteringPageOfKillChainPhases {
 
     @DisplayName("Fetching first page of kill chain phases by equals name")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Test
     void
         given_search_input_with_name_and_equals_operator_should_return_a_page_of_kill_chain_phases()
@@ -211,6 +228,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     }
 
     @DisplayName("Fetching first page of kill chain phases by contains name")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Test
     void
         given_search_input_with_name_and_contains_operator_should_return_a_page_of_kill_chain_phases()
@@ -234,6 +252,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
   class SortingPageOfKillCHainPhases {
 
     @DisplayName("Sorting by default")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Test
     void
         given_search_input_without_sort_should_return_a_page_of_kill_chain_phases_with_default_sort()
@@ -256,6 +275,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
     }
 
     @DisplayName("Sorting by name desc")
+    @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
     @Test
     void given_sort_input_should_return_a_page_of_kill_chain_phases_sort_by_name_desc()
         throws Exception {
@@ -301,14 +321,29 @@ public class KillChainPhaseApiTest extends IntegrationTest {
 
     @AfterEach
     void cleanUp() {
-      for (String shortName : List.of("old-short", "new-short", "exec")) {
-        killChainPhaseRepository
-            .findByKillChainNameAndShortNameAndTenantId(KILL_CHAIN, shortName, writeTenantId)
-            .ifPresent(killChainPhaseRepository::delete);
+      if (writeTenantId != null) {
+        tenantTx.execute(
+            TxCtx.forTenant(writeTenantId),
+            () -> {
+              for (String shortName : List.of("old-short", "new-short", "exec")) {
+                killChainPhaseRepository
+                    .findByKillChainNameAndShortNameAndTenantId(
+                        KILL_CHAIN, shortName, writeTenantId)
+                    .ifPresent(killChainPhaseRepository::delete);
+              }
+            });
       }
       // The membership tenant is created (and committed) by grantSingleTenantMembership.
       tenantHelper.deleteCommittedTenants(writeTenantId);
       writeTenantId = null;
+    }
+
+    private Optional<KillChainPhase> findByNaturalKey(String shortName) {
+      return tenantTx.execute(
+          TxCtx.forTenant(writeTenantId),
+          () ->
+              killChainPhaseRepository.findByKillChainNameAndShortNameAndTenantId(
+                  KILL_CHAIN, shortName, writeTenantId));
     }
 
     private KillChainPhaseCreateInput createInput(String shortName, String name, String stixId) {
@@ -339,7 +374,11 @@ public class KillChainPhaseApiTest extends IntegrationTest {
       // the
       // tenant the request writes to, otherwise the lookup misses it and inserts a second row.
       existing.setTenant(new Tenant(writeTenantId));
-      String existingId = killChainPhaseRepository.save(existing).getId();
+      String existingId =
+          tenantTx
+              .execute(
+                  TxCtx.forTenant(writeTenantId), () -> killChainPhaseRepository.save(existing))
+              .getId();
 
       mvc.perform(
               post("/api/kill_chain_phases/upsert")
@@ -360,12 +399,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
           "the old natural key must not survive as a separate row");
       assertEquals(
           1, countByNaturalKey("new-short"), "the phase must have moved to the new natural key");
-      assertEquals(
-          existingId,
-          killChainPhaseRepository
-              .findByKillChainNameAndShortNameAndTenantId(KILL_CHAIN, "new-short", writeTenantId)
-              .orElseThrow()
-              .getId());
+      assertEquals(existingId, findByNaturalKey("new-short").orElseThrow().getId());
     }
 
     @Test
@@ -431,10 +465,7 @@ public class KillChainPhaseApiTest extends IntegrationTest {
           .andExpect(status().is2xxSuccessful())
           .andExpect(jsonPath("$.length()").value(1));
 
-      KillChainPhase persisted =
-          killChainPhaseRepository
-              .findByKillChainNameAndShortNameAndTenantId(KILL_CHAIN, "exec", writeTenantId)
-              .orElseThrow();
+      KillChainPhase persisted = findByNaturalKey("exec").orElseThrow();
       assertEquals("Execution updated", persisted.getName());
       assertEquals(STIX_ID, persisted.getStixId(), "STIX id must survive the stix-less duplicate");
     }

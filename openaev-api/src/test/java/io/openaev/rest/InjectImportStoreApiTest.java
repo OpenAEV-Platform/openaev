@@ -13,6 +13,8 @@ import com.jayway.jsonpath.JsonPath;
 import io.openaev.IntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Grant;
+import io.openaev.database.model.ImportMapper;
+import io.openaev.database.model.Tenant;
 import io.openaev.rest.scenario.form.InjectsImportInput;
 import io.openaev.utils.fixtures.ExerciseFixture;
 import io.openaev.utils.fixtures.ScenarioFixture;
@@ -21,8 +23,10 @@ import io.openaev.utils.fixtures.composers.ImportMapperComposer;
 import io.openaev.utils.fixtures.composers.ScenarioComposer;
 import io.openaev.utils.fixtures.import_mapper.ImportMapperFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RowTenantScope;
 import java.io.ByteArrayOutputStream;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,6 +59,7 @@ class InjectImportStoreApiTest extends IntegrationTest {
   @Autowired private ScenarioComposer scenarioComposer;
   @Autowired private ExerciseComposer exerciseComposer;
   @Autowired private ImportMapperComposer importMapperComposer;
+  @Autowired private RowTenantScope rowTenantScope;
 
   @BeforeEach
   void setUp() {
@@ -103,14 +108,21 @@ class InjectImportStoreApiTest extends IntegrationTest {
     }
   }
 
-  /** A mapper with no importers, in the default tenant the test user belongs to. */
+  /**
+   * A mapper with no importers, in the default tenant the test user belongs to. The upload request
+   * has cleared the thread's tenant, so the row names its tenant and is saved in that tenant's
+   * scope.
+   */
   private String persistMapper() {
-    return importMapperComposer
-        .forImportMapper(ImportMapperFixture.createDefaultImportMapper())
-        .persist()
-        .get()
-        .getId()
-        .toString();
+    ImportMapper mapper = ImportMapperFixture.createDefaultImportMapper();
+    mapper.setTenant(new Tenant(Tenant.DEFAULT_TENANT_UUID));
+    AtomicReference<String> mapperId = new AtomicReference<>();
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () ->
+            mapperId.set(
+                importMapperComposer.forImportMapper(mapper).persist().get().getId().toString()));
+    return mapperId.get();
   }
 
   @Nested
