@@ -31,8 +31,6 @@ interface Props {
 
 const MAX_PLATFORMS = 4;
 const MAX_DOMAINS = 2;
-// Height of the Figma card (Design_System_2026, node 8470:25385).
-const CARD_HEIGHT = 210;
 
 const ThreatArsenalCard: FunctionComponent<Props> = ({
   action,
@@ -95,8 +93,6 @@ const ThreatArsenalCard: FunctionComponent<Props> = ({
     // The checkbox sits on the top right corner of the header.
     <EntityCard
       testId="threat-arsenal-card"
-      layout="ds2026"
-      ds2026Height={CARD_HEIGHT}
       onClick={onSelect}
       selected={selected}
       image={thumbnailImage}

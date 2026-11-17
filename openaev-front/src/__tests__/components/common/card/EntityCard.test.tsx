@@ -54,13 +54,13 @@ describe('EntityCard', () => {
       expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
 
-    it('given_neitherToNorOnClick_should_renderADisabledActionArea', () => {
+    it('given_neitherToNorOnClick_should_renderAPlainSurface', () => {
       // Arrange / Act
       renderCard();
 
       // Assert
       expect(screen.queryByRole('link')).not.toBeInTheDocument();
-      expect(screen.getByRole('button')).toBeDisabled();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
   });
 
@@ -70,7 +70,10 @@ describe('EntityCard', () => {
       renderCard({
         overline: 'Collector',
         description: 'Card description',
-        caption: 'Updated at today',
+        meta: {
+          label: 'Updated:',
+          value: 'today',
+        },
       });
 
       // Assert
@@ -78,7 +81,23 @@ describe('EntityCard', () => {
       expect(screen.getByText('Collector')).toBeInTheDocument();
       expect(screen.getByText('Card title')).toBeInTheDocument();
       expect(screen.getByText('Card description')).toBeInTheDocument();
-      expect(screen.getByText('Updated at today')).toBeInTheDocument();
+      expect(screen.getByText('Updated:')).toBeInTheDocument();
+      expect(screen.getByText('today')).toBeInTheDocument();
+    });
+
+    it('given_image_should_renderItInsteadOfTheIcon', () => {
+      // Arrange / Act
+      renderCard({
+        icon: <span data-testid="icon" />,
+        image: {
+          src: '/logo.png',
+          alt: 'Logo',
+        },
+      });
+
+      // Assert
+      expect(screen.getByRole('img', { name: 'Logo' })).toHaveAttribute('src', '/logo.png');
+      expect(screen.queryByTestId('icon')).not.toBeInTheDocument();
     });
 
     // The menu opens dialogs in a portal: inside the link, React would bubble
@@ -101,6 +120,17 @@ describe('EntityCard', () => {
 
       // Assert
       expect(screen.getByRole('button', { name: 'Deploy' })).toBeInTheDocument();
+    });
+
+    it('given_noFooter_should_dropTheFooterSlots', () => {
+      // Arrange / Act
+      renderCard({
+        footer: false,
+        footerStart: <span data-testid="footer-start" />,
+      });
+
+      // Assert
+      expect(screen.queryByTestId('footer-start')).not.toBeInTheDocument();
     });
   });
 

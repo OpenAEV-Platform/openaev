@@ -14,9 +14,6 @@ import {
 import { ReportingFormatFragment, ReportingStatusChip } from './ReportingFragments';
 import ReportingPopover from './ReportingPopover';
 
-// Height of the Figma card (Design_System_2026, node 8461:13185).
-const CARD_HEIGHT = 250;
-
 interface Props {
   reporting: Reporting;
   onUpdate?: (result: Reporting) => void;
@@ -35,8 +32,6 @@ const ReportingCard: FunctionComponent<Props> = ({ reporting, onUpdate, onDelete
     // the format and the generation status on the left, download and ⋮ on the right.
     <EntityCard
       testId="reporting-card"
-      layout="ds2026"
-      ds2026Height={CARD_HEIGHT}
       to={`/admin/reporting/${reporting.reporting_id}`}
       icon={<ContextIcon sx={{ fontSize: 24 }} />}
       overline={t(REPORTING_CONTEXT_LABELS[reporting.reporting_context_type])}

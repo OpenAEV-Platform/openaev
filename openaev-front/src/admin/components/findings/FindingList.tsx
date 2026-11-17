@@ -232,9 +232,7 @@ const FindingList = ({ searchDistinctFindings, filterLocalStorageKey, contextId,
       />
       {viewMode === 'cards' && (
         <>
-          {/* Every row takes the height of the tallest card of the page: all the cards share one
-              height, the least their content needs (the cards fit their content, see FindingCard). */}
-          <CardGrid loading={loading} style={{ gridAutoRows: '1fr' }}>
+          <CardGrid loading={loading}>
             {findings.map(finding => <FindingCard key={finding.finding_id} finding={finding} />)}
           </CardGrid>
           {!loading && findings.length === 0 && <Empty message={t('No finding found.')} />}

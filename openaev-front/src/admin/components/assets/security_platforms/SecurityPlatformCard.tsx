@@ -28,7 +28,6 @@ const SecurityPlatformCard: FunctionComponent<Props> = ({
   return (
     <EntityCard
       testId="security-platform-card"
-      layout="ds2026"
       to={`${SECURITY_PLATFORM_BASE_URL}/${securityPlatform.asset_id}`}
       image={{
         src: buildTenantApiPath(`/api/images/security_platforms/id/${securityPlatform.asset_id}/${theme.palette.mode}?${Date.now()}`),
@@ -50,7 +49,8 @@ const SecurityPlatformCard: FunctionComponent<Props> = ({
         />
       )}
       tags={securityPlatform.asset_tags?.length
-        ? <ItemTags variant="reduced-view" tags={securityPlatform.asset_tags} />
+        // Every tag that fits the card width shows; only the rest collapse into "+N".
+        ? <ItemTags tags={securityPlatform.asset_tags} limit={securityPlatform.asset_tags.length} />
         : undefined}
     />
   );

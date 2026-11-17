@@ -6,9 +6,6 @@ import { useFormatter } from '../../../../components/i18n';
 import { type CustomDashboard } from '../../../../utils/api-types';
 import CustomDashboardPopover from './CustomDashboardPopover';
 
-// Height of the Figma card (Design_System_2026, node 8461:13606).
-const CARD_HEIGHT = 250;
-
 interface Props {
   customDashboard: CustomDashboard;
   onUpdate: (result: CustomDashboard) => void;
@@ -27,8 +24,6 @@ const CustomDashboardCard: FunctionComponent<Props> = ({
     // type and title, description, last update line, ⋮ menu in the footer band.
     <EntityCard
       testId="custom-dashboard-card"
-      layout="ds2026"
-      ds2026Height={CARD_HEIGHT}
       to={`/admin/workspaces/custom_dashboards/${customDashboard.custom_dashboard_id}`}
       icon={<AnalyticsOutlined sx={{ fontSize: 24 }} />}
       overline={t('Dashboard')}

@@ -183,7 +183,6 @@
         "openaev-front/src/admin/components/assets/credentials/CredentialStatusChip.tsx",
         "openaev-front/src/admin/components/assets/endpoints/EndpointsPicker.tsx",
         "openaev-front/src/admin/components/assets/endpoints/endpoint/AgentList.tsx",
-        "openaev-front/src/components/common/card/EntityCard.tsx",
         "openaev-front/src/admin/components/assets/security_platforms/SecurityPlatformDetail.tsx",
         "openaev-front/src/admin/components/assets/security_platforms/SecurityPlatforms.tsx",
         "openaev-front/src/admin/components/atomic_testings/InjectResultList.tsx",

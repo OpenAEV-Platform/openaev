@@ -29,6 +29,9 @@ const CardGrid = ({ children, loading = false, style }: Props) => {
       display: 'grid',
       gap,
       gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, max(${MIN_CARD_WIDTH}px, ${maxColumnsWidth})), 1fr))`,
+      // Every row takes the height of the tallest card of the page: all the
+      // cards share one height, the least their content needs.
+      gridAutoRows: '1fr',
       ...style,
     }}
     >

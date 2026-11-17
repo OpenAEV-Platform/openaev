@@ -1,7 +1,5 @@
-import { Chip, type ChipSeverity, Text } from '@filigran/design-system';
-import { type SvgIconProps } from '@mui/material';
-import { FormatListNumbered, MonitorCellphone, ShieldOutline } from 'mdi-material-ui';
-import { type ComponentType, type FunctionComponent, useEffect, useState } from 'react';
+import { Chip, HeroStat, type HeroStatSeverity } from '@filigran/design-system';
+import { type FunctionComponent, useEffect, useState } from 'react';
 
 import { fetchFindingSummary } from '../../../actions/findings/finding-actions';
 import { fetchVulnerabilityByExternalId } from '../../../actions/vulnerability-actions';
@@ -14,7 +12,7 @@ import ContractOutputElementType from './ContractOutputElementType';
 
 // CVSS v3.1 qualitative rating -> chip tone, as in the Figma footer
 // (low green, medium amber, high red).
-const CRITICALITY_SEVERITY: Record<SeverityAndColor['severity'], ChipSeverity> = {
+const CRITICALITY_SEVERITY: Record<SeverityAndColor['severity'], HeroStatSeverity> = {
   CRITICAL: 'critical',
   HIGH: 'high',
   MEDIUM: 'medium',
@@ -29,42 +27,6 @@ const CRITICALITY_LABELS: Record<SeverityAndColor['severity'], string> = {
   LOW: 'Low',
   NONE: 'None',
 };
-
-interface InfoPillProps {
-  icon: ComponentType<SvgIconProps>;
-  value: string | number;
-  label: string;
-  iconColor?: string;
-}
-
-// The framed "icon + count + label" figures of the Figma card content
-// (Design_System_2026, node 8745:64999): 4px padding, 8px between the parts.
-// The glyphs are the MDI twins of the Figma ones (Lucide list-ordered,
-// monitor-smartphone, shield).
-const InfoPill = ({ icon: Icon, value, label, iconColor }: InfoPillProps) => (
-  <div
-    className="border border-elevation-subtle-soft"
-    style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: 4,
-      borderRadius: 4,
-      minWidth: 0,
-    }}
-  >
-    <Icon
-      style={iconColor ? {
-        color: iconColor,
-        flexShrink: 0,
-      } : { flexShrink: 0 }}
-      className={iconColor ? undefined : 'text-filigran-brand-primary'}
-      sx={{ fontSize: 16 }}
-    />
-    <Text variant="content-compact-bold" className="text-default-primary" style={{ flexShrink: 0 }}>{value}</Text>
-    <Text variant="content-compact" className="text-default-secondary truncate">{label}</Text>
-  </div>
-);
 
 interface Props { finding: AggregatedFindingOutput }
 
@@ -122,13 +84,11 @@ const FindingCard: FunctionComponent<Props> = ({ finding }) => {
 
   return (
     // DS 2026 layout (Figma Design_System_2026, node 8745:64999): finding type
-    // and value, the CVSS and criticality chips of a CVE, then the figures at
-    // the bottom. No footer band. The height fits the content;
+    // and value, the CVSS and criticality chips of a CVE, then the figures
+    // (library HeroStat). No footer band. The height fits the content;
     // the grid then gives every card of the page the tallest one's height.
     <EntityCard
       testId="finding-card"
-      layout="ds2026"
-      ds2026Height="auto"
       to={`/admin/findings/${finding.finding_id}`}
       footer={false}
       icon={<FindingIcon findingType={finding.finding_type} />}
@@ -150,22 +110,22 @@ const FindingCard: FunctionComponent<Props> = ({ finding }) => {
       )}
     >
       <div style={{
-        marginTop: 'auto',
         display: 'flex',
         flexWrap: 'wrap',
         gap: 8,
       }}
       >
         {occurrences != null && (
-          <InfoPill icon={FormatListNumbered} value={occurrences} label={t('Occurrences')} />
+          <HeroStat icon="list-ordered" value={occurrences} label={t('Occurrences')} />
         )}
-        <InfoPill icon={MonitorCellphone} value={assetsCount} label={t('Impacted assets')} />
-        {cvssScore != null && (
-          <InfoPill
-            icon={ShieldOutline}
-            value={cvssScore.toFixed(1)}
+        <HeroStat icon="monitor-smartphone" value={assetsCount} label={t('Impacted assets')} />
+        {cvss && (
+          // The library has no plain `shield` glyph: `shield-check` is its closest one.
+          <HeroStat
+            icon="shield-check"
+            value={cvssScore?.toFixed(1)}
             label={t('CVSS score')}
-            iconColor="var(--color-feedback-warning-primary)"
+            severity={CRITICALITY_SEVERITY[cvss.severity]}
           />
         )}
       </div>
