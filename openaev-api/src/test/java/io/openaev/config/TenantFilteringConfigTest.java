@@ -155,12 +155,16 @@ class TenantFilteringConfigTest {
   @DisplayName("a table outside the active list gets no tenant predicate from the wired inspector")
   void wiredInspectorAddsNoTenantPredicateToInactiveTables() {
     // The wired inspector follows the property of the run: it adds the tenant predicate to the
-    // listed tables and to no other. The marking dimension is independent of that list, so the
-    // assertion is on the tenant predicate alone. A tenant table outside the list is the probe in
-    // every configuration.
+    // tables the list activates and to no other. The marking dimension is independent of that list,
+    // so the assertion is on the tenant predicate alone. The probe is a strict table outside the
+    // activation the inspector applies (the list as TenantTables.restrictTo reads it, wildcard and
+    // case included), in every configuration.
+    TenantTables schema = TenantFilteringConfig.deriveFromSchema(dataSource);
+    Set<String> active =
+        schema.restrictTo(activeTables.stream().filter(name -> !name.isBlank()).toList()).strict();
     String inactiveTable =
-        TenantFilteringConfig.deriveFromSchema(dataSource).strict().stream()
-            .filter(table -> !activeTables.contains(table))
+        schema.strict().stream()
+            .filter(table -> !active.contains(table))
             .sorted()
             .findFirst()
             .orElseThrow();
