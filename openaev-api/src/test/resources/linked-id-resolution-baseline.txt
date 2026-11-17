@@ -38,12 +38,8 @@ io.openaev.rest.custom_dashboard.CustomDashboardService#customDashboards -> Cust
 io.openaev.rest.custom_dashboard.CustomDashboardService#findAllByIdsAsOptions -> CustomDashboardRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.document.DocumentService#getPlayerDocuments -> ChallengeRepository | other | 1 | loads the challenges that the injects of a player view name, to list their documents in a read response
 io.openaev.rest.domain.DomainService#findAllAsOptionsById -> DomainRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
-io.openaev.rest.exercise.ExerciseApi#createExercise -> TagRepository | link | 1 | links the tags named in the request body to the simulation it creates
-io.openaev.rest.exercise.ExerciseApi#createLog -> TagRepository | link | 1 | links the tags named in the request body to the log it creates
+io.openaev.rest.exercise.ExerciseApi#createExercise -> TagRepository | link | 1 | links the tags named in the request body to the simulation it creates; the write tenant is resolved with tenantForWrite(ctx, null), which refuses a scope naming more than one tenant, so no red is producible on a caller of two tenants
 io.openaev.rest.exercise.ExerciseApi#optionsById -> ExerciseRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
-io.openaev.rest.exercise.ExerciseApi#updateExerciseInformation -> TagRepository | link | 1 | links the tags named in the request body to the simulation it updates
-io.openaev.rest.exercise.ExerciseApi#updateExerciseTags -> TagRepository | link | 1 | links the tags named in the request body to the simulation it updates
-io.openaev.rest.exercise.ExerciseApi#updateLog -> TagRepository | link | 1 | links the tags named in the request body to the log it updates
 io.openaev.rest.exercise.service.ExerciseService#replaceTeams -> TeamRepository | link | 2 | replaces the teams of a simulation with the teams named in the request body and enables their players
 io.openaev.rest.inject.service.InjectService#buildInject -> TeamRepository | link | 1 | links the teams named in the request body to the inject it builds
 io.openaev.rest.inject.service.InjectService#bulkUpdateInject -> TeamRepository | link | 1 | loads the teams named in the bulk update body to add or remove them on the injects it updates
@@ -51,10 +47,8 @@ io.openaev.rest.inject.service.InjectService#updateInject -> TagRepository | lin
 io.openaev.rest.inject.service.InjectService#updateInject -> TeamRepository | link | 1 | links the teams named in the request body to the inject it updates
 io.openaev.rest.kill_chain_phase.KillChainPhaseApi#optionsById -> KillChainPhaseRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.reporting.ReportingService#withHistoryLoaded -> ReportingRepository | other | 2 | fetches the generations and schedules of reportings already loaded, by their own ids, so a response can serialize them
-io.openaev.rest.scenario.ScenarioApi#createScenario -> TagRepository | link | 1 | links the tags named in the request body to the scenario it creates
+io.openaev.rest.scenario.ScenarioApi#createScenario -> TagRepository | link | 1 | links the tags named in the request body to the scenario it creates; the write tenant is resolved with tenantForWrite(ctx, null), which refuses a scope naming more than one tenant, so no red is producible on a caller of two tenants
 io.openaev.rest.scenario.ScenarioApi#optionsById -> ScenarioRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
-io.openaev.rest.scenario.ScenarioApi#updateScenario -> TagRepository | link | 1 | links the tags named in the request body to the scenario it updates
-io.openaev.rest.scenario.ScenarioApi#updateScenarioTags -> TagRepository | link | 1 | links the tags named in the request body to the scenario it updates
 io.openaev.rest.simulation.SimulationService#findAllByIdsAsOptions -> ExerciseRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.tag.TagService#optionsById -> TagRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.rest.tag.TagService#tagSet -> TagRepository | link | 1 | service wrapper whose callers link the tags named in a request body to an inject, a payload or an organization
@@ -84,7 +78,7 @@ io.openaev.service.expectation.ChallengeBehavior#resolveChallenges -> ChallengeR
 io.openaev.service.inject.BatchingInjectStatusService#processTenantCallbacks -> AgentRepository | other | 1 | resolves by id the agents named by execution callbacks, inside the transaction scoped to the tenant that owns the injects of the group, so an agent of another tenant is not found, and binds the agent to the execution trace as its actor
 io.openaev.service.organization.OrganizationService#fetchTags -> OrganizationRepository | other | 1 | fetches the tags of organizations already loaded, by their own ids, so a response can serialize them
 io.openaev.service.scenario.ScenarioService#bulkDeleteScenarios -> ScenarioRepository | other | 1 | loads in chunks the scenarios named in the bulk delete request, each checked against the request scope first, which are the rows it deletes, not linked rows
-io.openaev.service.scenario.ScenarioService#prepareScenarioFromScenarioInput -> TagRepository | link | 1 | links the tags named in the request body to the scenario it prepares
+io.openaev.service.scenario.ScenarioService#prepareScenarioFromScenarioInput -> TagRepository | link | 1 | links the tags named in the request body to the scenario it prepares; reached only through createScenarioWithInjectorContracts, whose write tenant is resolved with tenantForWrite(ctx, null) before the call, so no red is producible on a caller of two tenants
 io.openaev.service.scenario.ScenarioService#replaceTeams -> TeamRepository | link | 2 | replaces the teams of a scenario with the teams named in the request body and enables their players
 io.openaev.service.targets.search.EndpointTargetSearchAdaptor#getOptionsByIds -> EndpointRepository | other | 1 | reads the rows named in a request body to build the options of a filter dropdown, and writes nothing
 io.openaev.injectors.phishing.service.PhishingTrackingService#backfillInjectFromStep -> InjectRepository | other | 1 | sets on a phishing result the inject whose id the chaining step of that result stores, inside the scope of the tracking token's tenant; the id never comes from a request

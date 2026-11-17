@@ -368,7 +368,10 @@ public class ScenarioApi extends RestBehavior {
     if (input.getReplyTos() == null) {
       scenario.setReplyTos(currentReplyTos);
     }
-    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    scenario.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), scenario.getTenant().getId())));
     if (hasText(input.getCustomDashboard())) {
       scenario.setCustomDashboard(
           this.customDashboardService.customDashboard(input.getCustomDashboard()));
@@ -438,7 +441,10 @@ public class ScenarioApi extends RestBehavior {
       @Valid @RequestBody final ScenarioUpdateTagsInput input) {
     Scenario scenario = this.scenarioService.scenario(ctx, scenarioId);
     Set<Tag> currentTagList = scenario.getTags();
-    scenario.setTags(iterableToSet(this.tagRepository.findAllById(input.getTagIds())));
+    scenario.setTags(
+        iterableToSet(
+            this.tagRepository.findAllByIdInTenant(
+                input.getTagIds(), scenario.getTenant().getId())));
     return hydrateForResponse(
         this.scenarioService.updateScenario(scenario, currentTagList, input.isApplyTagRule()));
   }
