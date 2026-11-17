@@ -127,7 +127,11 @@ class XtmHubEmailRecipientsTest extends IntegrationTest {
     groupIds.forEach(id -> jdbcTemplate.update("delete from users_groups where group_id = ?", id));
     groupIds.forEach(id -> jdbcTemplate.update("delete from groups_roles where group_id = ?", id));
     groupIds.forEach(id -> jdbcTemplate.update("delete from groups where group_id = ?", id));
-    roleIds.forEach(id -> jdbcTemplate.update("delete from roles where role_id = ?", id));
+    // a platform role is deleted only by a platform-write transaction
+    tenantScopedTransaction.executeAsPlatformWrite(
+        TxCtx.allTenants(),
+        () ->
+            roleIds.forEach(id -> jdbcTemplate.update("delete from roles where role_id = ?", id)));
     userIds.forEach(id -> jdbcTemplate.update("delete from users where user_id = ?", id));
     tenantHelper.deleteCommittedTenants(tenantB, tenantC);
     if (flagBeforeTest.isPresent()) {
@@ -341,7 +345,13 @@ class XtmHubEmailRecipientsTest extends IntegrationTest {
             ? PlatformRoleFixture.getPlatformRole("xtmhub-role-" + UUID.randomUUID(), capabilities)
             : TenantRoleFixture.getRole("xtmhub-role-" + UUID.randomUUID(), capabilities);
     role.setTenant(tenant);
-    role = roleRepository.save(role);
+    Role toSave = role;
+    // a platform role is written only by a platform-write transaction
+    role =
+        tenantId == null
+            ? tenantScopedTransaction.executeAsPlatformWrite(
+                TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), () -> roleRepository.save(toSave))
+            : roleRepository.save(toSave);
     roleIds.add(role.getId());
     Group group = TenantGroupFixture.getGroup("xtmhub-group-" + UUID.randomUUID());
     group.setTenant(tenant);
