@@ -22,6 +22,7 @@ import { useAppDispatch } from '../../../../utils/hooks';
 import useDataLoader from '../../../../utils/hooks/useDataLoader';
 import { isFeatureEnabled } from '../../../../utils/utils';
 import { type ConnectorItem, type ConnectorItemType } from '../catalog_connectors/catalog-facets';
+import { ConnectorSupportLogo } from '../catalog_connectors/CatalogConnectorCard';
 import ConnectorMarketplace from '../catalog_connectors/ConnectorMarketplace';
 import builtinConnectorDescription from '../common/builtinConnectorDescriptions';
 import { computeConnectorLiveliness } from '../common/connector-liveliness';
@@ -285,7 +286,14 @@ const DeployedConnectors = ({ catalogConnectors, isXtmComposerUp }: Props) => {
 
   const renderFooterStatus = (item: ConnectorItem) => {
     const deployed = metaById.get(item.id);
-    return deployed ? renderHealth(deployed.connector, 'card') : null;
+    return deployed
+      ? (
+          <>
+            {renderHealth(deployed.connector, 'card')}
+            <ConnectorSupportLogo verified={item.verified} />
+          </>
+        )
+      : null;
   };
 
   return (
