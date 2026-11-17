@@ -1,4 +1,4 @@
-import { HUMAN_EXPECTATION_TYPES, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
+import { ExpectationType, HUMAN_EXPECTATION_TYPES, type InjectExpectationsStore } from '../../../common/injects/expectations/Expectation';
 
 export interface TimelineStep {
   key: string;
@@ -49,6 +49,24 @@ const HUMAN_STEP_LABELS: StepLabels = {
   success: 'Validation Success',
   failed: 'Validation Failed',
 };
+
+// Order of the expectation types in a target result (timeline and sections): from the weakest
+// security outcome to the strongest, the attack is logged, then detected, then prevented.
+const TARGET_RESULT_TYPE_ORDER: string[] = [
+  ExpectationType.LOGGING,
+  ExpectationType.DETECTION,
+  ExpectationType.PREVENTION,
+  ExpectationType.VULNERABILITY,
+  ...HUMAN_EXPECTATION_TYPES,
+];
+
+const typeRank = (type: string): number => {
+  const rank = TARGET_RESULT_TYPE_ORDER.indexOf(type);
+  return rank === -1 ? TARGET_RESULT_TYPE_ORDER.length : rank;
+};
+
+// Sorts expectation types in target result order; unknown types come last.
+export const compareTargetResultTypes = (a: string, b: string): number => typeRank(a) - typeRank(b);
 
 // Empty for a type without step labels: the step is then left out of the timeline.
 export const getStatusLabel = (type: string, status: string[]): string => {
