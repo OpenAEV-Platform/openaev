@@ -8,8 +8,9 @@ name: "🐳 Docker Layer Cache"
 
 on:
   schedule:
-    # Weekdays, before the working day starts in Europe.
-    - cron: "17 5 * * 1-5"
+    # Weekdays, four times across the working day in Europe, so the front and yarn layers
+    # stay close to main.
+    - cron: "17 5,9,13,17 * * 1-5"
   workflow_dispatch: {}
 
 permissions:
