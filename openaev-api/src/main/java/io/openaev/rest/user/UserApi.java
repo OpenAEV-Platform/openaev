@@ -157,7 +157,10 @@ public class UserApi extends RestBehavior {
       @PathVariable @Schema(description = "Token generated during reset") String token,
       @Valid @RequestBody ChangePasswordInput input)
       throws InputValidationException {
-    return userService.resetPassword(token, input);
+    User user = userService.resetPassword(token, input);
+    // The load above reads no role of a tenant: the response describes the user in the ambient
+    // tenant, as the login response does
+    return permissionService.withRolesInAmbientTenant(user);
   }
 
   @Operation(
