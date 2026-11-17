@@ -46,7 +46,7 @@ import org.springframework.stereotype.Component;
  * transaction, which skips plain triggers.
  */
 @Component
-public class V6_20261116170000000__Guard_roles_and_role_links extends BaseJavaMigration {
+public class V6_20261117090000000__Guard_roles_and_role_links extends BaseJavaMigration {
 
   @Override
   public void migrate(Context context) throws Exception {
