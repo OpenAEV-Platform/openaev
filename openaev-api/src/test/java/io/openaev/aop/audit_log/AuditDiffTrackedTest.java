@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
 import io.openaev.database.audit.AuditLogContext;
 import io.openaev.database.model.Capability;
 import io.openaev.database.model.Group;
@@ -55,6 +56,7 @@ class AuditDiffTrackedTest extends IntegrationTest {
 
   @Autowired private PlatformGroupComposer platformGroupComposer;
   @Autowired private PlatformRoleComposer platformRoleComposer;
+  @Autowired private TenantScopedTransaction tenantScopedTransaction;
   @Autowired private UserComposer userComposer;
   @Autowired private PlatformGroupService platformGroupService;
 
@@ -151,7 +153,9 @@ class AuditDiffTrackedTest extends IntegrationTest {
       entityManager.flush();
       entityManager.clear();
 
-      // Act
+      // Act: a platform role is renamed in a platform-write transaction, as the platform role
+      // endpoint opens it
+      tenantScopedTransaction.setPlatformWriteOnCurrentTransaction();
       Role loaded = entityManager.find(Role.class, role.getId());
       loaded.setName("NewRoleName");
       entityManager.flush();

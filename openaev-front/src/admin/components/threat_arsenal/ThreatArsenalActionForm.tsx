@@ -12,7 +12,9 @@ import { useFormatter } from '../../../components/i18n';
 import { type DetectionRemediationInput } from '../../../utils/api-types';
 import { type ThreatArsenalActionCreateCustomInput } from '../../../utils/api-types-custom';
 import useEnterpriseEdition from '../../../utils/hooks/useEnterpriseEdition';
+import { isFeatureEnabled } from '../../../utils/utils';
 import EEChip from '../common/entreprise_edition/EEChip';
+import { defaultPayloadExpectations } from '../common/injects/expectations/Expectation';
 import { CONTRACT_OUTPUT_ELEMENT_TYPE_KEYS } from '../findings/ContractOutputElementType';
 import { hasSpecificDirtyFieldAI, trackedFields } from '../payloads/utils/payloadFormToPayloadInput';
 import CommandsFormTab from './form/CommandsFormTab';
@@ -41,7 +43,6 @@ const ThreatArsenalActionForm = ({
     action_type: '',
     action_name: '',
     action_platforms: [],
-    action_expectations: ['PREVENTION', 'DETECTION'],
     action_expected_security_platforms: {},
     action_description: '',
     command_executor: '',
@@ -69,6 +70,7 @@ const ThreatArsenalActionForm = ({
     setEEFeatureDetectedInfo,
   } = useEnterpriseEdition();
   const { snapshot } = useSnapshotRemediation();
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
   type ThreatArsenalActionCreateInput = z.infer<typeof schema>;
 
   const regexGroupObject = z.object({
@@ -189,7 +191,11 @@ const ThreatArsenalActionForm = ({
   const methods = useForm<ThreatArsenalActionCreateCustomInput>({
     mode: 'onTouched',
     resolver: zodResolver(schema) as Resolver<ThreatArsenalActionCreateCustomInput>,
-    defaultValues: initialValues,
+    // A new payload gets its default expectations here, where the preview feature can be read.
+    defaultValues: {
+      ...initialValues,
+      action_expectations: initialValues.action_expectations ?? defaultPayloadExpectations(isLoggingEnabled),
+    },
   });
   const {
     handleSubmit,

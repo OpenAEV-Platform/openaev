@@ -4,11 +4,15 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
 
 import io.openaev.IntegrationTest;
+import io.openaev.context.TenantScopedTransaction;
+import io.openaev.context.TxCtx;
 import io.openaev.database.model.Agent;
 import io.openaev.database.model.Asset;
 import io.openaev.database.model.ExecutionStatus;
+import io.openaev.database.model.Executor;
 import io.openaev.database.model.Inject;
 import io.openaev.database.model.InjectStatus;
+import io.openaev.database.model.Tenant;
 import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.database.repository.InjectRepository;
@@ -22,6 +26,7 @@ import io.openaev.utils.fixtures.composers.AgentComposer;
 import io.openaev.utils.fixtures.composers.EndpointComposer;
 import io.openaev.utils.fixtures.composers.InjectComposer;
 import io.openaev.utils.fixtures.composers.InjectStatusComposer;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -29,6 +34,7 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,6 +66,8 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
   @Autowired private InjectRepository injectRepository;
   @Autowired private AgentRepository agentRepository;
   @Autowired private EndpointRepository endpointRepository;
+  @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private TenantScopedTransaction tenantTx;
 
   private final String titlePrefix = "AtomicTestingExecutionJobTest-" + UUID.randomUUID();
 
@@ -72,12 +80,16 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
                 inject -> inject.getTitle() != null && inject.getTitle().startsWith(titlePrefix))
             .toList();
     injectRepository.deleteAll(leftovers);
-    agentRepository.deleteAll(
-        agentRepository.findAllById(
-            agentComposer.generatedItems.stream().map(Agent::getId).toList()));
-    endpointRepository.deleteAll(
-        endpointRepository.findAllById(
-            endpointComposer.generatedItems.stream().map(Asset::getId).toList()));
+    rowTenantScope.write(
+        Tenant.DEFAULT_TENANT_UUID,
+        () -> {
+          agentRepository.deleteAll(
+              agentRepository.findAllById(
+                  agentComposer.generatedItems.stream().map(Agent::getId).toList()));
+          endpointRepository.deleteAll(
+              endpointRepository.findAllById(
+                  endpointComposer.generatedItems.stream().map(Asset::getId).toList()));
+        });
     injectComposer.reset();
     injectStatusComposer.reset();
     agentComposer.reset();
@@ -94,6 +106,8 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
     inject.setRecurrence(recurrence);
     inject.setRecurrenceStart(recurrenceStart);
     inject.setRecurrenceEnd(recurrenceEnd);
+    // The default executor is looked up by its fixed id, a read of a tenant-active table.
+    Executor executor = inDefaultScope(() -> executorFixture.getDefaultExecutor());
     InjectComposer.Composer composer =
         injectComposer
             .forInject(inject)
@@ -101,13 +115,17 @@ class AtomicTestingExecutionJobTest extends IntegrationTest {
                 endpointComposer
                     .forEndpoint(EndpointFixture.createEndpoint())
                     .withAgent(
-                        agentComposer.forAgent(
-                            AgentFixture.createDefaultAgentSession(
-                                executorFixture.getDefaultExecutor()))));
+                        agentComposer.forAgent(AgentFixture.createDefaultAgentSession(executor))));
     if (injectStatus != null) {
       composer = composer.withInjectStatus(injectStatusComposer.forInjectStatus(injectStatus));
     }
-    return composer.persist().get();
+    InjectComposer.Composer toPersist = composer;
+    rowTenantScope.write(Tenant.DEFAULT_TENANT_UUID, toPersist::persist);
+    return toPersist.get();
+  }
+
+  private <T> T inDefaultScope(Supplier<T> work) {
+    return tenantTx.execute(TxCtx.forTenant(Tenant.DEFAULT_TENANT_UUID), work);
   }
 
   private List<Inject> atomicTestingsWithRecurrence(String recurrence) {
