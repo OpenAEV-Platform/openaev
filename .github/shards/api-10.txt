@@ -1,0 +1,7 @@
+io/openaev/rest/ExerciseLessonsApiTest.java
+io/openaev/rest/asset/**/*Test.java
+io/openaev/rest/attack_pattern/**/*Test.java
+io/openaev/rest/inject/InjectApiTest.java
+io/openaev/rest/lessons_template/**/*Test.java
+io/openaev/rest/mitigation/**/*Test.java
+io/openaev/telemetry/**/*Test.java

@@ -1,0 +1,12 @@
+io/openaev/api/payload/**/*Test.java
+io/openaev/api/users/**/*Test.java
+io/openaev/architecture/**/*Test.java
+io/openaev/context/**/*Test.java
+io/openaev/injector_contract/**/*Test.java
+io/openaev/opencti/**/*Test.java
+io/openaev/rest/AtomicTestingApiTest.java
+io/openaev/rest/ExecutorApiTest.java
+io/openaev/rest/ExpectationApiTest.java
+io/openaev/rest/inject/InjectListDecisionTenantTest.java
+io/openaev/rest/inject/InjectSecretReferenceSinkTest.java
+io/openaev/rest/injector/**/*Test.java

@@ -1,0 +1,9 @@
+io/openaev/rest/EndpointApiTest.java
+io/openaev/rest/MapperApiTest.java
+io/openaev/rest/UserApiTest.java
+io/openaev/rest/VariableApiTest.java
+io/openaev/rest/helper/**/*Test.java
+io/openaev/rest/inject/InjectImportTest.java
+io/openaev/rest/organization/**/*Test.java
+io/openaev/rest/reporting/**/*Test.java
+io/openaev/xtmhub/**/*Test.java
