@@ -156,9 +156,11 @@ class EndpointQueriesRequestScopeTest extends ProductionTablesIntegrationTest {
 
     @ParameterizedTest
     @EnumSource(Route.class)
-    @DisplayName("given an endpoint of tenant B under tenant A's scope, should leave it in place")
-    void given_endpointOfTenantBUnderTenantAScope_should_leaveItInPlace(Route route)
-        throws Exception {
+    @DisplayName(
+        "given an endpoint of tenant B under tenant A's scope, should answer 404 and leave it in"
+            + " place")
+    void given_endpointOfTenantBUnderTenantAScope_should_answerNotFoundAndLeaveItInPlace(
+        Route route) throws Exception {
       // Arrange
       String endpointB = seedEndpoint(tenantB);
 
@@ -166,7 +168,7 @@ class EndpointQueriesRequestScopeTest extends ProductionTablesIntegrationTest {
       int status = requestUnderTenantA(route, delete(uri(route, "/" + endpointB)));
 
       // Assert
-      assertThat(status).isEqualTo(HttpStatus.OK.value());
+      assertThat(status).isEqualTo(HttpStatus.NOT_FOUND.value());
       assertThat(assetExists(endpointB)).isTrue();
     }
   }
