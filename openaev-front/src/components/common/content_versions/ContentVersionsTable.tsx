@@ -1,14 +1,13 @@
 import { Chip, IconButton, Text } from '@filigran/design-system';
 import { ExpandLess, ExpandMore } from '@mui/icons-material';
 // fds:keep-mui the library has no Table yet (Figma DS Table 8582:34772 only); dressed to its spec by FDS_TABLE_SX
-import { Skeleton, Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import { Skeleton, Table, TableBody, TableCell, TableHead, TablePagination, TableRow } from '@mui/material';
 import { Fragment, type FunctionComponent, type ReactNode, useState } from 'react';
 import { Link } from 'react-router';
 
 import { type ContentHistoryOutput } from '../../../utils/api-types';
 import { useFormatter } from '../../i18n';
 import { FDS_TABLE_FRAME_STYLE, FDS_TABLE_SX } from '../fdsTableSpec';
-import { FdsPaginationRow } from '../pagination/FdsPagination';
 import BeforeAfter from '../update/BeforeAfter';
 import DiffLegend from '../update/DiffLegend';
 
@@ -376,7 +375,14 @@ export const ContentHistoryTable: FunctionComponent<HistoryProps> = ({ history, 
         </Table>
       </div>
       {history.length > HISTORY_PER_PAGE && (
-        <FdsPaginationRow count={history.length} page={page} onPageChange={setPage} rowsPerPage={HISTORY_PER_PAGE} />
+        <TablePagination
+          component="div"
+          count={history.length}
+          page={page}
+          onPageChange={(_, newPage) => setPage(newPage)}
+          rowsPerPage={HISTORY_PER_PAGE}
+          rowsPerPageOptions={[HISTORY_PER_PAGE]}
+        />
       )}
     </>
   );
