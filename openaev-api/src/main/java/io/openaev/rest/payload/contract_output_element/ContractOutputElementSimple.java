@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Set;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 
 @Data
 @Builder
@@ -19,6 +20,14 @@ public class ContractOutputElementSimple {
   @JsonProperty("contract_output_element_id")
   @NotBlank
   private String id;
+
+  // Same mapping as the entity: without the explicit getter name, Jackson would write the
+  // Lombok getter isFinding() as "finding" instead of "contract_output_element_is_finding".
+  @Getter(onMethod_ = @JsonProperty("contract_output_element_is_finding"))
+  @JsonProperty("contract_output_element_is_finding")
+  @Schema(description = "True when the values extracted by this element are saved as findings.")
+  @NotNull
+  private boolean isFinding;
 
   @JsonProperty("contract_output_element_rule")
   @Schema(description = "The rule to apply for parsing the output, for example, can be a regex.")

@@ -3476,6 +3476,8 @@ export interface ContractOutputElementInput {
 export interface ContractOutputElementSimple {
   /** @minLength 1 */
   contract_output_element_id: string;
+  /** True when the values extracted by this element are saved as findings. */
+  contract_output_element_is_finding: boolean;
   /**
    * Represents a unique key identifier.
    * @minLength 1
@@ -13723,7 +13725,7 @@ export interface ThreatArsenalActionFullOutput {
    * Parsers used to process action outputs
    * @uniqueItems true
    */
-  action_output_parsers?: OutputParser[];
+  action_output_parsers?: OutputParserSimple[];
   /** Supported endpoint platforms for this action */
   action_platforms?: (
     | "Linux"

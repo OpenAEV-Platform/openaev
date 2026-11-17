@@ -3,6 +3,7 @@ package io.openaev.api.threat_arsenal.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.openaev.database.model.*;
+import io.openaev.rest.payload.output_parser.OutputParserSimple;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -62,7 +63,7 @@ public record ThreatArsenalActionFullOutput(
         List<DetectionRemediation> detectionRemediations,
     @Schema(description = "Parsers used to process action outputs")
         @JsonProperty("action_output_parsers")
-        Set<OutputParser> outputParsers,
+        Set<OutputParserSimple> outputParsers,
     @Schema(description = "Tags attached to the action") @JsonProperty("action_tags")
         List<String> tags,
     @Schema(description = "Domains related to the action") @JsonProperty("action_domains")

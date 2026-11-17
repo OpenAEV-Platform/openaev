@@ -260,7 +260,9 @@ public class ThreatArsenalMapper {
         payload.getExecutionArch(),
         payload.getCollectorTypeValue(),
         payload.getDetectionRemediations(),
-        payload.getOutputParsers(),
+        // Built here, inside the transaction: the tags of each output element are lazy and live
+        // in a tenant-isolated table, so reading them later, when the JSON is written, gives [].
+        payloadMapper.toOutputParsersSimple(payload.getOutputParsers()),
         tagIds,
         domainIds,
         attackPatternIds,

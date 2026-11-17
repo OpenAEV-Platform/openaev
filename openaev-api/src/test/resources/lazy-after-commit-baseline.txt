@@ -1288,7 +1288,6 @@ TeamApi.upsertTeam -> Team.scenarios | ATTENUATED | measured: initialised inside
 TeamApi.upsertTeam -> Team.tags | ATTENUATED | measured: initialised inside the transaction whenever written
 TeamApi.upsertTeam -> Team.users | ATTENUATED | measured: initialised inside the transaction whenever written
 TenantSettingsApi.homeDashboard -> CustomDashboard.widgets | ATTENUATED | measured: initialised inside the transaction whenever written
-ThreatArsenalApi.threatArsenal -> ContractOutputElement.tags | NOT ESTABLISHED | not written by any measured test response
 UserApi.changePasswordReset -> User.isPlayer() | ATTENUATED | measured: initialised inside the transaction whenever written
 UserApi.changePasswordReset -> User.tags | NOT ESTABLISHED | written while lazy, no gated read recorded
 UserApi.changePasswordReset -> User.teams | NOT ESTABLISHED | written while lazy, no gated read recorded
