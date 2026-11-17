@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import io.openaev.ProductionTablesIntegrationTest;
+import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Reporting;
@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -47,8 +48,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * boundary is explicit), so seeding and cleanup run in auto-committed JDBC / a committed {@code
  * TransactionTemplate}, mirroring {@code TenantScopedTransactionIntegrationTest}.
  */
+@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @DisplayName("Reporting schedule delivery reads the produced document under the schedule tenant")
-class ReportingScheduleDocumentScopeTest extends ProductionTablesIntegrationTest {
+class ReportingScheduleDocumentScopeTest extends IntegrationTest {
 
   @Autowired private ReportingScheduleService scheduleService;
   @Autowired private ReportingGenerationRepository reportingGenerationRepository;
