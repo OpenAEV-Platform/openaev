@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.database.model.Capability;
 import io.openaev.utils.TenantIsolationTestHelper;
 import io.openaev.utils.mockUser.WithMockUser;
@@ -19,7 +19,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,10 +33,9 @@ import org.springframework.transaction.annotation.Transactional;
  * separately.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=assets")
 @WithMockUser(isAdmin = false)
 @DisplayName("assets isolation holds for a non-admin spanning two tenants")
-class AssetNonAdminIsolationTest extends IntegrationTest {
+class AssetNonAdminIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final Set<Capability> READ_ASSETS =
       Set.of(Capability.ACCESS_ASSETS, Capability.MANAGE_ASSETS);

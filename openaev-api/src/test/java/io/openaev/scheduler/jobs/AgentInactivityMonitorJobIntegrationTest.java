@@ -3,7 +3,7 @@ package io.openaev.scheduler.jobs;
 import static io.openaev.database.model.Tenant.DEFAULT_TENANT_UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -30,18 +30,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * The inactivity monitor is the only background writer on {@code agents}.
  *
- * <p>The default test profile activates no table, so this class used to exercise the job with the
- * statement inspector inert: {@code forEachTenant} opened its per-tenant scope, but no statement
- * was ever rewritten, so a read the rewriter refuses or a status write it narrows to zero rows
- * would have passed CI and only shown up once the table went live. {@code agents} is armed here,
- * and armed alone: anything filtered below can only come from the table under test.
+ * <p>The default test profile activates no table, so a test on that profile would exercise the job
+ * with the statement inspector inert: {@code forEachTenant} opens its per-tenant scope, but no
+ * statement is ever rewritten, so a read the rewriter refuses or a status write it narrows to zero
+ * rows would pass CI and only show up once the table went live. This class runs on the production
+ * list of active tables through {@code ProductionTablesIntegrationTest}, which arms {@code agents}
+ * among the tables production arms.
  *
  * <p>Every read and write the test makes for itself runs inside {@code
  * tenantTx.execute(forTenant(...))}. The previous version used {@code agentRepository.findById}
@@ -58,9 +58,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * does in production.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@TestPropertySource(properties = "openaev.tenant.active-tables=agents")
 @DisplayName("AgentInactivityMonitorJob with agents v2-active")
-class AgentInactivityMonitorJobIntegrationTest extends IntegrationTest {
+class AgentInactivityMonitorJobIntegrationTest extends ProductionTablesIntegrationTest {
 
   private static final Duration STALE = Duration.ofHours(2);
   private static final Duration JUST_SEEN = Duration.ZERO;

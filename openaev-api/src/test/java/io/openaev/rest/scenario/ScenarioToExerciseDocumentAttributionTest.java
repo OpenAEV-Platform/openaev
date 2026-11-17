@@ -2,7 +2,7 @@ package io.openaev.rest.scenario;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
 import io.openaev.database.model.Exercise;
@@ -32,7 +32,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * Converting a scenario to an exercise keeps each cloned document under the source document's
@@ -56,10 +55,9 @@ import org.springframework.test.context.TestPropertySource;
  * and from any expected value, so that no ambient fallback can attribute the clone: only the
  * merge-carried tenant of the source can produce it.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=documents")
 @WithMockUser(isAdmin = true)
 @DisplayName("Scenario to exercise conversion keeps documents under their source tenant")
-class ScenarioToExerciseDocumentAttributionTest extends IntegrationTest {
+class ScenarioToExerciseDocumentAttributionTest extends ProductionTablesIntegrationTest {
 
   @Autowired private ScenarioToExerciseService scenarioToExerciseService;
   @Autowired private ScenarioService scenarioService;

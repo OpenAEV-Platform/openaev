@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Inject;
 import io.openaev.database.repository.InjectRepository;
@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -49,9 +48,8 @@ import org.springframework.test.web.servlet.MockMvc;
  * through auto-committed JDBC instead, the same pattern as {@code
  * TenantScopedTransactionIntegrationTest}.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=phishing_results")
 @DisplayName("Hosted public tracking endpoints, no authentication")
-class HostedPublicApiIsolationTest extends IntegrationTest {
+class HostedPublicApiIsolationTest extends ProductionTablesIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private DataSource dataSource;

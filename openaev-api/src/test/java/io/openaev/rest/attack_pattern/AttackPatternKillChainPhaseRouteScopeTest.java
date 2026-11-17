@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Tenant;
 import io.openaev.utils.TenantIsolationTestHelper;
@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,10 +41,9 @@ import org.springframework.transaction.annotation.Transactional;
  * phase tenant and the pattern tenant keeps it out.
  */
 @Transactional
-@TestPropertySource(properties = "openaev.tenant.active-tables=kill_chain_phases")
 @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
 @DisplayName("attack pattern reads return the kill chain phases of the pattern's own tenant")
-class AttackPatternKillChainPhaseRouteScopeTest extends IntegrationTest {
+class AttackPatternKillChainPhaseRouteScopeTest extends ProductionTablesIntegrationTest {
 
   private static final String ATTACK_PATTERNS = "/api/attack_patterns";
   private static final String TENANT_ATTACK_PATTERNS = "/api/tenants/{tenantId}/attack_patterns";

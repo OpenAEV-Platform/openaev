@@ -8,7 +8,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -43,7 +43,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,9 +67,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Transactional
 @WithMockUser(isAdmin = true)
-@TestPropertySource(properties = "openaev.tenant.active-tables=attack_patterns")
 @DisplayName("Attack-path dashboard attack-pattern read isolation")
-class DashboardAttackPathIsolationTest extends IntegrationTest {
+class DashboardAttackPathIsolationTest extends ProductionTablesIntegrationTest {
 
   private static final String ATTACK_PATHS = DASHBOARD_URI + "/attack-paths/";
   private static final String TENANT_ATTACK_PATHS = "/api/tenants/%s/dashboards/attack-paths/%s";

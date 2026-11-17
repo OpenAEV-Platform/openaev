@@ -3,7 +3,7 @@ package io.openaev.rest.payload.service;
 import static io.openaev.service.stix.SecurityCoverageInjectService.ALL_PLATFORMS;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * The Dynamic DNS Resolution and File Drop built-in payloads are lazily created the first time a
@@ -33,10 +32,9 @@ import org.springframework.test.context.TestPropertySource;
  * creation paths must attribute the row to the write tenant explicitly: relying on a shared global
  * primary key, or on the ambient {@code TenantContext} fallback, breaks under more than one tenant.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=payloads,documents,injectors")
 @WithMockUser(isAdmin = true)
 @DisplayName("payloads v2 attribution of the lazily-created built-in payloads")
-class PayloadServiceTenantAttributionTest extends IntegrationTest {
+class PayloadServiceTenantAttributionTest extends ProductionTablesIntegrationTest {
 
   private static final String DYNAMIC_DNS_RESOLUTION_LEGACY_UUID =
       "ff16dc60-ea6f-4925-8509-20557e09c676";

@@ -3,7 +3,7 @@ package io.openaev.scheduler.jobs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import io.openaev.IntegrationTest;
+import io.openaev.ProductionTablesIntegrationTest;
 import io.openaev.context.TenantScopedTransaction;
 import io.openaev.context.TxCtx;
 import io.openaev.rest.exception.ElementNotFoundException;
@@ -18,7 +18,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 /**
  * {@code InjectsFinalizationJob.handlePendingInject} resolves the agents of every pending inject,
@@ -38,10 +37,9 @@ import org.springframework.test.context.TestPropertySource;
  * transaction, so seeding goes through an auto-committing {@link JdbcTemplate} and is swept
  * explicitly.
  */
-@TestPropertySource(properties = "openaev.tenant.active-tables=asset_groups")
 @WithMockUser(isAdmin = true)
 @DisplayName("resolving an inject's asset group needs a tenant scope, and the job has none")
-class PendingInjectAssetGroupScopeTest extends IntegrationTest {
+class PendingInjectAssetGroupScopeTest extends ProductionTablesIntegrationTest {
 
   @Autowired private AssetGroupService assetGroupService;
   @Autowired private TenantScopedTransaction tenantTx;
