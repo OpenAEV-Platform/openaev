@@ -15,6 +15,7 @@ import io.openaev.database.repository.AgentRepository;
 import io.openaev.database.repository.EndpointRepository;
 import io.openaev.utils.fixtures.AgentFixture;
 import io.openaev.utils.fixtures.EndpointFixture;
+import io.openaev.utilstest.RowTenantScope;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -29,6 +30,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * The inactivity monitor is the only background writer on {@code agents}.
@@ -65,6 +68,8 @@ class AgentInactivityMonitorJobIntegrationTest extends ProductionTablesIntegrati
   @Autowired private AgentRepository agentRepository;
   @Autowired private EndpointRepository endpointRepository;
   @Autowired private TenantScopedTransaction tenantTx;
+  @Autowired private RowTenantScope rowTenantScope;
+  @Autowired private PlatformTransactionManager transactionManager;
   @Autowired private JdbcTemplate jdbc;
 
   /** A second tenant, so "its own tenant" and "another tenant" are different rows. */
@@ -193,9 +198,16 @@ class AgentInactivityMonitorJobIntegrationTest extends ProductionTablesIntegrati
 
       // Act: the job's own write, but under a scope pinned to the other tenant. forEachTenant pins
       // exactly one tenant per iteration, so the job cannot reach this shape today; the assertion
-      // is the net that catches a scope left behind by a previous iteration.
+      // is the net that catches a scope left behind by a previous iteration. The scope is opened
+      // by the test's own transaction, not by the production primitive: this write is a
+      // deliberate probe and no production entry point asked for it, which the write-attribution
+      // detector would otherwise report as a wrong-tenant production write.
       try {
-        inScopeDo(DEFAULT_TENANT_UUID, () -> agentRepository.save(agentOfB));
+        new TransactionTemplate(transactionManager)
+            .executeWithoutResult(
+                status ->
+                    rowTenantScope.write(
+                        DEFAULT_TENANT_UUID, () -> agentRepository.save(agentOfB)));
       } catch (RuntimeException refused) {
         // Armed, the row is invisible under this scope, so the write is refused rather than
         // applied. Which exception carries the refusal is Hibernate's business; the row below is

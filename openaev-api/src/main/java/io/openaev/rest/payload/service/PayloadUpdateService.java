@@ -55,7 +55,8 @@ public class PayloadUpdateService {
     // null". An absent collection means "no associations".
     List<AttackPattern> attackPatterns =
         fromIterable(
-            attackPatternRepository.findAllById(emptyIfNull(input.getAttackPatternsIds())));
+            attackPatternRepository.findAllByIdInTenant(
+                emptyIfNull(input.getAttackPatternsIds()), payload.getTenant().getId()));
     return update(input, payload, attackPatterns);
   }
 
@@ -84,7 +85,9 @@ public class PayloadUpdateService {
         payloadService.synchroniseInjectorContractBasedOnPayload(
             saved,
             attackPatterns,
-            iterableToSet(domainRepository.findAllById(emptyIfNull(input.getDomainIds()))),
+            iterableToSet(
+                domainRepository.findAllByIdInTenant(
+                    emptyIfNull(input.getDomainIds()), saved.getTenant().getId())),
             iterableToSet(
                 tagRepository.findAllByIdInTenant(
                     emptyIfNull(input.getTagIds()), saved.getTenant().getId())));

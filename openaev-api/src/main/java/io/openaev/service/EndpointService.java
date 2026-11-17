@@ -231,6 +231,12 @@ public class EndpointService implements AuditLoggedService {
     return fromIterable(this.endpointRepository.findAll(fromIds(endpointIds)));
   }
 
+  /** The endpoints among the given ids that belong to the given tenant. */
+  public List<Endpoint> endpoints(
+      @NotNull final List<String> endpointIds, @NotBlank final String tenantId) {
+    return this.endpointRepository.findAllByIdInTenant(endpointIds, tenantId);
+  }
+
   public List<Endpoint> endpoints(@NotNull final Specification<Endpoint> specification) {
     return fromIterable(this.endpointRepository.findAll(specification));
   }
@@ -241,9 +247,13 @@ public class EndpointService implements AuditLoggedService {
   }
 
   public void deleteEndpoint(@NotBlank final String endpointId) {
-    this.endpointRepository.deleteById(endpointId);
+    int deleted = this.endpointRepository.deleteEndpointById(endpointId);
+    if (deleted == 0) {
+      throw new ElementNotFoundException("Endpoint not found");
+    }
     // The repository delete is a native query: no JPA lifecycle event fires, so the search engine
-    // must be notified explicitly (endpoint + vulnerable-endpoint docs would stay stale).
+    // is notified explicitly (endpoint and vulnerable-endpoint documents would stay stale).
+    // The index delete event is published only for a row the scoped DELETE removed.
     eventPublisher.publishEvent(new IndexEvent(ModelBaseListener.DATA_DELETE, endpointId));
   }
 

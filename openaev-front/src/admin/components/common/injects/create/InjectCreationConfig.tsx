@@ -22,7 +22,8 @@ import { type InjectorContractConverted } from '../../../../../utils/api-types-c
 import { useAppDispatch } from '../../../../../utils/hooks';
 import useDataLoader from '../../../../../utils/hooks/useDataLoader';
 import computeAttackPatterns from '../../../../../utils/injector_contract/InjectorContractUtils';
-import { isNotEmptyField } from '../../../../../utils/utils';
+import { isFeatureEnabled, isNotEmptyField } from '../../../../../utils/utils';
+import { predefinedExpectations } from '../expectations/ExpectationUtils';
 import InjectForm from '../form/InjectForm';
 import InjectCardComponent from '../InjectCardComponent';
 import InjectIcon from '../InjectIcon';
@@ -52,6 +53,7 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
   variablesFromExerciseOrScenario = [],
 }) => {
   const { tPick } = useFormatter();
+  const isLoggingEnabled = isFeatureEnabled('LOGGING_EXPECTATION');
   const dispatch = useAppDispatch();
 
   // InjectForm always calls handleClose() after a successful submit. Here the
@@ -159,7 +161,7 @@ const InjectCreationConfig: FunctionComponent<Props> = ({
           inject_asset_groups: [],
           inject_secret_references: [],
           inject_documents: [],
-          inject_content: { expectations: parsedContent?.fields?.find(f => f.type === 'expectation')?.availableExpectations?.filter(e => e.expectation_is_predefined) },
+          inject_content: { expectations: predefinedExpectations(parsedContent?.fields?.find(f => f.type === 'expectation')?.availableExpectations, isLoggingEnabled) },
         }}
         injectorContractContent={parsedContent}
         onSubmitInject={handleSubmit}

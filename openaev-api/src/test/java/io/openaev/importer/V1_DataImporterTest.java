@@ -34,6 +34,7 @@ import io.openaev.utils.fixtures.TagFixture;
 import io.openaev.utils.fixtures.files.AttackPatternFixture;
 import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
+import io.openaev.utilstest.RowTenantScope;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.constraints.NotNull;
@@ -64,6 +65,7 @@ import org.springframework.transaction.annotation.Transactional;
 class V1_DataImporterTest extends IntegrationTest {
 
   @Autowired private BuiltinConnectorRegistration builtinConnectorRegistration;
+  @Autowired private RowTenantScope rowTenantScope;
   @Autowired private V1_DataImporter importer;
   @Autowired private ExerciseRepository exerciseRepository;
   @Autowired private TeamRepository teamRepository;
@@ -3635,7 +3637,10 @@ class V1_DataImporterTest extends IntegrationTest {
     foreignContract.setNeedsExecutor(false);
     foreignContract.setPlatforms(new Endpoint.PLATFORM_TYPE[0]);
     foreignContract.addInjector(foreignInjector);
-    injectorContractRepository.save(foreignContract);
+    // The contract's injector join row belongs to the foreign tenant, so it is written in that
+    // tenant's scope, as a write for that tenant runs in production.
+    rowTenantScope.write(
+        foreignTenant.getId(), () -> injectorContractRepository.save(foreignContract));
 
     ObjectMapper om = new ObjectMapper();
     ObjectNode dataObject = om.createObjectNode();

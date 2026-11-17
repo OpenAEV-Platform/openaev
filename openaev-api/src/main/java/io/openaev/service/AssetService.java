@@ -58,6 +58,11 @@ public class AssetService {
     return fromIterable(this.assetRepository.findAllById(assetIds));
   }
 
+  /** The assets among the given ids that belong to the given tenant. */
+  public List<Asset> assets(@NotNull final List<String> assetIds, @NotBlank final String tenantId) {
+    return this.assetRepository.findAllByIdInTenant(assetIds, tenantId);
+  }
+
   public List<Asset> assets() {
     return fromIterable(this.assetRepository.findAll());
   }

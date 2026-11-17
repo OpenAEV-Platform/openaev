@@ -1,8 +1,10 @@
 package io.openaev.importer;
 
 import static io.openaev.jsonapi.GenericJsonApiIUtils.resolveType;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.openaev.IntegrationTest;
 import io.openaev.context.TenantContext;
 import io.openaev.database.model.Document;
@@ -49,6 +51,7 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
   @Autowired private GenericJsonApiImporter importer;
   @Autowired private MinioService minioService;
   @Autowired private TenantIsolationTestHelper tenantHelper;
+  @Autowired private ObjectMapper objectMapper;
 
   private String tenantA;
   private String tenantB;
@@ -114,19 +117,20 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
   @SuppressWarnings("unchecked")
   void given_ambientTenantDiffersFromWriteScope_should_storeImportedObjectUnderWriteScope()
       throws Exception {
-    // Arrange: an included document resource carrying its file bytes, imported to tenant B while
-    // the
-    // ambient context is A.
+    // Arrange: an included document resource shaped like the export (type "documents", extras
+    // keyed by document_target, read back from the archive as a map), imported to tenant B while
+    // the ambient context is A.
     byte[] bytes = ("jsonapi-import-body-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
     String target = DigestUtils.md5Hex(new ByteArrayInputStream(bytes)) + ".txt";
     ResourceObject includedDocument =
         new ResourceObject(
             UUID.randomUUID().toString(),
             resolveType(Document.class),
-            Map.of("document_name", target),
+            Map.of("document_name", "original-name.txt", "document_target", target),
             null);
     JsonApiDocument<ResourceObject> doc =
-        new JsonApiDocument<>(null, List.of((Object) includedDocument));
+        new JsonApiDocument<>(
+            null, List.of(objectMapper.convertValue(includedDocument, Map.class)));
     Map<String, byte[]> extras = Map.of(target, bytes);
     TenantContext.setCurrentTenant(tenantA);
 
@@ -146,6 +150,38 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
   }
 
   @Test
+  @DisplayName("given_targetThatIsNotTheHashOfItsBytes_should_keepTheExistingObject")
+  @SuppressWarnings("unchecked")
+  void given_targetThatIsNotTheHashOfItsBytes_should_keepTheExistingObject() throws Exception {
+    // Arrange: tenant B already stores an object, and a crafted archive reuses its target with
+    // other bytes
+    byte[] original =
+        ("jsonapi-import-original-" + UUID.randomUUID()).getBytes(StandardCharsets.UTF_8);
+    String target = DigestUtils.md5Hex(original) + ".txt";
+    minioService.uploadFileForTenant(
+        tenantB, target, new ByteArrayInputStream(original), original.length, "text/plain");
+    uploadedObjects.add(new String[] {tenantB, target});
+    ResourceObject includedDocument =
+        new ResourceObject(
+            UUID.randomUUID().toString(),
+            resolveType(Document.class),
+            Map.of("document_target", target),
+            null);
+    JsonApiDocument<ResourceObject> doc =
+        new JsonApiDocument<>(
+            null, List.of(objectMapper.convertValue(includedDocument, Map.class)));
+    byte[] crafted = "overwritten".getBytes(StandardCharsets.UTF_8);
+
+    // Act
+    importer.handleImportDocument(doc, Map.of(target, crafted), tenantB);
+
+    // Assert
+    try (var stored = minioService.getFilePathForTenant(tenantB, target).orElseThrow()) {
+      assertArrayEquals(original, stored.readAllBytes(), "the existing object must be kept");
+    }
+  }
+
+  @Test
   @DisplayName("given_typeSetWithoutTheDocumentType_should_notStoreTheObject")
   void given_typeSetWithoutTheDocumentType_should_notStoreTheObject() throws Exception {
     // Arrange: the same included document carrying its bytes as in the test above
@@ -155,7 +191,7 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
         new ResourceObject(
             UUID.randomUUID().toString(),
             resolveType(Document.class),
-            Map.of("document_name", target),
+            Map.of("document_target", target),
             null);
     JsonApiDocument<ResourceObject> doc =
         new JsonApiDocument<>(null, List.of((Object) includedDocument));
@@ -184,7 +220,7 @@ class DocumentJsonApiImportAttributionTest extends IntegrationTest {
         new ResourceObject(
             UUID.randomUUID().toString(),
             resolveType(Document.class),
-            Map.of("document_name", target),
+            Map.of("document_target", target),
             null);
     JsonApiDocument<ResourceObject> doc =
         new JsonApiDocument<>(null, List.of((Object) includedDocument));

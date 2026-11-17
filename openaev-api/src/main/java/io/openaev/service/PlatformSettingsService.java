@@ -21,6 +21,7 @@ import io.openaev.database.model.Theme;
 import io.openaev.database.repository.SettingRepository;
 import io.openaev.ee.EnterpriseEditionService;
 import io.openaev.ee.License;
+import io.openaev.ee.LicenseSource;
 import io.openaev.engine.facade.EngineService;
 import io.openaev.expectation.ExpectationPropertiesConfig;
 import io.openaev.injectors.email.service.PlatformMailSender;
@@ -457,6 +458,14 @@ public class PlatformSettingsService {
     Map<String, Setting> dbSettings = mapOfSettings(this.settingRepository.findAllByTenantIsNull());
     List<Setting> settingsToSave = new ArrayList<>();
     String certPem = input.getEnterpriseEdition();
+    // Enterprise Edition granted by the Filigran license of XTM One is not revocable here: XTM One
+    // owns it. Installing an own license stays possible (it then takes precedence).
+    if ((certPem == null || certPem.isBlank())
+        && licenseCacheManager.getEnterpriseEditionInfo().getSource() == LicenseSource.xtm_one) {
+      throw new BadRequestException(
+          "The Enterprise Edition is granted by the Filigran license of XTM One and cannot be"
+              + " disabled in this platform");
+    }
     if (certPem != null && !certPem.isEmpty()) {
       License license = enterpriseEditionService.verifyCertificate(certPem);
       if (!license.isLicenseValidated()) {

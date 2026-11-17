@@ -12,7 +12,6 @@ import io.openaev.database.model.attackpath.AttackPathExecutionFinding;
 import io.openaev.database.model.attackpath.AttackPathFinding;
 import io.openaev.database.repository.attackpath.AttackPathExecutionRepository;
 import io.openaev.database.repository.attackpath.AttackPathFindingRepository;
-import io.openaev.utils.fixtures.tenants.TenantFixture;
 import io.openaev.utils.mockUser.WithMockUser;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,11 +43,12 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
 
   @BeforeEach
   void setUp() {
-    tenant = tenantRepository.save(TenantFixture.getTenant("ap-share-type"));
+    tenant = new Tenant(Tenant.DEFAULT_TENANT_UUID);
   }
 
   @Test
   @DisplayName("expand: a share finding reads type 'share'")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void expandKeepsShareType() throws Exception {
     seedFinding("share", SHARE_VALUE);
 
@@ -62,6 +62,7 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("share appears consistently on graph node, counter, collapsed, drawer, execution")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void shareAppearsOnEveryRead() throws Exception {
     String executionId = seedFinding("share", SHARE_VALUE);
 
@@ -104,6 +105,7 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
    */
   @Test
   @DisplayName("a share and a file on the same endpoint are counted separately")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void shareAndFileDoNotMerge() throws Exception {
     String fileValue = "\\\\10.0.0.1\\NETLOGON\\scripts\\passwords.txt";
     seedFinding("share", SHARE_VALUE);
@@ -134,6 +136,7 @@ class AttackPathShareTypeApiTest extends IntegrationTest {
 
   @Test
   @DisplayName("a file finding reads type 'file' on graph node, collapsed counts and counter")
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void fileAppearsOnEveryRead() throws Exception {
     String fileValue = "\\\\10.0.0.1\\SYSVOL\\scripts\\secret.ps1";
     seedFinding("file", fileValue);
