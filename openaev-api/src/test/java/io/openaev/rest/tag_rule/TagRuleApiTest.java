@@ -79,7 +79,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void deleteTagRule() throws Exception {
     String assetGroupName = "assetGroupName";
     String tagName = "tagName";
@@ -156,7 +156,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void updateTagRule() throws Exception {
 
     String assetGroupName1 = "assetGroupName1";
@@ -260,7 +260,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void findAllTagRules() throws Exception {
     TagRule tagRule1 = createTagRule("tag1", List.of("assetgroup1"));
     TagRule tagRule2 = createTagRule("tag2", List.of("assetgroup2"));
@@ -282,7 +282,7 @@ public class TagRuleApiTest extends IntegrationTest {
   }
 
   @Test
-  @WithMockUser(isAdmin = true)
+  @WithMockUser(isAdmin = true, autoJoinDefaultTenant = true)
   void searchTagRule() throws Exception {
     createTagRule("tag1", List.of("assetgroup1"));
     createTagRule("tag2", List.of("assetgroup2"));
