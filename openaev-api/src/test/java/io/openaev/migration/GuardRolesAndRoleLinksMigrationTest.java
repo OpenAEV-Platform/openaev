@@ -787,9 +787,21 @@ class GuardRolesAndRoleLinksMigrationTest extends IntegrationTest {
   private SQLException raceOpenFirst(
       String firstSql, Object[] firstArguments, String secondSql, Object[] secondArguments)
       throws Exception {
+    return raceOpenFirst(first -> first.run(firstSql, firstArguments), secondSql, secondArguments);
+  }
+
+  /** The statements of the transaction that goes first. */
+  @FunctionalInterface
+  private interface FirstSteps {
+    void run(OpenTransaction first) throws SQLException;
+  }
+
+  /** As above, with the statements {@code firstSteps} runs in the transaction that goes first. */
+  private SQLException raceOpenFirst(
+      FirstSteps firstSteps, String secondSql, Object[] secondArguments) throws Exception {
     try (OpenTransaction first = new OpenTransaction();
         OpenTransaction second = new OpenTransaction()) {
-      first.run(firstSql, firstArguments);
+      firstSteps.run(first);
       CompletableFuture<SQLException> outcome =
           CompletableFuture.supplyAsync(
               () -> {
@@ -902,6 +914,97 @@ class GuardRolesAndRoleLinksMigrationTest extends IntegrationTest {
       // Assert
       assertThat((Throwable) refused).isNotNull().hasMessageContaining(PLATFORM_REFUSAL);
       assertThat(count("SELECT count(*) FROM roles_capabilities WHERE role_id = ?", role)).isZero();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource({
+      "a capability of a platform role inserted by another transaction, capability",
+      "a link to a tenant role inserted by another transaction, role",
+      "a link to a group inserted by another transaction, group"
+    })
+    @DisplayName(
+        "given_aParentInsertedByAnotherTransaction_should_refuseARowThatNamesItAmongOthers")
+    void given_aParentInsertedByAnotherTransaction_should_refuseARowThatNamesItAmongOthers(
+        String ignoredName, String insertedParent) throws Exception {
+      // Arrange: a role and a group of tenant A. The first transaction inserts a parent the
+      // second cannot see yet and changes a row of tenant A that the second row reads with a
+      // share lock, so the second statement waits on it after it has read the missing parent
+      String roleOfA = seedRole(tenantA);
+      String insertedId = UUID.randomUUID().toString();
+      boolean group = insertedParent.equals("group");
+      if (group) {
+        groups.add(insertedId);
+      } else {
+        roles.add(insertedId);
+      }
+      String insertSql =
+          switch (insertedParent) {
+            case "capability" ->
+                "INSERT INTO roles (role_id, role_name, role_created_at, role_updated_at)"
+                    + " VALUES (?, ?, now(), now())";
+            case "role" ->
+                "INSERT INTO roles (role_id, role_name, role_created_at, role_updated_at, tenant_id)"
+                    + " VALUES (?, ?, now(), now(), ?)";
+            default -> "INSERT INTO groups (group_id, group_name, tenant_id) VALUES (?, ?, ?)";
+          };
+      Object[] insertArguments =
+          insertedParent.equals("capability")
+              ? new Object[] {insertedId, "guard-" + insertedId}
+              : new Object[] {insertedId, "guard-" + insertedId, tenantB};
+      String touchSql =
+          group
+              ? "UPDATE groups SET group_name = group_name || '-touched' WHERE group_id = ?"
+              : "UPDATE roles SET role_name = role_name || '-touched' WHERE role_id = ?";
+      String touchedId = group ? groupA : roleOfA;
+      String secondSql;
+      Object[] secondArguments;
+      switch (insertedParent) {
+        case "capability" -> {
+          secondSql =
+              "INSERT INTO roles_capabilities (role_id, capability)"
+                  + " VALUES (?, 'ACCESS_ASSESSMENT'), (?, 'ACCESS_ASSESSMENT')";
+          secondArguments = new Object[] {insertedId, roleOfA};
+        }
+        case "role" -> {
+          secondSql = "INSERT INTO groups_roles (group_id, role_id) VALUES (?, ?), (?, ?)";
+          secondArguments = new Object[] {groupA, insertedId, groupA, roleOfA};
+        }
+        default -> {
+          secondSql = "INSERT INTO groups_roles (group_id, role_id) VALUES (?, ?), (?, ?)";
+          secondArguments = new Object[] {insertedId, roleOfA, groupA, roleOfA};
+        }
+      }
+
+      // Act
+      SQLException refused =
+          raceOpenFirst(
+              first -> {
+                if (insertedParent.equals("capability")) {
+                  first.run("SELECT set_config('app.platform_write', 'true', true)");
+                }
+                first.run(insertSql, insertArguments);
+                first.run(touchSql, touchedId);
+              },
+              secondSql,
+              secondArguments);
+
+      // Assert: the row that names the parent is refused, and no row crosses a scope
+      assertThat((Throwable) refused).isNotNull().hasMessageContaining("foreign key");
+      assertThat(
+              count(
+                  "SELECT count(*) FROM roles_capabilities rc JOIN roles r ON r.role_id = rc.role_id"
+                      + " WHERE r.tenant_id IS NULL AND r.role_id = ?",
+                  insertedId))
+          .isZero();
+      assertThat(
+              count(
+                  "SELECT count(*) FROM groups_roles gr"
+                      + " JOIN roles r ON r.role_id = gr.role_id"
+                      + " JOIN groups g ON g.group_id = gr.group_id"
+                      + " WHERE r.tenant_id IS DISTINCT FROM g.tenant_id AND g.group_id IN (?, ?)",
+                  groupA,
+                  group ? insertedId : groupA))
+          .isZero();
     }
   }
 }

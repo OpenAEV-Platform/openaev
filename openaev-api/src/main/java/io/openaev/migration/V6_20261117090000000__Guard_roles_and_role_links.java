@@ -24,15 +24,19 @@ import org.springframework.stereotype.Component;
  *   <li>{@code roles_capabilities}: an {@code INSERT}, {@code UPDATE} or {@code DELETE} of a row
  *       whose role is a platform role goes through the same check, so a platform role cannot gain
  *       or lose a capability from an unmarked transaction. The table has no tenant column, so the
- *       trigger reads {@code roles.tenant_id} of the parent. A role that is not found is left to
- *       the foreign key: the role is missing, or it is already gone in the cascade that deletes the
- *       row.
+ *       trigger reads {@code roles.tenant_id} of the parent. An {@code INSERT} or {@code UPDATE}
+ *       whose role is not visible is refused with the foreign key error (SQLSTATE 23503): a role
+ *       that another transaction is inserting is invisible to the statement and can commit before
+ *       the foreign key is checked, so the trigger cannot skip it. A {@code DELETE} reads the old
+ *       role only; that role is already gone in the cascade that deletes the row, and the {@code
+ *       DELETE} proceeds.
  *   <li>{@code groups_roles}: an {@code INSERT} of a link, or an {@code UPDATE} that changes its
  *       role or its group, requires the role and the group to be of the same tenant ({@code
  *       role.tenant_id IS NOT DISTINCT FROM group.tenant_id}): a platform role is linked to a
  *       platform group, a tenant role to a group of its tenant. Any other link raises. A role or a
- *       group that is not found is left to the foreign key. A link is not a write of the platform
- *       role, so it does not need the marker.
+ *       group that is not visible is refused with the foreign key error (SQLSTATE 23503), for the
+ *       reason given for {@code roles_capabilities}. A link is not a write of the platform role, so
+ *       it does not need the marker.
  *   <li>{@code roles} and {@code groups}: an {@code UPDATE} that changes {@code tenant_id} of a
  *       role or a group that has a link requires every linked group or role to be of the new
  *       tenant. A linked row moved to another tenant or to the platform raises, so a link does not
@@ -110,7 +114,11 @@ public class V6_20261117090000000__Guard_roles_and_role_links extends BaseJavaMi
           END IF;
           IF TG_OP <> 'DELETE' THEN
             SELECT tenant_id INTO role_tenant FROM roles WHERE role_id = NEW.role_id FOR SHARE;
-            IF FOUND AND role_tenant IS NULL THEN
+            IF NOT FOUND THEN
+              RAISE EXCEPTION 'insert or update on table "roles_capabilities" violates foreign key constraint: role % is not visible',
+                NEW.role_id USING ERRCODE = '23503';
+            END IF;
+            IF role_tenant IS NULL THEN
               PERFORM require_tenant_write(NULL, true);
             END IF;
           END IF;
@@ -148,11 +156,13 @@ public class V6_20261117090000000__Guard_roles_and_role_links extends BaseJavaMi
           END IF;
           SELECT tenant_id INTO role_tenant FROM roles WHERE role_id = NEW.role_id FOR SHARE;
           IF NOT FOUND THEN
-            RETURN NEW;
+            RAISE EXCEPTION 'insert or update on table "groups_roles" violates foreign key constraint: role % is not visible',
+              NEW.role_id USING ERRCODE = '23503';
           END IF;
           SELECT tenant_id INTO group_tenant FROM groups WHERE group_id = NEW.group_id FOR SHARE;
           IF NOT FOUND THEN
-            RETURN NEW;
+            RAISE EXCEPTION 'insert or update on table "groups_roles" violates foreign key constraint: group % is not visible',
+              NEW.group_id USING ERRCODE = '23503';
           END IF;
           IF role_tenant IS DISTINCT FROM group_tenant THEN
             RAISE EXCEPTION 'link of role % to group % refused: the role and the group are not of the same tenant',
